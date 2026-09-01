@@ -32,7 +32,7 @@ feature/fe/login-ui ─────────────●
 - `[AI]` : AI Model
 - `[COMMON]` : root 폴더 작업 시
 
-각 파트별로 생성된 `/frontend, /backend, /ai 폴더를 root 폴더로 보고 작업합니다. 다른 파트의 폴더는 접근하지 않습니다.
+각 파트별로 생성된 `/frontend`, `/backend`, `/ai` 폴더를 root 폴더로 보고 작업합니다. 다른 파트의 폴더는 접근하지 않습니다.
 
 ---
 
