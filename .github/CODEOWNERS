@@ -12,4 +12,9 @@
 # 즉 이게 발동한다는 건 **팀이 `.github/` 를 건드렸다**는 뜻이다.
 
 # 리뷰 자동화(멘토 자동 지정 · Discord 알림)가 여기서 돈다.
-/.github/ @kakaotechcampus-4/operators
+/.github/ @junseok-elice
+
+# 파트별 자동 리뷰어 지정
+/backend/       @Homeria @niceome @hyotatoFrappuccino
+/frontend/      @SumiNK03 @niceome
+/ai/            @gkrdls @Homeria @gityhb
