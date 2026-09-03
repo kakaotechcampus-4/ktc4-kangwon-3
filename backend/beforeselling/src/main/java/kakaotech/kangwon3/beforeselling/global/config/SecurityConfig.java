@@ -42,10 +42,16 @@ public class SecurityConfig {
 
     /** 인증 없이 접근 가능한 경로.  */
     private static final String[] PUBLIC_ENDPOINTS = {
+            // Auth
             "/oauth2/**",
             "/login/oauth2/**",
             "/api/v1/auth/reissue",
             "/error",
+            
+            // Swagger
+            "/swagger-ui/**",
+            "/swagger-ui.html",
+            "/v3/api-docs/**",
     };
 
     private final AppProperties appProperties;
