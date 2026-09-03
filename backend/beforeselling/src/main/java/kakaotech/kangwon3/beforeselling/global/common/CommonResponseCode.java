@@ -16,6 +16,9 @@ public enum CommonResponseCode implements BaseResponseCode {
     INVALID_METHOD_ARGUMENT(HttpStatus.BAD_REQUEST, "COMMON-002", "올바르지 않은 요청 형식입니다."),
     DATA_INTEGRITY_VIOLATION(HttpStatus.BAD_REQUEST, "COMMON-003", "데이터 무결성 제약 조건을 위반하였습니다."),
 
+    // 401 Unauthorized
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "COMMON-008", "인증이 필요합니다."),
+
     // 403 Forbidden
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON-004", "요청 리소스에 대한 접근 권한이 없습니다."),
 
