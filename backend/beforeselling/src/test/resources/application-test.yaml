@@ -1,0 +1,40 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:beforeselling;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: test-kakao-client-id
+            client-secret: test-kakao-client-secret
+          naver:
+            client-id: test-naver-client-id
+            client-secret: test-naver-client-secret
+          google:
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+
+jwt:
+  secret: test-jwt-secret-key-must-be-at-least-32-bytes-long-0123456789
+  access-token-expiration: 30m
+  refresh-token-expiration: 14d
+
+app:
+  cors:
+    allowed-origins: http://localhost:5173
+  oauth2:
+    frontend-redirect-uri: http://localhost:5173/oauth/callback
+  cookie:
+    secure: false
+    same-site: Lax
