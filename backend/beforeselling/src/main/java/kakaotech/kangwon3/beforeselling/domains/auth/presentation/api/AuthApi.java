@@ -44,7 +44,7 @@ public interface AuthApi {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "로그아웃 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401",
-                    description = "COMMON-008: 인증 없음 / AUTH-001: 액세스 토큰 만료 / AUTH-002: 액세스 토큰 무효",
+                    description = "COMMON-004: 인증 없음 / AUTH-001: 액세스 토큰 만료 / AUTH-002: 액세스 토큰 무효",
                     content = @Content(schema = @Schema(implementation = ApiResponse.class))),
     })
     ResponseEntity<ApiResponse<Void>> logout(
