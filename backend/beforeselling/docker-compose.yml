@@ -14,6 +14,8 @@ services:
       -c shared_buffers=256MB
       -c max_connections=50
       -c effective_cache_size=768MB
+    ports:
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -38,6 +40,8 @@ services:
       --maxmemory-policy allkeys-lru
       --appendonly no
       --save ""
+    ports:
+      - "6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
