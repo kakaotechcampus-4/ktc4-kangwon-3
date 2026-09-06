@@ -59,6 +59,42 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("이미 가입된 소셜 사용자로 조회하면 기존 회원을 반환하고 isNewUser는 false다.")
+    void getOrCreateUser_withExistingSocialUser_thenReturnExistingUser() {
+        // given
+        User user = createUser(1L);
+        given(userRepository.findBySocialProviderAndSocialId(SocialProvider.KAKAO, "social-id"))
+                .willReturn(Optional.of(user));
+
+        // when
+        UserLookupResult result = userService.getOrCreateUser(
+                SocialProvider.KAKAO, "social-id", "user@example.com", "사용자");
+
+        // then
+        assertThat(result.user()).isEqualTo(user);
+        assertThat(result.isNewUser()).isFalse();
+        then(userRepository).should(never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    @DisplayName("가입되지 않은 소셜 사용자로 조회하면 신규 가입시키고 isNewUser는 true다.")
+    void getOrCreateUser_withNewSocialUser_thenCreateUser() {
+        // given
+        User newUser = createUser(1L);
+        given(userRepository.findBySocialProviderAndSocialId(SocialProvider.KAKAO, "social-id"))
+                .willReturn(Optional.empty());
+        given(userRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(User.class))).willReturn(newUser);
+
+        // when
+        UserLookupResult result = userService.getOrCreateUser(
+                SocialProvider.KAKAO, "social-id", "user@example.com", "사용자");
+
+        // then
+        assertThat(result.user()).isEqualTo(newUser);
+        assertThat(result.isNewUser()).isTrue();
+    }
+
+    @Test
     @DisplayName("회원을 탈퇴 처리하면 저장소에서 삭제된다.")
     void withdraw_thenDeleteUser() {
         // given
