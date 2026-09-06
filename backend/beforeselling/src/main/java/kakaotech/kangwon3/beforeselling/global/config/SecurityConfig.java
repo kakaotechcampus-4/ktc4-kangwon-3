@@ -53,6 +53,9 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/v3/api-docs/**",
             "/error-codes",
+
+            // health check
+            "/actuator/health",
     };
 
     private final AppProperties appProperties;
