@@ -15,7 +15,9 @@ class ExtractionInput(StrictModel):
     # source_url은 출처 표시용이며, URL만으로 페이지를 수집하는 기능은 포함하지 않는다.
     source_url: str | None = None
     text_blocks: list[str] = Field(default_factory=list)
-    # 이미지 참조 전달 방식(URL/파일/바이트)은 추출 담당자와 추가 합의가 필요하다.
+    # 2026-09-06 결정: http(s) URL과 data:image/...;base64,... 문자열을 모두 받는다.
+    # 로컬 이미지(테스트 픽스처 등)는 호출자가 data URI로 인코딩해서 넣는다.
+    # 별도 바이트 필드를 두지 않은 이유: OpenAI vision API가 두 형식을 동일하게 처리한다.
     image_urls: list[str] = Field(default_factory=list)
 
 
