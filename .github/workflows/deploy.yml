@@ -64,7 +64,8 @@ jobs:
         run: |
           cat > /tmp/params.json <<EOF
           {"commands":[
-            "set -eu",
+            "#!/bin/bash",
+            "set -euo pipefail",
             "aws s3 cp s3://${S3_BUCKET}/app-${GITHUB_SHA}.tar.gz /tmp/app.tar.gz",
             "rm -rf ${APP_DIR}/release && mkdir -p ${APP_DIR}/release",
             "tar xzf /tmp/app.tar.gz -C ${APP_DIR}/release",
