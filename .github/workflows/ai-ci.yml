@@ -1,0 +1,37 @@
+name: AI CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "ai/**"
+  push:
+    branches: [develop]
+    paths:
+      - "ai/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 3.11 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 테스트 실행
+        run: pytest
+
+      - name: Docker 이미지 빌드 확인
+        run: docker build -t ai-server .
