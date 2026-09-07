@@ -14,7 +14,6 @@ from dotenv import load_dotenv
 # 실행 위치와 관계없이 이 프로젝트의 ai/.env만 읽는다.
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
 
-DEFAULT_BASE_URL = "https://mlapi.run/4bbd0c4d-bf02-4e59-a635-457b1c30c56a/v1"
 DEFAULT_MODEL = "openai/gpt-4.1-mini"
 
 # 팀 공용 크레딧으로 의도하지 않은 모델을 호출하지 않도록 제한한다.
@@ -30,10 +29,10 @@ class ConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class Settings:
-    """모델 호출 설정. API 키는 repr에 노출하지 않는다."""
+    """모델 호출 설정. API 키, BASE_URL은 repr에 노출하지 않는다."""
 
     api_key: str = field(repr=False)
-    base_url: str = DEFAULT_BASE_URL
+    base_url: str = field(repr=False)
     model: str = DEFAULT_MODEL
 
     def __post_init__(self) -> None:
@@ -59,9 +58,16 @@ def load_settings() -> Settings:
             "(.env.example 참고)."
         )
 
+    base_url = os.environ.get("OPENAI_BASE_URL", "")
+    if not base_url:
+        raise ConfigError(
+            f"OPENAI_BASE_URL가 없습니다. {ENV_FILE}를 만들고 키를 넣으세요"
+            "(.env.example 참고)."
+        )
+
     return Settings(
         api_key=api_key,
-        base_url=os.environ.get("OPENAI_BASE_URL") or DEFAULT_BASE_URL,
+        base_url=base_url,
         model=os.environ.get("OPENAI_MODEL") or DEFAULT_MODEL,
     )
 
