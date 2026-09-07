@@ -9,9 +9,9 @@ from typing import Any, Protocol
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from .extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from ..schemas.agent import ExtractionInput
 from ..schemas.product import Attribute, ProductAttributes, Product
+from ..utils.extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 
 _PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "extraction.md"
 

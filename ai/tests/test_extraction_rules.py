@@ -1,6 +1,6 @@
 """extraction_rules.py 단위 테스트. LLM을 전혀 안 써서 API 키 없이도 돈다."""
 
-from app.agents.extraction_rules import (
+from app.utils.extraction_rules import (
     detect_battery_capacity_conflict,
     extract_rule_based_attributes,
 )
