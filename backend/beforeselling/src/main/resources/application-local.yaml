@@ -18,5 +18,6 @@ spring:
 
 logging:
   level:
-    org.hibernate.SQL: debug
+#    org.hibernate.SQL: debug
     org.springframework.security: debug
+    kakaotech.kangwon3.beforeselling: debug
