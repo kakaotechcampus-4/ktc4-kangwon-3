@@ -1,6 +1,8 @@
 @import 'tailwindcss';
+@import 'pretendard/dist/web/variable/pretendardvariable.css';
 
 @theme {
+    --font-sans: 'Pretendard Variable', 'Pretendard', sans-serif;
     /* Primary - CTA 버튼 (진단서 확인하기, 상품 추가하기 등) */
     --color-primary: #1058FC;
 
