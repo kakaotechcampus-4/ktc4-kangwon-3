@@ -15,14 +15,11 @@ class Attribute(StrictModel):
     source_text: str | None = None
     source_url: str | None = None
 
-# 상품 페이지에서 파싱한 사실
-# 추출 담당자는 이 모델을 출력하고 선택 담당자는 같은 모델을 입력으로 사용한다.
-# 모델은 입력 형식만 검사하며, 상품 특성을 자동으로 추출·판정하지는 않는다.
-class Product(StrictModel):
-    """상품 상세페이지에서 파싱해 툴 선택에 사용하는 정보."""
 
-    # 필수 식별자. 상품 정보와 이후 심사 결과를 연결할 때 사용한다.
-    product_id: str
+# LLM structured output에도, Product에도 쓰이는 상품 특성 필드.
+# product_id·source_url은 추출 에이전트가 LLM으로 만들지 않고 ExtractionInput에서
+# 그대로 옮겨 담으므로(식별자를 모델이 지어내지 않도록) 이 클래스에는 넣지 않는다.
+class ProductAttributes(StrictModel):
     product_name: str | None = None
     category: str | None = None
     intended_use: str | None = None
@@ -73,4 +70,14 @@ class Product(StrictModel):
     listing_text: list[str] = Field(default_factory=list)
     # 추가 재질·성분·기능 등을 근거와 함께 담는다. 고정 필드를 임의로 늘리는 대신 활용한다.
     attributes: list[Attribute] = Field(default_factory=list)
+
+
+# 상품 페이지에서 파싱한 사실
+# 추출 담당자는 이 모델을 출력하고 선택 담당자는 같은 모델을 입력으로 사용한다.
+# 모델은 입력 형식만 검사하며, 상품 특성을 자동으로 추출·판정하지는 않는다.
+class Product(ProductAttributes):
+    """상품 상세페이지에서 파싱해 툴 선택에 사용하는 정보."""
+
+    # 필수 식별자. 상품 정보와 이후 심사 결과를 연결할 때 사용한다.
+    product_id: str
     source_url: str | None = None
