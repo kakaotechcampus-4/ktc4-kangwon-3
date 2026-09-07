@@ -18,7 +18,20 @@ def test_api_key가_없으면_설정_로딩에_실패한다(monkeypatch):
 
 def test_허용되지_않은_모델은_거부한다():
     with pytest.raises(config.ConfigError, match="허용되지 않은 모델"):
-        config.Settings(api_key="test-key", model="openai/gpt-4.1")
+        config.Settings(
+            api_key="test-key",
+            base_url="https://mlapi.run/example/v1",
+            model="openai/gpt-4.1",
+        )
+
+
+def test_base_url이_없으면_설정_로딩에_실패한다(monkeypatch):
+    monkeypatch.setattr(config, "load_dotenv", lambda **kwargs: False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+
+    with pytest.raises(config.ConfigError, match="OPENAI_BASE_URL"):
+        config.load_settings()
 
 
 @pytest.mark.parametrize(
@@ -32,6 +45,26 @@ def test_허용되지_않은_모델은_거부한다():
 def test_잘못된_base_url은_거부한다(base_url):
     with pytest.raises(config.ConfigError, match="Base URL"):
         config.Settings(api_key="test-key", base_url=base_url)
+
+
+def test_잘못된_base_url은_오류_메시지에_노출되지_않는다():
+    private_url = "https://mlapi.run/private-endpoint"
+
+    with pytest.raises(config.ConfigError) as exc_info:
+        config.Settings(api_key="test-key", base_url=private_url)
+
+    assert private_url not in str(exc_info.value)
+
+
+def test_api_key와_base_url은_repr에_노출되지_않는다():
+    settings = config.Settings(
+        api_key="private-api-key",
+        base_url="https://mlapi.run/private-endpoint/v1",
+    )
+
+    representation = repr(settings)
+    assert "private-api-key" not in representation
+    assert "private-endpoint" not in representation
 
 
 def test_build_chat_model이_설정값을_chatopenai에_전달한다(monkeypatch):
