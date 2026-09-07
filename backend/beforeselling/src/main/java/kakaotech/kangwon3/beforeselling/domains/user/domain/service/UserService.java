@@ -52,4 +52,10 @@ public class UserService {
         userRepository.delete(user);
         log.debug("회원 탈퇴 처리 완료. userId={}", userId);
     }
+
+    @Transactional
+    public void updateSocialRefreshToken(Long userId, String refreshToken) {
+        User user = getUser(userId);
+        user.updateSocialRefreshToken(refreshToken);
+    }
 }
