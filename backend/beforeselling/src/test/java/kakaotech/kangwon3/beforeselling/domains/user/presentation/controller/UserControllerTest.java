@@ -24,6 +24,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -64,6 +65,9 @@ class UserControllerTest {
 
     @MockitoBean
     private RedisOAuth2AuthorizationRequestRepository authorizationRequestRepository;
+
+    @MockitoBean
+    private OAuth2AuthorizedClientRepository authorizedClientRepository;
 
     @Test
     @DisplayName("인증 없이 회원 탈퇴를 요청하면 401과 COMMON-004 코드를 응답한다.")

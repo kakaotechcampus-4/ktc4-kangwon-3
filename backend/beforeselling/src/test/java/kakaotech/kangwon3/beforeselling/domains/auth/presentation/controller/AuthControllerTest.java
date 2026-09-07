@@ -28,6 +28,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -69,6 +70,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private RedisOAuth2AuthorizationRequestRepository authorizationRequestRepository;
+
+    @MockitoBean
+    private OAuth2AuthorizedClientRepository authorizedClientRepository;
 
     @Test
     @DisplayName("리프레시 토큰 쿠키 없이 재발급을 요청하면 401과 AUTH-003 코드를 응답한다.")
