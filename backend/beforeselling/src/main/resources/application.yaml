@@ -51,9 +51,12 @@ spring:
             user-info-uri: https://openapi.naver.com/v1/nid/me
             user-name-attribute: response
           google:
-            # 회원 탈퇴 시 재로그인 없이 unlink하려면 항상 최신 refresh_token을 갖고 있어야 하므로,
-            # 매 로그인마다 강제 재동의(prompt=consent)시켜 refresh_token을 새로 발급받는다.
             authorization-uri: https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&prompt=consent
+
+oauth2:
+  unlink:
+    kakao:
+      admin-key: ${KAKAO_ADMIN_KEY}
 
 crypto:
   secret-key: ${TOKEN_ENCRYPTION_KEY}

@@ -39,5 +39,10 @@ app:
     secure: false
     same-site: Lax
 
+oauth2:
+  unlink:
+    kakao:
+      admin-key: test-kakao-admin-key
+
 crypto:
   secret-key: eXlMlYPHwWqnT+Ql6zvX4S8LW2HE8wIVht91Mjr59Jg=
