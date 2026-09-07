@@ -3,29 +3,29 @@
 import pytest
 
 from app.schemas.agent import ExtractionInput
-from app.schemas.product import ExtractedProductFields, Product
+from app.schemas.product import ProductAttributes, Product
 from app.agents.extraction import ExtractionAgent, ExtractionFailedError, _default_model
 
 
 class _StubChatModel:
     """with_structured_output(...).invoke(...) 인터페이스만 흉내 낸 테스트 전용 스텁."""
 
-    def __init__(self, result: ExtractedProductFields) -> None:
+    def __init__(self, result: ProductAttributes) -> None:
         self._result = result
         self.received_messages: list | None = None
 
     def with_structured_output(self, schema: type) -> "_StubChatModel":
-        assert schema is ExtractedProductFields
+        assert schema is ProductAttributes
         return self
 
-    def invoke(self, messages: list) -> ExtractedProductFields:
+    def invoke(self, messages: list) -> ProductAttributes:
         self.received_messages = messages
         return self._result
 
 
 def test_모델이_채운_상품_특성에_입력의_식별자와_출처가_합쳐진다():
     # Given: 모델은 상품 특성만 채우고 식별자·출처는 모른다.
-    stub_result = ExtractedProductFields(product_name="4채널 드론", wireless_comm=True)
+    stub_result = ProductAttributes(product_name="4채널 드론", wireless_comm=True)
     agent = ExtractionAgent(model=_StubChatModel(stub_result))
     source = ExtractionInput(
         product_id="prod-1",
@@ -45,7 +45,7 @@ def test_모델이_채운_상품_특성에_입력의_식별자와_출처가_합�
 
 
 def test_텍스트와_이미지가_모두_없으면_예외를_낸다():
-    agent = ExtractionAgent(model=_StubChatModel(ExtractedProductFields()))
+    agent = ExtractionAgent(model=_StubChatModel(ProductAttributes()))
     source = ExtractionInput(product_id="prod-2")
 
     with pytest.raises(ValueError):
@@ -53,7 +53,7 @@ def test_텍스트와_이미지가_모두_없으면_예외를_낸다():
 
 
 def test_텍스트와_이미지가_하나의_사용자_메시지로_모델에_전달된다():
-    stub_model = _StubChatModel(ExtractedProductFields())
+    stub_model = _StubChatModel(ProductAttributes())
     agent = ExtractionAgent(model=stub_model)
     source = ExtractionInput(
         product_id="prod-3",
@@ -76,7 +76,7 @@ class _RaisingChatModel:
     def with_structured_output(self, schema: type) -> "_RaisingChatModel":
         return self
 
-    def invoke(self, messages: list) -> ExtractedProductFields:
+    def invoke(self, messages: list) -> ProductAttributes:
         raise RuntimeError("rate limit exceeded")
 
 

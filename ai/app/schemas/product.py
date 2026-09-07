@@ -16,7 +16,7 @@ class Attribute(StrictModel):
     source_url: str | None = None
 
 
-# Product와 ExtractedProductFields가 공유하는 필드.
+# LLM structured output에도, Product에도 쓰이는 상품 특성 필드.
 # product_id·source_url은 추출 에이전트가 LLM으로 만들지 않고 ExtractionInput에서
 # 그대로 옮겨 담으므로(식별자를 모델이 지어내지 않도록) 이 클래스에는 넣지 않는다.
 class ProductAttributes(StrictModel):
@@ -70,13 +70,6 @@ class ProductAttributes(StrictModel):
     listing_text: list[str] = Field(default_factory=list)
     # 추가 재질·성분·기능 등을 근거와 함께 담는다. 고정 필드를 임의로 늘리는 대신 활용한다.
     attributes: list[Attribute] = Field(default_factory=list)
-
-
-# 추출 에이전트가 LLM structured output으로 직접 채우는 필드 집합.
-# product_id·source_url을 갖지 않아 모델이 식별자·출처를 지어낼 수 없다.
-# ExtractionAgent가 이 결과에 ExtractionInput의 product_id·source_url을 더해 Product를 만든다.
-class ExtractedProductFields(ProductAttributes):
-    """LLM structured output 전용 스키마. 단독으로는 상품을 식별하지 못한다."""
 
 
 # 상품 페이지에서 파싱한 사실

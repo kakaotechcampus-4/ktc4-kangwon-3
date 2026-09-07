@@ -9,7 +9,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..schemas.agent import ExtractionInput
-from ..schemas.product import ExtractedProductFields, Product
+from ..schemas.product import ProductAttributes, Product
 
 _PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "extraction.md"
 
@@ -26,7 +26,7 @@ class ExtractionFailedError(RuntimeError):
 class _StructuredExtractor(Protocol):
     """``model.with_structured_output(...)``가 돌려주는 결과물의 최소 인터페이스."""
 
-    def invoke(self, messages: list) -> ExtractedProductFields: ...
+    def invoke(self, messages: list) -> ProductAttributes: ...
 
 
 class _ModelLike(Protocol):
@@ -36,7 +36,7 @@ class _ModelLike(Protocol):
     테스트에서는 ``BaseChatModel``을 상속하지 않는 가벼운 스텁도 그대로 넘길 수 있다.
     """
 
-    def with_structured_output(self, schema: type[ExtractedProductFields]) -> _StructuredExtractor: ...
+    def with_structured_output(self, schema: type[ProductAttributes]) -> _StructuredExtractor: ...
 
 
 @lru_cache(maxsize=1)
@@ -66,7 +66,7 @@ class ExtractionAgent:
     def __init__(self, model: _ModelLike | None = None) -> None:
         # model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있다.
         self._structured_model = (model or _default_model()).with_structured_output(
-            ExtractedProductFields
+            ProductAttributes
         )
 
     def extract(self, source: ExtractionInput) -> Product:
