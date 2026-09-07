@@ -5,7 +5,7 @@ import MainPage from './pages/Main/index.tsx'
 import LoginPage from './pages/Login/index.tsx'
 import UploadPage from './pages/Upload/index.tsx'
 import QuestionPage from './pages/Question/index.tsx'
-import JudgementPage from './pages/Judgment/index.tsx'
+import JudgementPage from './pages/Judgement/index.tsx'
 import ResultPage from './pages/Result/index.tsx'
 import MyPage from './pages/Mypage/index.tsx'
 

@@ -1,4 +1,4 @@
-function JudgmentPage() {
+function JudgementPage() {
     return (
         <div>
             <h1>판정 중 페이지 입니다.</h1>
@@ -6,4 +6,4 @@ function JudgmentPage() {
     );
 }
 
-export default JudgmentPage;
+export default JudgementPage;
