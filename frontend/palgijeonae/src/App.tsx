@@ -9,6 +9,7 @@ import QuestionPage from './pages/Question/index.tsx'
 import JudgementPage from './pages/Judgement/index.tsx'
 import ResultPage from './pages/Result/index.tsx'
 import MyPage from './pages/Mypage/index.tsx'
+import NotFoundPage from './pages/NotFound/index.tsx'
 
 function App() {
 
@@ -27,6 +28,8 @@ function App() {
               <Route path="/result" element={<ResultPage />} />
               <Route path="/mypage" element={<MyPage />} />
             </Route>
+
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
