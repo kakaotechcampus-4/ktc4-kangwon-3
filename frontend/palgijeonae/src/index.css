@@ -1,1 +1,22 @@
 @import 'tailwindcss';
+
+@theme {
+    /* Primary - CTA 버튼 (진단서 확인하기, 상품 추가하기 등) */
+    --color-primary: #1058FC;
+
+    /* Neutral - 텍스트, 테두리, 비활성 탭 */
+    --color-neutral-dark: #646464;    /* 선택된 탭 배경, 보조 설명 텍스트 */
+    --color-neutral-border: #9D9D9D;  /* 카드 테두리, placeholder, 비활성 텍스트 */
+    --color-neutral-label: #8791A0;   /* 진단 근거 상세 라벨(주관부처, 근거조문 등) */
+    --color-neutral-muted: #57626F;   /* 진단 근거 상세 본문 텍스트 */
+
+    /* Status - 진단 결과 상태 (배지, 태그, 경고 배너 공통) */
+    --color-status-success: #2F7A4D;
+    --color-status-success-bg: #E5F2E9;   /* 통과 / 구매대행 가능 */
+
+    --color-status-danger: #9C3B2C;
+    --color-status-danger-bg: #F6E8E3;    /* 사입 인증 필요 */
+
+    --color-status-warning: #8A6510;
+    --color-status-warning-bg: #F5EED7;   /* 재확인 필요 / 경고 배너 */
+}
