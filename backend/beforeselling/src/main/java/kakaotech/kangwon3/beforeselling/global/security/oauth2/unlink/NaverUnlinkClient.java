@@ -2,12 +2,13 @@ package kakaotech.kangwon3.beforeselling.global.security.oauth2.unlink;
 
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.SocialProvider;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
-import kakaotech.kangwon3.beforeselling.global.security.oauth2.unlink.dto.NaverTokenResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Slf4j
@@ -16,6 +17,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class NaverUnlinkClient implements SocialUnlinkClient {
 
     private static final String REGISTRATION_ID = "naver";
+    private static final String REVOKE_URI = "https://nid.naver.com/oauth2.0/revoke";
 
     private final WebClient webClient;
     private final ClientRegistrationRepository clientRegistrationRepository;
@@ -34,44 +36,16 @@ public class NaverUnlinkClient implements SocialUnlinkClient {
         }
 
         ClientRegistration registration = clientRegistrationRepository.findByRegistrationId(REGISTRATION_ID);
-        String accessToken = reissueAccessToken(registration, refreshToken);
-        revoke(registration, accessToken);
-    }
 
-    private String reissueAccessToken(ClientRegistration registration, String refreshToken) {
-        NaverTokenResponse response = webClient.post()
-                .uri(uriBuilder -> uriBuilder.scheme("https").host("nid.naver.com").path("/oauth2.0/token")
-                        .queryParam("grant_type", "refresh_token")
-                        .queryParam("client_id", registration.getClientId())
-                        .queryParam("client_secret", registration.getClientSecret())
-                        .queryParam("refresh_token", refreshToken)
-                        .build())
+        webClient.post()
+                .uri(REVOKE_URI)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData("client_id", registration.getClientId())
+                        .with("client_secret", registration.getClientSecret())
+                        .with("token", refreshToken)
+                        .with("token_type_hint", "refresh_token"))
                 .retrieve()
-                .bodyToMono(NaverTokenResponse.class)
+                .toBodilessEntity()
                 .block();
-
-        if (response == null || response.accessToken() == null) {
-            throw new IllegalStateException("네이버 access_token 재발급에 실패했습니다: "
-                    + (response == null ? "empty response" : response.error()));
-        }
-        return response.accessToken();
-    }
-
-    private void revoke(ClientRegistration registration, String accessToken) {
-        NaverTokenResponse response = webClient.post()
-                .uri(uriBuilder -> uriBuilder.scheme("https").host("nid.naver.com").path("/oauth2.0/token")
-                        .queryParam("grant_type", "delete")
-                        .queryParam("client_id", registration.getClientId())
-                        .queryParam("client_secret", registration.getClientSecret())
-                        .queryParam("access_token", accessToken)
-                        .queryParam("service_provider", "NAVER")
-                        .build())
-                .retrieve()
-                .bodyToMono(NaverTokenResponse.class)
-                .block();
-
-        if (response != null && response.error() != null) {
-            throw new IllegalStateException("네이버 unlink에 실패했습니다: " + response.error());
-        }
     }
 }

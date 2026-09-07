@@ -6,12 +6,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -20,13 +18,14 @@ import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.inOrder;
+import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,41 +38,8 @@ class NaverUnlinkClientTest {
     private ClientRegistrationRepository clientRegistrationRepository;
 
     @Test
-    @DisplayName("refresh_token으로 access_token을 재발급받은 뒤 그 access_token으로 unlink를 요청한다.")
-    void unlink_withRefreshToken_thenReissueAccessTokenAndRevoke() {
-        // given
-        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
-        NaverUnlinkClient client = new NaverUnlinkClient(webClient, clientRegistrationRepository);
-        User user = userWithRefreshToken("naver-refresh-token");
-
-        given(clientRegistrationRepository.findByRegistrationId("naver")).willReturn(naverRegistration());
-        given(exchangeFunction.exchange(any())).willReturn(
-                Mono.just(jsonResponse("{\"access_token\":\"new-access-token\"}")),
-                Mono.just(jsonResponse("{}")));
-
-        // when
-        client.unlink(user);
-
-        // then
-        ArgumentCaptor<ClientRequest> captor = ArgumentCaptor.forClass(ClientRequest.class);
-        InOrder inOrder = inOrder(exchangeFunction);
-        then(exchangeFunction).should(inOrder, org.mockito.Mockito.times(2)).exchange(captor.capture());
-
-        ClientRequest reissueRequest = captor.getAllValues().get(0);
-        assertThat(reissueRequest.url().toString()).contains("grant_type=refresh_token")
-                .contains("refresh_token=naver-refresh-token")
-                .contains("client_id=naver-client-id")
-                .contains("client_secret=naver-client-secret");
-
-        ClientRequest revokeRequest = captor.getAllValues().get(1);
-        assertThat(revokeRequest.url().toString()).contains("grant_type=delete")
-                .contains("access_token=new-access-token")
-                .contains("service_provider=NAVER");
-    }
-
-    @Test
-    @DisplayName("access_token 재발급에 실패하면 예외를 던진다.")
-    void unlink_whenReissueFails_thenThrow() {
+    @DisplayName("저장된 refresh_token으로 네이버 Token Revocation API(token_type_hint=refresh_token)를 호출한다.")
+    void unlink_withRefreshToken_thenCallNaverRevokeApi() {
         // given
         WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
         NaverUnlinkClient client = new NaverUnlinkClient(webClient, clientRegistrationRepository);
@@ -81,17 +47,54 @@ class NaverUnlinkClientTest {
 
         given(clientRegistrationRepository.findByRegistrationId("naver")).willReturn(naverRegistration());
         given(exchangeFunction.exchange(any()))
-                .willReturn(Mono.just(jsonResponse("{\"error\":\"invalid_grant\"}")));
+                .willReturn(Mono.just(ClientResponse.create(HttpStatus.OK).build()));
 
-        // when & then
-        assertThatThrownBy(() -> client.unlink(user)).isInstanceOf(IllegalStateException.class);
+        // when
+        client.unlink(user);
+
+        // then
+        ArgumentCaptor<ClientRequest> captor = ArgumentCaptor.forClass(ClientRequest.class);
+        then(exchangeFunction).should().exchange(captor.capture());
+
+        ClientRequest request = captor.getValue();
+        assertThat(request.method()).isEqualTo(HttpMethod.POST);
+        assertThat(request.url().toString()).isEqualTo("https://nid.naver.com/oauth2.0/revoke");
+        assertThat(WebClientRequestBodyReader.readBodyAsString(request)).isEqualTo(
+                "client_id=naver-client-id&client_secret=naver-client-secret"
+                        + "&token=naver-refresh-token&token_type_hint=refresh_token");
     }
 
-    private ClientResponse jsonResponse(String body) {
-        return ClientResponse.create(HttpStatus.OK)
-                .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .body(body)
-                .build();
+    @Test
+    @DisplayName("refresh_token이 없으면 API를 호출하지 않고 건너뛴다.")
+    void unlink_withoutRefreshToken_thenSkip() {
+        // given
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+        NaverUnlinkClient client = new NaverUnlinkClient(webClient, clientRegistrationRepository);
+        User user = User.socialSignup(SocialProvider.NAVER, "naver-social-id", "user@example.com", "사용자");
+
+        // when
+        client.unlink(user);
+
+        // then
+        then(exchangeFunction).should(never()).exchange(any());
+    }
+
+    @Test
+    @DisplayName("네이버가 실패 상태 코드를 응답하면 예외를 던진다(성공 판단은 응답 바디가 아닌 상태 코드 기준).")
+    void unlink_whenNaverRespondsWithErrorStatus_thenThrow() {
+        // given
+        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+        NaverUnlinkClient client = new NaverUnlinkClient(webClient, clientRegistrationRepository);
+        User user = userWithRefreshToken("naver-refresh-token");
+
+        given(clientRegistrationRepository.findByRegistrationId("naver")).willReturn(naverRegistration());
+        given(exchangeFunction.exchange(any())).willReturn(Mono.just(
+                ClientResponse.create(HttpStatus.UNAUTHORIZED)
+                        .body("{\"error\":\"unauthorized_client\",\"error_description\":\"Client authentication failed.\"}")
+                        .build()));
+
+        // when & then
+        assertThatThrownBy(() -> client.unlink(user)).isInstanceOf(WebClientResponseException.class);
     }
 
     private ClientRegistration naverRegistration() {
