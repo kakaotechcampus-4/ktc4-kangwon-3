@@ -28,10 +28,11 @@ public class UserService {
      * 소셜 로그인 사용자를 조회하고, 없으면 자동 가입 (로그인 == 회원가입)
      */
     @Transactional
-    public User getOrCreateUser(SocialProvider socialProvider, String socialId,
-                                String email, String name) {
+    public UserLookupResult getOrCreateUser(SocialProvider socialProvider, String socialId,
+                                            String email, String name) {
         return userRepository.findBySocialProviderAndSocialId(socialProvider, socialId)
-                .orElseGet(() -> createUser(socialProvider, socialId, email, name));
+                .map(user -> new UserLookupResult(user, false))
+                .orElseGet(() -> new UserLookupResult(createUser(socialProvider, socialId, email, name), true));
     }
 
     private User createUser(SocialProvider socialProvider, String socialId,

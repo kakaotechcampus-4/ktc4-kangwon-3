@@ -15,6 +15,7 @@ import java.util.Map;
 public record CustomOAuth2User(
         Long userId,
         Role role,
+        boolean isNewUser,
         Map<String, Object> attributes
 ) implements OAuth2User {
 

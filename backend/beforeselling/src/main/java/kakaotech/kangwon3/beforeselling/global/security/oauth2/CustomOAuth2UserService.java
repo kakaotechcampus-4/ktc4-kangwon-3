@@ -1,6 +1,6 @@
 package kakaotech.kangwon3.beforeselling.global.security.oauth2;
 
-import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
+import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserLookupResult;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
@@ -36,10 +36,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 throw new BaseException(AuthResponseCode.OAUTH2_LOGIN_FAILED);
             }
 
-            User user = userService.getOrCreateUser(
+            UserLookupResult lookupResult = userService.getOrCreateUser(
                     attributes.getProvider(), attributes.getSocialId(), attributes.getEmail(), attributes.getName());
 
-            return new CustomOAuth2User(user.getId(), user.getRole(), oAuth2User.getAttributes());
+            return new CustomOAuth2User(lookupResult.user().getId(), lookupResult.user().getRole(),
+                    lookupResult.isNewUser(), oAuth2User.getAttributes());
         } catch (BaseException e) {
             // 필터 체인(OAuth2LoginAuthenticationFilter) 내부이므로 @RestControllerAdvice가 아닌 실패 핸들러가 처리하도록 변환
             OAuth2Error error = new OAuth2Error(e.getResponseCode().getCode(), e.getMessage(), null);
