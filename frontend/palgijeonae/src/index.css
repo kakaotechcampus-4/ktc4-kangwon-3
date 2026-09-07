@@ -9,6 +9,7 @@
     --color-neutral-border: #9D9D9D;  /* 카드 테두리, placeholder, 비활성 텍스트 */
     --color-neutral-label: #8791A0;   /* 진단 근거 상세 라벨(주관부처, 근거조문 등) */
     --color-neutral-muted: #57626F;   /* 진단 근거 상세 본문 텍스트 */
+    --color-neutral-text: #3B3B3B; 
 
     /* Status - 진단 결과 상태 (배지, 태그, 경고 배너 공통) */
     --color-status-success: #2F7A4D;
