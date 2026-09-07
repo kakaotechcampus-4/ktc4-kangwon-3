@@ -11,9 +11,19 @@ router = APIRouter(prefix="/dummy/diagnose", tags=["더미 진단"])
 
 @router.post("/content", response_model=DiagnoseResponse, summary="텍스트·이미지 더미 진단", description="요청 스키마만 검증하고 RC 보트 고정 결과를 반환한다.")
 async def dummy_diagnose_by_content(req: ContentDiagnoseRequest) -> DiagnoseResponse:
+    """텍스트·이미지 입력 더미 진단.
+
+    Returns:
+        RC 보트 기반 더미 FinalAssessment.
+    """
     return ok_diagnose(build_dummy_assessment(req.product_id))
 
 
 @router.post("/url", response_model=DiagnoseResponse, summary="URL 더미 진단", description="요청 스키마만 검증하고 RC 보트 고정 결과를 반환한다.")
 async def dummy_diagnose_by_url(req: UrlDiagnoseRequest) -> DiagnoseResponse:
+    """URL 입력 더미 진단.
+
+    Returns:
+        RC 보트 기반 더미 FinalAssessment.
+    """
     return ok_diagnose(build_dummy_assessment(req.product_id))
