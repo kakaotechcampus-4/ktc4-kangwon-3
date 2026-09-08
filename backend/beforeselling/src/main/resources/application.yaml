@@ -65,6 +65,9 @@ app:
     secure: ${COOKIE_SECURE:false}
     same-site: ${COOKIE_SAME_SITE:Lax}
 
+server:
+  forward-headers-strategy: framework
+
 management:
   endpoints:
     web:
