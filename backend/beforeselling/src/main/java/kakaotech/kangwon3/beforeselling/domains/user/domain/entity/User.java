@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.user.domain.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -10,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import kakaotech.kangwon3.beforeselling.global.common.BaseEntity;
+import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -48,6 +50,11 @@ public class User extends BaseEntity {
     @Column(name = "role", nullable = false)
     private Role role;
 
+    /** 소셜 제공자의 refresh_token(암호화 저장). 카카오는 사용하지 않고, 네이버/구글의 연동 해제(unlink)에 사용된다. */
+    @Convert(converter = DatabaseEncryptionConverter.class)
+    @Column(name = "social_refresh_token", columnDefinition = "TEXT")
+    private String socialRefreshToken;
+
     @Builder(access = AccessLevel.PRIVATE)
     private User(String email, String name, String socialId, SocialProvider socialProvider, Role role) {
         this.email = email;
@@ -65,6 +72,10 @@ public class User extends BaseEntity {
                 .socialProvider(socialProvider)
                 .role(Role.USER)
                 .build();
+    }
+
+    public void updateSocialRefreshToken(String socialRefreshToken) {
+        this.socialRefreshToken = socialRefreshToken;
     }
 
     private static String resolveName(String name) {

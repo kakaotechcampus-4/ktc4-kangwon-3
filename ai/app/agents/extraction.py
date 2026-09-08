@@ -1,5 +1,6 @@
 """추출 담당자가 구현하는 에이전트."""
 
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -9,9 +10,12 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ..schemas.agent import ExtractionInput
-from ..schemas.product import ProductAttributes, Product
+from ..schemas.product import Attribute, ProductAttributes, Product
+from ..utils.extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 
 _PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "extraction.md"
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractionFailedError(RuntimeError):
@@ -24,9 +28,13 @@ class ExtractionFailedError(RuntimeError):
 
 
 class _StructuredExtractor(Protocol):
-    """``model.with_structured_output(...)``가 돌려주는 결과물의 최소 인터페이스."""
+    """``model.with_structured_output(..., include_raw=True)``가 돌려주는 결과물의 최소 인터페이스.
 
-    def invoke(self, messages: list) -> ProductAttributes: ...
+    invoke()는 ``{"raw": AIMessage, "parsed": ProductAttributes | None, "parsing_error": Exception | None}``
+    형태의 dict를 돌려준다. raw에서 토큰 사용량을 읽기 위해 include_raw를 켠다.
+    """
+
+    def invoke(self, messages: list) -> dict[str, Any]: ...
 
 
 class _ModelLike(Protocol):
@@ -65,8 +73,10 @@ class ExtractionAgent:
 
     def __init__(self, model: _ModelLike | None = None) -> None:
         # model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있다.
+        # include_raw=True: 파싱 결과와 함께 원본 응답을 받아 토큰 사용량(캐시 적용 여부 포함)을
+        # 기록한다. 측정이 없으면 토큰 최적화도 할 수 없다.
         self._structured_model = (model or _default_model()).with_structured_output(
-            ProductAttributes
+            ProductAttributes, include_raw=True
         )
 
     def extract(self, source: ExtractionInput) -> Product:
@@ -79,16 +89,36 @@ class ExtractionAgent:
         """
         messages = self._build_messages(source)
         try:
-            fields = self._structured_model.invoke(messages)
+            result = self._structured_model.invoke(messages)
         except Exception as exc:
-            # langchain·openai SDK의 구체적인 예외 타입(레이트리밋·인증 오류·검증 실패 등)을
+            # langchain·openai SDK의 구체적인 예외 타입(레이트리밋·인증 오류 등)을
             # 호출부가 몰라도 되게 하나로 감싼다. 여기서 삼키지 않고 원인은 그대로 보존한다.
             raise ExtractionFailedError(f"상품 정보 추출에 실패했습니다: {exc}") from exc
+
+        # include_raw=True면 스키마 불일치는 예외가 아니라 parsing_error로 돌아온다.
+        parsing_error = result.get("parsing_error")
+        fields = result.get("parsed")
+        if parsing_error is not None or fields is None:
+            raise ExtractionFailedError(
+                f"모델 응답이 상품 스키마와 맞지 않습니다: {parsing_error}"
+            ) from parsing_error
+
+        _log_token_usage(result.get("raw"))
+
+        # 규칙 기반 사전추출: LLM 호출과 완전히 독립적으로 실행하고 결과만 합친다
+        # ("규칙은 규칙, AI는 AI" — 정규식이 하나도 안 걸려도 LLM 판단엔 영향 없음).
+        rule_attributes = extract_rule_based_attributes(source.text_blocks)
+        rule_conflicts = detect_battery_capacity_conflict(source.text_blocks)
+
+        payload = fields.model_dump()
+        payload["attributes"] = _merge_attributes(fields.attributes, rule_attributes)
+        payload["conflicts"] = _merge_conflicts(fields.conflicts, rule_conflicts)
+
         # product_id·source_url은 모델이 만들지 않는다. 요청 값을 그대로 옮긴다.
         return Product(
             product_id=source.product_id,
             source_url=source.source_url,
-            **fields.model_dump(),
+            **payload,
         )
 
     def _build_messages(self, source: ExtractionInput) -> list[SystemMessage | HumanMessage]:
@@ -109,3 +139,67 @@ class ExtractionAgent:
             SystemMessage(content=_load_system_prompt()),
             HumanMessage(content=content),
         ]
+
+
+def _log_token_usage(raw_message: Any) -> None:
+    # 고정 prefix(시스템 프롬프트+스키마 ≈ 2,250토큰)가 캐시되면 cache_read에 잡힌다.
+    # 이 값이 계속 0이면 프롬프트 캐시가 안 먹는 것이므로 prefix가 호출마다 달라지는지 봐야 한다.
+    usage = getattr(raw_message, "usage_metadata", None)
+    if not usage:
+        return
+    input_details = usage.get("input_token_details") or {}
+    logger.info(
+        "추출 토큰 사용량 input=%s (cache_read=%s) output=%s total=%s",
+        usage.get("input_tokens"),
+        input_details.get("cache_read"),
+        usage.get("output_tokens"),
+        usage.get("total_tokens"),
+    )
+    # 게이트웨이(엘리스 MLAPI)가 주는 원본 필드명은 OpenAI와 다를 수 있어 디버그로 남긴다.
+    response_metadata = getattr(raw_message, "response_metadata", None) or {}
+    if response_metadata.get("token_usage"):
+        logger.debug("게이트웨이 원본 usage: %s", response_metadata["token_usage"])
+
+
+def _split_into_tokens(value: str) -> set[str]:
+    # ";"/","로 나열된 값을 토큰으로 쪼갠다. "CE-EMC(Electric)"처럼 괄호 설명이 붙은
+    # 토큰은 괄호 앞부분도 별도로 넣어서, 규칙이 뽑은 "CE-EMC"와도 정확히 매칭되게 한다.
+    tokens: set[str] = set()
+    for token in value.replace(",", ";").split(";"):
+        token = token.strip().lower()
+        if not token:
+            continue
+        tokens.add(token)
+        paren_index = token.find("(")
+        if paren_index != -1:
+            tokens.add(token[:paren_index].strip())
+    return tokens
+
+
+def _merge_attributes(
+    llm_attributes: list[Attribute], rule_attributes: list[Attribute]
+) -> list[Attribute]:
+    # LLM이 이미 뽑은 값과 정확히(또는 괄호 설명을 뗀 뒤 정확히) 같을 때만 중복으로 본다.
+    # (예: LLM이 "인증정보: CE-RoHS; CE-EMC(Electric)"를 이미 뽑았으면 규칙의 "CE-RoHS"·"CE-EMC"는
+    # 둘 다 이미 있는 값으로 인식해서 또 안 넣는다)
+    # 부분 문자열 비교는 쓰지 않는다 — "220V"가 전혀 다른 속성값 "AC-220V-A1"(모델번호 등)의
+    # 부분 문자열이라는 이유만으로 진짜 정격전압 항목이 통째로 버려지는 사고가 날 수 있다.
+    merged = list(llm_attributes)
+    existing_tokens: set[str] = set()
+    for attribute in merged:
+        existing_tokens |= _split_into_tokens(attribute.value)
+
+    for fact in rule_attributes:
+        fact_value = fact.value.strip().lower()
+        if fact_value not in existing_tokens:
+            merged.append(fact)
+            existing_tokens.add(fact_value)
+    return merged
+
+
+def _merge_conflicts(llm_conflicts: list[str], rule_conflicts: list[str]) -> list[str]:
+    merged = list(llm_conflicts)
+    for conflict in rule_conflicts:
+        if conflict not in merged:
+            merged.append(conflict)
+    return merged
