@@ -24,7 +24,7 @@ DEFAULT_MODEL = "openai/gpt-4.1-mini"
 ALLOWED_MODELS = frozenset({DEFAULT_MODEL})
 
 TIMEOUT_SECONDS = 45.0
-MAX_RETRIES = 0
+MAX_RETRIES = 1
 
 
 class ConfigError(RuntimeError):
