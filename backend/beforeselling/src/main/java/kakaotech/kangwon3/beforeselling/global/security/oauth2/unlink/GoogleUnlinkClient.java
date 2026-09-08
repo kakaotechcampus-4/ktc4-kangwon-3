@@ -6,8 +6,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
 
 @Slf4j
 @Component
@@ -16,7 +17,7 @@ public class GoogleUnlinkClient implements SocialUnlinkClient {
 
     private static final String REVOKE_URI = "https://oauth2.googleapis.com/revoke";
 
-    private final WebClient webClient;
+    private final RestClient restClient;
 
     @Override
     public SocialProvider provider() {
@@ -31,12 +32,14 @@ public class GoogleUnlinkClient implements SocialUnlinkClient {
             return;
         }
 
-        webClient.post()
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("token", refreshToken);
+
+        restClient.post()
                 .uri(REVOKE_URI)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData("token", refreshToken))
+                .body(body)
                 .retrieve()
-                .toBodilessEntity()
-                .block();
+                .toBodilessEntity();
     }
 }

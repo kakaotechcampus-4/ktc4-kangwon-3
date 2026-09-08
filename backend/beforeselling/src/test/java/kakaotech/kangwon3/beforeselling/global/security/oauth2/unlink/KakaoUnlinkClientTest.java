@@ -5,62 +5,49 @@ import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import kakaotech.kangwon3.beforeselling.global.config.properties.SocialUnlinkProperties;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.reactive.function.client.ClientRequest;
-import org.springframework.web.reactive.function.client.ClientResponse;
-import org.springframework.web.reactive.function.client.ExchangeFunction;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-@ExtendWith(MockitoExtension.class)
 class KakaoUnlinkClientTest {
-
-    @Mock
-    private ExchangeFunction exchangeFunction;
 
     @Test
     @DisplayName("Admin Key와 socialId로 카카오 unlink API를 호출한다.")
     void unlink_thenCallKakaoUnlinkApiWithAdminKeyAndSocialId() {
         // given
-        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RestClient restClient = builder.build();
+
         SocialUnlinkProperties properties = new SocialUnlinkProperties(new SocialUnlinkProperties.Kakao("admin-key-value"));
-        KakaoUnlinkClient client = new KakaoUnlinkClient(webClient, properties);
+        KakaoUnlinkClient client = new KakaoUnlinkClient(restClient, properties);
         User user = User.socialSignup(SocialProvider.KAKAO, "kakao-social-id", "user@example.com", "사용자");
 
-        given(exchangeFunction.exchange(any()))
-                .willReturn(Mono.just(ClientResponse.create(HttpStatus.OK).build()));
+        server.expect(requestTo("https://kapi.kakao.com/v1/user/unlink"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Authorization", "KakaoAK admin-key-value"))
+                .andExpect(content().string("target_id_type=user_id&target_id=kakao-social-id"))
+                .andRespond(withSuccess());
 
         // when
         client.unlink(user);
 
         // then
-        ArgumentCaptor<ClientRequest> captor = ArgumentCaptor.forClass(ClientRequest.class);
-        then(exchangeFunction).should().exchange(captor.capture());
-
-        ClientRequest request = captor.getValue();
-        assertThat(request.method()).isEqualTo(HttpMethod.POST);
-        assertThat(request.url().toString()).isEqualTo("https://kapi.kakao.com/v1/user/unlink");
-        assertThat(request.headers().getFirst(HttpHeaders.AUTHORIZATION)).isEqualTo("KakaoAK admin-key-value");
-        assertThat(WebClientRequestBodyReader.readBodyAsString(request))
-                .isEqualTo("target_id_type=user_id&target_id=kakao-social-id");
+        server.verify();
     }
 
     @Test
     @DisplayName("KAKAO provider를 반환한다.")
     void provider_thenReturnKakao() {
-        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
-        KakaoUnlinkClient client = new KakaoUnlinkClient(webClient,
+        RestClient restClient = RestClient.builder().build();
+        KakaoUnlinkClient client = new KakaoUnlinkClient(restClient,
                 new SocialUnlinkProperties(new SocialUnlinkProperties.Kakao("admin-key-value")));
 
         assertThat(client.provider()).isEqualTo(SocialProvider.KAKAO);

@@ -7,8 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
 
 @Component
 @RequiredArgsConstructor
@@ -16,7 +17,7 @@ public class KakaoUnlinkClient implements SocialUnlinkClient {
 
     private static final String UNLINK_URI = "https://kapi.kakao.com/v1/user/unlink";
 
-    private final WebClient webClient;
+    private final RestClient restClient;
     private final SocialUnlinkProperties socialUnlinkProperties;
 
     @Override
@@ -26,14 +27,16 @@ public class KakaoUnlinkClient implements SocialUnlinkClient {
 
     @Override
     public void unlink(User user) {
-        webClient.post()
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("target_id_type", "user_id");
+        body.add("target_id", user.getSocialId());
+
+        restClient.post()
                 .uri(UNLINK_URI)
                 .header(HttpHeaders.AUTHORIZATION, "KakaoAK " + socialUnlinkProperties.kakao().adminKey())
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData("target_id_type", "user_id")
-                        .with("target_id", user.getSocialId()))
+                .body(body)
                 .retrieve()
-                .toBodilessEntity()
-                .block();
+                .toBodilessEntity();
     }
 }

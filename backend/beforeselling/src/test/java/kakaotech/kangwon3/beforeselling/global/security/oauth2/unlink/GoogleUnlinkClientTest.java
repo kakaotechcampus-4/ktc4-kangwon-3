@@ -4,68 +4,58 @@ import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.SocialProvide
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.reactive.function.client.ClientRequest;
-import org.springframework.web.reactive.function.client.ClientResponse;
-import org.springframework.web.reactive.function.client.ExchangeFunction;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestClient;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.never;
-import static org.mockito.BDDMockito.then;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-@ExtendWith(MockitoExtension.class)
 class GoogleUnlinkClientTest {
-
-    @Mock
-    private ExchangeFunction exchangeFunction;
 
     @Test
     @DisplayName("저장된 refresh_token으로 구글 revoke API를 호출한다.")
     void unlink_withRefreshToken_thenCallGoogleRevokeApi() {
         // given
-        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
-        GoogleUnlinkClient client = new GoogleUnlinkClient(webClient);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RestClient restClient = builder.build();
+
+        GoogleUnlinkClient client = new GoogleUnlinkClient(restClient);
         User user = userWithRefreshToken("google-refresh-token");
 
-        given(exchangeFunction.exchange(any()))
-                .willReturn(Mono.just(ClientResponse.create(HttpStatus.OK).build()));
+        server.expect(requestTo("https://oauth2.googleapis.com/revoke"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string("token=google-refresh-token"))
+                .andRespond(withSuccess());
 
         // when
         client.unlink(user);
 
         // then
-        ArgumentCaptor<ClientRequest> captor = ArgumentCaptor.forClass(ClientRequest.class);
-        then(exchangeFunction).should().exchange(captor.capture());
-
-        ClientRequest request = captor.getValue();
-        assertThat(request.method()).isEqualTo(HttpMethod.POST);
-        assertThat(request.url().toString()).isEqualTo("https://oauth2.googleapis.com/revoke");
-        assertThat(WebClientRequestBodyReader.readBodyAsString(request)).isEqualTo("token=google-refresh-token");
+        server.verify();
     }
 
     @Test
     @DisplayName("refresh_token이 없으면 API를 호출하지 않고 건너뛴다.")
     void unlink_withoutRefreshToken_thenSkip() {
         // given
-        WebClient webClient = WebClient.builder().exchangeFunction(exchangeFunction).build();
-        GoogleUnlinkClient client = new GoogleUnlinkClient(webClient);
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        RestClient restClient = builder.build();
+
+        GoogleUnlinkClient client = new GoogleUnlinkClient(restClient);
         User user = User.socialSignup(SocialProvider.GOOGLE, "google-social-id", "user@example.com", "사용자");
 
         // when
         client.unlink(user);
 
-        // then
-        then(exchangeFunction).should(never()).exchange(any());
+        // then: 아무 요청도 기대(expect)해두지 않았으므로, 실제로 호출이 있었다면
+        // MockRestServiceServer가 즉시 AssertionError를 던진다.
+        server.verify();
     }
 
     private User userWithRefreshToken(String refreshToken) {

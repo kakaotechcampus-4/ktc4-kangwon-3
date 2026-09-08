@@ -8,8 +8,9 @@ import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
 
 @Slf4j
 @Component
@@ -19,7 +20,7 @@ public class NaverUnlinkClient implements SocialUnlinkClient {
     private static final String REGISTRATION_ID = "naver";
     private static final String REVOKE_URI = "https://nid.naver.com/oauth2.0/revoke";
 
-    private final WebClient webClient;
+    private final RestClient restClient;
     private final ClientRegistrationRepository clientRegistrationRepository;
 
     @Override
@@ -37,15 +38,17 @@ public class NaverUnlinkClient implements SocialUnlinkClient {
 
         ClientRegistration registration = clientRegistrationRepository.findByRegistrationId(REGISTRATION_ID);
 
-        webClient.post()
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("client_id", registration.getClientId());
+        body.add("client_secret", registration.getClientSecret());
+        body.add("token", refreshToken);
+        body.add("token_type_hint", "refresh_token");
+
+        restClient.post()
                 .uri(REVOKE_URI)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body(BodyInserters.fromFormData("client_id", registration.getClientId())
-                        .with("client_secret", registration.getClientSecret())
-                        .with("token", refreshToken)
-                        .with("token_type_hint", "refresh_token"))
+                .body(body)
                 .retrieve()
-                .toBodilessEntity()
-                .block();
+                .toBodilessEntity();
     }
 }
