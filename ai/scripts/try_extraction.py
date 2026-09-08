@@ -13,6 +13,7 @@ Ctrl+A로 복사해 붙여넣은 텍스트와, 상세페이지 캡쳐 이미지�
 import argparse
 import base64
 import json
+import logging
 import mimetypes
 import sys
 from pathlib import Path
@@ -45,6 +46,10 @@ def main() -> None:
     parser.add_argument("--product-id", default="manual-test-1")
     parser.add_argument("--source-url", default=None, help="출처 표시용 URL (선택)")
     args = parser.parse_args()
+
+    # 토큰 사용량 로그는 stderr로 보내서 stdout의 결과 JSON을 그대로 파이프에 넘길 수 있게 한다.
+    logging.basicConfig(level=logging.WARNING, stream=sys.stderr, format="[%(levelname)s] %(message)s")
+    logging.getLogger("app.agents.extraction").setLevel(logging.INFO)
 
     source = ExtractionInput(
         product_id=args.product_id,
