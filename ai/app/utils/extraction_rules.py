@@ -51,6 +51,13 @@ _FREQUENCY_PATTERN = re.compile(r"\d+(?:\.\d+)?\s*(?:GHz|MHz)" + _NOT_LETTER_AFT
 # 테스트 케이스) 하나만 다룬다. 다른 표현("전자 부품 미포함" 등)은 잡지 못할 수 있다.
 _NO_BATTERY_PATTERN = re.compile(r"(?:배터리|전지).{0,10}미포함")
 
+# 부속품 배터리를 가리키는 문맥. "드론 내장 1500mAh + 리모컨용 AA 배터리 미포함"처럼
+# 본체 용량과 부속품 배터리를 함께 적은 경우는 모순이 아니므로 후보에서 제외한다.
+_ACCESSORY_BATTERY_PATTERN = re.compile(
+    r"(?:리모컨|리모트|조종기|송신기|컨트롤러|별매|별도\s*구매|AA|AAA)"
+    r"[^.\n]{0,20}(?:배터리|전지).{0,10}미포함"
+)
+
 _PATTERNS_BY_NAME = (
     (_KC_CERT_NUMBER_PATTERN, "KC 인증번호"),
     (_RADIO_CERT_NUMBER_PATTERN, "전파 인증번호"),
@@ -75,7 +82,11 @@ def extract_rule_based_attributes(text_blocks: list[str]) -> list[Attribute]:
 
 def detect_battery_capacity_conflict(text_blocks: list[str]) -> list[str]:
     """배터리 용량(mAh) 표기와 '배터리 미포함' 문구가 같은 상세페이지에 함께 있는
-    경우처럼, 정규식만으로 판단 가능한 모순 하나를 감지한다.
+    경우를 "모순 가능성 후보"로 보고한다.
+
+    확정된 모순이 아니라 검토가 필요한 후보다. 정규식은 문맥을 이해하지 못하므로
+    본체 배터리와 부속품 배터리를 완벽히 구분할 수 없고(부속품 문맥은 아래에서 제외하지만
+    표현이 다양해 전부 걸러내진 못한다), 이 결과는 LLM이 채운 특성 값을 덮어쓰지 않는다.
 
     다른 종류의 모순(카테고리는 "디퓨저"인데 속성은 "무향"인 경우 등)은 부정 표현이
     없어서 정규식으로 못 잡는다 — 이건 여전히 LLM이 conflicts 필드로 직접 보고해야 한다.
@@ -93,12 +104,27 @@ def detect_battery_capacity_conflict(text_blocks: list[str]) -> list[str]:
             seen.add(key)
             capacities.append(match)
 
-    if capacities and _NO_BATTERY_PATTERN.search(combined):
-        return [
-            f"배터리 용량 표기({', '.join(capacities)})가 있으나 "
-            "같은 상세페이지에 '배터리 미포함'이라는 문구도 있어 모순됩니다."
-        ]
-    return []
+    if not capacities or not _NO_BATTERY_PATTERN.search(combined):
+        return []
+    # "리모컨용 AA 배터리 미포함"처럼 부속품 배터리를 가리키는 문구뿐이면 모순이 아니다.
+    if _ACCESSORY_BATTERY_PATTERN.search(combined) and not _has_non_accessory_negation(combined):
+        return []
+    return [
+        f"배터리 용량 표기({', '.join(capacities)})가 있으나 같은 상세페이지에 "
+        "'배터리 미포함'이라는 문구도 있어 모순 가능성이 있습니다. 확인이 필요합니다."
+    ]
+
+
+def _has_non_accessory_negation(combined: str) -> bool:
+    """부속품 문맥으로 설명되지 않는 '배터리 미포함' 문구가 따로 있는지 본다."""
+    accessory_spans = [m.span() for m in _ACCESSORY_BATTERY_PATTERN.finditer(combined)]
+    for match in _NO_BATTERY_PATTERN.finditer(combined):
+        inside_accessory = any(
+            start <= match.start() and match.end() <= end for start, end in accessory_spans
+        )
+        if not inside_accessory:
+            return True
+    return False
 
 
 def _context(block: str, match: re.Match) -> str:
