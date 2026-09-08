@@ -122,6 +122,20 @@ class UserServiceTest {
         then(userRepository).should(never()).delete(org.mockito.ArgumentMatchers.any());
     }
 
+    @Test
+    @DisplayName("소셜 로그인 성공 시 refresh_token을 갱신한다.")
+    void updateSocialRefreshToken_thenUpdate() {
+        // given
+        User user = createUser(1L);
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        // when
+        userService.updateSocialRefreshToken(1L, "new-refresh-token");
+
+        // then
+        assertThat(user.getSocialRefreshToken()).isEqualTo("new-refresh-token");
+    }
+
     private User createUser(Long id) {
         User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "사용자");
         ReflectionTestUtils.setField(user, "id", id);
