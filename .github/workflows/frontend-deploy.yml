@@ -24,8 +24,7 @@ env:
 
 jobs:
   deploy:
-    # Frontend CI가 push(develop)로 성공 완료했을 때만 배포한다.
-    # (PR 이벤트로 돈 CI 완료는 배포 대상이 아니다.)
+    # push로 성공한 CI만 배포 대상 (PR에서 돈 CI 완료는 제외)
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
@@ -51,20 +50,19 @@ jobs:
       - name: 빌드
         run: npm run build
 
-      # AWS 인증
       - name: AWS 자격증명 설정
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      # S3 업로드 (BE와 같은 버킷, frontend/ 경로로 분리)
+      # BE와 같은 버킷을 쓰되 frontend/ 경로로 분리
       - name: 빌드 결과물 업로드
         run: |
           tar czf /tmp/frontend.tar.gz -C dist .
           aws s3 cp /tmp/frontend.tar.gz "s3://${S3_BUCKET}/frontend/dist-${DEPLOY_SHA}.tar.gz"
 
-      # 서버 꺼져있으면 켜서 SSM 대기 (BE deploy.yml과 동일한 로직)
+      # 서버 꺼져있으면 켜서 SSM 대기
       - name: 서버 준비
         run: |
           STATE=$(aws ec2 describe-instances --instance-ids "${{ vars.INSTANCE_ID }}" \
@@ -85,9 +83,8 @@ jobs:
           done
           echo "::error::SSM 에이전트가 응답하지 않습니다"; exit 1
 
-      # SSM 배포: 새 release를 별도 디렉터리에 완전히 내려받은 뒤에만
-      # 심볼릭 링크(current)를 원자적으로 교체한다.
-      # 실패 시 이전 명령에서 중단되므로 기존 current는 그대로 유지된다.
+      # 새 release 디렉터리에 완전히 내려받은 뒤에만 current 심볼릭 링크를 교체한다.
+      # (중간에 실패하면 기존 current가 그대로 유지됨)
       - name: 배포 실행
         run: |
           RELEASE_DIR="${APP_DIR}/frontend/releases/${DEPLOY_SHA}"
