@@ -6,6 +6,11 @@ on:
     types: [completed]
     branches: [develop]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "배포할 커밋 SHA (비워두면 이 워크플로우를 실행하는 브랜치의 최신 커밋 사용 — Run workflow 드롭다운이 기본 브랜치로 되어 있을 수 있으니, 다른 브랜치를 테스트할 땐 여기에 SHA를 직접 입력할 것)"
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -15,7 +20,7 @@ env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: ktc4-kangwon3-deploy
   APP_DIR: /home/ubuntu/app
-  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.event.inputs.sha || github.sha }}
 
 jobs:
   deploy:
