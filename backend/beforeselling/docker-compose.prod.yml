@@ -1,5 +1,4 @@
 # 배포 전용 compose 파일
-# app 서비스는 빌드하지 않고, CI에서 만들어 docker load 해둔 이미지를 그대로 실행한다.
 # 로컬 개발은 docker-compose.yml 사용
 services:
   db:
@@ -65,7 +64,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Seoul
 
-      # DB — application-prod.yaml 의 ${DB_URL} / ${DB_USERNAME} 과 이름을 맞춤
+      # DB
       DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}

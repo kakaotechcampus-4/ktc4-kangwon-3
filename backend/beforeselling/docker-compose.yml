@@ -66,7 +66,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Seoul
 
-      # DB — application-prod.yml 의 ${DB_URL} / ${DB_USERNAME} 과 이름을 맞춤
+      # DB
       DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
