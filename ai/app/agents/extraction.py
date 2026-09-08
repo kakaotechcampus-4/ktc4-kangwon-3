@@ -1,14 +1,13 @@
 """추출 담당자가 구현하는 에이전트."""
 
 import logging
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Protocol
 
-from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from ..config import build_chat_model
 from ..schemas.agent import ExtractionInput
 from ..schemas.product import Attribute, ProductAttributes, Product
 from ..utils.extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
@@ -53,29 +52,17 @@ def _load_system_prompt() -> str:
     return _PROMPT_PATH.read_text(encoding="utf-8")
 
 
-def _default_model() -> BaseChatModel:
-    # 모듈 import 시 외부 서비스에 연결하지 않는다(app/__init__.py 규칙).
-    # 그래서 .env 로드와 클라이언트 생성 모두 실제로 에이전트를 만들 때(__init__)만 실행한다.
-    from dotenv import load_dotenv
-    from langchain_openai import ChatOpenAI
-
-    load_dotenv()
-    # 카카오테크캠퍼스 엘리스 AI클라우드의 MLAPI(Serverless)를 사용한다.
-    # OpenAI 공식 서버(api.openai.com)가 아니라 이 base_url로 요청이 가야 인증이 통과한다.
-    # 모델 이름도 카탈로그 등록명인 "openai/gpt-4.1-mini" 형식을 그대로 써야 한다.
-    model_name = os.environ.get("OPENAI_MODEL", "openai/gpt-4.1-mini")
-    base_url = os.environ.get("OPENAI_BASE_URL")
-    return ChatOpenAI(model=model_name, base_url=base_url, temperature=0)
-
-
 class ExtractionAgent:
     """상품 원문에서 정보를 추출한다. 툴 선택이나 규제 판정은 맡지 않는다."""
 
     def __init__(self, model: _ModelLike | None = None) -> None:
+        # 모델 생성은 config.build_chat_model()에 맡긴다. 에이전트마다 ChatOpenAI를 직접
+        # 만들면 base_url·허용 모델·타임아웃 설정이 흩어지고, base_url이 비었을 때
+        # OpenAI 공식 서버로 요청이 나가 원인을 알기 어려운 401을 만난다.
         # model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있다.
         # include_raw=True: 파싱 결과와 함께 원본 응답을 받아 토큰 사용량(캐시 적용 여부 포함)을
         # 기록한다. 측정이 없으면 토큰 최적화도 할 수 없다.
-        self._structured_model = (model or _default_model()).with_structured_output(
+        self._structured_model = (model or build_chat_model()).with_structured_output(
             ProductAttributes, include_raw=True
         )
 
