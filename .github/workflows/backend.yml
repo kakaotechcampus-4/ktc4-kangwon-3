@@ -76,12 +76,14 @@ jobs:
 
       - name: 이미지 빌드 및 업로드
         run: |
-          docker build -f backend/beforeselling/deploy.Dockerfile \
+          docker build --target deploy \
             -t "beforeselling-app:${GITHUB_SHA}" backend/beforeselling
           docker save "beforeselling-app:${GITHUB_SHA}" | gzip > /tmp/app-image.tar.gz
           aws s3 cp /tmp/app-image.tar.gz "s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz"
-          aws s3 cp backend/beforeselling/docker-compose.prod.yml \
+          aws s3 cp backend/beforeselling/docker-compose.yml \
             "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
+          aws s3 cp backend/beforeselling/docker-compose.prod.yml \
+            "s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml"
 
       - name: 서버 준비
         run: |
@@ -113,10 +115,11 @@ jobs:
             "gunzip -c /tmp/app-image.tar.gz | docker load",
             "rm -rf ${APP_DIR}/release && mkdir -p ${APP_DIR}/release",
             "aws s3 cp s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.yml",
+            "aws s3 cp s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.prod.yml",
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
-            "IMAGE_TAG=${GITHUB_SHA} docker compose up -d --remove-orphans",
-            "docker compose ps",
+            "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans",
+            "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
             "docker image prune -f"
           ]}
           EOF

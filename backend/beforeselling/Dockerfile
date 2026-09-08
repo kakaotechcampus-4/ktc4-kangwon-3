@@ -1,26 +1,26 @@
-# ---------- build stage ----------
+# ---------- 소스 컴파일 (로컬 개발용 타겟에서만 사용) ----------
 FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
-
-# t3.medium에서 빌드가 메모리를 먹지 않게 제한
 ENV GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx768m -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
-
-# 의존성 레이어 캐싱: 소스보다 먼저 복사해야 재빌드가 빨라집니다
 COPY gradlew .
 COPY gradle gradle
 COPY build.gradle settings.gradle ./
 RUN chmod +x gradlew && ./gradlew dependencies --no-daemon || true
-
 COPY src src
 RUN ./gradlew bootJar --no-daemon -x test
 
-FROM eclipse-temurin:25-jre
+# ---------- 공통 런타임 베이스 ----------
+FROM eclipse-temurin:25-jre AS runtime-base
 WORKDIR /app
-
-# docker-compose 헬스체크(curl -> /actuator/health)용
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
-
-COPY --from=build /app/build/libs/app.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java","-XX:MaxRAMPercentage=70","-XX:+UseSerialGC","-jar","/app/app.jar"]
+
+# ---------- 로컬: build 스테이지에서 만든 jar 사용 ----------
+FROM runtime-base AS local
+COPY --from=build /app/build/libs/app.jar app.jar
+
+# ---------- 배포: CI가 이미 만들어 넘겨준 jar 사용 (컴파일 없음) ----------
+FROM runtime-base AS deploy
+COPY build/libs/app.jar app.jar

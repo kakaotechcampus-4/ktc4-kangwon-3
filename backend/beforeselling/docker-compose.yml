@@ -54,6 +54,8 @@ services:
   app:
     build:
       context: .
+      target: local
+    image: beforeselling-app:${IMAGE_TAG:-latest}
     container_name: app-server
     restart: unless-stopped
     mem_limit: 1500m
