@@ -37,6 +37,9 @@ public class DatabaseEncryptionConverter implements AttributeConverter<String, S
     @PostConstruct
     void init() {
         byte[] keyBytes = Base64.getDecoder().decode(cryptoProperties.secretKey());
+        if (keyBytes.length != 32) {
+            throw new IllegalStateException("TOKEN_ENCRYPTION_KEY는 32바이트(AES-256)여야 합니다.");
+        }
         this.secretKey = new SecretKeySpec(keyBytes, KEY_ALGORITHM);
     }
 
