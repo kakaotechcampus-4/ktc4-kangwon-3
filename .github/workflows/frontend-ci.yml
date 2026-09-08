@@ -9,6 +9,7 @@ on:
     branches: [develop]
     paths:
       - "frontend/palgijeonae/**"
+  workflow_dispatch:
 
 permissions:
   contents: read
