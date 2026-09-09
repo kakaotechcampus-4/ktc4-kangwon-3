@@ -18,7 +18,7 @@ permissions:
 
 env:
   AWS_REGION: ap-northeast-2
-  S3_BUCKET: ktc4-kangwon3-deploy
+  S3_BUCKET: ${{ vars.S3_BUCKET }}
   APP_DIR: /home/ubuntu/app
   DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.event.inputs.sha || github.sha }}
 
