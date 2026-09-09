@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
 
@@ -10,8 +10,13 @@ function OAuthCallbackPage() {
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
     const login = useAuthStore((state) => state.login)
+    // reissue는 refresh token을 회전시키는 1회성 작업이라 StrictMode의 effect 이중 실행에도 한 번만 돌아야 함
+    const hasRun = useRef(false)
 
     useEffect(() => {
+        if (hasRun.current) return
+        hasRun.current = true
+
         // 소셜 로그인 실패 시 BE가 ?error={code}를 붙여 이 페이지로 리다이렉트함
         if (searchParams.get('error')) {
             navigate('/login', { replace: true })
