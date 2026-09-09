@@ -53,13 +53,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 이미지 빌드 및 업로드
+      - name: 빌드 결과물 업로드
         run: |
-          docker build -t "ai-server:${GITHUB_SHA}" ai
-          docker save "ai-server:${GITHUB_SHA}" | gzip > /tmp/ai-image.tar.gz
-          aws s3 cp /tmp/ai-image.tar.gz "s3://${S3_BUCKET}/ai-image-${GITHUB_SHA}.tar.gz"
-          aws s3 cp ai/docker-compose.yml \
-            "s3://${S3_BUCKET}/ai-docker-compose-${GITHUB_SHA}.yml"
+          tar czf /tmp/ai-app.tar.gz -C ai --exclude='.git' --exclude='venv' --exclude='.venv' --exclude='__pycache__' --exclude='.env' .
+          aws s3 cp /tmp/ai-app.tar.gz "s3://${S3_BUCKET}/ai-app-${GITHUB_SHA}.tar.gz"
 
       - name: 서버 준비
         run: |
@@ -85,15 +82,14 @@ jobs:
         run: |
           cat > /tmp/params.json <<EOF
           {"commands":[
-            "#!/bin/bash",
             "set -euo pipefail",
-            "aws s3 cp s3://${S3_BUCKET}/ai-image-${GITHUB_SHA}.tar.gz /tmp/ai-image.tar.gz",
-            "gunzip -c /tmp/ai-image.tar.gz | docker load",
+            "mkdir -p ${APP_DIR}",
+            "aws s3 cp s3://${S3_BUCKET}/ai-app-${GITHUB_SHA}.tar.gz /tmp/ai-app.tar.gz",
             "rm -rf ${APP_DIR}/release && mkdir -p ${APP_DIR}/release",
-            "aws s3 cp s3://${S3_BUCKET}/ai-docker-compose-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.yml",
+            "tar xzf /tmp/ai-app.tar.gz -C ${APP_DIR}/release",
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
-            "IMAGE_TAG=${GITHUB_SHA} docker compose up -d --remove-orphans",
+            "docker compose up -d --build --remove-orphans",
             "docker compose ps",
             "docker image prune -f"
           ]}
