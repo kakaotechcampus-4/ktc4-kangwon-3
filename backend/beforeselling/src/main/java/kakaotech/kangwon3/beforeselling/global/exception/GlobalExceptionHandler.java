@@ -25,8 +25,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(BaseException.class)
     public ResponseEntity<ApiResponse<Void>> handleBaseException(BaseException e) {
-        log.error("BaseException: ", e);
         BaseResponseCode responseCode = e.getResponseCode();
+        if (responseCode.getStatus().is5xxServerError()) {
+            log.error("BaseException: ", e);
+        } else {
+            log.warn("BaseException: {}", e.getMessage());
+        }
 
         return ResponseEntity
                 .status(responseCode.getStatus())
