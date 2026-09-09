@@ -10,7 +10,7 @@ interface LoginButtonProps {
 function LoginButton({ type, image, BorderColor, BackgroundColor, textColor, onClick }: LoginButtonProps) {
     return (
         <button
-            className={`flex flex-row items-center justify-center gap-5 self-stretch rounded-xl border ${BorderColor} ${BackgroundColor} py-2.5 pr-8 pl-5`}
+            className={`flex flex-row cursor-pointer items-center justify-center gap-5 self-stretch rounded-xl border ${BorderColor} ${BackgroundColor} py-2.5 pr-8 pl-5`}
             onClick={onClick}
         >
             <img src={image} alt={`${type} logo`} className="h-9 w-9 shrink-0 rounded-[10px] object-cover" />

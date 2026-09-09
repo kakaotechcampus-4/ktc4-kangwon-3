@@ -3,10 +3,12 @@ import naver from "../../assets/login-naver.png"
 import google from "../../assets/login-google.png"
 
 import LoginButton from "./LoginButton.tsx"
+import PageIntro from "../../components/common/PageIntro/index.tsx"
 
 function LoginPage() {
     return (
-        <div className="flex w-lg flex-col rounded-2xl gap-5 px-10 py-12 border border-neutral-border mt-10">
+        <div className="flex w-lg flex-col rounded-2xl gap-5 px-10 pt-8 pb-12 border border-neutral-border mt-10">
+            <PageIntro title="로그인" description="소셜 계정으로 간편하게 로그인 하세요." />
             <LoginButton
                 type="카카오"
                 image={kakao}
