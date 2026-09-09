@@ -78,6 +78,16 @@ app:
     secure: ${COOKIE_SECURE:false}
     same-site: ${COOKIE_SAME_SITE:Lax}
 
+aws:
+  s3:
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
+    bucket: ${S3_BUCKET_NAME}
+    region: ${AWS_REGION:ap-northeast-2}
+    presigned-url-expiration: ${S3_PRESIGNED_URL_EXPIRATION:PT5M}
+    max-file-size: ${S3_MAX_FILE_SIZE:10MB}
+    allowed-extensions: ${S3_ALLOWED_EXTENSIONS:jpg,jpeg,png,webp}
+
 server:
   forward-headers-strategy: framework
 
