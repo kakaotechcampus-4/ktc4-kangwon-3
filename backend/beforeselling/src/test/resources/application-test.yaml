@@ -46,3 +46,13 @@ oauth2:
 
 crypto:
   secret-key: eXlMlYPHwWqnT+Ql6zvX4S8LW2HE8wIVht91Mjr59Jg=
+
+aws:
+  s3:
+    access-key: test-access-key
+    secret-key: test-secret-key
+    bucket: test-bucket
+    region: ap-northeast-2
+    presigned-url-expiration: PT5M
+    max-file-size: 10MB
+    allowed-extensions: jpg,jpeg,png,webp
