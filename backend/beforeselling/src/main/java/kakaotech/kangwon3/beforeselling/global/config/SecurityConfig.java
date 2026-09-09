@@ -9,7 +9,6 @@ import kakaotech.kangwon3.beforeselling.global.security.jwt.JwtProvider;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.CustomOAuth2UserService;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.handler.OAuth2FailureHandler;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.handler.OAuth2SuccessHandler;
-import kakaotech.kangwon3.beforeselling.global.security.oauth2.repository.NoOpOAuth2AuthorizedClientRepository;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.repository.RedisOAuth2AuthorizationRequestRepository;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +21,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
@@ -65,6 +65,7 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final RedisOAuth2AuthorizationRequestRepository authorizationRequestRepository;
+    private final OAuth2AuthorizedClientRepository authorizedClientRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -86,7 +87,7 @@ public class SecurityConfig {
                         .authorizationEndpoint(endpoint -> endpoint
                                 .authorizationRequestRepository(authorizationRequestRepository))
                         .userInfoEndpoint(endpoint -> endpoint.userService(customOAuth2UserService))
-                        .authorizedClientRepository(new NoOpOAuth2AuthorizedClientRepository())
+                        .authorizedClientRepository(authorizedClientRepository)
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
