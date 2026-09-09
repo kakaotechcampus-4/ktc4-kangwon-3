@@ -17,6 +17,7 @@ from ..schemas.schemas import (
     RegulatoryFinding,
     ToolName,
     ToolStatus,
+    TraceEvent,
     VerificationIssue,
     VerificationIssueType as IssueType,
     VerificationResult,
@@ -125,23 +126,55 @@ class VerificationAgent:
 
         return cls(build_chat_model())
 
-    def verify(self, draft: DraftAssessment) -> VerificationResult:
+    def verify(
+        self,
+        draft: DraftAssessment,
+        *,
+        trace: list[TraceEvent] | None = None,
+    ) -> VerificationResult:
         """규칙 검사와 모델 검토를 합친 검증 결과를 돌려준다.
+
+        ``trace``를 넘기면 스키마 변환과 실행 상태를 ``TraceEvent``로 추가한다.
+        상품 원문과 모델 응답 원문은 trace에 저장하지 않는다.
 
         raises VerificationError: 모델이 없거나, 호출이 실패했거나, 검토 범위가 맞지 않는 경우.
         """
+        self._append_trace(
+            trace,
+            action="verification_started",
+            status="started",
+            detail=f"DraftAssessment 입력: findings={len(draft.findings)}",
+        )
         # 모델 호출 전에 확정적으로 검사할 수 있는 규칙 결과를 먼저 만든다.
         # 이후 모델 단계가 실패해도 이 결과는 VerificationError에 보존된다.
-        rules = self.verify_rules(draft)
+        rules = self.verify_rules(draft, trace=trace)
         if self._structured is None:
+            self._append_trace(
+                trace,
+                action="verification_failed",
+                status="failed",
+                detail="모델이 없어 전체 검증을 실행하지 못했습니다.",
+            )
             raise VerificationError(
                 "모델이 없습니다. VerificationAgent.from_env()를 쓰거나, "
                 "API 없이 구조만 볼 때는 verify_rules()를 호출하세요.",
                 partial_result=rules,
             )
+        self._append_trace(
+            trace,
+            action="model_review_started",
+            status="started",
+            detail="DraftAssessment를 GPT 구조화 출력 _Review로 검토합니다.",
+        )
         try:
             review = self._structured.invoke(self._build_messages(draft))
         except Exception as exc:
+            self._append_trace(
+                trace,
+                action="model_review_failed",
+                status="failed",
+                detail=f"_Review 생성 실패: {type(exc).__name__}",
+            )
             # 원인은 __cause__에 그대로 남는다. 응답 본문이 메시지에 섞일 수 있으므로
             # 이 로그를 그대로 외부에 공유하지 않는다.
             raise VerificationError(
@@ -149,27 +182,103 @@ class VerificationAgent:
                 partial_result=rules,
             ) from exc
 
+        self._append_trace(
+            trace,
+            action="model_review_completed",
+            status="completed",
+            detail=(
+                f"_Review 생성: issues={len(review.issues)}, "
+                f"checked_finding_ids={len(review.checked_finding_ids)}"
+            ),
+        )
         try:
             self._check_scope(review, draft)
+            self._append_trace(
+                trace,
+                action="scope_validated",
+                status="completed",
+                detail=f"_Review 검토 범위 확인: findings={len(draft.findings)}",
+            )
             result = self._merge(rules, review)
         except VerificationError as exc:
+            self._append_trace(
+                trace,
+                action="review_validation_failed",
+                status="failed",
+                detail="_Review의 ID 참조 또는 검토 범위가 유효하지 않습니다.",
+            )
             raise VerificationError(
                 str(exc),
                 partial_result=rules,
             ) from exc
         except Exception as exc:
+            self._append_trace(
+                trace,
+                action="result_merge_failed",
+                status="failed",
+                detail=f"VerificationResult 생성 실패: {type(exc).__name__}",
+            )
             raise VerificationError(
                 f"모델 검토 결과 처리에 실패했습니다: {type(exc).__name__}",
                 partial_result=rules,
             ) from exc
 
+        self._append_trace(
+            trace,
+            action="result_merged",
+            status="completed",
+            detail=(
+                "규칙 VerificationResult와 _Review를 최종 VerificationResult로 병합: "
+                f"status={result.status.value}, issues={len(result.issues)}"
+            ),
+        )
+        self._append_trace(
+            trace,
+            action="verification_completed",
+            status="completed",
+            detail=f"VerificationResult 반환: status={result.status.value}",
+        )
         return result
 
-    def verify_rules(self, draft: DraftAssessment) -> VerificationResult:
+    @staticmethod
+    def _append_trace(
+        trace: list[TraceEvent] | None,
+        *,
+        action: str,
+        status: str,
+        detail: str,
+    ) -> None:
+        """선택적으로 실행 이력을 추가한다. 내부 추론이나 원문 데이터는 기록하지 않는다."""
+        if trace is None:
+            return
+        sequence = trace[-1].sequence + 1 if trace else 1
+        trace.append(
+            TraceEvent(
+                sequence=sequence,
+                stage="verification",
+                component="VerificationAgent",
+                action=action,
+                status=status,
+                detail=detail,
+            )
+        )
+
+    def verify_rules(
+        self,
+        draft: DraftAssessment,
+        *,
+        trace: list[TraceEvent] | None = None,
+    ) -> VerificationResult:
         """구조·근거 유무만 검사한다. API를 호출하지 않는다.
 
         의미 검증이나 법적 승인을 대신하지 않으므로 이 결과만으로 검증 완료로 쓰면 안 된다.
         """
+        self._append_trace(
+            trace,
+            action="rules_started",
+            status="started",
+            detail="DraftAssessment 구조와 근거 규칙 검사를 시작합니다.",
+        )
         issues: list[VerificationIssue] = []
         tools: list[ToolName] = []
 
@@ -321,6 +430,15 @@ class VerificationAgent:
             "규칙 검사만 실행했습니다. 모델 의미 검증과 외부 법령 조회는 수행하지 않았습니다."
         )
         # checked_finding_ids는 의미 검토를 마친 모델 결과에서만 채운다.
+        self._append_trace(
+            trace,
+            action="rules_completed",
+            status="completed",
+            detail=(
+                "DraftAssessment -> 규칙 VerificationResult: "
+                f"status={result.status.value}, issues={len(result.issues)}"
+            ),
+        )
         return result
 
     @staticmethod
