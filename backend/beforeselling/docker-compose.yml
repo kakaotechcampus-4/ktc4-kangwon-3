@@ -54,6 +54,8 @@ services:
   app:
     build:
       context: .
+      target: local
+    image: beforeselling-app:${IMAGE_TAG:-latest}
     container_name: app-server
     restart: unless-stopped
     mem_limit: 1500m
@@ -66,7 +68,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Seoul
 
-      # DB — application-prod.yml 의 ${DB_URL} / ${DB_USERNAME} 과 이름을 맞춤
+      # DB
       DB_URL: jdbc:postgresql://db:5432/${DB_NAME}
       DB_USERNAME: ${DB_USERNAME}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -88,6 +90,10 @@ services:
       NAVER_CLIENT_SECRET: ${NAVER_CLIENT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      # 소셜 연동 해제 / 토큰 암호화
+      KAKAO_ADMIN_KEY: ${KAKAO_ADMIN_KEY}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
 
       # 프론트 연동 / 쿠키
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}

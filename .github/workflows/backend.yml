@@ -1,6 +1,10 @@
-name: Deploy to EC2
+name: Backend CI/CD
 
 on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "backend/beforeselling/**"
   push:
     branches: [develop]
     paths:
@@ -17,28 +21,70 @@ env:
   APP_DIR: /home/ubuntu/app
 
 jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/beforeselling
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 25 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 빌드 및 테스트
+        run: ./gradlew build
+
+      - name: 테스트 리포트 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: backend/beforeselling/build/reports/tests/test
+
+      - name: 빌드 산출물(jar) 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: backend/beforeselling/build/libs/app.jar
+          retention-days: 1
+
   deploy:
+    needs: build-and-test
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # AWS 인증
+      - name: 빌드 산출물(jar) 내려받기
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: backend/beforeselling/build/libs
+
       - name: AWS 자격증명 설정
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      # S3 업로드
-      - name: 소스 업로드
+      - name: 이미지 빌드 및 업로드
         run: |
-          tar czf /tmp/app.tar.gz \
-            --exclude='.git' --exclude='.github' \
-            --exclude='build' --exclude='.gradle' --exclude='.env' \
-            -C backend/beforeselling .
-          aws s3 cp /tmp/app.tar.gz "s3://${S3_BUCKET}/app-${GITHUB_SHA}.tar.gz"
+          docker build --target deploy \
+            -t "beforeselling-app:${GITHUB_SHA}" backend/beforeselling
+          docker save "beforeselling-app:${GITHUB_SHA}" | gzip > /tmp/app-image.tar.gz
+          aws s3 cp /tmp/app-image.tar.gz "s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz"
+          aws s3 cp backend/beforeselling/docker-compose.yml \
+            "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
+          aws s3 cp backend/beforeselling/docker-compose.prod.yml \
+            "s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml"
 
-      # 서버 꺼져있으면 켜서 SSM 대기
       - name: 서버 준비
         run: |
           STATE=$(aws ec2 describe-instances --instance-ids "${{ vars.INSTANCE_ID }}" \
@@ -59,20 +105,21 @@ jobs:
           done
           echo "::error::SSM 에이전트가 응답하지 않습니다"; exit 1
 
-      # SSM 배포
       - name: 배포 실행
         run: |
           cat > /tmp/params.json <<EOF
           {"commands":[
             "#!/bin/bash",
             "set -euo pipefail",
-            "aws s3 cp s3://${S3_BUCKET}/app-${GITHUB_SHA}.tar.gz /tmp/app.tar.gz",
+            "aws s3 cp s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz /tmp/app-image.tar.gz",
+            "gunzip -c /tmp/app-image.tar.gz | docker load",
             "rm -rf ${APP_DIR}/release && mkdir -p ${APP_DIR}/release",
-            "tar xzf /tmp/app.tar.gz -C ${APP_DIR}/release",
+            "aws s3 cp s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.yml",
+            "aws s3 cp s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.prod.yml",
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
-            "docker compose up -d --build --remove-orphans",
-            "docker compose ps",
+            "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans",
+            "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
             "docker image prune -f"
           ]}
           EOF
@@ -85,8 +132,8 @@ jobs:
                 --query 'Command.CommandId' --output text)
           echo "CommandId: $CMD"
 
-          # 최대 15분 대기 (첫 Gradle 빌드는 5~10분 걸립니다)
-          for i in $(seq 1 90); do
+          # 최대 10분 대기 (EC2 는 컴파일하지 않고 이미지 다운로드 + load 만 한다)
+          for i in $(seq 1 60); do
             ST=$(aws ssm get-command-invocation --command-id "$CMD" \
                  --instance-id "${{ vars.INSTANCE_ID }}" --query Status --output text 2>/dev/null || echo Pending)
             case "$ST" in Success|Failed|Cancelled|TimedOut) break ;; esac
