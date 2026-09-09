@@ -11,7 +11,7 @@ interface DefaultBoxProps {
 
 
 const BASE_CLASSES =
-  "flex flex-col h-auto box-border py-[18px] px-6 rounded-[10px] border-[#9d9d9d]";
+  "flex flex-col h-auto box-border py-[18px] px-6 rounded-[10px] border-[#9d9d9d] gap-5";
 
 function DefaultBox({
   width = "full",
