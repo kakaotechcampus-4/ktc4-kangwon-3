@@ -8,3 +8,4 @@ tests/
 scripts/
 *.pyc
 *.md
+!app/prompts/*.md
