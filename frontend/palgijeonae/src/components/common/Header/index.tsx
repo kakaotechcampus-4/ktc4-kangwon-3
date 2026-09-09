@@ -4,7 +4,7 @@ import logo from '../../../assets/logo.png'
 
 function Header() {
     // const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
-    const isLoggedIn = true
+    const isLoggedIn = false
     const navigate = useNavigate()
 
     const handleLogoClick = () => {

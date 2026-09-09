@@ -18,3 +18,5 @@ function LoginButton({ type, image, BorderColor, BackgroundColor, textColor, onC
         </button>
     )
 }
+
+export default LoginButton
