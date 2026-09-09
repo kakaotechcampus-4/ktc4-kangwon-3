@@ -1,9 +1,9 @@
 interface LoginButtonProps {
-    type: String
-    image: String
-    BorderColor: String
-    BackgroundColor: String
-    textColor: String
+    type: string
+    image: string
+    BorderColor: string
+    BackgroundColor: string
+    textColor: string
     onClick: () => void
 }
 
