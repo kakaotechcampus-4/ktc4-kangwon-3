@@ -25,6 +25,8 @@ dependencyManagement {
 
 dependencies {
 	implementation 'software.amazon.awssdk:s3'
+	runtimeOnly 'software.amazon.awssdk:sso'
+	runtimeOnly 'software.amazon.awssdk:ssooidc'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
