@@ -78,6 +78,28 @@ class S3PresignedUrlProviderTest {
     }
 
     @Test
+    @DisplayName("허용 확장자 설정이 대문자여도 소문자 확장자 파일을 정상적으로 허용한다.")
+    void issuePresignedUrls_withUpperCaseAllowedExtension_thenAllow() throws Exception {
+        // given
+        S3Properties upperCaseExtensionProperties = new S3Properties(
+                "test-bucket", "ap-northeast-2",
+                Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("JPG", "JPEG", "PNG", "WEBP"));
+        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, upperCaseExtensionProperties);
+
+        URL presignedUrl = URI.create("https://test-bucket.s3.ap-northeast-2.amazonaws.com/signed").toURL();
+        given(presignedPutObjectRequest.url()).willReturn(presignedUrl);
+        given(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).willReturn(presignedPutObjectRequest);
+
+        FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", "image/jpeg", 1024L);
+
+        // when
+        PresignedUrlResponse response = provider.issuePresignedUrls(1L, List.of(file));
+
+        // then
+        assertThat(response.files()).hasSize(1);
+    }
+
+    @Test
     @DisplayName("허용 크기를 초과한 파일로 요청하면 FILE-003 예외가 발생한다.")
     void issuePresignedUrls_withExceedFileSize_thenThrowException() {
         long exceedSize = DataSize.ofMegabytes(10).toBytes() + 1;

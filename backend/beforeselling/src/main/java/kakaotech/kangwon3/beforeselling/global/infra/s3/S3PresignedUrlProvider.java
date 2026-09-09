@@ -21,7 +21,6 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -60,7 +59,9 @@ public class S3PresignedUrlProvider {
 
     private void validateExtension(String fileName) {
         String extension = StringUtils.getFilenameExtension(fileName);
-        if (extension == null || !s3Properties.allowedExtensions().contains(extension.toLowerCase(Locale.ROOT))) {
+        boolean allowed = extension != null && s3Properties.allowedExtensions().stream()
+                .anyMatch(allowedExtension -> allowedExtension.equalsIgnoreCase(extension));
+        if (!allowed) {
             throw new BaseException(FileResponseCode.NOT_SUPPORTED_EXTENSION);
         }
     }
