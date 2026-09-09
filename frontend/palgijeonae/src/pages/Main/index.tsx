@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom"
 
+import { useAuthStore } from "../../store/useAuthStore.ts"
 import Button from "../../components/common/Button"
 import InformationCard from "./InformationCard.tsx"
 
@@ -9,8 +10,7 @@ import document from "../../assets/main-document.png"
 import bell from "../../assets/main-bell.png"
 
 function MainPage() {
-    // const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
-    const isLoggedIn = true
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
     const navigate = useNavigate()
 
     const handleButtonClick = () => {
