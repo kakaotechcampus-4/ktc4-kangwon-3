@@ -80,8 +80,6 @@ app:
 
 aws:
   s3:
-    access-key: ${AWS_ACCESS_KEY_ID}
-    secret-key: ${AWS_SECRET_ACCESS_KEY}
     bucket: ${S3_BUCKET_NAME}
     region: ${AWS_REGION:ap-northeast-2}
     presigned-url-expiration: ${S3_PRESIGNED_URL_EXPIRATION:PT5M}

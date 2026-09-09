@@ -49,8 +49,6 @@ crypto:
 
 aws:
   s3:
-    access-key: test-access-key
-    secret-key: test-secret-key
     bucket: test-bucket
     region: ap-northeast-2
     presigned-url-expiration: PT5M
