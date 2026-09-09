@@ -7,7 +7,8 @@ import pytest
 
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes, Product
-from app.agents.extraction import ExtractionAgent, ExtractionFailedError, _default_model
+from app.agents.extraction import ExtractionAgent, ExtractionFailedError
+from app.config import ConfigError
 
 _FAKE_USAGE = {
     "input_tokens": 4000,
@@ -132,42 +133,31 @@ def test_모델_호출이_실패하면_ExtractionFailedError로_감싸진다():
     assert "rate limit exceeded" in str(exc_info.value.__cause__)
 
 
-def test_default_model이_환경변수의_모델명과_base_url을_그대로_전달한다(monkeypatch):
-    captured: dict = {}
+def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_쓴다(monkeypatch):
+    # 에이전트가 ChatOpenAI를 직접 만들지 않고 config.build_chat_model()에 위임하는지 확인.
+    calls: list = []
 
-    class _FakeChatOpenAI:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
+    class _FakeModel:
+        def with_structured_output(self, schema: type, include_raw: bool = False):
+            calls.append((schema, include_raw))
+            return self
 
-    # 로컬 .env 파일 내용과 무관하게 이 테스트가 항상 같은 결과를 내도록 dotenv 로드를 무력화한다.
-    monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
-    monkeypatch.setattr("langchain_openai.ChatOpenAI", _FakeChatOpenAI)
-    monkeypatch.setenv("OPENAI_MODEL", "openai/gpt-4.1-mini")
-    monkeypatch.setenv("OPENAI_BASE_URL", "https://api-cloud-function.elice.io/v1")
+    monkeypatch.setattr("app.agents.extraction.build_chat_model", lambda: _FakeModel())
 
-    _default_model()
+    ExtractionAgent()
 
-    assert captured["model"] == "openai/gpt-4.1-mini"
-    assert captured["base_url"] == "https://api-cloud-function.elice.io/v1"
+    assert calls == [(ProductAttributes, True)]
 
 
-def test_default_model이_환경변수가_없으면_카탈로그_기본값을_쓴다(monkeypatch):
-    captured: dict = {}
-
-    class _FakeChatOpenAI:
-        def __init__(self, **kwargs):
-            captured.update(kwargs)
-
-    monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
-    monkeypatch.setattr("langchain_openai.ChatOpenAI", _FakeChatOpenAI)
-    monkeypatch.delenv("OPENAI_MODEL", raising=False)
+def test_base_url이_없으면_401_대신_ConfigError로_알려준다(monkeypatch):
+    # 예전에는 base_url이 비면 OpenAI 공식 서버로 요청이 나가서 원인을 알기 어려운
+    # 401 invalid_issuer가 났다. 이제는 모델을 만들 때 바로 설정 오류로 알려줘야 한다.
+    monkeypatch.setattr("app.config.load_dotenv", lambda *args, **kwargs: None)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
 
-    _default_model()
-
-    # 2026-09-06 확인: 엘리스 MLAPI 카탈로그 등록명("openai/" 접두어 포함)이 기본값이어야 한다.
-    assert captured["model"] == "openai/gpt-4.1-mini"
-    assert captured["base_url"] is None
+    with pytest.raises(ConfigError):
+        ExtractionAgent()
 
 
 def test_규칙_기반_모순이_LLM_결과와_합쳐져_Product_conflicts에_담긴다():
