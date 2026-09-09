@@ -5,9 +5,9 @@ interface PageIntroProps {
 
 function PageIntro({ title, description }: PageIntroProps) {
     return (
-        <div className="flex flex-col items-start gap-5">
-            <h1 className="text-[40px] font-bold leading-12 text-center text-black">{title}</h1>
-            <p className="text-2xl leading-8.75 text-neutral-text">{description}</p>
+        <div className="flex flex-col items-start gap-2">
+            <h1 className="text-3xl font-bold leading-12 text-center text-black">{title}</h1>
+            <p className="text-xl leading-8.75 text-neutral-text">{description}</p>
         </div>
     );
 }
