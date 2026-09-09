@@ -29,6 +29,7 @@ public interface S3PresignApi {
             success = @ApiSuccessResponseExplanation(responseClass = PresignedUrlResponse.class, description = "발급 성공"),
             errors = {
                     @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "NOT_SUPPORTED_EXTENSION"),
+                    @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "NOT_SUPPORTED_CONTENT_TYPE"),
                     @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "EXCEED_FILE_SIZE"),
             }
     )
