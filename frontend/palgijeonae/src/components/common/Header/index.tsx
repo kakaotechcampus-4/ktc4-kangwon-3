@@ -3,6 +3,7 @@ import axios from 'axios'
 
 import { useAuthStore } from '../../../store/useAuthStore'
 import logo from '../../../assets/logo.png'
+import logoutIcon from '../../../assets/header-logout.png'
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -44,20 +45,24 @@ function Header() {
                 className="cursor-pointer w-[150px] object-contain"
                 onClick={handleLogoClick} />
             <div className="flex items-center gap-3">
-                {isLoggedIn && (
-                    <button
-                        className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
-                        onClick={handleLogoutClick}
-                    >
-                        로그아웃
-                    </button>
-                )}
                 <button
                     className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
                     onClick={handleButtonClick}
                 >
                     {isLoggedIn ? '마이페이지' : '로그인'}
                 </button>
+                {isLoggedIn && (
+                    <button
+                        className="flex cursor-pointer items-center justify-center"
+                        onClick={handleLogoutClick}
+                    >
+                        <img
+                            src={logoutIcon}
+                            alt="Logout"
+                            className="h-7 w-7"
+                        />
+                    </button>
+                )}
             </div>
         </header>
     );
