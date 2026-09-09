@@ -30,6 +30,7 @@ function OAuthCallbackPage() {
                 )
 
                 login(response.data.data.accessToken)
+                alert('로그인 되었습니다.')
                 navigate('/', { replace: true })
             } catch {
                 // 쿠키 없음/만료/폐기(AUTH-003) 등 — 재로그인 유도
