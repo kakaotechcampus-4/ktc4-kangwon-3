@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router-dom"
 
-import { useAuthStore } from "../../store/useAuthStore.ts"
-
 import Button from "../../components/common/Button"
 import InformationCard from "./InformationCard.tsx"
 
