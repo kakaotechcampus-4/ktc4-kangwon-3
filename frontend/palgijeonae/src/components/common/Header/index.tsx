@@ -1,15 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
 
+import apiClient from '../../../api/client'
 import { useAuthStore } from '../../../store/useAuthStore'
 import logo from '../../../assets/logo.png'
 import logoutIcon from '../../../assets/header-logout.png'
 
-const API_URL = import.meta.env.VITE_API_URL
-
 function Header() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
-    const accessToken = useAuthStore((state) => state.accessToken)
     const logout = useAuthStore((state) => state.logout)
     const navigate = useNavigate()
 
@@ -23,14 +20,7 @@ function Header() {
 
     const handleLogoutClick = async () => {
         try {
-            await axios.post(
-                `${API_URL}/api/v1/auth/logout`,
-                null,
-                {
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                    withCredentials: true,
-                }
-            )
+            await apiClient.post('/api/v1/auth/logout')
         } finally {
             // 서버 요청 성공 여부와 무관하게 액세스 토큰은 즉시 메모리에서 제거
             logout()
