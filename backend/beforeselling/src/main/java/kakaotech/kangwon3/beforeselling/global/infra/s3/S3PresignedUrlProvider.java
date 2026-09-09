@@ -7,6 +7,8 @@ import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse.PresignedFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -42,6 +44,7 @@ public class S3PresignedUrlProvider {
 
     private PresignedFile issuePresignedUrl(Long userId, FileMeta file) {
         validateExtension(file.fileName());
+        validateContentType(file.fileName(), file.contentType());
         validateFileSize(file.fileSize());
 
         String key = createKey(userId, file.type(), file.fileName());
@@ -55,6 +58,15 @@ public class S3PresignedUrlProvider {
         String extension = StringUtils.getFilenameExtension(fileName);
         if (extension == null || !s3Properties.allowedExtensions().contains(extension.toLowerCase(Locale.ROOT))) {
             throw new BaseException(FileResponseCode.NOT_SUPPORTED_EXTENSION);
+        }
+    }
+
+    private void validateContentType(String fileName, String contentType) {
+        String expectedContentType = MediaTypeFactory.getMediaType(fileName)
+                .map(MediaType::toString)
+                .orElseThrow(() -> new BaseException(FileResponseCode.NOT_SUPPORTED_CONTENT_TYPE));
+        if (!expectedContentType.equalsIgnoreCase(contentType)) {
+            throw new BaseException(FileResponseCode.NOT_SUPPORTED_CONTENT_TYPE);
         }
     }
 
