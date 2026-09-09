@@ -104,7 +104,7 @@ public class S3PresignedUrlProvider {
             PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
             return presigned.url().toString();
         } catch (SdkClientException e) {
-            log.error("AWS 자격증명을 찾지 못했습니다. 로컬 설정 방법은 backend/docs/AWS_SSO_GUIDE.md 를 참고하세요.", e);
+            log.error("AWS 자격증명을 찾지 못했습니다. 로컬 설정 방법은 backend/docs/guide/AWS_SSO_GUIDE.md 를 참고하세요.", e);
             throw e;
         }
     }
