@@ -6,8 +6,10 @@ import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlRequest.
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse.PresignedFile;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -20,6 +22,7 @@ import java.util.UUID;
 /**
  * S3 Presigned PUT URL 발급을 담당한다. 확장자/크기 검증과 S3 key 조립까지 함께 처리한다.
  */
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class S3PresignedUrlProvider {
@@ -80,8 +83,13 @@ public class S3PresignedUrlProvider {
                 .putObjectRequest(objectRequest)
                 .build();
 
-        PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
-        return presigned.url().toString();
+        try {
+            PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
+            return presigned.url().toString();
+        } catch (SdkClientException e) {
+            log.error("AWS 자격증명을 찾지 못했습니다. 로컬 설정 방법은 backend/docs/AWS_SSO_GUIDE.md 를 참고하세요.", e);
+            throw e;
+        }
     }
 
     private String createFileUrl(String key) {
