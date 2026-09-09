@@ -97,7 +97,7 @@ services:
 
       # 프론트 연동 / 쿠키
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
-      FRONTEND_REDIRECT_URI: ${FRONTEND_REDIRECT_URI:-http://localhost:5173/oauth/callback}
+      FRONTEND_REDIRECT_URIS: ${FRONTEND_REDIRECT_URIS:-http://localhost:5173/oauth/callback}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
     ports:

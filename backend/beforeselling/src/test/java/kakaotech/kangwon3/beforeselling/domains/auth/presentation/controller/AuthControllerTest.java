@@ -8,6 +8,7 @@ import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
+import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.RefreshTokenCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.JwtProvider;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.TokenPair;
@@ -46,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AuthController.class)
 @ActiveProfiles("test")
-@Import({SecurityConfig.class, RefreshTokenCookieProvider.class, ApiResponseWriter.class})
+@Import({SecurityConfig.class, RefreshTokenCookieProvider.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
 class AuthControllerTest {
 

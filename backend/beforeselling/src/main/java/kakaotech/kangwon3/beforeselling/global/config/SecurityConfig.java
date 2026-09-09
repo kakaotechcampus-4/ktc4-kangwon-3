@@ -1,8 +1,10 @@
 package kakaotech.kangwon3.beforeselling.global.config;
 
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
+import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.filter.JwtAuthenticationFilter;
 import kakaotech.kangwon3.beforeselling.global.security.filter.JwtExceptionFilter;
+import kakaotech.kangwon3.beforeselling.global.security.filter.OAuth2RedirectUriCaptureFilter;
 import kakaotech.kangwon3.beforeselling.global.security.handler.CustomAccessDeniedHandler;
 import kakaotech.kangwon3.beforeselling.global.security.handler.CustomAuthenticationEntryPoint;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.JwtProvider;
@@ -21,6 +23,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -66,11 +69,15 @@ public class SecurityConfig {
     private final OAuth2FailureHandler oAuth2FailureHandler;
     private final RedisOAuth2AuthorizationRequestRepository authorizationRequestRepository;
     private final OAuth2AuthorizedClientRepository authorizedClientRepository;
+    private final OAuth2RedirectCookieProvider oAuth2RedirectCookieProvider;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtProvider, publicEndpointMatcher());
         JwtExceptionFilter jwtExceptionFilter = new JwtExceptionFilter(apiResponseWriter);
+        OAuth2RedirectUriCaptureFilter oAuth2RedirectUriCaptureFilter = new OAuth2RedirectUriCaptureFilter(
+                PathPatternRequestMatcher.pathPattern("/oauth2/authorization/*"),
+                appProperties, oAuth2RedirectCookieProvider);
 
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -92,6 +99,7 @@ public class SecurityConfig {
                         .failureHandler(oAuth2FailureHandler))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtExceptionFilter, JwtAuthenticationFilter.class)
+                .addFilterBefore(oAuth2RedirectUriCaptureFilter, OAuth2AuthorizationRequestRedirectFilter.class)
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(new CustomAuthenticationEntryPoint(apiResponseWriter))
                         .accessDeniedHandler(new CustomAccessDeniedHandler(apiResponseWriter)));
