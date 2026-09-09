@@ -91,6 +91,10 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
 
+      # 소셜 연동 해제 / 토큰 암호화
+      KAKAO_ADMIN_KEY: ${KAKAO_ADMIN_KEY}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
+
       # 프론트 연동 / 쿠키
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       FRONTEND_REDIRECT_URI: ${FRONTEND_REDIRECT_URI:-http://localhost:5173/oauth/callback}
