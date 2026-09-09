@@ -19,6 +19,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequ
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -46,15 +47,16 @@ public class S3PresignedUrlProvider {
     }
 
     private PresignedFile issuePresignedUrl(Long userId, FileMeta file) {
-        validateExtension(file.fileName());
-        validateContentType(file.fileName(), file.contentType());
+        String fileName = Normalizer.normalize(file.fileName(), Normalizer.Form.NFC);
+        validateExtension(fileName);
+        validateContentType(fileName, file.contentType());
         validateFileSize(file.fileSize());
 
-        String key = createKey(userId, file.type(), file.fileName());
+        String key = createKey(userId, file.type(), fileName);
         String presignedUrl = presign(key, file.contentType(), file.fileSize());
         String fileUrl = createFileUrl(key);
 
-        return new PresignedFile(file.fileName(), presignedUrl, fileUrl);
+        return new PresignedFile(fileName, presignedUrl, fileUrl);
     }
 
     private void validateExtension(String fileName) {
