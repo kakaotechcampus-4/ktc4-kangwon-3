@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 
-import { useAuthStore } from '../../../store/useAuthStore'
 import logo from '../../../assets/logo.png'
 
 function Header() {
