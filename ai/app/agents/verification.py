@@ -7,7 +7,10 @@
 import json
 from functools import lru_cache
 from pathlib import Path
+from time import perf_counter
 from typing import Literal, Protocol
+
+from langchain_core.callbacks import UsageMetadataCallbackHandler
 
 from ..schemas.base import StrictModel, utc_now
 from ..schemas.schemas import (
@@ -23,6 +26,7 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus as Status,
 )
+from ..usage import from_handler, record
 
 _PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "verification.md"
 
@@ -94,7 +98,7 @@ class _Review(StrictModel):
 class _StructuredModel(Protocol):
     """``model.with_structured_output(...)``이 돌려주는 결과물의 최소 인터페이스."""
 
-    def invoke(self, messages: list) -> _Review: ...
+    def invoke(self, messages: list, config: dict | None = None) -> _Review: ...
 
 
 class _ModelLike(Protocol):
@@ -110,9 +114,15 @@ class _ModelLike(Protocol):
 class VerificationAgent:
     """종합된 심사 결과의 근거·누락·모순을 검증한다."""
 
-    def __init__(self, model: _ModelLike | None = None) -> None:
+    def __init__(
+        self,
+        model: _ModelLike | None = None,
+        *,
+        configured_model: str | None = None,
+    ) -> None:
         # model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있다.
         # model 없이도 verify_rules()는 동작하고, verify()는 명시적으로 실패한다.
+        self._configured_model = configured_model or getattr(model, "model_name", None)
         self._structured = (
             None
             if model is None
@@ -122,9 +132,10 @@ class VerificationAgent:
 
     @classmethod
     def from_env(cls) -> "VerificationAgent":
-        from ..config import build_chat_model
+        from ..config import build_chat_model, load_settings
 
-        return cls(build_chat_model())
+        settings = load_settings()
+        return cls(build_chat_model(settings), configured_model=settings.model)
 
     def verify(
         self,
@@ -166,9 +177,23 @@ class VerificationAgent:
             status="started",
             detail="DraftAssessment를 GPT 구조화 출력 _Review로 검토합니다.",
         )
+        usage_handler = UsageMetadataCallbackHandler()
+        started_at = perf_counter()
         try:
-            review = self._structured.invoke(self._build_messages(draft))
+            review = self._structured.invoke(
+                self._build_messages(draft),
+                config={"callbacks": [usage_handler]},
+            )
         except Exception as exc:
+            record(
+                "verification",
+                from_handler(usage_handler),
+                configured_model=self._configured_model,
+                subject_id=draft.product.product_id,
+                ok=False,
+                elapsed_ms=round((perf_counter() - started_at) * 1000),
+                error_type=type(exc).__name__,
+            )
             self._append_trace(
                 trace,
                 action="model_review_failed",
@@ -181,6 +206,14 @@ class VerificationAgent:
                 f"모델 검토 호출에 실패했습니다: {type(exc).__name__}: {exc}",
                 partial_result=rules,
             ) from exc
+
+        record(
+            "verification",
+            from_handler(usage_handler),
+            configured_model=self._configured_model,
+            subject_id=draft.product.product_id,
+            elapsed_ms=round((perf_counter() - started_at) * 1000),
+        )
 
         self._append_trace(
             trace,
