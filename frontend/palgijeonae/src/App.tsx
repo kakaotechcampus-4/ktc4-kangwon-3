@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout.tsx'
 import ProtectedRoute from './components/common/ProtectedRoute/index.tsx'
 import MainPage from './pages/Main/index.tsx'
 import LoginPage from './pages/Login/index.tsx'
+import OAuthCallbackPage from './pages/OAuthCallback/index.tsx'
 import UploadPage from './pages/Upload/index.tsx'
 import QuestionPage from './pages/Question/index.tsx'
 import JudgementPage from './pages/Judgement/index.tsx'
@@ -20,6 +21,7 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<MainPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/upload" element={<UploadPage />} />
