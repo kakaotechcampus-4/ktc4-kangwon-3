@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 
+import { useAuthStore } from '../../../store/useAuthStore'
 import logo from '../../../assets/logo.png'
 
 function Header() {
-    // const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
-    const isLoggedIn = false
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
     const navigate = useNavigate()
 
     const handleLogoClick = () => {
