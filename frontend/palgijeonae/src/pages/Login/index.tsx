@@ -6,13 +6,13 @@ import LoginButton from "./LoginButton.tsx"
 
 function LoginPage() {
     return (
-        <div>
+        <div className="flex w-lg flex-col rounded-2xl gap-5 px-10 py-12 border border-neutral-border mt-10">
             <LoginButton
                 type="카카오"
                 image={kakao}
-                BorderColor="gray-300"
-                BackgroundColor="yellow-400"
-                textColor="black"
+                BorderColor="border-[#FBE300]"
+                BackgroundColor="bg-[#FBE300]"
+                textColor="text-[#3B1E1E]"
                 onClick={() => {
                     // 카카오 로그인 로직
                 }}
@@ -20,9 +20,9 @@ function LoginPage() {
             <LoginButton
                 type="네이버"
                 image={naver}
-                BorderColor="green-500"
-                BackgroundColor="green-500"
-                textColor="white"
+                BorderColor="border-[#1DC800]"
+                BackgroundColor="bg-[#1DC800]"
+                textColor="text-white"
                 onClick={() => {
                     // 네이버 로그인 로직
                 }}
@@ -30,9 +30,9 @@ function LoginPage() {
             <LoginButton
                 type="구글"
                 image={google}
-                BorderColor="gray-300"
-                BackgroundColor="white"
-                textColor="black"
+                BorderColor="border-[#4285F4]"
+                BackgroundColor="bg-white"
+                textColor="text-[#4285F4]"
                 onClick={() => {
                     // 구글 로그인 로직
                 }}
