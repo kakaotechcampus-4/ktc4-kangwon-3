@@ -46,3 +46,6 @@ oauth2:
 
 crypto:
   secret-key: eXlMlYPHwWqnT+Ql6zvX4S8LW2HE8wIVht91Mjr59Jg=
+
+data-go-kr:
+  service-key: test-key
