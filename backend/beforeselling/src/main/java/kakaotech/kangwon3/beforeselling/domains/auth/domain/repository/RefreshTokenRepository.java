@@ -23,8 +23,8 @@ public class RefreshTokenRepository {
         redisTemplate.opsForValue().set(keyOf(jti), String.valueOf(userId), ttl);
     }
 
-    public Optional<Long> findUserIdByJti(String jti) {
-        return Optional.ofNullable(redisTemplate.opsForValue().get(keyOf(jti)))
+    public Optional<Long> getAndDeleteUserIdByJti(String jti) {
+        return Optional.ofNullable(redisTemplate.opsForValue().getAndDelete(keyOf(jti)))
                 .map(Long::valueOf);
     }
 
