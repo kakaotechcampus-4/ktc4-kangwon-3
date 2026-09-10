@@ -15,6 +15,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -58,4 +59,39 @@ public class LawArticle {
 
     @Column(name = "fetched_at", nullable = false)
     private OffsetDateTime fetchedAt;
+
+    @Builder(access = AccessLevel.PRIVATE)
+    private LawArticle(Law law,
+                       Integer articleNo,
+                       Integer articleBranch,
+                       String title,
+                       String fullText,
+                       LocalDate enforcementDate,
+                       OffsetDateTime fetchedAt) {
+        this.law = law;
+        this.articleNo = articleNo;
+        this.articleBranch = articleBranch;
+        this.title = title;
+        this.fullText = fullText;
+        this.enforcementDate = enforcementDate;
+        this.fetchedAt = fetchedAt;
+    }
+
+    public static LawArticle fromApi(Law law,
+                                     Integer articleNo,
+                                     Integer articleBranch,
+                                     String title,
+                                     String fullText,
+                                     LocalDate enforcementDate) {
+        return LawArticle.builder()
+                .law(law)
+                .articleNo(articleNo)
+                .articleBranch(articleBranch)
+                .title(title)
+                .fullText(fullText)
+                .enforcementDate(enforcementDate)
+                .fetchedAt(OffsetDateTime.now())
+                .build();
+    }
+
 }

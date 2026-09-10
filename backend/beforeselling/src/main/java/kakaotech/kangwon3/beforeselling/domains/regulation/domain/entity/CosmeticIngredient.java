@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -37,4 +38,30 @@ public class CosmeticIngredient {
 
     @Column(name = "fetched_at", nullable = false)
     private OffsetDateTime fetchedAt;
+
+    @Builder(access = AccessLevel.PRIVATE)
+    private CosmeticIngredient(String ingredientNameKo,
+                               String ingredientNameEn,
+                               String prohibitedCountries,
+                               String limitedCountries,
+                               OffsetDateTime fetchedAt) {
+        this.ingredientNameKo = ingredientNameKo;
+        this.ingredientNameEn = ingredientNameEn;
+        this.prohibitedCountries = prohibitedCountries;
+        this.limitedCountries = limitedCountries;
+        this.fetchedAt = fetchedAt;
+    }
+
+    public static CosmeticIngredient fromApi(String ingredientNameKo,
+                                             String ingredientNameEn,
+                                             String prohibitedCountries,
+                                             String limitedCountries) {
+        return CosmeticIngredient.builder()
+                .ingredientNameKo(ingredientNameKo)
+                .ingredientNameEn(ingredientNameEn)
+                .prohibitedCountries(prohibitedCountries)
+                .limitedCountries(limitedCountries)
+                .fetchedAt(OffsetDateTime.now())
+                .build();
+    }
 }

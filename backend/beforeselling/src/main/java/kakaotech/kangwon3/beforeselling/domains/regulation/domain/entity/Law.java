@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -51,5 +52,47 @@ public class Law {
 
     @Column(name = "fetched_at", nullable = false)
     private OffsetDateTime fetchedAt;
+
+    @Builder(access = AccessLevel.PRIVATE)
+    private Law(String lawMst,
+                String lawCode,
+                String nameKo,
+                String abbreviation,
+                String lawType,
+                LocalDate enforcementDate,
+                String competentAuthority,
+                Boolean isCurrent,
+                OffsetDateTime fetchedAt) {
+        this.lawMst = lawMst;
+        this.lawCode = lawCode;
+        this.nameKo = nameKo;
+        this.abbreviation = abbreviation;
+        this.lawType = lawType;
+        this.enforcementDate = enforcementDate;
+        this.competentAuthority = competentAuthority;
+        this.isCurrent = isCurrent;
+        this.fetchedAt = fetchedAt;
+    }
+
+    public static Law fromApi(String lawMst,
+                              String lawCode,
+                              String nameKo,
+                              String abbreviation,
+                              String lawType,
+                              LocalDate enforcementDate,
+                              String competentAuthority,
+                              Boolean isCurrent) {
+        return Law.builder()
+                .lawMst(lawMst)
+                .lawCode(lawCode)
+                .nameKo(nameKo)
+                .abbreviation(abbreviation)
+                .lawType(lawType)
+                .enforcementDate(enforcementDate)
+                .competentAuthority(competentAuthority)
+                .isCurrent(isCurrent)
+                .fetchedAt(OffsetDateTime.now())
+                .build();
+    }
 
 }

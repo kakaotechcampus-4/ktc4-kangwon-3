@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -44,4 +45,35 @@ public class CustomsConfirmation {
 
     @Column(name = "fetched_at", nullable = false)
     private OffsetDateTime fetchedAt;
+
+    @Builder(access = AccessLevel.PRIVATE)
+    private CustomsConfirmation(String hsCode,
+                                String importExport,
+                                String lawName,
+                                String agencyName,
+                                String documentName,
+                                LocalDate applyStartDate,
+                                OffsetDateTime fetchedAt) {
+        this.hsCode = hsCode;
+        this.importExport = importExport;
+        this.lawName = lawName;
+        this.agencyName = agencyName;
+        this.documentName = documentName;
+        this.applyStartDate = applyStartDate;
+        this.fetchedAt = fetchedAt;
+    }
+
+    public static CustomsConfirmation fromApi(String hsCode, String importExport, String lawName,
+                                              String agencyName, String documentName,
+                                              LocalDate applyStartDate) {
+        return CustomsConfirmation.builder()
+                .hsCode(hsCode)
+                .importExport(importExport)
+                .lawName(lawName)
+                .agencyName(agencyName)
+                .documentName(documentName)
+                .applyStartDate(applyStartDate)
+                .fetchedAt(OffsetDateTime.now())
+                .build();
+    }
 }

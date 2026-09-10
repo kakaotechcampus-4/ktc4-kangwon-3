@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.Builder;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -46,4 +47,42 @@ public class MedicalDevice {
 
     @Column(name = "fetched_at", nullable = false)
     private OffsetDateTime fetchedAt;
+
+    @Builder(access = AccessLevel.PRIVATE)
+    private MedicalDevice(String deviceSn,
+                          String productName,
+                          String classificationNo,
+                          String grade,
+                          String permissionType,
+                          String industry,
+                          String purpose,
+                          OffsetDateTime fetchedAt) {
+        this.deviceSn = deviceSn;
+        this.productName = productName;
+        this.classificationNo = classificationNo;
+        this.grade = grade;
+        this.permissionType = permissionType;
+        this.industry = industry;
+        this.purpose = purpose;
+        this.fetchedAt = fetchedAt;
+    }
+
+    public static MedicalDevice fromApi(String deviceSn,
+                                        String productName,
+                                        String classificationNo,
+                                        String grade,
+                                        String permissionType,
+                                        String industry,
+                                        String purpose) {
+        return MedicalDevice.builder()
+                .deviceSn(deviceSn)
+                .productName(productName)
+                .classificationNo(classificationNo)
+                .grade(grade)
+                .permissionType(permissionType)
+                .industry(industry)
+                .purpose(purpose)
+                .fetchedAt(OffsetDateTime.now())
+                .build();
+    }
 }
