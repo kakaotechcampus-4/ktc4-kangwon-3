@@ -4,7 +4,6 @@ import kakaotech.kangwon3.beforeselling.global.common.BaseResponseCode;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.FileResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
-import kakaotech.kangwon3.beforeselling.global.security.constant.DiagnosesResponseCode;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,8 +23,7 @@ public class ErrorCodeController {
         List<ErrorCodeGroup> groups = List.of(
                 buildGroup("공통", CommonResponseCode.values()),
                 buildGroup("인증", AuthResponseCode.values()),
-                buildGroup("파일", FileResponseCode.values()),
-                buildGroup("진단서", DiagnosesResponseCode.values())
+                buildGroup("파일", FileResponseCode.values())
         );
 
         model.addAttribute("groups", groups);
