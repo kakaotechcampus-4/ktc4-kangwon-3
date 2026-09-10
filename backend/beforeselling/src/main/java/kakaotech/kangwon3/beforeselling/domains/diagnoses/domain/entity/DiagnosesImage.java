@@ -1,22 +1,41 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity;
 
 import jakarta.persistence.*;
+import kakaotech.kangwon3.beforeselling.global.common.BaseEntity;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
 @Getter
-@NoArgsConstructor
-@Table(name = "diagnoses_image")
-public class DiagnosesImage {
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(
+        name = "diagnoses_image",
+        indexes = @Index(name = "idx_diagnoses_image_diagnoses_id", columnList = "diagnoses_id")
+)
+public class DiagnosesImage extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "diagnoses_image_id")
     private Long id;
 
-    @Column(nullable = false, name = "diagnoses_id")
+    @Column(name = "diagnoses_id", nullable = false)
     private Long diagnosesId;
 
-    @Column(nullable = false)
+    @Column(name = "image_url", nullable = false)
     private String imageUrl;
+
+    @Column(name = "sort_order", nullable = false)
+    private int sortOrder;
+
+    private DiagnosesImage(Long diagnosesId, String imageUrl, int sortOrder) {
+        this.diagnosesId = diagnosesId;
+        this.imageUrl = imageUrl;
+        this.sortOrder = sortOrder;
+    }
+
+    public static DiagnosesImage of(Long diagnosesId, String imageUrl, int sortOrder) {
+        return new DiagnosesImage(diagnosesId, imageUrl, sortOrder);
+    }
 }
