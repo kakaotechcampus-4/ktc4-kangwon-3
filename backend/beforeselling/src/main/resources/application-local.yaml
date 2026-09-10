@@ -21,3 +21,6 @@ logging:
 #    org.hibernate.SQL: debug
     org.springframework.security: debug
     kakaotech.kangwon3.beforeselling: debug
+
+data-go-kr:
+  service-key: ${DATA_GO_KR_KEY:}

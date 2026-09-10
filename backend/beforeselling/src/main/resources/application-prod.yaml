@@ -28,3 +28,6 @@ logging:
   level:
     org.hibernate.SQL: warn
     org.springframework.security: warn
+
+data-go-kr:
+  service-key: ${DATA_GO_KR_KEY}
