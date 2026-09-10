@@ -39,7 +39,7 @@ function ImageUploadField({ id, title, file, onChange }: ImageUploadFieldProps) 
                 htmlFor={id}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={handleDrop}
-                className="flex w-full cursor-pointer items-center justify-center gap-6 rounded-[10px] border border-dashed border-neutral-border py-6.5"
+                className="flex w-full cursor-pointer items-center gap-6 rounded-[10px] border border-dashed border-neutral-border py-6.5 px-4.75"
             >
                 <input
                     id={id}
