@@ -18,24 +18,24 @@ function LoginPage() {
             <LoginButton
                 type="카카오"
                 image={kakao}
-                BorderColor="border-[#FBE300]"
-                BackgroundColor="bg-[#FBE300]"
+                borderColor="border-[#FBE300]"
+                backgroundColor="bg-[#FBE300]"
                 textColor="text-[#3B1E1E]"
                 onClick={() => handleSocialLogin('kakao')}
             />
             <LoginButton
                 type="네이버"
                 image={naver}
-                BorderColor="border-[#1DC800]"
-                BackgroundColor="bg-[#1DC800]"
+                borderColor="border-[#1DC800]"
+                backgroundColor="bg-[#1DC800]"
                 textColor="text-white"
                 onClick={() => handleSocialLogin('naver')}
             />
             <LoginButton
                 type="구글"
                 image={google}
-                BorderColor="border-[#4285F4]"
-                BackgroundColor="bg-white"
+                borderColor="border-[#4285F4]"
+                backgroundColor="bg-white"
                 textColor="text-[#4285F4]"
                 onClick={() => handleSocialLogin('google')}
             />
