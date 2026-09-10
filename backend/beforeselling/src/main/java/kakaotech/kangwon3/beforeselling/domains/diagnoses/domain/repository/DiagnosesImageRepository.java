@@ -9,4 +9,6 @@ public interface DiagnosesImageRepository extends JpaRepository<DiagnosesImage, 
 
     List<DiagnosesImage> findByDiagnosesId(Long diagnosesId);
 
+    void deleteByDiagnosesId(Long diagnosesId);
+
 }
