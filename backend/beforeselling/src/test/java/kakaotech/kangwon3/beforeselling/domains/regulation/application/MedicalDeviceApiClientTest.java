@@ -2,48 +2,37 @@ package kakaotech.kangwon3.beforeselling.domains.regulation.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
-import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.util.List;
 
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestClient;
 
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.entity.MedicalDevice;
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.repository.MedicalDeviceRepository;
+import kakaotech.kangwon3.beforeselling.global.util.DataGoKrApiCaller;
 
 @ExtendWith(MockitoExtension.class)
 class MedicalDeviceApiClientTest {
 
     @Mock
+    private DataGoKrApiCaller apiCaller;
+
+    @Mock
     private MedicalDeviceRepository medicalDeviceRepository;
 
-    private MockRestServiceServer server;
+    @InjectMocks
     private MedicalDeviceApiClient medicalDeviceApiClient;
-
-    @BeforeEach
-    void setUp() {
-        RestClient.Builder builder = RestClient.builder();
-        server = MockRestServiceServer.bindTo(builder).build();
-        RestClient restClient = builder.build();
-        medicalDeviceApiClient = new MedicalDeviceApiClient(restClient, medicalDeviceRepository);
-        ReflectionTestUtils.setField(medicalDeviceApiClient, "serviceKey", "test-key");
-    }
 
     @Test
     @DisplayName("의료기기 품목 조회 결과가 있으면 저장하고 true를 반환한다.")
@@ -71,16 +60,16 @@ class MedicalDeviceApiClientTest {
                 }
                 """;
 
-        server.expect(requestTo(Matchers.containsString("MdeqPrdlstInfoService02")))
-                .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess(responseJson, MediaType.APPLICATION_JSON));
+        given(apiCaller.call(
+                eq("https://apis.data.go.kr/1471000/MdeqPrdlstInfoService02/getMdeqPrdlstInfoInq02"),
+                startsWith("pageNo=1")))
+                .willReturn(responseJson);
 
         // when
         boolean result = medicalDeviceApiClient.fetchAndSave(1, 10);
 
         // then
         assertThat(result).isTrue();
-        server.verify();
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<MedicalDevice>> captor = ArgumentCaptor.forClass(List.class);
@@ -102,8 +91,10 @@ class MedicalDeviceApiClientTest {
                 }
                 """;
 
-        server.expect(requestTo(Matchers.containsString("MdeqPrdlstInfoService02")))
-                .andRespond(withSuccess(emptyJson, MediaType.APPLICATION_JSON));
+        given(apiCaller.call(
+                eq("https://apis.data.go.kr/1471000/MdeqPrdlstInfoService02/getMdeqPrdlstInfoInq02"),
+                startsWith("pageNo=1")))
+                .willReturn(emptyJson);
 
         // when
         boolean result = medicalDeviceApiClient.fetchAndSave(1, 10);

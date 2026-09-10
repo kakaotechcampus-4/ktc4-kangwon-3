@@ -1,20 +1,18 @@
 package kakaotech.kangwon3.beforeselling.domains.regulation.application;
 
-import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.entity.CustomsConfirmation;
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.repository.CustomsConfirmationRepository;
+import kakaotech.kangwon3.beforeselling.global.util.DataGoKrApiCaller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,12 +29,9 @@ public class CustomsApiClient {
             "https://apis.data.go.kr/1220000/retrieveCcctLworCd/getRetrieveCcctLworCd";
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
-    private final RestClient restClient;
+    private final DataGoKrApiCaller apiCaller;
     private final CustomsConfirmationRepository customsConfirmationRepository;
     private final XmlMapper xmlMapper = new XmlMapper();
-
-    @Value("${data-go-kr.service-key}")
-    private String serviceKey;
 
     /**
      * 품목코드로 세관장확인대상물품을 조회하여 DB에 저장한다.
@@ -45,16 +40,7 @@ public class CustomsApiClient {
      * @return 저장 성공 여부
      */
     public boolean fetchAndSave(String hsCode, String importExport) {
-        // serviceKey는 URL 인코딩된 상태로 저장되어 있으므로 직접 삽입
-        String url = BASE_URL + "?serviceKey=" + serviceKey
-                + "&hsSgn=" + hsCode
-                + "&imexTpcd=" + importExport;
-
-        // .uri(String)은 내부에서 재인코딩하여 serviceKey가 깨지므로 URI 객체로 전달
-        String xml = restClient.get()
-                .uri(URI.create(url))
-                .retrieve()
-                .body(String.class);
+        String xml = apiCaller.call(BASE_URL, "hsSgn=" + hsCode + "&imexTpcd=" + importExport);
 
         try {
             JsonNode root = xmlMapper.readTree(xml);

@@ -2,50 +2,37 @@ package kakaotech.kangwon3.beforeselling.domains.regulation.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
-import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import java.util.List;
 
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import java.nio.charset.StandardCharsets;
-
-import org.springframework.http.HttpMethod;
-import org.springframework.http.MediaType;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.test.web.client.MockRestServiceServer;
-import org.springframework.web.client.RestClient;
 
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.entity.CustomsConfirmation;
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.repository.CustomsConfirmationRepository;
+import kakaotech.kangwon3.beforeselling.global.util.DataGoKrApiCaller;
 
 @ExtendWith(MockitoExtension.class)
 class CustomsApiClientTest {
 
     @Mock
+    private DataGoKrApiCaller apiCaller;
+
+    @Mock
     private CustomsConfirmationRepository customsConfirmationRepository;
 
-    private MockRestServiceServer server;
+    @InjectMocks
     private CustomsApiClient customsApiClient;
-
-    @BeforeEach
-    void setUp() {
-        RestClient.Builder builder = RestClient.builder();
-        server = MockRestServiceServer.bindTo(builder).build();
-        RestClient restClient = builder.build();
-        customsApiClient = new CustomsApiClient(restClient, customsConfirmationRepository);
-        ReflectionTestUtils.setField(customsApiClient, "serviceKey", "test-key");
-    }
 
     @Test
     @DisplayName("세관장확인대상 조회 결과가 있으면 저장하고 true를 반환한다.")
@@ -70,16 +57,16 @@ class CustomsApiClientTest {
                 </response>
                 """;
 
-        server.expect(requestTo(Matchers.containsString("retrieveCcctLworCd")))
-                .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess(responseXml, new MediaType("application", "xml", StandardCharsets.UTF_8)));
+        given(apiCaller.call(
+                eq("https://apis.data.go.kr/1220000/retrieveCcctLworCd/getRetrieveCcctLworCd"),
+                startsWith("hsSgn=3304990000")))
+                .willReturn(responseXml);
 
         // when
         boolean result = customsApiClient.fetchAndSave("3304990000", "2");
 
         // then
         assertThat(result).isTrue();
-        server.verify();
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<CustomsConfirmation>> captor = ArgumentCaptor.forClass(List.class);
@@ -102,8 +89,10 @@ class CustomsApiClientTest {
                 </response>
                 """;
 
-        server.expect(requestTo(Matchers.containsString("retrieveCcctLworCd")))
-                .andRespond(withSuccess(emptyXml, new MediaType("application", "xml", StandardCharsets.UTF_8)));
+        given(apiCaller.call(
+                eq("https://apis.data.go.kr/1220000/retrieveCcctLworCd/getRetrieveCcctLworCd"),
+                startsWith("hsSgn=9999")))
+                .willReturn(emptyXml);
 
         // when
         boolean result = customsApiClient.fetchAndSave("9999", "2");
