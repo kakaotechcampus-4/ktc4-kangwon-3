@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.regulation.application;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.entity.CustomsConfirmation;
 import kakaotech.kangwon3.beforeselling.domains.regulation.domain.repository.CustomsConfirmationRepository;
@@ -19,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 관세청 세관장확인대상물품 API를 호출하여 확인대상 정보를 수집·저장하는 클라이언트.
- * data.go.kr 서비스키가 필요하며, JSON 응답을 파싱한다.
+ * data.go.kr 서비스키가 필요하며, XML 응답을 파싱한다.
  */
 @Slf4j
 @Component
@@ -32,7 +33,7 @@ public class CustomsApiClient {
 
     private final RestClient restClient;
     private final CustomsConfirmationRepository customsConfirmationRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final XmlMapper xmlMapper = new XmlMapper();
 
     @Value("${data-go-kr.service-key}")
     private String serviceKey;
@@ -49,14 +50,15 @@ public class CustomsApiClient {
                 + "&hsSgn=" + hsCode
                 + "&imexTpcd=" + importExport;
 
-        String json = restClient.get()
-                .uri(url)
+        // .uri(String)은 내부에서 재인코딩하여 serviceKey가 깨지므로 URI 객체로 전달
+        String xml = restClient.get()
+                .uri(URI.create(url))
                 .retrieve()
                 .body(String.class);
 
         try {
-            JsonNode root = objectMapper.readTree(json);
-            JsonNode items = root.path("items");
+            JsonNode root = xmlMapper.readTree(xml);
+            JsonNode items = root.path("body").path("items").path("item");
 
             // 조회 결과가 없을 때
             if (items.isMissingNode() || items.isEmpty()) {
@@ -65,7 +67,7 @@ public class CustomsApiClient {
 
             List<CustomsConfirmation> result = new ArrayList<>();
 
-            // 결과가 2건 이상이면 배열, 1건이면 단일 객체
+            // 결과가 2건 이상이면 배열, 1건이면 단일 객체 (XML 특성)
             if (items.isArray()) {
                 for (JsonNode node : items) {
                     result.add(parseConfirmation(node));
@@ -84,8 +86,8 @@ public class CustomsApiClient {
     }
 
     /**
-     * JSON 노드 하나를 CustomsConfirmation 엔티티로 변환한다.
-     * @param node 세관장확인대상물품 JSON 노드
+     * XML 노드 하나를 CustomsConfirmation 엔티티로 변환한다.
+     * @param node 세관장확인대상물품 XML 노드
      * @return CustomsConfirmation 엔티티
      */
     private CustomsConfirmation parseConfirmation(JsonNode node) {
