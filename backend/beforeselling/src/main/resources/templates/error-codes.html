@@ -164,15 +164,43 @@
         <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
             <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">에러 응답 형식</span>
         </div>
-        <div class="px-4 py-3 font-mono text-sm leading-relaxed">
-            <span class="text-slate-400">{</span><br>
-            &nbsp;&nbsp;<span class="text-brand-dark">"code"</span><span class="text-slate-400">:</span>
-            <span class="text-danger">"AUTH-001"</span><span class="text-slate-400">,</span><br>
-            &nbsp;&nbsp;<span class="text-brand-dark">"message"</span><span class="text-slate-400">:</span>
-            <span class="text-danger">"액세스 토큰이 만료되었습니다."</span><span class="text-slate-400">,</span><br>
-            &nbsp;&nbsp;<span class="text-brand-dark">"details"</span><span class="text-slate-400">:</span>
-            <span class="text-slate-500">null</span><br>
-            <span class="text-slate-400">}</span>
+        <div class="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+            <div class="px-4 py-3">
+                <p class="text-xs text-slate-400 mb-2">일반 에러</p>
+                <div class="font-mono text-sm leading-relaxed">
+                    <span class="text-slate-400">{</span><br>
+                    &nbsp;&nbsp;<span class="text-brand-dark">"code"</span><span class="text-slate-400">:</span>
+                    <span class="text-danger">"AUTH-001"</span><span class="text-slate-400">,</span><br>
+                    &nbsp;&nbsp;<span class="text-brand-dark">"message"</span><span class="text-slate-400">:</span>
+                    <span class="text-danger">"액세스 토큰이 만료되었습니다."</span><span class="text-slate-400">,</span><br>
+                    &nbsp;&nbsp;<span class="text-brand-dark">"details"</span><span class="text-slate-400">:</span>
+                    <span class="text-slate-500">null</span><br>
+                    <span class="text-slate-400">}</span>
+                </div>
+            </div>
+            <div class="px-4 py-3">
+                <p class="text-xs text-slate-400 mb-2">요청 값 검증(Validation) 실패 에러</p>
+                <div class="font-mono text-sm leading-relaxed">
+                    <span class="text-slate-400">{</span><br>
+                    &nbsp;&nbsp;<span class="text-brand-dark">"code"</span><span class="text-slate-400">:</span>
+                    <span class="text-danger">"COMMON-002"</span><span class="text-slate-400">,</span><br>
+                    &nbsp;&nbsp;<span class="text-brand-dark">"message"</span><span class="text-slate-400">:</span>
+                    <span class="text-danger">"올바르지 않은 요청 형식입니다."</span><span class="text-slate-400">,</span><br>
+                    &nbsp;&nbsp;<span class="text-brand-dark">"details"</span><span class="text-slate-400">:</span> <span class="text-slate-400">[</span><br>
+                    &nbsp;&nbsp;&nbsp;&nbsp;<span class="text-slate-400">{</span>
+                    <span class="text-brand-dark">"field"</span><span class="text-slate-400">:</span>
+                    <span class="text-danger">"nickname"</span><span class="text-slate-400">,</span>
+                    <span class="text-brand-dark">"message"</span><span class="text-slate-400">:</span>
+                    <span class="text-danger">"크기가 2에서 10 사이여야 합니다"</span><span class="text-slate-400">}</span><br>
+                    &nbsp;&nbsp;<span class="text-slate-400">]</span><br>
+                    <span class="text-slate-400">}</span>
+                </div>
+            </div>
+        </div>
+        <div class="px-4 py-3 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 leading-relaxed">
+            요청 값 검증(<code class="font-mono text-slate-700">@Valid</code>) 실패 시에는 항상 <code class="font-mono text-slate-700">COMMON-002</code>로 응답되며, <code class="font-mono text-slate-700">details</code>에 실패한 필드별 오류가 배열로 담깁니다. 그 외의 에러는 <code class="font-mono text-slate-700">details</code>가 <code class="font-mono text-slate-700">null</code>입니다.
+            각 필드에 어떤 제약 조건(필수 여부, 길이, 범위 등)이 걸려 있는지는 이 페이지가 아닌
+            <a href="/swagger-ui/index.html" class="text-brand hover:underline font-medium">Swagger UI</a>의 요청 본문(Request Body) 스키마에서 확인하세요.
         </div>
     </div>
 
