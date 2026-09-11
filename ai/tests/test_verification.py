@@ -16,6 +16,7 @@ from app.schemas.schemas import (
     DraftAssessment,
     ElectricalAssessment,
     FollowUpQuestion,
+    LegalSource,
     OverallStatus,
     RegulatoryFinding,
     RiskLevel,
@@ -185,8 +186,7 @@ def test_미선택_툴에_실행_결과가_있으면_모순으로_지적한다()
     assert result.status is VerificationStatus.REVISION_REQUIRED
     assert any("미선택 툴" in issue.description for issue in result.issues)
 
-
-def test_확정적_판단에_실자료_근거가_없으면_지적한다():
+def test_확정적_판단에_근거가_아예_없으면_critical로_지적한다():
     draft = _draft()
     # legal_sources가 비어 있는 상태로 확정 판단만 바꾼다.
     draft.findings[0].determination = Determination.REQUIRED
@@ -195,8 +195,32 @@ def test_확정적_판단에_실자료_근거가_없으면_지적한다():
     result = VerificationAgent().verify_rules(draft)
 
     assert result.status is VerificationStatus.REVISION_REQUIRED
-    assert any("실자료" in issue.description for issue in result.issues)
+    issue = next(i for i in result.issues if i.issue_type.value == "missing_evidence")
+    assert issue.severity == "critical"
+    assert "인용문과 출처가 없습니다" in issue.description
 
+def test_확정적_판단의_근거가_mock뿐이면_경고로_낮춘다():
+    draft = _draft()
+    source = LegalSource(
+        source_name="국가법령정보센터",
+        law_name="전기용품 및 생활용품 안전관리법",
+        article="제15조",
+        quoted_text="안전확인신고를 하여야 한다.",
+        source_url="https://www.law.go.kr/",
+        is_mock=True,
+    )
+    for finding in (draft.findings[0], draft.tool_results[-1].findings[0]):
+        finding.determination = Determination.REQUIRED
+        finding.legal_sources = [source]
+
+    result = VerificationAgent().verify_rules(draft)
+
+    issue = next(i for i in result.issues if i.issue_type.value == "missing_evidence")
+    assert issue.severity == "warning"
+    assert "mock" in issue.description
+    # 툴을 다시 돌려도 mock 여부는 바뀌지 않으므로 재실행을 요구하지 않는다.
+    assert ToolName.ELECTRICAL not in result.additional_tools_required
+    assert result.status is VerificationStatus.APPROVED_WITH_WARNINGS
 
 def test_모델_없이_verify를_부르면_규칙_결과를_보존하고_실패한다():
     with pytest.raises(VerificationError) as exc_info:
