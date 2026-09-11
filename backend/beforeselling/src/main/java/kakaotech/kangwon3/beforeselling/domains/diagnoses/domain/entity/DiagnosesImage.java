@@ -26,6 +26,7 @@ public class DiagnosesImage extends BaseEntity {
     @Column(name = "image_url", nullable = false)
     private String imageUrl;
 
+    // BE -> AI OCR 깨짐 방지를 위하여
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
