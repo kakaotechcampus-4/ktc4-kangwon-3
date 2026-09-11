@@ -62,7 +62,7 @@ public class DiagnosesService {
     // 상세 응답용 이미지 목록
     @Transactional(readOnly = true)
     public List<DiagnosesImage> getDiagnosesImages(Long diagnosesId) {
-        return diagnosesImageRepository.findByDiagnosesIdBySortOrderAsc(diagnosesId);
+        return diagnosesImageRepository.findByDiagnosesIdOrderBySortOrderAsc(diagnosesId);
     }
 
     // 목록 조회, 필터 유무 분기
