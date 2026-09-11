@@ -11,13 +11,6 @@ public record DiagnosesListResponse(
         PageInfo page
 ) {
 
-    public static DiagnosesListResponse from(Page<Diagnoses> page) {
-        List<DiagnosesSummaryResponse> diagnoses = page.getContent().stream()
-                .map(DiagnosesSummaryResponse::from)
-                .toList();
-
-        return new DiagnosesListResponse(diagnoses, PageInfo.from(page));
-    }
 
     public record PageInfo(
             int number,
@@ -27,14 +20,7 @@ public record DiagnosesListResponse(
             boolean hasNext
     ) {
 
-        private static PageInfo from(Page<?> page) {
-            return new PageInfo(
-                    page.getNumber(),
-                    page.getSize(),
-                    page.getTotalElements(),
-                    page.getTotalPages(),
-                    page.hasNext()
-            );
-        }
     }
+
+
 }

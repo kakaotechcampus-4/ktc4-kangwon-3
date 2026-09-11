@@ -20,24 +20,4 @@ public record DiagnosesDetailResponse(
         LocalDateTime updatedAt
 ) {
 
-    public static DiagnosesDetailResponse of(Diagnoses diagnoses, List<DiagnosesImage> images) {
-        List<String> imageUrls = images.stream()
-                .map(DiagnosesImage::getImageUrl)
-                .toList();
-
-        return new DiagnosesDetailResponse(
-                diagnoses.getId(),
-                diagnoses.getProductName(),
-                diagnoses.getProductImageUrl(),
-                diagnoses.getSourceType(),
-                diagnoses.getSourceUrl(),
-                diagnoses.getSourceText(),
-                imageUrls,
-                diagnoses.getProcessingStatus(),
-                diagnoses.getResultStatus(),
-                diagnoses.getSummary(),
-                diagnoses.getCreatedAt(),
-                diagnoses.getUpdatedAt()
-        );
-    }
 }

@@ -15,14 +15,5 @@ public record DiagnosesSummaryResponse(
         LocalDateTime createdAt
 ) {
 
-    public static DiagnosesSummaryResponse from(Diagnoses diagnoses) {
-        return new DiagnosesSummaryResponse(
-                diagnoses.getId(),
-                diagnoses.getProductName(),
-                diagnoses.getProductImageUrl(),
-                diagnoses.getProcessingStatus(),
-                diagnoses.getResultStatus(),
-                diagnoses.getCreatedAt()
-        );
-    }
 }
+
