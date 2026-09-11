@@ -478,8 +478,9 @@ class VerificationAgent:
     def _build_messages(draft: DraftAssessment) -> list[dict[str, str]]:
         payload = draft.model_dump(mode="json")
         # 조회 파라미터와 원시 응답에는 키·토큰·개인정보가 섞일 수 있어 모델에 보내지 않는다.
+        # tool_results[].findings는 최상위 findings와 항상 같아야 한다는 규칙을 verify_rules()가 이미 검사하므로, 모델에는 최상위 목록 한 벌만 보내 입력 토큰을 줄인다.
         for record in payload["tool_results"]:
-            for key in ("query", "raw_response", "error"):
+            for key in ("query", "raw_response", "error", "findings"):
                 record.pop(key, None)
         # 출력 JSON Schema는 with_structured_output이 API에 직접 전달한다.
         # 프롬프트에 다시 붙이면 토큰만 늘고 두 스키마가 어긋날 수 있어 넣지 않는다.
