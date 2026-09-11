@@ -141,6 +141,36 @@ def test_상품에_무선_신호가_있는데_전파_툴이_없으면_지적한�
     issue = next(issue for issue in result.issues if issue.issue_type.value == "missing_tool")
     assert issue.severity == "warning"
 
+def test_연령_표기가_있는데_어린이_대상_판단이_없으면_지적한다():
+    draft = _draft(Product(product_id="p1", target_age="만 3세 이상"))
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert result.status is VerificationStatus.APPROVED_WITH_WARNINGS
+    issue = next(
+        issue for issue in result.issues
+        if issue.issue_type.value == "insufficient_product_data"
+    )
+    assert issue.severity == "warning"
+    # 같은 입력으로 툴을 다시 돌려도 결과가 같으므로 재실행을 요구하지 않는다.
+    assert ToolName.CHILDREN not in result.additional_tools_required
+
+
+def test_어린이_대상_여부가_판단된_상품은_지적하지_않는다():
+    # for_children=False는 판단이 끝난 상태이므로 연령 표기가 있어도 통과한다.
+    draft = _draft(Product(product_id="p1", target_age="만 14세 이상", for_children=False))
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert result.status is VerificationStatus.APPROVED
+
+def test_어린이_대상_여부가_판단된_상품은_지적하지():
+    # for_children=False는 판단이 끝난 상태이므로 연령 표기가 있어도 통과한다.
+    draft = _draft(Product(product_id="p1", target_age="만14세이상", for_children=False))
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert result.status is VerificationStatus.APPROVED
 
 def test_미선택_툴에_실행_결과가_있으면_모순으로_지적한다():
     draft = _draft()

@@ -410,7 +410,20 @@ class VerificationAgent:
                     tool=name,
                     severity="warning",
                 )
-
+        # for_children은 연령 표기뿐 아니라 광고 맥락까지 해석한 값이라, 판단이 서지 않으면 null로 남는다.
+        # 연령 표기가 있는데 None이면 어린이 대상 여부가 미판단인 상태다.
+        # target_age만 보면 "성인용"·"만 14세 이상"까지 걸리므로 for_children이 None일 때만 잡는다.
+        if (
+            product.for_children is None
+            and (product.target_age or "").strip()
+            and ToolName.CHILDREN not in draft.selected_tools
+        ):
+            add(
+                IssueType.INSUFFICIENT_PRODUCT_DATA,
+                f"연령 표기 '{product.target_age}'가 있으나 어린이 대상 여부가 판단되지 "
+                "않았습니다. 어린이제품 적용 여부를 확인하세요.",
+                severity="warning",
+            )
         final_ids = [f.finding_id for f in draft.findings]
         if len(final_ids) != len(set(final_ids)):
             add(IssueType.CONTRADICTION, "종합 판단의 finding_id가 중복되었습니다.")
