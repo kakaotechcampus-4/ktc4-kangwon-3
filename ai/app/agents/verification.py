@@ -448,20 +448,30 @@ class VerificationAgent:
             if fid not in original or original[fid] != finding:
                 add(IssueType.CONTRADICTION, "종합 판단이 원래 툴 판단과 일치하지 않습니다.", (fid,))
             if finding.determination in _DEFINITIVE:
-                usable = [
+                # "근거가 없다"와 "근거는 있는데 mock이다"는 서로 다른 문제다.
+                cited = [
                     s
                     for s in finding.legal_sources
-                    if not s.is_mock
-                    and (s.quoted_text or "").strip()
-                    and (s.source_url or "").strip()
+                    if (s.quoted_text or "").strip() and (s.source_url or "").strip()
                 ]
-                if not usable:
+                usable = [s for s in cited if not s.is_mock]
+                if not cited:
                     add(
                         IssueType.MISSING_EVIDENCE,
-                        "확정적 판단에 실자료 인용문과 출처가 없습니다. "
-                        "mock 자료나 URL만으로는 검증할 수 없습니다.",
+                        "확정적 판단에 인용문과 출처가 없습니다. "
+                        "URL만으로는 검증할 수 없습니다.",
                         (fid,),
                         finding.tool_name,
+                    )
+                elif not usable:
+                    # 툴이 실자료를 돌려주면 is_mock=False가 되어 이 지적은 저절로 사라진다.
+                    # 같은 툴을 재실행해도 mock 여부는 바뀌지 않으므로 툴 재실행을 요구하지 않는다.
+                    add(
+                        IssueType.MISSING_EVIDENCE,
+                        "확정적 판단의 근거가 mock 자료뿐입니다. "
+                        "실자료로 확인하기 전에는 확정 판단으로 쓸 수 없습니다.",
+                        (fid,),
+                        severity="warning",
                     )
 
         result = VerificationResult(
