@@ -3,7 +3,7 @@ package kakaotech.kangwon3.beforeselling.global.security.oauth2.handler;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.AuthTokenService;
-import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
+import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.RefreshTokenCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.TokenPair;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.CustomOAuth2User;
@@ -30,7 +30,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
     private final AuthTokenService authTokenService;
     private final RefreshTokenCookieProvider refreshTokenCookieProvider;
-    private final AppProperties appProperties;
+    private final OAuth2RedirectCookieProvider oAuth2RedirectCookieProvider;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -42,7 +42,10 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
 
         log.debug("소셜 로그인 성공. userId={}, isNewUser={}", principal.userId(), principal.isNewUser());
 
-        String redirectUri = UriComponentsBuilder.fromUriString(appProperties.oauth2().frontendRedirectUri())
+        String frontendRedirectUri = oAuth2RedirectCookieProvider.resolveRedirectUri(request);
+        oAuth2RedirectCookieProvider.addCookie(response, oAuth2RedirectCookieProvider.expire());
+
+        String redirectUri = UriComponentsBuilder.fromUriString(frontendRedirectUri)
                 .queryParam(IS_NEW_USER_PARAM, principal.isNewUser())
                 .build()
                 .toUriString();

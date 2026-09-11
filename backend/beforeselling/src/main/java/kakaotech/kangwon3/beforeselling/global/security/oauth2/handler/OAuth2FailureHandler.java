@@ -2,9 +2,9 @@ package kakaotech.kangwon3.beforeselling.global.security.oauth2.handler;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
+import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.AuthenticationException;
@@ -25,7 +25,7 @@ public class OAuth2FailureHandler implements AuthenticationFailureHandler {
 
     private static final String ERROR_PARAM = "error";
 
-    private final AppProperties appProperties;
+    private final OAuth2RedirectCookieProvider oAuth2RedirectCookieProvider;
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
@@ -33,7 +33,10 @@ public class OAuth2FailureHandler implements AuthenticationFailureHandler {
         String errorCode = resolveErrorCode(exception);
         log.warn("소셜 로그인 실패. code={}, message={}", errorCode, exception.getMessage());
 
-        String redirectUri = UriComponentsBuilder.fromUriString(appProperties.oauth2().frontendRedirectUri())
+        String frontendRedirectUri = oAuth2RedirectCookieProvider.resolveRedirectUri(request);
+        oAuth2RedirectCookieProvider.addCookie(response, oAuth2RedirectCookieProvider.expire());
+
+        String redirectUri = UriComponentsBuilder.fromUriString(frontendRedirectUri)
                 .queryParam(ERROR_PARAM, errorCode)
                 .build()
                 .toUriString();

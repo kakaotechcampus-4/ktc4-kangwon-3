@@ -17,7 +17,7 @@ public record AppProperties(
     }
 
     public record OAuth2(
-            String frontendRedirectUri
+            List<String> allowedRedirectUris
     ) {
     }
 
