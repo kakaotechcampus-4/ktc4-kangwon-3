@@ -1,16 +1,11 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response;
 
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
-import org.springframework.data.domain.Page;
-
 import java.util.List;
 
 public record DiagnosesListResponse(
         List<DiagnosesSummaryResponse> diagnoses,
         PageInfo page
 ) {
-
 
     public record PageInfo(
             int number,
@@ -19,8 +14,5 @@ public record DiagnosesListResponse(
             int totalPages,
             boolean hasNext
     ) {
-
     }
-
-
 }
