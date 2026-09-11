@@ -56,7 +56,7 @@ public class S3PresignedUrlProvider {
         String presignedUrl = presign(key, file.contentType(), file.fileSize());
         String fileUrl = createFileUrl(key);
 
-        return new PresignedFile(fileName, presignedUrl, fileUrl);
+        return new PresignedFile(fileName, key, presignedUrl, fileUrl);
     }
 
     private void validateExtension(String fileName) {
