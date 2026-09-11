@@ -8,6 +8,7 @@ public record PresignedUrlResponse(
 
     public record PresignedFile(
             String fileName,
+            String key,
             String presignedUrl,
             String fileUrl
     ) {

@@ -24,6 +24,7 @@ public interface S3PresignApi {
                     업로드할 파일 정보를 전달하면 S3에 직접 업로드할 수 있는 Presigned PUT URL을 발급합니다.
                     클라이언트는 발급받은 presignedUrl로 PUT 요청을 보내 파일을 업로드하고,
                     업로드 완료 후에는 함께 반환된 fileUrl로 파일에 접근합니다.
+                    key는 업로드된 파일의 S3 객체 키로, 이후 다른 API에 파일을 참조시킬 때 이 값을 사용합니다.
 
                     PUT 요청은 S3로 직접 전송되므로 아래 오류는 이 API의 응답이 아닌 S3의 응답이며,
                     이 API의 응답 규격(ApiResponse)을 따르지 않고 S3가 반환하는 XML 오류 응답 형태로 내려옵니다.
