@@ -561,11 +561,18 @@ class VerificationAgent:
 
     @staticmethod
     def _status(result: VerificationResult) -> Status:
-        """프롬프트의 우선순위와 같은 순서로 상태를 정한다."""
-        if result.additional_tools_required or any(i.severity == "critical" for i in result.issues):
+        """심각도가 높고 더 구체적인 상태를 먼저 고른다.
+
+        critical은 초안 자체가 틀렸다는 뜻이라 사용자에게 묻기 전에 먼저 바로잡아야 한다.
+        추가 툴 요청보다 필수 질문을 앞에 두는 이유는, 둘 다 해당할 때 status만 보고
+        분기하는 쪽에 "사람만 풀 수 있는 막힘"이라는 더 구체적인 정보를 남기기 위해서다.
+        """
+        if any(i.severity == "critical" for i in result.issues):
             return Status.REVISION_REQUIRED
         if any(q.required for q in result.follow_up_questions):
             return Status.USER_INPUT_REQUIRED
+        if result.additional_tools_required:
+            return Status.REVISION_REQUIRED
         if result.issues or result.follow_up_questions:
             return Status.APPROVED_WITH_WARNINGS
         return Status.APPROVED

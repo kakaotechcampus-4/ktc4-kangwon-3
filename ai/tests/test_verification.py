@@ -164,14 +164,6 @@ def test_어린이_대상_여부가_판단된_상품은_지적하지_않는다()
 
     assert result.status is VerificationStatus.APPROVED
 
-def test_어린이_대상_여부가_판단된_상품은_지적하지():
-    # for_children=False는 판단이 끝난 상태이므로 연령 표기가 있어도 통과한다.
-    draft = _draft(Product(product_id="p1", target_age="만14세이상", for_children=False))
-
-    result = VerificationAgent().verify_rules(draft)
-
-    assert result.status is VerificationStatus.APPROVED
-
 def test_미선택_툴에_실행_결과가_있으면_모순으로_지적한다():
     draft = _draft()
     unselected = next(record for record in draft.tool_results if not record.selected)
@@ -302,6 +294,53 @@ def test_필수_질문이_있으면_user_input_required가_된다():
     result = VerificationAgent(model=_StubModel(review)).verify(_draft())
 
     assert result.status is VerificationStatus.USER_INPUT_REQUIRED
+
+def test_추가_툴과_필수_질문이_겹치면_질문을_먼저_본다():
+    review = _review(
+        additional_tools_required=[ToolName.RADIO],
+        follow_up_questions=[
+            _Question(
+                question="전지 용량(Wh)이 표기되어 있습니까?",
+                reason="안전확인 대상 판단에 필요합니다.",
+                related_tools=[ToolName.ELECTRICAL],
+                required=True,
+            )
+        ],
+    )
+
+    result = VerificationAgent(model=_StubModel(review)).verify(_draft())
+
+    # 툴 재실행만 반복하지 않도록 사람만 풀 수 있는 막힘을 먼저 드러낸다.
+    assert result.status is VerificationStatus.USER_INPUT_REQUIRED
+    # 툴 요청 자체는 결과에 그대로 남아 파이프라인이 함께 처리할 수 있다.
+    assert ToolName.RADIO in result.additional_tools_required
+
+
+def test_critical_지적은_필수_질문보다_먼저다():
+    review = _review(
+        issues=[
+            _Issue(
+                severity="critical",
+                issue_type="unsupported_claim",
+                description="인용문이 결론을 뒷받침하지 않습니다.",
+                related_finding_ids=["f1"],
+                recommended_action=None,
+            )
+        ],
+        follow_up_questions=[
+            _Question(
+                question="전지 용량(Wh)이 표기되어 있습니까?",
+                reason="안전확인 대상 판단에 필요합니다.",
+                related_tools=[ToolName.ELECTRICAL],
+                required=True,
+            )
+        ],
+    )
+
+    result = VerificationAgent(model=_StubModel(review)).verify(_draft())
+
+    # 틀린 전제 위에서 사용자에게 묻지 않도록 초안 보완을 먼저 요구한다.
+    assert result.status is VerificationStatus.REVISION_REQUIRED
 
 def test_겹치는_질문은_required가_강한_쪽을_남긴다():
     draft = _draft()
