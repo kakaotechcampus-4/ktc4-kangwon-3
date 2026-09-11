@@ -38,11 +38,9 @@ public class AuthTokenService {
      */
     public TokenPair reissueTokens(String refreshToken) {
         TokenClaims claims = jwtProvider.parse(refreshToken, TokenType.REFRESH);
-        refreshTokenService.validateRefreshToken(claims.jti(), claims.userId());
+        refreshTokenService.consumeRefreshToken(claims.jti(), claims.userId());
 
         User user = userService.getUser(claims.userId());
-
-        refreshTokenService.removeRefreshToken(claims.jti());
         return issueTokens(user.getId(), user.getRole());
     }
 
