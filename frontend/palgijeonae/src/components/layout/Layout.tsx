@@ -6,7 +6,7 @@ function Layout() {
     return (
         <>
             <Header />
-            <main className="mx-auto mt-40 w-3/5 max-w-297">
+            <main className="mx-auto mt-40 w-3/5 min-w-150 max-w-297">
                 <Outlet />
             </main>
         </>

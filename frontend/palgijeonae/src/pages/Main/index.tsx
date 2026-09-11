@@ -22,7 +22,7 @@ function MainPage() {
     }
 
     return (
-        <div className="flex w-full min-w-150 flex-col items-start gap-6">
+        <div className="flex w-full flex-col items-start gap-6">
             <div className="flex w-full flex-row items-center gap-2 py-1">
                 <img src={QuestionMarkIcon} alt="Question Mark" className="h-17 w-17 shrink-0 object-contain" />
                 <h1 className="text-4xl font-extrabold leading-10 text-black">이 물건, 팔아도 되나요?</h1>
