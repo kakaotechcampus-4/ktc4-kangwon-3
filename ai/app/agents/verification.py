@@ -512,10 +512,14 @@ class VerificationAgent:
         tools = list(
             dict.fromkeys(rules.additional_tools_required + review.additional_tools_required)
         )
-        # 같은 질문이 규칙과 모델에서 겹치면 하나만 남긴다.
+        # 같은 질문이 규칙과 모델에서 겹치면 required가 강한 쪽을 남긴다.
         questions: dict[str, FollowUpQuestion] = {q.question: q for q in rules.follow_up_questions}
         for question in review.follow_up_questions:
-            questions.setdefault(question.question, FollowUpQuestion(**question.model_dump()))
+            existing = questions.get(question.question)
+            if existing is None:
+                questions[question.question] = FollowUpQuestion(**question.model_dump())
+            elif question.required and not existing.required:
+                questions[question.question] = existing.model_copy(update={"required": True})
 
         merged = VerificationResult(
             status=Status.APPROVED,

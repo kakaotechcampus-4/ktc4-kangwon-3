@@ -14,6 +14,7 @@ from app.schemas.schemas import (
     Determination,
     DraftAssessment,
     ElectricalAssessment,
+    FollowUpQuestion,
     OverallStatus,
     RegulatoryFinding,
     RiskLevel,
@@ -21,7 +22,7 @@ from app.schemas.schemas import (
     ToolResult,
     ToolStatus,
     TraceEvent,
-    VerificationStatus,
+    VerificationStatus, 
 )
 
 
@@ -271,6 +272,33 @@ def test_필수_질문이_있으면_user_input_required가_된다():
 
     assert result.status is VerificationStatus.USER_INPUT_REQUIRED
 
+def test_겹치는_질문은_required가_강한_쪽을_남긴다():
+    draft = _draft()
+    existing = FollowUpQuestion(
+        question="전지 용량(Wh)이 표기되어 있습니까?",
+        reason="초안 단계에서 확인하지 못했습니다.",
+        related_tools=[ToolName.ELECTRICAL],
+        required=False,
+    )
+    draft.follow_up_questions = [existing]
+    review = _review(
+        follow_up_questions=[
+            _Question(
+                question="전지 용량(Wh)이 표기되어 있습니까?",
+                reason="안전확인 대상 판단에 필요합니다.",
+                related_tools=[ToolName.ELECTRICAL],
+                required=True,
+            )
+        ]
+    )
+
+    result = VerificationAgent(model=_StubModel(review)).verify(draft)
+
+    assert len(result.follow_up_questions) == 1
+    merged = result.follow_up_questions[0]
+    assert merged.required is True
+    assert merged.question_id == existing.question_id  # 기존 식별자 보존
+    assert result.status is VerificationStatus.USER_INPUT_REQUIRED
 
 def test_모델_호출에_사용량_콜백을_전달하고_성공을_기록한다(monkeypatch):
     stub = _StubModel(_review())
