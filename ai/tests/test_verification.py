@@ -1,6 +1,7 @@
 """VerificationAgent 동작 검증. 실제 ML API 호출 없이 모델을 스텁으로 대체한다."""
 
 import pytest
+import json
 
 from app.agents.verification import (
     VerificationAgent,
@@ -414,6 +415,14 @@ def test_조회_파라미터와_원시_응답은_모델에_보내지_않는다()
     assert "절대-보내면-안-됨" not in payload
     assert "원시 응답" not in payload
 
+def test_툴_판단은_최상위_findings로만_모델에_보낸다():
+    stub = _StubModel(_review())
+
+    VerificationAgent(model=stub).verify(_draft())
+
+    payload = json.loads(stub.received_messages[-1]["content"])["draft"]
+    assert [f["finding_id"] for f in payload["findings"]] == ["f1"]
+    assert all("findings" not in record for record in payload["tool_results"])
 
 def test_출력_스키마를_프롬프트에_중복으로_붙이지_않는다():
     # with_structured_output이 스키마를 API에 직접 전달하므로 프롬프트에는 넣지 않는다.
