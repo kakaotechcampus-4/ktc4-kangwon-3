@@ -41,16 +41,5 @@ public record DiagnosesCreateRequest (
                     || !CollectionUtils.isEmpty(imageUrls);
         }
 
-        public DiagnosesCreateCommand toCommand(Long userId) {
-            return new DiagnosesCreateCommand(
-                    userId,
-                    productName,
-                    productImageUrl,
-                    sourceType,
-                    sourceUrl,
-                    sourceText,
-                    imageUrls == null ? List.of() : imageUrls
-            );
-        }
     }
 
