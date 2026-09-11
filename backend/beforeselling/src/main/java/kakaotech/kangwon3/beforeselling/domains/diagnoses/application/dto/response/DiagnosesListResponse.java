@@ -4,11 +4,11 @@ import java.util.List;
 
 public record DiagnosesListResponse(
         List<DiagnosesSummaryResponse> diagnoses,
-        PageInfo page
+        PageInfo pageInfo
 ) {
 
     public record PageInfo(
-            int number,
+            int page,
             int size,
             long totalElements,
             int totalPages,
