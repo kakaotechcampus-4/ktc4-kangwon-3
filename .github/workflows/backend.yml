@@ -1,0 +1,150 @@
+name: Backend CI/CD
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "backend/beforeselling/**"
+  push:
+    branches: [develop]
+    paths:
+      - "backend/beforeselling/**"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-2
+  S3_BUCKET: ktc4-kangwon3-deploy
+  APP_DIR: /home/ubuntu/app
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/beforeselling
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 25 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Gradle 설정
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 빌드 및 테스트
+        run: ./gradlew build
+
+      - name: 테스트 리포트 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: backend/beforeselling/build/reports/tests/test
+
+      - name: 빌드 산출물(jar) 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: backend/beforeselling/build/libs/app.jar
+          retention-days: 1
+
+  deploy:
+    needs: build-and-test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 빌드 산출물(jar) 내려받기
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: backend/beforeselling/build/libs
+
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 이미지 빌드 및 업로드
+        run: |
+          docker build --target deploy \
+            -t "beforeselling-app:${GITHUB_SHA}" backend/beforeselling
+          docker save "beforeselling-app:${GITHUB_SHA}" | gzip > /tmp/app-image.tar.gz
+          aws s3 cp /tmp/app-image.tar.gz "s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz"
+          aws s3 cp backend/beforeselling/docker-compose.yml \
+            "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
+          aws s3 cp backend/beforeselling/docker-compose.prod.yml \
+            "s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml"
+
+      - name: 서버 준비
+        run: |
+          STATE=$(aws ec2 describe-instances --instance-ids "${{ vars.INSTANCE_ID }}" \
+                  --query 'Reservations[0].Instances[0].State.Name' --output text)
+          echo "현재 상태: $STATE"
+          if [ "$STATE" != "running" ]; then
+            echo "서버를 시작합니다..."
+            aws ec2 start-instances --instance-ids "${{ vars.INSTANCE_ID }}"
+            aws ec2 wait instance-running --instance-ids "${{ vars.INSTANCE_ID }}"
+          fi
+          echo "SSM 에이전트 연결 대기..."
+          for i in $(seq 1 30); do
+            PING=$(aws ssm describe-instance-information \
+                   --filters "Key=InstanceIds,Values=${{ vars.INSTANCE_ID }}" \
+                   --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null || echo "")
+            if [ "$PING" = "Online" ]; then echo "준비 완료"; exit 0; fi
+            sleep 10
+          done
+          echo "::error::SSM 에이전트가 응답하지 않습니다"; exit 1
+
+      - name: 배포 실행
+        run: |
+          cat > /tmp/params.json <<EOF
+          {"commands":[
+            "#!/bin/bash",
+            "set -euo pipefail",
+            "aws s3 cp s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz /tmp/app-image.tar.gz",
+            "gunzip -c /tmp/app-image.tar.gz | docker load",
+            "rm -rf ${APP_DIR}/release && mkdir -p ${APP_DIR}/release",
+            "aws s3 cp s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.yml",
+            "aws s3 cp s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.prod.yml",
+            "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
+            "cd ${APP_DIR}/release",
+            "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans",
+            "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
+            "docker image prune -f"
+          ]}
+          EOF
+
+          CMD=$(aws ssm send-command \
+                --instance-ids "${{ vars.INSTANCE_ID }}" \
+                --document-name AWS-RunShellScript \
+                --comment "deploy ${GITHUB_SHA:0:7}" \
+                --parameters file:///tmp/params.json \
+                --query 'Command.CommandId' --output text)
+          echo "CommandId: $CMD"
+
+          # 최대 10분 대기 (EC2 는 컴파일하지 않고 이미지 다운로드 + load 만 한다)
+          for i in $(seq 1 60); do
+            ST=$(aws ssm get-command-invocation --command-id "$CMD" \
+                 --instance-id "${{ vars.INSTANCE_ID }}" --query Status --output text 2>/dev/null || echo Pending)
+            case "$ST" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 10
+          done
+
+          echo "----- 실행 로그 -----"
+          aws ssm get-command-invocation --command-id "$CMD" \
+            --instance-id "${{ vars.INSTANCE_ID }}" --query 'StandardOutputContent' --output text
+          echo "----- 에러 로그 -----"
+          aws ssm get-command-invocation --command-id "$CMD" \
+            --instance-id "${{ vars.INSTANCE_ID }}" --query 'StandardErrorContent' --output text
+
+          [ "$ST" = "Success" ] || { echo "::error::배포 실패 ($ST)"; exit 1; }
