@@ -53,20 +53,23 @@ public class Diagnoses extends BaseEntity {
     private String productImageUrl;
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Diagnoses(Long userId, String productName, SourceType sourceType, String sourceUrl, String sourceText) {
+    private Diagnoses(Long userId, String productName, String productImageUrl,
+                      SourceType sourceType, String sourceUrl, String sourceText) {
         this.userId = userId;
         this.productName = productName;
+        this.productImageUrl = productImageUrl;
         this.sourceType = sourceType;
         this.sourceUrl = sourceUrl;
         this.sourceText = sourceText;
         this.processingStatus = ProcessingStatus.PENDING;
     }
 
-    public static Diagnoses pending(Long userId, String productName, SourceType sourceType,
-                                    String sourceUrl, String sourceText) {
+    public static Diagnoses pending(Long userId, String productName, String productImageUrl,
+                                    SourceType sourceType, String sourceUrl, String sourceText) {
         return Diagnoses.builder()
                 .userId(userId)
                 .productName(productName)
+                .productImageUrl(productImageUrl)
                 .sourceType(sourceType)
                 .sourceUrl(sourceUrl)
                 .sourceText(sourceText)
