@@ -86,29 +86,29 @@ def record(
     error_type: str | None = None,
 ) -> None:
     """호출 1건을 기록한다. 로깅 실패가 검증을 막지 않도록 어떤 예외도 밖으로 내지 않는다."""
-    row = {
-        "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
-        "agent": agent,
-        "configured_model": configured_model,
-        # 프록시가 실제로 돌린 모델. 요청한 모델과 다른지 확인할 수 있다.
-        "reported_model": usage.reported_model if usage else None,
-        "input_tokens": usage.input_tokens if usage else None,
-        "cached_input_tokens": usage.cached_tokens if usage else None,
-        "output_tokens": usage.output_tokens if usage else None,
-        "total_tokens": usage.total_tokens if usage else None,
-        "estimated_cost_krw": estimate_krw(usage, configured_model) if usage else None,
-        "subject_id": subject_id,
-        "success": ok,
-        "latency_ms": elapsed_ms,
-        # 예외 메시지는 응답 내용이나 민감 정보를 포함할 수 있어 타입만 남긴다.
-        "error_type": error_type,
-    }
     try:
+        row = {
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "agent": agent,
+            "configured_model": configured_model,
+            # 프록시가 실제로 돌린 모델. 요청한 모델과 다른지 확인할 수 있다.
+            "reported_model": usage.reported_model if usage else None,
+            "input_tokens": usage.input_tokens if usage else None,
+            "cached_input_tokens": usage.cached_tokens if usage else None,
+            "output_tokens": usage.output_tokens if usage else None,
+            "total_tokens": usage.total_tokens if usage else None,
+            "estimated_cost_krw": estimate_krw(usage, configured_model) if usage else None,
+            "subject_id": subject_id,
+            "success": ok,
+            "latency_ms": elapsed_ms,
+            # 예외 메시지는 응답 내용이나 민감 정보를 포함할 수 있어 타입만 남긴다.
+            "error_type": error_type,
+        }
         USAGE_LOG.parent.mkdir(parents=True, exist_ok=True)
         with USAGE_LOG.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
-    except OSError:
-        # 사용량 기록은 부가 기능이다. 실패해도 호출 결과를 버리지 않는다.
+            handle.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+    except Exception:
+        # 사용량 기록은 부가 기능이다. 파일 오류든 직렬화 오류든 호출 결과를 버리지 않는다.
         pass
 
 
