@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface DiagnosesImageRepository extends JpaRepository<DiagnosesImage, Long> {
 
-    List<DiagnosesImage> findByDiagnosesIdBySortOrderAsc(Long diagnosesId);
+    List<DiagnosesImage> findByDiagnosesIdOrderBySortOrderAsc(Long diagnosesId);
 
     void deleteByDiagnosesId(Long diagnosesId);
 
