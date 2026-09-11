@@ -1,0 +1,22 @@
+services:
+  ai:
+    build:
+      context: .
+    image: ai-server:${IMAGE_TAG:-latest}
+    container_name: ai-server
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      TZ: Asia/Seoul
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      OPENAI_MODEL: ${OPENAI_MODEL:-openai/gpt-4.1-mini}
+      BE_BASE_URL: ${BE_BASE_URL:-http://host.docker.internal:8080}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health/ready || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
