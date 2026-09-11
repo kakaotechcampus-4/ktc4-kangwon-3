@@ -1,7 +1,5 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.DiagnosesImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
@@ -30,7 +28,7 @@ public class DiagnosesService {
 
     // 진단서 + 이미지 저장
     @Transactional
-    public Diagnoses createDiagnoses(DiagnosesCreateCommand command)  {
+    public Diagnoses createDiagnoses(DiagnosesCreateCommand command) {
         Diagnoses diagnoses = diagnosesRepository.save(Diagnoses.pending(
                 command.userId(),
                 command.productName(),
@@ -43,12 +41,10 @@ public class DiagnosesService {
         createDiagnosesImages(diagnoses.getId(), command.imageUrls());
         log.debug("진단서 생성 완료. diagnosesId={}, userId={}", diagnoses.getId(), command.userId());
 
-
         return diagnoses;
     }
 
     // 단건 조회 + 소유권 검증
-    @Transactional(readOnly = true)
     public Diagnoses getDiagnoses(Long userId, Long diagnosesId) {
         Diagnoses diagnoses = diagnosesRepository.findById(diagnosesId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
@@ -60,13 +56,11 @@ public class DiagnosesService {
     }
 
     // 상세 응답용 이미지 목록
-    @Transactional(readOnly = true)
     public List<DiagnosesImage> getDiagnosesImages(Long diagnosesId) {
         return diagnosesImageRepository.findByDiagnosesIdOrderBySortOrderAsc(diagnosesId);
     }
 
     // 목록 조회, 필터 유무 분기
-    @Transactional(readOnly = true)
     public Page<Diagnoses> getDiagnosesList(Long userId, ResultStatus resultStatus, Pageable pageable) {
         if(resultStatus == null) {
             return diagnosesRepository.findByUserId(userId, pageable);
@@ -93,5 +87,4 @@ public class DiagnosesService {
 
         diagnosesImageRepository.saveAll(images);
     }
-
 }

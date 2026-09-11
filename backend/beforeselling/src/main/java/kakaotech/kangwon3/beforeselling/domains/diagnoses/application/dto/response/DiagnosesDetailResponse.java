@@ -19,5 +19,4 @@ public record DiagnosesDetailResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-
 }

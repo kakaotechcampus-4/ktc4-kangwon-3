@@ -1,7 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity;
 
 import jakarta.persistence.*;
-import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import kakaotech.kangwon3.beforeselling.global.common.BaseEntity;
 import lombok.AccessLevel;
 import lombok.Builder;

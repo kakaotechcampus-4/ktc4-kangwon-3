@@ -1,6 +1,5 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response;
 
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 
@@ -14,6 +13,5 @@ public record DiagnosesSummaryResponse(
         ResultStatus resultStatus,
         LocalDateTime createdAt
 ) {
-
 }
 
