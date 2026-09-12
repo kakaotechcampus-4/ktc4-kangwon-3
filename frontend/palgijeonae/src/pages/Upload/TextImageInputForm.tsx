@@ -4,6 +4,8 @@ import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
 import AttachedImageList from "./AttachedImageList.tsx";
 
+const MAX_PRODUCT_IMAGE_COUNT = 20;
+
 function TextImageInputForm() {
     const [productName, setProductName] = useState("");
     const [productContent, setProductContent] = useState("");
@@ -32,7 +34,13 @@ function TextImageInputForm() {
                 description="상세 페이지를 캡처한 이미지를 첨부하세요."
                 multiple={true}
                 isOption={false}
-                onChange={(newFiles) => setProductImages((prev) => [...prev, ...newFiles])}
+                onChange={(newFiles) => {
+                    const availableSlots = Math.max(MAX_PRODUCT_IMAGE_COUNT - productImages.length, 0);
+                    if (newFiles.length > availableSlots) {
+                        alert(`이미지는 최대 ${MAX_PRODUCT_IMAGE_COUNT}장까지 첨부할 수 있습니다. ${newFiles.length - availableSlots}장은 추가되지 않았습니다.`);
+                    }
+                    setProductImages((prev) => [...prev, ...newFiles.slice(0, availableSlots)]);
+                }}
             />
             <AttachedImageList
                 title="첨부된 상세페이지 이미지"
