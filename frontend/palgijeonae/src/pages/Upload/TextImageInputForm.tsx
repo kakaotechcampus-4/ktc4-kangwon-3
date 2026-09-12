@@ -32,7 +32,7 @@ function TextImageInputForm() {
                 description="상세 페이지를 캡처한 이미지를 첨부하세요."
                 multiple={true}
                 isOption={false}
-                onChange={setProductImages}
+                onChange={(newFiles) => setProductImages((prev) => [...prev, ...newFiles])}
             />
             <AttachedImageList
                 title="첨부된 상세페이지 이미지"
