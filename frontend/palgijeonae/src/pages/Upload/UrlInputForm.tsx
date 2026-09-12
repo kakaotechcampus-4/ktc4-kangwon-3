@@ -2,11 +2,12 @@ import { useState } from "react";
 
 import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
+import AttachedImageList from "./AttachedImageList.tsx";
 
 function UrlInputForm() {
     const [productName, setProductName] = useState("");
     const [link, setLink] = useState("");
-    const [, setImage] = useState<File | null>(null);
+    const [image, setImage] = useState<File | null>(null);
 
     return (
         <div className="flex w-full flex-col gap-6">
@@ -31,6 +32,7 @@ function UrlInputForm() {
                 isOption={true}
                 onChange={(files) => setImage(files[0] ?? null)}
             />
+            <AttachedImageList files={image ? [image] : []} />
         </div>
     );
 }
