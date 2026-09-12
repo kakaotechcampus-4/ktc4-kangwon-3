@@ -28,6 +28,7 @@ function TextImageInputForm() {
             <ImageUploadField
                 id="product-content-images"
                 title="상세페이지 이미지"
+                description="상세 페이지를 캡처한 이미지를 첨부하세요."
                 file={productImages}
                 isOption={false}
                 onChange={setProductImages}
@@ -35,6 +36,7 @@ function TextImageInputForm() {
             <ImageUploadField
                 id="product-image"
                 title="제품 대표 사진"
+                description="제품을 구분할 대표 사진을 첨부하세요."
                 file={image}
                 isOption={true}
                 onChange={setImage}

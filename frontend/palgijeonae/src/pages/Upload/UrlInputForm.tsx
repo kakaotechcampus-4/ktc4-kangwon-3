@@ -27,6 +27,7 @@ function UrlInputForm() {
             <ImageUploadField
                 id="product-image"
                 title="제품 대표 사진"
+                description="제품을 구분할 대표 사진을 첨부하세요."
                 file={image}
                 isOption={true}
                 onChange={setImage}
