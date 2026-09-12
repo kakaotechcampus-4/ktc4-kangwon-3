@@ -264,6 +264,28 @@ public enum FileResponseCode implements BaseResponseCode {
 | **`code`** | 동일 도메인에 대한 Error Code 추가 순서 (예: `001`부터 순차 번호 부여)      |
 | **`message`** | `~입니다.` 체로 작성                                          |
 
+### 3-3. 요청 값 검증 (Bean Validation)
+
+- Request DTO 필드에 `jakarta.validation.constraints`(`@NotBlank`, `@Size`, `@Min`, `@Max` 등)를 붙이고, 컨트롤러 파라미터에 `@Valid`를 명시합니다.
+- 검증 실패는 별도 에러 코드를 만들 필요 없이 `GlobalExceptionHandler`가 자동으로 `COMMON-002`(`올바르지 않은 요청 형식입니다.`) + `details`(필드별 오류 배열)로 응답합니다.
+- 각 필드에 어떤 제약 조건이 걸려있는지는 Swagger 요청 스키마에 자동으로 반영되므로(별도 설정/`@Schema` 불필요), 프론트엔드에는 `/error-codes` 페이지 대신 Swagger UI를 안내합니다. 자세한 응답 형식은 [`/error-codes` 페이지](/error-codes)의 "에러 응답 형식" 섹션을 참고합니다.
+
+```java
+public record SignUpRequest(
+        @NotBlank
+        @Size(min = 2, max = 10)
+        String nickname
+) {
+}
+```
+
+```java
+@PostMapping
+public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody SignUpRequest request) {
+    // ...
+}
+```
+
 ---
 
 ## 4. Swagger 명시
