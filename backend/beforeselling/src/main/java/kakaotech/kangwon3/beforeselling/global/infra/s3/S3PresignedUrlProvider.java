@@ -1,0 +1,120 @@
+package kakaotech.kangwon3.beforeselling.global.infra.s3;
+
+import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
+import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlRequest.FileMeta;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse.PresignedFile;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+import org.springframework.web.util.UriUtils;
+import software.amazon.awssdk.core.exception.SdkClientException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
+
+import java.nio.charset.StandardCharsets;
+import java.text.Normalizer;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * S3 Presigned PUT URL 발급을 담당한다. 확장자/크기 검증과 S3 key 조립까지 함께 처리한다.
+ */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class S3PresignedUrlProvider {
+
+    private static final String KEY_DELIMITER = "/";
+
+    private final S3Presigner s3Presigner;
+    private final S3Properties s3Properties;
+
+    public PresignedUrlResponse issuePresignedUrls(Long userId, List<FileMeta> files) {
+        List<PresignedFile> presignedFiles = files.stream()
+                .map(file -> issuePresignedUrl(userId, file))
+                .toList();
+
+        return new PresignedUrlResponse(presignedFiles);
+    }
+
+    private PresignedFile issuePresignedUrl(Long userId, FileMeta file) {
+        String fileName = Normalizer.normalize(file.fileName(), Normalizer.Form.NFC);
+        validateExtension(fileName);
+        validateContentType(fileName, file.contentType());
+        validateFileSize(file.fileSize());
+
+        String key = createKey(userId, file.type(), fileName);
+        String presignedUrl = presign(key, file.contentType(), file.fileSize());
+        String fileUrl = createFileUrl(key);
+
+        return new PresignedFile(fileName, key, presignedUrl, fileUrl);
+    }
+
+    private void validateExtension(String fileName) {
+        String extension = StringUtils.getFilenameExtension(fileName);
+        boolean allowed = extension != null && s3Properties.allowedExtensions().stream()
+                .anyMatch(allowedExtension -> allowedExtension.equalsIgnoreCase(extension));
+        if (!allowed) {
+            throw new BaseException(FileResponseCode.NOT_SUPPORTED_EXTENSION);
+        }
+    }
+
+    private void validateContentType(String fileName, String contentType) {
+        String expectedContentType = MediaTypeFactory.getMediaType(fileName)
+                .map(MediaType::toString)
+                .orElseThrow(() -> new BaseException(FileResponseCode.NOT_SUPPORTED_CONTENT_TYPE));
+        if (!expectedContentType.equalsIgnoreCase(contentType)) {
+            throw new BaseException(FileResponseCode.NOT_SUPPORTED_CONTENT_TYPE);
+        }
+    }
+
+    private void validateFileSize(long fileSize) {
+        if (fileSize > s3Properties.maxFileSize().toBytes()) {
+            throw new BaseException(FileResponseCode.EXCEED_FILE_SIZE);
+        }
+    }
+
+    private String createKey(Long userId, FileType type, String fileName) {
+        String sanitizedFileName = StringUtils.getFilename(fileName);
+        String uniqueFileName = "%s_%s".formatted(UUID.randomUUID(), sanitizedFileName);
+        return String.join(KEY_DELIMITER, type.getFolderName(), String.valueOf(userId), uniqueFileName);
+    }
+
+    private String presign(String key, String contentType, long fileSize) {
+        PutObjectRequest objectRequest = PutObjectRequest.builder()
+                .bucket(s3Properties.bucket())
+                .key(key)
+                .contentType(contentType)
+                .contentLength(fileSize)
+                .build();
+
+        PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(s3Properties.presignedUrlExpiration())
+                .putObjectRequest(objectRequest)
+                .build();
+
+        try {
+            PresignedPutObjectRequest presigned = s3Presigner.presignPutObject(presignRequest);
+            return presigned.url().toString();
+        } catch (SdkClientException e) {
+            log.error("AWS 자격증명을 찾지 못했습니다. 로컬 설정 방법은 backend/docs/guide/AWS_SSO_GUIDE.md 를 참고하세요.", e);
+            throw e;
+        }
+    }
+
+    private String createFileUrl(String key) {
+        String encodedKey = Arrays.stream(key.split(KEY_DELIMITER))
+                .map(segment -> UriUtils.encodePathSegment(segment, StandardCharsets.UTF_8))
+                .collect(Collectors.joining(KEY_DELIMITER));
+        return "https://%s.s3.%s.amazonaws.com/%s".formatted(s3Properties.bucket(), s3Properties.region(), encodedKey);
+    }
+}
