@@ -6,7 +6,7 @@ function Layout() {
     return (
         <>
             <Header />
-            <main className="flex mx-auto mt-40 w-3/5 justify-center">
+            <main className="flex justify-center mx-auto mt-40 w-3/5 min-w-150 max-w-297">
                 <Outlet />
             </main>
         </>

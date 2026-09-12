@@ -65,7 +65,7 @@ class AuthTokenServiceTest {
     }
 
     @Test
-    @DisplayName("유효한 리프레시 토큰으로 재발급하면 기존 토큰은 삭제되고 새 토큰 쌍이 발급된다.")
+    @DisplayName("유효한 리프레시 토큰으로 재발급하면 기존 토큰은 원자적으로 소비되고 새 토큰 쌍이 발급된다.")
     void reissueTokens_thenRotateRefreshToken() {
         // given
         User user = createUser(1L, Role.USER);
@@ -82,8 +82,7 @@ class AuthTokenServiceTest {
         // then
         assertThat(result).isEqualTo(newPair);
         InOrder inOrder = inOrder(refreshTokenService);
-        then(refreshTokenService).should(inOrder).validateRefreshToken("old-jti", 1L);
-        then(refreshTokenService).should(inOrder).removeRefreshToken("old-jti");
+        then(refreshTokenService).should(inOrder).consumeRefreshToken("old-jti", 1L);
         then(refreshTokenService).should(inOrder).saveRefreshToken("new-jti", 1L, REFRESH_TTL);
     }
 
@@ -94,7 +93,7 @@ class AuthTokenServiceTest {
         given(jwtProvider.parse("old-refresh", TokenType.REFRESH))
                 .willReturn(new TokenClaims(1L, Role.USER, TokenType.REFRESH, "old-jti"));
         willThrow(new BaseException(AuthResponseCode.INVALID_REFRESH_TOKEN))
-                .given(refreshTokenService).validateRefreshToken("old-jti", 1L);
+                .given(refreshTokenService).consumeRefreshToken("old-jti", 1L);
 
         // when & then
         assertThatThrownBy(() -> authTokenService.reissueTokens("old-refresh"))
@@ -102,7 +101,6 @@ class AuthTokenServiceTest {
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(AuthResponseCode.INVALID_REFRESH_TOKEN);
         then(jwtProvider).should(never()).issueTokenPair(any(), any());
-        then(refreshTokenService).should(never()).removeRefreshToken(anyString());
     }
 
     @Test
