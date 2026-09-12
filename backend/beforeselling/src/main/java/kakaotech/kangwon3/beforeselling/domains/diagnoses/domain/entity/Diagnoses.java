@@ -31,7 +31,7 @@ public class Diagnoses extends BaseEntity {
     @Column(name = "source_type", nullable = false)
     private SourceType sourceType;
 
-    @Column(name = "source_url")
+    @Column(name = "source_url", columnDefinition = "TEXT")
     private String sourceUrl;
 
     @Column(name = "source_text", columnDefinition = "TEXT")
@@ -48,7 +48,7 @@ public class Diagnoses extends BaseEntity {
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Column(name = "product_image_url")
+    @Column(name = "product_image_url", columnDefinition = "TEXT")
     private String productImageUrl;
 
     @Builder(access = AccessLevel.PRIVATE)

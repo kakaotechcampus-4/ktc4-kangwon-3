@@ -23,7 +23,7 @@ public class DiagnosesImage extends BaseEntity {
     @Column(name = "diagnoses_id", nullable = false)
     private Long diagnosesId;
 
-    @Column(name = "image_url", nullable = false)
+    @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
     // BE -> AI OCR 깨짐 방지를 위하여
