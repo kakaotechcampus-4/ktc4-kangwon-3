@@ -1,7 +1,44 @@
+import { useState } from "react";
+
+import FormField from "./FormField.tsx";
+import ImageUploadField from "./ImageUploadField.tsx";
+
 function TextImageInputForm() {
+    const [productName, setProductName] = useState("");
+    const [productContent, setProductContent] = useState("");
+    const [productImages, setProductImages] = useState<File | null>(null);
+    const [image, setImage] = useState<File | null>(null);
+
     return (
-        <div className="flex w-full">
-            텍스트 입력 폼 입니다.
+        <div className="flex w-full flex-col gap-6">
+            <FormField
+                id="product-name"
+                title="제품명"
+                placeholder="제품을 구분하기 위한 상품명이나 별명을 입력하세요."
+                value={productName}
+                onChange={setProductName}
+            />
+            <FormField
+                id="product-content"
+                title="제품 상세페이지 내용"
+                placeholder="제품의 상세페이지 정보가 포함된 웹 페이지 내용을 복사하여 입력하세요."
+                value={productContent}
+                onChange={setProductContent}
+            />
+            <ImageUploadField
+                id="product-content-images"
+                title="상세페이지 이미지"
+                file={productImages}
+                isOption={false}
+                onChange={setProductImages}
+            />
+            <ImageUploadField
+                id="product-image"
+                title="제품 대표 사진"
+                file={image}
+                isOption={true}
+                onChange={setImage}
+            />
         </div>
      );
 }
