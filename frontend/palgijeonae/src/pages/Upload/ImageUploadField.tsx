@@ -6,10 +6,11 @@ interface ImageUploadFieldProps {
     id: string
     title: string
     file: File | null
+    isOption?: boolean
     onChange: (file: File | null) => void
 }
 
-function ImageUploadField({ id, title, file, onChange }: ImageUploadFieldProps) {
+function ImageUploadField({ id, title, file, isOption = false, onChange }: ImageUploadFieldProps) {
     const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
 
     useEffect(() => {
@@ -32,7 +33,7 @@ function ImageUploadField({ id, title, file, onChange }: ImageUploadFieldProps) 
         <div className="flex w-full flex-col items-start gap-3.5">
             <div className="flex w-full items-center gap-3.75">
                 <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
-                <span className="text-xs leading-3.5 text-neutral-border">선택</span>
+                {isOption && <span className="text-xs leading-3.5 text-neutral-border">선택</span>}
             </div>
 
             <label
