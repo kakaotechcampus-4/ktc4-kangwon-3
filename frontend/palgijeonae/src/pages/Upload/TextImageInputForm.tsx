@@ -6,8 +6,8 @@ import ImageUploadField from "./ImageUploadField.tsx";
 function TextImageInputForm() {
     const [productName, setProductName] = useState("");
     const [productContent, setProductContent] = useState("");
-    const [productImages, setProductImages] = useState<File | null>(null);
-    const [image, setImage] = useState<File | null>(null);
+    const [, setProductImages] = useState<File[]>([]);
+    const [, setImage] = useState<File | null>(null);
 
     return (
         <div className="flex w-full flex-col gap-6">
@@ -29,7 +29,7 @@ function TextImageInputForm() {
                 id="product-content-images"
                 title="상세페이지 이미지"
                 description="상세 페이지를 캡처한 이미지를 첨부하세요."
-                file={productImages}
+                multiple={true}
                 isOption={false}
                 onChange={setProductImages}
             />
@@ -37,9 +37,8 @@ function TextImageInputForm() {
                 id="product-image"
                 title="제품 대표 사진"
                 description="제품을 구분할 대표 사진을 첨부하세요."
-                file={image}
                 isOption={true}
-                onChange={setImage}
+                onChange={(files) => setImage(files[0] ?? null)}
             />
         </div>
      );

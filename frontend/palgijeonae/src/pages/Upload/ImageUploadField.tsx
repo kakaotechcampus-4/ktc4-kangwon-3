@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type DragEvent } from "react";
+import { type DragEvent } from "react";
 
 import uploadInputIcon from "../../assets/upload-inputImage.png";
 
@@ -6,28 +6,23 @@ interface ImageUploadFieldProps {
     id: string
     title: string
     description: string
-    file: File | null
+    multiple?: boolean
     isOption?: boolean
-    onChange: (file: File | null) => void
+    onChange: (files: File[]) => void
 }
 
-function ImageUploadField({ id, title, description, file, isOption = false, onChange }: ImageUploadFieldProps) {
-    const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
-
-    useEffect(() => {
-        return () => {
-            if (previewUrl) {
-                URL.revokeObjectURL(previewUrl);
-            }
-        };
-    }, [previewUrl]);
+function ImageUploadField({ id, title, description, multiple = false, isOption = false, onChange }: ImageUploadFieldProps) {
+    const handleFiles = (fileList: FileList | null) => {
+        if (!fileList) {
+            return;
+        }
+        const files = Array.from(fileList);
+        onChange(multiple ? files : files.slice(0, 1));
+    };
 
     const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
         event.preventDefault();
-        const droppedFile = event.dataTransfer.files?.[0];
-        if (droppedFile) {
-            onChange(droppedFile);
-        }
+        handleFiles(event.dataTransfer.files);
     };
 
     return (
@@ -47,20 +42,13 @@ function ImageUploadField({ id, title, description, file, isOption = false, onCh
                     id={id}
                     type="file"
                     accept="image/*"
+                    multiple={multiple}
                     className="hidden"
-                    onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+                    onChange={(event) => handleFiles(event.target.files)}
                 />
 
                 <div className="flex h-17.5 w-17.5 shrink-0 items-center justify-center rounded-[10px] bg-[#E7EEFB]">
-                    {previewUrl ? (
-                        <img
-                            src={previewUrl}
-                            alt={title}
-                            className="h-full w-full rounded-[10px] object-cover"
-                        />
-                    ) : (
-                        <img src={uploadInputIcon} alt="" className="h-12.5 w-12.5 object-contain" />
-                    )}
+                    <img src={uploadInputIcon} alt="" className="h-12.5 w-12.5 object-contain" />
                 </div>
 
                 <div className="flex flex-col gap-3.5">
@@ -68,9 +56,7 @@ function ImageUploadField({ id, title, description, file, isOption = false, onCh
                         {description}
                     </p>
                     <p className="text-sm leading-4.25 font-light text-neutral-border">
-                        {file
-                            ? "다른 이미지를 선택하려면 클릭하거나 끌어다 놓으세요."
-                            : "또는 이 영역에 이미지 파일을 끌어다 놓으세요."}
+                        또는 이 영역에 이미지 파일을 끌어다 놓으세요.
                     </p>
                 </div>
             </label>
