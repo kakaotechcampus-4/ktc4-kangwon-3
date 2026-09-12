@@ -5,12 +5,13 @@ import uploadInputIcon from "../../assets/upload-inputImage.png";
 interface ImageUploadFieldProps {
     id: string
     title: string
+    description: string
     file: File | null
     isOption?: boolean
     onChange: (file: File | null) => void
 }
 
-function ImageUploadField({ id, title, file, isOption = false, onChange }: ImageUploadFieldProps) {
+function ImageUploadField({ id, title, description, file, isOption = false, onChange }: ImageUploadFieldProps) {
     const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
 
     useEffect(() => {
@@ -64,7 +65,7 @@ function ImageUploadField({ id, title, file, isOption = false, onChange }: Image
 
                 <div className="flex flex-col gap-3.5">
                     <p className="text-base leading-4.75 font-semibold text-black">
-                        {file ? file.name : "제품을 구분할 대표 사진을 첨부하세요."}
+                        {description}
                     </p>
                     <p className="text-sm leading-4.25 font-light text-neutral-border">
                         {file
