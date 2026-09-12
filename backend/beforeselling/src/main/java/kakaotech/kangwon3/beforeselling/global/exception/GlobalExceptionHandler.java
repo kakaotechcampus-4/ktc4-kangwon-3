@@ -1,9 +1,11 @@
 package kakaotech.kangwon3.beforeselling.global.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.BaseResponseCode;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -67,9 +69,32 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(ApiResponse.ofFail(responseCode));
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
+        log.warn("ConstraintViolationException: {}", e.getMessage());
+        BaseResponseCode responseCode = CommonResponseCode.INVALID_METHOD_ARGUMENT;
+
+        return ResponseEntity
+                .status(responseCode.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.ofFail(responseCode));
+    }
+
     @Override
     protected ResponseEntity<Object> handleNoResourceFoundException(NoResourceFoundException e, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         BaseResponseCode responseCode = CommonResponseCode.NOT_FOUND;
+        return ResponseEntity
+                .status(responseCode.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.ofFail(responseCode));
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException e, HttpHeaders headers,
+                                                        HttpStatusCode status, WebRequest request) {
+        log.warn("TypeMismatchException: {}", e.getMessage());
+        BaseResponseCode responseCode = CommonResponseCode.INVALID_METHOD_ARGUMENT;
+
         return ResponseEntity
                 .status(responseCode.getStatus())
                 .contentType(MediaType.APPLICATION_JSON)
