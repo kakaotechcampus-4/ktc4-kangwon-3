@@ -3,6 +3,7 @@ import { useState } from "react";
 import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
 import AttachedImageList from "./AttachedImageList.tsx";
+import Button from "../../components/common/Button/index.tsx";
 
 const MAX_PRODUCT_IMAGE_COUNT = 20;
 
@@ -59,6 +60,22 @@ function TextImageInputForm() {
                 files={image ? [image] : []}
                 onRemove={() => setImage(null)}
             />
+            <div className="flex w-full items-center justify-between gap-4">
+                <div className="group relative flex min-w-0 items-center gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-neutral-border text-xs font-medium text-neutral-border">
+                        ?
+                    </span>
+                    <p className="truncate text-sm text-neutral-dark">
+                        상세페이지를 텍스트나 이미지로 입력하세요. 둘 다 입력할 수도 있습니다.
+                    </p>
+                    <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 hidden w-max whitespace-nowrap rounded-lg bg-neutral-dark px-3 py-2 text-sm text-white shadow-lg group-hover:block">
+                        분석을 위해 필요한 정보가 상세페이지에 충분히 포함되어 있는지 확인하세요.
+                    </div>
+                </div>
+                <div className="shrink-0">
+                    <Button text="상품 추가하기" onClick={() => {}} fontSize={15} />
+                </div>
+            </div>
         </div>
      );
 }
