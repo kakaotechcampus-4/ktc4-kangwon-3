@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import deleteIcon from "../../assets/delete-gray.svg";
+import ImageLightbox from "./ImageLightbox.tsx";
 
 interface AttachedImageListProps {
     title: string
@@ -12,6 +13,7 @@ const DEFAULT_VISIBLE_COUNT = 8;
 
 function AttachedImageList({ title, files, onRemove }: AttachedImageListProps) {
     const [expanded, setExpanded] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const previewUrls = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
 
     useEffect(() => {
@@ -19,6 +21,10 @@ function AttachedImageList({ title, files, onRemove }: AttachedImageListProps) {
             previewUrls.forEach((url) => URL.revokeObjectURL(url));
         };
     }, [previewUrls]);
+
+    const clampedSelectedIndex = selectedIndex !== null && files.length > 0
+        ? Math.min(selectedIndex, files.length - 1)
+        : null;
 
     if (files.length === 0) {
         return null;
@@ -52,7 +58,8 @@ function AttachedImageList({ title, files, onRemove }: AttachedImageListProps) {
                             <img
                                 src={previewUrls[index]}
                                 alt={file.name}
-                                className="h-full w-full rounded-2xl object-cover"
+                                onClick={() => setSelectedIndex(index)}
+                                className="h-full w-full cursor-pointer rounded-2xl object-cover"
                             />
                             {showMoreOverlay ? (
                                 <button
@@ -75,6 +82,16 @@ function AttachedImageList({ title, files, onRemove }: AttachedImageListProps) {
                     );
                 })}
             </div>
+            {clampedSelectedIndex !== null && (
+                <ImageLightbox
+                    files={files}
+                    previewUrls={previewUrls}
+                    currentIndex={clampedSelectedIndex}
+                    onIndexChange={setSelectedIndex}
+                    onClose={() => setSelectedIndex(null)}
+                    onRemove={onRemove}
+                />
+            )}
         </div>
     );
 }
