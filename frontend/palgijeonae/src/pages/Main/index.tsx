@@ -4,7 +4,7 @@ import { useAuthStore } from "../../store/useAuthStore.ts"
 import Button from "../../components/common/Button"
 import InformationCard from "./InformationCard.tsx"
 
-import QuestionMarkIcon from "../../assets/main-questionMark.png"
+import Favicon from "../../assets/favicon.svg"
 import images from "../../assets/main-images.png"
 import document from "../../assets/main-document.png"
 import bell from "../../assets/main-bell.png"
@@ -24,7 +24,7 @@ function MainPage() {
     return (
         <div className="flex w-full flex-col items-start gap-6">
             <div className="flex w-full flex-row items-center gap-2 py-1">
-                <img src={QuestionMarkIcon} alt="Question Mark" className="h-17 w-17 shrink-0 object-contain" />
+                <img src={Favicon} alt="Favicon" className="h-13 w-13 shrink-0 object-contain" />
                 <h1 className="text-4xl font-extrabold leading-10 text-black">이 물건, 팔아도 되나요?</h1>
             </div>
             <div className="flex w-full flex-col items-start gap-0.5">
