@@ -32,7 +32,9 @@ function UrlInputForm() {
                 isOption={true}
                 onChange={(files) => setImage(files[0] ?? null)}
             />
-            <AttachedImageList files={image ? [image] : []} />
+            <AttachedImageList 
+            title="첨부된 제품 대표 사진"
+            files={image ? [image] : []} />
         </div>
     );
 }

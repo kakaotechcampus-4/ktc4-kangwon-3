@@ -34,7 +34,9 @@ function TextImageInputForm() {
                 isOption={false}
                 onChange={setProductImages}
             />
-            <AttachedImageList files={productImages} />
+            <AttachedImageList 
+            title="첨부된 상세페이지 이미지"
+            files={productImages} />
             <ImageUploadField
                 id="product-image"
                 title="제품 대표 사진"
@@ -42,7 +44,9 @@ function TextImageInputForm() {
                 isOption={true}
                 onChange={(files) => setImage(files[0] ?? null)}
             />
-            <AttachedImageList files={image ? [image] : []} />
+            <AttachedImageList 
+            title="첨부된 제품 대표 사진"
+            files={image ? [image] : []} />
         </div>
      );
 }
