@@ -28,6 +28,7 @@ function UrlInputForm() {
                 id="product-image"
                 title="제품 대표 사진"
                 file={image}
+                isOption={true}
                 onChange={setImage}
             />
         </div>
