@@ -2,12 +2,13 @@ import { useState } from "react";
 
 import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
+import AttachedImageList from "./AttachedImageList.tsx";
 
 function TextImageInputForm() {
     const [productName, setProductName] = useState("");
     const [productContent, setProductContent] = useState("");
-    const [, setProductImages] = useState<File[]>([]);
-    const [, setImage] = useState<File | null>(null);
+    const [productImages, setProductImages] = useState<File[]>([]);
+    const [image, setImage] = useState<File | null>(null);
 
     return (
         <div className="flex w-full flex-col gap-6">
@@ -33,6 +34,7 @@ function TextImageInputForm() {
                 isOption={false}
                 onChange={setProductImages}
             />
+            <AttachedImageList files={productImages} />
             <ImageUploadField
                 id="product-image"
                 title="제품 대표 사진"
@@ -40,6 +42,7 @@ function TextImageInputForm() {
                 isOption={true}
                 onChange={(files) => setImage(files[0] ?? null)}
             />
+            <AttachedImageList files={image ? [image] : []} />
         </div>
      );
 }
