@@ -17,10 +17,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
+@Validated
 @RequestMapping("/api/v1/diagnoses")
 @RequiredArgsConstructor
 public class DiagnosesController implements DiagnosesApi {

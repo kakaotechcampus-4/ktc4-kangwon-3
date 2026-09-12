@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.global.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.BaseResponseCode;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -60,6 +61,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
         log.error("Exception: ", e);
         BaseResponseCode responseCode = CommonResponseCode.INTERNAL_SERVER_ERROR;
+
+        return ResponseEntity
+                .status(responseCode.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.ofFail(responseCode));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
+        log.warn("ConstraintViolationException: {}", e.getMessage());
+        BaseResponseCode responseCode = CommonResponseCode.INVALID_METHOD_ARGUMENT;
 
         return ResponseEntity
                 .status(responseCode.getStatus())
