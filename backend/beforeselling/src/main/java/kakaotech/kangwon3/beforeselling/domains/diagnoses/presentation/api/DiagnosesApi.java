@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
@@ -71,8 +73,8 @@ public interface DiagnosesApi {
     ResponseEntity<ApiResponse<DiagnosesListResponse>> getDiagnosesList(
             @Parameter(hidden = true) UserPrincipal principal,
             @Parameter(description = "결과 필터. 생략하면 전체") ResultStatus resultStatus,
-            @Parameter(description = "페이지 번호 (0부터)") int page,
-            @Parameter(description = "페이지 크기") int size,
+            @Parameter(description = "페이지 번호 (0부터)") @Min(0) int page,
+            @Parameter(description = "페이지 크기") @Min(1) @Max(100) int size,
             @Parameter(description = "정렬 기준") DiagnosesSortType sortType);
 
     @Operation(

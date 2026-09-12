@@ -61,7 +61,7 @@ public class DiagnosesController implements DiagnosesApi {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "LATEST") DiagnosesSortType sortType
     ) {
-        Pageable pageable = PageRequest.of(page, size, sortType.getSort());
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100), sortType.getSort());
         DiagnosesListResponse response = diagnosesUseCase.getDiagnosesList(principal.userId(), resultStatus, pageable);
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
