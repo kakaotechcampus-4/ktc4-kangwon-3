@@ -7,6 +7,7 @@ import logoutIcon from '../../../assets/header-logout.png'
 
 function Header() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+    const isAuthReady = useAuthStore((state) => state.isAuthReady)
     const logout = useAuthStore((state) => state.logout)
     const navigate = useNavigate()
 
@@ -35,23 +36,27 @@ function Header() {
                 className="cursor-pointer w-[150px] object-contain"
                 onClick={handleLogoClick} />
             <div className="flex items-center gap-3">
-                <button
-                    className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
-                    onClick={handleButtonClick}
-                >
-                    {isLoggedIn ? '마이페이지' : '로그인'}
-                </button>
-                {isLoggedIn && (
-                    <button
-                        className="flex cursor-pointer items-center justify-center"
-                        onClick={handleLogoutClick}
-                    >
-                        <img
-                            src={logoutIcon}
-                            alt="Logout"
-                            className="h-7 w-7"
-                        />
-                    </button>
+                {isAuthReady && (
+                    <>
+                        <button
+                            className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
+                            onClick={handleButtonClick}
+                        >
+                            {isLoggedIn ? '마이페이지' : '로그인'}
+                        </button>
+                        {isLoggedIn && (
+                            <button
+                                className="flex cursor-pointer items-center justify-center"
+                                onClick={handleLogoutClick}
+                            >
+                                <img
+                                    src={logoutIcon}
+                                    alt="Logout"
+                                    className="h-7 w-7"
+                                />
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
         </header>
