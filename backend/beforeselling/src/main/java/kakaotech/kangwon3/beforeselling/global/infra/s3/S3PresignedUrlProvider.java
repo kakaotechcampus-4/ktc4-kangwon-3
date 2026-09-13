@@ -22,6 +22,9 @@ import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +37,15 @@ import java.util.stream.Collectors;
 public class S3PresignedUrlProvider {
 
     private static final String KEY_DELIMITER = "/";
+
+    /**
+     * Spring MediaTypeFactory가 내장한 mime.types에는 없는 확장자에 대한 보강 매핑.
+     * (예: HEIC/HEIF는 아이폰 기본 사진 포맷이지만 org/springframework/http/mime.types 에 누락되어 있음)
+     */
+    private static final Map<String, String> FALLBACK_CONTENT_TYPES = Map.of(
+            "heic", "image/heic",
+            "heif", "image/heif"
+    );
 
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
@@ -49,14 +61,14 @@ public class S3PresignedUrlProvider {
     private PresignedFile issuePresignedUrl(Long userId, FileMeta file) {
         String fileName = Normalizer.normalize(file.fileName(), Normalizer.Form.NFC);
         validateExtension(fileName);
-        validateContentType(fileName, file.contentType());
         validateFileSize(file.fileSize());
+        String contentType = resolveContentType(fileName);
 
         String key = createKey(userId, file.type(), fileName);
-        String presignedUrl = presign(key, file.contentType(), file.fileSize());
+        String presignedUrl = presign(key, contentType, file.fileSize());
         String fileUrl = createFileUrl(key);
 
-        return new PresignedFile(fileName, key, presignedUrl, fileUrl);
+        return new PresignedFile(fileName, key, presignedUrl, fileUrl, contentType);
     }
 
     private void validateExtension(String fileName) {
@@ -68,13 +80,19 @@ public class S3PresignedUrlProvider {
         }
     }
 
-    private void validateContentType(String fileName, String contentType) {
-        String expectedContentType = MediaTypeFactory.getMediaType(fileName)
+    private String resolveContentType(String fileName) {
+        return MediaTypeFactory.getMediaType(fileName)
                 .map(MediaType::toString)
-                .orElseThrow(() -> new BaseException(FileResponseCode.NOT_SUPPORTED_CONTENT_TYPE));
-        if (!expectedContentType.equalsIgnoreCase(contentType)) {
-            throw new BaseException(FileResponseCode.NOT_SUPPORTED_CONTENT_TYPE);
+                .or(() -> resolveFallbackContentType(fileName))
+                .orElseThrow(() -> new BaseException(FileResponseCode.NOT_SUPPORTED_EXTENSION));
+    }
+
+    private Optional<String> resolveFallbackContentType(String fileName) {
+        String extension = StringUtils.getFilenameExtension(fileName);
+        if (extension == null) {
+            return Optional.empty();
         }
+        return Optional.ofNullable(FALLBACK_CONTENT_TYPES.get(extension.toLowerCase(Locale.ROOT)));
     }
 
     private void validateFileSize(long fileSize) {
