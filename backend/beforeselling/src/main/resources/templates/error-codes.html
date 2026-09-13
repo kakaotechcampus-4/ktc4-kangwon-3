@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>팔기전에 · API 에러 코드 명세</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: {
+                        brand: { DEFAULT: '#2B8FFF', light: '#8AC1FF', dark: '#1975DD', soft: '#EAF4FF' },
+                        danger: { DEFAULT: '#FF5D5D', light: '#FF8181', dark: '#F13440', soft: '#FFF3F3' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Inter', sans-serif; }
+
+        .tab-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.875rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1.5px solid transparent;
+            white-space: nowrap;
+        }
+        .tab-pill.active {
+            background-color: #2B8FFF;
+            color: #fff;
+        }
+        .tab-pill:not(.active) {
+            background-color: #fff;
+            color: #64748b;
+            border-color: #e2e8f0;
+        }
+        .tab-pill:not(.active):hover {
+            border-color: #2B8FFF;
+            color: #2B8FFF;
+        }
+        .count-badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.05rem 0.45rem;
+            border-radius: 9999px;
+        }
+        .tab-pill.active .count-badge {
+            background-color: rgba(255,255,255,0.25);
+            color: #fff;
+        }
+        .tab-pill:not(.active) .count-badge {
+            background-color: #f1f5f9;
+            color: #64748b;
+        }
+        .status-badge {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 0.25rem 0.6rem;
+            border-radius: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1.3;
+        }
+        .status-2xx { background-color: #EAF4FF; color: #1975DD; }
+        .status-4xx { background-color: #FFF3F3; color: #FF5D5D; }
+        .status-5xx { background-color: #FFF3F3; color: #F13440; }
+        .status-other { background-color: #f1f5f9; color: #475569; }
+
+        .copy-btn {
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        tr:hover .copy-btn { opacity: 1; }
+
+        @media (max-width: 630px) {
+            table { display: block; }
+            thead { display: none; }
+            tbody { display: block; }
+
+            tbody tr {
+                display: block;
+                position: relative;
+                padding: 0.75rem 1rem !important;
+                border-bottom: 1px solid #f1f5f9;
+            }
+            tbody td {
+                display: block;
+                padding-top: 0.2rem !important;
+                padding-bottom: 0.2rem !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            tbody td:first-child { margin-bottom: 0.3rem; }
+            tbody td:last-child {
+                position: absolute;
+                top: 0.625rem;
+                right: 0.75rem;
+                padding: 0 !important;
+            }
+            .copy-btn { opacity: 1; }
+        }
+
+        .search-highlight {
+            background-color: #fef08a;
+            border-radius: 2px;
+        }
+        .fade-in {
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<div x-data="app()" x-init="init()" class="max-w-6xl mx-auto px-4 py-10">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-start justify-between flex-wrap gap-4">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-lg leading-none">📋</span>
+                    <span class="text-xs font-semibold text-brand uppercase tracking-widest">API Reference</span>
+                </div>
+                <h1 class="text-3xl font-bold text-slate-900 tracking-tight">팔기전에 에러 코드 명세</h1>
+                <p class="mt-2 text-slate-500 text-sm leading-relaxed max-w-xl">
+                    API 응답에서 발생할 수 있는 모든 에러 코드를 도메인별로 정리한 명세입니다.<br>
+                    에러 코드 또는 메시지로 빠르게 검색할 수 있습니다.
+                </p>
+            </div>
+            <div class="flex gap-2 flex-shrink-0">
+                <a href="/swagger-ui/index.html"
+                   class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-brand text-white hover:bg-brand-dark transition-colors shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                    </svg>
+                    Swagger UI
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Response Format -->
+    <div class="mb-5 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="flex items-center gap-2 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">에러 응답 형식</span>
+        </div>
+        <div class="px-4 py-3 font-mono text-sm leading-relaxed">
+            <span class="text-slate-400">{</span><br>
+            &nbsp;&nbsp;<span class="text-brand-dark">"code"</span><span class="text-slate-400">:</span>
+            <span class="text-danger">"AUTH-001"</span><span class="text-slate-400">,</span><br>
+            &nbsp;&nbsp;<span class="text-brand-dark">"message"</span><span class="text-slate-400">:</span>
+            <span class="text-danger">"액세스 토큰이 만료되었습니다."</span><span class="text-slate-400">,</span><br>
+            &nbsp;&nbsp;<span class="text-brand-dark">"details"</span><span class="text-slate-400">:</span>
+            <span class="text-slate-500">null</span><br>
+            <span class="text-slate-400">}</span>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="relative mb-5">
+        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+        </svg>
+        <input
+            x-model="search"
+            @input="onSearch"
+            type="text"
+            placeholder="에러 코드, 메시지로 검색... (예: AUTH-001, 토큰)"
+            class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent placeholder-slate-400"
+        >
+        <div x-show="search" x-cloak
+             class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+            <span x-text="filteredAll.length"></span>개 결과
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex flex-wrap gap-2 mb-6">
+        <button
+            @click="setGroup('전체')"
+            :class="activeGroup === '전체' ? 'active' : ''"
+            class="tab-pill">
+            전체
+            <span class="count-badge" x-text="allCodes.length"></span>
+        </button>
+        <template x-for="group in groups" :key="group.name">
+            <button
+                @click="setGroup(group.name)"
+                :class="activeGroup === group.name ? 'active' : ''"
+                x-show="groupCounts[group.name] > 0 || !search"
+                class="tab-pill">
+                <span x-text="group.name"></span>
+                <span class="count-badge" x-text="groupCounts[group.name]"></span>
+            </button>
+        </template>
+    </div>
+
+    <!-- Table Card -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+        <!-- Empty State -->
+        <div x-show="filteredAll.length === 0" x-cloak class="py-20 text-center fade-in">
+            <svg class="mx-auto w-12 h-12 text-slate-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <p class="text-slate-500 font-medium">검색 결과가 없습니다.</p>
+            <p class="text-slate-400 text-sm mt-1">다른 키워드로 다시 시도해보세요.</p>
+        </div>
+
+        <div x-show="filteredAll.length > 0">
+            <table class="min-w-full divide-y divide-slate-100">
+                <thead>
+                <tr class="bg-slate-50">
+                    <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">
+                        HTTP 상태
+                    </th>
+                    <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider w-48">
+                        에러 코드
+                    </th>
+                    <th class="px-5 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        메시지
+                    </th>
+                    <th class="px-5 py-3.5 w-10"></th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                <template x-for="item in filteredAll" :key="item.code + item.enumName">
+                    <tr class="group hover:bg-brand-soft transition-colors duration-100 fade-in">
+                        <!-- HTTP Status -->
+                        <td class="px-5 py-4">
+                            <span class="status-badge"
+                                  :class="statusClass(item.httpStatusCode)">
+                                <span x-text="item.httpStatusCode"></span>
+                                <span class="font-normal text-xs opacity-70"
+                                      x-text="item.httpStatusReasonPhrase"></span>
+                            </span>
+                        </td>
+                        <!-- Code -->
+                        <td class="px-5 py-4">
+                            <div class="font-mono font-semibold text-brand text-sm"
+                                 x-html="highlight(item.code)"></div>
+                            <div class="text-xs text-slate-400 mt-0.5"
+                                 x-html="highlight(item.enumName)"></div>
+                        </td>
+                        <!-- Message -->
+                        <td class="px-5 py-4 text-sm text-slate-600"
+                            x-html="highlight(item.message)"></td>
+                        <!-- Copy Button -->
+                        <td class="px-5 py-4 text-right">
+                            <button
+                                @click="copy(item.code)"
+                                class="copy-btn p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-brand-soft transition-colors"
+                                title="코드 복사">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-6 text-center text-xs text-slate-400">
+        팔기전에(beforeselling) 백엔드 팀 · 내부 개발용 문서
+    </div>
+
+    <!-- Toast -->
+    <div x-show="toastVisible" x-cloak x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900 text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg">
+        <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span x-text="toastMessage"></span>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const rawGroups = /*[[${groups}]]*/ [];
+
+    function app() {
+        return {
+            groups: rawGroups,
+            allCodes: rawGroups.flatMap(g => g.codes.map(c => ({ ...c, groupName: g.name }))),
+            activeGroup: '전체',
+            search: '',
+            filteredAll: [],
+            groupCounts: {},
+
+            toastVisible: false,
+            toastMessage: '',
+            toastTimer: null,
+
+            init() {
+                this.filteredAll = this.allCodes;
+                this.updateGroupCounts(this.allCodes);
+            },
+
+            setGroup(name) {
+                this.activeGroup = name;
+                this.applyFilters();
+            },
+
+            onSearch() {
+                this.applyFilters();
+            },
+
+            applyFilters() {
+                const q = this.search.trim().toLowerCase();
+                let base = this.allCodes;
+
+                if (q) {
+                    base = base.filter(c =>
+                        c.code.toLowerCase().includes(q) ||
+                        c.enumName.toLowerCase().includes(q) ||
+                        c.message.toLowerCase().includes(q)
+                    );
+                }
+
+                this.updateGroupCounts(base);
+
+                if (this.activeGroup !== '전체') {
+                    base = base.filter(c => c.groupName === this.activeGroup);
+                    if (base.length === 0 && q) {
+                        this.activeGroup = '전체';
+                        base = this.allCodes.filter(c =>
+                            c.code.toLowerCase().includes(q) ||
+                            c.enumName.toLowerCase().includes(q) ||
+                            c.message.toLowerCase().includes(q)
+                        );
+                    }
+                }
+
+                this.filteredAll = base;
+            },
+
+            updateGroupCounts(codes) {
+                const counts = { '전체': codes.length };
+                this.groups.forEach(g => {
+                    counts[g.name] = codes.filter(c => c.groupName === g.name).length;
+                });
+                this.groupCounts = counts;
+            },
+
+            statusClass(code) {
+                if (code >= 200 && code < 300) return 'status-2xx';
+                if (code >= 400 && code < 500) return 'status-4xx';
+                if (code >= 500) return 'status-5xx';
+                return 'status-other';
+            },
+
+            highlight(text) {
+                if (!this.search.trim()) return this.escapeHtml(text);
+                const q = this.search.trim();
+                const escaped = this.escapeHtml(text);
+                const escapedQ = this.escapeHtml(q);
+                const regex = new RegExp(`(${escapedQ.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                return escaped.replace(regex, '<mark class="search-highlight">$1</mark>');
+            },
+
+            escapeHtml(str) {
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            },
+
+            async copy(code) {
+                try {
+                    await navigator.clipboard.writeText(code);
+                    this.showToast(`"${code}" 복사됨`);
+                } catch {
+                    this.showToast('복사에 실패했습니다.');
+                }
+            },
+
+            showToast(msg) {
+                this.toastMessage = msg;
+                this.toastVisible = true;
+                clearTimeout(this.toastTimer);
+                this.toastTimer = setTimeout(() => { this.toastVisible = false; }, 2000);
+            }
+        };
+    }
+    /*]]>*/
+</script>
+</body>
+</html>
