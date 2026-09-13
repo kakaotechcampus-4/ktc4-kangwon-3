@@ -9,7 +9,8 @@ const API_URL = import.meta.env.VITE_API_URL
 
 function LoginPage() {
     const handleSocialLogin = (provider: 'kakao' | 'naver' | 'google') => {
-        window.location.href = `${API_URL}/oauth2/authorization/${provider}`
+        const redirectUri = `${window.location.origin}/oauth/callback`
+        window.location.href = `${API_URL}/oauth2/authorization/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`
     }
 
     return (
