@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
@@ -32,14 +33,15 @@ public interface DiagnosesApi {
                     상품 정보를 등록하고 진단 요청을 생성합니다. 진단서는 `PENDING` 상태로 저장됩니다.
                     `sourceType`이 `URL`이면 `sourceUrl`이 필수이고, `TEXT_IMAGE`이면 `sourceText`와 `imageUrls` 중 최소 하나가 필요합니다.
                     `productImageUrl`은 목록 썸네일용 대표 이미지로, `sourceType`과 무관하게 선택 입력입니다.
+                    응답으로 반환되는 `diagnosesId`로 이후 진행 상황을 조회합니다.
                     """)
     @ApiResponseExplanations(
-            success = @ApiSuccessResponseExplanation(description = "진단 요청 생성 성공"),
+            success = @ApiSuccessResponseExplanation(responseClass = DiagnosesCreateResponse.class, description = "진단 요청 생성 성공"),
             errors = {
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "INVALID_METHOD_ARGUMENT"),
             }
     )
-    ResponseEntity<ApiResponse<Void>> createDiagnoses(
+    ResponseEntity<ApiResponse<DiagnosesCreateResponse>> createDiagnoses(
             @Parameter(hidden = true) UserPrincipal principal,
             @Valid DiagnosesCreateRequest request);
 

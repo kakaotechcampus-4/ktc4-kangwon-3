@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
@@ -60,6 +61,16 @@ class DiagnosesMapperTest {
 
         // then
         assertThat(command.imageUrls()).isNotNull().isEmpty();
+    }
+
+    @Test
+    @DisplayName("진단 요청 생성 응답으로 변환하면 진단서 ID가 담긴다.")
+    void toCreateResponse_thenIncludeDiagnosesId() {
+        // given & when
+        DiagnosesCreateResponse response = diagnosesMapper.toCreateResponse(createDiagnoses(42L));
+
+        // then
+        assertThat(response.diagnosesId()).isEqualTo(42L);
     }
 
     @Test

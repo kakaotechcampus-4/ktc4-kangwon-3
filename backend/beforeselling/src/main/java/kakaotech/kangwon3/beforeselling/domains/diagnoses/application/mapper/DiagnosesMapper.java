@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
@@ -25,6 +26,10 @@ public class DiagnosesMapper {
                 request.sourceText(),
                 request.imageUrls() == null ? List.of() : request.imageUrls()
         );
+    }
+
+    public DiagnosesCreateResponse toCreateResponse(Diagnoses diagnoses) {
+        return new DiagnosesCreateResponse(diagnoses.getId());
     }
 
     public DiagnosesDetailResponse toDetailResponse(Diagnoses diagnoses) {
