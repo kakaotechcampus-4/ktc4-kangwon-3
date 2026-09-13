@@ -7,6 +7,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -51,6 +54,10 @@ public class Diagnoses extends BaseEntity {
     @Column(name = "product_image_url", columnDefinition = "TEXT")
     private String productImageUrl;
 
+    @OneToMany(mappedBy = "diagnoses", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<DiagnosesImage> images = new ArrayList<>();
+
     @Builder(access = AccessLevel.PRIVATE)
     private Diagnoses(Long userId, String productName, String productImageUrl,
                       SourceType sourceType, String sourceUrl, String sourceText) {
@@ -73,6 +80,12 @@ public class Diagnoses extends BaseEntity {
                 .sourceUrl(sourceUrl)
                 .sourceText(sourceText)
                 .build();
+    }
+
+    public void addImages(List<String> imageUrls) {
+        for (String imageUrl : imageUrls) {
+            images.add(new DiagnosesImage(this, imageUrl, images.size()));
+        }
     }
 
     public boolean isOwnedBy(Long userId) {

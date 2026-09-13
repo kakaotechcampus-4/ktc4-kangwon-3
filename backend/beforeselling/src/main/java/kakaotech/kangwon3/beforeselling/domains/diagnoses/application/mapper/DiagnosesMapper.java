@@ -27,8 +27,8 @@ public class DiagnosesMapper {
         );
     }
 
-    public DiagnosesDetailResponse toDetailResponse(Diagnoses diagnoses, List<DiagnosesImage> images) {
-        List<String> imageUrls = images.stream()
+    public DiagnosesDetailResponse toDetailResponse(Diagnoses diagnoses) {
+        List<String> imageUrls = diagnoses.getImages().stream()
                 .map(DiagnosesImage::getImageUrl)
                 .toList();
 

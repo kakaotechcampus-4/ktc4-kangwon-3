@@ -9,10 +9,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(
-        name = "diagnoses_image",
-        indexes = @Index(name = "idx_diagnoses_image_diagnoses_id", columnList = "diagnoses_id")
-)
+@Table(name = "diagnoses_image")
 public class DiagnosesImage extends BaseEntity {
 
     @Id
@@ -20,8 +17,9 @@ public class DiagnosesImage extends BaseEntity {
     @Column(name = "diagnoses_image_id")
     private Long id;
 
-    @Column(name = "diagnoses_id", nullable = false)
-    private Long diagnosesId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "diagnoses_id", nullable = false)
+    private Diagnoses diagnoses;
 
     @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
@@ -30,13 +28,9 @@ public class DiagnosesImage extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
-    private DiagnosesImage(Long diagnosesId, String imageUrl, int sortOrder) {
-        this.diagnosesId = diagnosesId;
+    DiagnosesImage(Diagnoses diagnoses, String imageUrl, int sortOrder) {
+        this.diagnoses = diagnoses;
         this.imageUrl = imageUrl;
         this.sortOrder = sortOrder;
-    }
-
-    public static DiagnosesImage of(Long diagnosesId, String imageUrl, int sortOrder) {
-        return new DiagnosesImage(diagnosesId, imageUrl, sortOrder);
     }
 }

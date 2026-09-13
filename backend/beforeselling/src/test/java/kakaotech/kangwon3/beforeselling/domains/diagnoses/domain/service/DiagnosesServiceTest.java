@@ -5,7 +5,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesImageRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
@@ -14,7 +13,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -32,7 +30,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.inOrder;
 
 @ExtendWith(MockitoExtension.class)
 class DiagnosesServiceTest {
@@ -44,17 +41,11 @@ class DiagnosesServiceTest {
     @Mock
     private DiagnosesRepository diagnosesRepository;
 
-    @Mock
-    private DiagnosesImageRepository diagnosesImageRepository;
-
     @InjectMocks
     private DiagnosesService diagnosesService;
 
     @Captor
     private ArgumentCaptor<Diagnoses> diagnosesCaptor;
-
-    @Captor
-    private ArgumentCaptor<List<DiagnosesImage>> imagesCaptor;
 
     @Test
     @DisplayName("진단을 요청하면 진단서가 PENDING 상태로 저장되고 진단 결과는 비어 있다.")
@@ -86,9 +77,9 @@ class DiagnosesServiceTest {
         diagnosesService.createDiagnoses(createCommand(1L, imageUrls));
 
         // then
-        then(diagnosesImageRepository).should().saveAll(imagesCaptor.capture());
+        then(diagnosesRepository).should().save(diagnosesCaptor.capture());
 
-        assertThat(imagesCaptor.getValue())
+        assertThat(diagnosesCaptor.getValue().getImages())
                 .extracting(DiagnosesImage::getImageUrl, DiagnosesImage::getSortOrder)
                 .containsExactly(
                         tuple("https://image.com/1", 0),
@@ -106,8 +97,8 @@ class DiagnosesServiceTest {
         diagnosesService.createDiagnoses(createCommand(1L, List.of()));
 
         // then
-        then(diagnosesImageRepository).should().saveAll(imagesCaptor.capture());
-        assertThat(imagesCaptor.getValue()).isEmpty();
+        then(diagnosesRepository).should().save(diagnosesCaptor.capture());
+        assertThat(diagnosesCaptor.getValue().getImages()).isEmpty();
     }
 
     @Test
@@ -180,8 +171,8 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("진단서를 삭제하면 딸린 이미지가 먼저 삭제된 뒤 진단서가 삭제된다.")
-    void removeDiagnoses_thenDeleteImagesBeforeDiagnoses() {
+    @DisplayName("본인의 진단서를 삭제하면 저장소에서 삭제된다.")
+    void removeDiagnoses_thenDeleteDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L, 1L);
         given(diagnosesRepository.findById(1L)).willReturn(Optional.of(diagnoses));
@@ -190,9 +181,7 @@ class DiagnosesServiceTest {
         diagnosesService.removeDiagnoses(1L, 1L);
 
         // then
-        InOrder inOrder = inOrder(diagnosesImageRepository, diagnosesRepository);
-        inOrder.verify(diagnosesImageRepository).deleteByDiagnosesId(1L);
-        inOrder.verify(diagnosesRepository).delete(diagnoses);
+        then(diagnosesRepository).should().delete(diagnoses);
     }
 
     @Test
@@ -207,7 +196,6 @@ class DiagnosesServiceTest {
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.FORBIDDEN);
 
-        then(diagnosesImageRepository).should(never()).deleteByDiagnosesId(any());
         then(diagnosesRepository).should(never()).delete(any());
     }
 
