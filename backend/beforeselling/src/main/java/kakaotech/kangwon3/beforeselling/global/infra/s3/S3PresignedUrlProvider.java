@@ -84,7 +84,9 @@ public class S3PresignedUrlProvider {
         return MediaTypeFactory.getMediaType(fileName)
                 .map(MediaType::toString)
                 .or(() -> resolveFallbackContentType(fileName))
-                .orElseThrow(() -> new BaseException(FileResponseCode.NOT_SUPPORTED_EXTENSION));
+                .orElseThrow(() -> new IllegalStateException(
+                        "허용된 확장자이지만 Content-Type을 알 수 없습니다. allowed-extensions 설정과 FALLBACK_CONTENT_TYPES를 확인하세요. fileName=%s"
+                                .formatted(fileName)));
     }
 
     private Optional<String> resolveFallbackContentType(String fileName) {

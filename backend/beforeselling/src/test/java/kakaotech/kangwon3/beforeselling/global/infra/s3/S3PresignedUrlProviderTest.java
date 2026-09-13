@@ -125,7 +125,7 @@ class S3PresignedUrlProviderTest {
     }
 
     @Test
-    @DisplayName("허용 확장자 목록에는 있지만 Content-Type을 알 수 없는 확장자는 FILE-001 예외가 발생한다.")
+    @DisplayName("허용 확장자 목록에는 있지만 Content-Type을 알 수 없는 확장자는 설정 오류로 간주해 IllegalStateException이 발생한다.")
     void issuePresignedUrls_withAllowedExtensionButUnresolvableContentType_thenThrowException() {
         // given
         S3Properties misconfiguredProperties = new S3Properties(
@@ -137,9 +137,7 @@ class S3PresignedUrlProviderTest {
 
         // when & then
         assertThatThrownBy(() -> provider.issuePresignedUrls(1L, List.of(file)))
-                .isInstanceOf(BaseException.class)
-                .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(FileResponseCode.NOT_SUPPORTED_EXTENSION);
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
