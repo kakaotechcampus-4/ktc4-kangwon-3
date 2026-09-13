@@ -21,7 +21,7 @@ apiClient.interceptors.request.use((config) => {
 // reissue는 한 번만 호출하고 나머지는 그 결과를 공유해서 재시도해야 함
 let refreshPromise: Promise<string> | null = null
 
-const reissueAccessToken = () => {
+export const reissueAccessToken = () => {
     if (!refreshPromise) {
         refreshPromise = axios
             .post(`${API_URL}/api/v1/auth/reissue`, null, { withCredentials: true })
