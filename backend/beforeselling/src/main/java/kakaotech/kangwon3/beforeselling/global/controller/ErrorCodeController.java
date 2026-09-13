@@ -25,7 +25,6 @@ public class ErrorCodeController {
                 buildGroup("인증", AuthResponseCode.values()),
                 buildGroup("파일", FileResponseCode.values())
         );
-
         model.addAttribute("groups", groups);
         return "error-codes";
     }
