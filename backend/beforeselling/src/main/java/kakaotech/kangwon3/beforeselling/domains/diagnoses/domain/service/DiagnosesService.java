@@ -1,9 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.DiagnosesImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesImageRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
@@ -14,9 +12,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.IntStream;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,24 +19,24 @@ import java.util.stream.IntStream;
 public class DiagnosesService {
 
     private final DiagnosesRepository diagnosesRepository;
-    private final DiagnosesImageRepository diagnosesImageRepository;
 
-    // 진단서 + 이미지 저장
+    // 진단서 + 이미지 저장(이미지는 cascade로 함께 저장된다)
     @Transactional
     public Diagnoses createDiagnoses(DiagnosesCreateCommand command) {
-        Diagnoses diagnoses = diagnosesRepository.save(Diagnoses.pending(
+        Diagnoses diagnoses = Diagnoses.pending(
                 command.userId(),
                 command.productName(),
                 command.productImageUrl(),
                 command.sourceType(),
                 command.sourceUrl(),
                 command.sourceText()
-        ));
+        );
+        diagnoses.addImages(command.imageUrls());
 
-        createDiagnosesImages(diagnoses.getId(), command.imageUrls());
-        log.debug("진단서 생성 완료. diagnosesId={}, userId={}", diagnoses.getId(), command.userId());
+        Diagnoses saved = diagnosesRepository.save(diagnoses);
+        log.debug("진단서 생성 완료. diagnosesId={}, userId={}", saved.getId(), command.userId());
 
-        return diagnoses;
+        return saved;
     }
 
     // 단건 조회 + 소유권 검증
@@ -55,11 +50,6 @@ public class DiagnosesService {
         return diagnoses;
     }
 
-    // 상세 응답용 이미지 목록
-    public List<DiagnosesImage> getDiagnosesImages(Long diagnosesId) {
-        return diagnosesImageRepository.findByDiagnosesIdOrderBySortOrderAsc(diagnosesId);
-    }
-
     // 목록 조회, 필터 유무 분기
     public Page<Diagnoses> getDiagnosesList(Long userId, ResultStatus resultStatus, Pageable pageable) {
         if(resultStatus == null) {
@@ -68,23 +58,11 @@ public class DiagnosesService {
         return diagnosesRepository.findByUserIdAndResultStatus(userId, resultStatus, pageable);
     }
 
-    // 이미지 -> 진단서 순으로 삭제
+    // 진단서 삭제(딸린 이미지는 cascade로 함께 삭제)
     @Transactional
     public void removeDiagnoses(Long userId, Long diagnosesId) {
-        Diagnoses diagnoses = getDiagnoses(userId, diagnosesId);
-
-        diagnosesImageRepository.deleteByDiagnosesId(diagnosesId);
-        diagnosesRepository.delete(diagnoses);
+        diagnosesRepository.delete(getDiagnoses(userId, diagnosesId));
 
         log.debug("진단서 삭제 완료. diagnosesId={}, userId={}", diagnosesId, userId);
-    }
-
-    // 업로드 순서를 sortOrder로 부여
-    private void createDiagnosesImages(Long diagnosesId, List<String> imageUrls) {
-        List<DiagnosesImage> images = IntStream.range(0, imageUrls.size())
-                .mapToObj(index -> DiagnosesImage.of(diagnosesId, imageUrls.get(index), index))
-                .toList();
-
-        diagnosesImageRepository.saveAll(images);
     }
 }

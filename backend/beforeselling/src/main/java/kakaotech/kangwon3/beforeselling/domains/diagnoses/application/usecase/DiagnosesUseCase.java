@@ -5,14 +5,12 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper.DiagnosesMapper;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.DiagnosesImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -29,9 +27,8 @@ public class DiagnosesUseCase {
 
     public DiagnosesDetailResponse getDiagnoses(Long userId, Long diagnosesId) {
         Diagnoses diagnoses = diagnosesService.getDiagnoses(userId, diagnosesId);
-        List<DiagnosesImage> images = diagnosesService.getDiagnosesImages(diagnosesId);
 
-        return diagnosesMapper.toDetailResponse(diagnoses, images);
+        return diagnosesMapper.toDetailResponse(diagnoses);
     }
 
     public DiagnosesListResponse getDiagnosesList(Long userId, ResultStatus resultStatus, Pageable pageable) {

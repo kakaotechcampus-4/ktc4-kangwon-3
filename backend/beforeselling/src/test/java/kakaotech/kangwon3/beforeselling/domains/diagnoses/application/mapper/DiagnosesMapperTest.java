@@ -5,7 +5,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.DiagnosesImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesCreateCommand;
@@ -68,12 +67,10 @@ class DiagnosesMapperTest {
     void toDetailResponse_thenFlattenImagesToUrls() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L);
-        List<DiagnosesImage> images = List.of(
-                DiagnosesImage.of(1L, "https://image.com/1", 0),
-                DiagnosesImage.of(1L, "https://image.com/2", 1));
+        diagnoses.addImages(List.of("https://image.com/1", "https://image.com/2"));
 
         // when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses, images);
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
 
         // then
         assertThat(response.diagnosesId()).isEqualTo(1L);
@@ -86,7 +83,7 @@ class DiagnosesMapperTest {
     @DisplayName("진단이 완료되지 않은 진단서를 변환하면 진단 결과가 비어 있다.")
     void toDetailResponse_withPendingDiagnoses_thenResultIsEmpty() {
         // given & when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(1L), List.of());
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(1L));
 
         // then
         assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);

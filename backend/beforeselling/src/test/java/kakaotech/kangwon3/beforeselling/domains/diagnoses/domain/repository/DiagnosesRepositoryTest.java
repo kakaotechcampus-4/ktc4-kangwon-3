@@ -40,9 +40,6 @@ class DiagnosesRepositoryTest {
     private DiagnosesRepository diagnosesRepository;
 
     @Autowired
-    private DiagnosesImageRepository diagnosesImageRepository;
-
-    @Autowired
     private EntityManager entityManager;
 
     @Test
@@ -58,19 +55,15 @@ class DiagnosesRepositoryTest {
 
     @Test
     @DisplayName("진단서의 이미지를 조회하면 업로드한 순서대로 반환된다.")
-    void findByDiagnosesIdOrderBySortOrderAsc_thenReturnInUploadOrder() {
+    void findById_thenReturnImagesInUploadOrder() {
         // given
-        Diagnoses diagnoses = diagnosesRepository.save(createDiagnoses(USER_ID, null));
-        Long diagnosesId = diagnoses.getId();
-
-        // 저장 순서를 일부러 뒤섞는다.
-        diagnosesImageRepository.save(DiagnosesImage.of(diagnosesId, "https://image.com/3", 2));
-        diagnosesImageRepository.save(DiagnosesImage.of(diagnosesId, "https://image.com/1", 0));
-        diagnosesImageRepository.save(DiagnosesImage.of(diagnosesId, "https://image.com/2", 1));
+        Diagnoses diagnoses = createDiagnoses(USER_ID, null);
+        diagnoses.addImages(List.of("https://image.com/1", "https://image.com/2", "https://image.com/3"));
+        Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
         // when
-        List<DiagnosesImage> result = diagnosesImageRepository.findByDiagnosesIdOrderBySortOrderAsc(diagnosesId);
+        List<DiagnosesImage> result = diagnosesRepository.findById(diagnosesId).orElseThrow().getImages();
 
         // then
         assertThat(result)
@@ -79,24 +72,25 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
-    @DisplayName("진단서의 이미지를 삭제하면 해당 진단서의 이미지만 제거된다.")
-    void deleteByDiagnosesId_thenDeleteOnlyItsImages() {
+    @DisplayName("진단서를 삭제하면 딸린 이미지도 함께 제거되고 다른 진단서의 이미지는 남는다.")
+    void delete_thenDeleteOnlyItsImages() {
         // given
-        Diagnoses target = diagnosesRepository.save(createDiagnoses(USER_ID, null));
-        Diagnoses other = diagnosesRepository.save(createDiagnoses(USER_ID, null));
+        Diagnoses target = createDiagnoses(USER_ID, null);
+        target.addImages(List.of("https://image.com/1", "https://image.com/2"));
+        diagnosesRepository.save(target);
 
-        diagnosesImageRepository.save(DiagnosesImage.of(target.getId(), "https://image.com/1", 0));
-        diagnosesImageRepository.save(DiagnosesImage.of(target.getId(), "https://image.com/2", 1));
-        diagnosesImageRepository.save(DiagnosesImage.of(other.getId(), "https://image.com/9", 0));
+        Diagnoses other = createDiagnoses(USER_ID, null);
+        other.addImages(List.of("https://image.com/9"));
+        Long otherId = diagnosesRepository.save(other).getId();
         flushAndClear();
 
         // when
-        diagnosesImageRepository.deleteByDiagnosesId(target.getId());
+        diagnosesRepository.delete(diagnosesRepository.findById(target.getId()).orElseThrow());
         flushAndClear();
 
         // then
-        assertThat(diagnosesImageRepository.findByDiagnosesIdOrderBySortOrderAsc(target.getId())).isEmpty();
-        assertThat(diagnosesImageRepository.findByDiagnosesIdOrderBySortOrderAsc(other.getId())).hasSize(1);
+        assertThat(countImages()).isEqualTo(1);
+        assertThat(diagnosesRepository.findById(otherId).orElseThrow().getImages()).hasSize(1);
     }
 
     @Test
@@ -204,6 +198,11 @@ class DiagnosesRepositoryTest {
             ReflectionTestUtils.setField(diagnoses, "resultStatus", resultStatus);
         }
         return diagnoses;
+    }
+
+    private long countImages() {
+        return entityManager.createQuery("select count(i) from DiagnosesImage i", Long.class)
+                .getSingleResult();
     }
 
     private void flushAndClear() {
