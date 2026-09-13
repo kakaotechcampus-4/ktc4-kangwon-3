@@ -125,7 +125,7 @@ jobs:
             "cd ${APP_DIR}/release",
             "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans",
             "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
-            "docker image prune -f"
+            "docker image prune -a -f"
           ]}
           EOF
 
