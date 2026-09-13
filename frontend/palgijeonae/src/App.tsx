@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 import { reissueAccessToken } from './api/client.ts'
+import { useAuthStore } from './store/useAuthStore.ts'
 import Layout from './components/layout/Layout.tsx'
 import ProtectedRoute from './components/common/ProtectedRoute/index.tsx'
 import MainPage from './pages/Main/index.tsx'
@@ -23,7 +24,9 @@ function App() {
       if (window.location.pathname === '/oauth/callback') {
         return
       }
-      reissueAccessToken().catch(() => {})
+      reissueAccessToken()
+        .catch(() => {})
+        .finally(() => useAuthStore.getState().markAuthReady())
     }
 
     restoreSession()

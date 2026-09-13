@@ -11,6 +11,7 @@ import bell from "../../assets/main-bell.png"
 
 function MainPage() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+    const isAuthReady = useAuthStore((state) => state.isAuthReady)
     const navigate = useNavigate()
 
     const handleButtonClick = () => {
@@ -37,7 +38,9 @@ function MainPage() {
                 <InformationCard image={bell} title="기록과 변경 알림" description="확인한 상품은 마이페이지에 남고, 관련 고시가 바뀌면 알려드립니다."/>
             </div>
             <div className="flex w-full flex-col items-start gap-6.25">
-                <Button text={isLoggedIn ? "상품 확인 시작하기" : "로그인 후 진단 시작"} onClick={handleButtonClick} fontSize={18} />
+                {isAuthReady && (
+                    <Button text={isLoggedIn ? "상품 확인 시작하기" : "로그인 후 진단 시작"} onClick={handleButtonClick} fontSize={18} />
+                )}
                 <p className="text-base leading-4.5 text-neutral-text">국가법령정보센터·관세청 등이 공개한 법령과 고시를 기준으로 확인합니다.</p>
             </div>
         </div>
