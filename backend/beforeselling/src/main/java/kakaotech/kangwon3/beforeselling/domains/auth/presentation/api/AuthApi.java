@@ -16,8 +16,8 @@ import org.springframework.http.ResponseEntity;
 
 @Tag(name = "Auth", description = """
         인증 API.
-        소셜 로그인 시작은 브라우저에서 `GET /oauth2/authorization/{kakao|naver|google}` 로 이동합니다.
-        성공 시 `refresh_token` HttpOnly 쿠키가 설정되고 프론트엔드 콜백 URL로 리다이렉트되며,
+        <br>소셜 로그인 시작은 브라우저에서 `GET /oauth2/authorization/{kakao|naver|google}` 로 이동합니다.
+        이때 쿼리 파라미터 `redirect_uri` 로 로그인 완료 후 이동할 프론트엔드 콜백 주소를 지정할 수 있습니다.
         프론트엔드는 이어서 `POST /api/v1/auth/reissue` 로 액세스 토큰을 획득합니다.
         """)
 public interface AuthApi {
