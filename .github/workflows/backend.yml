@@ -78,9 +78,11 @@ jobs:
         run: |
           docker build --target deploy \
             -t "beforeselling-app:${GITHUB_SHA}" \
+            -t "beforeselling-app:latest" \
             backend/beforeselling
           docker save \
             "beforeselling-app:${GITHUB_SHA}" \
+            "beforeselling-app:latest" \
             | gzip > /tmp/app-image.tar.gz
           aws s3 cp /tmp/app-image.tar.gz "s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz"
           aws s3 cp backend/beforeselling/docker-compose.yml \
