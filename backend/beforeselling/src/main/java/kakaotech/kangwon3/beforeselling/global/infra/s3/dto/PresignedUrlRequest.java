@@ -16,7 +16,6 @@ public record PresignedUrlRequest(
     public record FileMeta(
             @NotNull FileType type,
             @NotBlank String fileName,
-            @NotBlank String contentType,
             @Positive long fileSize
     ) {
     }

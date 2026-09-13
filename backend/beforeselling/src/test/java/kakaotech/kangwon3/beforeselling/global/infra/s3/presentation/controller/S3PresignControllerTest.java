@@ -85,7 +85,7 @@ class S3PresignControllerTest {
     @DisplayName("인증 없이 Presigned URL을 요청하면 401과 COMMON-004 코드를 응답한다.")
     void issuePresignedUrls_withoutAuthentication_thenUnauthorized() throws Exception {
         PresignedUrlRequest request = new PresignedUrlRequest(List.of(
-                new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", "image/jpeg", 1024)));
+                new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", 1024)));
 
         mockMvc.perform(post("/api/v1/presigned-url")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,13 +99,14 @@ class S3PresignControllerTest {
     void issuePresignedUrls_withValidRequest_thenReturnPresignedUrls() throws Exception {
         // given
         PresignedUrlRequest request = new PresignedUrlRequest(List.of(
-                new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", "image/jpeg", 1024)));
+                new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", 1024)));
         PresignedUrlResponse response = new PresignedUrlResponse(List.of(
                 new PresignedUrlResponse.PresignedFile(
                         "thumb.jpg",
                         "product-main/1/uuid_thumb.jpg",
                         "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg?X-Amz-Signature=...",
-                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg")));
+                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg",
+                        "image/jpeg")));
         given(s3PresignedUrlProvider.issuePresignedUrls(eq(1L), any())).willReturn(response);
 
         // when & then
@@ -118,7 +119,8 @@ class S3PresignControllerTest {
                 .andExpect(jsonPath("$.data.files[0].fileName").value("thumb.jpg"))
                 .andExpect(jsonPath("$.data.files[0].key").value("product-main/1/uuid_thumb.jpg"))
                 .andExpect(jsonPath("$.data.files[0].fileUrl").value(
-                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg"));
+                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg"))
+                .andExpect(jsonPath("$.data.files[0].contentType").value("image/jpeg"));
         then(s3PresignedUrlProvider).should().issuePresignedUrls(eq(1L), any());
     }
 
@@ -140,7 +142,7 @@ class S3PresignControllerTest {
     void issuePresignedUrls_withUnsupportedExtension_thenBadRequest() throws Exception {
         // given
         PresignedUrlRequest request = new PresignedUrlRequest(List.of(
-                new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "malware.exe", "application/octet-stream", 1024)));
+                new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "malware.exe", 1024)));
         given(s3PresignedUrlProvider.issuePresignedUrls(eq(1L), any()))
                 .willThrow(new BaseException(FileResponseCode.NOT_SUPPORTED_EXTENSION));
 

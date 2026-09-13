@@ -22,7 +22,10 @@ public interface S3PresignApi {
             summary = "Presigned URL 발급",
             description = """
                     업로드할 파일 정보를 전달하면 S3에 직접 업로드할 수 있는 Presigned PUT URL을 발급합니다.
-                    클라이언트는 발급받은 presignedUrl로 PUT 요청을 보내 파일을 업로드하고,
+                    Content-Type은 파일명 확장자를 기반으로 서버가 결정하여 응답의 contentType 필드로 내려주며,
+                    클라이언트가 별도로 지정할 수 없습니다.
+                    클라이언트는 발급받은 presignedUrl로 PUT 요청을 보내 파일을 업로드하되,
+                    이때 Content-Type 헤더는 반드시 응답의 contentType 값과 동일하게 설정해야 합니다(다르면 서명 불일치로 거부됨).
                     업로드 완료 후에는 함께 반환된 fileUrl로 파일에 접근합니다.
                     key는 업로드된 파일의 S3 객체 키로, 이후 다른 API에 파일을 참조시킬 때 이 값을 사용합니다.
 
@@ -36,7 +39,6 @@ public interface S3PresignApi {
             success = @ApiSuccessResponseExplanation(responseClass = PresignedUrlResponse.class, description = "발급 성공"),
             errors = {
                     @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "NOT_SUPPORTED_EXTENSION"),
-                    @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "NOT_SUPPORTED_CONTENT_TYPE"),
                     @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "EXCEED_FILE_SIZE"),
             }
     )
