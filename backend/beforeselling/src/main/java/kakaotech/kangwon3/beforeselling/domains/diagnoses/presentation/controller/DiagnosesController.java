@@ -3,6 +3,7 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controll
 import jakarta.validation.Valid;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.DiagnosesUseCase;
@@ -32,13 +33,13 @@ public class DiagnosesController implements DiagnosesApi {
     // 신규 상품 진단 요청(진단서는 PENDING 상태로 생성)
     @Override
     @PostMapping
-    public ResponseEntity<ApiResponse<Void>> createDiagnoses(
+    public ResponseEntity<ApiResponse<DiagnosesCreateResponse>> createDiagnoses(
             @LoginUser UserPrincipal principal,
             @Valid @RequestBody DiagnosesCreateRequest request
     ) {
-        diagnosesUseCase.createDiagnoses(principal.userId(), request);
+        DiagnosesCreateResponse response = diagnosesUseCase.createDiagnoses(principal.userId(), request);
 
-        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
+        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
     }
 
     // 진단서 단건 조회

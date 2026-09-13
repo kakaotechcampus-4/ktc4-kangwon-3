@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper.DiagnosesMapper;
@@ -19,10 +20,11 @@ public class DiagnosesUseCase {
     private final DiagnosesService diagnosesService;
     private final DiagnosesMapper diagnosesMapper;
 
-    public void createDiagnoses(Long userId, DiagnosesCreateRequest request) {
-        diagnosesService.createDiagnoses(diagnosesMapper.toCommand(userId, request));
+    public DiagnosesCreateResponse createDiagnoses(Long userId, DiagnosesCreateRequest request) {
+        Diagnoses diagnoses = diagnosesService.createDiagnoses(diagnosesMapper.toCommand(userId, request));
 
         // TODO: AI 서버에 진단 요청(POST /api/diagnoses)을 보내고 processingStatus를 IN_PROGRESS로 전이?
+        return diagnosesMapper.toCreateResponse(diagnoses);
     }
 
     public DiagnosesDetailResponse getDiagnoses(Long userId, Long diagnosesId) {

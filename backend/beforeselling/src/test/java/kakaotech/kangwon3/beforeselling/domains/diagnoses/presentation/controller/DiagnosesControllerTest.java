@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
@@ -104,14 +105,20 @@ class DiagnosesControllerTest {
     }
 
     @Test
-    @DisplayName("상세페이지 URL로 진단을 요청하면 성공 응답을 받는다.")
-    void createDiagnoses_withUrlType_thenSuccess() throws Exception {
+    @DisplayName("상세페이지 URL로 진단을 요청하면 생성된 진단서 ID를 응답한다.")
+    void createDiagnoses_withUrlType_thenReturnDiagnosesId() throws Exception {
+        // given
+        given(diagnosesUseCase.createDiagnoses(anyLong(), any()))
+                .willReturn(new DiagnosesCreateResponse(42L));
+
+        // when & then
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(urlTypeRequest())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("OK"));
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.diagnosesId").value(42));
 
         then(diagnosesUseCase).should().createDiagnoses(eq(1L), any());
     }
