@@ -34,15 +34,19 @@ public record DiagnosesCreateRequest(
     @JsonIgnore
     @AssertTrue(message = "URL 등록 시 상세페이지 URL은 필수입니다.")
     public boolean isSourceUrlProvidedForUrlType() {
-        return sourceType != SourceType.URL || StringUtils.hasText(sourceUrl);
+        if (sourceType != SourceType.URL) {
+            return true;
+        }
+        return StringUtils.hasText(sourceUrl);
     }
 
     @JsonIgnore
     @AssertTrue(message = "텍스트 또는 이미지 중 하나는 반드시 입력해야 합니다.")
     public boolean isContentProvidedForTextImageType() {
-        return sourceType != SourceType.TEXT_IMAGE
-                || StringUtils.hasText(sourceText)
-                || !CollectionUtils.isEmpty(imageUrls);
+        if (sourceType != SourceType.TEXT_IMAGE) {
+            return true;
+        }
+        return StringUtils.hasText(sourceText) || !CollectionUtils.isEmpty(imageUrls);
     }
 }
 
