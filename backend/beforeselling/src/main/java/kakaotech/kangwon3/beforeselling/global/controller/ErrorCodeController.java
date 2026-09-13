@@ -23,7 +23,6 @@ public class ErrorCodeController {
                 buildGroup("공통", CommonResponseCode.values()),
                 buildGroup("인증", AuthResponseCode.values())
         );
-
         model.addAttribute("groups", groups);
         return "error-codes";
     }
