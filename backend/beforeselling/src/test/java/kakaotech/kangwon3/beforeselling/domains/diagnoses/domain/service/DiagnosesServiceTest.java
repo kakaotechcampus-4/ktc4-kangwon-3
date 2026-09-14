@@ -106,7 +106,7 @@ class DiagnosesServiceTest {
     void getDiagnoses_thenReturnDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L, 1L);
-        given(diagnosesRepository.findById(1L)).willReturn(Optional.of(diagnoses));
+        given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(diagnoses));
 
         // when
         Diagnoses result = diagnosesService.getDiagnoses(1L, 1L);
@@ -119,7 +119,7 @@ class DiagnosesServiceTest {
     @DisplayName("존재하지 않는 진단서를 조회하면 NOT_FOUND 예외가 발생한다.")
     void getDiagnoses_withUnknownId_thenThrowNotFound() {
         // given
-        given(diagnosesRepository.findById(1L)).willReturn(Optional.empty());
+        given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> diagnosesService.getDiagnoses(1L, 1L))
@@ -132,7 +132,7 @@ class DiagnosesServiceTest {
     @DisplayName("다른 사용자의 진단서를 조회하면 FORBIDDEN 예외가 발생한다.")
     void getDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
         // given
-        given(diagnosesRepository.findById(1L)).willReturn(Optional.of(createDiagnoses(1L, 2L)));
+        given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(createDiagnoses(1L, 2L)));
 
         // when & then
         assertThatThrownBy(() -> diagnosesService.getDiagnoses(1L, 1L))
@@ -175,7 +175,7 @@ class DiagnosesServiceTest {
     void removeDiagnoses_thenDeleteDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L, 1L);
-        given(diagnosesRepository.findById(1L)).willReturn(Optional.of(diagnoses));
+        given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(diagnoses));
 
         // when
         diagnosesService.removeDiagnoses(1L, 1L);
@@ -188,7 +188,7 @@ class DiagnosesServiceTest {
     @DisplayName("다른 사용자의 진단서를 삭제하면 FORBIDDEN 예외가 발생하고 아무것도 삭제되지 않는다.")
     void removeDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
         // given
-        given(diagnosesRepository.findById(1L)).willReturn(Optional.of(createDiagnoses(1L, 2L)));
+        given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(createDiagnoses(1L, 2L)));
 
         // when & then
         assertThatThrownBy(() -> diagnosesService.removeDiagnoses(1L, 1L))
