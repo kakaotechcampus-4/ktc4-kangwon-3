@@ -5,7 +5,7 @@ from typing import Self
 from pydantic import Field, model_validator
 
 from .base import StrictModel
-from .schemas import ToolName, ToolResult
+from .schemas import ToolName, ToolResult, VerificationResult
 
 
 class ExtractionInput(StrictModel):
@@ -19,6 +19,15 @@ class ExtractionInput(StrictModel):
     # 로컬 이미지(테스트 픽스처 등)는 호출자가 data URI로 인코딩해서 넣는다.
     # 별도 바이트 필드를 두지 않은 이유: OpenAI vision API가 두 형식을 동일하게 처리한다.
     image_urls: list[str] = Field(default_factory=list)
+
+
+class RetryRequest(StrictModel):
+    """검증 피드백과 이전 실행 결과를 함께 전달하는 재실행 요청."""
+
+    attempt: int = Field(ge=1)
+    requested_tools: list[ToolName] = Field(min_length=1)
+    verification: VerificationResult
+    latest_tool_results: list[ToolResult]
 
 
 class ToolSelectionItem(StrictModel):

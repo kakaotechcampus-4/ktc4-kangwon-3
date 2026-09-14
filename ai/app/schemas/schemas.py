@@ -183,6 +183,9 @@ class RegulatoryFinding(StrictModel):
 # result는 심사별 상세 내용, findings는 여러 툴을 함께 종합할 때 사용하는 공통 판단이다.
 # query와 raw_response에 API 키·토큰·개인정보를 저장하거나 그대로 외부 전달하지 않는다.
 class ToolResult(StrictModel):
+    # 공통 실행기가 부여한다. 미선택 기록에는 실행 ID가 없다.
+    execution_id: str | None = None
+    attempt: int = Field(default=0, ge=0)
     tool_name: ToolName
     status: ToolStatus
     selected: bool
@@ -290,7 +293,7 @@ class FinalVerificationStatus(StrEnum):
 # 현재 초안에는 재검사 이력 필드가 없어 기존 재검사 파이프라인과 정합성 확인이 필요하다.
 class FinalAssessment(StrictModel):
     assessment_id: str
-    schema_version: str = "0.2.0"
+    schema_version: str = "0.3.0"
     product: Product
     verification_status: FinalVerificationStatus
     overall_status: OverallStatus
@@ -304,4 +307,3 @@ class FinalAssessment(StrictModel):
     verification: VerificationResult
     trace: list[TraceEvent] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=utc_now)
-
