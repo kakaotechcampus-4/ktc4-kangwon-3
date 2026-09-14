@@ -58,7 +58,7 @@ class DiagnosesRepositoryTest {
     void findById_thenReturnImagesInUploadOrder() {
         // given
         Diagnoses diagnoses = createDiagnoses(USER_ID, null);
-        diagnoses.addImages(List.of("https://image.com/1", "https://image.com/2", "https://image.com/3"));
+        diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg"));
         Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
@@ -67,8 +67,8 @@ class DiagnosesRepositoryTest {
 
         // then
         assertThat(result)
-                .extracting(DiagnosesImage::getImageUrl)
-                .containsExactly("https://image.com/1", "https://image.com/2", "https://image.com/3");
+                .extracting(DiagnosesImage::getImageKey)
+                .containsExactly("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg");
     }
 
     @Test
@@ -76,7 +76,7 @@ class DiagnosesRepositoryTest {
     void findWithImagesById_thenImagesAreInitializedBeforeDetach() {
         // given
         Diagnoses diagnoses = createDiagnoses(USER_ID, null);
-        diagnoses.addImages(List.of("https://image.com/1", "https://image.com/2"));
+        diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
         Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
@@ -86,8 +86,8 @@ class DiagnosesRepositoryTest {
 
         // then
         assertThat(found.getImages())
-                .extracting(DiagnosesImage::getImageUrl)
-                .containsExactly("https://image.com/1", "https://image.com/2");
+                .extracting(DiagnosesImage::getImageKey)
+                .containsExactly("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg");
     }
 
     @Test
@@ -95,11 +95,11 @@ class DiagnosesRepositoryTest {
     void delete_thenDeleteOnlyItsImages() {
         // given
         Diagnoses target = createDiagnoses(USER_ID, null);
-        target.addImages(List.of("https://image.com/1", "https://image.com/2"));
+        target.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
         diagnosesRepository.save(target);
 
         Diagnoses other = createDiagnoses(USER_ID, null);
-        other.addImages(List.of("https://image.com/9"));
+        other.addImages(List.of("product-detail/1/uuid_a9.jpg"));
         Long otherId = diagnosesRepository.save(other).getId();
         flushAndClear();
 
@@ -208,7 +208,7 @@ class DiagnosesRepositoryTest {
         Diagnoses diagnoses = Diagnoses.pending(
                 userId,
                 "대나무 헬리콥터",
-                "https://image.com/thumbnail",
+                "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL,
                 "https://ko.aliexpress.com/item/100500628491",
                 null);

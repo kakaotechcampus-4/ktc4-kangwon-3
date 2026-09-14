@@ -35,7 +35,7 @@ import static org.mockito.BDDMockito.then;
 class DiagnosesServiceTest {
 
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
-    private static final String PRODUCT_IMAGE_URL = "https://image.com/thumbnail";
+    private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
 
     @Mock
@@ -71,20 +71,20 @@ class DiagnosesServiceTest {
     void createDiagnoses_withImages_thenAssignSortOrderByUploadOrder() {
         // given
         given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(1L, 1L));
-        List<String> imageUrls = List.of("https://image.com/1", "https://image.com/2", "https://image.com/3");
+        List<String> imageKeys = List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg");
 
         // when
-        diagnosesService.createDiagnoses(createCommand(1L, imageUrls));
+        diagnosesService.createDiagnoses(createCommand(1L, imageKeys));
 
         // then
         then(diagnosesRepository).should().save(diagnosesCaptor.capture());
 
         assertThat(diagnosesCaptor.getValue().getImages())
-                .extracting(DiagnosesImage::getImageUrl, DiagnosesImage::getSortOrder)
+                .extracting(DiagnosesImage::getImageKey, DiagnosesImage::getSortOrder)
                 .containsExactly(
-                        tuple("https://image.com/1", 0),
-                        tuple("https://image.com/2", 1),
-                        tuple("https://image.com/3", 2));
+                        tuple("product-detail/1/uuid_a1.jpg", 0),
+                        tuple("product-detail/1/uuid_a2.jpg", 1),
+                        tuple("product-detail/1/uuid_a3.jpg", 2));
     }
 
     @Test
@@ -201,13 +201,13 @@ class DiagnosesServiceTest {
 
     private Diagnoses createDiagnoses(Long diagnosesId, Long userId) {
         Diagnoses diagnoses = Diagnoses.pending(
-                userId, PRODUCT_NAME, PRODUCT_IMAGE_URL, SourceType.URL, SOURCE_URL, null);
+                userId, PRODUCT_NAME, PRODUCT_IMAGE_KEY, SourceType.URL, SOURCE_URL, null);
         ReflectionTestUtils.setField(diagnoses, "id", diagnosesId);
         return diagnoses;
     }
 
-    private DiagnosesCreateCommand createCommand(Long userId, List<String> imageUrls) {
+    private DiagnosesCreateCommand createCommand(Long userId, List<String> imageKeys) {
         return new DiagnosesCreateCommand(
-                userId, PRODUCT_NAME, PRODUCT_IMAGE_URL, SourceType.URL, SOURCE_URL, null, imageUrls);
+                userId, PRODUCT_NAME, PRODUCT_IMAGE_KEY, SourceType.URL, SOURCE_URL, null, imageKeys);
     }
 }
