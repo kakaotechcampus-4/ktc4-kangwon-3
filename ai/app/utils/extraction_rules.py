@@ -40,8 +40,28 @@ _RADIO_CERT_NUMBER_PATTERN = re.compile(
     + r"|(?:KCC|MSIP|MSIT)-[A-Z]{3}-[A-Za-z0-9]+-[A-Za-z0-9._-]+)"
     + _NOT_ALNUM_AFTER
 )
-# 정격전압: "220V", "36V 이하", "220V정격"
-_VOLTAGE_PATTERN = re.compile(r"\d+(?:\.\d+)?\s*V" + _NOT_LETTER_AFTER)
+# 정격전압: "220V", "220V정격", "36V 이하", "≤36V"
+# 앞뒤 한정어(≤·최대·이하·미만 등)를 값에 함께 담는다. "36V 이하"는 정격이 36V라는 뜻이
+# 아니라 상한이 36V라는 뜻인데, 한정어를 떼고 "정격전압 36V"로 넘기면 하위 판정이 틀어진다
+# (전안법은 직류 30V 초과를 기준으로 삼는데, "36V 이하"인 제품은 30V 이하일 수도 있어
+# 아직 확정할 수 없다). 규칙 레이어는 확정할 수 없는 값을 확정하지 않고 원문 표기를
+# 그대로 넘겨서, 문맥 해석은 이 값을 받는 LLM이 하게 한다.
+# 상한(≤·최대·이하)과 하한(≥·최소·이상)을 모두 담는다. 한쪽만 처리하면 "최소 5V"가
+# "정격전압 5V"로 둔갑해서, 실제로는 220V인 제품이 저전압으로 넘어간다.
+_VOLTAGE_QUALIFIER_BEFORE = r"(?:[≤≥<>]=?\s*|최대\s*|최소\s*|~\s*)?"
+_VOLTAGE_QUALIFIER_AFTER = r"(?:\s*(?:이하|이상|미만|초과|까지|이내|[Mm][Aa][Xx]|[Mm][Ii][Nn]))?"
+# "DC 5V±0.5V"의 뒤쪽 값은 정격이 아니라 공차다. 공차를 정격전압으로 기록하면
+# 하위 판정이 엉뚱한 저전압을 보게 되므로, ± 뒤에 붙은 값은 아예 잡지 않는다.
+# 숫자·소수점도 함께 막는다. ±만 막으면 "±0.5V"의 앞자리를 건너뛴 "5V"가 잡혀서
+# 원문에 없던 전압이 새로 생긴다.
+_NOT_TOLERANCE_BEFORE = r"(?<![±+\d.])"
+_VOLTAGE_PATTERN = re.compile(
+    _VOLTAGE_QUALIFIER_BEFORE
+    + _NOT_TOLERANCE_BEFORE
+    + r"\d+(?:\.\d+)?\s*V"
+    + _NOT_LETTER_AFTER
+    + _VOLTAGE_QUALIFIER_AFTER
+)
 # 배터리 용량: "1460mAh", "1460mAh케이스"
 _CAPACITY_PATTERN = re.compile(r"\d+(?:\.\d+)?\s*mAh" + _NOT_LETTER_AFTER, re.IGNORECASE)
 # 통신 주파수: "2.4GHz", "900MHz"
