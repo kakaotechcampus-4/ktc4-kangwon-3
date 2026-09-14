@@ -68,6 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DiagnosesControllerTest {
 
     private static final String BASE_URL = "/api/v1/diagnoses";
+    private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -165,6 +166,28 @@ class DiagnosesControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"));
+    }
+
+    @Test
+    @DisplayName("상세페이지 이미지 키로 진단을 요청하면 생성된 진단서 ID를 응답한다.")
+    void createDiagnoses_withImageKeys_thenReturnDiagnosesId() throws Exception {
+        // given
+        given(diagnosesUseCase.createDiagnoses(anyLong(), any()))
+                .willReturn(new DiagnosesCreateResponse(42L));
+
+        Map<String, Object> request = new HashMap<>();
+        request.put("productName", "대나무 헬리콥터");
+        request.put("sourceType", SourceType.TEXT_IMAGE.name());
+        request.put("imageKeys", List.of(
+                "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
+
+        // when & then
+        mockMvc.perform(post(BASE_URL)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.diagnosesId").value(42));
     }
 
     @Test
@@ -351,7 +374,7 @@ class DiagnosesControllerTest {
     private Map<String, Object> urlTypeRequest() {
         Map<String, Object> request = new HashMap<>();
         request.put("productName", "대나무 헬리콥터");
-        request.put("productImageUrl", "https://image.com/thumbnail");
+        request.put("productImageKey", "product-main/1/uuid_thumbnail.jpg");
         request.put("sourceType", SourceType.URL.name());
         request.put("sourceUrl", "https://ko.aliexpress.com/item/100500628491");
         return request;
@@ -359,16 +382,16 @@ class DiagnosesControllerTest {
 
     private DiagnosesDetailResponse detailResponse() {
         return new DiagnosesDetailResponse(
-                1L, "대나무 헬리콥터", "https://image.com/thumbnail",
+                1L, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
-                List.of("https://image.com/1", "https://image.com/2"),
+                List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg", S3_URL_PREFIX + "product-detail/1/uuid_a2.jpg"),
                 ProcessingStatus.PENDING, null, null,
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
     private DiagnosesListResponse listResponse() {
         DiagnosesSummaryResponse summary = new DiagnosesSummaryResponse(
-                1L, "대나무 헬리콥터", "https://image.com/thumbnail",
+                1L, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 ProcessingStatus.PENDING, null, LocalDateTime.now());
 
         return new DiagnosesListResponse(
