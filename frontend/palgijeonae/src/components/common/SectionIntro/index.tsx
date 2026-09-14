@@ -14,7 +14,7 @@ function SectionIntro({ title, description, size = '3xl' }: SectionIntroProps) {
     return (
         <div className="flex flex-col items-start gap-2">
             <div className={`${TITLE_CLASSES[size]} text-black`}>{title}</div>
-            {description && <p className="text-xl leading-8.75 text-neutral-text">{description}</p>}
+            {description && <p className="whitespace-pre-line text-xl leading-8.75 text-neutral-text">{description}</p>}
         </div>
     );
 }

@@ -23,7 +23,7 @@ function UploadPage() {
     };
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex w-full flex-col gap-8">
             <SectionIntro title="상품 업로드" description="상세페이지를 붙여넣거나 이미지·URL로 추가하세요.
 여러 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다." />
             <DefaultBox align="left">
