@@ -16,12 +16,24 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
     const [image, setImage] = useState<File | null>(null);
 
     const handleAddProduct = () => {
+        const trimmedLink = link.trim();
+        if (!trimmedLink) {
+            alert("상세페이지 링크를 입력해주세요.");
+            return;
+        }
+
+        const trimmedName = productName.trim();
+        if (!trimmedName) {
+            alert("제품명을 입력해주세요.");
+            return;
+        }
+
         onAdd({
             id: crypto.randomUUID(),
             type: "url",
-            title: productName,
+            title: trimmedName,
             thumbnail: image ? URL.createObjectURL(image) : undefined,
-            link,
+            link: trimmedLink,
         });
     };
 
