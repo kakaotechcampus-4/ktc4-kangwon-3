@@ -22,6 +22,10 @@ function UploadPage() {
         setProducts((prev) => [...prev, product]);
     };
 
+    const handleRemoveProduct = (id: string) => {
+        setProducts((prev) => prev.filter((product) => product.id !== id));
+    };
+
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="상품 업로드" description="상세페이지를 붙여넣거나 이미지·URL로 추가하세요.
@@ -47,7 +51,7 @@ function UploadPage() {
                     <TextImageInputForm onAdd={handleAddProduct} />
                 )}
             </DefaultBox>
-            <AddedProductList products={products} />
+            <AddedProductList products={products} onRemove={handleRemoveProduct} />
         </div>
     );
 }

@@ -4,9 +4,10 @@ import type { Product } from "./types.ts";
 
 interface AddedProductListProps {
     products: Product[]
+    onRemove: (id: string) => void
 }
 
-function AddedProductList({ products }: AddedProductListProps) {
+function AddedProductList({ products, onRemove }: AddedProductListProps) {
     if (products.length === 0) {
         return null;
     }
@@ -21,6 +22,7 @@ function AddedProductList({ products }: AddedProductListProps) {
                         type={product.type}
                         title={product.title}
                         thumbnail={product.thumbnail}
+                        onRemove={() => onRemove(product.id)}
                     />
                 ))}
             </div>
