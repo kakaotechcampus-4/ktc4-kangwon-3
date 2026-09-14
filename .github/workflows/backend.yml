@@ -77,8 +77,13 @@ jobs:
       - name: 이미지 빌드 및 업로드
         run: |
           docker build --target deploy \
-            -t "beforeselling-app:${GITHUB_SHA}" backend/beforeselling
-          docker save "beforeselling-app:${GITHUB_SHA}" | gzip > /tmp/app-image.tar.gz
+            -t "beforeselling-app:${GITHUB_SHA}" \
+            -t "beforeselling-app:latest" \
+            backend/beforeselling
+          docker save \
+            "beforeselling-app:${GITHUB_SHA}" \
+            "beforeselling-app:latest" \
+            | gzip > /tmp/app-image.tar.gz
           aws s3 cp /tmp/app-image.tar.gz "s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz"
           aws s3 cp backend/beforeselling/docker-compose.yml \
             "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
@@ -120,7 +125,7 @@ jobs:
             "cd ${APP_DIR}/release",
             "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans",
             "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
-            "docker image prune -f"
+            "docker image prune -a -f"
           ]}
           EOF
 

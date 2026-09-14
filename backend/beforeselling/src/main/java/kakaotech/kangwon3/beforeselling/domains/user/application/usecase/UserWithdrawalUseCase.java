@@ -17,8 +17,8 @@ public class UserWithdrawalUseCase {
 
     public void withdraw(Long userId, String refreshToken) {
         User user = userService.getUser(userId);
-        socialUnlinkService.unlink(user);
         userService.withdraw(userId);
         authTokenService.removeRefreshToken(refreshToken);
+        socialUnlinkService.unlink(user);
     }
 }
