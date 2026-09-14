@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -20,6 +21,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @RestControllerAdvice
@@ -78,10 +82,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.warn("ConstraintViolationException: {}", e.getMessage());
         BaseResponseCode responseCode = CommonResponseCode.INVALID_METHOD_ARGUMENT;
 
+        List<FieldError> fieldErrors = e.getConstraintViolations().stream()
+                .map(violation -> new FieldError(
+                        violation.getRootBeanClass().getSimpleName(),
+                        extractFieldName(violation.getPropertyPath().toString()),
+                        violation.getMessage()))
+                .toList();
+
         return ResponseEntity
                 .status(responseCode.getStatus())
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.ofFail(responseCode));
+                .body(ApiResponse.ofFail(responseCode, fieldErrors));
+    }
+
+    private String extractFieldName(String propertyPath) {
+        int lastDot = propertyPath.lastIndexOf('.');
+        return lastDot == -1 ? propertyPath : propertyPath.substring(lastDot + 1);
     }
 
     @Override
@@ -99,10 +115,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.warn("TypeMismatchException: {}", e.getMessage());
         BaseResponseCode responseCode = CommonResponseCode.INVALID_METHOD_ARGUMENT;
 
+        FieldError fieldError = new FieldError(
+                "request",
+                Objects.requireNonNullElse(e.getPropertyName(), "unknown"),
+                "허용되지 않는 값입니다.");
+
         return ResponseEntity
                 .status(responseCode.getStatus())
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(ApiResponse.ofFail(responseCode));
+                .body(ApiResponse.ofFail(responseCode, List.of(fieldError)));
     }
 
     @Override
