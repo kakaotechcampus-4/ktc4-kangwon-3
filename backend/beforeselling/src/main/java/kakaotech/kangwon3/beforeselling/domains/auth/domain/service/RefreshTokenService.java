@@ -19,11 +19,11 @@ public class RefreshTokenService {
     }
 
     /**
-     * 저장된 리프레시 토큰인지, 그리고 토큰의 사용자와 저장된 사용자가 일치하는지 검증합니다.
-     * 저장소에 없다면 이미 회전(재발급)되었거나 로그아웃된 토큰이므로 재사용(replay)으로 간주합니다.
+     * 리프레시 토큰을 소비합니다.
+     * 조회와 삭제를 Redis GETDEL로 원자적으로 처리하여, 동일한 리프레시 토큰으로 동시에 재발급을 요청해도 둘 중 하나만 성공합니다.
      */
-    public void validateRefreshToken(String jti, Long userId) {
-        Long storedUserId = refreshTokenRepository.findUserIdByJti(jti)
+    public void consumeRefreshToken(String jti, Long userId) {
+        Long storedUserId = refreshTokenRepository.getAndDeleteUserIdByJti(jti)
                 .orElseThrow(() -> new BaseException(AuthResponseCode.INVALID_REFRESH_TOKEN));
 
         if (!storedUserId.equals(userId)) {

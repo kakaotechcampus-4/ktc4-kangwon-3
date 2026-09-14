@@ -34,7 +34,7 @@ app:
   cors:
     allowed-origins: http://localhost:5173
   oauth2:
-    frontend-redirect-uri: http://localhost:5173/oauth/callback
+    allowed-redirect-uris: http://localhost:5173/oauth/callback
   cookie:
     secure: false
     same-site: Lax
@@ -46,3 +46,11 @@ oauth2:
 
 crypto:
   secret-key: eXlMlYPHwWqnT+Ql6zvX4S8LW2HE8wIVht91Mjr59Jg=
+
+aws:
+  s3:
+    bucket: test-bucket
+    region: ap-northeast-2
+    presigned-url-expiration: PT5M
+    max-file-size: 10MB
+    allowed-extensions: jpg,jpeg,png,webp

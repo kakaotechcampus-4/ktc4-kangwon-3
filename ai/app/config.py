@@ -75,7 +75,11 @@ def load_settings() -> Settings:
     )
 
 
-def build_chat_model(settings: Settings | None = None) -> "BaseChatModel":
+def build_chat_model(
+    settings: Settings | None = None,
+    *,
+    temperature: float = 0,
+) -> "BaseChatModel":
     """공통 설정으로 LangChain ``ChatOpenAI`` 모델을 만든다."""
 
     # 설정 검사만 하는 코드가 SDK 없이도 import되도록 지연 import한다.
@@ -86,7 +90,7 @@ def build_chat_model(settings: Settings | None = None) -> "BaseChatModel":
         model=resolved.model,
         base_url=resolved.base_url,
         api_key=resolved.api_key,
-        temperature=0,
+        temperature=temperature,
         timeout=TIMEOUT_SECONDS,
         max_retries=MAX_RETRIES,
     )

@@ -34,7 +34,7 @@ class UserWithdrawalUseCaseTest {
     private UserWithdrawalUseCase userWithdrawalUseCase;
 
     @Test
-    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 소셜 연동을 해제한 뒤, 회원 정보를 삭제하고, 리프레시 토큰을 폐기한다.")
+    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 회원 정보를 삭제하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
     void withdraw_thenUnlinkThenDeleteUserAndRemoveRefreshToken() {
         // given
         User user = createUser(1L);
@@ -46,9 +46,9 @@ class UserWithdrawalUseCaseTest {
         // then
         InOrder inOrder = inOrder(userService, socialUnlinkService, authTokenService);
         then(userService).should(inOrder).getUser(1L);
-        then(socialUnlinkService).should(inOrder).unlink(user);
         then(userService).should(inOrder).withdraw(1L);
         then(authTokenService).should(inOrder).removeRefreshToken("refresh-token");
+        then(socialUnlinkService).should(inOrder).unlink(user);
     }
 
     @Test
