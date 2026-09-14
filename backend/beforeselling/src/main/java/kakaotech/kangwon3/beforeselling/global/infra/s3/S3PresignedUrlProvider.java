@@ -11,22 +11,18 @@ import org.springframework.http.MediaType;
 import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.util.UriUtils;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
-import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * S3 Presigned PUT URL 발급을 담당한다. 확장자/크기 검증과 S3 key 조립까지 함께 처리한다.
@@ -49,6 +45,7 @@ public class S3PresignedUrlProvider {
 
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
+    private final S3UrlKeyCodec s3UrlKeyCodec;
 
     public PresignedUrlResponse issuePresignedUrls(Long userId, List<FileMeta> files) {
         List<PresignedFile> presignedFiles = files.stream()
@@ -66,7 +63,7 @@ public class S3PresignedUrlProvider {
 
         String key = createKey(userId, file.type(), fileName);
         String presignedUrl = presign(key, contentType, file.fileSize());
-        String fileUrl = createFileUrl(key);
+        String fileUrl = s3UrlKeyCodec.toUrl(key);
 
         return new PresignedFile(fileName, key, presignedUrl, fileUrl, contentType);
     }
@@ -129,12 +126,5 @@ public class S3PresignedUrlProvider {
             log.error("AWS 자격증명을 찾지 못했습니다. 로컬 설정 방법은 backend/docs/guide/AWS_SSO_GUIDE.md 를 참고하세요.", e);
             throw e;
         }
-    }
-
-    private String createFileUrl(String key) {
-        String encodedKey = Arrays.stream(key.split(KEY_DELIMITER))
-                .map(segment -> UriUtils.encodePathSegment(segment, StandardCharsets.UTF_8))
-                .collect(Collectors.joining(KEY_DELIMITER));
-        return "https://%s.s3.%s.amazonaws.com/%s".formatted(s3Properties.bucket(), s3Properties.region(), encodedKey);
     }
 }
