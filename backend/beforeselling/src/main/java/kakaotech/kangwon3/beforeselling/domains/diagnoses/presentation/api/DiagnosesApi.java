@@ -31,8 +31,9 @@ public interface DiagnosesApi {
             summary = "신규 상품 진단 요청",
             description = """
                     상품 정보를 등록하고 진단 요청을 생성합니다. 진단서는 `PENDING` 상태로 저장됩니다.
-                    `sourceType`이 `URL`이면 `sourceUrl`이 필수이고, `TEXT_IMAGE`이면 `sourceText`와 `imageUrls` 중 최소 하나가 필요합니다.
-                    `productImageUrl`은 목록 썸네일용 대표 이미지로, `sourceType`과 무관하게 선택 입력입니다.
+                    `sourceType`이 `URL`이면 `sourceUrl`이 필수이고, `TEXT_IMAGE`이면 `sourceText`와 `imageKeys` 중 최소 하나가 필요합니다.
+                    `imageKeys`와 `productImageKey`에는 Presigned URL 발급 응답의 `key`를 전달합니다(전체 URL 아님).
+                    `productImageKey`는 목록 썸네일용 대표 이미지로, `sourceType`과 무관하게 선택 입력입니다.
                     응답으로 반환되는 `diagnosesId`로 이후 진행 상황을 조회합니다.
                     """)
     @ApiResponseExplanations(
@@ -49,6 +50,7 @@ public interface DiagnosesApi {
             summary = "상품 진단 단건 조회",
             description = """
                     진단서 한 건의 상세 정보를 조회합니다. 등록 시 입력한 원본(`sourceText`, `imageUrls`)을 모두 포함합니다.
+                    저장은 S3 key로 하지만 응답의 `imageUrls`와 `productImageUrl`은 접근 가능한 URL로 조립되어 내려갑니다.
                     진단이 완료되지 않은 경우 `resultStatus`와 `summary`는 `null`입니다.
                     """)
     @ApiResponseExplanations(
