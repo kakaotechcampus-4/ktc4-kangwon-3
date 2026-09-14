@@ -17,8 +17,8 @@ public record DiagnosesCreateRequest(
         @Size(max = 100, message = "제품명은 100자를 넘을 수 없습니다.")
         String productName,
 
-        @Size(max = 2048, message = "이미지 URL이 너무 깁니다.")
-        String productImageUrl,
+        @Size(max = 2048, message = "이미지 키가 너무 깁니다.")
+        String productImageKey,
 
         @NotNull(message = "등록 방식은 필수입니다.")
         SourceType sourceType,
@@ -28,7 +28,7 @@ public record DiagnosesCreateRequest(
         String sourceText,
 
         @Size(max = 20, message = "이미지는 최대 20장까지 등록할 수 있습니다.")
-        List<@NotBlank(message = "이미지 URL은 비어 있을 수 없습니다.") String> imageUrls
+        List<@NotBlank(message = "이미지 키는 비어 있을 수 없습니다.") String> imageKeys
 ) {
 
     @JsonIgnore
@@ -46,7 +46,7 @@ public record DiagnosesCreateRequest(
         if (sourceType != SourceType.TEXT_IMAGE) {
             return true;
         }
-        return StringUtils.hasText(sourceText) || !CollectionUtils.isEmpty(imageUrls);
+        return StringUtils.hasText(sourceText) || !CollectionUtils.isEmpty(imageKeys);
     }
 }
 
