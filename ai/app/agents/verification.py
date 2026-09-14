@@ -5,6 +5,7 @@
 """
 
 import json
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from time import perf_counter
@@ -44,6 +45,36 @@ _RESULT_KINDS = {
 _DEFINITIVE = frozenset(
     {Determination.REQUIRED, Determination.NOT_REQUIRED, Determination.NOT_APPLICABLE}
 )
+
+_Severity = Literal["critical", "warning", "info"]
+
+
+@dataclass
+class _RuleCheckContext:
+    """규칙 검사에서 발견한 이슈와 재실행할 툴을 순서대로 수집한다."""
+
+    issues: list[VerificationIssue] = field(default_factory=list)
+    additional_tools: list[ToolName] = field(default_factory=list)
+
+    def add(
+        self,
+        kind: IssueType,
+        text: str,
+        ids: tuple[str, ...] = (),
+        tool: ToolName | None = None,
+        severity: _Severity = "critical",
+    ) -> None:
+        self.issues.append(
+            VerificationIssue(
+                severity=severity,
+                issue_type=kind,
+                description=text,
+                related_finding_ids=list(ids),
+                recommended_action="관련 입력과 툴 결과를 보완한 뒤 다시 검증하세요.",
+            )
+        )
+        if tool is not None and tool not in self.additional_tools:
+            self.additional_tools.append(tool)
 
 
 @lru_cache(maxsize=1)
@@ -312,57 +343,69 @@ class VerificationAgent:
             status="started",
             detail="DraftAssessment 구조와 근거 규칙 검사를 시작합니다.",
         )
-        issues: list[VerificationIssue] = []
-        tools: list[ToolName] = []
+        context = _RuleCheckContext()
+        self._check_tool_consistency(draft, context)
+        self._check_required_tools(draft, context)
+        self._check_findings(draft, context)
 
-        def add(
-            kind: IssueType,
-            text: str,
-            ids: tuple[str, ...] = (),
-            tool: ToolName | None = None,
-            severity: Literal["critical", "warning", "info"] = "critical",
-        ) -> None:
-            issues.append(
-                VerificationIssue(
-                    severity=severity,
-                    issue_type=kind,
-                    description=text,
-                    related_finding_ids=list(ids),
-                    recommended_action="관련 입력과 툴 결과를 보완한 뒤 다시 검증하세요.",
-                )
-            )
-            if tool is not None and tool not in tools:
-                tools.append(tool)
+        result = VerificationResult(
+            status=Status.APPROVED,
+            issues=context.issues,
+            additional_tools_required=context.additional_tools,
+            # 초안에 이미 있는 사용자 질문도 상태 판단에 함께 반영한다.
+            follow_up_questions=list(draft.follow_up_questions),
+        )
+        result.status = self._status(result)
+        result.review_summary = (
+            "규칙 검사만 실행했습니다. 모델 의미 검증과 외부 법령 조회는 수행하지 않았습니다."
+        )
+        # checked_finding_ids는 의미 검토를 마친 모델 결과에서만 채운다.
+        self._append_trace(
+            trace,
+            action="rules_completed",
+            status="completed",
+            detail=(
+                "DraftAssessment -> 규칙 VerificationResult: "
+                f"status={result.status.value}, issues={len(result.issues)}"
+            ),
+        )
+        return result
 
-        records = {r.tool_name: r for r in draft.tool_results}
+    @staticmethod
+    def _check_tool_consistency(
+        draft: DraftAssessment,
+        context: _RuleCheckContext,
+    ) -> None:
+        """툴 선택 목록과 실행 기록 사이의 구조적 정합성을 검사한다."""
+        records = {result.tool_name: result for result in draft.tool_results}
         if len(records) != len(draft.tool_results):
-            add(IssueType.CONTRADICTION, "같은 툴의 실행 기록이 중복되었습니다.")
+            context.add(IssueType.CONTRADICTION, "같은 툴의 실행 기록이 중복되었습니다.")
         if len(set(draft.selected_tools)) != len(draft.selected_tools):
-            add(IssueType.CONTRADICTION, "선택 툴 목록에 중복이 있습니다.")
+            context.add(IssueType.CONTRADICTION, "선택 툴 목록에 중복이 있습니다.")
 
         for name in ToolName:
             tool_record = records.get(name)
             if tool_record is None:
-                add(
+                context.add(
                     IssueType.MISSING_TOOL,
                     f"{name}: 선택·미선택 실행 기록이 없습니다.",
                     tool=name if name in draft.selected_tools else None,
                 )
                 continue
             if tool_record.selected != (name in draft.selected_tools):
-                add(
+                context.add(
                     IssueType.CONTRADICTION,
                     f"{name}: 선택 목록과 실행 기록의 selected가 다릅니다.",
                 )
             if tool_record.selected:
                 if tool_record.status != ToolStatus.SUCCESS:
-                    add(
+                    context.add(
                         IssueType.TOOL_FAILURE,
                         f"{name}: 선택된 툴이 성공 상태가 아닙니다.",
                         tool=name,
                     )
                 elif tool_record.result is None or not tool_record.findings:
-                    add(
+                    context.add(
                         IssueType.TOOL_FAILURE,
                         f"{name}: 성공 기록에 상세 결과 또는 판단이 없습니다.",
                         tool=name,
@@ -371,18 +414,27 @@ class VerificationAgent:
                 # 공통 스키마에 SKIPPED가 생기기 전까지 미선택 상태는
                 # NOT_APPLICABLE로 표현한다. 상태가 분리되면 이 규칙도 함께 바꿔야 한다.
                 if tool_record.status != ToolStatus.NOT_APPLICABLE:
-                    add(
+                    context.add(
                         IssueType.CONTRADICTION,
                         f"{name}: 미선택 툴의 실행 상태가 not_applicable이 아닙니다.",
                     )
                 if tool_record.result is not None or tool_record.findings:
-                    add(
+                    context.add(
                         IssueType.CONTRADICTION,
                         f"{name}: 미선택 툴에 실행 결과 또는 판단이 들어 있습니다.",
                     )
             if tool_record.result is not None and tool_record.result.kind != _RESULT_KINDS[name]:
-                add(IssueType.CONTRADICTION, f"{name}: 상세 결과 kind가 툴 종류와 다릅니다.")
+                context.add(
+                    IssueType.CONTRADICTION,
+                    f"{name}: 상세 결과 kind가 툴 종류와 다릅니다.",
+                )
 
+    @staticmethod
+    def _check_required_tools(
+        draft: DraftAssessment,
+        context: _RuleCheckContext,
+    ) -> None:
+        """상품 신호와 선택된 심사 툴을 교차 검사한다."""
         # True인 명시적 신호만 후보 누락 검사에 쓴다. 규제 적용을 확정하는 규칙이 아니다.
         # CUSTOMS와 LABEL_AD는 단순 불리언 하나로 강제하지 않는다. 기본 실행 정책이 필요하면
         # selection·pipeline 담당자와 합의해 별도의 정책으로 추가해야 한다.
@@ -402,100 +454,96 @@ class VerificationAgent:
             ],
         }
         for name, values in signals.items():
-            if any(v is True for v in values) and name not in draft.selected_tools:
-                add(
+            if any(value is True for value in values) and name not in draft.selected_tools:
+                context.add(
                     IssueType.MISSING_TOOL,
                     f"{name}: 상품에 검토 신호가 있으나 툴이 선택되지 않았습니다. "
                     "적용 여부를 추가 검토하세요.",
                     tool=name,
                     severity="warning",
                 )
-        # for_children은 연령 표기뿐 아니라 광고 맥락까지 해석한 값이라, 판단이 서지 않으면 null로 남는다.
-        # 연령 표기가 있는데 None이면 어린이 대상 여부가 미판단인 상태다.
-        # target_age만 보면 "성인용"·"만 14세 이상"까지 걸리므로 for_children이 None일 때만 잡는다.
+
+        # for_children은 연령 표기뿐 아니라 광고 맥락까지 해석한 값이라,
+        # 판단이 서지 않으면 null로 남는다. target_age만 보면 "성인용"·"만 14세 이상"까지
+        # 걸리므로 연령 표기가 있으면서 for_children이 None일 때만 잡는다.
         if (
             product.for_children is None
             and (product.target_age or "").strip()
             and ToolName.CHILDREN not in draft.selected_tools
         ):
-            add(
+            context.add(
                 IssueType.INSUFFICIENT_PRODUCT_DATA,
                 f"연령 표기 '{product.target_age}'가 있으나 어린이 대상 여부가 판단되지 "
                 "않았습니다. 어린이제품 적용 여부를 확인하세요.",
                 severity="warning",
             )
-        final_ids = [f.finding_id for f in draft.findings]
+
+    @staticmethod
+    def _check_findings(
+        draft: DraftAssessment,
+        context: _RuleCheckContext,
+    ) -> None:
+        """원본·종합 finding의 일치 여부와 확정 판단의 근거를 검사한다."""
+        final_ids = [finding.finding_id for finding in draft.findings]
         if len(final_ids) != len(set(final_ids)):
-            add(IssueType.CONTRADICTION, "종합 판단의 finding_id가 중복되었습니다.")
+            context.add(IssueType.CONTRADICTION, "종합 판단의 finding_id가 중복되었습니다.")
         if not final_ids:
-            add(IssueType.MISSING_EVIDENCE, "검증할 종합 판단이 없습니다.")
+            context.add(IssueType.MISSING_EVIDENCE, "검증할 종합 판단이 없습니다.")
 
         # 툴이 만든 원본 판단을 모아 종합 결과와 대조한다.
         original: dict[str, RegulatoryFinding] = {}
         for tool_record in draft.tool_results:
             for finding in tool_record.findings:
                 if finding.finding_id in original or finding.tool_name != tool_record.tool_name:
-                    add(IssueType.CONTRADICTION, "툴 판단의 ID 중복 또는 소속 툴 불일치가 있습니다.")
+                    context.add(
+                        IssueType.CONTRADICTION,
+                        "툴 판단의 ID 중복 또는 소속 툴 불일치가 있습니다.",
+                    )
                 original[finding.finding_id] = finding
         for dropped in sorted(original.keys() - set(final_ids)):
-            add(IssueType.CONTRADICTION, f"툴 판단 {dropped}가 종합 결과에서 누락되었습니다.")
+            context.add(
+                IssueType.CONTRADICTION,
+                f"툴 판단 {dropped}가 종합 결과에서 누락되었습니다.",
+            )
 
         # DraftAssessment.findings는 도구 판단의 출처 보존용 목록이다. aggregate 단계는
         # overall_status·summary·required_actions를 종합하되 원본 finding을 변경하지 않는다.
         # 이 계약을 바꾸려면 원본과 종합 판단을 별도 필드로 분리하는 스키마 합의가 먼저 필요하다.
         for finding in draft.findings:
-            fid = finding.finding_id
-            if fid not in original or original[fid] != finding:
-                add(IssueType.CONTRADICTION, "종합 판단이 원래 툴 판단과 일치하지 않습니다.", (fid,))
+            finding_id = finding.finding_id
+            if finding_id not in original or original[finding_id] != finding:
+                context.add(
+                    IssueType.CONTRADICTION,
+                    "종합 판단이 원래 툴 판단과 일치하지 않습니다.",
+                    (finding_id,),
+                )
             if finding.determination in _DEFINITIVE:
                 # "근거가 없다"와 "근거는 있는데 mock이다"는 서로 다른 문제다.
                 cited = [
-                    s
-                    for s in finding.legal_sources
-                    if (s.quoted_text or "").strip() and (s.source_url or "").strip()
+                    source
+                    for source in finding.legal_sources
+                    if (source.quoted_text or "").strip()
+                    and (source.source_url or "").strip()
                 ]
-                usable = [s for s in cited if not s.is_mock]
+                usable = [source for source in cited if not source.is_mock]
                 if not cited:
-                    add(
+                    context.add(
                         IssueType.MISSING_EVIDENCE,
                         "확정적 판단에 인용문과 출처가 없습니다. "
                         "URL만으로는 검증할 수 없습니다.",
-                        (fid,),
+                        (finding_id,),
                         finding.tool_name,
                     )
                 elif not usable:
                     # 툴이 실자료를 돌려주면 is_mock=False가 되어 이 지적은 저절로 사라진다.
                     # 같은 툴을 재실행해도 mock 여부는 바뀌지 않으므로 툴 재실행을 요구하지 않는다.
-                    add(
+                    context.add(
                         IssueType.MISSING_EVIDENCE,
                         "확정적 판단의 근거가 mock 자료뿐입니다. "
                         "실자료로 확인하기 전에는 확정 판단으로 쓸 수 없습니다.",
-                        (fid,),
+                        (finding_id,),
                         severity="warning",
                     )
-
-        result = VerificationResult(
-            status=Status.APPROVED,
-            issues=issues,
-            additional_tools_required=tools,
-            # 초안에 이미 있는 사용자 질문도 상태 판단에 함께 반영한다.
-            follow_up_questions=list(draft.follow_up_questions),
-        )
-        result.status = self._status(result)
-        result.review_summary = (
-            "규칙 검사만 실행했습니다. 모델 의미 검증과 외부 법령 조회는 수행하지 않았습니다."
-        )
-        # checked_finding_ids는 의미 검토를 마친 모델 결과에서만 채운다.
-        self._append_trace(
-            trace,
-            action="rules_completed",
-            status="completed",
-            detail=(
-                "DraftAssessment -> 규칙 VerificationResult: "
-                f"status={result.status.value}, issues={len(result.issues)}"
-            ),
-        )
-        return result
 
     @staticmethod
     def _build_messages(draft: DraftAssessment) -> list[dict[str, str]]:
