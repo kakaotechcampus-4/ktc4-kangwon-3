@@ -12,7 +12,7 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL}
       OPENAI_MODEL: ${OPENAI_MODEL:-openai/gpt-4.1-mini}
       BE_BASE_URL: ${BE_BASE_URL:-http://host.docker.internal:8080}
-      DATABASE_URL: postgresql://${AI_DB_USERNAME:-ai}:${AI_DB_PASSWORD:-ai}@ai-db:5432/${AI_DB_NAME:-ai}
+      DATABASE_URL: postgresql+psycopg://${AI_DB_USERNAME:-ai}:${AI_DB_PASSWORD:-ai}@ai-db:5432/${AI_DB_NAME:-ai}
     ports:
       - "8000:8000"
     depends_on:
