@@ -1,7 +1,8 @@
 """VerificationAgent 동작 검증. 실제 ML API 호출 없이 모델을 스텁으로 대체한다."""
 
-import pytest
 import json
+
+import pytest
 
 from app.agents.verification import (
     VerificationAgent,
@@ -18,13 +19,15 @@ from app.schemas.schemas import (
     FollowUpQuestion,
     LegalSource,
     OverallStatus,
+    RadioAssessment,
     RegulatoryFinding,
     RiskLevel,
     ToolName,
     ToolResult,
     ToolStatus,
     TraceEvent,
-    VerificationStatus, 
+    VerificationIssueType,
+    VerificationStatus,
 )
 
 
@@ -43,7 +46,8 @@ def _finding() -> RegulatoryFinding:
 
 def _draft(product: Product | None = None) -> DraftAssessment:
     """규칙 검사를 통과하는 최소 초안. 6개 툴 기록을 모두 채운다."""
-    finding = _finding()
+    tool_finding = _finding()
+    aggregated_finding = tool_finding.model_copy(deep=True)
     records = [
         ToolResult(
             tool_name=name,
@@ -61,17 +65,30 @@ def _draft(product: Product | None = None) -> DraftAssessment:
             selected=True,
             selection_reason="전기로 작동합니다.",
             result=ElectricalAssessment(safety_management_required=True),
-            findings=[finding],
+            findings=[tool_finding],
         )
     )
     return DraftAssessment(
         product=product or Product(product_id="p1"),
         selected_tools=[ToolName.ELECTRICAL],
         tool_results=records,
-        findings=[finding],
+        findings=[aggregated_finding],
         overall_status=OverallStatus.ACTION_REQUIRED,
         summary="전기안전 항목의 추가 확인이 필요합니다.",
     )
+
+
+def _tool_record(draft: DraftAssessment, name: ToolName) -> ToolResult:
+    return next(result for result in draft.tool_results if result.tool_name is name)
+
+
+def _unselect_tool(draft: DraftAssessment, name: ToolName) -> None:
+    draft.selected_tools = [selected for selected in draft.selected_tools if selected is not name]
+    tool_record = _tool_record(draft, name)
+    tool_record.selected = False
+    tool_record.status = ToolStatus.NOT_APPLICABLE
+    tool_record.result = None
+    tool_record.findings = []
 
 
 def _review(**overrides) -> _Review:
@@ -132,15 +149,143 @@ def test_규칙_검사는_모델_없이도_동작한다():
     assert result.checked_finding_ids == []
 
 
-def test_상품에_무선_신호가_있는데_전파_툴이_없으면_지적한다():
-    draft = _draft(Product(product_id="p1", wireless_comm=True))
+def test_픽스처의_툴_원본과_종합_finding은_서로_독립적이다():
+    draft = _draft()
+
+    assert draft.findings[0] == draft.tool_results[-1].findings[0]
+    assert draft.findings[0] is not draft.tool_results[-1].findings[0]
+
+
+def test_툴_실행_기록이_누락되면_지적한다():
+    draft = _draft()
+    draft.tool_results = [
+        result for result in draft.tool_results if result.tool_name is not ToolName.RADIO
+    ]
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any(
+        issue.issue_type is VerificationIssueType.MISSING_TOOL
+        and "실행 기록이 없습니다" in issue.description
+        for issue in result.issues
+    )
+
+
+def test_툴_실행_기록과_선택_목록의_중복을_각각_지적한다():
+    draft = _draft()
+    draft.tool_results.append(draft.tool_results[0].model_copy(deep=True))
+    draft.selected_tools.append(ToolName.ELECTRICAL)
+
+    result = VerificationAgent().verify_rules(draft)
+
+    descriptions = [issue.description for issue in result.issues]
+    assert "같은 툴의 실행 기록이 중복되었습니다." in descriptions
+    assert "선택 툴 목록에 중복이 있습니다." in descriptions
+
+
+def test_selected와_선택_목록이_다르면_지적한다():
+    draft = _draft()
+    _tool_record(draft, ToolName.RADIO).selected = True
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any("selected가 다릅니다" in issue.description for issue in result.issues)
+
+
+def test_선택된_툴이_실패_상태면_재실행을_요구한다():
+    draft = _draft()
+    _tool_record(draft, ToolName.ELECTRICAL).status = ToolStatus.FAILED
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any(issue.issue_type is VerificationIssueType.TOOL_FAILURE for issue in result.issues)
+    assert ToolName.ELECTRICAL in result.additional_tools_required
+
+
+def test_성공한_툴에_상세_결과나_finding이_없으면_재실행을_요구한다():
+    draft = _draft()
+    tool_record = _tool_record(draft, ToolName.ELECTRICAL)
+    tool_record.result = None
+    tool_record.findings = []
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any(
+        issue.issue_type is VerificationIssueType.TOOL_FAILURE
+        and "상세 결과 또는 판단이 없습니다" in issue.description
+        for issue in result.issues
+    )
+    assert ToolName.ELECTRICAL in result.additional_tools_required
+
+
+def test_툴과_상세_결과_kind가_다르면_지적한다():
+    draft = _draft()
+    _tool_record(draft, ToolName.ELECTRICAL).result = RadioAssessment()
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any("kind가 툴 종류와 다릅니다" in issue.description for issue in result.issues)
+
+
+@pytest.mark.parametrize(
+    ("attribute", "expected_tool"),
+    [
+        ("wireless_comm", ToolName.RADIO),
+        ("wireless_charging", ToolName.RADIO),
+        ("electrical_powered", ToolName.ELECTRICAL),
+        ("battery_included", ToolName.ELECTRICAL),
+        ("battery_is_the_product", ToolName.ELECTRICAL),
+        ("for_children", ToolName.CHILDREN),
+        ("food_contact", ToolName.FOOD_DRUG),
+        ("medical_claim", ToolName.FOOD_DRUG),
+        ("cosmetic_claim", ToolName.FOOD_DRUG),
+    ],
+)
+def test_상품의_명시적_신호에_필요한_툴이_없으면_지적한다(
+    attribute: str,
+    expected_tool: ToolName,
+):
+    product = Product(product_id="p1", **{attribute: True})
+    draft = _draft(product)
+    _unselect_tool(draft, expected_tool)
 
     result = VerificationAgent().verify_rules(draft)
 
     assert result.status is VerificationStatus.REVISION_REQUIRED
-    assert ToolName.RADIO in result.additional_tools_required
-    issue = next(issue for issue in result.issues if issue.issue_type.value == "missing_tool")
+    assert expected_tool in result.additional_tools_required
+    issue = next(
+        issue
+        for issue in result.issues
+        if issue.issue_type is VerificationIssueType.MISSING_TOOL
+        and issue.description.startswith(f"{expected_tool}:")
+    )
     assert issue.severity == "warning"
+
+
+@pytest.mark.parametrize("signal", [False, None])
+def test_명시적_상품_신호가_아니면_필수_툴_누락으로_지적하지_않는다(signal):
+    product = Product(
+        product_id="p1",
+        wireless_comm=signal,
+        wireless_charging=signal,
+        electrical_powered=signal,
+        battery_included=signal,
+        battery_is_the_product=signal,
+        for_children=signal,
+        food_contact=signal,
+        medical_claim=signal,
+        cosmetic_claim=signal,
+    )
+    draft = _draft(product)
+    _unselect_tool(draft, ToolName.ELECTRICAL)
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert not any(
+        issue.issue_type is VerificationIssueType.MISSING_TOOL
+        and "상품에 검토 신호가 있으나" in issue.description
+        for issue in result.issues
+    )
 
 def test_연령_표기가_있는데_어린이_대상_판단이_없으면_지적한다():
     draft = _draft(Product(product_id="p1", target_age="만 3세 이상"))
@@ -221,6 +366,106 @@ def test_확정적_판단의_근거가_mock뿐이면_경고로_낮춘다():
     # 툴을 다시 돌려도 mock 여부는 바뀌지 않으므로 재실행을 요구하지 않는다.
     assert ToolName.ELECTRICAL not in result.additional_tools_required
     assert result.status is VerificationStatus.APPROVED_WITH_WARNINGS
+
+
+def test_종합_finding이_툴_원본과_다르면_지적한다():
+    draft = _draft()
+    draft.findings[0].summary = "종합 과정에서 변경된 판단입니다."
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any(
+        issue.issue_type is VerificationIssueType.CONTRADICTION
+        and "원래 툴 판단과 일치하지 않습니다" in issue.description
+        for issue in result.issues
+    )
+
+
+def test_툴의_finding이_종합_결과에서_누락되면_지적한다():
+    draft = _draft()
+    draft.findings = []
+
+    result = VerificationAgent().verify_rules(draft)
+
+    descriptions = [issue.description for issue in result.issues]
+    assert "검증할 종합 판단이 없습니다." in descriptions
+    assert "툴 판단 f1가 종합 결과에서 누락되었습니다." in descriptions
+
+
+def test_종합_finding_id가_중복되면_지적한다():
+    draft = _draft()
+    draft.findings.append(draft.findings[0].model_copy(deep=True))
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any("finding_id가 중복되었습니다" in issue.description for issue in result.issues)
+
+
+def test_finding의_소속_툴이_실행_기록과_다르면_지적한다():
+    draft = _draft()
+    draft.findings[0].tool_name = ToolName.RADIO
+    _tool_record(draft, ToolName.ELECTRICAL).findings[0].tool_name = ToolName.RADIO
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert any("소속 툴 불일치" in issue.description for issue in result.issues)
+
+
+def test_확정적_판단에_실자료_근거가_있으면_통과한다():
+    draft = _draft()
+    source = LegalSource(
+        source_name="국가법령정보센터",
+        law_name="전기용품 및 생활용품 안전관리법",
+        article="제15조",
+        quoted_text="안전확인신고를 하여야 한다.",
+        source_url="https://www.law.go.kr/",
+        is_mock=False,
+    )
+    for finding in (draft.findings[0], _tool_record(draft, ToolName.ELECTRICAL).findings[0]):
+        finding.determination = Determination.REQUIRED
+        finding.legal_sources = [source.model_copy(deep=True)]
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert result.status is VerificationStatus.APPROVED
+    assert not any(
+        issue.issue_type is VerificationIssueType.MISSING_EVIDENCE
+        for issue in result.issues
+    )
+
+
+@pytest.mark.parametrize(
+    ("quoted_text", "source_url"),
+    [
+        ("안전확인신고를 하여야 한다.", None),
+        (None, "https://www.law.go.kr/"),
+    ],
+)
+def test_확정적_판단의_인용문과_URL_중_하나라도_없으면_근거_부족이다(
+    quoted_text: str | None,
+    source_url: str | None,
+):
+    draft = _draft()
+    source = LegalSource(
+        source_name="국가법령정보센터",
+        quoted_text=quoted_text,
+        source_url=source_url,
+        is_mock=False,
+    )
+    for finding in (draft.findings[0], _tool_record(draft, ToolName.ELECTRICAL).findings[0]):
+        finding.determination = Determination.REQUIRED
+        finding.legal_sources = [source.model_copy(deep=True)]
+
+    result = VerificationAgent().verify_rules(draft)
+
+    issue = next(
+        issue
+        for issue in result.issues
+        if issue.issue_type is VerificationIssueType.MISSING_EVIDENCE
+    )
+    assert issue.severity == "critical"
+    assert result.status is VerificationStatus.REVISION_REQUIRED
+
 
 def test_모델_없이_verify를_부르면_규칙_결과를_보존하고_실패한다():
     with pytest.raises(VerificationError) as exc_info:
@@ -500,6 +745,8 @@ def test_조회_파라미터와_원시_응답은_모델에_보내지_않는다()
     draft = _draft()
     draft.tool_results[-1].query = {"api_key": "절대-보내면-안-됨"}
     draft.tool_results[-1].raw_response = {"body": "원시 응답"}
+    draft.tool_results[-1].error = "내부 오류 메시지"
+    original = draft.model_dump(mode="json")
     stub = _StubModel(_review())
 
     VerificationAgent(model=stub).verify(draft)
@@ -507,6 +754,9 @@ def test_조회_파라미터와_원시_응답은_모델에_보내지_않는다()
     payload = stub.received_messages[-1]["content"]
     assert "절대-보내면-안-됨" not in payload
     assert "원시 응답" not in payload
+    assert "내부 오류 메시지" not in payload
+    # 모델 전송용 복사본만 정리하고 파이프라인이 보관하는 초안은 변경하지 않는다.
+    assert draft.model_dump(mode="json") == original
 
 def test_툴_판단은_최상위_findings로만_모델에_보낸다():
     stub = _StubModel(_review())
