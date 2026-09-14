@@ -21,6 +21,7 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
             type: "url",
             title: productName,
             thumbnail: image ? URL.createObjectURL(image) : undefined,
+            link,
         });
     };
 

@@ -3,4 +3,7 @@ export interface Product {
     type: "url" | "text/image"
     title: string
     thumbnail?: string
+    link?: string
+    content?: string
+    images?: File[]
 }
