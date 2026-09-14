@@ -1,9 +1,11 @@
 package kakaotech.kangwon3.beforeselling.global.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.BaseResponseCode;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -11,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -18,6 +21,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 @RestControllerAdvice
@@ -71,6 +77,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(ApiResponse.ofFail(responseCode));
     }
 
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
+        log.warn("ConstraintViolationException: {}", e.getMessage());
+        BaseResponseCode responseCode = CommonResponseCode.INVALID_METHOD_ARGUMENT;
+
+        List<FieldError> fieldErrors = e.getConstraintViolations().stream()
+                .map(violation -> new FieldError(
+                        violation.getRootBeanClass().getSimpleName(),
+                        extractFieldName(violation.getPropertyPath().toString()),
+                        violation.getMessage()))
+                .toList();
+
+        return ResponseEntity
+                .status(responseCode.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.ofFail(responseCode, fieldErrors));
+    }
+
+    private String extractFieldName(String propertyPath) {
+        int lastDot = propertyPath.lastIndexOf('.');
+        return lastDot == -1 ? propertyPath : propertyPath.substring(lastDot + 1);
+    }
+
     @Override
     protected ResponseEntity<Object> handleNoResourceFoundException(NoResourceFoundException e, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         BaseResponseCode responseCode = CommonResponseCode.NOT_FOUND;
@@ -78,6 +107,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .status(responseCode.getStatus())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.ofFail(responseCode));
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleTypeMismatch(TypeMismatchException e, HttpHeaders headers,
+                                                        HttpStatusCode status, WebRequest request) {
+        log.warn("TypeMismatchException: {}", e.getMessage());
+        BaseResponseCode responseCode = CommonResponseCode.INVALID_METHOD_ARGUMENT;
+
+        FieldError fieldError = new FieldError(
+                "request",
+                Objects.requireNonNullElse(e.getPropertyName(), "unknown"),
+                "허용되지 않는 값입니다.");
+
+        return ResponseEntity
+                .status(responseCode.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.ofFail(responseCode, List.of(fieldError)));
     }
 
     @Override
