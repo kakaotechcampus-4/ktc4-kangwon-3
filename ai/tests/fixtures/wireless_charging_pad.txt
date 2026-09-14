@@ -1,0 +1,6 @@
+전원 모드
+USB
+작동 전압
+≤36V
+커넥터 유형
+인증정보: CE-RED(Electric); CE-RoHS; CE-EMC(Electric)

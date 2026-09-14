@@ -6,8 +6,11 @@
 전부 통과한 상태에서 픽스처를 돌려보고 나서야 드러났다.
 
 여기서는 LLM을 전혀 호출하지 않는다(규칙 레이어는 정규식뿐이라 API 키 없이 돈다).
-LLM이 채우는 필드의 품질은 이 테스트의 범위가 아니다 — scripts/try_extraction.py로
-수동 확인한다.
+LLM이 채우는 필드의 품질은 이 테스트의 범위가 아니다 — fixtures/_raw/의 원문으로
+scripts/try_extraction.py를 돌려 수동 확인한다.
+
+픽스처는 상세페이지에서 규제 판정에 쓰이는 사실만 발췌한 축약본이다(fixtures/README.md).
+표기는 원문 그대로 보존한다 — 오탐은 대부분 표기 quirk에서 나오기 때문이다.
 """
 
 from pathlib import Path
@@ -66,6 +69,16 @@ _EXPECTED: dict[str, tuple[set[tuple[str, str]], int]] = {
         },
         0,
     ),
+    # 인증번호 두 종류가 실제로 적힌 유일한 샘플(Temu 핸디선풍기).
+    # 두 패턴은 이 픽스처 전까지 합성 문자열로만 검증돼 있었다.
+    "kc_certified_fan.txt": (
+        {
+            ("KC 인증번호", "XU101030-17003A"),
+            ("전파 인증번호", "R-R-PO7-FX-028"),
+            ("인증정보", "KC"),
+        },
+        0,
+    ),
 }
 
 
@@ -104,6 +117,18 @@ def test_전압_상한_표기가_정격으로_둔갑하지_않는다():
 
     assert upper_bounds == {"36V 이하", "≤36V"}
     assert "36V" not in upper_bounds
+
+
+def test_인증번호_패턴이_실제_상세페이지에서_동작한다():
+    # 한 줄에 두 종류가 나란히 적힌 실제 표기:
+    #   "KC 방송통신기자재등 적합성평가: R-R-PO7-FX-028; KC 안전확인 (전기용품): XU101030-17003A"
+    # 두 패턴은 이 샘플을 구하기 전까지 합성 문자열로만 검증돼 있어서, 자릿수 범위가
+    # 실물과 맞는지 확인된 적이 없었다. 발급 시기에 따라 자릿수가 달라지므로
+    # 형식이 다른 샘플이 생기면 여기에 함께 추가한다.
+    found = _rule_attributes("kc_certified_fan.txt")
+
+    assert ("KC 인증번호", "XU101030-17003A") in found  # 접미 영문자까지 포함
+    assert ("전파 인증번호", "R-R-PO7-FX-028") in found  # 하이픈 4개짜리 신형 표기
 
 
 def test_모든_텍스트_픽스처가_기대표에_들어_있다():
