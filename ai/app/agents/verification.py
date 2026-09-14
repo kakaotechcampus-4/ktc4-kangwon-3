@@ -341,27 +341,27 @@ class VerificationAgent:
             add(IssueType.CONTRADICTION, "선택 툴 목록에 중복이 있습니다.")
 
         for name in ToolName:
-            record = records.get(name)
-            if record is None:
+            tool_record = records.get(name)
+            if tool_record is None:
                 add(
                     IssueType.MISSING_TOOL,
                     f"{name}: 선택·미선택 실행 기록이 없습니다.",
                     tool=name if name in draft.selected_tools else None,
                 )
                 continue
-            if record.selected != (name in draft.selected_tools):
+            if tool_record.selected != (name in draft.selected_tools):
                 add(
                     IssueType.CONTRADICTION,
                     f"{name}: 선택 목록과 실행 기록의 selected가 다릅니다.",
                 )
-            if record.selected:
-                if record.status != ToolStatus.SUCCESS:
+            if tool_record.selected:
+                if tool_record.status != ToolStatus.SUCCESS:
                     add(
                         IssueType.TOOL_FAILURE,
                         f"{name}: 선택된 툴이 성공 상태가 아닙니다.",
                         tool=name,
                     )
-                elif record.result is None or not record.findings:
+                elif tool_record.result is None or not tool_record.findings:
                     add(
                         IssueType.TOOL_FAILURE,
                         f"{name}: 성공 기록에 상세 결과 또는 판단이 없습니다.",
@@ -370,17 +370,17 @@ class VerificationAgent:
             else:
                 # 공통 스키마에 SKIPPED가 생기기 전까지 미선택 상태는
                 # NOT_APPLICABLE로 표현한다. 상태가 분리되면 이 규칙도 함께 바꿔야 한다.
-                if record.status != ToolStatus.NOT_APPLICABLE:
+                if tool_record.status != ToolStatus.NOT_APPLICABLE:
                     add(
                         IssueType.CONTRADICTION,
                         f"{name}: 미선택 툴의 실행 상태가 not_applicable이 아닙니다.",
                     )
-                if record.result is not None or record.findings:
+                if tool_record.result is not None or tool_record.findings:
                     add(
                         IssueType.CONTRADICTION,
                         f"{name}: 미선택 툴에 실행 결과 또는 판단이 들어 있습니다.",
                     )
-            if record.result is not None and record.result.kind != _RESULT_KINDS[name]:
+            if tool_record.result is not None and tool_record.result.kind != _RESULT_KINDS[name]:
                 add(IssueType.CONTRADICTION, f"{name}: 상세 결과 kind가 툴 종류와 다릅니다.")
 
         # True인 명시적 신호만 후보 누락 검사에 쓴다. 규제 적용을 확정하는 규칙이 아니다.
@@ -432,9 +432,9 @@ class VerificationAgent:
 
         # 툴이 만든 원본 판단을 모아 종합 결과와 대조한다.
         original: dict[str, RegulatoryFinding] = {}
-        for record in draft.tool_results:
-            for finding in record.findings:
-                if finding.finding_id in original or finding.tool_name != record.tool_name:
+        for tool_record in draft.tool_results:
+            for finding in tool_record.findings:
+                if finding.finding_id in original or finding.tool_name != tool_record.tool_name:
                     add(IssueType.CONTRADICTION, "툴 판단의 ID 중복 또는 소속 툴 불일치가 있습니다.")
                 original[finding.finding_id] = finding
         for dropped in sorted(original.keys() - set(final_ids)):
@@ -502,9 +502,9 @@ class VerificationAgent:
         payload = draft.model_dump(mode="json")
         # 조회 파라미터와 원시 응답에는 키·토큰·개인정보가 섞일 수 있어 모델에 보내지 않는다.
         # tool_results[].findings는 최상위 findings와 항상 같아야 한다는 규칙을 verify_rules()가 이미 검사하므로, 모델에는 최상위 목록 한 벌만 보내 입력 토큰을 줄인다.
-        for record in payload["tool_results"]:
+        for tool_record in payload["tool_results"]:
             for key in ("query", "raw_response", "error", "findings"):
-                record.pop(key, None)
+                tool_record.pop(key, None)
         # 출력 JSON Schema는 with_structured_output이 API에 직접 전달한다.
         # 프롬프트에 다시 붙이면 토큰만 늘고 두 스키마가 어긋날 수 있어 넣지 않는다.
         return [
