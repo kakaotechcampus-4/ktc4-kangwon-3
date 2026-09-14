@@ -293,7 +293,7 @@ class FinalVerificationStatus(StrEnum):
 # 현재 초안에는 재검사 이력 필드가 없어 기존 재검사 파이프라인과 정합성 확인이 필요하다.
 class FinalAssessment(StrictModel):
     assessment_id: str
-    schema_version: str = "0.3.0"
+    schema_version: str = "0.2.0"
     product: Product
     verification_status: FinalVerificationStatus
     overall_status: OverallStatus
