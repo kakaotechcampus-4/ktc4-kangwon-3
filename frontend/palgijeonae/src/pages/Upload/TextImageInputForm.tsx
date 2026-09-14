@@ -19,12 +19,24 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
     const [image, setImage] = useState<File | null>(null);
 
     const handleAddProduct = () => {
+        const trimmedContent = productContent.trim();
+        if (!trimmedContent && productImages.length === 0) {
+            alert("상세페이지 내용이나 이미지를 입력해주세요.");
+            return;
+        }
+
+        const trimmedName = productName.trim();
+        if (!trimmedName) {
+            alert("제품명을 입력해주세요.");
+            return;
+        }
+
         onAdd({
             id: crypto.randomUUID(),
             type: "text/image",
-            title: productName,
+            title: trimmedName,
             thumbnail: image ? URL.createObjectURL(image) : undefined,
-            content: productContent,
+            content: trimmedContent,
             images: productImages,
         });
     };
