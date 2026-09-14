@@ -27,6 +27,22 @@ jobs:
     defaults:
       run:
         working-directory: ai
+    services:
+      ai-db:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: ai_test
+          POSTGRES_USER: ai
+          POSTGRES_PASSWORD: ai
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U ai -d ai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ai:ai@localhost:5433/ai_test
     steps:
       - uses: actions/checkout@v4
 
