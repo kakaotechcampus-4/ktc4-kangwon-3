@@ -63,12 +63,31 @@ class DiagnosesRepositoryTest {
         flushAndClear();
 
         // when
-        List<DiagnosesImage> result = diagnosesRepository.findById(diagnosesId).orElseThrow().getImages();
+        List<DiagnosesImage> result = diagnosesRepository.findWithImagesById(diagnosesId).orElseThrow().getImages();
 
         // then
         assertThat(result)
                 .extracting(DiagnosesImage::getImageUrl)
                 .containsExactly("https://image.com/1", "https://image.com/2", "https://image.com/3");
+    }
+
+    @Test
+    @DisplayName("진단서를 이미지와 함께 조회하면 영속성 컨텍스트에서 분리된 뒤에도 이미지를 읽을 수 있다.")
+    void findWithImagesById_thenImagesAreInitializedBeforeDetach() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(USER_ID, null);
+        diagnoses.addImages(List.of("https://image.com/1", "https://image.com/2"));
+        Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        flushAndClear();
+
+        // when
+        Diagnoses found = diagnosesRepository.findWithImagesById(diagnosesId).orElseThrow();
+        entityManager.detach(found);
+
+        // then
+        assertThat(found.getImages())
+                .extracting(DiagnosesImage::getImageUrl)
+                .containsExactly("https://image.com/1", "https://image.com/2");
     }
 
     @Test

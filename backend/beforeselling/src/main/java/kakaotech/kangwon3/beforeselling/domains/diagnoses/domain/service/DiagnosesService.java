@@ -41,7 +41,7 @@ public class DiagnosesService {
 
     // 단건 조회 + 소유권 검증
     public Diagnoses getDiagnoses(Long userId, Long diagnosesId) {
-        Diagnoses diagnoses = diagnosesRepository.findById(diagnosesId)
+        Diagnoses diagnoses = diagnosesRepository.findWithImagesById(diagnosesId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
         if(!diagnoses.isOwnedBy(userId)) {
