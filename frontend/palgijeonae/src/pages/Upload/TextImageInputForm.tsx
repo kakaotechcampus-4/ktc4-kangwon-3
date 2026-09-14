@@ -24,6 +24,8 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
             type: "text/image",
             title: productName,
             thumbnail: image ? URL.createObjectURL(image) : undefined,
+            content: productContent,
+            images: productImages,
         });
     };
 
