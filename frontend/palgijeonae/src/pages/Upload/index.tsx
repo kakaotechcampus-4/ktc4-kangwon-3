@@ -5,6 +5,7 @@ import SectionIntro from "../../components/common/SectionIntro/index.tsx";
 import UrlInputForm from "./UrlInputForm.tsx";
 import TextImageInputForm from "./TextImageInputForm.tsx";
 import AddedProductList from "./AddedProductList.tsx";
+import type { Product } from "./types.ts";
 
 const INPUT_TYPE_TABS = [
     { key: "url", label: "URL" },
@@ -15,6 +16,11 @@ type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 
 function UploadPage() {
     const [inputType, setInputType] = useState<InputType>("url");
+    const [products, setProducts] = useState<Product[]>([]);
+
+    const handleAddProduct = (product: Product) => {
+        setProducts((prev) => [...prev, product]);
+    };
 
     return (
         <div className="flex flex-col gap-8">
@@ -35,9 +41,13 @@ function UploadPage() {
                         </button>
                     ))}
                 </div>
-                {inputType === "url" ? (<UrlInputForm />) : (<TextImageInputForm />)}
+                {inputType === "url" ? (
+                    <UrlInputForm onAdd={handleAddProduct} />
+                ) : (
+                    <TextImageInputForm onAdd={handleAddProduct} />
+                )}
             </DefaultBox>
-            <AddedProductList />
+            <AddedProductList products={products} />
         </div>
     );
 }

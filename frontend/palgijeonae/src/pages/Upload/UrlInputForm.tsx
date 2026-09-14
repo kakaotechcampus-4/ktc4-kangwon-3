@@ -4,11 +4,25 @@ import Button from "../../components/common/Button";
 import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
 import AttachedImageList from "./AttachedImageList.tsx";
+import type { Product } from "./types.ts";
 
-function UrlInputForm() {
+interface UrlInputFormProps {
+    onAdd: (product: Product) => void
+}
+
+function UrlInputForm({ onAdd }: UrlInputFormProps) {
     const [productName, setProductName] = useState("");
     const [link, setLink] = useState("");
     const [image, setImage] = useState<File | null>(null);
+
+    const handleAddProduct = () => {
+        onAdd({
+            id: crypto.randomUUID(),
+            type: "url",
+            title: productName,
+            thumbnail: image ? URL.createObjectURL(image) : undefined,
+        });
+    };
 
     return (
         <div className="flex w-full flex-col gap-6">
@@ -51,7 +65,7 @@ function UrlInputForm() {
                     </div>
                 </div>
                 <div className="shrink-0">
-                    <Button text="상품 추가하기" onClick={() => {}} fontSize={15} />
+                    <Button text="상품 추가하기" onClick={handleAddProduct} fontSize={15} />
                 </div>
             </div>
         </div>
