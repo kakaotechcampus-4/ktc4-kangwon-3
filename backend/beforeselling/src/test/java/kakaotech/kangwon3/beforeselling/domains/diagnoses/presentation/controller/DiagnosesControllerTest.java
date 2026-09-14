@@ -15,6 +15,7 @@ import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.JwtProvider;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.CustomOAuth2UserService;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.handler.OAuth2FailureHandler;
@@ -62,7 +63,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(DiagnosesController.class)
 @ActiveProfiles("test")
-@Import({SecurityConfig.class, ApiResponseWriter.class})
+@Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
 class DiagnosesControllerTest {
 
