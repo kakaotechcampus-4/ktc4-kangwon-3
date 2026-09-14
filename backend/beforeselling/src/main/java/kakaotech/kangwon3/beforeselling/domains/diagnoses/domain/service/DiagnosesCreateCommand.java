@@ -7,7 +7,7 @@ import java.util.List;
 public record DiagnosesCreateCommand(
         Long userId,
         String productName,
-        String productImageUrl,
+        String productImageKeys,
         SourceType sourceType,
         String sourceUrl,
         String sourceText,
