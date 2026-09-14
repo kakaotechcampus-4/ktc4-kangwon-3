@@ -9,7 +9,10 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "diagnoses_image")
+@Table(
+        name = "diagnoses_image",
+        indexes = @Index(name = "idx_diagnoses_image_diagnoses_id", columnList = "diagnoses_id")
+)
 public class DiagnosesImage extends BaseEntity {
 
     @Id
