@@ -197,6 +197,23 @@ def test_규칙_값이_다른_속성값의_부분문자열이어도_버려지지
     assert any(a.name == "정격전압" and a.value == "220V" for a in result.attributes)
 
 
+def test_LLM이_다른_항목에_같은_값을_담아도_규칙_결과가_사라지지_않는다():
+    # Given: LLM이 "모델명"에 우연히 "220V"라는 값을 담았다.
+    # (예전엔 값만 비교해서, 이름이 전혀 다른 항목과 값이 같다는 이유만으로
+    # 규칙이 찾은 진짜 정격전압이 통째로 사라졌다.)
+    stub_result = ProductAttributes(
+        attributes=[{"name": "모델명", "value": "220V", "source_text": None, "source_url": None}]
+    )
+    agent = ExtractionAgent(model=_StubChatModel(stub_result))
+    source = ExtractionInput(product_id="prod-10", text_blocks=["정격전압 220V"])
+
+    result = agent.extract(source)
+
+    # Then: 이름이 다른 별개 항목이므로 둘 다 남아야 한다.
+    assert any(a.name == "모델명" and a.value == "220V" for a in result.attributes)
+    assert any(a.name == "정격전압" and a.value == "220V" for a in result.attributes)
+
+
 def test_LLM이_이미_뽑은_값과_겹치는_규칙_결과는_중복으로_안_넣는다():
     stub_result = ProductAttributes(
         attributes=[
