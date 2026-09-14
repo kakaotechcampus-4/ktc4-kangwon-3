@@ -4,14 +4,28 @@ import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
 import AttachedImageList from "./AttachedImageList.tsx";
 import Button from "../../components/common/Button/index.tsx";
+import type { Product } from "./types.ts";
 
 const MAX_PRODUCT_IMAGE_COUNT = 20;
 
-function TextImageInputForm() {
+interface TextImageInputFormProps {
+    onAdd: (product: Product) => void
+}
+
+function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
     const [productName, setProductName] = useState("");
     const [productContent, setProductContent] = useState("");
     const [productImages, setProductImages] = useState<File[]>([]);
     const [image, setImage] = useState<File | null>(null);
+
+    const handleAddProduct = () => {
+        onAdd({
+            id: crypto.randomUUID(),
+            type: "text/image",
+            title: productName,
+            thumbnail: image ? URL.createObjectURL(image) : undefined,
+        });
+    };
 
     return (
         <div className="flex w-full flex-col gap-6">
@@ -73,7 +87,7 @@ function TextImageInputForm() {
                     </div>
                 </div>
                 <div className="shrink-0">
-                    <Button text="상품 추가하기" onClick={() => {}} fontSize={15} />
+                    <Button text="상품 추가하기" onClick={handleAddProduct} fontSize={15} />
                 </div>
             </div>
         </div>
