@@ -22,6 +22,9 @@ function AddedProductList({ products, onRemove }: AddedProductListProps) {
                         type={product.type}
                         title={product.title}
                         thumbnail={product.thumbnail}
+                        link={product.link}
+                        content={product.content}
+                        images={product.images}
                         onRemove={() => onRemove(product.id)}
                     />
                 ))}

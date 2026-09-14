@@ -8,7 +8,7 @@ interface ImageLightboxProps {
     currentIndex: number
     onIndexChange: (index: number) => void
     onClose: () => void
-    onRemove: (index: number) => void
+    onRemove?: (index: number) => void
 }
 
 function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClose, onRemove }: ImageLightboxProps) {
@@ -84,13 +84,15 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                         alt={currentFile.name}
                         className="max-h-[70vh] max-w-full object-contain shadow-lg"
                     />
-                    <button
-                        type="button"
-                        onClick={() => onRemove(currentIndex)}
-                        className="absolute top-3 right-3 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-white"
-                    >
-                        <img src={deleteIcon} alt="삭제" className="h-full w-full" />
-                    </button>
+                    {onRemove && (
+                        <button
+                            type="button"
+                            onClick={() => onRemove(currentIndex)}
+                            className="absolute top-3 right-3 flex h-5 w-5 cursor-pointer items-center justify-center rounded-full bg-white"
+                        >
+                            <img src={deleteIcon} alt="삭제" className="h-full w-full" />
+                        </button>
+                    )}
                 </div>
 
                 {files.length > 1 && (
