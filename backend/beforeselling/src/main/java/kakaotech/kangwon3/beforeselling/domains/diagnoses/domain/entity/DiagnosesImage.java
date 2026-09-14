@@ -24,16 +24,16 @@ public class DiagnosesImage extends BaseEntity {
     @JoinColumn(name = "diagnoses_id", nullable = false)
     private Diagnoses diagnoses;
 
-    @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
-    private String imageUrl;
+    @Column(name = "image_key", nullable = false, columnDefinition = "TEXT")
+    private String imageKey;
 
     // BE -> AI OCR 깨짐 방지를 위하여
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
-    DiagnosesImage(Diagnoses diagnoses, String imageUrl, int sortOrder) {
+    DiagnosesImage(Diagnoses diagnoses, String imageKey, int sortOrder) {
         this.diagnoses = diagnoses;
-        this.imageUrl = imageUrl;
+        this.imageKey = imageKey;
         this.sortOrder = sortOrder;
     }
 }

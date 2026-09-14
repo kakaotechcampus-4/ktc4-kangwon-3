@@ -51,40 +51,40 @@ public class Diagnoses extends BaseEntity {
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Column(name = "product_image_url", columnDefinition = "TEXT")
-    private String productImageUrl;
+    @Column(name = "product_image_key", columnDefinition = "TEXT")
+    private String productImageKey;
 
     @OneToMany(mappedBy = "diagnoses", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
     private List<DiagnosesImage> images = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Diagnoses(Long userId, String productName, String productImageUrl,
+    private Diagnoses(Long userId, String productName, String productImageKey,
                       SourceType sourceType, String sourceUrl, String sourceText) {
         this.userId = userId;
         this.productName = productName;
-        this.productImageUrl = productImageUrl;
+        this.productImageKey = productImageKey;
         this.sourceType = sourceType;
         this.sourceUrl = sourceUrl;
         this.sourceText = sourceText;
         this.processingStatus = ProcessingStatus.PENDING;
     }
 
-    public static Diagnoses pending(Long userId, String productName, String productImageUrl,
+    public static Diagnoses pending(Long userId, String productName, String productImageKey,
                                     SourceType sourceType, String sourceUrl, String sourceText) {
         return Diagnoses.builder()
                 .userId(userId)
                 .productName(productName)
-                .productImageUrl(productImageUrl)
+                .productImageKey(productImageKey)
                 .sourceType(sourceType)
                 .sourceUrl(sourceUrl)
                 .sourceText(sourceText)
                 .build();
     }
 
-    public void addImages(List<String> imageUrls) {
-        for (String imageUrl : imageUrls) {
-            images.add(new DiagnosesImage(this, imageUrl, images.size()));
+    public void addImages(List<String> imageKeys) {
+        for (String imageKey : imageKeys) {
+            images.add(new DiagnosesImage(this, imageKey, images.size()));
         }
     }
 
