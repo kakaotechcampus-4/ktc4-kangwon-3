@@ -44,6 +44,7 @@ services:
       - "5433:5432"
     volumes:
       - ai-pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USERNAME:-ai} -d ${AI_DB_NAME:-ai}"]
       interval: 10s
