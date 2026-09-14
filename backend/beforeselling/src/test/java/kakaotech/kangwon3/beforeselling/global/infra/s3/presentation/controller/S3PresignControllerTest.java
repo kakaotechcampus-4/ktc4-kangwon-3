@@ -15,6 +15,7 @@ import kakaotech.kangwon3.beforeselling.global.security.oauth2.CustomOAuth2UserS
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.handler.OAuth2FailureHandler;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.handler.OAuth2SuccessHandler;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.repository.RedisOAuth2AuthorizationRequestRepository;
+import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.JwtProvider;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
@@ -46,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(S3PresignController.class)
 @ActiveProfiles("test")
-@Import({SecurityConfig.class, ApiResponseWriter.class})
+@Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
 class S3PresignControllerTest {
 
