@@ -44,7 +44,7 @@ class S3PresignedUrlProviderTest {
         S3Properties s3Properties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg", "jpeg", "png", "webp", "heic", "heif"));
-        s3PresignedUrlProvider = new S3PresignedUrlProvider(s3Presigner, s3Properties);
+        s3PresignedUrlProvider = new S3PresignedUrlProvider(s3Presigner, s3Properties, new S3UrlKeyCodec(s3Properties));
     }
 
     @Test
@@ -131,7 +131,8 @@ class S3PresignedUrlProviderTest {
         S3Properties misconfiguredProperties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("unknown"));
-        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, misconfiguredProperties);
+        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(
+                s3Presigner, misconfiguredProperties, new S3UrlKeyCodec(misconfiguredProperties));
 
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.unknown", 1024L);
 
@@ -147,7 +148,8 @@ class S3PresignedUrlProviderTest {
         S3Properties upperCaseExtensionProperties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("JPG", "JPEG", "PNG", "WEBP"));
-        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, upperCaseExtensionProperties);
+        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(
+                s3Presigner, upperCaseExtensionProperties, new S3UrlKeyCodec(upperCaseExtensionProperties));
 
         URL presignedUrl = URI.create("https://test-bucket.s3.ap-northeast-2.amazonaws.com/signed").toURL();
         given(presignedPutObjectRequest.url()).willReturn(presignedUrl);
