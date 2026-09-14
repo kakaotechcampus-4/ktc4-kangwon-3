@@ -166,21 +166,29 @@ def _split_into_tokens(value: str) -> set[str]:
 def _merge_attributes(
     llm_attributes: list[Attribute], rule_attributes: list[Attribute]
 ) -> list[Attribute]:
-    # LLM이 이미 뽑은 값과 정확히(또는 괄호 설명을 뗀 뒤 정확히) 같을 때만 중복으로 본다.
-    # (예: LLM이 "인증정보: CE-RoHS; CE-EMC(Electric)"를 이미 뽑았으면 규칙의 "CE-RoHS"·"CE-EMC"는
-    # 둘 다 이미 있는 값으로 인식해서 또 안 넣는다)
-    # 부분 문자열 비교는 쓰지 않는다 — "220V"가 전혀 다른 속성값 "AC-220V-A1"(모델번호 등)의
-    # 부분 문자열이라는 이유만으로 진짜 정격전압 항목이 통째로 버려지는 사고가 날 수 있다.
+    # 항목 이름과 값이 **둘 다** 같을 때만 중복으로 본다.
+    # (예: LLM이 "인증정보: CE-RoHS; CE-EMC(Electric)"를 이미 뽑았으면 규칙의 인증정보
+    # "CE-RoHS"·"CE-EMC"는 둘 다 이미 있는 값으로 인식해서 또 안 넣는다)
+    #
+    # 값만 비교하면 안 된다. LLM이 "모델명: 220V"처럼 전혀 다른 항목에 같은 문자열을
+    # 담아뒀다는 이유만으로 규칙이 찾은 진짜 "정격전압: 220V"가 통째로 사라진다.
+    # 부분 문자열 비교를 안 쓰는 이유도 같다 — "220V"가 "AC-220V-A1"(모델번호)의
+    # 부분 문자열이라는 이유로 정격전압 항목이 버려지면 안 된다.
+    #
+    # 이름이 다르면 중복이 남을 수는 있다(LLM이 "인증"이라 쓰고 규칙은 "인증정보"인 경우).
+    # 그건 하위 에이전트가 같은 값을 두 번 보는 것뿐이라 판단이 틀어지지 않는 반면,
+    # 소실은 조용히 근거가 사라지는 것이라 훨씬 비싸다. 소실보다 중복을 택한다.
     merged = list(llm_attributes)
-    existing_tokens: set[str] = set()
+    existing_keys: set[tuple[str, str]] = set()
     for attribute in merged:
-        existing_tokens |= _split_into_tokens(attribute.value)
+        name_key = attribute.name.strip().lower()
+        existing_keys |= {(name_key, token) for token in _split_into_tokens(attribute.value)}
 
     for fact in rule_attributes:
-        fact_value = fact.value.strip().lower()
-        if fact_value not in existing_tokens:
+        key = (fact.name.strip().lower(), fact.value.strip().lower())
+        if key not in existing_keys:
             merged.append(fact)
-            existing_tokens.add(fact_value)
+            existing_keys.add(key)
     return merged
 
 
