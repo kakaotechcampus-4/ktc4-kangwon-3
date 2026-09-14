@@ -4,6 +4,7 @@ import DefaultBox from "../../components/common/DefaultBox/index.tsx";
 import SectionIntro from "../../components/common/SectionIntro/index.tsx";
 import UrlInputForm from "./UrlInputForm.tsx";
 import TextImageInputForm from "./TextImageInputForm.tsx";
+import AddedProductList from "./AddedProductList.tsx";
 
 const INPUT_TYPE_TABS = [
     { key: "url", label: "URL" },
@@ -36,6 +37,7 @@ function UploadPage() {
                 </div>
                 {inputType === "url" ? (<UrlInputForm />) : (<TextImageInputForm />)}
             </DefaultBox>
+            <AddedProductList />
         </div>
     );
 }
