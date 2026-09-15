@@ -411,12 +411,10 @@ class VerificationAgent:
                         tool=name,
                     )
             else:
-                # 공통 스키마에 SKIPPED가 생기기 전까지 미선택 상태는
-                # NOT_APPLICABLE로 표현한다. 상태가 분리되면 이 규칙도 함께 바꿔야 한다.
-                if tool_record.status != ToolStatus.NOT_APPLICABLE:
+                if tool_record.status != ToolStatus.SKIPPED:
                     context.add(
                         IssueType.CONTRADICTION,
-                        f"{name}: 미선택 툴의 실행 상태가 not_applicable이 아닙니다.",
+                        f"{name}: 미선택 툴의 실행 상태가 skipped가 아닙니다.",
                     )
                 if tool_record.result is not None or tool_record.findings:
                     context.add(

@@ -29,12 +29,13 @@ class ToolName(StrEnum):
 
 
 # 실행 상태이다. SUCCESS는 실행 성공이지 규제 심사 통과를 뜻하지 않는다.
-# 현재 프로토타입은 미선택 툴에도 NOT_APPLICABLE을 쓰므로 규제 비대상 확정과 구분해야 한다.
+# SKIPPED는 선택되지 않아 실행하지 않은 상태이며,
+# 규제 비대상 판단은 Determination.NOT_APPLICABLE로 표현한다.
 class ToolStatus(StrEnum):
     SUCCESS = "success"
     PARTIAL = "partial"
     FAILED = "failed"
-    NOT_APPLICABLE = "not_applicable"
+    SKIPPED = "skipped"
 
 
 # 개별 항목의 심사 판단. 실행 오류와 판단에 필요한 정보 부족을 구분해서 사용한다.

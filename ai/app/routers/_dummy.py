@@ -117,7 +117,7 @@ def build_dummy_assessment(product_id: str) -> FinalAssessment:
         ),
         ToolResult(
             tool_name=ToolName.FOOD_DRUG,
-            status=ToolStatus.NOT_APPLICABLE,
+            status=ToolStatus.SKIPPED,
             selected=False,
             selection_reason="음식접촉·피부접촉·의료효능·미용효과 해당사항 없음",
         ),
