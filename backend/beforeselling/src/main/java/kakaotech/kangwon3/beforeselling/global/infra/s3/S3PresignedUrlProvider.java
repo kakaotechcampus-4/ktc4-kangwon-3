@@ -46,7 +46,6 @@ public class S3PresignedUrlProvider {
 
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
-    private final S3UrlKeyCodec s3UrlKeyCodec;
 
     public PresignedUrlResponse issuePresignedUrls(Long userId, List<FileMeta> files) {
         List<PresignedFile> presignedFiles = files.stream()
@@ -64,9 +63,8 @@ public class S3PresignedUrlProvider {
 
         String key = createKey(userId, file.type(), fileName);
         String presignedUrl = presign(key, contentType, file.fileSize());
-        String fileUrl = s3UrlKeyCodec.toUrl(key);
 
-        return new PresignedFile(fileName, key, presignedUrl, fileUrl, contentType);
+        return new PresignedFile(fileName, key, presignedUrl, contentType);
     }
 
     private void validateExtension(String fileName) {

@@ -44,11 +44,11 @@ class S3PresignedUrlProviderTest {
         S3Properties s3Properties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg", "jpeg", "png", "webp", "heic", "heif"));
-        s3PresignedUrlProvider = new S3PresignedUrlProvider(s3Presigner, s3Properties, new S3UrlKeyCodec(s3Properties));
+        s3PresignedUrlProvider = new S3PresignedUrlProvider(s3Presigner, s3Properties);
     }
 
     @Test
-    @DisplayName("정상적인 파일 정보로 요청하면 S3 key 규칙에 맞는 presignedUrl과 fileUrl을 발급한다.")
+    @DisplayName("정상적인 파일 정보로 요청하면 S3 key 규칙에 맞는 key와 presignedUrl을 발급한다.")
     void issuePresignedUrls_withValidFile_thenReturnPresignedFile() throws Exception {
         // given
         URL presignedUrl = URI.create("https://test-bucket.s3.ap-northeast-2.amazonaws.com/signed").toURL();
@@ -92,8 +92,8 @@ class S3PresignedUrlProviderTest {
 
         PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
         assertThat(presignedFile.fileName()).isEqualTo(nfcFileName);
-        assertThat(presignedFile.fileUrl()).contains(encodedNfcFileName);
-        assertThat(presignedFile.fileUrl()).doesNotContain(encodedNfdFileName);
+        assertThat(presignedFile.key()).contains(encodedNfcFileName);
+        assertThat(presignedFile.key()).doesNotContain(encodedNfdFileName);
     }
 
     @Test
@@ -131,8 +131,7 @@ class S3PresignedUrlProviderTest {
         S3Properties misconfiguredProperties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("unknown"));
-        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(
-                s3Presigner, misconfiguredProperties, new S3UrlKeyCodec(misconfiguredProperties));
+        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, misconfiguredProperties);
 
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.unknown", 1024L);
 
@@ -148,8 +147,7 @@ class S3PresignedUrlProviderTest {
         S3Properties upperCaseExtensionProperties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("JPG", "JPEG", "PNG", "WEBP"));
-        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(
-                s3Presigner, upperCaseExtensionProperties, new S3UrlKeyCodec(upperCaseExtensionProperties));
+        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, upperCaseExtensionProperties);
 
         URL presignedUrl = URI.create("https://test-bucket.s3.ap-northeast-2.amazonaws.com/signed").toURL();
         given(presignedPutObjectRequest.url()).willReturn(presignedUrl);
