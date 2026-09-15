@@ -33,6 +33,7 @@ import java.util.UUID;
 public class S3PresignedUrlProvider {
 
     private static final String KEY_DELIMITER = "/";
+    private static final String TEMP_PREFIX = "temp/";
 
     /**
      * Spring MediaTypeFactory가 내장한 mime.types에는 없는 확장자에 대한 보강 매핑.
@@ -103,7 +104,7 @@ public class S3PresignedUrlProvider {
     private String createKey(Long userId, FileType type, String fileName) {
         String sanitizedFileName = StringUtils.getFilename(fileName);
         String uniqueFileName = "%s_%s".formatted(UUID.randomUUID(), sanitizedFileName);
-        return String.join(KEY_DELIMITER, type.getFolderName(), String.valueOf(userId), uniqueFileName);
+        return TEMP_PREFIX + String.join(KEY_DELIMITER, type.getFolderName(), String.valueOf(userId), uniqueFileName);
     }
 
     private String presign(String key, String contentType, long fileSize) {

@@ -64,11 +64,11 @@ class S3PresignedUrlProviderTest {
         assertThat(response.files()).hasSize(1);
         PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
         assertThat(presignedFile.fileName()).isEqualTo("thumb.jpg");
-        assertThat(presignedFile.key()).matches("product-main/1/[0-9a-f-]+_thumb\\.jpg");
+        assertThat(presignedFile.key()).matches("temp/product-main/1/[0-9a-f-]+_thumb\\.jpg");
         assertThat(presignedFile.presignedUrl()).isEqualTo(presignedUrl.toString());
         assertThat(presignedFile.contentType()).isEqualTo("image/jpeg");
         assertThat(presignedFile.fileUrl())
-                .matches("https://test-bucket\\.s3\\.ap-northeast-2\\.amazonaws\\.com/product-main/1/[0-9a-f-]+_thumb\\.jpg");
+                .matches("https://test-bucket\\.s3\\.ap-northeast-2\\.amazonaws\\.com/temp/product-main/1/[0-9a-f-]+_thumb\\.jpg");
     }
 
     @Test
