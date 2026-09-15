@@ -1,0 +1,98 @@
+{
+  "fixture": "wireless_shield_rfid.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-16",
+  "tags": ["정상"],
+  "summary": "RFID 차단 지갑. 전파를 '막는' 기능과 '주고받는' 기능을 구분하는지 보는 케이스다. 재질이 전부 명시된 비전자 제품이라 전기 관련 특성은 부재를 확인할 수 있다.",
+
+  "booleans": {
+    "wireless_shield": {
+      "value": true,
+      "evidence": "카테고리 'RFID 차단 카드지갑', 제목 'EDC RFID 차단 초슬림 지갑'",
+      "why_not_other": "전파 차단이 상품의 핵심 기능으로 명시돼 있다."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "소재가 나일론·폴리에스테르로 전부 명시된 지갑이고 통신 부품 언급이 전혀 없다",
+      "why_not_other": "차폐(막는 것)를 통신(주고받는 것)으로 오해하면 true가 된다. 재질이 완전히 명시된 비전자 제품이므로 부재를 확인할 수 있다."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "위와 같다. 충전 기능 언급이 없고 전자 부품이 없다",
+      "why_not_other": "RFID 차단과 무선충전은 별개 기능이다."
+    },
+    "electrical_powered": {
+      "value": false,
+      "evidence": "소재 나일론, 라이닝 폴리에스테르. 전원·전지 관련 언급이 없다",
+      "why_not_other": "재질이 전부 명시된 지갑이라 전기 구동 요소의 부재를 확인할 수 있다."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "위와 같다",
+      "why_not_other": "전지 관련 언급이 없고 구성이 직물 지갑으로 확인된다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "카테고리가 지갑이다",
+      "why_not_other": "전력 공급이 주 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "발열 기능 언급이 없고 구성이 직물 지갑이다",
+      "why_not_other": "전기 구동 요소가 없어 발열이 기능일 수 없다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "지갑이라 음식에 닿지 않을 것 같다는 건 상식 추론이지 페이지 근거가 아니다."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "'지갑이니까 손에 닿는다'는 상식 추론이다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병·신체기능 개선 표방 문구가 없다",
+      "why_not_other": "리뷰의 '효과는 100%'는 스캐닝 차단 이야기이고 판매자 문구도 아니다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "스펙표의 '스타일: 우아한'은 디자인 표현이지 피부 효과 주장이 아니다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "카테고리 '남성 지갑&카드 케이스', 형태가 지갑",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "스펙표 '소재: 나일론', '라이닝 재료: 폴리에스테르'",
+      "why_not_other": "재질이 전부 명시돼 있고 합성섬유다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "세정·방향·살균 기능 언급이 없고 카테고리가 지갑이다",
+      "why_not_other": "주된 기능이 페이지로 확인된다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "제목 '남녀공용', 카테고리 '남성 지갑&카드 케이스'. 어린이를 겨냥한 문구가 없다",
+      "why_not_other": "광고 대상이 성인으로 표기돼 있다."
+    }
+  },
+
+  "verbatim": {
+    "target_age": { "value": null, "evidence": "(연령 표기 없음)" }
+  },
+
+  "keywords": {
+    "product_name": { "required": ["지갑"] },
+    "category": { "allowed": ["RFID 차단 카드지갑", "지갑", "남성 지갑&카드 케이스", "카드지갑"] }
+  },
+
+  "attributes_forbidden": [
+    { "name": "통신 주파수", "value": "13.56MHz", "reason": "RFID 주파수가 페이지에 적혀 있지 않다" }
+  ]
+}
