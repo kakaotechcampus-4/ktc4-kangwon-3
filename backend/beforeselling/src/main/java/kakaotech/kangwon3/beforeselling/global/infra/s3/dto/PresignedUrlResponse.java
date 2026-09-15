@@ -10,7 +10,6 @@ public record PresignedUrlResponse(
             String fileName,
             String key,
             String presignedUrl,
-            String fileUrl,
             String contentType
     ) {
     }
