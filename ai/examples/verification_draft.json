@@ -1,0 +1,196 @@
+{
+  "assessment_id": "sample-earbuds-001",
+  "product": {
+    "product_id": "prod-earbuds-001",
+    "product_name": "블루투스 5.3 무선 이어폰 (충전 케이스 포함)",
+    "category": "이어폰/헤드폰",
+    "intended_use": "음악 감상 및 통화",
+    "target_age": null,
+    "electrical_powered": true,
+    "wireless_comm": true,
+    "wireless_charging": null,
+    "battery_included": true,
+    "battery_is_the_product": false,
+    "listing_text": [
+      "블루투스 5.3 초저지연 무선 이어폰",
+      "충전 케이스로 최대 30시간 재생",
+      "노이즈 캔슬링으로 집중력이 2배 향상됩니다"
+    ],
+    "attributes": [
+      { "name": "통신 방식", "value": "Bluetooth 5.3", "source_text": "블루투스 5.3 초저지연" },
+      { "name": "배터리", "value": "리튬이온 40mAh x2", "source_text": "충전 케이스로 최대 30시간" }
+    ],
+    "source_url": "https://example.com/item/earbuds-001"
+  },
+  "selected_tools": ["electrical_safety", "labeling_advertising_detection"],
+  "tool_results": [
+    {
+      "tool_name": "customs_requirements",
+      "status": "not_applicable",
+      "selected": false,
+      "selection_reason": "선택 단계에서 통관 요건 조회 대상이 아니라고 판단했습니다."
+    },
+    {
+      "tool_name": "radio_compliance",
+      "status": "not_applicable",
+      "selected": false,
+      "selection_reason": "선택 단계에서 전파 관련 검토가 불필요하다고 판단했습니다."
+    },
+    {
+      "tool_name": "food_drug_safety",
+      "status": "not_applicable",
+      "selected": false,
+      "selection_reason": "식품·의약품·화장품 관련 신호가 없습니다."
+    },
+    {
+      "tool_name": "electrical_safety",
+      "status": "success",
+      "selected": true,
+      "selection_reason": "전기로 작동하고 리튬이온 전지가 포함되어 있습니다.",
+      "result": {
+        "kind": "electrical",
+        "power_sources": ["리튬이온 2차전지", "USB-C 충전"],
+        "rated_specifications": ["3.7V 40mAh (이어버드)", "5V 400mAh (충전 케이스)"],
+        "safety_management_required": true,
+        "certification_type": "안전확인",
+        "legal_sources": [
+          {
+            "source_name": "국가법령정보센터",
+            "law_name": "전기용품 및 생활용품 안전관리법",
+            "article": "제15조",
+            "quoted_text": "안전확인대상제품의 제조업자 또는 수입업자는 안전확인시험을 받아 안전확인신고를 하여야 한다.",
+            "source_url": "https://www.law.go.kr/법령/전기용품및생활용품안전관리법",
+            "effective_date": "2024-01-01",
+            "is_mock": true
+          }
+        ]
+      },
+      "findings": [
+        {
+          "finding_id": "f-electrical-001",
+          "tool_name": "electrical_safety",
+          "subject": "리튬이온 2차전지 내장 기기의 안전확인 신고",
+          "determination": "required",
+          "risk_level": "high",
+          "summary": "리튬이온 2차전지가 포함되어 안전확인 신고 대상으로 판단됩니다.",
+          "rationale": "상품에 리튬이온 2차전지가 포함되고 USB 충전 방식이므로 안전확인대상제품 범위에 해당합니다.",
+          "product_facts_used": ["battery_included=true", "electrical_powered=true"],
+          "requirements": ["안전확인시험 후 안전확인신고", "KC 마크 및 신고번호 표시"],
+          "legal_sources": [
+            {
+              "source_name": "국가법령정보센터",
+              "law_name": "전기용품 및 생활용품 안전관리법",
+              "article": "제15조",
+              "quoted_text": "안전확인대상제품의 제조업자 또는 수입업자는 안전확인시험을 받아 안전확인신고를 하여야 한다.",
+              "source_url": "https://www.law.go.kr/법령/전기용품및생활용품안전관리법",
+              "effective_date": "2024-01-01",
+              "is_mock": true
+            }
+          ],
+          "assumptions": ["전지 용량이 상세페이지 표기와 같다고 가정했습니다."],
+          "confidence": 0.8
+        }
+      ],
+      "required_actions": ["안전확인신고 번호 확보 여부를 판매자에게 확인"],
+      "missing_information": ["정확한 전지 용량(Wh) 표기"]
+    },
+    {
+      "tool_name": "children_product_safety",
+      "status": "not_applicable",
+      "selected": false,
+      "selection_reason": "어린이 대상 표기나 광고 맥락이 없습니다."
+    },
+    {
+      "tool_name": "labeling_advertising_detection",
+      "status": "success",
+      "selected": true,
+      "selection_reason": "상품 설명에 성능 관련 표현이 있어 표시광고 검토가 필요합니다.",
+      "result": {
+        "kind": "advertising",
+        "reviewed_phrases": [
+          "블루투스 5.3 초저지연 무선 이어폰",
+          "충전 케이스로 최대 30시간 재생",
+          "노이즈 캔슬링으로 집중력이 2배 향상됩니다"
+        ],
+        "detected_phrases": [
+          {
+            "text": "노이즈 캔슬링으로 집중력이 2배 향상됩니다",
+            "risk_type": "객관적 근거 없는 성능 표현",
+            "risk_level": "medium",
+            "reason": "수치로 표현한 효능 주장이며 실증 자료가 상세페이지에 없습니다.",
+            "evidence_required": true
+          }
+        ],
+        "overall_risk": "medium",
+        "legal_sources": []
+      },
+      "findings": [
+        {
+          "finding_id": "f-label-001",
+          "tool_name": "labeling_advertising_detection",
+          "subject": "집중력 2배 향상 표현의 실증 필요성",
+          "determination": "possibly_required",
+          "risk_level": "medium",
+          "summary": "수치 효능 표현이 있어 실증 자료 확보가 필요할 수 있습니다.",
+          "rationale": "'집중력이 2배 향상'은 객관적 근거가 필요한 표현이지만 실증 자료가 확인되지 않았습니다.",
+          "product_facts_used": ["listing_text의 노이즈 캔슬링 문구"],
+          "requirements": ["표현 삭제 또는 실증 자료 확보"],
+          "legal_sources": [],
+          "assumptions": [],
+          "confidence": 0.6
+        }
+      ],
+      "required_actions": ["실증 자료가 없으면 해당 문구 삭제 검토"],
+      "missing_information": []
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "f-electrical-001",
+      "tool_name": "electrical_safety",
+      "subject": "리튬이온 2차전지 내장 기기의 안전확인 신고",
+      "determination": "required",
+      "risk_level": "high",
+      "summary": "리튬이온 2차전지가 포함되어 안전확인 신고 대상으로 판단됩니다.",
+      "rationale": "상품에 리튬이온 2차전지가 포함되고 USB 충전 방식이므로 안전확인대상제품 범위에 해당합니다.",
+      "product_facts_used": ["battery_included=true", "electrical_powered=true"],
+      "requirements": ["안전확인시험 후 안전확인신고", "KC 마크 및 신고번호 표시"],
+      "legal_sources": [
+        {
+          "source_name": "국가법령정보센터",
+          "law_name": "전기용품 및 생활용품 안전관리법",
+          "article": "제15조",
+          "quoted_text": "안전확인대상제품의 제조업자 또는 수입업자는 안전확인시험을 받아 안전확인신고를 하여야 한다.",
+          "source_url": "https://www.law.go.kr/법령/전기용품및생활용품안전관리법",
+          "effective_date": "2024-01-01",
+          "is_mock": true
+        }
+      ],
+      "assumptions": ["전지 용량이 상세페이지 표기와 같다고 가정했습니다."],
+      "confidence": 0.8
+    },
+    {
+      "finding_id": "f-label-001",
+      "tool_name": "labeling_advertising_detection",
+      "subject": "집중력 2배 향상 표현의 실증 필요성",
+      "determination": "possibly_required",
+      "risk_level": "medium",
+      "summary": "수치 효능 표현이 있어 실증 자료 확보가 필요할 수 있습니다.",
+      "rationale": "'집중력이 2배 향상'은 객관적 근거가 필요한 표현이지만 실증 자료가 확인되지 않았습니다.",
+      "product_facts_used": ["listing_text의 노이즈 캔슬링 문구"],
+      "requirements": ["표현 삭제 또는 실증 자료 확보"],
+      "legal_sources": [],
+      "assumptions": [],
+      "confidence": 0.6
+    }
+  ],
+  "overall_status": "action_required",
+  "summary": "전기안전 안전확인 신고가 필요하고, 광고 문구 하나는 실증 자료 확보가 필요합니다.",
+  "required_actions": [
+    "안전확인신고 번호 확보 여부를 판매자에게 확인",
+    "실증 자료가 없으면 '집중력 2배 향상' 문구 삭제 검토"
+  ],
+  "missing_information": ["정확한 전지 용량(Wh) 표기"],
+  "follow_up_questions": [],
+  "assumptions": ["상세페이지 표기가 실제 상품과 일치한다고 가정했습니다."]
+}
