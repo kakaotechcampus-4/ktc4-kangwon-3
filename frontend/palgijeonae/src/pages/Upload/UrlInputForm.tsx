@@ -49,6 +49,7 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
                 placeholder="제품을 구분하기 위한 상품명이나 별명을 입력하세요."
                 value={productName}
                 onChange={setProductName}
+                maxLength={100}
             />
             <FormField
                 id="product-link"

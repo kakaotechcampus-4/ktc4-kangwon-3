@@ -54,6 +54,7 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
                 placeholder="제품을 구분하기 위한 상품명이나 별명을 입력하세요."
                 value={productName}
                 onChange={setProductName}
+                maxLength={100}
             />
             <FormField
                 id="product-content"
@@ -65,7 +66,7 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
             />
             <ImageUploadField
                 id="product-content-images"
-                title="상세페이지 이미지"
+                title={`상세페이지 이미지 (${productImages.length}/${MAX_PRODUCT_IMAGE_COUNT})`}
                 description="상세 페이지를 캡처한 이미지를 첨부하세요."
                 multiple={true}
                 isOption={false}
