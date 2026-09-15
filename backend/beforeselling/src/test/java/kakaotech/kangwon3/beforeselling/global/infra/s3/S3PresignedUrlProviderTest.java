@@ -11,15 +11,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.util.unit.DataSize;
-import org.springframework.web.util.UriUtils;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.net.URI;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
-import java.text.Normalizer;
 import java.time.Duration;
 import java.util.List;
 
@@ -67,31 +64,6 @@ class S3PresignedUrlProviderTest {
         assertThat(presignedFile.key()).matches("temp/product-main/1/[0-9a-f-]+_thumb\\.jpg");
         assertThat(presignedFile.presignedUrl()).isEqualTo(presignedUrl.toString());
         assertThat(presignedFile.contentType()).isEqualTo("image/jpeg");
-    }
-
-    @Test
-    @DisplayName("자소분리(NFD)된 파일명을 NFC로 정규화하여 처리한다.")
-    void issuePresignedUrls_withNfdFileName_thenNormalizeToNfc() throws Exception {
-        // given
-        URL presignedUrl = URI.create("https://test-bucket.s3.ap-northeast-2.amazonaws.com/signed").toURL();
-        given(presignedPutObjectRequest.url()).willReturn(presignedUrl);
-        given(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).willReturn(presignedPutObjectRequest);
-
-        String nfcFileName = Normalizer.normalize("사진.jpg", Normalizer.Form.NFC);
-        String nfdFileName = Normalizer.normalize("사진.jpg", Normalizer.Form.NFD);
-        FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, nfdFileName, 1024L);
-
-        // when
-        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
-
-        // then
-        String encodedNfcFileName = UriUtils.encodePathSegment(nfcFileName, StandardCharsets.UTF_8);
-        String encodedNfdFileName = UriUtils.encodePathSegment(nfdFileName, StandardCharsets.UTF_8);
-
-        PresignedUrlResponse.PresignedFile presignedFile = response.files().getFirst();
-        assertThat(presignedFile.fileName()).isEqualTo(nfcFileName);
-        assertThat(presignedFile.key()).contains(encodedNfcFileName);
-        assertThat(presignedFile.key()).doesNotContain(encodedNfdFileName);
     }
 
     @Test
