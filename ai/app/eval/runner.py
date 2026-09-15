@@ -104,6 +104,15 @@ def main() -> int:
     if not names:
         parser.error("--all 또는 --fixture 를 지정하세요.")
 
+    # 모델을 만들기 전에 원문이 다 있는지 먼저 본다. 뒤쪽 픽스처가 없으면
+    # 앞쪽에 쓴 API 호출이 통째로 낭비된다.
+    missing = [n for n in names if not (RAW_DIR / load_truth(TRUTH_DIR / f"{n}.json")["fixture"]).exists()]
+    if missing:
+        print(f"원문 픽스처가 없습니다: {', '.join(missing)}", file=sys.stderr)
+        print(f"저장소에는 축약본만 들어 있습니다. 원문을 {RAW_DIR} 에 넣어주세요 "
+              f"(tests/fixtures/README.md 참고).", file=sys.stderr)
+        return 1
+
     agent = ExtractionAgent()
     results: dict[str, list[dict]] = {}
     for name in names:
