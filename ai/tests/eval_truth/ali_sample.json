@@ -1,0 +1,105 @@
+{
+  "fixture": "ali_sample.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-16",
+  "tags": ["정상"],
+  "summary": "어린이용 무선 헤어 드라이어. 전기·배터리·어린이·피부접촉 신호가 페이지에 명시돼 있어 판단이 비교적 분명하다. 다만 제목의 '무선'은 통신이 아니라 코드리스(전원선 없음)라서 wireless_comm과 구분되는지가 관건이다.",
+
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "스펙표 '전력 공급 방식: USB 충전(내장 배터리)'",
+      "why_not_other": "전원 방식이 명시돼 있다."
+    },
+    "battery_included": {
+      "value": true,
+      "evidence": "스펙표 '배터리 속성: 충전식 배터리 / 리튬 배터리', '내장 배터리'",
+      "why_not_other": "내장 배터리가 명시돼 있다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "카테고리 '무선 드라이기', 주된 기능은 머리 건조",
+      "why_not_other": "배터리는 내장 부품이고 전력 공급 자체가 상품이 아니다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "제목의 '무선'은 '무선 드라이기' 카테고리와 함께 전원선이 없다는 뜻으로 쓰였고, 블루투스·WiFi·RF 언급은 없다",
+      "why_not_other": "코드리스를 통신으로 오해하면 true가 되지만 통신 근거는 없다. 반대로 '없음을 확인'해주는 문구도 없어 false로도 확정할 수 없다."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "제목 '충전 거치대 포함' / 스펙표 'USB 충전'",
+      "why_not_other": "거치대가 무선충전인지 접점 충전인지 페이지로는 알 수 없다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "제목 '부드러운 바람 미니 헤어 드라이어', 리뷰 '머리나 피부를 말리는 데 딱 좋아요'",
+      "why_not_other": "헤어드라이어는 통상 발열하지만 이 페이지는 온풍·발열을 명시하지 않고 '부드러운 바람'이라고만 한다. 냉풍 제품일 가능성이 남는다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": true,
+      "evidence": "제목 '아이들의 연약한 피부에 적합한 소형 헤어 드라이어'",
+      "why_not_other": "피부 접촉이 제목에 직접 적혀 있다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병명·신체기능 개선을 표방하는 문구가 페이지에 없다",
+      "why_not_other": "표방 문구의 유무는 페이지를 끝까지 읽으면 확인할 수 있다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "'연약한 피부에 적합한'은 적합성 안내이지 미용·피부 효과 주장이 아니다",
+      "why_not_other": "카테고리가 '뷰티 & 맞춤 케어'지만 효과를 표방하는 문구는 없다. 이 필드는 표방 문구의 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "카테고리 '헤어 스타일링 도구', 형태가 헤어드라이어로 명확",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "(재질 표기 없음)",
+      "why_not_other": "스펙표에 재질 항목이 없어 식물성 소재 여부를 확인할 수 없다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리·제목이 헤어드라이어이고 세정·방향·살균 기능 언급이 없다",
+      "why_not_other": "주된 기능이 페이지로 확인된다."
+    },
+    "for_children": {
+      "value": true,
+      "evidence": "제목 '어린이용', '키즈 모델', '아이들의 연약한 피부에 적합한'",
+      "why_not_other": "광고가 어린이를 직접 겨냥한다."
+    }
+  },
+
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "'어린이용'·'키즈'는 대상 표기이고 '만 O세' 같은 연령 표기는 페이지에 없다"
+    }
+  },
+
+  "keywords": {
+    "product_name": { "required": ["헤어 드라이어"] },
+    "category": { "allowed": ["무선 드라이기", "헤어 스타일링 도구", "헤어드라이어", "헤어 드라이어"] }
+  },
+
+  "attributes_required": [
+    { "name": "인증정보", "value": "CE-RoHS", "evidence": "스펙표 '인증정보: CE-RoHS; CE-EMC(Electric)'" },
+    { "name": "인증정보", "value": "CE-EMC", "evidence": "같은 줄" }
+  ],
+  "attributes_forbidden": [
+    { "name": "KC 인증번호", "value": "XU101234-19001", "reason": "페이지에 KC 인증번호가 없다" }
+  ]
+}
