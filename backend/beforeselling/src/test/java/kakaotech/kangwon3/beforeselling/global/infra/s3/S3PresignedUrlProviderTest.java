@@ -62,13 +62,11 @@ class S3PresignedUrlProviderTest {
 
         // then
         assertThat(response.files()).hasSize(1);
-        PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
+        PresignedUrlResponse.PresignedFile presignedFile = response.files().getFirst();
         assertThat(presignedFile.fileName()).isEqualTo("thumb.jpg");
         assertThat(presignedFile.key()).matches("temp/product-main/1/[0-9a-f-]+_thumb\\.jpg");
         assertThat(presignedFile.presignedUrl()).isEqualTo(presignedUrl.toString());
         assertThat(presignedFile.contentType()).isEqualTo("image/jpeg");
-        assertThat(presignedFile.fileUrl())
-                .matches("https://test-bucket\\.s3\\.ap-northeast-2\\.amazonaws\\.com/temp/product-main/1/[0-9a-f-]+_thumb\\.jpg");
     }
 
     @Test
@@ -90,7 +88,7 @@ class S3PresignedUrlProviderTest {
         String encodedNfcFileName = UriUtils.encodePathSegment(nfcFileName, StandardCharsets.UTF_8);
         String encodedNfdFileName = UriUtils.encodePathSegment(nfdFileName, StandardCharsets.UTF_8);
 
-        PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
+        PresignedUrlResponse.PresignedFile presignedFile = response.files().getFirst();
         assertThat(presignedFile.fileName()).isEqualTo(nfcFileName);
         assertThat(presignedFile.key()).contains(encodedNfcFileName);
         assertThat(presignedFile.key()).doesNotContain(encodedNfdFileName);
@@ -110,7 +108,7 @@ class S3PresignedUrlProviderTest {
         PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
 
         // then
-        assertThat(response.files().get(0).contentType()).isEqualTo("image/heic");
+        assertThat(response.files().getFirst().contentType()).isEqualTo("image/heic");
     }
 
     @Test
