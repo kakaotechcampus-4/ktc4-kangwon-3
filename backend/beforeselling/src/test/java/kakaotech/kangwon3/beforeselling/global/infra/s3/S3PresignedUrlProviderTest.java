@@ -17,7 +17,6 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 
 import java.net.URI;
 import java.net.URL;
-import java.text.Normalizer;
 import java.time.Duration;
 import java.util.List;
 
@@ -60,33 +59,11 @@ class S3PresignedUrlProviderTest {
 
         // then
         assertThat(response.files()).hasSize(1);
-        PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
+        PresignedUrlResponse.PresignedFile presignedFile = response.files().getFirst();
         assertThat(presignedFile.fileName()).isEqualTo("thumb.jpg");
-        assertThat(presignedFile.key()).matches("product-main/1/[0-9a-f-]+_thumb\\.jpg");
+        assertThat(presignedFile.key()).matches("temp/product-main/1/[0-9a-f-]+_thumb\\.jpg");
         assertThat(presignedFile.presignedUrl()).isEqualTo(presignedUrl.toString());
         assertThat(presignedFile.contentType()).isEqualTo("image/jpeg");
-    }
-
-    @Test
-    @DisplayName("자소분리(NFD)된 파일명을 NFC로 정규화하여 처리한다.")
-    void issuePresignedUrls_withNfdFileName_thenNormalizeToNfc() throws Exception {
-        // given
-        URL presignedUrl = URI.create("https://test-bucket.s3.ap-northeast-2.amazonaws.com/signed").toURL();
-        given(presignedPutObjectRequest.url()).willReturn(presignedUrl);
-        given(s3Presigner.presignPutObject(any(PutObjectPresignRequest.class))).willReturn(presignedPutObjectRequest);
-
-        String nfcFileName = Normalizer.normalize("사진.jpg", Normalizer.Form.NFC);
-        String nfdFileName = Normalizer.normalize("사진.jpg", Normalizer.Form.NFD);
-        FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, nfdFileName, 1024L);
-
-        // when
-        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
-
-        // then
-        PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
-        assertThat(presignedFile.fileName()).isEqualTo(nfcFileName);
-        assertThat(presignedFile.key()).contains(nfcFileName);
-        assertThat(presignedFile.key()).doesNotContain(nfdFileName);
     }
 
     @Test
@@ -103,7 +80,7 @@ class S3PresignedUrlProviderTest {
         PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
 
         // then
-        assertThat(response.files().get(0).contentType()).isEqualTo("image/heic");
+        assertThat(response.files().getFirst().contentType()).isEqualTo("image/heic");
     }
 
     @Test

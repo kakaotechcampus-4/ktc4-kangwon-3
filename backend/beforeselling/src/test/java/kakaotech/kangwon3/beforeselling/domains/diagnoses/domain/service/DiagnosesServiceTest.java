@@ -8,6 +8,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceTy
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +17,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -41,11 +43,17 @@ class DiagnosesServiceTest {
     @Mock
     private DiagnosesRepository diagnosesRepository;
 
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private DiagnosesService diagnosesService;
 
     @Captor
     private ArgumentCaptor<Diagnoses> diagnosesCaptor;
+
+    @Captor
+    private ArgumentCaptor<S3FileDeleteEvent> eventCaptor;
 
     @Test
     @DisplayName("진단을 요청하면 진단서가 PENDING 상태로 저장되고 진단 결과는 비어 있다.")
@@ -171,10 +179,11 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("본인의 진단서를 삭제하면 저장소에서 삭제된다.")
-    void removeDiagnoses_thenDeleteDiagnoses() {
+    @DisplayName("본인의 진단서를 삭제하면 저장소에서 삭제되고 S3 삭제 이벤트가 발행된다.")
+    void removeDiagnoses_thenDeleteDiagnosesAndPublishDeleteEvent() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L, 1L);
+        diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
         given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(diagnoses));
 
         // when
@@ -182,6 +191,9 @@ class DiagnosesServiceTest {
 
         // then
         then(diagnosesRepository).should().delete(diagnoses);
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().keys()).containsExactlyInAnyOrder(
+                PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg");
     }
 
     @Test
@@ -197,6 +209,42 @@ class DiagnosesServiceTest {
                 .isEqualTo(CommonResponseCode.FORBIDDEN);
 
         then(diagnosesRepository).should(never()).delete(any());
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("회원 탈퇴 시 사용자의 모든 진단서를 삭제하고 전체 key 목록으로 S3 삭제 이벤트를 한 번 발행한다.")
+    void removeAllByUserId_thenDeleteAllAndPublishSingleDeleteEvent() {
+        // given
+        Diagnoses first = createDiagnoses(1L, 1L);
+        first.addImages(List.of("product-detail/1/uuid_a1.jpg"));
+        Diagnoses second = createDiagnoses(2L, 1L);
+        second.addImages(List.of("product-detail/1/uuid_a2.jpg"));
+        List<Diagnoses> diagnosesList = List.of(first, second);
+        given(diagnosesRepository.findWithImagesByUserId(1L)).willReturn(diagnosesList);
+
+        // when
+        diagnosesService.removeAllByUserId(1L);
+
+        // then
+        then(diagnosesRepository).should().deleteAll(diagnosesList);
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().keys()).containsExactlyInAnyOrder(
+                PRODUCT_IMAGE_KEY, PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg");
+    }
+
+    @Test
+    @DisplayName("삭제할 진단서가 없는 사용자가 탈퇴하면 아무것도 삭제하지 않고 이벤트도 발행하지 않는다.")
+    void removeAllByUserId_withNoDiagnoses_thenSkip() {
+        // given
+        given(diagnosesRepository.findWithImagesByUserId(1L)).willReturn(List.of());
+
+        // when
+        diagnosesService.removeAllByUserId(1L);
+
+        // then
+        then(diagnosesRepository).should(never()).deleteAll(any(List.class));
+        then(eventPublisher).should(never()).publishEvent(any());
     }
 
     private Diagnoses createDiagnoses(Long diagnosesId, Long userId) {

@@ -132,6 +132,30 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
+    @DisplayName("회원 탈퇴용으로 이미지 포함 전체 진단서를 조회하면 다른 사용자의 진단서는 제외되고 영속성 컨텍스트 분리 후에도 이미지를 읽을 수 있다.")
+    void findWithImagesByUserId_thenExcludeOtherUsersDiagnosesAndImagesAreInitialized() {
+        // given
+        Diagnoses mine = createDiagnoses(USER_ID, null);
+        mine.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
+        diagnosesRepository.save(mine);
+
+        Diagnoses other = createDiagnoses(OTHER_USER_ID, null);
+        other.addImages(List.of("product-detail/2/uuid_a9.jpg"));
+        diagnosesRepository.save(other);
+        flushAndClear();
+
+        // when
+        List<Diagnoses> result = diagnosesRepository.findWithImagesByUserId(USER_ID);
+        result.forEach(entityManager::detach);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getImages())
+                .extracting(DiagnosesImage::getImageKey)
+                .containsExactly("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg");
+    }
+
+    @Test
     @DisplayName("목록을 최신순으로 조회하면 등록 시각 내림차순으로 반환된다.")
     void findByUserId_withLatestSort_thenSortByCreatedAtDescending() {
         // given
