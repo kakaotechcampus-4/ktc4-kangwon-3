@@ -106,7 +106,6 @@ class S3PresignControllerTest {
                         "thumb.jpg",
                         "product-main/1/uuid_thumb.jpg",
                         "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg?X-Amz-Signature=...",
-                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg",
                         "image/jpeg")));
         given(s3PresignedUrlProvider.issuePresignedUrls(eq(1L), any())).willReturn(response);
 
@@ -119,8 +118,6 @@ class S3PresignControllerTest {
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.files[0].fileName").value("thumb.jpg"))
                 .andExpect(jsonPath("$.data.files[0].key").value("product-main/1/uuid_thumb.jpg"))
-                .andExpect(jsonPath("$.data.files[0].fileUrl").value(
-                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg"))
                 .andExpect(jsonPath("$.data.files[0].contentType").value("image/jpeg"));
         then(s3PresignedUrlProvider).should().issuePresignedUrls(eq(1L), any());
     }

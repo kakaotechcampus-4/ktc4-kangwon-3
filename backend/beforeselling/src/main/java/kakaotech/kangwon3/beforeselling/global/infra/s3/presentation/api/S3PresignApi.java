@@ -26,7 +26,6 @@ public interface S3PresignApi {
                     클라이언트가 별도로 지정할 수 없습니다.
                     클라이언트는 발급받은 presignedUrl로 PUT 요청을 보내 파일을 업로드하되,
                     이때 Content-Type 헤더는 반드시 응답의 contentType 값과 동일하게 설정해야 합니다(다르면 서명 불일치로 거부됨).
-                    업로드 완료 후에는 함께 반환된 fileUrl로 파일에 접근합니다.
                     key는 업로드된 파일의 S3 객체 키로, 이후 다른 API에 파일을 참조시킬 때 이 값을 사용합니다.
 
                     PUT 요청은 S3로 직접 전송되므로 아래 오류는 이 API의 응답이 아닌 S3의 응답이며,
