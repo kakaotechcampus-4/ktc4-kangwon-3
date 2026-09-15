@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from ..schemas.product import ProductAttributes
 from .grading import (
     Grade,
     attribute_names_for,
@@ -70,15 +71,54 @@ class FixtureReport:
         }
 
 
+# 모델이 만들지 않고 시스템이 채우는 값이라 채점 대상이 아니다.
+_NEVER_GRADED = {"product_id", "source_url"}
+
+_PRODUCT_FIELDS = set(ProductAttributes.model_fields)
+_BOOLEAN_FIELDS = {
+    name
+    for name, info in ProductAttributes.model_fields.items()
+    if str(info.annotation) == "bool | None"
+}
+
+
+def check_truth(truth: dict) -> None:
+    """정답표가 실제 스키마와 맞는지 본다.
+
+    필드명에 오타가 있으면 그 필드는 모델 출력에서 항상 None으로 읽혀 "정답"으로
+    채점된다. 조용히 통과하면서 측정값만 오염시키므로 채점 전에 막는다.
+    """
+    unknown: list[str] = []
+    for section in ("booleans", "verbatim", "keywords"):
+        unknown += [
+            f"{section}.{name}"
+            for name in (truth.get(section) or {})
+            if name not in _PRODUCT_FIELDS
+        ]
+    if unknown:
+        raise ValueError(f"스키마에 없는 필드입니다: {', '.join(sorted(unknown))}")
+
+    wrong_type = [
+        name for name in (truth.get("booleans") or {}) if name not in _BOOLEAN_FIELDS
+    ]
+    if wrong_type:
+        raise ValueError(
+            f"booleans에 boolean이 아닌 필드가 있습니다: {', '.join(sorted(wrong_type))}"
+        )
+
+
 def load_truth(path: Path) -> dict:
-    """정답표 JSON을 읽는다."""
-    return json.loads(path.read_text(encoding="utf-8"))
+    """정답표 JSON을 읽고 스키마와 맞는지 확인한다."""
+    truth = json.loads(path.read_text(encoding="utf-8"))
+    check_truth(truth)
+    return truth
 
 
 def score(truth: dict, runs: list[dict]) -> FixtureReport:
     """정답표와 N회 실행 결과(Product를 model_dump한 dict 목록)를 대조한다."""
     if not runs:
         raise ValueError("실행 결과가 없습니다.")
+    check_truth(truth)
 
     report = FixtureReport(fixture=truth.get("fixture", "?"), runs=len(runs))
 
@@ -105,10 +145,6 @@ def score(truth: dict, runs: list[dict]) -> FixtureReport:
         name for name in runs[0] if name not in graded_names and name not in _NEVER_GRADED
     ]
     return report
-
-
-# 모델이 만들지 않고 시스템이 채우는 값이라 채점 대상이 아니다.
-_NEVER_GRADED = {"product_id", "source_url"}
 
 
 def _build(name: str, spec: dict, values: list, grades: list[Grade]) -> FieldReport:
