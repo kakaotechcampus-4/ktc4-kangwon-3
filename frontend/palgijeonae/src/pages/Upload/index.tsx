@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import DefaultBox from "../../components/common/DefaultBox/index.tsx";
 import SectionIntro from "../../components/common/SectionIntro/index.tsx";
@@ -18,6 +19,7 @@ type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 function UploadPage() {
     const [inputType, setInputType] = useState<InputType>("url");
     const [products, setProducts] = useState<Product[]>([]);
+    const navigate = useNavigate();
 
     const handleAddProduct = (product: Product) => {
         setProducts((prev) => [...prev, product]);
@@ -25,6 +27,17 @@ function UploadPage() {
 
     const handleRemoveProduct = (id: string) => {
         setProducts((prev) => prev.filter((product) => product.id !== id));
+    };
+
+    const handleStartDiagnosis = () => {
+        if (products.length === 0) {
+            alert("진단할 상품을 먼저 추가해주세요.");
+            return;
+        }
+
+        // 추후 백엔드 연동 로직 추가 예정
+
+        navigate("/judgement");
     };
 
     return (
@@ -53,6 +66,9 @@ function UploadPage() {
                 )}
             </DefaultBox>
             <AddedProductList products={products} onRemove={handleRemoveProduct} />
+            <div className="flex w-full justify-end">
+                <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} />
+            </div>
         </div>
     );
 }
