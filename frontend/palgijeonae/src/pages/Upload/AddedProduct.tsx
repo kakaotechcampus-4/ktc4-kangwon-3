@@ -49,7 +49,7 @@ function AddedProduct({ type, title, thumbnail, link, content, images, onRemove 
                     onClick={() => setExpanded((prev) => !prev)}
                     className="absolute bottom-0 right-0 flex cursor-pointer items-center gap-1"
                 >
-                    <p>{expanded ? "접기" : "자세히 보기"}</p>
+                    <p className="text-base font-semibold text-neutral-border">{expanded ? "접기" : "자세히 보기"}</p>
                     <img
                         src={toggleIcon}
                         alt="토글 아이콘"
