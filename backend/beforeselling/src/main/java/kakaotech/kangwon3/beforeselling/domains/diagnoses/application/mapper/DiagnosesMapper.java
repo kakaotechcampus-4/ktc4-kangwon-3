@@ -46,7 +46,7 @@ public class DiagnosesMapper {
         return new DiagnosesDetailResponse(
                 diagnoses.getId(),
                 diagnoses.getProductName(),
-                toProductImageUrl(diagnoses),
+                s3UrlKeyCodec.toUrlOrNull(diagnoses.getProductImageKey()),
                 diagnoses.getSourceType(),
                 diagnoses.getSourceUrl(),
                 diagnoses.getSourceText(),
@@ -63,7 +63,7 @@ public class DiagnosesMapper {
         return new DiagnosesSummaryResponse(
                 diagnoses.getId(),
                 diagnoses.getProductName(),
-                toProductImageUrl(diagnoses),
+                s3UrlKeyCodec.toUrlOrNull(diagnoses.getProductImageKey()),
                 diagnoses.getProcessingStatus(),
                 diagnoses.getResultStatus(),
                 diagnoses.getCreatedAt()
@@ -76,11 +76,6 @@ public class DiagnosesMapper {
                 .toList();
 
         return new DiagnosesListResponse(diagnoses, toPageInfo(page));
-    }
-
-    private String toProductImageUrl(Diagnoses diagnoses) {
-        String productImageKey = diagnoses.getProductImageKey();
-        return productImageKey == null ? null : s3UrlKeyCodec.toUrl(productImageKey);
     }
 
     private DiagnosesListResponse.PageInfo toPageInfo(Page<?> page) {

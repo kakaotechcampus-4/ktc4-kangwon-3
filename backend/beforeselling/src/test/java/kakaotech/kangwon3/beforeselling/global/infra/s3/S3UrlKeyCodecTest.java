@@ -49,4 +49,27 @@ class S3UrlKeyCodecTest {
         assertThat(url).isEqualTo(
                 "https://test-bucket.s3.ap-northeast-2.amazonaws.com/product-detail/1/abc-uuid_%EC%82%AC%EC%A7%84%20%ED%8C%8C%EC%9D%BC.jpg");
     }
+
+    @Test
+    @DisplayName("선택 입력 파일의 key가 없으면 fileUrl도 없는 값으로 변환한다.")
+    void toUrlOrNull_withNullKey_thenReturnNull() {
+        // given & when
+        String url = s3UrlKeyCodec.toUrlOrNull(null);
+
+        // then
+        assertThat(url).isNull();
+    }
+
+    @Test
+    @DisplayName("key가 있으면 toUrlOrNull도 toUrl과 동일한 fileUrl을 반환한다.")
+    void toUrlOrNull_withKey_thenReturnSameAsToUrl() {
+        // given
+        String key = "product-main/1/abc-uuid_thumb.jpg";
+
+        // when
+        String url = s3UrlKeyCodec.toUrlOrNull(key);
+
+        // then
+        assertThat(url).isEqualTo(s3UrlKeyCodec.toUrl(key));
+    }
 }

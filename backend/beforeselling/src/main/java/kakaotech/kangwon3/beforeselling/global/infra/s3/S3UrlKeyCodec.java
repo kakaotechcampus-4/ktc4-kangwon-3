@@ -29,6 +29,10 @@ public class S3UrlKeyCodec {
         return urlPrefix() + encodedKey;
     }
 
+    public String toUrlOrNull(String key) {
+        return key == null ? null : toUrl(key);
+    }
+
     private String urlPrefix() {
         return URL_PREFIX_TEMPLATE.formatted(s3Properties.bucket(), s3Properties.region());
     }
