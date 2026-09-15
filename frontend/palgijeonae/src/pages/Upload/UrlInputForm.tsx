@@ -35,6 +35,10 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
             thumbnail: image ? URL.createObjectURL(image) : undefined,
             link: trimmedLink,
         });
+
+        setProductName("");
+        setLink("");
+        setImage(null);
     };
 
     return (

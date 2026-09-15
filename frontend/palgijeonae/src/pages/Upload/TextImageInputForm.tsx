@@ -39,6 +39,11 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
             content: trimmedContent,
             images: productImages,
         });
+
+        setProductName("");
+        setProductContent("");
+        setProductImages([]);
+        setImage(null);
     };
 
     return (
