@@ -26,12 +26,12 @@ public class DiagnosesService {
         Diagnoses diagnoses = Diagnoses.pending(
                 command.userId(),
                 command.productName(),
-                command.productImageUrl(),
+                command.productImageKey(),
                 command.sourceType(),
                 command.sourceUrl(),
                 command.sourceText()
         );
-        diagnoses.addImages(command.imageUrls());
+        diagnoses.addImages(command.imageKeys());
 
         Diagnoses saved = diagnosesRepository.save(diagnoses);
         log.debug("진단서 생성 완료. diagnosesId={}, userId={}", saved.getId(), command.userId());

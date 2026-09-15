@@ -8,23 +8,28 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.DiagnosesImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesCreateCommand;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class DiagnosesMapper {
+
+    private final S3UrlKeyCodec s3UrlKeyCodec;
 
     public DiagnosesCreateCommand toCommand(Long userId, DiagnosesCreateRequest request) {
         return new DiagnosesCreateCommand(
                 userId,
                 request.productName(),
-                request.productImageUrl(),
+                request.productImageKey(),
                 request.sourceType(),
                 request.sourceUrl(),
                 request.sourceText(),
-                request.imageUrls() == null ? List.of() : request.imageUrls()
+                request.imageKeys() == null ? List.of() : request.imageKeys()
         );
     }
 
@@ -34,13 +39,14 @@ public class DiagnosesMapper {
 
     public DiagnosesDetailResponse toDetailResponse(Diagnoses diagnoses) {
         List<String> imageUrls = diagnoses.getImages().stream()
-                .map(DiagnosesImage::getImageUrl)
+                .map(DiagnosesImage::getImageKey)
+                .map(s3UrlKeyCodec::toUrl)
                 .toList();
 
         return new DiagnosesDetailResponse(
                 diagnoses.getId(),
                 diagnoses.getProductName(),
-                diagnoses.getProductImageUrl(),
+                s3UrlKeyCodec.toUrlOrNull(diagnoses.getProductImageKey()),
                 diagnoses.getSourceType(),
                 diagnoses.getSourceUrl(),
                 diagnoses.getSourceText(),
@@ -57,7 +63,7 @@ public class DiagnosesMapper {
         return new DiagnosesSummaryResponse(
                 diagnoses.getId(),
                 diagnoses.getProductName(),
-                diagnoses.getProductImageUrl(),
+                s3UrlKeyCodec.toUrlOrNull(diagnoses.getProductImageKey()),
                 diagnoses.getProcessingStatus(),
                 diagnoses.getResultStatus(),
                 diagnoses.getCreatedAt()
