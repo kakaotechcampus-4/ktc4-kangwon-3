@@ -66,10 +66,11 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
             />
             <ImageUploadField
                 id="product-content-images"
-                title={`상세페이지 이미지 (${productImages.length}/${MAX_PRODUCT_IMAGE_COUNT})`}
+                title="상세페이지 이미지"
                 description="상세 페이지를 캡처한 이미지를 첨부하세요."
                 multiple={true}
                 isOption={false}
+                countLabel={`${productImages.length}/${MAX_PRODUCT_IMAGE_COUNT}`}
                 onChange={(newFiles) => {
                     const availableSlots = Math.max(MAX_PRODUCT_IMAGE_COUNT - productImages.length, 0);
                     if (newFiles.length > availableSlots) {

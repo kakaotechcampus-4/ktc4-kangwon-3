@@ -5,7 +5,6 @@ interface FormFieldProps {
     variant?: 'input' | 'textarea'
     value: string
     onChange: (value: string) => void
-    // 백엔드 요청 스키마의 길이 제한(예: productName [0, 100])을 표시/적용하기 위한 값. 없으면 제한 없음.
     maxLength?: number
 }
 
@@ -15,10 +14,10 @@ const FIELD_CLASSES =
 function FormField({ id, title, placeholder, variant = 'input', value, onChange, maxLength }: FormFieldProps) {
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
-            <div className="flex w-full items-center justify-between">
+            <div className="flex w-full items-center gap-3.75">
                 <label className="text-xl leading-6 font-semibold text-black" htmlFor={id}>{title}</label>
                 {maxLength !== undefined && (
-                    <span className="text-sm text-neutral-border">{value.length}/{maxLength}</span>
+                    <span className="text-xs leading-3.5 text-neutral-border">{value.length}/{maxLength}</span>
                 )}
             </div>
             {variant === 'textarea' ? (
