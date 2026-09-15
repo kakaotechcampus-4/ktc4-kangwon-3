@@ -5,10 +5,12 @@ on:
     branches: [develop, main]
     paths:
       - "backend/beforeselling/**"
+      - "infra/**"
   push:
     branches: [develop]
     paths:
       - "backend/beforeselling/**"
+      - "infra/**"
   workflow_dispatch:
 
 permissions:
@@ -89,6 +91,8 @@ jobs:
             "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
           aws s3 cp backend/beforeselling/docker-compose.prod.yml \
             "s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml"
+          tar czf /tmp/infra.tar.gz infra                                  
+          aws s3 cp /tmp/infra.tar.gz "s3://${S3_BUCKET}/infra-${GITHUB_SHA}.tar.gz"
 
       - name: 서버 준비
         run: |
@@ -121,9 +125,13 @@ jobs:
             "rm -rf ${APP_DIR}/release && mkdir -p ${APP_DIR}/release",
             "aws s3 cp s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.yml",
             "aws s3 cp s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.prod.yml",
+            "aws s3 cp s3://${S3_BUCKET}/infra-${GITHUB_SHA}.tar.gz /tmp/infra.tar.gz",
+            "rm -rf ${APP_DIR}/infra",
+            "tar xzf /tmp/infra.tar.gz -C ${APP_DIR}",
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
             "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans",
+            "if docker ps --format '{{.Names}}' | grep -q '^app-nginx\$'; then docker exec app-nginx nginx -t && docker exec app-nginx nginx -s reload; else echo 'nginx 컨테이너 미기동 - reload 생략'; fi",
             "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
             "docker image prune -a -f"
           ]}

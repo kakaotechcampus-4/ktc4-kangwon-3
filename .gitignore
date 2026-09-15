@@ -25,6 +25,8 @@
 secrets.*
 credentials.*
 serviceAccount*.json
+# 로컬 개발용 자체 서명 인증서 (운영 인증서는 EC2 /etc/letsencrypt 에서 마운트)
+infra/nginx/certs/
 # ⚠️ 확장자 규칙만으로는 못 막습니다. 1단계 유출은 Jupyter 노트북·`PROJECT_ANALYSIS.md`·`docs/*.md`
 #   에서도 나왔습니다. 키를 코드·문서·노트북 **본문에 붙여넣지 않는 것**이 유일한 예방책입니다.
 
