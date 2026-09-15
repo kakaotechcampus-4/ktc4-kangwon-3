@@ -6,6 +6,7 @@ import UrlInputForm from "./UrlInputForm.tsx";
 import TextImageInputForm from "./TextImageInputForm.tsx";
 import AddedProductList from "./AddedProductList.tsx";
 import type { Product } from "./types.ts";
+import Button from "../../components/common/Button/index.tsx";
 
 const INPUT_TYPE_TABS = [
     { key: "url", label: "URL" },
