@@ -59,6 +59,7 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
                 id="product-content"
                 title="제품 상세페이지 내용"
                 placeholder="제품의 상세페이지 정보가 포함된 웹 페이지 내용을 복사하여 입력하세요."
+                variant="textarea"
                 value={productContent}
                 onChange={setProductContent}
             />
