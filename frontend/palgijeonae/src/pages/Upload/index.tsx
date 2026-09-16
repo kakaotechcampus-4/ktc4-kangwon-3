@@ -26,6 +26,13 @@ function UploadPage() {
     };
 
     const handleRemoveProduct = (id: string) => {
+        // thumbnail은 폼에서 URL.createObjectURL로 만들어 문자열로만 들고 있어서,
+        // AttachedImageList처럼 자체적으로 revoke되지 않는다. 삭제 시점에 직접 해제한다.
+        const target = products.find((product) => product.id === id);
+        if (target?.thumbnail) {
+            URL.revokeObjectURL(target.thumbnail);
+        }
+
         setProducts((prev) => prev.filter((product) => product.id !== id));
     };
 
