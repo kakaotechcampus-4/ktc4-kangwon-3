@@ -26,19 +26,19 @@
   "tool_results": [
     {
       "tool_name": "customs_requirements",
-      "status": "not_applicable",
+      "status": "skipped",
       "selected": false,
       "selection_reason": "선택 단계에서 통관 요건 조회 대상이 아니라고 판단했습니다."
     },
     {
       "tool_name": "radio_compliance",
-      "status": "not_applicable",
+      "status": "skipped",
       "selected": false,
       "selection_reason": "선택 단계에서 전파 관련 검토가 불필요하다고 판단했습니다."
     },
     {
       "tool_name": "food_drug_safety",
-      "status": "not_applicable",
+      "status": "skipped",
       "selected": false,
       "selection_reason": "식품·의약품·화장품 관련 신호가 없습니다."
     },
@@ -96,7 +96,7 @@
     },
     {
       "tool_name": "children_product_safety",
-      "status": "not_applicable",
+      "status": "skipped",
       "selected": false,
       "selection_reason": "어린이 대상 표기나 광고 맥락이 없습니다."
     },
