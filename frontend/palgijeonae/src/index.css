@@ -1,6 +1,11 @@
 @import 'tailwindcss';
 @import 'pretendard/dist/web/variable/pretendardvariable.css';
 
+html {
+    /* 세로 스크롤바 유무에 따라 가운데 정렬된 콘텐츠가 좌우로 밀리지 않도록 스크롤바 자리를 항상 예약 */
+    scrollbar-gutter: stable;
+}
+
 @theme {
     --font-sans: 'Pretendard Variable', 'Pretendard', sans-serif;
     /* Primary - CTA 버튼 (진단서 확인하기, 상품 추가하기 등) */
