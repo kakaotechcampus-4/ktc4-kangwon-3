@@ -186,7 +186,9 @@ class RegulatoryFinding(StrictModel):
 class ToolResult(StrictModel):
     # 공통 실행기가 부여한다. 미선택 기록에는 실행 ID가 없다.
     execution_id: str | None = None
-    attempt: int = Field(default=0, ge=0)
+
+    # 재실행 회차를 나타낸다. 0은 최초 실행 또는 미선택 기록이다.
+    retry_round: int = Field(default=0, ge=0)
     tool_name: ToolName
     status: ToolStatus
     selected: bool
