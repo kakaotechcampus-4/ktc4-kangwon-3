@@ -130,7 +130,7 @@ jobs:
             "tar xzf /tmp/infra.tar.gz -C ${APP_DIR}",
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
-            "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans" --wait --wait-timeout 120",
+            "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 240 || { docker compose -f docker-compose.yml -f docker-compose.prod.yml ps; docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 100 app; exit 1; }",
             "if docker ps --format '{{.Names}}' | grep -q '^app-nginx\$'; then docker exec app-nginx nginx -t && docker exec app-nginx nginx -s reload; else echo 'nginx 컨테이너 미기동 - reload 생략'; fi",
             "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
             "docker image prune -a -f"
