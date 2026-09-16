@@ -87,10 +87,11 @@ jobs:
 
       # 새 release 디렉터리에 완전히 내려받은 뒤에만 current 심볼릭 링크를 교체한다.
       # (중간에 실패하면 기존 current가 그대로 유지됨)
+      # 링크는 반드시 상대 경로로 건다. nginx 컨테이너는 /home/ubuntu/app 을 /app 으로 마운트하므로
+      # 절대 경로(/home/ubuntu/app/frontend/releases/...)로 걸면 컨테이너 안에서 링크가 깨진다.
       - name: 배포 실행
         run: |
           RELEASE_DIR="${APP_DIR}/frontend/releases/${DEPLOY_SHA}"
-          CURRENT_LINK="${APP_DIR}/frontend/current"
 
           cat > /tmp/params.json <<EOF
           {"commands":[
@@ -99,7 +100,7 @@ jobs:
             "mkdir -p ${RELEASE_DIR}",
             "aws s3 cp s3://${S3_BUCKET}/frontend/dist-${DEPLOY_SHA}.tar.gz /tmp/frontend-${DEPLOY_SHA}.tar.gz",
             "tar xzf /tmp/frontend-${DEPLOY_SHA}.tar.gz -C ${RELEASE_DIR}",
-            "ln -sfn ${RELEASE_DIR} ${CURRENT_LINK}",
+            "cd ${APP_DIR}/frontend && ln -sfn releases/${DEPLOY_SHA} current",
             "rm -f /tmp/frontend-${DEPLOY_SHA}.tar.gz"
           ]}
           EOF
