@@ -113,7 +113,7 @@ jobs:
             "tar xzf /tmp/ai-app.tar.gz -C ${APP_DIR}/release",
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
-            "docker compose up -d --build --remove-orphans",
+            "docker compose up -d --build --remove-orphans --wait --wait-timeout 120",
             "docker compose ps",
             "docker image prune -f"
           ]}
