@@ -46,7 +46,7 @@
     {
       "tool_name": "radio_compliance",
       "selected": true,
-      "reason": "wireless_comm=true (블루투스 5.3). 전파 적합성 인증 대상."
+      "reason": "wireless_comm=true (블루투스 5.3). 전파 적합성 인증 해당 여부를 확인하기 위해 선택."
     },
     {
       "tool_name": "food_drug_safety",
@@ -56,7 +56,7 @@
     {
       "tool_name": "electrical_safety",
       "selected": true,
-      "reason": "electrical_powered=true, battery_included=true. 전기용품 안전 인증 대상."
+      "reason": "electrical_powered=true, battery_included=true. 전기용품 안전 인증 해당 여부를 확인하기 위해 선택."
     },
     {
       "tool_name": "children_product_safety",
@@ -110,7 +110,7 @@
     {
       "tool_name": "children_product_safety",
       "selected": true,
-      "reason": "for_children=true, target_age='6개월+'. 영유아용 제품으로 어린이제품 안전 특별법 대상."
+      "reason": "for_children=true, target_age='6개월+'. 영유아용 제품으로 어린이제품 안전 특별법 해당 여부를 확인하기 위해 선택."
     },
     {
       "tool_name": "labeling_advertising_detection",
