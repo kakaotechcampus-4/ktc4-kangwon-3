@@ -1,4 +1,4 @@
-type ProcessType = "call" | "act" | "end" | "skip";
+export type ProcessType = "call" | "act" | "end" | "skip";
 
 interface ProcessProps {
     type: ProcessType;
