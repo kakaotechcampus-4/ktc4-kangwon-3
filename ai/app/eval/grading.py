@@ -69,7 +69,7 @@ def grade_verbatim(truth: str | None, predicted: str | None) -> Grade:
     if truth is None:
         # 근거가 없는데 값을 지어냈으면 치명, 비워뒀으면 정답.
         return Grade.OK if predicted is None else Grade.C1
-    if predicted is None:
+    if not predicted:
         return Grade.C2
     return Grade.OK if truth in predicted else Grade.C1
 
