@@ -78,7 +78,7 @@ _PRODUCT_FIELDS = set(ProductAttributes.model_fields)
 _BOOLEAN_FIELDS = {
     name
     for name, info in ProductAttributes.model_fields.items()
-    if str(info.annotation) == "bool | None"
+    if info.annotation == (bool | None)
 }
 
 
