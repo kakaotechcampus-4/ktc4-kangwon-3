@@ -181,3 +181,27 @@ def test_값을_담은_항목_이름을_모아_이름_흔들림을_볼_수_있�
 def test_값_토큰은_대소문자를_구분하지_않는다():
     # 같은 페이지에 "1460mAh"와 "1460mah"가 섞여 있는 경우가 있다.
     assert grade_attribute_value("1460mAh", [{"name": "용량", "value": "1460mah"}]) is Grade.OK
+
+
+# --- 빈 문자열 처리 (Homeria 리뷰 반영) --------------------------------------
+
+
+def test_빈_문자열은_값_없음으로_본다():
+    # 모델이 "값 없음"을 None 대신 ""로 주면 "값이 있다"로 오해하게 된다.
+    # 정답이 있는데 빈 값을 주면 미탐이지, 틀린 값을 준 게 아니다.
+    assert grade_verbatim("만 14세 이상", "") is Grade.C2
+    assert grade_keywords(["드론"], None, "") is Grade.C2
+
+
+def test_정답이_없을_때_빈_문자열은_지어낸_것이_아니다():
+    # None과 ""는 둘 다 "안 적었다"는 뜻이므로 정답으로 본다.
+    assert grade_verbatim(None, "") is Grade.OK
+    assert grade_verbatim(None, None) is Grade.OK
+    # 실제 값을 적었으면 근거 없이 지어낸 것이다.
+    assert grade_verbatim(None, "3세 이상") is Grade.C1
+
+
+def test_공백만_있는_문자열도_값_없음으로_본다():
+    assert grade_verbatim(None, "   ") is Grade.OK
+    assert grade_verbatim("만 14세 이상", "  ") is Grade.C2
+    assert grade_keywords(["드론"], None, "\t") is Grade.C2
