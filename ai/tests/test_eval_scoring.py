@@ -125,3 +125,14 @@ def test_정답표에_기준이_없는_필드는_채점하지_않고_따로_센�
 def test_실행_결과가_없으면_채점할_수_없다():
     with pytest.raises(ValueError):
         score({"fixture": "t"}, [])
+
+
+def test_빈_문자열을_준_필드는_지어낸_것으로_세지_않는다():
+    # 스키마 validator가 ""를 None으로 바꾸지만, 실행 결과 dict를 직접 넘기는
+    # 경로(저장된 로그 재채점 등)는 그 validator를 거치지 않는다.
+    truth = {"fixture": "t", "verbatim": {"target_age": {"value": None}}}
+
+    counts = score(truth, [_run(target_age=""), _run(target_age="")]).counts()
+
+    assert counts["c1"] == 0
+    assert counts["stable_ok"] == 1

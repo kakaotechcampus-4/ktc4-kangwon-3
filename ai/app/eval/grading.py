@@ -52,6 +52,15 @@ _BOOLEAN_GRADES: dict[tuple[bool | None, bool | None], Grade] = {
 }
 
 
+def _is_blank(value: str | None) -> bool:
+    """값이 없는 것으로 볼지 판단한다.
+
+    스키마(ProductAttributes)가 빈 문자열을 None으로 바꿔주지만, 정답표나 테스트가
+    ""를 직접 넣는 경로는 그 validator를 거치지 않는다. 채점기에서도 한 번 더 막는다.
+    """
+    return not (value or "").strip()
+
+
 def grade_boolean(truth: bool | None, predicted: bool | None) -> Grade:
     """3-state boolean 필드를 채점한다."""
     try:
@@ -68,8 +77,8 @@ def grade_verbatim(truth: str | None, predicted: str | None) -> Grade:
     """
     if truth is None:
         # 근거가 없는데 값을 지어냈으면 치명, 비워뒀으면 정답.
-        return Grade.OK if predicted is None else Grade.C1
-    if not predicted:
+        return Grade.OK if _is_blank(predicted) else Grade.C1
+    if _is_blank(predicted):
         return Grade.C2
     return Grade.OK if truth in predicted else Grade.C1
 
@@ -85,7 +94,7 @@ def grade_keywords(
     """
     if not required and not allowed:
         return Grade.OK
-    if predicted is None:
+    if _is_blank(predicted):
         return Grade.C2
     normalized = predicted.strip().lower()
     if allowed:
