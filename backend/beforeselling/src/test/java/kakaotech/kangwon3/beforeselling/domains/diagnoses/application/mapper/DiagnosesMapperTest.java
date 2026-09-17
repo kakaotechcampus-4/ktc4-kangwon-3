@@ -35,7 +35,7 @@ class DiagnosesMapperTest {
 
     private final DiagnosesMapper diagnosesMapper = new DiagnosesMapper(new S3UrlKeyCodec(new S3Properties(
             "test-bucket", "ap-northeast-2",
-            Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"))));
+            Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null)));
 
     @Test
     @DisplayName("진단 요청을 변환하면 로그인 사용자 정보가 함께 담긴다.")
