@@ -1,13 +1,13 @@
 import { useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 
+import google from "@/assets/login-google.png"
 import kakao from "@/assets/login-kakao.png"
 import naver from "@/assets/login-naver.png"
-import google from "@/assets/login-google.png"
-
-import LoginButton from "./LoginButton.tsx"
 import SectionIntro from "@/components/common/SectionIntro/index.tsx"
 import { useAuthStore } from "@/store/useAuthStore.ts"
+
+import LoginButton from "./LoginButton.tsx"
 
 const API_URL = import.meta.env.VITE_API_URL
 

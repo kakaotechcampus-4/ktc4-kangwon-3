@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 
 import apiClient from '@/api/client'
-import { useAuthStore } from '@/store/useAuthStore'
-import logo from '@/assets/logo.png'
 import logoutIcon from '@/assets/header-logout.png'
+import logo from '@/assets/logo.png'
+import { useAuthStore } from '@/store/useAuthStore'
 
 function Header() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)

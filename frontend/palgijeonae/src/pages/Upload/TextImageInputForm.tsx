@@ -1,9 +1,10 @@
 import { useState } from "react";
 
+import Button from "@/components/common/Button/index.tsx";
+
+import AttachedImageList from "./AttachedImageList.tsx";
 import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
-import AttachedImageList from "./AttachedImageList.tsx";
-import Button from "@/components/common/Button/index.tsx";
 import type { Product } from "./types.ts";
 
 const MAX_PRODUCT_IMAGE_COUNT = 20;

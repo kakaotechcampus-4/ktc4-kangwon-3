@@ -1,6 +1,6 @@
+import axios from 'axios'
 import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import axios from 'axios'
 
 import { useAuthStore } from '@/store/useAuthStore'
 
