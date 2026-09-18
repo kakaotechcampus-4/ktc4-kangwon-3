@@ -1,11 +1,11 @@
 import { useState } from "react";
 
-import urlIcon from "../../assets/upload-url.svg"
-import imageIcon from "../../assets/upload-img_txt.svg"
-import DefaultBox from "../../components/common/DefaultBox/index.tsx";
-import toggleIcon from "../../assets/upload-toggle.svg"
-import defaultThumbnail from "../../assets/upload-defaultThumbnail.svg"
-import deleteIcon from "../../assets/delete-gray.svg"
+import urlIcon from "@/assets/upload-url.svg"
+import imageIcon from "@/assets/upload-img_txt.svg"
+import DefaultBox from "@/components/common/DefaultBox/index.tsx";
+import toggleIcon from "@/assets/upload-toggle.svg"
+import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
+import deleteIcon from "@/assets/delete-gray.svg"
 import AttachedImageList from "./AttachedImageList.tsx"
 
 interface AddedProductProps {

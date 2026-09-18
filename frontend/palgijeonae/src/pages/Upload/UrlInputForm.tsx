@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import Button from "../../components/common/Button";
+import Button from "@/components/common/Button";
 import FormField from "./FormField.tsx";
 import ImageUploadField from "./ImageUploadField.tsx";
 import AttachedImageList from "./AttachedImageList.tsx";
