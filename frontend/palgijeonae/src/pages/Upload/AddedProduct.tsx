@@ -1,11 +1,13 @@
 import { useState } from "react";
 
-import urlIcon from "../../assets/upload-url.svg"
-import imageIcon from "../../assets/upload-img_txt.svg"
-import DefaultBox from "../../components/common/DefaultBox/index.tsx";
-import toggleIcon from "../../assets/upload-toggle.svg"
-import defaultThumbnail from "../../assets/upload-defaultThumbnail.svg"
-import deleteIcon from "../../assets/delete-gray.svg"
+import deleteIcon from "@/assets/delete-gray.svg"
+import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
+import imageIcon from "@/assets/upload-img_txt.svg"
+import toggleIcon from "@/assets/upload-toggle.svg"
+import urlIcon from "@/assets/upload-url.svg"
+import DefaultBox from "@/components/common/DefaultBox/index.tsx";
+import { cn } from "@/lib/cn";
+
 import AttachedImageList from "./AttachedImageList.tsx"
 
 interface AddedProductProps {
@@ -53,7 +55,7 @@ function AddedProduct({ type, title, thumbnail, link, content, images, onRemove 
                     <img
                         src={toggleIcon}
                         alt="토글 아이콘"
-                        className={`h-5 w-5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                        className={cn("h-5 w-5 transition-transform", expanded && "rotate-180")}
                     />
                 </button>
             </div>

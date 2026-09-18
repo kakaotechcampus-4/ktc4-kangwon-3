@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 
-import deleteIcon from "../../assets/delete-gray.svg";
+import deleteIcon from "@/assets/delete-gray.svg";
+import { cn } from "@/lib/cn";
 
 interface ImageLightboxProps {
     files: File[]
@@ -118,9 +119,10 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                             key={`${file.name}-${index}`}
                             type="button"
                             onClick={() => onIndexChange(index)}
-                            className={`h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2 ${
-                                index === currentIndex ? "border-primary" : "border-transparent"
-                            }`}
+                            className={cn(
+                                "h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2",
+                                index === currentIndex ? "border-primary" : "border-transparent",
+                            )}
                         >
                             <img src={previewUrls[index]} alt={file.name} className="h-full w-full object-cover" />
                         </button>
