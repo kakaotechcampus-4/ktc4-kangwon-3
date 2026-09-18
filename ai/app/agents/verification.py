@@ -576,32 +576,9 @@ class VerificationAgent:
             if unknown:
                 raise VerificationError(f"지적이 존재하지 않는 판단 ID를 참조합니다: {unknown}")
 
-    @staticmethod
-    def _unique_issues(issues: list[VerificationIssue]) -> list[VerificationIssue]:
-        unique: list[VerificationIssue] = []
-        seen: set[tuple] = set()
-
-        for issue in issues:
-            key = (
-                issue.severity,
-                issue.issue_type,
-                issue.description,
-                tuple(sorted(issue.related_finding_ids)),
-                issue.recommended_action,
-            )
-
-            if key in seen:
-                continue
-
-            seen.add(key)
-            unique.append(issue)
-
-        return unique
-
     def _merge(self, rules: VerificationResult, review: _Review) -> VerificationResult:
         """규칙 검사 결과를 모델 검토 위에 덧붙인다. 코드가 찾은 문제는 모델이 지울 수 없다."""
-        merged_issues = rules.issues + [VerificationIssue(**i.model_dump()) for i in review.issues]
-        issues = self._unique_issues(merged_issues)
+        issues = rules.issues + [VerificationIssue(**i.model_dump()) for i in review.issues]
         tools = list(
             dict.fromkeys(rules.additional_tools_required + review.additional_tools_required)
         )
