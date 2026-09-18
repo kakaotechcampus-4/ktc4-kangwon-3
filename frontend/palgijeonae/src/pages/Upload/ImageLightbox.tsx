@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 
-import deleteIcon from "../../assets/delete-gray.svg";
+import deleteIcon from "@/assets/delete-gray.svg";
 
 interface ImageLightboxProps {
     files: File[]

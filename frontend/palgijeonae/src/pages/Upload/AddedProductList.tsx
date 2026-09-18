@@ -1,4 +1,4 @@
-import SectionIntro from "../../components/common/SectionIntro/index.tsx";
+import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import AddedProduct from "./AddedProduct.tsx";
 import type { Product } from "./types.ts";
 

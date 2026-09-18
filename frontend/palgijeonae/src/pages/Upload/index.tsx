@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import DefaultBox from "../../components/common/DefaultBox/index.tsx";
-import SectionIntro from "../../components/common/SectionIntro/index.tsx";
+import DefaultBox from "@/components/common/DefaultBox/index.tsx";
+import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import UrlInputForm from "./UrlInputForm.tsx";
 import TextImageInputForm from "./TextImageInputForm.tsx";
 import AddedProductList from "./AddedProductList.tsx";
 import type { Product } from "./types.ts";
-import Button from "../../components/common/Button/index.tsx";
+import Button from "@/components/common/Button/index.tsx";
 
 const INPUT_TYPE_TABS = [
     { key: "url", label: "URL" },
