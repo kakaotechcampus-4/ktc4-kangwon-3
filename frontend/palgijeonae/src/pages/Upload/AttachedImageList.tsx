@@ -1,24 +1,31 @@
+import { cva, type VariantProps } from "class-variance-authority";
 import { useEffect, useState } from "react";
 
 import deleteIcon from "@/assets/delete-gray.svg";
 
 import ImageLightbox from "./ImageLightbox.tsx";
 
-interface AttachedImageListProps {
+const thumbnailVariants = cva("relative", {
+    variants: {
+        thumbnailSize: {
+            lg: 'h-39 w-39',
+            sm: 'h-16 w-16',
+        },
+    },
+    defaultVariants: {
+        thumbnailSize: 'lg',
+    },
+});
+
+interface AttachedImageListProps extends VariantProps<typeof thumbnailVariants> {
     title: string
     files: File[]
     onRemove?: (index: number) => void
-    thumbnailSize?: 'lg' | 'sm'
 }
 
 const DEFAULT_VISIBLE_COUNT = 8;
 
-const THUMBNAIL_SIZE_CLASSES: Record<NonNullable<AttachedImageListProps['thumbnailSize']>, string> = {
-    lg: 'h-39 w-39',
-    sm: 'h-16 w-16',
-}
-
-function AttachedImageList({ title, files, onRemove, thumbnailSize = 'lg' }: AttachedImageListProps) {
+function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedImageListProps) {
     const [expanded, setExpanded] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
@@ -65,7 +72,7 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize = 'lg' }: Att
                     const showMoreOverlay = isLastVisible && hiddenCount > 0;
 
                     return (
-                        <div key={`${file.name}-${index}`} className={`relative ${THUMBNAIL_SIZE_CLASSES[thumbnailSize]}`}>
+                        <div key={`${file.name}-${index}`} className={thumbnailVariants({ thumbnailSize })}>
                             <img
                                 src={previewUrls[index]}
                                 alt={file.name}

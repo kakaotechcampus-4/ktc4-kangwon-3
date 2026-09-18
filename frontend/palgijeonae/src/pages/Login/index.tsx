@@ -36,27 +36,21 @@ function LoginPage() {
         <div className="flex w-lg flex-col rounded-2xl gap-5 px-10 pt-8 pb-12 border border-neutral-border mt-10">
             <SectionIntro title="로그인" description="소셜 계정으로 간편하게 로그인 하세요." />
             <LoginButton
-                type="카카오"
+                provider="kakao"
+                label="카카오"
                 image={kakao}
-                borderColor="border-[#FEE500]"
-                backgroundColor="bg-[#FEE500]"
-                textColor="text-black/85"
                 onClick={() => handleSocialLogin('kakao')}
             />
             <LoginButton
-                type="네이버"
+                provider="naver"
+                label="네이버"
                 image={naver}
-                borderColor="border-[#03A94D]"
-                backgroundColor="bg-[#03A94D]"
-                textColor="text-white"
                 onClick={() => handleSocialLogin('naver')}
             />
             <LoginButton
-                type="구글"
+                provider="google"
+                label="구글"
                 image={google}
-                borderColor="border-[#747775]"
-                backgroundColor="bg-white"
-                textColor="text-[#1F1F1F]"
                 onClick={() => handleSocialLogin('google')}
             />
         </div>
