@@ -51,7 +51,7 @@ def _draft(product: Product | None = None) -> DraftAssessment:
     records = [
         ToolResult(
             tool_name=name,
-            status=ToolStatus.NOT_APPLICABLE,
+            status=ToolStatus.SKIPPED,
             selected=False,
             selection_reason="선택 단계에서 대상이 아니라고 판단했습니다.",
         )
@@ -86,7 +86,7 @@ def _unselect_tool(draft: DraftAssessment, name: ToolName) -> None:
     draft.selected_tools = [selected for selected in draft.selected_tools if selected is not name]
     tool_record = _tool_record(draft, name)
     tool_record.selected = False
-    tool_record.status = ToolStatus.NOT_APPLICABLE
+    tool_record.status = ToolStatus.SKIPPED
     tool_record.result = None
     tool_record.findings = []
 
