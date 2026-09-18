@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 
 import apiClient from '@/api/client'
@@ -11,22 +12,21 @@ function Header() {
     const logout = useAuthStore((state) => state.logout)
     const navigate = useNavigate()
 
+    const logoutMutation = useMutation({
+        mutationFn: () => apiClient.post('/api/v1/auth/logout'),
+        // 서버 요청 성공 여부와 무관하게 액세스 토큰은 즉시 메모리에서 제거
+        onSettled: () => {
+            logout()
+            navigate('/')
+        },
+    })
+
     const handleLogoClick = () => {
         navigate('/')
     }
 
     const handleButtonClick = () => {
         navigate(isLoggedIn ? '/mypage' : '/login')
-    }
-
-    const handleLogoutClick = async () => {
-        try {
-            await apiClient.post('/api/v1/auth/logout')
-        } finally {
-            // 서버 요청 성공 여부와 무관하게 액세스 토큰은 즉시 메모리에서 제거
-            logout()
-            navigate('/')
-        }
     }
 
     return (
@@ -47,7 +47,7 @@ function Header() {
                         {isLoggedIn && (
                             <button
                                 className="flex cursor-pointer items-center justify-center"
-                                onClick={handleLogoutClick}
+                                onClick={() => logoutMutation.mutate()}
                             >
                                 <img
                                     src={logoutIcon}
