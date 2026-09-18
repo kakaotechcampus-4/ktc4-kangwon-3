@@ -17,6 +17,10 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: nginx-deploy
+  cancel-in-progress: false
+
 env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: ktc4-kangwon3-deploy
@@ -94,14 +98,13 @@ jobs:
             "#!/bin/bash",
             "set -euo pipefail",
             "NGINX_DIR=${APP_DIR}/infra/nginx/conf.d",
-            "BACKUP_DIR=${APP_DIR}/infra/nginx/backup",
             "mkdir -p \$NGINX_DIR",
-            "rm -rf \$BACKUP_DIR && mkdir -p \$BACKUP_DIR",
-            "cp -a \$NGINX_DIR/. \$BACKUP_DIR/ 2>/dev/null || true",
             "aws s3 sync s3://${S3_BUCKET}/nginx/${GITHUB_SHA}/ \$NGINX_DIR/ --delete",
             "for f in \$NGINX_DIR/*; do ln -sfn \$f /etc/nginx/conf.d/\$(basename \$f); done",
             "find /etc/nginx/conf.d -xtype l -delete",
-            "if nginx -t; then systemctl reload nginx; echo 반영 완료; else echo 문법 검사 실패, 롤백합니다; rm -rf \$NGINX_DIR && mkdir -p \$NGINX_DIR && cp -a \$BACKUP_DIR/. \$NGINX_DIR/; for f in \$NGINX_DIR/*; do ln -sfn \$f /etc/nginx/conf.d/\$(basename \$f); done; find /etc/nginx/conf.d -xtype l -delete; nginx -t && systemctl reload nginx; exit 1; fi"
+            "if ! nginx -t; then echo 문법 검사 실패 - reload 하지 않았습니다; exit 1; fi",
+            "systemctl reload nginx",
+            "echo 반영 완료"
           ]}
           EOF
 
