@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import Button from "@/components/common/Button";
 
@@ -15,6 +15,8 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
     const [productName, setProductName] = useState("");
     const [link, setLink] = useState("");
     const [image, setImage] = useState<File | null>(null);
+    // image가 바뀔 때만 새 배열을 만들어야 AttachedImageList의 useEffect가 불필요하게 재실행되지 않는다.
+    const imageFiles = useMemo(() => (image ? [image] : []), [image]);
 
     const handleAddProduct = () => {
         const trimmedLink = link.trim();
@@ -68,7 +70,7 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
             />
             <AttachedImageList
                 title="첨부된 제품 대표 사진"
-                files={image ? [image] : []}
+                files={imageFiles}
                 onRemove={() => setImage(null)}
             />
             <div className="flex w-full items-center justify-between gap-4">
