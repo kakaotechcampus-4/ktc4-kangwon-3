@@ -1,17 +1,26 @@
+import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import axios from 'axios'
 
-import { useAuthStore } from '../../store/useAuthStore'
-
-const API_URL = import.meta.env.VITE_API_URL
+import { reissueAccessToken } from '@/api/client'
 
 function OAuthCallbackPage() {
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
-    const login = useAuthStore((state) => state.login)
     // reissue는 refresh token을 회전시키는 1회성 작업이라 StrictMode의 effect 이중 실행에도 한 번만 돌아야 함
     const hasRun = useRef(false)
+
+    const reissueMutation = useMutation({
+        // client.ts의 axios 인터셉터와 동일한 요청/로그인 처리를 재사용 (중복 호출 방지용 refreshPromise 캐싱도 그대로 적용됨)
+        mutationFn: reissueAccessToken,
+        onSuccess: () => {
+            navigate('/', { replace: true })
+        },
+        onError: () => {
+            // 쿠키 없음/만료/폐기(AUTH-003) 등 — 재로그인 유도
+            navigate('/login', { replace: true })
+        },
+    })
 
     useEffect(() => {
         if (hasRun.current) return
@@ -25,26 +34,10 @@ function OAuthCallbackPage() {
 
         // isNewUser는 온보딩 분기용 신호(문서 참고)인데, 아직 온보딩 플로우가 없어 사용하지 않음
 
-        const reissue = async () => {
-            try {
-                // refresh_token은 HttpOnly 쿠키로만 전달되므로 withCredentials 필수
-                const response = await axios.post(
-                    `${API_URL}/api/v1/auth/reissue`,
-                    null,
-                    { withCredentials: true }
-                )
-
-                login(response.data.data.accessToken)
-                alert('로그인 되었습니다.')
-                navigate('/', { replace: true })
-            } catch {
-                // 쿠키 없음/만료/폐기(AUTH-003) 등 — 재로그인 유도
-                navigate('/login', { replace: true })
-            }
-        }
-
-        reissue()
-    }, [searchParams, navigate, login])
+        reissueMutation.mutate()
+        // reissueMutation.mutate는 재렌더와 무관하게 안정적인 참조라 의존성에서 제외
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, navigate])
 
     return (
         <div className="flex w-full flex-col items-center justify-center gap-4 py-20">

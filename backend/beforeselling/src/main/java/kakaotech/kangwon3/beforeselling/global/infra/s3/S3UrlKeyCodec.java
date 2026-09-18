@@ -3,6 +3,7 @@ package kakaotech.kangwon3.beforeselling.global.infra.s3;
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.util.UriUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -34,6 +35,10 @@ public class S3UrlKeyCodec {
     }
 
     private String urlPrefix() {
+        String baseUrl = s3Properties.baseUrl();
+        if (StringUtils.hasText(baseUrl)) {
+            return baseUrl.endsWith(KEY_DELIMITER) ? baseUrl : baseUrl + KEY_DELIMITER;
+        }
         return URL_PREFIX_TEMPLATE.formatted(s3Properties.bucket(), s3Properties.region());
     }
 }

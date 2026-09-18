@@ -12,6 +12,7 @@ public record S3Properties(
         String region,
         Duration presignedUrlExpiration,
         DataSize maxFileSize,
-        List<String> allowedExtensions
+        List<String> allowedExtensions,
+        String baseUrl
 ) {
 }

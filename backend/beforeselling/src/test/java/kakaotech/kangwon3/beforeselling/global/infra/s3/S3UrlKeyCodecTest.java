@@ -19,7 +19,7 @@ class S3UrlKeyCodecTest {
     void setUp() {
         S3Properties s3Properties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
-                Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"));
+                Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null);
         s3UrlKeyCodec = new S3UrlKeyCodec(s3Properties);
     }
 
@@ -71,5 +71,41 @@ class S3UrlKeyCodecTest {
 
         // then
         assertThat(url).isEqualTo(s3UrlKeyCodec.toUrl(key));
+    }
+
+    @Test
+    @DisplayName("baseUrl이 설정되어 있으면(끝에 슬래시 포함) 해당 값을 prefix로 fileUrl을 조립한다.")
+    void toUrl_withBaseUrlEndingWithSlash_thenUseItAsPrefix() {
+        // given
+        S3Properties s3Properties = new S3Properties(
+                "test-bucket", "ap-northeast-2",
+                Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"),
+                "https://cdn.example.com/");
+        S3UrlKeyCodec codec = new S3UrlKeyCodec(s3Properties);
+        String key = "product-main/1/abc-uuid_thumb.jpg";
+
+        // when
+        String url = codec.toUrl(key);
+
+        // then
+        assertThat(url).isEqualTo("https://cdn.example.com/product-main/1/abc-uuid_thumb.jpg");
+    }
+
+    @Test
+    @DisplayName("baseUrl 끝에 슬래시가 없으면 슬래시를 보정해서 fileUrl을 조립한다.")
+    void toUrl_withBaseUrlWithoutTrailingSlash_thenAppendSlash() {
+        // given
+        S3Properties s3Properties = new S3Properties(
+                "test-bucket", "ap-northeast-2",
+                Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"),
+                "https://cdn.example.com");
+        S3UrlKeyCodec codec = new S3UrlKeyCodec(s3Properties);
+        String key = "product-main/1/abc-uuid_thumb.jpg";
+
+        // when
+        String url = codec.toUrl(key);
+
+        // then
+        assertThat(url).isEqualTo("https://cdn.example.com/product-main/1/abc-uuid_thumb.jpg");
     }
 }
