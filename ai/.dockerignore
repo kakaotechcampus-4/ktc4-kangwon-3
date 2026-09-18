@@ -1,0 +1,11 @@
+venv/
+.venv/
+__pycache__/
+.env
+.git/
+.gitignore
+tests/
+scripts/
+*.pyc
+*.md
+!app/prompts/*.md

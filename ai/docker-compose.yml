@@ -1,0 +1,59 @@
+services:
+  ai:
+    build:
+      context: .
+    image: ai-server:${IMAGE_TAG:-latest}
+    container_name: ai-server
+    restart: unless-stopped
+    mem_limit: 1g
+    environment:
+      TZ: Asia/Seoul
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      OPENAI_MODEL: ${OPENAI_MODEL:-openai/gpt-4.1-mini}
+      BE_BASE_URL: ${BE_BASE_URL:-http://host.docker.internal:8080}
+      DATABASE_URL: ${DATABASE_URL}
+    ports:
+      - "8000:8000"
+    depends_on:
+      ai-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [ai-net]
+
+  ai-db:
+    image: pgvector/pgvector:pg16
+    container_name: ai-db
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      POSTGRES_DB: ${AI_DB_NAME:-ai}
+      POSTGRES_USER: ${AI_DB_USERNAME:-ai}
+      POSTGRES_PASSWORD: ${AI_DB_PASSWORD:-ai}
+      TZ: Asia/Seoul
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c max_connections=30
+    ports:
+      - "5433:5432"
+    volumes:
+      - ai-pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_DB_USERNAME:-ai} -d ${AI_DB_NAME:-ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [ai-net]
+
+volumes:
+  ai-pgdata:
+
+networks:
+  ai-net:
