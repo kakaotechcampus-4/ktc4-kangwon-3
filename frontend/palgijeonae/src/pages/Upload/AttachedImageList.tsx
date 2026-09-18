@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import deleteIcon from "@/assets/delete-gray.svg";
+
 import ImageLightbox from "./ImageLightbox.tsx";
 
 interface AttachedImageListProps {

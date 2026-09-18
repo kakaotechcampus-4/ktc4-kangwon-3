@@ -1,13 +1,13 @@
 import { useNavigate } from "react-router-dom"
 
-import { useAuthStore } from "@/store/useAuthStore.ts"
-import Button from "@/components/common/Button"
-import InformationCard from "./InformationCard.tsx"
-
 import Favicon from "@/assets/favicon.svg"
-import images from "@/assets/main-images.png"
-import document from "@/assets/main-document.png"
 import bell from "@/assets/main-bell.png"
+import document from "@/assets/main-document.png"
+import images from "@/assets/main-images.png"
+import Button from "@/components/common/Button"
+import { useAuthStore } from "@/store/useAuthStore.ts"
+
+import InformationCard from "./InformationCard.tsx"
 
 function MainPage() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
