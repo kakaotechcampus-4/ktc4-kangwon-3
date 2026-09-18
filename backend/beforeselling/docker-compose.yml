@@ -1,3 +1,4 @@
+name: be
 services:
   db:
     image: postgres:16-alpine
@@ -120,7 +121,9 @@ services:
 
 volumes:
   pgdata:
+    name: release_pgdata
   redisdata:
+    name: release_redisdata
 
 networks:
   appnet:
