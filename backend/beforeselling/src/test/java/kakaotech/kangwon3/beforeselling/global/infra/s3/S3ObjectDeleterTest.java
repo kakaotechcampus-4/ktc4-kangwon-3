@@ -39,7 +39,7 @@ class S3ObjectDeleterTest {
     void setUp() {
         S3Properties s3Properties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
-                Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"));
+                Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null);
         s3ObjectDeleter = new S3ObjectDeleter(s3Client, s3Properties);
     }
 
