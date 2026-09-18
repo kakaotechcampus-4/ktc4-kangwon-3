@@ -1,25 +1,19 @@
 import { useMutation } from '@tanstack/react-query'
-import axios from 'axios'
 import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
-import { useAuthStore } from '@/store/useAuthStore'
-
-const API_URL = import.meta.env.VITE_API_URL
+import { reissueAccessToken } from '@/api/client'
 
 function OAuthCallbackPage() {
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
-    const login = useAuthStore((state) => state.login)
     // reissue는 refresh token을 회전시키는 1회성 작업이라 StrictMode의 effect 이중 실행에도 한 번만 돌아야 함
     const hasRun = useRef(false)
 
     const reissueMutation = useMutation({
-        // refresh_token은 HttpOnly 쿠키로만 전달되므로 withCredentials 필수
-        mutationFn: () =>
-            axios.post(`${API_URL}/api/v1/auth/reissue`, null, { withCredentials: true }),
-        onSuccess: (response) => {
-            login(response.data.data.accessToken)
+        // client.ts의 axios 인터셉터와 동일한 요청/로그인 처리를 재사용 (중복 호출 방지용 refreshPromise 캐싱도 그대로 적용됨)
+        mutationFn: reissueAccessToken,
+        onSuccess: () => {
             navigate('/', { replace: true })
         },
         onError: () => {
