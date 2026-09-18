@@ -2,6 +2,7 @@ package kakaotech.kangwon3.beforeselling.global.infra.s3;
 
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileService;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlRequest.FileMeta;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse.PresignedFile;
@@ -45,6 +46,7 @@ public class S3PresignedUrlProvider {
 
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
+    private final S3FileService s3FileService;
 
     public PresignedUrlResponse issuePresignedUrls(Long userId, List<FileMeta> files) {
         List<PresignedFile> presignedFiles = files.stream()
@@ -62,6 +64,7 @@ public class S3PresignedUrlProvider {
 
         String key = createKey(userId, file.type(), fileName);
         String presignedUrl = presign(key, contentType, file.fileSize());
+        s3FileService.markPending(key);
 
         return new PresignedFile(fileName, key, presignedUrl, contentType);
     }
