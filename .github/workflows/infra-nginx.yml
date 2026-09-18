@@ -42,7 +42,7 @@ jobs:
             -keyout stub/live/palgijeone.com/privkey.pem \
             -out    stub/live/palgijeone.com/fullchain.pem \
             -subj "/CN=palgijeone.com" 2>/dev/null
-          openssl dhparam -out stub/ssl-dhparams.pem 1024 2>/dev/null
+          openssl dhparam -out stub/ssl-dhparams.pem 2048
           : > stub/options-ssl-nginx.conf
 
       - name: nginx -t 실행
