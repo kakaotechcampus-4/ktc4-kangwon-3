@@ -29,12 +29,13 @@ class ToolName(StrEnum):
 
 
 # 실행 상태이다. SUCCESS는 실행 성공이지 규제 심사 통과를 뜻하지 않는다.
-# 현재 프로토타입은 미선택 툴에도 NOT_APPLICABLE을 쓰므로 규제 비대상 확정과 구분해야 한다.
+# SKIPPED는 선택되지 않아 실행하지 않은 상태이며,
+# 규제 비대상 판단은 Determination.NOT_APPLICABLE로 표현한다.
 class ToolStatus(StrEnum):
     SUCCESS = "success"
     PARTIAL = "partial"
     FAILED = "failed"
-    NOT_APPLICABLE = "not_applicable"
+    SKIPPED = "skipped"
 
 
 # 개별 항목의 심사 판단. 실행 오류와 판단에 필요한 정보 부족을 구분해서 사용한다.
@@ -183,6 +184,11 @@ class RegulatoryFinding(StrictModel):
 # result는 심사별 상세 내용, findings는 여러 툴을 함께 종합할 때 사용하는 공통 판단이다.
 # query와 raw_response에 API 키·토큰·개인정보를 저장하거나 그대로 외부 전달하지 않는다.
 class ToolResult(StrictModel):
+    # 공통 실행기가 부여한다. 미선택 기록에는 실행 ID가 없다.
+    execution_id: str | None = None
+
+    # 재실행 회차를 나타낸다. 0은 최초 실행 또는 미선택 기록이다.
+    retry_round: int = Field(default=0, ge=0)
     tool_name: ToolName
     status: ToolStatus
     selected: bool
@@ -304,4 +310,3 @@ class FinalAssessment(StrictModel):
     verification: VerificationResult
     trace: list[TraceEvent] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=utc_now)
-

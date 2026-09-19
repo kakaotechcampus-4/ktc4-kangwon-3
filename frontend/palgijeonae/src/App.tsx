@@ -1,19 +1,19 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Route,Routes } from 'react-router-dom'
 
 import { reissueAccessToken } from './api/client.ts'
-import { useAuthStore } from './store/useAuthStore.ts'
-import Layout from './components/layout/Layout.tsx'
 import ProtectedRoute from './components/common/ProtectedRoute/index.tsx'
-import MainPage from './pages/Main/index.tsx'
-import LoginPage from './pages/Login/index.tsx'
-import OAuthCallbackPage from './pages/OAuthCallback/index.tsx'
-import UploadPage from './pages/Upload/index.tsx'
-import QuestionPage from './pages/Question/index.tsx'
+import Layout from './components/layout/Layout.tsx'
 import JudgementPage from './pages/Judgement/index.tsx'
-import ResultPage from './pages/Result/index.tsx'
+import LoginPage from './pages/Login/index.tsx'
+import MainPage from './pages/Main/index.tsx'
 import MyPage from './pages/Mypage/index.tsx'
 import NotFoundPage from './pages/NotFound/index.tsx'
+import OAuthCallbackPage from './pages/OAuthCallback/index.tsx'
+import QuestionPage from './pages/Question/index.tsx'
+import ResultPage from './pages/Result/index.tsx'
+import UploadPage from './pages/Upload/index.tsx'
+import { useAuthStore } from './store/useAuthStore.ts'
 
 function App() {
   useEffect(() => {
