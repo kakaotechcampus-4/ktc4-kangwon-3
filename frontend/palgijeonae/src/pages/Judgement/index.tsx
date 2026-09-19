@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Process, { type ProcessType } from "./Process";
-import SectionIntro from "../../components/common/SectionIntro";
-import ProductTabs from "../../components/common/ProductTabs";
 import Button from "../../components/common/Button";
+import ProductTabs from "../../components/common/ProductTabs";
+import SectionIntro from "../../components/common/SectionIntro";
+import Process, { type ProcessType } from "./Process";
 
 interface Agent {
     id: string
