@@ -8,6 +8,8 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceTy
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileService;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteRequestedEvent;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -41,11 +44,20 @@ class DiagnosesServiceTest {
     @Mock
     private DiagnosesRepository diagnosesRepository;
 
+    @Mock
+    private S3FileService s3FileService;
+
+    @Mock
+    private ApplicationEventPublisher eventPublisher;
+
     @InjectMocks
     private DiagnosesService diagnosesService;
 
     @Captor
     private ArgumentCaptor<Diagnoses> diagnosesCaptor;
+
+    @Captor
+    private ArgumentCaptor<S3FileDeleteRequestedEvent> eventCaptor;
 
     @Test
     @DisplayName("진단을 요청하면 진단서가 PENDING 상태로 저장되고 진단 결과는 비어 있다.")
@@ -85,6 +97,21 @@ class DiagnosesServiceTest {
                         tuple("product-detail/1/uuid_a1.jpg", 0),
                         tuple("product-detail/1/uuid_a2.jpg", 1),
                         tuple("product-detail/1/uuid_a3.jpg", 2));
+    }
+
+    @Test
+    @DisplayName("진단서를 생성하면 대표 이미지와 첨부 이미지의 key가 모두 CONFIRMED로 전환된다.")
+    void createDiagnoses_thenMarkImageKeysAsConfirmed() {
+        // given
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(1L, 1L));
+        List<String> imageKeys = List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg");
+
+        // when
+        diagnosesService.createDiagnoses(createCommand(1L, imageKeys));
+
+        // then
+        then(s3FileService).should().markConfirmed(List.of(
+                PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
     }
 
     @Test
@@ -185,6 +212,23 @@ class DiagnosesServiceTest {
     }
 
     @Test
+    @DisplayName("진단서를 삭제하면 딸린 이미지 key들의 S3 삭제를 요청하는 이벤트가 발행된다.")
+    void removeDiagnoses_thenPublishS3FileDeleteEvent() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(1L, 1L);
+        diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg"));
+        given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.removeDiagnoses(1L, 1L);
+
+        // then
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().keys())
+                .containsExactly(PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg");
+    }
+
+    @Test
     @DisplayName("다른 사용자의 진단서를 삭제하면 FORBIDDEN 예외가 발생하고 아무것도 삭제되지 않는다.")
     void removeDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
         // given
@@ -197,6 +241,37 @@ class DiagnosesServiceTest {
                 .isEqualTo(CommonResponseCode.FORBIDDEN);
 
         then(diagnosesRepository).should(never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("회원 탈퇴 시 해당 사용자의 모든 진단서 이미지 key에 대해 S3 삭제 이벤트가 한 번에 발행된다.")
+    void removeFilesByUserId_thenPublishS3FileDeleteEventForAllDiagnoses() {
+        // given
+        Diagnoses first = createDiagnoses(1L, 1L);
+        first.addImages(List.of("product-detail/1/uuid_a1.jpg"));
+        Diagnoses second = createDiagnoses(2L, 1L);
+        given(diagnosesRepository.findWithImagesByUserId(1L)).willReturn(List.of(first, second));
+
+        // when
+        diagnosesService.removeFilesByUserId(1L);
+
+        // then
+        then(eventPublisher).should().publishEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().keys())
+                .containsExactly(PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg", PRODUCT_IMAGE_KEY);
+    }
+
+    @Test
+    @DisplayName("회원 탈퇴 시 삭제할 진단서가 없으면 이벤트를 발행하지 않는다.")
+    void removeFilesByUserId_withNoDiagnoses_thenDoNotPublishEvent() {
+        // given
+        given(diagnosesRepository.findWithImagesByUserId(1L)).willReturn(List.of());
+
+        // when
+        diagnosesService.removeFilesByUserId(1L);
+
+        // then
+        then(eventPublisher).should(never()).publishEvent(any());
     }
 
     private Diagnoses createDiagnoses(Long diagnosesId, Long userId) {
