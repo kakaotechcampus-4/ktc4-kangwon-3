@@ -73,10 +73,20 @@ app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   oauth2:
-    frontend-redirect-uri: ${FRONTEND_REDIRECT_URI:http://localhost:5173/oauth/callback}
+    # 첫 번째 값이 기본(cookie 미존재 시) 리다이렉트 대상. 콤마로 여러 프론트 주소 동시 허용 가능.
+    allowed-redirect-uris: ${FRONTEND_REDIRECT_URIS:http://localhost:5173/oauth/callback}
   cookie:
     secure: ${COOKIE_SECURE:false}
     same-site: ${COOKIE_SAME_SITE:Lax}
+
+aws:
+  s3:
+    bucket: ${S3_BUCKET_NAME}
+    region: ${AWS_REGION:ap-northeast-2}
+    presigned-url-expiration: ${S3_PRESIGNED_URL_EXPIRATION:PT5M}
+    max-file-size: ${S3_MAX_FILE_SIZE:10MB}
+    allowed-extensions: ${S3_ALLOWED_EXTENSIONS:jpg,jpeg,png,webp}
+    base-url: ${S3_BASE_URL:}
 
 server:
   forward-headers-strategy: framework

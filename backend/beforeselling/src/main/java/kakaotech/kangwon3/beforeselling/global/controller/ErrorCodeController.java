@@ -2,6 +2,7 @@ package kakaotech.kangwon3.beforeselling.global.controller;
 
 import kakaotech.kangwon3.beforeselling.global.common.BaseResponseCode;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.FileResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,7 +22,8 @@ public class ErrorCodeController {
     public String showErrorCodes(Model model) {
         List<ErrorCodeGroup> groups = List.of(
                 buildGroup("공통", CommonResponseCode.values()),
-                buildGroup("인증", AuthResponseCode.values())
+                buildGroup("인증", AuthResponseCode.values()),
+                buildGroup("파일", FileResponseCode.values())
         );
         model.addAttribute("groups", groups);
         return "error-codes";

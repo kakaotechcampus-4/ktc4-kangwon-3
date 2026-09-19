@@ -48,6 +48,8 @@ jobs:
         run: npm ci
 
       - name: 빌드
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
         run: npm run build
 
       - name: AWS 자격증명 설정
