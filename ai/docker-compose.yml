@@ -1,3 +1,5 @@
+name: ai
+
 services:
   ai:
     build:
@@ -54,6 +56,8 @@ services:
 
 volumes:
   ai-pgdata:
+    name: ai-pgdata
 
 networks:
   ai-net:
+    name: ai-net
