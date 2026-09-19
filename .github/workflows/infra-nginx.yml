@@ -103,7 +103,7 @@ jobs:
             "for f in \$NGINX_DIR/*; do ln -sfn \$f /etc/nginx/conf.d/\$(basename \$f); done",
             "find /etc/nginx/conf.d -xtype l -delete",
             "if ! nginx -t; then echo 문법 검사 실패 - reload 하지 않았습니다; exit 1; fi",
-            "systemctl reload nginx",
+            "systemctl reload-or-restart nginx",
             "echo 반영 완료"
           ]}
           EOF
