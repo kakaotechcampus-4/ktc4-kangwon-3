@@ -28,7 +28,7 @@ public class S3File extends BaseEntity {
     @Column(name = "s3_file_id")
     private Long id;
 
-    @Column(name = "key", nullable = false, unique = true, length = 2048)
+    @Column(name = "key", nullable = false, unique = true, length = 512)
     private String key;
 
     @Enumerated(EnumType.STRING)
