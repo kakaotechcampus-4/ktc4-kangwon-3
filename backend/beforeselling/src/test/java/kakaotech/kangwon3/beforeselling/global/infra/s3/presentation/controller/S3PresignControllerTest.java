@@ -136,6 +136,21 @@ class S3PresignControllerTest {
     }
 
     @Test
+    @DisplayName("파일명이 255자를 초과하면 400과 COMMON-002 코드를 응답한다.")
+    void issuePresignedUrls_withFileNameExceedingMaxLength_thenBadRequest() throws Exception {
+        String tooLongFileName = "가".repeat(256) + ".jpg";
+        PresignedUrlRequest request = new PresignedUrlRequest(List.of(
+                new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, tooLongFileName, 1024)));
+
+        mockMvc.perform(post("/api/v1/presigned-url")
+                        .with(authentication(authenticationOf(1L)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"));
+    }
+
+    @Test
     @DisplayName("지원하지 않는 확장자를 요청하면 400과 FILE-001 코드를 응답한다.")
     void issuePresignedUrls_withUnsupportedExtension_thenBadRequest() throws Exception {
         // given
