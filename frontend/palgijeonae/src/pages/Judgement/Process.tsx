@@ -26,7 +26,7 @@ const statusIconVariants = cva("h-10 w-10 rounded-full border-2 flex items-cente
 const STATUS_MARKS: Partial<Record<ProcessType, string>> = {
     end: "✓",
     skip: "−",
-    fail: "!",
+    fail: "✕",
 };
 
 function StatusIcon({ type }: { type: ProcessType }) {
