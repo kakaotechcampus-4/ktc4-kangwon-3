@@ -74,7 +74,7 @@ const DEMO_SEQUENCE: Record<string, { status: ProcessType; detail: string }[]> =
 // TODO: SSE 연동 시 제거. 데모 시퀀스가 다음 단계로 넘어가는 주기.
 const DEMO_TICK_INTERVAL_MS = 1500;
 // 한 제품의 판정(모든 에이전트가 end/skip/fail)이 끝난 뒤, 다음 제품 탭으로 자동 전환되기까지의 지연.
-const PRODUCT_ADVANCE_DELAY_MS = 1500;
+const PRODUCT_ADVANCE_DELAY_MS = 500;
 
 const isProductDone = (agents: Agent[]) => agents.every((agent) => isTerminalStatus(agent.status));
 
@@ -158,6 +158,7 @@ export function useJudgementProcess() {
 
     const currentProduct = products[selectedProduct];
     const visibleAgents = currentProduct.agents.slice(0, currentProduct.visibleCount);
+    const isCurrentProductDone = isProductDone(currentProduct.agents);
     const allProductsDone = products.every((product) => isProductDone(product.agents));
 
     // TODO: SSE 연동 시 제거. 현재 선택된 제품을 주기적으로 데모 시퀀스상 다음 단계로 진행시킨다.
@@ -190,6 +191,7 @@ export function useJudgementProcess() {
         productCount: products.length,
         selectedProduct,
         visibleAgents,
+        isCurrentProductDone,
         allProductsDone,
         selectProduct: (index: number) => dispatch({ type: "SELECT_PRODUCT", index }),
         correctAgent: (agentId: string) =>
