@@ -50,7 +50,8 @@ const DEMO_SEQUENCE: Record<string, { status: ProcessType; detail: string }[]> =
     ],
 };
 
-const isProductDone = (agents: Agent[]) => agents.every((agent) => agent.status === "end" || agent.status === "skip");
+const TERMINAL_STATUSES: ProcessType[] = ["end", "skip", "fail"];
+const isProductDone = (agents: Agent[]) => agents.every((agent) => TERMINAL_STATUSES.includes(agent.status));
 
 function JudgementPage() {
     const [agentsByProduct, setAgentsByProduct] = useState<Agent[][]>(() =>
@@ -129,7 +130,7 @@ function JudgementPage() {
                         job={agent.job}
                         detail={agent.detail}
                         onCorrect={
-                            agent.status === "skip"
+                            agent.status === "skip" || agent.status === "fail"
                                 ? () => updateAgent(selectedProduct, agent.id, { status: "act" })
                                 : undefined
                         }
