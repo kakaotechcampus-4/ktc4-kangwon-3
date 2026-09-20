@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -7,6 +8,7 @@ import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import { cn } from "@/lib/cn";
 
 import AddedProductList from "./AddedProductList.tsx";
+import { processProduct } from "./diagnosisPipeline.ts";
 import TextImageInputForm from "./TextImageInputForm.tsx";
 import type { Product } from "./types.ts";
 import UrlInputForm from "./UrlInputForm.tsx";
@@ -38,15 +40,21 @@ function UploadPage() {
         setProducts((prev) => prev.filter((product) => product.id !== id));
     };
 
+    // TODO: 다중 상품 처리 구현 전까지는 일단 첫 번째 상품만 진단 요청으로 보낸다.
+    const { mutate: startDiagnosis } = useMutation({
+        mutationFn: () => processProduct(products[0]),
+        onSuccess: (diagnosesId) => {
+            navigate("/judgement", { state: { diagnosesIds: [diagnosesId] } });
+        },
+    });
+
     const handleStartDiagnosis = () => {
         if (products.length === 0) {
             alert("진단할 상품을 먼저 추가해주세요.");
             return;
         }
 
-        // 추후 백엔드 연동 로직 추가 예정
-
-        navigate("/judgement");
+        startDiagnosis();
     };
 
     return (
