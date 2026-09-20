@@ -37,8 +37,7 @@ const DEMO_SEQUENCE: Record<string, { status: ProcessType; detail: string }[]> =
     ],
     "agent-2": [
         { status: "call", detail: "에이전트를 부를 지 결정중" },
-        { status: "act", detail: "에이전트 일하는 중" },
-        { status: "end", detail: "에이전트 호출 완료" },
+        { status: "fail", detail: "에이전트 호출 실패" },
     ],
     "agent-3": [
         { status: "call", detail: "에이전트를 부를 지 결정중" },
