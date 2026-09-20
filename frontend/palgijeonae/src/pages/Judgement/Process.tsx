@@ -1,4 +1,4 @@
-export type ProcessType = "call" | "act" | "end" | "skip";
+export type ProcessType = "call" | "act" | "end" | "skip" | "fail";
 
 interface ProcessProps {
     type: ProcessType;
@@ -15,6 +15,7 @@ const STATUS_ICON_VARIANTS: Record<ProcessType, { className: string; mark?: stri
     act: { className: "border-neutral-border/30 border-t-neutral-border animate-spin" },
     end: { className: "border-primary text-primary animate-pop-in", mark: "✓" },
     skip: { className: "border-neutral-border text-neutral-border", mark: "−" },
+    fail: { className: "border-red-500 text-red-500", mark: "!" }
 };
 
 function StatusIcon({ type }: { type: ProcessType }) {
@@ -34,7 +35,7 @@ function Process({ type, title, job, detail, onCorrect }: ProcessProps) {
                     <p className="text-sm font-medium text-neutral-dark">{job}</p>
                     <p className="text-base text-neutral-muted">{detail}</p>
 
-                    {type === "skip" && (
+                    {(type === "skip" || type === "fail") && (
                         <button
                             onClick={onCorrect}
                             className="mt-2 text-sm border border-neutral-border rounded-md px-3 py-1 text-neutral-dark hover:bg-neutral-border/10"
