@@ -9,15 +9,17 @@ import AgentProcessItem from "./AgentProcessItem";
 import { useJudgementProcess } from "./useJudgementProcess";
 
 function JudgementPage() {
-    const { productCount, selectedProduct, visibleAgents, allProductsDone, selectProduct, correctAgent } =
+    const { productCount, selectedProduct, visibleAgents, isCurrentProductDone, allProductsDone, selectProduct, correctAgent } =
         useJudgementProcess();
     const navigate = useNavigate();
 
-    // 새 프로세스가 나타나거나 다른 제품 탭으로 전환될 때, 그 시점의 마지막(현재 단계) 프로세스로 자동 스크롤한다.
-    const currentAgentRef = useRef<HTMLDivElement>(null);
+    // 새 프로세스가 나타나거나 다른 제품 탭으로 전환될 때 자동 스크롤한다.
+    // 판정이 끝난 제품(히스토리 확인)이면 첫 프로세스로, 아직 진행 중이면 마지막(현재 단계) 프로세스로 포커싱한다.
+    const focusedAgentIndex = isCurrentProductDone ? 0 : visibleAgents.length - 1;
+    const focusedAgentRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
-        currentAgentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, [selectedProduct, visibleAgents.length]);
+        focusedAgentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, [selectedProduct, visibleAgents.length, focusedAgentIndex]);
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -30,7 +32,7 @@ function JudgementPage() {
                     <AgentProcessItem
                         key={agent.id}
                         agent={agent}
-                        ref={index === visibleAgents.length - 1 ? currentAgentRef : undefined}
+                        ref={index === focusedAgentIndex ? focusedAgentRef : undefined}
                         onCorrect={() => correctAgent(agent.id)}
                     />
                 ))}
