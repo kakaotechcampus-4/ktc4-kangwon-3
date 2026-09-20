@@ -9,3 +9,9 @@ export interface Product {
     content?: string
     images?: File[]
 }
+
+// 상품별 진단 요청 진행 상태. Product 자체는 입력 폼이 다루는 도메인 데이터라 섞지 않고 따로 관리한다.
+export type DiagnosisStatus =
+    | { state: "pending" }
+    | { state: "success"; diagnosesId: number }
+    | { state: "failed" }
