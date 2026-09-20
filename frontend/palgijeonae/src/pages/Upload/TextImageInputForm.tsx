@@ -39,6 +39,7 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
             type: "text/image",
             title: trimmedName,
             thumbnail: image ? URL.createObjectURL(image) : undefined,
+            productImageFile: image ?? undefined,
             content: trimmedContent,
             images: productImages,
         });
