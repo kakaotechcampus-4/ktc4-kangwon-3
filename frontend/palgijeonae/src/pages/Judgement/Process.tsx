@@ -1,5 +1,7 @@
 import { cva } from "class-variance-authority";
 
+import { isCorrectableStatus } from "./processStatus";
+
 export type ProcessType = "call" | "act" | "end" | "skip" | "fail";
 
 interface ProcessProps {
@@ -45,7 +47,7 @@ function Process({ type, title, job, detail, onCorrect }: ProcessProps) {
                     <p className="text-sm font-medium text-neutral-dark">{job}</p>
                     <p className="text-base text-neutral-muted">{detail}</p>
 
-                    {(type === "skip" || type === "fail") && (
+                    {isCorrectableStatus(type) && (
                         <button
                             onClick={onCorrect}
                             className="mt-2 text-sm border border-neutral-border rounded-md px-3 py-1 text-neutral-dark hover:bg-neutral-border/10"
