@@ -1,16 +1,24 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.DiagnosesImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileService;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -19,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class DiagnosesService {
 
     private final DiagnosesRepository diagnosesRepository;
+    private final S3FileService s3FileService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 진단서 + 이미지 저장(이미지는 cascade로 함께 저장된다)
     @Transactional
@@ -33,6 +43,7 @@ public class DiagnosesService {
         );
         diagnoses.addImages(command.imageKeys());
 
+        s3FileService.markConfirmed(collectImageKeys(diagnoses));
         Diagnoses saved = diagnosesRepository.save(diagnoses);
         log.debug("진단서 생성 완료. diagnosesId={}, userId={}", saved.getId(), command.userId());
 
@@ -61,8 +72,38 @@ public class DiagnosesService {
     // 진단서 삭제(딸린 이미지는 cascade로 함께 삭제)
     @Transactional
     public void removeDiagnoses(Long userId, Long diagnosesId) {
-        diagnosesRepository.delete(getDiagnoses(userId, diagnosesId));
+        Diagnoses diagnoses = getDiagnoses(userId, diagnosesId);
+        List<String> imageKeys = collectImageKeys(diagnoses);
+        diagnosesRepository.delete(diagnoses);
+        publishDeleteEvent(imageKeys);
 
         log.debug("진단서 삭제 완료. diagnosesId={}, userId={}", diagnosesId, userId);
+    }
+
+    // 회원 탈퇴 시 해당 사용자의 모든 진단서 이미지에 대한 S3 삭제 요청(진단서 row 자체는 삭제하지 않음)
+    @Transactional
+    public void removeFilesByUserId(Long userId) {
+        List<String> imageKeys = diagnosesRepository.findWithImagesByUserId(userId).stream()
+                .flatMap(diagnoses -> collectImageKeys(diagnoses).stream())
+                .toList();
+        publishDeleteEvent(imageKeys);
+
+        log.debug("회원 탈퇴에 따른 진단서 파일 정리 이벤트 발행 완료. userId={}, 대상 key 수={}", userId, imageKeys.size());
+    }
+
+    private List<String> collectImageKeys(Diagnoses diagnoses) {
+        List<String> keys = new ArrayList<>();
+        if (diagnoses.getProductImageKey() != null) {
+            keys.add(diagnoses.getProductImageKey());
+        }
+        diagnoses.getImages().stream().map(DiagnosesImage::getImageKey).forEach(keys::add);
+        return keys;
+    }
+
+    private void publishDeleteEvent(List<String> keys) {
+        if (CollectionUtils.isEmpty(keys)) {
+            return;
+        }
+        eventPublisher.publishEvent(new S3FileDeleteRequestedEvent(keys));
     }
 }

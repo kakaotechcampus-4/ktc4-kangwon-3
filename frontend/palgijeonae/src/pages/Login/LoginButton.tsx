@@ -1,20 +1,42 @@
+import { cva } from "class-variance-authority";
+
+type Provider = 'kakao' | 'naver' | 'google';
+
+const buttonVariants = cva(
+    "flex flex-row cursor-pointer items-center justify-center gap-5 self-stretch rounded-xl border py-2.5 pr-8 pl-5",
+    {
+        variants: {
+            provider: {
+                kakao: "border-[#FEE500] bg-[#FEE500]",
+                naver: "border-[#03A94D] bg-[#03A94D]",
+                google: "border-[#747775] bg-white",
+            },
+        },
+    },
+);
+
+const labelVariants = cva("text-lg leading-7 font-semibold", {
+    variants: {
+        provider: {
+            kakao: "text-black/85",
+            naver: "text-white",
+            google: "text-[#1F1F1F]",
+        },
+    },
+});
+
 interface LoginButtonProps {
-    type: string
+    provider: Provider
+    label: string
     image: string
-    borderColor: string
-    backgroundColor: string
-    textColor: string
     onClick: () => void
 }
 
-function LoginButton({ type, image, borderColor, backgroundColor, textColor, onClick }: LoginButtonProps) {
+function LoginButton({ provider, label, image, onClick }: LoginButtonProps) {
     return (
-        <button
-            className={`flex flex-row cursor-pointer items-center justify-center gap-5 self-stretch rounded-xl border ${borderColor} ${backgroundColor} py-2.5 pr-8 pl-5`}
-            onClick={onClick}
-        >
-            <img src={image} alt={`${type} logo`} className="h-9 w-9 shrink-0 rounded-[10px] object-cover" />
-            <span className={`text-lg leading-7 font-semibold ${textColor}`}>{type} 계정으로 로그인</span>
+        <button className={buttonVariants({ provider })} onClick={onClick}>
+            <img src={image} alt={`${label} logo`} className="h-9 w-9 shrink-0 rounded-[10px] object-cover" />
+            <span className={labelVariants({ provider })}>{label} 계정으로 로그인</span>
         </button>
     )
 }

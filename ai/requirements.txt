@@ -5,6 +5,8 @@ pydantic==2.13.5
 fastapi==0.115.12
 uvicorn[standard]==0.34.3
 python-dotenv==1.2.3
+sqlalchemy==2.0.41
+psycopg[binary]==3.3.5
 
 # 개발/테스트용
 pytest==9.1.1

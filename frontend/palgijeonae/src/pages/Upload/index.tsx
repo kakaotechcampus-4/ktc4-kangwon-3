@@ -1,13 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import DefaultBox from "../../components/common/DefaultBox/index.tsx";
-import SectionIntro from "../../components/common/SectionIntro/index.tsx";
-import UrlInputForm from "./UrlInputForm.tsx";
-import TextImageInputForm from "./TextImageInputForm.tsx";
+import Button from "@/components/common/Button/index.tsx";
+import DefaultBox from "@/components/common/DefaultBox/index.tsx";
+import SectionIntro from "@/components/common/SectionIntro/index.tsx";
+import { cn } from "@/lib/cn";
+
 import AddedProductList from "./AddedProductList.tsx";
+import TextImageInputForm from "./TextImageInputForm.tsx";
 import type { Product } from "./types.ts";
-import Button from "../../components/common/Button/index.tsx";
+import UrlInputForm from "./UrlInputForm.tsx";
 
 const INPUT_TYPE_TABS = [
     { key: "url", label: "URL" },
@@ -58,9 +60,10 @@ function UploadPage() {
                             key={key}
                             type="button"
                             onClick={() => setInputType(key)}
-                            className={`flex cursor-pointer items-center justify-center rounded-lg border px-6 py-2 text-base font-medium ${
-                                inputType === key ? "border-neutral-border" : "border-transparent"
-                            }`}
+                            className={cn(
+                                "flex cursor-pointer items-center justify-center rounded-lg border px-6 py-2 text-base font-medium",
+                                inputType === key ? "border-neutral-border" : "border-transparent",
+                            )}
                         >
                             {label}
                         </button>

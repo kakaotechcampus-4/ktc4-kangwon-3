@@ -1,6 +1,6 @@
 import { type DragEvent } from "react";
 
-import uploadInputIcon from "../../assets/upload-inputImage.png";
+import uploadInputIcon from "@/assets/upload-inputImage.png";
 
 interface ImageUploadFieldProps {
     id: string

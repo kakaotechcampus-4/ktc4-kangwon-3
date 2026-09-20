@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.user.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.AuthTokenService;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.SocialProvider;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
@@ -30,11 +31,14 @@ class UserWithdrawalUseCaseTest {
     @Mock
     private SocialUnlinkService socialUnlinkService;
 
+    @Mock
+    private DiagnosesService diagnosesService;
+
     @InjectMocks
     private UserWithdrawalUseCase userWithdrawalUseCase;
 
     @Test
-    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 회원 정보를 삭제하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
+    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 회원 정보를 삭제하고, 진단서 파일을 정리하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
     void withdraw_thenUnlinkThenDeleteUserAndRemoveRefreshToken() {
         // given
         User user = createUser(1L);
@@ -44,9 +48,10 @@ class UserWithdrawalUseCaseTest {
         userWithdrawalUseCase.withdraw(1L, "refresh-token");
 
         // then
-        InOrder inOrder = inOrder(userService, socialUnlinkService, authTokenService);
+        InOrder inOrder = inOrder(userService, diagnosesService, socialUnlinkService, authTokenService);
         then(userService).should(inOrder).getUser(1L);
         then(userService).should(inOrder).withdraw(1L);
+        then(diagnosesService).should(inOrder).removeFilesByUserId(1L);
         then(authTokenService).should(inOrder).removeRefreshToken("refresh-token");
         then(socialUnlinkService).should(inOrder).unlink(user);
     }
@@ -64,6 +69,7 @@ class UserWithdrawalUseCaseTest {
         // then
         then(socialUnlinkService).should().unlink(user);
         then(userService).should().withdraw(1L);
+        then(diagnosesService).should().removeFilesByUserId(1L);
         then(authTokenService).should().removeRefreshToken(null);
     }
 
