@@ -1,4 +1,5 @@
 import { cva } from "class-variance-authority";
+import type { Ref } from "react";
 
 import { isCorrectableStatus } from "./processStatus";
 
@@ -10,6 +11,7 @@ interface ProcessProps {
     job: string;
     detail: string;
     onCorrect?: () => void; // type="skip" | "fail"일 때 "수동으로 에이전트 호출" 버튼용
+    ref?: Ref<HTMLDivElement>; // 자동 스크롤 포커싱(Judgement/index.tsx)용
 }
 
 const statusIconVariants = cva("h-10 w-10 rounded-full border-2 flex items-center justify-center text-xl", {
@@ -35,9 +37,9 @@ function StatusIcon({ type }: { type: ProcessType }) {
     return <div className={statusIconVariants({ type })}>{STATUS_MARKS[type]}</div>;
 }
 
-function Process({ type, title, job, detail, onCorrect }: ProcessProps) {
+function Process({ type, title, job, detail, onCorrect, ref }: ProcessProps) {
     return (
-        <div className="rounded-lg border border-neutral-border p-4 transition-colors">
+        <div ref={ref} className="rounded-lg border border-neutral-border p-4 transition-colors">
             <div className="flex items-start gap-7">
                 <div className="mt-0.5 shrink-0">
                     <StatusIcon type={type} />
