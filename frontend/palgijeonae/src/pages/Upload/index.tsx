@@ -40,11 +40,16 @@ function UploadPage() {
         setProducts((prev) => prev.filter((product) => product.id !== id));
     };
 
-    // TODO: 다중 상품 처리 구현 전까지는 일단 첫 번째 상품만 진단 요청으로 보낸다.
     const { mutate: startDiagnosis } = useMutation({
-        mutationFn: () => processProduct(products[0]),
-        onSuccess: (diagnosesId) => {
-            navigate("/judgement", { state: { diagnosesIds: [diagnosesId] } });
+        // 상품마다 독립적인 파이프라인 -> 순차로 갈 이유가 없으므로 병렬로 처리
+        // allSettled를 써서 일부 상품이 실패해도 나머지 성공한 진단은 그대로 판정 페이지로 넘긴다.
+        mutationFn: () => Promise.allSettled(products.map(processProduct)),
+        onSuccess: (results) => {
+            const diagnosesIds = results
+                .filter((result): result is PromiseFulfilledResult<number> => result.status === "fulfilled")
+                .map((result) => result.value);
+
+            navigate("/judgement", { state: { diagnosesIds } });
         },
     });
 
