@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import Button from "@/components/common/Button/index.tsx";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/cn";
 import AddedProductList from "./AddedProductList.tsx";
 import { processProduct } from "./diagnosisPipeline.ts";
 import TextImageInputForm from "./TextImageInputForm.tsx";
-import type { Product } from "./types.ts";
+import type { DiagnosisStatus, Product } from "./types.ts";
 import UrlInputForm from "./UrlInputForm.tsx";
 
 const INPUT_TYPE_TABS = [
@@ -23,6 +23,10 @@ type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 function UploadPage() {
     const [inputType, setInputType] = useState<InputType>("url");
     const [products, setProducts] = useState<Product[]>([]);
+    // 상품별 진단 요청 진행 상태(pending/failed만 의미 있음). 성공한 상품은 목록에서 바로 빼내고
+    // id는 diagnosesIds에 누적하므로, 여기 남아있는 건 항상 "아직 안 끝난" 상품뿐이다.
+    const [diagnosisStatuses, setDiagnosisStatuses] = useState<Record<string, DiagnosisStatus>>({});
+    const [succeededDiagnosesIds, setSucceededDiagnosesIds] = useState<number[]>([]);
     const navigate = useNavigate();
 
     const handleAddProduct = (product: Product) => {
@@ -38,20 +42,38 @@ function UploadPage() {
         }
 
         setProducts((prev) => prev.filter((product) => product.id !== id));
+        setDiagnosisStatuses((prev) => {
+            const { [id]: _removed, ...rest } = prev;
+            return rest;
+        });
     };
 
-    const { mutate: startDiagnosis } = useMutation({
-        // 상품마다 독립적인 파이프라인 -> 순차로 갈 이유가 없으므로 병렬로 처리
-        // allSettled를 써서 일부 상품이 실패해도 나머지 성공한 진단은 그대로 판정 페이지로 넘긴다.
-        mutationFn: () => Promise.allSettled(products.map(processProduct)),
-        onSuccess: (results) => {
-            const diagnosesIds = results
-                .filter((result): result is PromiseFulfilledResult<number> => result.status === "fulfilled")
-                .map((result) => result.value);
+    const { mutate: runDiagnosis } = useMutation({ mutationFn: processProduct });
 
-            navigate("/judgement", { state: { diagnosesIds } });
-        },
-    });
+    // 개별 상품 하나를 진단 요청으로 보낸다. 최초 제출과 실패 상품 재시도가 이 함수 하나를 공유한다.
+    // 성공하면 목록에서 바로 빼내고(더 이상 재시도 대상이 아니므로) id만 누적해둔다.
+    const submitProduct = (product: Product) => {
+        if (diagnosisStatuses[product.id]?.state === "pending") {
+            return;
+        }
+
+        setDiagnosisStatuses((prev) => ({ ...prev, [product.id]: { state: "pending" } }));
+        runDiagnosis(product, {
+            onSuccess: (diagnosesId) => {
+                setSucceededDiagnosesIds((prev) => [...prev, diagnosesId]);
+                setProducts((prev) => prev.filter((p) => p.id !== product.id));
+                setDiagnosisStatuses((prev) => {
+                    const { [product.id]: _removed, ...rest } = prev;
+                    return rest;
+                });
+            },
+            onError: () => {
+                setDiagnosisStatuses((prev) => ({ ...prev, [product.id]: { state: "failed" } }));
+            },
+        });
+    };
+
+    const hasFailedProduct = products.some((product) => diagnosisStatuses[product.id]?.state === "failed");
 
     const handleStartDiagnosis = () => {
         if (products.length === 0) {
@@ -59,8 +81,18 @@ function UploadPage() {
             return;
         }
 
-        startDiagnosis();
+        // 성공한 상품은 이미 목록에서 빠져있어서, 여기 남은 건 항상 신규 or 재시도 대상뿐이다.
+        products.forEach(submitProduct);
     };
+
+    // 목록에 남은 상품이 하나도 없을 때(=전부 성공)만, 그동안 쌓인 id로 한 번에 판정 페이지로 넘어간다.
+    useEffect(() => {
+        if (succeededDiagnosesIds.length === 0 || products.length > 0) {
+            return;
+        }
+
+        navigate("/judgement", { state: { diagnosesIds: succeededDiagnosesIds } });
+    }, [products, succeededDiagnosesIds, navigate]);
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -88,9 +120,9 @@ function UploadPage() {
                     <TextImageInputForm onAdd={handleAddProduct} />
                 )}
             </DefaultBox>
-            <AddedProductList products={products} onRemove={handleRemoveProduct} />
+            <AddedProductList products={products} statuses={diagnosisStatuses} onRemove={handleRemoveProduct} />
             <div className="flex w-full justify-end">
-                <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} />
+                <Button text={hasFailedProduct ? "재시도" : "진단 시작하기"} onClick={handleStartDiagnosis} fontSize={15} />
             </div>
         </div>
     );
