@@ -7,6 +7,7 @@ import type { Agent } from "./useJudgementProcess";
 interface AgentProcessItemProps {
     agent: Agent
     onCorrect: () => void
+    // 자동 스크롤 포커싱(index.tsx)용
     ref?: Ref<HTMLDivElement>
 }
 
