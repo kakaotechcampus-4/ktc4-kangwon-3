@@ -1,3 +1,5 @@
+import { cva } from "class-variance-authority";
+
 export type ProcessType = "call" | "act" | "end" | "skip" | "fail";
 
 interface ProcessProps {
@@ -8,19 +10,27 @@ interface ProcessProps {
     onCorrect?: () => void; // type="skip"일 때 "에이전트 수동 호출" 버튼용
 }
 
-const STATUS_ICON_BASE = "h-10 w-10 rounded-full border-2 flex items-center justify-center text-xl";
+const statusIconVariants = cva("h-10 w-10 rounded-full border-2 flex items-center justify-center text-xl", {
+    variants: {
+        type: {
+            call: "border-neutral-border animate-soft-ping",
+            act: "border-neutral-border/30 border-t-neutral-border animate-spin",
+            end: "border-primary text-primary animate-pop-in",
+            skip: "border-neutral-border text-neutral-border",
+            fail: "border-red-500 text-red-500",
+        },
+    },
+});
 
-const STATUS_ICON_VARIANTS: Record<ProcessType, { className: string; mark?: string }> = {
-    call: { className: "border-neutral-border animate-soft-ping" },
-    act: { className: "border-neutral-border/30 border-t-neutral-border animate-spin" },
-    end: { className: "border-primary text-primary animate-pop-in", mark: "✓" },
-    skip: { className: "border-neutral-border text-neutral-border", mark: "−" },
-    fail: { className: "border-red-500 text-red-500", mark: "!" }
+// 아이콘 안에 들어갈 문자는 스타일(cva)이 아니라 콘텐츠라 별도로 관리한다.
+const STATUS_MARKS: Partial<Record<ProcessType, string>> = {
+    end: "✓",
+    skip: "−",
+    fail: "!",
 };
 
 function StatusIcon({ type }: { type: ProcessType }) {
-    const { className, mark } = STATUS_ICON_VARIANTS[type];
-    return <div className={`${STATUS_ICON_BASE} ${className}`}>{mark}</div>;
+    return <div className={statusIconVariants({ type })}>{STATUS_MARKS[type]}</div>;
 }
 
 function Process({ type, title, job, detail, onCorrect }: ProcessProps) {
