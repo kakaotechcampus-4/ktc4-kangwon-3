@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import Button from "../../components/common/Button";
-import ProductTabs from "../../components/common/ProductTabs";
-import SectionIntro from "../../components/common/SectionIntro";
+import Button from "@/components/common/Button";
+import ProductTabs from "@/components/common/ProductTabs";
+import SectionIntro from "@/components/common/SectionIntro";
+
 import Process, { type ProcessType } from "./Process";
 
 interface Agent {
@@ -58,6 +59,9 @@ function JudgementPage() {
         Array.from({ length: MOCK_PRODUCT_COUNT }, () => MOCK_INITIAL_AGENTS.map((agent) => ({ ...agent }))),
     );
     const [selectedProduct, setSelectedProduct] = useState(0);
+    // 실제로 진행 중인(자동 전환의 기준이 되는) 제품. 히스토리 확인을 위해 이전 탭으로 돌아가도
+    // selectedProduct만 바뀌고 이 값은 그대로라, 자동 전환이 다시 튀어오르지 않는다.
+    const [furthestProduct, setFurthestProduct] = useState(0);
     // 한 번 공개된 에이전트는 이후 "정정"으로 이전 에이전트가 되살아나도 다시 숨겨지지 않도록,
     // 제품별로 지금까지 공개된 개수를 별도로 추적한다(자연스러운 진행 방향으로만 증가).
     const [visibleCounts, setVisibleCounts] = useState<number[]>(() => Array(MOCK_PRODUCT_COUNT).fill(1));
@@ -79,6 +83,12 @@ function JudgementPage() {
     }
 
     const visibleAgents = agents.slice(0, Math.max(visibleCounts[selectedProduct], naturalVisibleCount));
+
+    // 새 프로세스가 나타나거나 다른 제품 탭으로 전환될 때, 그 시점의 마지막(현재 단계) 프로세스로 자동 스크롤한다.
+    const currentAgentRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        currentAgentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, [selectedProduct, visibleAgents.length]);
 
     // SSE 이벤트로 {id, status, detail}이 함께 오는 걸 그대로 넘길 수 있도록 status 외 필드도 부분 갱신 가능하게 둔다.
     const updateAgent = (productIndex: number, agentId: string, patch: Partial<Pick<Agent, "status" | "detail">>) => {
@@ -119,15 +129,23 @@ function JudgementPage() {
         return () => clearInterval(interval);
     }, [selectedProduct]);
 
-    // 현재 제품 판정이 끝나면 자동으로 다음 제품 탭으로 넘어가서 판정을 다시 시작한다.
+    // 현재 진행 중인 제품 판정이 끝나면 자동으로 다음 제품 탭으로 넘어가서 판정을 다시 시작한다.
+    // 히스토리 확인을 위해 이전 탭을 보고 있는 동안(selectedProduct !== furthestProduct)에는 동작하지 않는다.
     useEffect(() => {
-        if (!isProductDone(agents) || selectedProduct >= agentsByProduct.length - 1) {
+        if (selectedProduct !== furthestProduct) {
             return;
         }
 
-        const timeout = setTimeout(() => setSelectedProduct((index) => index + 1), 1500);
+        if (!isProductDone(agents) || furthestProduct >= agentsByProduct.length - 1) {
+            return;
+        }
+
+        const timeout = setTimeout(() => {
+            setFurthestProduct((index) => index + 1);
+            setSelectedProduct((index) => index + 1);
+        }, 1500);
         return () => clearTimeout(timeout);
-    }, [agents, selectedProduct, agentsByProduct.length]);
+    }, [agents, selectedProduct, furthestProduct, agentsByProduct.length]);
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -136,19 +154,20 @@ function JudgementPage() {
             <ProductTabs count={agentsByProduct.length} selected={selectedProduct} onSelect={setSelectedProduct} />
 
             <div className="flex flex-col gap-4">
-                {visibleAgents.map((agent) => (
-                    <Process
-                        key={agent.id}
-                        type={agent.status}
-                        title={agent.title}
-                        job={agent.job}
-                        detail={agent.detail}
-                        onCorrect={
-                            agent.status === "skip" || agent.status === "fail"
-                                ? () => updateAgent(selectedProduct, agent.id, { status: "act" })
-                                : undefined
-                        }
-                    />
+                {visibleAgents.map((agent, index) => (
+                    <div key={agent.id} ref={index === visibleAgents.length - 1 ? currentAgentRef : undefined}>
+                        <Process
+                            type={agent.status}
+                            title={agent.title}
+                            job={agent.job}
+                            detail={agent.detail}
+                            onCorrect={
+                                agent.status === "skip" || agent.status === "fail"
+                                    ? () => updateAgent(selectedProduct, agent.id, { status: "act" })
+                                    : undefined
+                            }
+                        />
+                    </div>
                 ))}
             </div>
 
