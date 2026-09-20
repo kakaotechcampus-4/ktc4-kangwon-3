@@ -6,6 +6,7 @@ import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 
 import Process, { type ProcessType } from "./Process";
+import { isActiveStatus, isCorrectableStatus, isTerminalStatus } from "./processStatus";
 
 interface Agent {
     id: string
@@ -75,13 +76,11 @@ const DEMO_SEQUENCE: Record<string, { status: ProcessType; detail: string }[]> =
     ],
 };
 
-const TERMINAL_STATUSES: ProcessType[] = ["end", "skip", "fail"];
-const ACTIVE_STATUSES: ProcessType[] = ["call", "act"];
-const isProductDone = (agents: Agent[]) => agents.every((agent) => TERMINAL_STATUSES.includes(agent.status));
+const isProductDone = (agents: Agent[]) => agents.every((agent) => isTerminalStatus(agent.status));
 
 // 이전 에이전트가 끝나기(end/skip/fail) 전까지는 다음 블럭을 보여주지 않는다.
 const getNaturalVisibleCount = (agents: Agent[]) => {
-    const firstActiveIndex = agents.findIndex((agent) => ACTIVE_STATUSES.includes(agent.status));
+    const firstActiveIndex = agents.findIndex((agent) => isActiveStatus(agent.status));
     return firstActiveIndex === -1 ? agents.length : firstActiveIndex + 1;
 };
 
@@ -125,7 +124,7 @@ function judgementReducer(state: JudgementState, action: JudgementAction): Judge
 
         case "DEMO_TICKED": {
             const activeAgent = state.products[action.productIndex].agents.find((agent) =>
-                ACTIVE_STATUSES.includes(agent.status),
+                isActiveStatus(agent.status),
             );
             if (!activeAgent) {
                 return state;
@@ -211,7 +210,7 @@ function JudgementPage() {
                             job={agent.job}
                             detail={agent.detail}
                             onCorrect={
-                                agent.status === "skip" || agent.status === "fail"
+                                isCorrectableStatus(agent.status)
                                     ? () =>
                                         dispatch({
                                             type: "AGENT_UPDATED",
