@@ -5,7 +5,7 @@ import Button from "@/components/common/Button";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 
-import AgentProcessItem from "./AgentProcessItem";
+import Process from "./Process";
 import { useJudgementProcess } from "./useJudgementProcess";
 
 function JudgementPage() {
@@ -29,10 +29,13 @@ function JudgementPage() {
 
             <div className="flex flex-col gap-4">
                 {visibleAgents.map((agent, index) => (
-                    <AgentProcessItem
+                    <Process
                         key={agent.id}
-                        agent={agent}
                         ref={index === focusedAgentIndex ? focusedAgentRef : undefined}
+                        type={agent.status}
+                        title={agent.title}
+                        job={agent.job}
+                        detail={agent.detail}
                         onCorrect={() => correctAgent(agent.id)}
                     />
                 ))}
