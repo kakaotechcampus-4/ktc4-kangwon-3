@@ -58,13 +58,27 @@ function JudgementPage() {
         Array.from({ length: MOCK_PRODUCT_COUNT }, () => MOCK_INITIAL_AGENTS.map((agent) => ({ ...agent }))),
     );
     const [selectedProduct, setSelectedProduct] = useState(0);
+    // 한 번 공개된 에이전트는 이후 "정정"으로 이전 에이전트가 되살아나도 다시 숨겨지지 않도록,
+    // 제품별로 지금까지 공개된 개수를 별도로 추적한다(자연스러운 진행 방향으로만 증가).
+    const [visibleCounts, setVisibleCounts] = useState<number[]>(() => Array(MOCK_PRODUCT_COUNT).fill(1));
     const navigate = useNavigate();
 
     const agents = agentsByProduct[selectedProduct];
-    // 이전 에이전트가 끝나기(end/skip) 전까지는 다음 블럭을 보여주지 않는다.
+    // 이전 에이전트가 끝나기(end/skip/fail) 전까지는 다음 블럭을 보여주지 않는다.
     const firstActiveIndex = agents.findIndex((agent) => agent.status === "call" || agent.status === "act");
-    const visibleAgents = firstActiveIndex === -1 ? agents : agents.slice(0, firstActiveIndex + 1);
+    const naturalVisibleCount = firstActiveIndex === -1 ? agents.length : firstActiveIndex + 1;
     const allProductsDone = agentsByProduct.every(isProductDone);
+
+    // 렌더링 중 상태를 조정하는 React 권장 패턴(effect 아님): 자연 진행이 지금까지 공개된 개수를 앞질렀을 때만 갱신한다.
+    if (visibleCounts[selectedProduct] < naturalVisibleCount) {
+        setVisibleCounts((prev) => {
+            const next = [...prev];
+            next[selectedProduct] = naturalVisibleCount;
+            return next;
+        });
+    }
+
+    const visibleAgents = agents.slice(0, Math.max(visibleCounts[selectedProduct], naturalVisibleCount));
 
     // SSE 이벤트로 {id, status, detail}이 함께 오는 걸 그대로 넘길 수 있도록 status 외 필드도 부분 갱신 가능하게 둔다.
     const updateAgent = (productIndex: number, agentId: string, patch: Partial<Pick<Agent, "status" | "detail">>) => {
