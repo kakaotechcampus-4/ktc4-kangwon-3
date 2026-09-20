@@ -19,7 +19,7 @@ const statusIconVariants = cva("h-10 w-10 rounded-full border-2 flex items-cente
             act: "border-neutral-border/30 border-t-neutral-border animate-spin",
             end: "border-primary text-primary animate-pop-in",
             skip: "border-neutral-border text-neutral-border",
-            fail: "border-red-500 text-red-500",
+            fail: "border-status-danger text-status-danger",
         },
     },
 });
