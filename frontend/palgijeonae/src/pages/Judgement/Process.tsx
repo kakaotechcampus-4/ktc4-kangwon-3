@@ -7,7 +7,7 @@ interface ProcessProps {
     title: string;
     job: string;
     detail: string;
-    onCorrect?: () => void; // type="skip"일 때 "에이전트 수동 호출" 버튼용
+    onCorrect?: () => void; // type="skip" | "fail"일 때 "수동으로 에이전트 호출" 버튼용
 }
 
 const statusIconVariants = cva("h-10 w-10 rounded-full border-2 flex items-center justify-center text-xl", {
