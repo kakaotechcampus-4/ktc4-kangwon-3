@@ -9,6 +9,7 @@ import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import { cn } from "@/lib/cn";
 
 import AttachedImageList from "./AttachedImageList.tsx"
+import type { DiagnosisStatus } from "./types.ts";
 
 interface AddedProductProps {
     type: "url" | "text/image";
@@ -17,11 +18,12 @@ interface AddedProductProps {
     link?: string;
     content?: string;
     images?: File[];
+    status?: DiagnosisStatus;
     onRemove: () => void;
 }
 
 
-function AddedProduct({ type, title, thumbnail, link, content, images, onRemove }: AddedProductProps) {
+function AddedProduct({ type, title, thumbnail, link, content, images, status, onRemove }: AddedProductProps) {
     const [expanded, setExpanded] = useState(false);
 
     return (
@@ -38,6 +40,12 @@ function AddedProduct({ type, title, thumbnail, link, content, images, onRemove 
                         <p className="text-base text-neutral-border font-bold">{type === "url" ? "URL" : "이미지 / 텍스트"}</p>
                     </div>
                     <h3 className="text-xl font-bold text-neutral-dark">{title}</h3>
+                    {status?.state === "failed" && (
+                        <p className="text-sm text-status-danger">진단 요청 실패 — 아래 재시도 버튼을 눌러주세요.</p>
+                    )}
+                    {status?.state === "pending" && (
+                        <p className="text-sm text-neutral-border">진단 요청 중...</p>
+                    )}
                 </div>
                 <button
                     type="button"
