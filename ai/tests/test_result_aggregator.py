@@ -154,6 +154,12 @@ def test_초안을_변경해도_원본_선택_결과는_변하지_않는다():
             OverallStatus.ACTION_REQUIRED,
         ),
         (
+            _tool_result(
+                findings=[_finding(determination=Determination.POSSIBLY_REQUIRED,)]
+            ),
+            OverallStatus.ACTION_REQUIRED,
+        ),
+        (
             _tool_result(status=ToolStatus.FAILED),
             OverallStatus.INSUFFICIENT_INFORMATION,
         ),
