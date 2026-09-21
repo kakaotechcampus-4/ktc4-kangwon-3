@@ -38,7 +38,7 @@ class UserWithdrawalUseCaseTest {
     private UserWithdrawalUseCase userWithdrawalUseCase;
 
     @Test
-    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 회원 정보를 삭제하고, 진단서 파일을 정리하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
+    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 회원 정보를 삭제하고, 진단서를 삭제하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
     void withdraw_thenUnlinkThenDeleteUserAndRemoveRefreshToken() {
         // given
         User user = createUser(1L);
@@ -51,7 +51,7 @@ class UserWithdrawalUseCaseTest {
         InOrder inOrder = inOrder(userService, diagnosesService, socialUnlinkService, authTokenService);
         then(userService).should(inOrder).getUser(1L);
         then(userService).should(inOrder).withdraw(1L);
-        then(diagnosesService).should(inOrder).removeFilesByUserId(1L);
+        then(diagnosesService).should(inOrder).removeAllByUserId(1L);
         then(authTokenService).should(inOrder).removeRefreshToken("refresh-token");
         then(socialUnlinkService).should(inOrder).unlink(user);
     }
@@ -69,7 +69,7 @@ class UserWithdrawalUseCaseTest {
         // then
         then(socialUnlinkService).should().unlink(user);
         then(userService).should().withdraw(1L);
-        then(diagnosesService).should().removeFilesByUserId(1L);
+        then(diagnosesService).should().removeAllByUserId(1L);
         then(authTokenService).should().removeRefreshToken(null);
     }
 

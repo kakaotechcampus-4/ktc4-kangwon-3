@@ -80,15 +80,20 @@ public class DiagnosesService {
         log.debug("진단서 삭제 완료. diagnosesId={}, userId={}", diagnosesId, userId);
     }
 
-    // 회원 탈퇴 시 해당 사용자의 모든 진단서 이미지에 대한 S3 삭제 요청(진단서 row 자체는 삭제하지 않음)
+    // 회원 탈퇴 시 해당 사용자의 모든 진단서 이미지에 대한 S3 삭제 요청
     @Transactional
-    public void removeFilesByUserId(Long userId) {
-        List<String> imageKeys = diagnosesRepository.findWithImagesByUserId(userId).stream()
+    public void removeAllByUserId(Long userId) {
+        List<Diagnoses> diagnosesList = diagnosesRepository.findWithImagesByUserId(userId);
+
+        List<String> imageKeys = diagnosesList.stream()
                 .flatMap(diagnoses -> collectImageKeys(diagnoses).stream())
                 .toList();
+
+        diagnosesRepository.deleteAll(diagnosesList);
         publishDeleteEvent(imageKeys);
 
-        log.debug("회원 탈퇴에 따른 진단서 파일 정리 이벤트 발행 완료. userId={}, 대상 key 수={}", userId, imageKeys.size());
+        log.debug("회원 탈퇴에 따른 진단서 삭제 완료. userId={}, 진단서 수={}, 대상 key 수={}",
+                userId, diagnosesList.size(), imageKeys.size());
     }
 
     private List<String> collectImageKeys(Diagnoses diagnoses) {
