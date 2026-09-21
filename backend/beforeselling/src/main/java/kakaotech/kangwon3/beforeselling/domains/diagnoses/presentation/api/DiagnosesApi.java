@@ -56,7 +56,6 @@ public interface DiagnosesApi {
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(responseClass = DiagnosesDetailResponse.class, description = "조회 성공"),
             errors = {
-                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "FORBIDDEN"),
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
@@ -90,7 +89,6 @@ public interface DiagnosesApi {
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(description = "삭제 성공"),
             errors = {
-                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "FORBIDDEN"),
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
