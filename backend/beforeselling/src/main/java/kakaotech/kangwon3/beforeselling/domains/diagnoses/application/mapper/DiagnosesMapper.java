@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -21,7 +22,7 @@ public class DiagnosesMapper {
 
     private final S3UrlKeyCodec s3UrlKeyCodec;
 
-    public DiagnosesCreateCommand toCommand(Long userId, DiagnosesCreateRequest request) {
+    public DiagnosesCreateCommand toCommand(UUID userId, DiagnosesCreateRequest request) {
         return new DiagnosesCreateCommand(
                 userId,
                 request.productName(),

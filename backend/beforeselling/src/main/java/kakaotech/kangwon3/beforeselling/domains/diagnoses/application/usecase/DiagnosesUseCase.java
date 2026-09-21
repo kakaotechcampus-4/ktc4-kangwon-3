@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -20,24 +21,24 @@ public class DiagnosesUseCase {
     private final DiagnosesService diagnosesService;
     private final DiagnosesMapper diagnosesMapper;
 
-    public DiagnosesCreateResponse createDiagnoses(Long userId, DiagnosesCreateRequest request) {
+    public DiagnosesCreateResponse createDiagnoses(UUID userId, DiagnosesCreateRequest request) {
         Diagnoses diagnoses = diagnosesService.createDiagnoses(diagnosesMapper.toCommand(userId, request));
 
         // TODO: AI 서버에 진단 요청(POST /api/diagnoses)을 보내고 processingStatus를 IN_PROGRESS로 전이?
         return diagnosesMapper.toCreateResponse(diagnoses);
     }
 
-    public DiagnosesDetailResponse getDiagnoses(Long userId, Long diagnosesId) {
+    public DiagnosesDetailResponse getDiagnoses(UUID userId, UUID diagnosesId) {
         Diagnoses diagnoses = diagnosesService.getDiagnoses(userId, diagnosesId);
 
         return diagnosesMapper.toDetailResponse(diagnoses);
     }
 
-    public DiagnosesListResponse getDiagnosesList(Long userId, ResultStatus resultStatus, Pageable pageable) {
+    public DiagnosesListResponse getDiagnosesList(UUID userId, ResultStatus resultStatus, Pageable pageable) {
         return diagnosesMapper.toListResponse(diagnosesService.getDiagnosesList(userId, resultStatus, pageable));
     }
 
-    public void removeDiagnoses(Long userId, Long diagnosesId) {
+    public void removeDiagnoses(UUID userId, UUID diagnosesId) {
         diagnosesService.removeDiagnoses(userId, diagnosesId);
     }
 }
