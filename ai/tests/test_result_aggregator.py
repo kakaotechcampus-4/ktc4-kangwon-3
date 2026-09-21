@@ -189,3 +189,30 @@ def test_중복_finding을_제거하지_않아_검증_단계가_발견할_수_�
 
     assert len(draft.findings) == 2
     assert draft.findings[0].finding_id == draft.findings[1].finding_id
+
+
+def test_모든_Tool이_미선택되어_finding이_없으면_정보_부족으로_판정한다():
+    draft = ResultAggregator().aggregate(
+        Product(product_id="p1"),
+        _selection_result(),
+    )
+
+    assert draft.selected_tools == []
+    assert draft.findings == []
+    assert draft.overall_status is OverallStatus.INSUFFICIENT_INFORMATION
+
+
+def test_선택된_Tool이_finding을_반환하지_않으면_정보_부족으로_판정한다():
+    draft = ResultAggregator().aggregate(
+        Product(product_id="p1"),
+        _selection_result(
+            _tool_result(
+                status=ToolStatus.SUCCESS,
+                findings=[],
+            )
+        ),
+    )
+
+    assert draft.selected_tools == [ToolName.ELECTRICAL]
+    assert draft.findings == []
+    assert draft.overall_status is OverallStatus.INSUFFICIENT_INFORMATION
