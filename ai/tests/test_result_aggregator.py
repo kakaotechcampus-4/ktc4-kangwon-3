@@ -3,7 +3,8 @@
 import pytest
 
 from app.pipeline.aggregator import ResultAggregator
-from app.schemas.agent import SelectionResult, ToolSelectionItem, ToolSelectionResponse
+from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
+from app.schemas.pipeline import SelectionResult
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination,

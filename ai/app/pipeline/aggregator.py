@@ -2,7 +2,7 @@
 
 from collections.abc import Iterable
 
-from ..schemas.agent import SelectionResult
+from ..schemas.pipeline import SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import (
     Determination,
