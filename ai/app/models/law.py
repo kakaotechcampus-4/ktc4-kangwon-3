@@ -1,7 +1,7 @@
 from datetime import date
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Date, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -46,7 +46,7 @@ class LawArticle(Base):
     )
 
     law_article_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    law_id: Mapped[int] = mapped_column(nullable=False)
+    law_id: Mapped[int] = mapped_column(ForeignKey("laws.law_id"), nullable=False)
     article_no: Mapped[int] = mapped_column(Integer, nullable=False)
     article_branch: Mapped[int | None] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(String(300))
