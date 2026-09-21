@@ -4,6 +4,7 @@ from app.models.customs import CustomsConfirmation
 from app.models.hs_case import HsCase
 from app.models.law import Law, LawArticle
 from app.models.medical_device import MedicalDevice
+from app.models.recall import Recall
 
 __all__ = [
     "Base",
@@ -13,4 +14,5 @@ __all__ = [
     "Law",
     "LawArticle",
     "MedicalDevice",
+    "Recall",
 ]
