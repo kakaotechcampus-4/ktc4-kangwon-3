@@ -8,6 +8,8 @@ import kakaotech.kangwon3.beforeselling.global.security.oauth2.unlink.SocialUnli
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class UserWithdrawalUseCase {
@@ -17,7 +19,7 @@ public class UserWithdrawalUseCase {
     private final SocialUnlinkService socialUnlinkService;
     private final DiagnosesService diagnosesService;
 
-    public void withdraw(Long userId, String refreshToken) {
+    public void withdraw(UUID userId, String refreshToken) {
         User user = userService.getUser(userId);
         userService.withdraw(userId);
         diagnosesService.removeAllByUserId(userId);
