@@ -20,7 +20,7 @@ public class UserWithdrawalUseCase {
     public void withdraw(Long userId, String refreshToken) {
         User user = userService.getUser(userId);
         userService.withdraw(userId);
-        diagnosesService.removeFilesByUserId(userId);
+        diagnosesService.removeAllByUserId(userId);
         authTokenService.removeRefreshToken(refreshToken);
         socialUnlinkService.unlink(user);
     }
