@@ -4,6 +4,7 @@ from pydantic import Field
 
 from .base import StrictModel
 from .schemas import ToolName, ToolResult, VerificationResult
+from .agent import ToolSelectionResponse
 
 
 class RetryRequest(StrictModel):
@@ -18,3 +19,12 @@ class RetryRequest(StrictModel):
 
     verification: VerificationResult
     latest_tool_results: list[ToolResult]
+
+class SelectionResult(StrictModel):
+    """Tool Executor가 반환하는 선택 내역과 실제 실행 기록."""
+
+    selection: ToolSelectionResponse
+    # 각 툴의 최신 결과 6개. 미선택 툴도 상태와 이유를 기록한다.
+    tool_results: list[ToolResult]
+    # 모델이 같은 툴을 다시 호출한 경우를 포함한 실제 실행 이력.
+    tool_result_history: list[ToolResult]

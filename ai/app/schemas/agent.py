@@ -5,7 +5,7 @@ from typing import Self
 from pydantic import Field, model_validator
 
 from .base import StrictModel
-from .schemas import ToolName, ToolResult
+from .schemas import ToolName
 
 
 class ExtractionInput(StrictModel):
@@ -41,13 +41,3 @@ class ToolSelectionResponse(StrictModel):
         if len(names) != len(ToolName) or set(names) != set(ToolName):
             raise ValueError("선택 결과에는 6개 심사 툴이 각각 한 번씩 있어야 합니다.")
         return self
-
-
-class SelectionResult(StrictModel):
-    """선택 에이전트가 반환하는 선택 내역과 실제 실행 기록."""
-
-    selection: ToolSelectionResponse
-    # 각 툴의 최신 결과 6개. 미선택 툴도 상태와 이유를 기록한다.
-    tool_results: list[ToolResult]
-    # 모델이 같은 툴을 다시 호출한 경우를 포함한 실제 실행 이력.
-    tool_result_history: list[ToolResult]
