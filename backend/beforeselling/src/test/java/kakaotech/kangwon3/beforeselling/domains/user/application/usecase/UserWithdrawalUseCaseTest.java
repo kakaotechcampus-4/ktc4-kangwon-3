@@ -15,12 +15,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.UUID;
+
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.inOrder;
 import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class UserWithdrawalUseCaseTest {
+
+    private static final UUID USER_ID = UUID.randomUUID();
 
     @Mock
     private UserService userService;
@@ -41,17 +45,17 @@ class UserWithdrawalUseCaseTest {
     @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 회원 정보를 삭제하고, 진단서를 삭제하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
     void withdraw_thenUnlinkThenDeleteUserAndRemoveRefreshToken() {
         // given
-        User user = createUser(1L);
-        given(userService.getUser(1L)).willReturn(user);
+        User user = createUser(USER_ID);
+        given(userService.getUser(USER_ID)).willReturn(user);
 
         // when
-        userWithdrawalUseCase.withdraw(1L, "refresh-token");
+        userWithdrawalUseCase.withdraw(USER_ID, "refresh-token");
 
         // then
         InOrder inOrder = inOrder(userService, diagnosesService, socialUnlinkService, authTokenService);
-        then(userService).should(inOrder).getUser(1L);
-        then(userService).should(inOrder).withdraw(1L);
-        then(diagnosesService).should(inOrder).removeAllByUserId(1L);
+        then(userService).should(inOrder).getUser(USER_ID);
+        then(userService).should(inOrder).withdraw(USER_ID);
+        then(diagnosesService).should(inOrder).removeAllByUserId(USER_ID);
         then(authTokenService).should(inOrder).removeRefreshToken("refresh-token");
         then(socialUnlinkService).should(inOrder).unlink(user);
     }
@@ -60,20 +64,20 @@ class UserWithdrawalUseCaseTest {
     @DisplayName("리프레시 토큰 쿠키가 없어도 회원 탈퇴는 정상적으로 처리된다.")
     void withdraw_withoutRefreshToken_thenStillDeleteUser() {
         // given
-        User user = createUser(1L);
-        given(userService.getUser(1L)).willReturn(user);
+        User user = createUser(USER_ID);
+        given(userService.getUser(USER_ID)).willReturn(user);
 
         // when
-        userWithdrawalUseCase.withdraw(1L, null);
+        userWithdrawalUseCase.withdraw(USER_ID, null);
 
         // then
         then(socialUnlinkService).should().unlink(user);
-        then(userService).should().withdraw(1L);
-        then(diagnosesService).should().removeAllByUserId(1L);
+        then(userService).should().withdraw(USER_ID);
+        then(diagnosesService).should().removeAllByUserId(USER_ID);
         then(authTokenService).should().removeRefreshToken(null);
     }
 
-    private User createUser(Long id) {
+    private User createUser(UUID id) {
         User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "사용자");
         ReflectionTestUtils.setField(user, "id", id);
         return user;
