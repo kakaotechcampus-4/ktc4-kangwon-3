@@ -11,6 +11,11 @@ html {
     /* Primary - CTA 버튼 (진단서 확인하기, 상품 추가하기 등) */
     --color-primary: #1058FC;
 
+    /* 진단 프로세스 상태 아이콘 애니메이션 (Judgement/Process) */
+    --animate-soft-ping: soft-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+    --animate-pop-in: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    --animate-shake: shake 0.4s ease-in-out both;
+
     /* Neutral - 텍스트, 테두리, 비활성 탭 */
     --color-neutral-dark: #646464;    /* 선택된 탭 배경, 보조 설명 텍스트 */
     --color-neutral-border: #9D9D9D;  /* 카드 테두리, placeholder, 비활성 텍스트 */
@@ -27,4 +32,24 @@ html {
 
     --color-status-warning: #8A6510;
     --color-status-warning-bg: #F5EED7;   /* 재확인 필요 / 경고 배너 */
+}
+
+@keyframes soft-ping {
+    0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-neutral-border) 45%, transparent); }
+    70% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-neutral-border) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-neutral-border) 0%, transparent); }
+}
+
+@keyframes pop-in {
+    0% { transform: scale(0.6); opacity: 0; }
+    60% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-3px); }
+    40% { transform: translateX(3px); }
+    60% { transform: translateX(-2px); }
+    80% { transform: translateX(2px); }
 }

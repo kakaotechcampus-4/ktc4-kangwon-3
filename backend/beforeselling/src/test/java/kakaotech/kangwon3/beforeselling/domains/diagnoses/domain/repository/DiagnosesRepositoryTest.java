@@ -113,6 +113,31 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
+    @DisplayName("사용자 탈퇴용으로 조회하면 해당 사용자의 모든 진단서를 이미지와 함께 반환하고 다른 사용자의 것은 제외한다.")
+    void findWithImagesByUserId_thenReturnAllDiagnosesWithImagesOfUser() {
+        // given
+        Diagnoses target1 = createDiagnoses(USER_ID, null);
+        target1.addImages(List.of("product-detail/1/uuid_a1.jpg"));
+        diagnosesRepository.save(target1);
+
+        Diagnoses target2 = createDiagnoses(USER_ID, null);
+        diagnosesRepository.save(target2);
+
+        diagnosesRepository.save(createDiagnoses(OTHER_USER_ID, null));
+        flushAndClear();
+
+        // when
+        List<Diagnoses> result = diagnosesRepository.findWithImagesByUserId(USER_ID);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result)
+                .flatExtracting(Diagnoses::getImages)
+                .extracting(DiagnosesImage::getImageKey)
+                .containsExactly("product-detail/1/uuid_a1.jpg");
+    }
+
+    @Test
     @DisplayName("마이페이지 목록을 조회하면 다른 사용자의 진단서는 제외된다.")
     void findByUserId_thenExcludeOtherUsersDiagnoses() {
         // given
