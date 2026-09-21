@@ -8,7 +8,7 @@ import urlIcon from "@/assets/upload-url.svg"
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import { cn } from "@/lib/cn";
 
-import AttachedImageList from "./AttachedImageList.tsx"
+import AttachedImageList from "./form/AttachedImageList.tsx"
 import type { DiagnosisStatus } from "./types.ts";
 
 interface AddedProductProps {
