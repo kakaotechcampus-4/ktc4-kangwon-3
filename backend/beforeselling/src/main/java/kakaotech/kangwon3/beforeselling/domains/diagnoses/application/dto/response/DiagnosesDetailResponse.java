@@ -4,9 +4,10 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 public record DiagnosesDetailResponse(
-        Long diagnosesId,
+        UUID diagnosesId,
         String productName,
         String productImageUrl,
         SourceType sourceType,
