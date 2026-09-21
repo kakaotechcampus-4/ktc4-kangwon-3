@@ -3,7 +3,8 @@
 from collections.abc import Mapping
 from uuid import uuid4
 
-from ..schemas.agent import SelectionResult, ToolSelectionItem, ToolSelectionResponse
+from ..schemas.agent import ToolSelectionItem, ToolSelectionResponse
+from ..schemas.pipeline import SelectionResult
 from ..schemas.base import utc_now
 from ..schemas.product import Product
 from ..schemas.schemas import ToolName, ToolResult, ToolStatus
