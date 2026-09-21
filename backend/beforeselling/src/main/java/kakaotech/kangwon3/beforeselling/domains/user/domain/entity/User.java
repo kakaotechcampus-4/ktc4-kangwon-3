@@ -5,8 +5,6 @@ import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -16,6 +14,9 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
+
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -29,9 +30,9 @@ public class User extends BaseEntity {
     private static final String DEFAULT_NAME = "사용자";
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "user_id")
-    private Long id;
+    private UUID id;
 
     @Column(name = "email")
     private String email;
