@@ -109,7 +109,7 @@ class ResultAggregator:
             or finding.risk_level is RiskLevel.UNKNOWN
             for finding in findings
         )
-        if has_incomplete_tool or missing_information or has_incomplete_finding:
+        if has_incomplete_tool or missing_information or has_incomplete_finding or not findings:
             return OverallStatus.INSUFFICIENT_INFORMATION
 
         return OverallStatus.LIKELY_COMPLIANT
