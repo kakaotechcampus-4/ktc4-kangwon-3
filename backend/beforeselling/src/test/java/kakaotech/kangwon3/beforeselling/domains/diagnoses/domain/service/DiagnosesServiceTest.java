@@ -156,8 +156,8 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서를 조회하면 FORBIDDEN 예외가 발생한다.")
-    void getDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
+    @DisplayName("다른 사용자의 진단서를 조회하면 NOT_FOUND 예외가 발생한다.")
+    void getDiagnoses_withOtherUsersDiagnoses_thenThrowNotFound() {
         // given
         given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(createDiagnoses(1L, 2L)));
 
@@ -165,7 +165,7 @@ class DiagnosesServiceTest {
         assertThatThrownBy(() -> diagnosesService.getDiagnoses(1L, 1L))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.FORBIDDEN);
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
     }
 
     @Test
@@ -229,8 +229,8 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서를 삭제하면 FORBIDDEN 예외가 발생하고 아무것도 삭제되지 않는다.")
-    void removeDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
+    @DisplayName("다른 사용자의 진단서를 삭제하면 NOT_FOUND 예외가 발생하고 아무것도 삭제되지 않는다.")
+    void removeDiagnoses_withOtherUsersDiagnoses_thenThrowNotFound() {
         // given
         given(diagnosesRepository.findWithImagesById(1L)).willReturn(Optional.of(createDiagnoses(1L, 2L)));
 
@@ -238,7 +238,7 @@ class DiagnosesServiceTest {
         assertThatThrownBy(() -> diagnosesService.removeDiagnoses(1L, 1L))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.FORBIDDEN);
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
 
         then(diagnosesRepository).should(never()).delete(any());
     }
