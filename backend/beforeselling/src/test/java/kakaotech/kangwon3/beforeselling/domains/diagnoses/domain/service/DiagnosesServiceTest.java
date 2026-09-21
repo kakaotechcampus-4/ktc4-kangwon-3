@@ -244,8 +244,23 @@ class DiagnosesServiceTest {
     }
 
     @Test
+    @DisplayName("회원 탈퇴 시 해당 사용자의 모든 진단서가 저장소에서 삭제된다.")
+    void removeAllByUserId_thenDeleteAllDiagnosesOfUser() {
+        // given
+        Diagnoses first = createDiagnoses(1L, 1L);
+        Diagnoses second = createDiagnoses(2L, 1L);
+        given(diagnosesRepository.findWithImagesByUserId(1L)).willReturn(List.of(first, second));
+
+        // when
+        diagnosesService.removeAllByUserId(1L);
+
+        // then
+        then(diagnosesRepository).should().deleteAll(List.of(first, second));
+    }
+
+    @Test
     @DisplayName("회원 탈퇴 시 해당 사용자의 모든 진단서 이미지 key에 대해 S3 삭제 이벤트가 한 번에 발행된다.")
-    void removeFilesByUserId_thenPublishS3FileDeleteEventForAllDiagnoses() {
+    void removeAllByUserId_thenPublishS3FileDeleteEventForAllDiagnoses() {
         // given
         Diagnoses first = createDiagnoses(1L, 1L);
         first.addImages(List.of("product-detail/1/uuid_a1.jpg"));
@@ -253,7 +268,7 @@ class DiagnosesServiceTest {
         given(diagnosesRepository.findWithImagesByUserId(1L)).willReturn(List.of(first, second));
 
         // when
-        diagnosesService.removeFilesByUserId(1L);
+        diagnosesService.removeAllByUserId(1L);
 
         // then
         then(eventPublisher).should().publishEvent(eventCaptor.capture());
@@ -263,12 +278,12 @@ class DiagnosesServiceTest {
 
     @Test
     @DisplayName("회원 탈퇴 시 삭제할 진단서가 없으면 이벤트를 발행하지 않는다.")
-    void removeFilesByUserId_withNoDiagnoses_thenDoNotPublishEvent() {
+    void removeAllByUserId_withNoDiagnoses_thenDoNotPublishEvent() {
         // given
         given(diagnosesRepository.findWithImagesByUserId(1L)).willReturn(List.of());
 
         // when
-        diagnosesService.removeFilesByUserId(1L);
+        diagnosesService.removeAllByUserId(1L);
 
         // then
         then(eventPublisher).should(never()).publishEvent(any());
