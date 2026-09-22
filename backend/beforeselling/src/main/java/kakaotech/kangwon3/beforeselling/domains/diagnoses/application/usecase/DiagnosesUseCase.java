@@ -7,7 +7,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper.DiagnosesMapper;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
