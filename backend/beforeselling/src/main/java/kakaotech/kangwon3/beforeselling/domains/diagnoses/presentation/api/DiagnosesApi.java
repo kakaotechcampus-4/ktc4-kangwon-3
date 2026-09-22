@@ -10,7 +10,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.reques
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiErrorResponseExplanation;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiResponseExplanations;
