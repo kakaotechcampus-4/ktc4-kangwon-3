@@ -11,8 +11,8 @@ interface SettingToggleRowProps {
 function SettingToggleRow({ title, description, checked, onChange, disabled }: SettingToggleRowProps) {
     return (
         <div className="relative w-full">
-            <h6>{title}</h6>
-            {description && <p>{description}</p>}
+            <h6 className="text-base font-semibold">{title}</h6>
+            {description && <p className="text-sm font-normal text-neutral-dark">{description}</p>}
             <Toggle
                 checked={checked}
                 onChange={onChange}
