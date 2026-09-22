@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -32,11 +33,9 @@ public class ProductService {
     /**
      * 마이페이지 상품 목록. 진단서가 아니라 상품 단위로 조회한다.
      */
-    public Page<Product> getProductList(Long userId, ResultStatus resultStatus, Pageable pageable) {
-        if (resultStatus == null) {
-            return productRepository.findByDiagnosesUserId(userId, pageable);
-        }
-        return productRepository.findByDiagnosesUserIdAndResultStatus(userId, resultStatus, pageable);
+    public Page<Product> getProductList(Long userId, ResultStatus resultStatus,
+                                        String keyword, Pageable pageable) {
+        return productRepository.search(userId, resultStatus, normalizeKeyword(keyword), pageable);
     }
 
     /**
@@ -66,6 +65,11 @@ public class ProductService {
 
         log.debug("상품 삭제 완료. productId={}, userId={}, 진단서 함께 삭제={}",
                 productId, userId, diagnosesRemoved);
+    }
+
+    // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.
+    private String normalizeKeyword(String keyword) {
+        return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 
     private void publishDeleteEvent(List<String> keys) {
