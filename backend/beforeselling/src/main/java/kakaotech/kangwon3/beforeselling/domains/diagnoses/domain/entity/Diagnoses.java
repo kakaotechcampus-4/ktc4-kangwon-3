@@ -53,6 +53,14 @@ public class Diagnoses extends BaseEntity {
         }
     }
 
+    public void removeProduct(Product product) {
+        products.remove(product);
+    }
+
+    public boolean isEmpty() {
+        return products.isEmpty();
+    }
+
     public boolean isOwnedBy(Long userId) {
         return this.userId.equals(userId);
     }
