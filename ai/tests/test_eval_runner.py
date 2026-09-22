@@ -137,7 +137,7 @@ def test_실제로_저장되는_파일에_meta가_들어간다(tmp_path, monkeyp
 
     monkeypatch.setattr(runner, "RAW_DIR", raw_dir)
     monkeypatch.setattr(runner, "RESULT_DIR", tmp_path / "out")
-    monkeypatch.setattr(runner, "ExtractionAgent", lambda: object())
+    monkeypatch.setattr(runner, "ExtractionAgent", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(runner, "load_settings", lambda: SimpleNamespace(model="openai/gpt-4.1-mini"))
     monkeypatch.setattr(runner, "run_fixture", lambda *a, **k: [{"product_id": "x"}])
     # 채점은 이 테스트의 관심사가 아니다.
@@ -152,3 +152,28 @@ def test_실제로_저장되는_파일에_meta가_들어간다(tmp_path, monkeyp
     assert saved["meta"]["model"] == "openai/gpt-4.1-mini"
     assert saved["meta"]["prompt_sha256"] == prompt_fingerprint()
     assert saved["results"] == {"power_bank": [{"product_id": "x"}]}
+
+
+def test_평가_러너는_평가용_이름으로_에이전트를_만든다(tmp_path, monkeypatch):
+    # 평가로 쓴 비용이 운영 비용과 같은 이름으로 쌓이면 나눠 볼 수 없다.
+    from app.eval import runner
+
+    created: list[dict] = []
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    truth = json.loads((runner.TRUTH_DIR / "power_bank.json").read_text(encoding="utf-8"))
+    (raw_dir / truth["fixture"]).write_text("본문", encoding="utf-8")
+
+    monkeypatch.setattr(runner, "RAW_DIR", raw_dir)
+    monkeypatch.setattr(runner, "RESULT_DIR", tmp_path / "out")
+    monkeypatch.setattr(runner, "ExtractionAgent",
+                        lambda **kwargs: created.append(kwargs) or SimpleNamespace(**kwargs))
+    monkeypatch.setattr(runner, "load_settings", lambda: SimpleNamespace(model="openai/gpt-4.1-mini"))
+    monkeypatch.setattr(runner, "run_fixture", lambda *a, **k: [{"product_id": "x"}])
+    monkeypatch.setattr(runner, "score", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "print_report", lambda *a, **k: None)
+    monkeypatch.setattr(sys, "argv", ["runner", "--fixture", "power_bank", "--runs", "1"])
+
+    assert runner.main() == 0
+
+    assert created == [{"usage_agent": "extraction-eval"}]
