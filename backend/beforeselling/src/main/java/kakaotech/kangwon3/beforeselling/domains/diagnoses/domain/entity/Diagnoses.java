@@ -5,6 +5,7 @@ import kakaotech.kangwon3.beforeselling.global.common.BaseEntity;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,7 @@ public class Diagnoses extends BaseEntity {
 
     @OneToMany(mappedBy = "diagnoses", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
+    @BatchSize(size = 100)
     private List<Product> products = new ArrayList<>();
 
     private Diagnoses(Long userId) {
