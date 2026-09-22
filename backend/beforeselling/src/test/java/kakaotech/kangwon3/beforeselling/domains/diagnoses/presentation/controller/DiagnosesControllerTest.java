@@ -211,17 +211,17 @@ class DiagnosesControllerTest {
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서를 조회하면 403과 COMMON-005 코드를 응답한다.")
-    void getDiagnoses_withOtherUsersDiagnoses_thenForbidden() throws Exception {
+    @DisplayName("다른 사용자의 진단서를 조회하면 404와 COMMON-006 코드를 응답한다.")
+    void getDiagnoses_withOtherUsersDiagnoses_thenNotFound() throws Exception {
         // given
-        willThrow(new BaseException(CommonResponseCode.FORBIDDEN))
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
                 .given(diagnosesUseCase).getDiagnoses(any(UUID.class), any(UUID.class));
 
         // when & then
         mockMvc.perform(get(BASE_URL + "/{diagnosesId}", DIAGNOSES_ID)
                         .with(authentication(loginUser())))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("COMMON-005"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMMON-006"));
     }
 
     @Test

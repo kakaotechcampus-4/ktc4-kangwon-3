@@ -57,7 +57,7 @@ public class DiagnosesService {
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
         if(!diagnoses.isOwnedBy(userId)) {
-            throw new BaseException(CommonResponseCode.FORBIDDEN);
+            throw new BaseException(CommonResponseCode.NOT_FOUND);
         }
         return diagnoses;
     }
