@@ -2,6 +2,8 @@
 
 from urllib.parse import unquote
 
+import httpx
+
 from .base import BaseClient
 from ..schemas.clients.fda_request import (
     CosmeticsReglRequest,
@@ -98,10 +100,13 @@ class FdaClient(BaseClient):
         Returns:
             dict: 응답 body (pageNo, totalCount, numOfRows, items 포함).
         """
-        response = self._get(endpoint, params={
-            "serviceKey": self._service_key,
-            "type": "json",
-            **params,
-        })
+        try:
+            response = self._get(endpoint, params={
+                "serviceKey": self._service_key,
+                "type": "json",
+                **params,
+            })
+        except httpx.HTTPStatusError as e:
+            raise self._mask_url(e) from None
         data = self._parse_json(response)
         return data.get("body", {})

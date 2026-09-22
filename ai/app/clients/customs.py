@@ -4,6 +4,8 @@ import re
 from urllib.parse import unquote
 from xml.etree.ElementTree import Element
 
+import httpx
+
 from .base import BaseClient
 from ..schemas.clients.customs_request import (
     CLIPSearchRequest,
@@ -123,11 +125,14 @@ class CustomsGwClient(BaseClient):
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
         """
-        response = self._get(self._ENDPOINT, params={
-            "serviceKey": self._service_key,            # 서비스 키
-            "hsSgn": request.hs_code,                   # HS 품목코드 (10자리, 하이픈 없음)
-            "imexTpcd": request.import_export,          # 수입/수출 구분
-        })
+        try:
+            response = self._get(self._ENDPOINT, params={
+                "serviceKey": self._service_key,            # 서비스 키
+                "hsSgn": request.hs_code,                   # HS 품목코드 (10자리, 하이픈 없음)
+                "imexTpcd": request.import_export,          # 수입/수출 구분
+            })
+        except httpx.HTTPStatusError as e:
+            raise self._mask_url(e) from None
         root = self._parse_xml(response)
         return CustomsGwConfirmationResponse(
             items=self._parse_items(root),
