@@ -30,10 +30,10 @@ function MyProductList({ products, page, totalPages, onPageChange }: MyProductLi
             </div>
             {totalPages > 1 && (
                 <div className="flex w-full items-center justify-center gap-3">
-                    <button type="button" disabled={page === 0} onClick={() => onPageChange(0)} className="disabled:opacity-30">
+                    <button type="button" disabled={page === 0} onClick={() => onPageChange(0)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
                         <img src={lastPageIcon} alt="처음" className="h-4 w-4 -scale-x-100" />
                     </button>
-                    <button type="button" disabled={page === 0} onClick={() => onPageChange(page - 1)} className="disabled:opacity-30">
+                    <button type="button" disabled={page === 0} onClick={() => onPageChange(page - 1)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
                         <img src={nextPageIcon} alt="이전" className="h-4 w-4 -scale-x-100" />
                     </button>
                     {pageNumbers.map((pageNumber) => (
@@ -42,17 +42,17 @@ function MyProductList({ products, page, totalPages, onPageChange }: MyProductLi
                             type="button"
                             onClick={() => onPageChange(pageNumber)}
                             className={cn(
-                                "text-sm",
+                                "cursor-pointer text-sm",
                                 pageNumber === page ? "font-bold text-black" : "font-medium text-neutral-border",
                             )}
                         >
                             {pageNumber + 1}
                         </button>
                     ))}
-                    <button type="button" disabled={page === totalPages - 1} onClick={() => onPageChange(page + 1)} className="disabled:opacity-30">
+                    <button type="button" disabled={page === totalPages - 1} onClick={() => onPageChange(page + 1)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
                         <img src={nextPageIcon} alt="다음" className="h-4 w-4" />
                     </button>
-                    <button type="button" disabled={page === totalPages - 1} onClick={() => onPageChange(totalPages - 1)} className="disabled:opacity-30">
+                    <button type="button" disabled={page === totalPages - 1} onClick={() => onPageChange(totalPages - 1)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
                         <img src={lastPageIcon} alt="마지막 페이지" className="h-4 w-4" />
                     </button>
                 </div>
