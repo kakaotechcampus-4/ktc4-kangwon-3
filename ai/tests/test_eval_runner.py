@@ -106,12 +106,12 @@ def test_재채점은_어떤_조건으로_잰_값인지_먼저_알린다(tmp_pat
     assert describe_metadata(meta) in printed
 
 
-def test_프롬프트_경로는_에이전트가_읽는_파일과_같다():
-    # 경로가 갈라지면 엉뚱한 파일의 지문을 기록하게 된다.
-    from app.agents import extraction
+def test_지문을_재는_파일과_에이전트가_읽는_내용이_같다():
+    # 경로 상수만 맞춰서는 부족하다. 에이전트가 다른 경로로 읽도록 바뀌면 지문은
+    # 엉뚱한 파일에서 나오는데 상수 비교로는 잡히지 않는다. 실제로 읽힌 내용으로 본다.
+    from app.agents.extraction import _load_system_prompt
 
-    assert EXTRACTION_PROMPT_PATH == extraction._PROMPT_PATH
-    assert EXTRACTION_PROMPT_PATH.exists()
+    assert EXTRACTION_PROMPT_PATH.read_text(encoding="utf-8") == _load_system_prompt()
 
 
 def test_지문이_없는_기록도_알_수_없다고_알린다():

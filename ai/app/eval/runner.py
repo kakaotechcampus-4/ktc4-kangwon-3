@@ -22,7 +22,7 @@ from pathlib import Path
 
 # 프롬프트 경로는 에이전트가 실제로 읽는 것과 반드시 같아야 한다. 여기서 경로를 다시
 # 적으면 한쪽만 옮겨졌을 때 "다른 프롬프트로 잰 결과"를 같은 것으로 착각하게 된다.
-from ..agents.extraction import _PROMPT_PATH as EXTRACTION_PROMPT_PATH
+from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..config import DEFAULT_MODEL, load_settings
 from ..schemas.agent import ExtractionInput
