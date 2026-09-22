@@ -118,6 +118,69 @@ class ApiVerificationTest {
         diagnosesService.removeAllByUserId(USER);
         System.out.println(">> removeAllByUserId(1) 실행 후:");
         printCounts();
+
+        section("17. === 상품 API (마이페이지) ===");
+        String multi = """
+                {"products":[
+                  {"productName":"대나무 헬리콥터","productImageKey":"product-main/1/uuid_a.jpg",
+                   "sourceType":"URL","sourceUrl":"https://ko.aliexpress.com/item/1"},
+                  {"productName":"타임머신","productImageKey":"product-main/1/uuid_b.jpg",
+                   "sourceType":"TEXT_IMAGE","sourceText":"본문","imageKeys":["product-detail/1/uuid_b1.jpg"]},
+                  {"productName":"어디로든 문","productImageKey":"product-main/1/uuid_c.jpg",
+                   "sourceType":"URL","sourceUrl":"https://ko.aliexpress.com/item/3"}
+                ]}""";
+        call(post("/api/v1/diagnoses").contentType(MediaType.APPLICATION_JSON).content(multi), USER, multi);
+        // 두 번째 진단서 — 여러 진단서의 상품이 한 목록으로 합쳐지는지 확인
+        String second = """
+                {"products":[{"productName":"타케콥터 대나무","productImageKey":"product-main/1/uuid_d.jpg",
+                 "sourceType":"URL","sourceUrl":"https://ko.aliexpress.com/item/4"}]}""";
+        call(post("/api/v1/diagnoses").contentType(MediaType.APPLICATION_JSON).content(second), USER, second);
+        // 남의 상품
+        String others = """
+                {"products":[{"productName":"남의 상품","productImageKey":"product-main/2/uuid_x.jpg",
+                 "sourceType":"URL","sourceUrl":"https://ko.aliexpress.com/item/9"}]}""";
+        call(post("/api/v1/diagnoses").contentType(MediaType.APPLICATION_JSON).content(others), OTHER, others);
+
+        section("18. GET /api/v1/products  — 마이페이지 목록 (진단서 2개의 상품이 합쳐짐)");
+        String listRes = call(get("/api/v1/products"), USER, null);
+        Long productId = extractProductId(listRes);
+
+        section("19. GET /api/v1/products?keyword=대나무  — 상품명 검색");
+        call(get("/api/v1/products").param("keyword", "대나무"), USER, null);
+
+        section("20. GET /api/v1/products?keyword=  — 빈 검색어는 전체 조회");
+        call(get("/api/v1/products").param("keyword", ""), USER, null);
+
+        section("21. GET /api/v1/products?resultStatus=RECHECK_REQUIRED  — 결과 필터");
+        call(get("/api/v1/products").param("resultStatus", "RECHECK_REQUIRED"), USER, null);
+
+        section("22. GET /api/v1/products?page=-1  — 잘못된 페이징 (ProductApi 검증)");
+        call(get("/api/v1/products").param("page", "-1"), USER, null);
+
+        section("23. GET /api/v1/products  — 남의 상품은 제외되는지 (user=2)");
+        call(get("/api/v1/products"), OTHER, null);
+
+        section("24. DELETE /api/v1/products/{id}  — 남의 상품 삭제 시도");
+        call(delete("/api/v1/products/" + productId), OTHER, null);
+
+        section("25. DB 상태 — 상품 삭제 전 (진단서 3 / 상품 5 / 이미지 1)");
+        printCounts();
+
+        section("26. DELETE — 상품이 1개뿐인 진단서의 상품 삭제 → 빈 진단서도 함께 삭제된다");
+        call(delete("/api/v1/products/" + productId), USER, null);
+        printCounts();
+
+        section("27. DELETE — 상품이 여러 개인 진단서에서 1개만 삭제 → 진단서는 유지된다");
+        String remainingRes = call(get("/api/v1/products"), USER, null);
+        List<Long> remainingIds = extractProductIdsOfDiagnoses(remainingRes);
+        call(delete("/api/v1/products/" + remainingIds.getFirst()), USER, null);
+        printCounts();
+
+        section("28. DELETE — 남은 상품을 모두 삭제 → 진단서도 사라지고 남의 데이터만 남는다");
+        for (Long remaining : remainingIds.subList(1, remainingIds.size())) {
+            call(delete("/api/v1/products/" + remaining), USER, null);
+        }
+        printCounts();
     }
 
     private String call(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder req,
@@ -154,6 +217,21 @@ class ApiVerificationTest {
         int end = i;
         while (end < json.length() && json.charAt(end) != '}' && json.charAt(end) != ',') end++;
         return Long.parseLong(json.substring(i + 14, end).trim());
+    }
+
+    private Long extractProductId(String json) {
+        int i = json.indexOf("\"productId\":");
+        int end = i + 12;
+        while (end < json.length() && Character.isDigit(json.charAt(end))) end++;
+        return Long.parseLong(json.substring(i + 12, end));
+    }
+
+    // 목록 응답에서 productId를 모두 뽑는다.
+    private java.util.List<Long> extractProductIdsOfDiagnoses(String json) {
+        java.util.List<Long> ids = new java.util.ArrayList<>();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"productId\":(\\d+)").matcher(json);
+        while (m.find()) ids.add(Long.parseLong(m.group(1)));
+        return ids;
     }
 
     private void section(String title) {
