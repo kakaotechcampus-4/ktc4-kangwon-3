@@ -6,6 +6,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,7 +16,7 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "product",
-        indexes = @Index(name = "idx_product_user_id_created_at", columnList = "user_id, created_at")
+        indexes = @Index(name = "idx_product_diagnoses_id_sort_order", columnList = "diagnoses_id, sort_order")
 )
 public class Product extends BaseEntity {
 
@@ -24,8 +25,12 @@ public class Product extends BaseEntity {
     @Column(name = "product_id")
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "diagnoses_id", nullable = false)
+    private Diagnoses diagnoses;
+
+    @Column(name = "sort_order", nullable = false)
+    private int sortOrder;
 
     @Column(name = "product_name", nullable = false)
     private String productName;
@@ -54,14 +59,15 @@ public class Product extends BaseEntity {
     @Column(name = "product_image_key", columnDefinition = "TEXT")
     private String productImageKey;
 
+    // 진단서 -> 상품을 fetch join한 뒤 상품별 이미지를 지연 로딩할 때 쿼리가 N번 나가는 것을 막는다.
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
+    @BatchSize(size = 100)
     private List<ProductImage> images = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Product(Long userId, String productName, String productImageKey,
+    private Product(String productName, String productImageKey,
                     SourceType sourceType, String sourceUrl, String sourceText) {
-        this.userId = userId;
         this.productName = productName;
         this.productImageKey = productImageKey;
         this.sourceType = sourceType;
@@ -70,10 +76,9 @@ public class Product extends BaseEntity {
         this.processingStatus = ProcessingStatus.PENDING;
     }
 
-    public static Product pending(Long userId, String productName, String productImageKey,
+    public static Product pending(String productName, String productImageKey,
                                   SourceType sourceType, String sourceUrl, String sourceText) {
         return Product.builder()
-                .userId(userId)
                 .productName(productName)
                 .productImageKey(productImageKey)
                 .sourceType(sourceType)
@@ -88,7 +93,9 @@ public class Product extends BaseEntity {
         }
     }
 
-    public boolean isOwnedBy(Long userId) {
-        return this.userId.equals(userId);
+    // Diagnoses.addProducts 에서만 호출한다. 상품은 진단서를 거쳐서만 연결되어야 한다.
+    void assignTo(Diagnoses diagnoses, int sortOrder) {
+        this.diagnoses = diagnoses;
+        this.sortOrder = sortOrder;
     }
 }
