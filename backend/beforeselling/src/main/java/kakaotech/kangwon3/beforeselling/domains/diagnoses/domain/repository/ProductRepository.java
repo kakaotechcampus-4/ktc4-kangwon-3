@@ -1,6 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,15 +11,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface DiagnosesRepository extends JpaRepository<Diagnoses, UUID> {
+public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     @EntityGraph(attributePaths = "images")
-    Optional<Diagnoses> findWithImagesById(UUID diagnosesId);
+    Optional<Product> findWithImagesById(UUID productId);
 
     @EntityGraph(attributePaths = "images")
-    List<Diagnoses> findWithImagesByUserId(UUID userId);
+    List<Product> findWithImagesByUserId(UUID userId);
 
-    Page<Diagnoses> findByUserId(UUID userId, Pageable pageable);
+    Page<Product> findByUserId(UUID userId, Pageable pageable);
 
-    Page<Diagnoses> findByUserIdAndResultStatus(UUID userId, ResultStatus resultStatus, Pageable pageable);
+    Page<Product> findByUserIdAndResultStatus(UUID userId, ResultStatus resultStatus, Pageable pageable);
 }

@@ -16,14 +16,14 @@ import java.util.UUID;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "diagnoses",
-        indexes = @Index(name = "idx_diagnoses_user_id_created_at", columnList = "user_id, created_at")
+        name = "product",
+        indexes = @Index(name = "idx_product_user_id_created_at", columnList = "user_id, created_at")
 )
-public class Diagnoses extends BaseEntity {
+public class Product extends BaseEntity {
 
     @Id
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
-    @Column(name = "diagnoses_id")
+    @Column(name = "product_id")
     private UUID id;
 
     @Column(name = "user_id", nullable = false)
@@ -56,13 +56,13 @@ public class Diagnoses extends BaseEntity {
     @Column(name = "product_image_key", columnDefinition = "TEXT")
     private String productImageKey;
 
-    @OneToMany(mappedBy = "diagnoses", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
-    private List<DiagnosesImage> images = new ArrayList<>();
+    private List<ProductImage> images = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Diagnoses(UUID userId, String productName, String productImageKey,
-                      SourceType sourceType, String sourceUrl, String sourceText) {
+    private Product(UUID userId, String productName, String productImageKey,
+                    SourceType sourceType, String sourceUrl, String sourceText) {
         this.userId = userId;
         this.productName = productName;
         this.productImageKey = productImageKey;
@@ -72,9 +72,9 @@ public class Diagnoses extends BaseEntity {
         this.processingStatus = ProcessingStatus.PENDING;
     }
 
-    public static Diagnoses pending(UUID userId, String productName, String productImageKey,
-                                    SourceType sourceType, String sourceUrl, String sourceText) {
-        return Diagnoses.builder()
+    public static Product pending(UUID userId, String productName, String productImageKey,
+                                  SourceType sourceType, String sourceUrl, String sourceText) {
+        return Product.builder()
                 .userId(userId)
                 .productName(productName)
                 .productImageKey(productImageKey)
@@ -86,7 +86,7 @@ public class Diagnoses extends BaseEntity {
 
     public void addImages(List<String> imageKeys) {
         for (String imageKey : imageKeys) {
-            images.add(new DiagnosesImage(this, imageKey, images.size()));
+            images.add(new ProductImage(this, imageKey, images.size()));
         }
     }
 

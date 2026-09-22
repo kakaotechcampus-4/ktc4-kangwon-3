@@ -5,10 +5,10 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesCreateCommand;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +49,7 @@ class DiagnosesMapperTest {
                 List.of("product-detail/1/uuid_a1.jpg"));
 
         // when
-        DiagnosesCreateCommand command = diagnosesMapper.toCommand(USER_ID, request);
+        ProductCreateCommand command = diagnosesMapper.toCommand(USER_ID, request);
 
         // then
         assertThat(command.userId()).isEqualTo(USER_ID);
@@ -68,7 +68,7 @@ class DiagnosesMapperTest {
                 PRODUCT_NAME, null, SourceType.URL, SOURCE_URL, null, null);
 
         // when
-        DiagnosesCreateCommand command = diagnosesMapper.toCommand(USER_ID, request);
+        ProductCreateCommand command = diagnosesMapper.toCommand(USER_ID, request);
 
         // then
         assertThat(command.imageKeys()).isNotNull().isEmpty();
@@ -88,11 +88,11 @@ class DiagnosesMapperTest {
     @DisplayName("진단서 상세로 변환하면 저장된 key가 접근 가능한 URL로 조립된다.")
     void toDetailResponse_thenConvertKeysToUrls() {
         // given
-        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY);
-        diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
+        Product product = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY);
+        product.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
 
         // when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(product);
 
         // then
         assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
@@ -154,7 +154,7 @@ class DiagnosesMapperTest {
     @DisplayName("목록으로 변환하면 진단서 요약과 페이징 정보가 함께 담긴다.")
     void toListResponse_thenIncludeSummariesAndPageInfo() {
         // given
-        Page<Diagnoses> page = new PageImpl<>(
+        Page<Product> page = new PageImpl<>(
                 List.of(createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY), createDiagnoses(OTHER_DIAGNOSES_ID, PRODUCT_IMAGE_KEY)),
                 PageRequest.of(0, 2),
                 5);
@@ -175,13 +175,13 @@ class DiagnosesMapperTest {
         assertThat(pageInfo.hasNext()).isTrue();
     }
 
-    private Diagnoses createDiagnoses(UUID diagnosesId, String productImageKey) {
-        Diagnoses diagnoses = Diagnoses.pending(
+    private Product createDiagnoses(UUID diagnosesId, String productImageKey) {
+        Product product = Product.pending(
                 USER_ID, PRODUCT_NAME, productImageKey, SourceType.URL, SOURCE_URL, null);
 
-        ReflectionTestUtils.setField(diagnoses, "id", diagnosesId);
-        ReflectionTestUtils.setField(diagnoses, "createdAt", LocalDateTime.now());
-        ReflectionTestUtils.setField(diagnoses, "updatedAt", LocalDateTime.now());
-        return diagnoses;
+        ReflectionTestUtils.setField(product, "id", diagnosesId);
+        ReflectionTestUtils.setField(product, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(product, "updatedAt", LocalDateTime.now());
+        return product;
     }
 }

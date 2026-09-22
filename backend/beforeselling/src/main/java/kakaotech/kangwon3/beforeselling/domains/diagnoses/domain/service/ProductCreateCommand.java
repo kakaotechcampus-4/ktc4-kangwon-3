@@ -5,7 +5,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceTy
 import java.util.List;
 import java.util.UUID;
 
-public record DiagnosesCreateCommand(
+public record ProductCreateCommand(
         UUID userId,
         String productName,
         String productImageKey,
