@@ -215,18 +215,17 @@ class DiagnosesControllerTest {
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서를 조회하면 404와 COMMON-006 코드를 응답한다.")
-    void getDiagnoses_withOtherUsersDiagnoses_thenNotFound() throws Exception {
-        // given: 소유권이 조회 조건에 포함되어 있어 남의 진단서는 "없는 것"과 같게 응답한다.
-        // 403을 주면 진단서 id의 존재 여부가 새어 나간다.
-        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
+    @DisplayName("다른 사용자의 진단서를 조회하면 403과 COMMON-005 코드를 응답한다.")
+    void getDiagnoses_withOtherUsersDiagnoses_thenForbidden() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.FORBIDDEN))
                 .given(diagnosesUseCase).getDiagnoses(anyLong(), anyLong());
 
         // when & then
         mockMvc.perform(get(BASE_URL + "/{diagnosesId}", 1L)
                         .with(authentication(loginUser())))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("COMMON-006"));
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("COMMON-005"));
     }
 
     @Test

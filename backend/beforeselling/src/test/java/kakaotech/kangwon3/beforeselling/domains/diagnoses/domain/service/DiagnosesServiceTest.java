@@ -20,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -39,6 +40,7 @@ import static org.mockito.BDDMockito.then;
 class DiagnosesServiceTest {
 
     private static final Long USER_ID = 1L;
+    private static final Long OTHER_USER_ID = 2L;
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -166,7 +168,7 @@ class DiagnosesServiceTest {
     void getDiagnoses_thenReturnDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L);
-        given(diagnosesRepository.findWithProductsByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(diagnoses));
+        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.of(diagnoses));
 
         // when
         Diagnoses result = diagnosesService.getDiagnoses(USER_ID, 1L);
@@ -179,7 +181,7 @@ class DiagnosesServiceTest {
     @DisplayName("존재하지 않는 진단서를 조회하면 NOT_FOUND 예외가 발생한다.")
     void getDiagnoses_withUnknownId_thenThrowNotFound() {
         // given
-        given(diagnosesRepository.findWithProductsByIdAndUserId(1L, USER_ID)).willReturn(Optional.empty());
+        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> diagnosesService.getDiagnoses(USER_ID, 1L))
@@ -189,17 +191,17 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서는 조회 조건에서 걸러지므로 NOT_FOUND 예외가 발생한다.")
-    void getDiagnoses_withOtherUsersDiagnoses_thenThrowNotFound() {
-        // given: 소유권이 조회 조건에 포함되어 있어 남의 진단서는 애초에 조회되지 않는다.
-        // 403을 주면 진단서 id의 존재 여부가 새어 나가므로 "없는 것"과 같게 응답해야 한다.
-        given(diagnosesRepository.findWithProductsByIdAndUserId(1L, USER_ID)).willReturn(Optional.empty());
+    @DisplayName("다른 사용자의 진단서를 조회하면 FORBIDDEN 예외가 발생한다.")
+    void getDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
+        // given
+        given(diagnosesRepository.findWithProductsById(1L))
+                .willReturn(Optional.of(createDiagnoses(1L, OTHER_USER_ID, List.of())));
 
         // when & then
         assertThatThrownBy(() -> diagnosesService.getDiagnoses(USER_ID, 1L))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.NOT_FOUND);
+                .isEqualTo(CommonResponseCode.FORBIDDEN);
     }
 
     @Test
@@ -207,6 +209,7 @@ class DiagnosesServiceTest {
     void getDiagnosesList_withoutFilter_thenFindAllOfUser() {
         // given
         Pageable pageable = PageRequest.of(0, 10);
+        given(diagnosesRepository.findByUserId(USER_ID, pageable)).willReturn(Page.empty());
 
         // when
         diagnosesService.getDiagnosesList(USER_ID, null, pageable);
@@ -221,6 +224,8 @@ class DiagnosesServiceTest {
     void getDiagnosesList_withFilter_thenFindByProductResultStatus() {
         // given
         Pageable pageable = PageRequest.of(0, 10);
+        given(diagnosesRepository.findByUserIdAndProductResultStatus(
+                USER_ID, ResultStatus.RECHECK_REQUIRED, pageable)).willReturn(Page.empty());
 
         // when
         diagnosesService.getDiagnosesList(USER_ID, ResultStatus.RECHECK_REQUIRED, pageable);
@@ -236,7 +241,7 @@ class DiagnosesServiceTest {
     void removeDiagnoses_thenDeleteDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L);
-        given(diagnosesRepository.findWithProductsByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(diagnoses));
+        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.of(diagnoses));
 
         // when
         diagnosesService.removeDiagnoses(USER_ID, 1L);
@@ -250,7 +255,7 @@ class DiagnosesServiceTest {
     void removeDiagnoses_thenPublishS3FileDeleteEvent() {
         // given
         Diagnoses diagnoses = createDiagnoses(1L, List.of("product-detail/1/uuid_a1.jpg"));
-        given(diagnosesRepository.findWithProductsByIdAndUserId(1L, USER_ID)).willReturn(Optional.of(diagnoses));
+        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.of(diagnoses));
 
         // when
         diagnosesService.removeDiagnoses(USER_ID, 1L);
@@ -262,16 +267,17 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서를 삭제하려 하면 NOT_FOUND 예외가 발생하고 아무것도 삭제되지 않는다.")
-    void removeDiagnoses_withOtherUsersDiagnoses_thenThrowNotFound() {
+    @DisplayName("다른 사용자의 진단서를 삭제하려 하면 FORBIDDEN 예외가 발생하고 아무것도 삭제되지 않는다.")
+    void removeDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
         // given
-        given(diagnosesRepository.findWithProductsByIdAndUserId(1L, USER_ID)).willReturn(Optional.empty());
+        given(diagnosesRepository.findWithProductsById(1L))
+                .willReturn(Optional.of(createDiagnoses(1L, OTHER_USER_ID, List.of())));
 
         // when & then
         assertThatThrownBy(() -> diagnosesService.removeDiagnoses(USER_ID, 1L))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.NOT_FOUND);
+                .isEqualTo(CommonResponseCode.FORBIDDEN);
 
         then(diagnosesRepository).should(never()).delete(any());
     }
@@ -326,7 +332,11 @@ class DiagnosesServiceTest {
     }
 
     private Diagnoses createDiagnoses(Long diagnosesId, List<String> imageKeys) {
-        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        return createDiagnoses(diagnosesId, USER_ID, imageKeys);
+    }
+
+    private Diagnoses createDiagnoses(Long diagnosesId, Long ownerId, List<String> imageKeys) {
+        Diagnoses diagnoses = Diagnoses.pending(ownerId);
         ReflectionTestUtils.setField(diagnoses, "id", diagnosesId);
 
         Product product = Product.pending(

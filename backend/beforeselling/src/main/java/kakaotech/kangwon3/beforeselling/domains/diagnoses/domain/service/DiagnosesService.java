@@ -45,11 +45,18 @@ public class DiagnosesService {
         return saved;
     }
 
-    // 단건 조회(소유권은 조회 조건에 포함되어 있다)
+    // 단건 조회 + 소유권 검증
     public Diagnoses getDiagnoses(Long userId, Long diagnosesId) {
-        Diagnoses diagnoses = diagnosesRepository.findWithProductsByIdAndUserId(diagnosesId, userId)
+        Diagnoses diagnoses = diagnosesRepository.findWithProductsById(diagnosesId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
+        if (!diagnoses.isOwnedBy(userId)) {
+            throw new BaseException(CommonResponseCode.FORBIDDEN);
+        }
+
+        // open-in-view=false 라 DTO 매핑 시점에는 세션이 닫혀 있다.
+        // products는 EntityGraph로 함께 조회되지만 그 하위 images는 지연 상태이므로
+        // 트랜잭션 안에서 강제로 초기화한다(@BatchSize 덕에 추가 쿼리는 1번).
         diagnoses.getProducts().forEach(product -> product.getImages().size());
 
         return diagnoses;

@@ -68,7 +68,7 @@ class DiagnosesRepositoryTest {
 
         // when
         List<Product> result = diagnosesRepository
-                .findWithProductsByIdAndUserId(diagnosesId, USER_ID).orElseThrow().getProducts();
+                .findWithProductsById(diagnosesId).orElseThrow().getProducts();
 
         // then
         assertThat(result)
@@ -93,7 +93,7 @@ class DiagnosesRepositoryTest {
 
         // when
         List<ProductImage> result = diagnosesRepository
-                .findWithProductsByIdAndUserId(diagnosesId, USER_ID).orElseThrow()
+                .findWithProductsById(diagnosesId).orElseThrow()
                 .getProducts().getFirst().getImages();
 
         // then
@@ -101,17 +101,6 @@ class DiagnosesRepositoryTest {
                 .extracting(ProductImage::getImageKey)
                 .containsExactly(
                         "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg");
-    }
-
-    @Test
-    @DisplayName("다른 사용자의 진단서를 조회하면 빈 값이 반환된다.")
-    void findWithProductsByIdAndUserId_withOtherUsersDiagnoses_thenReturnEmpty() {
-        // given
-        Long diagnosesId = diagnosesRepository.save(createDiagnoses(OTHER_USER_ID, null)).getId();
-        flushAndClear();
-
-        // when & then
-        assertThat(diagnosesRepository.findWithProductsByIdAndUserId(diagnosesId, USER_ID)).isEmpty();
     }
 
     @Test
