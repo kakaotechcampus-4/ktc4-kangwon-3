@@ -52,7 +52,12 @@ def _to_final_status(status: VerificationStatus) -> FinalVerificationStatus:
         VerificationStatus.REVISION_REQUIRED: FinalVerificationStatus.INCOMPLETE,
         VerificationStatus.USER_INPUT_REQUIRED: FinalVerificationStatus.INCOMPLETE,
     }
-    return status_map[status]
+    
+    result = status_map.get(status)
+
+    if result is None:
+      raise ValueError(f"매핑되지 않은 검증 결과 상태입니다: {status}")
+    return result
 
 
 def _build_final_assessment(
@@ -103,5 +108,8 @@ class CompliancePipeline:
         )
         draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
         verification: VerificationResult = self._verifier.verify(draft)
+
+        # verification 결과에 따른 분기 구현 필요.
+        ...
 
         return _build_final_assessment(draft, verification)
