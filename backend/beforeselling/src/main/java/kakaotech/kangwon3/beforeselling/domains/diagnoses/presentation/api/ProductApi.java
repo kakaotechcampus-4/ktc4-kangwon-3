@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.SortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiErrorResponseExplanation;
@@ -44,7 +44,7 @@ public interface ProductApi {
             @Parameter(description = "페이지 크기")
             @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다.")
             @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다.") int size,
-            @Parameter(description = "정렬 기준") DiagnosesSortType sortType);
+            @Parameter(description = "정렬 기준") SortType sortType);
 
     @Operation(
             summary = "상품 단건 삭제",

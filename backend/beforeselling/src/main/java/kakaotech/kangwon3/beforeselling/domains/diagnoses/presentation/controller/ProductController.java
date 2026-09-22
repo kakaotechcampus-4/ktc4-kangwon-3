@@ -1,6 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.SortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.ProductUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.api.ProductApi;
@@ -38,7 +38,7 @@ public class ProductController implements ProductApi {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "LATEST") DiagnosesSortType sortType
+            @RequestParam(defaultValue = "LATEST") SortType sortType
     ) {
         Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100), sortType.getSort());
         ProductListResponse response =
