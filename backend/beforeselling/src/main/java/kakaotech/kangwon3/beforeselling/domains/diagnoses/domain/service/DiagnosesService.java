@@ -115,18 +115,10 @@ public class DiagnosesService {
 
     private List<String> collectImageKeys(Diagnoses diagnoses) {
         return diagnoses.getProducts().stream()
-                .flatMap(product -> collectImageKeys(product).stream())
+                .flatMap(product -> product.collectImageKeys().stream())
                 .toList();
     }
 
-    private List<String> collectImageKeys(Product product) {
-        List<String> keys = new ArrayList<>();
-        if (product.getProductImageKey() != null) {
-            keys.add(product.getProductImageKey());
-        }
-        product.getImages().stream().map(ProductImage::getImageKey).forEach(keys::add);
-        return keys;
-    }
 
     private void publishDeleteEvent(List<String> keys) {
         if (CollectionUtils.isEmpty(keys)) {

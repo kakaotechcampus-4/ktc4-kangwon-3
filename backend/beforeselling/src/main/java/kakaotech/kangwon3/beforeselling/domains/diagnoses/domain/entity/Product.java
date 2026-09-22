@@ -98,4 +98,14 @@ public class Product extends BaseEntity {
         this.diagnoses = diagnoses;
         this.sortOrder = sortOrder;
     }
+
+    // 대표 이미지와 상세 이미지 key를 순서대로 모은다(S3 정리·확정 처리에 사용).
+    public List<String> collectImageKeys() {
+        List<String> keys = new ArrayList<>();
+        if (productImageKey != null) {
+            keys.add(productImageKey);
+        }
+        images.stream().map(ProductImage::getImageKey).forEach(keys::add);
+        return keys;
+    }
 }
