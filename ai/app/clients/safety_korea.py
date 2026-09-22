@@ -1,5 +1,7 @@
 """국가기술표준원 제품안전정보센터 외부 API 클라이언트."""
 
+import httpx
+
 from .base import BaseClient
 from ..schemas.clients.safety_korea_request import (
     CertDetailRequest,
@@ -35,7 +37,7 @@ class SafetyKoreaClient(BaseClient):
 
     def __init__(self, auth_key: str):
         super().__init__(
-            base_url="http://www.safetykorea.kr",
+            base_url="https://www.safetykorea.kr",
             timeout=30.0,
             headers={"AuthKey": auth_key},
         )
@@ -171,6 +173,16 @@ class SafetyKoreaClient(BaseClient):
 
         Returns:
             dict: 응답 JSON (resultCode, resultMsg, resultData 포함).
+
+        Raises:
+            RuntimeError: 인증 실패(302 Redirect) 시.
         """
-        response = self._get(endpoint, params=params)
+        try:
+            response = self._get(endpoint, params=params)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 302:
+                raise RuntimeError(
+                    "SafetyKorea 인증 실패: AuthKey가 유효하지 않습니다 (302 Redirect)"
+                ) from None
+            raise
         return self._parse_json(response)
