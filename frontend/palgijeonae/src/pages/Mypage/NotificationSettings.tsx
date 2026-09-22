@@ -2,7 +2,8 @@ import { useState } from "react";
 
 import DefaultBox from "@/components/common/DefaultBox";
 import SectionIntro from "@/components/common/SectionIntro";
-import SettingToggleRow from "@/components/common/SettingToggleRow/index.tsx";
+
+import SettingToggleRow from "./SettingToggleRow.tsx";
 
 // 추후 다른 세팅 확장성을 위해 SettingToggleRow를 여러 개를 포함하는 컴포넌트로 분리
 function NotificationSettings() {
