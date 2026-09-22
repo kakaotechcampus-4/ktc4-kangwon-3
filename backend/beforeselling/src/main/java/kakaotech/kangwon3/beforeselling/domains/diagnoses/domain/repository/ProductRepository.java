@@ -6,6 +6,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -15,7 +17,14 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @EntityGraph(attributePaths = "images")
     Optional<Product> findWithImagesById(UUID productId);
 
-    Page<Product> findByDiagnosesUserId(UUID userId, Pageable pageable);
-
-    Page<Product> findByDiagnosesUserIdAndResultStatus(UUID userId, ResultStatus resultStatus, Pageable pageable);
+    @Query("""
+            select p from Product p
+            where p.diagnoses.userId = :userId
+              and (:resultStatus is null or p.resultStatus = :resultStatus)
+              and (:keyword is null or lower(p.productName) like lower(concat('%', :keyword, '%')))
+            """)
+    Page<Product> search(@Param("userId") UUID userId,
+                         @Param("resultStatus") ResultStatus resultStatus,
+                         @Param("keyword") String keyword,
+                         Pageable pageable);
 }
