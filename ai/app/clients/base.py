@@ -1,8 +1,11 @@
 """외부 API 클라이언트 공통 베이스."""
 
+import re
 from xml.etree.ElementTree import Element, fromstring
 
 import httpx
+
+_SENSITIVE_PARAM_RE = re.compile(r"(serviceKey=)[^&]+", re.IGNORECASE)
 
 
 class BaseClient:
@@ -61,6 +64,23 @@ class BaseClient:
         response = self._client.post(path, json=json)
         response.raise_for_status()
         return response
+
+    @staticmethod
+    def _mask_url(error: httpx.HTTPStatusError) -> httpx.HTTPStatusError:
+        """HTTPStatusError 메시지에서 민감한 쿼리 파라미터를 마스킹한다.
+
+        Args:
+            error: 원본 예외.
+
+        Returns:
+            httpx.HTTPStatusError: URL이 마스킹된 새 예외.
+        """
+        masked_msg = _SENSITIVE_PARAM_RE.sub(r"\1***", str(error))
+        return httpx.HTTPStatusError(
+            message=masked_msg,
+            request=error.request,
+            response=error.response,
+        )
 
     # -- 응답 파싱 --
 
