@@ -201,52 +201,6 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("본인의 진단서를 삭제하면 저장소에서 삭제된다.")
-    void removeDiagnoses_thenDeleteDiagnoses() {
-        // given
-        Diagnoses diagnoses = createDiagnoses(1L);
-        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.of(diagnoses));
-
-        // when
-        diagnosesService.removeDiagnoses(USER_ID, 1L);
-
-        // then
-        then(diagnosesRepository).should().delete(diagnoses);
-    }
-
-    @Test
-    @DisplayName("진단서를 삭제하면 모든 상품의 이미지 key에 대해 S3 삭제 이벤트가 발행된다.")
-    void removeDiagnoses_thenPublishS3FileDeleteEvent() {
-        // given
-        Diagnoses diagnoses = createDiagnoses(1L, List.of("product-detail/1/uuid_a1.jpg"));
-        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.of(diagnoses));
-
-        // when
-        diagnosesService.removeDiagnoses(USER_ID, 1L);
-
-        // then
-        then(eventPublisher).should().publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getValue().keys())
-                .containsExactly(PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg");
-    }
-
-    @Test
-    @DisplayName("다른 사용자의 진단서를 삭제하려 하면 FORBIDDEN 예외가 발생하고 아무것도 삭제되지 않는다.")
-    void removeDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
-        // given
-        given(diagnosesRepository.findWithProductsById(1L))
-                .willReturn(Optional.of(createDiagnoses(1L, OTHER_USER_ID, List.of())));
-
-        // when & then
-        assertThatThrownBy(() -> diagnosesService.removeDiagnoses(USER_ID, 1L))
-                .isInstanceOf(BaseException.class)
-                .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.FORBIDDEN);
-
-        then(diagnosesRepository).should(never()).delete(any());
-    }
-
-    @Test
     @DisplayName("회원 탈퇴 시 해당 사용자의 모든 진단서가 저장소에서 삭제된다.")
     void removeAllByUserId_thenDeleteAllDiagnosesOfUser() {
         // given

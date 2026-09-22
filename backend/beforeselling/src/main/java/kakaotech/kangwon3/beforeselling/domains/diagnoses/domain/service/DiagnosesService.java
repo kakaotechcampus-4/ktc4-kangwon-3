@@ -59,18 +59,6 @@ public class DiagnosesService {
         return diagnoses;
     }
 
-    // 진단서 삭제(상품과 이미지는 cascade로 함께 삭제)
-    @Transactional
-    public void removeDiagnoses(Long userId, Long diagnosesId) {
-        Diagnoses diagnoses = getDiagnoses(userId, diagnosesId);
-        List<String> imageKeys = collectImageKeys(diagnoses);
-
-        diagnosesRepository.delete(diagnoses);
-        publishDeleteEvent(imageKeys);
-
-        log.debug("진단서 삭제 완료. diagnosesId={}, userId={}", diagnosesId, userId);
-    }
-
     // 회원 탈퇴 시 해당 사용자의 모든 진단서를 삭제한다.
     @Transactional
     public void removeAllByUserId(Long userId) {

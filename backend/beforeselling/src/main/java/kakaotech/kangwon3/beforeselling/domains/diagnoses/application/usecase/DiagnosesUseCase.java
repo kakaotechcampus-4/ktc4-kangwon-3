@@ -26,8 +26,4 @@ public class DiagnosesUseCase {
     public DiagnosesDetailResponse getDiagnoses(Long userId, Long diagnosesId) {
         return diagnosesMapper.toDetailResponse(diagnosesService.getDiagnoses(userId, diagnosesId));
     }
-
-    public void removeDiagnoses(Long userId, Long diagnosesId) {
-        diagnosesService.removeDiagnoses(userId, diagnosesId);
-    }
 }

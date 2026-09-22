@@ -87,18 +87,6 @@ class ApiVerificationTest {
         String noName = "{\"products\":[{\"sourceType\":\"URL\",\"sourceUrl\":\"https://a.com\"}]}";
         call(post("/api/v1/diagnoses").contentType(MediaType.APPLICATION_JSON).content(noName), USER, noName);
 
-        section("12. DELETE /api/v1/diagnoses/{id}  — 남의 진단서 삭제 시도");
-        call(delete("/api/v1/diagnoses/" + id), OTHER, null);
-
-        section("13. DB 상태 — 삭제 전");
-        printCounts();
-
-        section("14. DELETE /api/v1/diagnoses/{id}  — 본인 진단서 삭제");
-        call(delete("/api/v1/diagnoses/" + id), USER, null);
-
-        section("15. DB 상태 — 삭제 후 (2단 cascade 확인)");
-        printCounts();
-
         section("16. 회원 탈퇴 시 전체 삭제 (removeAllByUserId)");
         String c2 = """
                 {"products":[{"productName":"어디로든 문","productImageKey":"product-main/1/uuid_c.jpg",

@@ -58,18 +58,4 @@ public interface DiagnosesApi {
     ResponseEntity<ApiResponse<DiagnosesDetailResponse>> getDiagnoses(
             @Parameter(hidden = true) UserPrincipal principal,
             Long diagnosesId);
-
-    @Operation(
-            summary = "상품 진단 단건 삭제",
-            description = "진단서와 딸린 이미지를 함께 삭제합니다. 삭제된 데이터는 복구할 수 없습니다.")
-    @ApiResponseExplanations(
-            success = @ApiSuccessResponseExplanation(description = "삭제 성공"),
-            errors = {
-                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "FORBIDDEN"),
-                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
-            }
-    )
-    ResponseEntity<ApiResponse<Void>> removeDiagnoses(
-            @Parameter(hidden = true) UserPrincipal principal,
-            Long diagnosesId);
 }

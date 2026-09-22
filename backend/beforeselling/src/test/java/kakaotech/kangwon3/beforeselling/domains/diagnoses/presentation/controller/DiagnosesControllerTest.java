@@ -220,31 +220,6 @@ class DiagnosesControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON-005"));
     }
 
-    @Test
-    @DisplayName("본인의 진단서를 삭제하면 성공 응답을 받는다.")
-    void removeDiagnoses_thenSuccess() throws Exception {
-        mockMvc.perform(delete(BASE_URL + "/{diagnosesId}", 1L)
-                        .with(authentication(loginUser())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("OK"));
-
-        then(diagnosesUseCase).should().removeDiagnoses(1L, 1L);
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 진단서를 삭제하면 404와 COMMON-006 코드를 응답한다.")
-    void removeDiagnoses_withUnknownId_thenNotFound() throws Exception {
-        // given
-        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
-                .given(diagnosesUseCase).removeDiagnoses(anyLong(), anyLong());
-
-        // when & then
-        mockMvc.perform(delete(BASE_URL + "/{diagnosesId}", 1L)
-                        .with(authentication(loginUser())))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value("COMMON-006"));
-    }
-
     private Authentication loginUser() {
         return UsernamePasswordAuthenticationToken.authenticated(
                 new UserPrincipal(1L, Role.USER),
