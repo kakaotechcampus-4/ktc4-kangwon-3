@@ -88,7 +88,7 @@ public class DiagnosesService {
 
     // 회원 탈퇴 시 해당 사용자의 모든 진단서를 삭제한다.
     @Transactional
-    public void removeAllByUserId(UUID userId) {
+    public void     removeAllByUserId(UUID userId) {
         List<Diagnoses> diagnosesList = diagnosesRepository.findWithProductsByUserId(userId);
 
         List<String> imageKeys = diagnosesList.stream()
