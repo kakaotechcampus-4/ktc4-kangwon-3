@@ -10,19 +10,19 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "diagnoses_image",
-        indexes = @Index(name = "idx_diagnoses_image_diagnoses_id", columnList = "diagnoses_id")
+        name = "product_image",
+        indexes = @Index(name = "idx_product_image_product_id", columnList = "product_id")
 )
-public class DiagnosesImage extends BaseEntity {
+public class ProductImage extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "diagnoses_image_id")
+    @Column(name = "product_image_id")
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "diagnoses_id", nullable = false)
-    private Diagnoses diagnoses;
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
 
     @Column(name = "image_key", nullable = false, columnDefinition = "TEXT")
     private String imageKey;
@@ -31,8 +31,8 @@ public class DiagnosesImage extends BaseEntity {
     @Column(name = "sort_order", nullable = false)
     private int sortOrder;
 
-    DiagnosesImage(Diagnoses diagnoses, String imageKey, int sortOrder) {
-        this.diagnoses = diagnoses;
+    ProductImage(Product product, String imageKey, int sortOrder) {
+        this.product = product;
         this.imageKey = imageKey;
         this.sortOrder = sortOrder;
     }

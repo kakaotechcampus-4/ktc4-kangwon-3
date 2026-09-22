@@ -5,9 +5,9 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.DiagnosesImage;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesCreateCommand;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -21,8 +21,8 @@ public class DiagnosesMapper {
 
     private final S3UrlKeyCodec s3UrlKeyCodec;
 
-    public DiagnosesCreateCommand toCommand(Long userId, DiagnosesCreateRequest request) {
-        return new DiagnosesCreateCommand(
+    public ProductCreateCommand toCommand(Long userId, DiagnosesCreateRequest request) {
+        return new ProductCreateCommand(
                 userId,
                 request.productName(),
                 request.productImageKey(),
@@ -33,44 +33,44 @@ public class DiagnosesMapper {
         );
     }
 
-    public DiagnosesCreateResponse toCreateResponse(Diagnoses diagnoses) {
-        return new DiagnosesCreateResponse(diagnoses.getId());
+    public DiagnosesCreateResponse toCreateResponse(Product product) {
+        return new DiagnosesCreateResponse(product.getId());
     }
 
-    public DiagnosesDetailResponse toDetailResponse(Diagnoses diagnoses) {
-        List<String> imageUrls = diagnoses.getImages().stream()
-                .map(DiagnosesImage::getImageKey)
+    public DiagnosesDetailResponse toDetailResponse(Product product) {
+        List<String> imageUrls = product.getImages().stream()
+                .map(ProductImage::getImageKey)
                 .map(s3UrlKeyCodec::toUrl)
                 .toList();
 
         return new DiagnosesDetailResponse(
-                diagnoses.getId(),
-                diagnoses.getProductName(),
-                s3UrlKeyCodec.toUrlOrNull(diagnoses.getProductImageKey()),
-                diagnoses.getSourceType(),
-                diagnoses.getSourceUrl(),
-                diagnoses.getSourceText(),
+                product.getId(),
+                product.getProductName(),
+                s3UrlKeyCodec.toUrlOrNull(product.getProductImageKey()),
+                product.getSourceType(),
+                product.getSourceUrl(),
+                product.getSourceText(),
                 imageUrls,
-                diagnoses.getProcessingStatus(),
-                diagnoses.getResultStatus(),
-                diagnoses.getSummary(),
-                diagnoses.getCreatedAt(),
-                diagnoses.getUpdatedAt()
+                product.getProcessingStatus(),
+                product.getResultStatus(),
+                product.getSummary(),
+                product.getCreatedAt(),
+                product.getUpdatedAt()
         );
     }
 
-    public DiagnosesSummaryResponse toSummaryResponse(Diagnoses diagnoses) {
+    public DiagnosesSummaryResponse toSummaryResponse(Product product) {
         return new DiagnosesSummaryResponse(
-                diagnoses.getId(),
-                diagnoses.getProductName(),
-                s3UrlKeyCodec.toUrlOrNull(diagnoses.getProductImageKey()),
-                diagnoses.getProcessingStatus(),
-                diagnoses.getResultStatus(),
-                diagnoses.getCreatedAt()
+                product.getId(),
+                product.getProductName(),
+                s3UrlKeyCodec.toUrlOrNull(product.getProductImageKey()),
+                product.getProcessingStatus(),
+                product.getResultStatus(),
+                product.getCreatedAt()
         );
     }
 
-    public DiagnosesListResponse toListResponse(Page<Diagnoses> page) {
+    public DiagnosesListResponse toListResponse(Page<Product> page) {
         List<DiagnosesSummaryResponse> diagnoses = page.getContent().stream()
                 .map(this::toSummaryResponse)
                 .toList();

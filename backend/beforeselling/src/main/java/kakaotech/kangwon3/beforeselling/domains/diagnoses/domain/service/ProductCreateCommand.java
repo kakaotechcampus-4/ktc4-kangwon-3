@@ -4,7 +4,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceTy
 
 import java.util.List;
 
-public record DiagnosesCreateCommand(
+public record ProductCreateCommand(
         Long userId,
         String productName,
         String productImageKey,
