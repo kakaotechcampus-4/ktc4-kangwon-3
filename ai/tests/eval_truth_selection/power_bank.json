@@ -1,0 +1,38 @@
+{
+  "fixture": "power_bank.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-22",
+  "summary": "MagSafe 배터리 케이스. 제목의 '1460mAh'와 스펙표의 '배터리 미포함'이 충돌해 전기 관련 필드가 전부 null이다. conflicts 처리를 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 'MagSafe'",
+      "why_not_other": "MagSafe는 통상 무선충전을 뜻하나 페이지가 명시하지 않는다. 원칙 1(놓치는 것보다 과잉 선택)에 따라 선택으로 본다. 판단이 갈릴 수 있어 확인 필요."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "식품 접촉·의료·화장품 표방 언급 없음",
+      "why_not_other": "휴대폰 케이스로 관련 신호가 없다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 '1460mAh' vs 스펙표 '배터리 미포함', '전자 부품 또는 마더보드 미포함'",
+      "why_not_other": "관련 필드가 전부 null이지만 conflicts가 있다. 원칙 6에 따라 선택한다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없고 어린이 대상 문구 없음",
+      "why_not_other": "for_children=false로 확인된다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "상품 문구는 규격·재질 나열이며 효능·최상급 표현 없음",
+      "why_not_other": "'안전한 결제' 등은 Temu 플랫폼 공통 문구라 상품 광고로 보지 않았다. 판단 기준 확인 필요."
+    }
+  }
+}
