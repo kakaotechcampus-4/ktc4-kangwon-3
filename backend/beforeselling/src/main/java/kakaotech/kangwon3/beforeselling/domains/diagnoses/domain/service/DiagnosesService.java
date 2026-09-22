@@ -47,16 +47,23 @@ public class DiagnosesService {
 
     // 단건 조회(소유권은 조회 조건에 포함되어 있다)
     public Diagnoses getDiagnoses(Long userId, Long diagnosesId) {
-        return diagnosesRepository.findWithProductsByIdAndUserId(diagnosesId, userId)
+        Diagnoses diagnoses = diagnosesRepository.findWithProductsByIdAndUserId(diagnosesId, userId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        diagnoses.getProducts().forEach(product -> product.getImages().size());
+
+        return diagnoses;
     }
 
     // 목록 조회, 결과 필터 유무 분기
     public Page<Diagnoses> getDiagnosesList(Long userId, ResultStatus resultStatus, Pageable pageable) {
-        if (resultStatus == null) {
-            return diagnosesRepository.findByUserId(userId, pageable);
-        }
-        return diagnosesRepository.findByUserIdAndProductResultStatus(userId, resultStatus, pageable);
+        Page<Diagnoses> page = (resultStatus == null)
+                ? diagnosesRepository.findByUserId(userId, pageable)
+                : diagnosesRepository.findByUserIdAndProductResultStatus(userId, resultStatus, pageable);
+
+        page.getContent().forEach(diagnoses -> diagnoses.getProducts().size());
+
+        return page;
     }
 
     // 진단서 삭제(상품과 이미지는 cascade로 함께 삭제)
