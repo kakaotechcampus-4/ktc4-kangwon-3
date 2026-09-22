@@ -15,10 +15,9 @@ import java.util.UUID;
 
 public interface DiagnosesRepository extends JpaRepository<Diagnoses, UUID> {
 
-    // 소유권을 조회 조건에 포함한다. 남의 진단서는 "없는 것"으로 취급해야
-    // 404/403 차이로 id 존재 여부가 새어 나가지 않는다.
+    // 소유권은 서비스에서 검증한다.
     @EntityGraph(attributePaths = "products")
-    Optional<Diagnoses> findWithProductsByIdAndUserId(UUID diagnosesId, UUID userId);
+    Optional<Diagnoses> findWithProductsById(UUID diagnosesId);
 
     @EntityGraph(attributePaths = "products")
     List<Diagnoses> findWithProductsByUserId(UUID userId);
