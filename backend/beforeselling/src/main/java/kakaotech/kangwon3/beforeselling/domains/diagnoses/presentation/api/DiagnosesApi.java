@@ -20,6 +20,8 @@ import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import org.springframework.http.ResponseEntity;
 
+import java.util.UUID;
+
 @Tag(name = "Diagnoses", description = """
         상품 진단서 API.
         판매하려는 상품의 상세페이지 URL 또는 텍스트·이미지를 등록하면 진단 요청이 생성됩니다.
@@ -56,13 +58,12 @@ public interface DiagnosesApi {
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(responseClass = DiagnosesDetailResponse.class, description = "조회 성공"),
             errors = {
-                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "FORBIDDEN"),
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
     ResponseEntity<ApiResponse<DiagnosesDetailResponse>> getDiagnoses(
             @Parameter(hidden = true) UserPrincipal principal,
-            Long diagnosesId);
+            UUID diagnosesId);
 
     @Operation(
             summary = "상품 진단 목록 조회",
@@ -90,11 +91,10 @@ public interface DiagnosesApi {
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(description = "삭제 성공"),
             errors = {
-                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "FORBIDDEN"),
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
     ResponseEntity<ApiResponse<Void>> removeDiagnoses(
             @Parameter(hidden = true) UserPrincipal principal,
-            Long diagnosesId);
+            UUID diagnosesId);
 }

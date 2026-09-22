@@ -23,6 +23,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,8 +34,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnableConfigurationProperties(CryptoProperties.class)
 class DiagnosesRepositoryTest {
 
-    private static final Long USER_ID = 1L;
-    private static final Long OTHER_USER_ID = 2L;
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID OTHER_USER_ID = UUID.randomUUID();
 
     @Autowired
     private DiagnosesRepository diagnosesRepository;
@@ -59,7 +60,7 @@ class DiagnosesRepositoryTest {
         // given
         Diagnoses diagnoses = createDiagnoses(USER_ID, null);
         diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg"));
-        Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
         // when
@@ -77,7 +78,7 @@ class DiagnosesRepositoryTest {
         // given
         Diagnoses diagnoses = createDiagnoses(USER_ID, null);
         diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
-        Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
         // when
@@ -100,7 +101,7 @@ class DiagnosesRepositoryTest {
 
         Diagnoses other = createDiagnoses(USER_ID, null);
         other.addImages(List.of("product-detail/1/uuid_a9.jpg"));
-        Long otherId = diagnosesRepository.save(other).getId();
+        UUID otherId = diagnosesRepository.save(other).getId();
         flushAndClear();
 
         // when
@@ -110,6 +111,31 @@ class DiagnosesRepositoryTest {
         // then
         assertThat(countImages()).isEqualTo(1);
         assertThat(diagnosesRepository.findById(otherId).orElseThrow().getImages()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("사용자 탈퇴용으로 조회하면 해당 사용자의 모든 진단서를 이미지와 함께 반환하고 다른 사용자의 것은 제외한다.")
+    void findWithImagesByUserId_thenReturnAllDiagnosesWithImagesOfUser() {
+        // given
+        Diagnoses target1 = createDiagnoses(USER_ID, null);
+        target1.addImages(List.of("product-detail/1/uuid_a1.jpg"));
+        diagnosesRepository.save(target1);
+
+        Diagnoses target2 = createDiagnoses(USER_ID, null);
+        diagnosesRepository.save(target2);
+
+        diagnosesRepository.save(createDiagnoses(OTHER_USER_ID, null));
+        flushAndClear();
+
+        // when
+        List<Diagnoses> result = diagnosesRepository.findWithImagesByUserId(USER_ID);
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result)
+                .flatExtracting(Diagnoses::getImages)
+                .extracting(DiagnosesImage::getImageKey)
+                .containsExactly("product-detail/1/uuid_a1.jpg");
     }
 
     @Test
@@ -204,7 +230,7 @@ class DiagnosesRepositoryTest {
         assertThat(result.getTotalElements()).isEqualTo(1);
     }
 
-    private Diagnoses createDiagnoses(Long userId, ResultStatus resultStatus) {
+    private Diagnoses createDiagnoses(UUID userId, ResultStatus resultStatus) {
         Diagnoses diagnoses = Diagnoses.pending(
                 userId,
                 "대나무 헬리콥터",

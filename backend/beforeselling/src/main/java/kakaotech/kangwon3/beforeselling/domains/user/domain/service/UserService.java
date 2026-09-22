@@ -11,6 +11,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -19,7 +21,7 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    public User getUser(Long userId) {
+    public User getUser(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
     }
@@ -47,14 +49,14 @@ public class UserService {
     }
 
     @Transactional
-    public void withdraw(Long userId) {
+    public void withdraw(UUID userId) {
         User user = getUser(userId);
         userRepository.delete(user);
         log.debug("회원 탈퇴 처리 완료. userId={}", userId);
     }
 
     @Transactional
-    public void updateSocialRefreshToken(Long userId, String refreshToken) {
+    public void updateSocialRefreshToken(UUID userId, String refreshToken) {
         User user = getUser(userId);
         user.updateSocialRefreshToken(refreshToken);
     }

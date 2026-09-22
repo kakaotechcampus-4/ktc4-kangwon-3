@@ -21,6 +21,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @Slf4j
 @RestController
 @Validated
@@ -47,7 +49,7 @@ public class DiagnosesController implements DiagnosesApi {
     @GetMapping("/{diagnosesId}")
     public ResponseEntity<ApiResponse<DiagnosesDetailResponse>> getDiagnoses(
             @LoginUser UserPrincipal principal,
-            @PathVariable Long diagnosesId
+            @PathVariable UUID diagnosesId
     ) {
         DiagnosesDetailResponse response = diagnosesUseCase.getDiagnoses(principal.userId(), diagnosesId);
 
@@ -75,7 +77,7 @@ public class DiagnosesController implements DiagnosesApi {
     @DeleteMapping("/{diagnosesId}")
     public ResponseEntity<ApiResponse<Void>> removeDiagnoses(
             @LoginUser UserPrincipal principal,
-            @PathVariable Long diagnosesId
+            @PathVariable UUID diagnosesId
     ) {
         diagnosesUseCase.removeDiagnoses(principal.userId(), diagnosesId);
 

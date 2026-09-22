@@ -516,6 +516,61 @@ def test_모델_지적과_규칙_지적이_함께_병합된다():
     # 규칙이 찾은 critical은 모델이 지울 수 없다.
     assert result.status is VerificationStatus.REVISION_REQUIRED
 
+def test_규칙과_모델의_동일한_지적은_한_번만_남긴다():
+    description = (
+        "radio_compliance: 상품에 검토 신호가 있으나 툴이 선택되지 않았습니다. "
+        "적용 여부를 추가 검토하세요."
+    )
+    recommended_action = "관련 입력과 툴 결과를 보완한 뒤 다시 검증하세요."
+
+    review = _review(
+        issues=[
+            _Issue(
+                severity="warning",
+                issue_type="missing_tool",
+                description=description,
+                related_finding_ids=[],
+                recommended_action=recommended_action,
+            )
+        ]
+    )
+
+    # 규칙 검사에서도 동일한 radio_compliance 누락 이슈가 생성된다.
+    draft = _draft(Product(product_id="p1", wireless_comm=True))
+
+    result = VerificationAgent(model=_StubModel(review)).verify(draft)
+
+    assert len(result.issues) == 1
+    assert result.issues[0].issue_type is VerificationIssueType.MISSING_TOOL
+    assert result.issues[0].description == description
+
+def test_같은_유형이어도_내용이_다른_지적은_모두_남긴다():
+    review = _review(
+        issues=[
+            _Issue(
+                severity="warning",
+                issue_type="missing_evidence",
+                description="법령 인용문이 부족합니다.",
+                related_finding_ids=["f1"],
+                recommended_action="인용문을 추가하세요.",
+            ),
+            _Issue(
+                severity="warning",
+                issue_type="missing_evidence",
+                description="출처 URL이 부족합니다.",
+                related_finding_ids=["f1"],
+                recommended_action="출처 URL을 추가하세요.",
+            ),
+        ]
+    )
+
+    result = VerificationAgent(model=_StubModel(review)).verify(_draft())
+
+    assert len(result.issues) == 2
+    assert {issue.description for issue in result.issues} == {
+        "법령 인용문이 부족합니다.",
+        "출처 URL이 부족합니다.",
+    }
 
 def test_trace에_DraftAssessment부터_VerificationResult까지_변환을_남긴다():
     trace: list[TraceEvent] = []

@@ -1,0 +1,115 @@
+{
+  "fixture": "power_bank.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-16",
+  "tags": ["기존 실패", "애매"],
+  "summary": "제목엔 'MagSafe 1460mAh 케이스', 스펙표엔 '배터리 미포함' + '전자 부품 또는 마더보드 미포함'. 카테고리 표시는 '보조배터리'인데 breadcrumb은 '휴대폰 액세서리'. 배터리·전기 관련 특성을 어느 쪽으로도 확정할 수 없다.",
+
+  "booleans": {
+    "battery_included": {
+      "value": null,
+      "evidence": "제목 'MagSafe 1460mAh 케이스' / 스펙표 '배터리 속성: 배터리 미포함'",
+      "why_not_other": "두 표기가 정면으로 충돌한다. true도 false도 확정 근거가 없고 conflicts로 보고해야 한다."
+    },
+    "battery_is_the_product": {
+      "value": null,
+      "evidence": "카테고리 '보조배터리' / 스펙표 '전자 부품 또는 마더보드 미포함', 본체재질 TPU",
+      "why_not_other": "카테고리는 보조배터리라고 하는데 스펙표는 전자부품이 없다고 한다. 제목의 '외장 배터리 케이스'도 '배터리를 담는 케이스'와 '배터리 기능이 있는 케이스' 둘 다로 읽힌다."
+    },
+    "electrical_powered": {
+      "value": null,
+      "evidence": "스펙표 '전자 부품 또는 마더보드 미포함' / 제목 '1460mAh'",
+      "why_not_other": "전자부품이 없다면 전기로 작동하지 않지만, 용량 표기는 반대를 시사한다. 근거가 갈린다."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "제목에 'MagSafe'가 반복되나 스펙표는 '전자 부품 또는 마더보드 미포함'",
+      "why_not_other": "MagSafe는 자기 무선충전 규격이지만, 전자부품이 없으면 자석만 있는 케이스일 수 있다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "(블루투스·WiFi·RF 관련 언급 없음)",
+      "why_not_other": "언급이 없을 뿐 '없음을 확인'한 것은 아니다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "(발열 기능 언급 없음)",
+      "why_not_other": "'케이스니까 발열이 없다'는 상식 추론이지 페이지 근거가 아니다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "'휴대폰 케이스니까 손에 닿는다'는 상식 추론이다. 페이지에 근거가 없다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "페이지 전체에 질병·신체기능 개선을 표방하는 문구가 없다",
+      "why_not_other": "표방 문구의 유무는 페이지를 끝까지 읽으면 '없음'을 확인할 수 있다. 물리적 특성과 달리 false로 확정 가능한 유형이다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "페이지 전체에 미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "위와 같다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "카테고리 '휴대폰 액세서리', 제목 '케이스', 본체재질 TPU",
+      "why_not_other": "형태·용도가 휴대폰 케이스로 명확하다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "스펙표 '본체재질: TPU(열가소성 폴리우레탄)'",
+      "why_not_other": "재질이 명시돼 있고 식물성이 아니다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "세정·방향·살균 기능 언급이 없고 카테고리·재질이 케이스로 확인된다",
+      "why_not_other": "주된 기능이 케이스임이 페이지로 확인된다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "연령 표기가 없고 어린이를 겨냥한 문구·이미지 설명이 없다",
+      "why_not_other": "광고 문맥상 어린이 대상이 아님을 페이지로 확인할 수 있다."
+    }
+  },
+
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "(연령 표기 없음)"
+    }
+  },
+
+  "keywords": {
+    "product_name": { "required": ["케이스"] },
+    "category": { "allowed": ["보조배터리", "휴대폰 액세서리", "휴대폰 케이스", "휴대폰&액세서리"] }
+  },
+
+  "attributes_required": [
+    {
+      "name": "배터리 용량",
+      "value": "1460mAh",
+      "evidence": "제목 'MagSafe 1460mAh 케이스'"
+    }
+  ],
+  "attributes_forbidden": [
+    { "name": "정격전압", "value": "220V", "reason": "페이지에 전압 표기가 전혀 없다" }
+  ],
+
+  "conflicts_required": [
+    {
+      "must_contain": "1460mAh",
+      "evidence": "용량 표기와 '배터리 미포함'이 같은 페이지에 있어 모순 후보로 보고해야 한다"
+    }
+  ]
+}

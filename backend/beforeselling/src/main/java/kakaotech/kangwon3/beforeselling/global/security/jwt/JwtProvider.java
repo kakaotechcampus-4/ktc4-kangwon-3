@@ -34,7 +34,7 @@ public class JwtProvider {
         this.refreshTokenExpiration = jwtProperties.refreshTokenExpiration();
     }
 
-    public TokenPair issueTokenPair(Long userId, Role role) {
+    public TokenPair issueTokenPair(UUID userId, Role role) {
         String accessToken = generateToken(userId, role, TokenType.ACCESS, UUID.randomUUID().toString(), accessTokenExpiration);
         String refreshTokenJti = UUID.randomUUID().toString();
         String refreshToken = generateToken(userId, role, TokenType.REFRESH, refreshTokenJti, refreshTokenExpiration);
@@ -55,7 +55,7 @@ public class JwtProvider {
         }
 
         return new TokenClaims(
-                Long.parseLong(claims.getSubject()),
+                UUID.fromString(claims.getSubject()),
                 resolveRole(claims, expectedType),
                 actualType,
                 claims.getId()
@@ -66,7 +66,7 @@ public class JwtProvider {
         return refreshTokenExpiration;
     }
 
-    private String generateToken(Long userId, Role role, TokenType type,
+    private String generateToken(UUID userId, Role role, TokenType type,
                                  String jti, Duration expiration) {
         Instant now = Instant.now();
 
