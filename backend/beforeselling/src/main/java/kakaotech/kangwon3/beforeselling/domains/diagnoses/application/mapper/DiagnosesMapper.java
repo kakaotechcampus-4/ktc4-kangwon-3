@@ -11,7 +11,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductI
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -75,38 +74,6 @@ public class DiagnosesMapper {
                 product.getProcessingStatus(),
                 product.getResultStatus(),
                 product.getSummary()
-        );
-    }
-
-    public DiagnosesSummaryResponse toSummaryResponse(Diagnoses diagnoses) {
-        // products는 sortOrder 오름차순이므로 첫 번째가 대표 상품이다.
-        Product representative = diagnoses.getProducts().stream().findFirst().orElse(null);
-
-        return new DiagnosesSummaryResponse(
-                diagnoses.getId(),
-                diagnoses.getProcessingStatus(),
-                diagnoses.getProducts().size(),
-                representative == null ? null : representative.getProductName(),
-                representative == null ? null : s3UrlKeyCodec.toUrlOrNull(representative.getProductImageKey()),
-                diagnoses.getCreatedAt()
-        );
-    }
-
-    public DiagnosesListResponse toListResponse(Page<Diagnoses> page) {
-        List<DiagnosesSummaryResponse> diagnoses = page.getContent().stream()
-                .map(this::toSummaryResponse)
-                .toList();
-
-        return new DiagnosesListResponse(diagnoses, toPageInfo(page));
-    }
-
-    private DiagnosesListResponse.PageInfo toPageInfo(Page<?> page) {
-        return new DiagnosesListResponse.PageInfo(
-                page.getNumber(),
-                page.getSize(),
-                page.getTotalElements(),
-                page.getTotalPages(),
-                page.hasNext()
         );
     }
 }

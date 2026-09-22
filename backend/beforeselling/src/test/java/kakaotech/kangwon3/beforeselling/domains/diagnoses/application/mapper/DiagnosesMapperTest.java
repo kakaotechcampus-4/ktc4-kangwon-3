@@ -14,9 +14,6 @@ import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.util.unit.DataSize;
 
@@ -149,73 +146,6 @@ class DiagnosesMapperTest {
         assertThat(product.resultStatus()).isNull();
         assertThat(product.summary()).isNull();
         assertThat(product.imageUrls()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("목록 카드로 변환하면 상품 수와 대표 상품 정보가 담긴다.")
-    void toSummaryResponse_thenIncludeProductCountAndRepresentative() {
-        // given & when
-        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(
-                createDiagnoses(1L, PRODUCT_IMAGE_KEY, "상품 A", "상품 B"));
-
-        // then
-        assertThat(response.diagnosesId()).isEqualTo(1L);
-        assertThat(response.productCount()).isEqualTo(2);
-        assertThat(response.representativeProductName()).isEqualTo("상품 A");
-        assertThat(response.representativeProductImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
-        assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
-    }
-
-    @Test
-    @DisplayName("대표 이미지 없이 등록한 진단서를 목록 카드로 변환하면 썸네일이 비어 있다.")
-    void toSummaryResponse_withoutProductImageKey_thenThumbnailIsNull() {
-        // given & when
-        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(createDiagnoses(1L, null));
-
-        // then
-        assertThat(response.representativeProductImageUrl()).isNull();
-    }
-
-    @Test
-    @DisplayName("상품이 하나도 없는 진단서를 목록 카드로 변환해도 예외 없이 빈 값이 담긴다.")
-    void toSummaryResponse_withoutProducts_thenRepresentativeIsNull() {
-        // given
-        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
-        ReflectionTestUtils.setField(diagnoses, "id", 1L);
-        ReflectionTestUtils.setField(diagnoses, "createdAt", LocalDateTime.now());
-
-        // when
-        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(diagnoses);
-
-        // then
-        assertThat(response.productCount()).isZero();
-        assertThat(response.representativeProductName()).isNull();
-        assertThat(response.representativeProductImageUrl()).isNull();
-    }
-
-    @Test
-    @DisplayName("목록으로 변환하면 진단서 요약과 페이징 정보가 함께 담긴다.")
-    void toListResponse_thenIncludeSummariesAndPageInfo() {
-        // given
-        Page<Diagnoses> page = new PageImpl<>(
-                List.of(createDiagnoses(1L, PRODUCT_IMAGE_KEY), createDiagnoses(2L, PRODUCT_IMAGE_KEY)),
-                PageRequest.of(0, 2),
-                5);
-
-        // when
-        DiagnosesListResponse response = diagnosesMapper.toListResponse(page);
-
-        // then
-        assertThat(response.diagnoses())
-                .extracting(DiagnosesSummaryResponse::diagnosesId)
-                .containsExactly(1L, 2L);
-
-        DiagnosesListResponse.PageInfo pageInfo = response.pageInfo();
-        assertThat(pageInfo.page()).isZero();
-        assertThat(pageInfo.size()).isEqualTo(2);
-        assertThat(pageInfo.totalElements()).isEqualTo(5);
-        assertThat(pageInfo.totalPages()).isEqualTo(3);
-        assertThat(pageInfo.hasNext()).isTrue();
     }
 
     private ProductCreateRequest productRequest(String productName, List<String> imageKeys) {

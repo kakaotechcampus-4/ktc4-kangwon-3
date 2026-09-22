@@ -3,7 +3,6 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
@@ -12,8 +11,6 @@ import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteReques
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -62,17 +59,6 @@ public class DiagnosesService {
         return diagnoses;
     }
 
-    // 목록 조회, 결과 필터 유무 분기
-    public Page<Diagnoses> getDiagnosesList(Long userId, ResultStatus resultStatus, Pageable pageable) {
-        Page<Diagnoses> page = (resultStatus == null)
-                ? diagnosesRepository.findByUserId(userId, pageable)
-                : diagnosesRepository.findByUserIdAndProductResultStatus(userId, resultStatus, pageable);
-
-        page.getContent().forEach(diagnoses -> diagnoses.getProducts().size());
-
-        return page;
-    }
-
     // 진단서 삭제(상품과 이미지는 cascade로 함께 삭제)
     @Transactional
     public void removeDiagnoses(Long userId, Long diagnosesId) {
@@ -87,7 +73,7 @@ public class DiagnosesService {
 
     // 회원 탈퇴 시 해당 사용자의 모든 진단서를 삭제한다.
     @Transactional
-    public void     removeAllByUserId(Long userId) {
+    public void removeAllByUserId(Long userId) {
         List<Diagnoses> diagnosesList = diagnosesRepository.findWithProductsByUserId(userId);
 
         List<String> imageKeys = diagnosesList.stream()

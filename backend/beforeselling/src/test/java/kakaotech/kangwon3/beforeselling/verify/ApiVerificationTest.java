@@ -66,9 +66,6 @@ class ApiVerificationTest {
         section("2. GET /api/v1/diagnoses/{id}  — 단건 조회");
         call(get("/api/v1/diagnoses/" + id), USER, null);
 
-        section("3. GET /api/v1/diagnoses  — 목록 조회 (기본)");
-        call(get("/api/v1/diagnoses"), USER, null);
-
         section("4. GET /api/v1/diagnoses/{id}  — 남의 진단서 조회");
         call(get("/api/v1/diagnoses/" + id), OTHER, null);
 
@@ -89,12 +86,6 @@ class ApiVerificationTest {
         section("9. POST /api/v1/diagnoses  — 상품명 누락 (중첩 @NotBlank 동작 확인)");
         String noName = "{\"products\":[{\"sourceType\":\"URL\",\"sourceUrl\":\"https://a.com\"}]}";
         call(post("/api/v1/diagnoses").contentType(MediaType.APPLICATION_JSON).content(noName), USER, noName);
-
-        section("10. GET /api/v1/diagnoses?resultStatus=RECHECK_REQUIRED  — 결과 필터");
-        call(get("/api/v1/diagnoses").param("resultStatus", "RECHECK_REQUIRED"), USER, null);
-
-        section("11. GET /api/v1/diagnoses?page=-1  — 잘못된 페이징");
-        call(get("/api/v1/diagnoses").param("page", "-1"), USER, null);
 
         section("12. DELETE /api/v1/diagnoses/{id}  — 남의 진단서 삭제 시도");
         call(delete("/api/v1/diagnoses/" + id), OTHER, null);

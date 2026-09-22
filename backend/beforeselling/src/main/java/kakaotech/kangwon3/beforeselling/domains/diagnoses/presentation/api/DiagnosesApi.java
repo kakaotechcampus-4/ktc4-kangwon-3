@@ -4,13 +4,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiErrorResponseExplanation;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiResponseExplanations;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiSuccessResponseExplanation;
@@ -62,26 +58,6 @@ public interface DiagnosesApi {
     ResponseEntity<ApiResponse<DiagnosesDetailResponse>> getDiagnoses(
             @Parameter(hidden = true) UserPrincipal principal,
             Long diagnosesId);
-
-    @Operation(
-            summary = "상품 진단 목록 조회",
-            description = """
-                    로그인한 사용자의 진단서 목록을 조회합니다. (마이페이지)
-                    `resultStatus`를 생략하면 전체를 조회하고, 지정하면 해당 결과의 진단서만 조회합니다.
-                    AI 진단 완료 전인 진단서는 `resultStatus`가 없으므로 필터 지정 시 조회되지 않습니다.
-                    """)
-    @ApiResponseExplanations(
-            success = @ApiSuccessResponseExplanation(responseClass = DiagnosesListResponse.class, description = "조회 성공")
-    )
-    ResponseEntity<ApiResponse<DiagnosesListResponse>> getDiagnosesList(
-            @Parameter(hidden = true) UserPrincipal principal,
-            @Parameter(description = "결과 필터. 생략하면 전체") ResultStatus resultStatus,
-            @Parameter(description = "페이지 번호 (0부터)")
-            @Min(value = 0, message = "페이지 번호는 0 이상이어야 합니다.") int page,
-            @Parameter(description = "페이지 크기")
-            @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다.")
-            @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다.") int size,
-            @Parameter(description = "정렬 기준") DiagnosesSortType sortType);
 
     @Operation(
             summary = "상품 진단 단건 삭제",

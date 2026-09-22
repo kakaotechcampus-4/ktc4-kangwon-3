@@ -2,11 +2,9 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controll
 
 import jakarta.validation.Valid;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesSortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.DiagnosesUseCase;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.api.DiagnosesApi;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -14,8 +12,6 @@ import kakaotech.kangwon3.beforeselling.global.security.annotation.LoginUser;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -49,22 +45,6 @@ public class DiagnosesController implements DiagnosesApi {
             @PathVariable Long diagnosesId
     ) {
         DiagnosesDetailResponse response = diagnosesUseCase.getDiagnoses(principal.userId(), diagnosesId);
-
-        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
-    }
-
-    // 마이페이지 진단서 목록 조회(페이징, 정렬, 결과 필터 적용)
-    @Override
-    @GetMapping
-    public ResponseEntity<ApiResponse<DiagnosesListResponse>> getDiagnosesList(
-            @LoginUser UserPrincipal principal,
-            @RequestParam(required = false) ResultStatus resultStatus,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "LATEST") DiagnosesSortType sortType
-    ) {
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100), sortType.getSort());
-        DiagnosesListResponse response = diagnosesUseCase.getDiagnosesList(principal.userId(), resultStatus, pageable);
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
     }

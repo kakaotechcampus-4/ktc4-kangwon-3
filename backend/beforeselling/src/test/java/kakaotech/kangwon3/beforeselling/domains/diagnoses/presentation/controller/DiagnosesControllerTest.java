@@ -6,7 +6,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.DiagnosesUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -24,13 +23,10 @@ import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -45,11 +41,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
@@ -227,123 +221,6 @@ class DiagnosesControllerTest {
     }
 
     @Test
-    @DisplayName("페이징 조건 없이 목록을 조회하면 첫 페이지를 최신순으로 조회한다.")
-    void getDiagnosesList_withDefaultParameters_thenSortByLatest() throws Exception {
-        // given
-        given(diagnosesUseCase.getDiagnosesList(anyLong(), any(), any())).willReturn(listResponse());
-
-        // when
-        mockMvc.perform(get(BASE_URL).with(authentication(loginUser())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.diagnoses[0].representativeProductName").value("대나무 헬리콥터"))
-                .andExpect(jsonPath("$.data.pageInfo.page").value(0))
-                .andExpect(jsonPath("$.data.pageInfo.hasNext").value(false));
-
-        // then
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        then(diagnosesUseCase).should().getDiagnosesList(eq(1L), isNull(), pageableCaptor.capture());
-        Pageable pageable = pageableCaptor.getValue();
-
-        assertThat(pageable.getPageNumber()).isZero();
-        assertThat(pageable.getPageSize()).isEqualTo(10);
-        assertThat(pageable.getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
-    }
-
-    @Test
-    @DisplayName("오래된순으로 목록을 조회하면 등록 시각 오름차순으로 조회한다.")
-    void getDiagnosesList_withOldestSortType_thenSortByAscending() throws Exception {
-        // given
-        given(diagnosesUseCase.getDiagnosesList(anyLong(), any(), any())).willReturn(listResponse());
-
-        // when
-        mockMvc.perform(get(BASE_URL)
-                        .param("sortType", "OLDEST")
-                        .with(authentication(loginUser())))
-                .andExpect(status().isOk());
-
-        // then
-        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        then(diagnosesUseCase).should().getDiagnosesList(anyLong(), any(), pageableCaptor.capture());
-        assertThat(pageableCaptor.getValue().getSort())
-                .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
-    }
-
-    @Test
-    @DisplayName("결과 필터를 지정해 목록을 조회하면 해당 필터가 함께 전달된다.")
-    void getDiagnosesList_withResultStatus_thenPassFilter() throws Exception {
-        // given
-        given(diagnosesUseCase.getDiagnosesList(anyLong(), any(), any())).willReturn(listResponse());
-
-        // when
-        mockMvc.perform(get(BASE_URL)
-                        .param("resultStatus", ResultStatus.RECHECK_REQUIRED.name())
-                        .with(authentication(loginUser())))
-                .andExpect(status().isOk());
-
-        // then
-        then(diagnosesUseCase).should()
-                .getDiagnosesList(eq(1L), eq(ResultStatus.RECHECK_REQUIRED), any(Pageable.class));
-    }
-
-    @Test
-    @DisplayName("페이지 번호를 음수로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
-    void getDiagnosesList_withNegativePage_thenBadRequestWithFieldDetail() throws Exception {
-        mockMvc.perform(get(BASE_URL)
-                        .param("page", "-1")
-                        .with(authentication(loginUser())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON-002"))
-                .andExpect(jsonPath("$.details[0].field").value("page"))
-                .andExpect(jsonPath("$.details[0].message").value("페이지 번호는 0 이상이어야 합니다."));
-    }
-
-    @Test
-    @DisplayName("페이지 크기를 0으로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
-    void getDiagnosesList_withZeroSize_thenBadRequestWithFieldDetail() throws Exception {
-        mockMvc.perform(get(BASE_URL)
-                        .param("size", "0")
-                        .with(authentication(loginUser())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON-002"))
-                .andExpect(jsonPath("$.details[0].field").value("size"))
-                .andExpect(jsonPath("$.details[0].message").value("페이지 크기는 1 이상이어야 합니다."));
-    }
-
-    @Test
-    @DisplayName("페이지 크기가 허용 범위를 넘으면 어떤 값이 잘못되었는지 함께 응답한다.")
-    void getDiagnosesList_withTooLargeSize_thenBadRequestWithFieldDetail() throws Exception {
-        mockMvc.perform(get(BASE_URL)
-                        .param("size", "101")
-                        .with(authentication(loginUser())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON-002"))
-                .andExpect(jsonPath("$.details[0].field").value("size"))
-                .andExpect(jsonPath("$.details[0].message").value("페이지 크기는 100 이하여야 합니다."));
-    }
-
-    @Test
-    @DisplayName("지원하지 않는 정렬 기준으로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
-    void getDiagnosesList_withUnknownSortType_thenBadRequestWithFieldDetail() throws Exception {
-        mockMvc.perform(get(BASE_URL)
-                        .param("sortType", "UNKNOWN")
-                        .with(authentication(loginUser())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON-002"))
-                .andExpect(jsonPath("$.details[0].field").value("sortType"));
-    }
-
-    @Test
-    @DisplayName("지원하지 않는 결과 필터로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
-    void getDiagnosesList_withUnknownResultStatus_thenBadRequestWithFieldDetail() throws Exception {
-        mockMvc.perform(get(BASE_URL)
-                        .param("resultStatus", "UNKNOWN")
-                        .with(authentication(loginUser())))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON-002"))
-                .andExpect(jsonPath("$.details[0].field").value("resultStatus"));
-    }
-
-    @Test
     @DisplayName("본인의 진단서를 삭제하면 성공 응답을 받는다.")
     void removeDiagnoses_thenSuccess() throws Exception {
         mockMvc.perform(delete(BASE_URL + "/{diagnosesId}", 1L)
@@ -406,13 +283,4 @@ class DiagnosesControllerTest {
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
-    private DiagnosesListResponse listResponse() {
-        DiagnosesSummaryResponse summary = new DiagnosesSummaryResponse(
-                1L, ProcessingStatus.PENDING, 1, "대나무 헬리콥터",
-                S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg", LocalDateTime.now());
-
-        return new DiagnosesListResponse(
-                List.of(summary),
-                new DiagnosesListResponse.PageInfo(0, 10, 1, 1, false));
-    }
 }

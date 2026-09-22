@@ -4,7 +4,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -20,9 +19,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -202,38 +198,6 @@ class DiagnosesServiceTest {
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.FORBIDDEN);
-    }
-
-    @Test
-    @DisplayName("결과 필터 없이 목록을 조회하면 사용자의 전체 진단서를 조회한다.")
-    void getDiagnosesList_withoutFilter_thenFindAllOfUser() {
-        // given
-        Pageable pageable = PageRequest.of(0, 10);
-        given(diagnosesRepository.findByUserId(USER_ID, pageable)).willReturn(Page.empty());
-
-        // when
-        diagnosesService.getDiagnosesList(USER_ID, null, pageable);
-
-        // then
-        then(diagnosesRepository).should().findByUserId(USER_ID, pageable);
-        then(diagnosesRepository).should(never()).findByUserIdAndProductResultStatus(any(), any(), any());
-    }
-
-    @Test
-    @DisplayName("결과 필터를 지정해 목록을 조회하면 해당 결과의 상품을 가진 진단서만 조회한다.")
-    void getDiagnosesList_withFilter_thenFindByProductResultStatus() {
-        // given
-        Pageable pageable = PageRequest.of(0, 10);
-        given(diagnosesRepository.findByUserIdAndProductResultStatus(
-                USER_ID, ResultStatus.RECHECK_REQUIRED, pageable)).willReturn(Page.empty());
-
-        // when
-        diagnosesService.getDiagnosesList(USER_ID, ResultStatus.RECHECK_REQUIRED, pageable);
-
-        // then
-        then(diagnosesRepository).should()
-                .findByUserIdAndProductResultStatus(USER_ID, ResultStatus.RECHECK_REQUIRED, pageable);
-        then(diagnosesRepository).should(never()).findByUserId(any(), any());
     }
 
     @Test
