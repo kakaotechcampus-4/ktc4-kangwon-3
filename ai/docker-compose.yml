@@ -21,7 +21,7 @@ services:
       ai-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8000/api/ai/v1/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5

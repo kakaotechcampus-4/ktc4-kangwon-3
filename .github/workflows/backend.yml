@@ -123,7 +123,7 @@ jobs:
             "aws s3 cp s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml ${APP_DIR}/release/docker-compose.prod.yml",
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
-            "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans",
+            "IMAGE_TAG=${GITHUB_SHA} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 180 || { docker compose -f docker-compose.yml -f docker-compose.prod.yml ps; docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 100 app; exit 1; }",
             "docker compose -f docker-compose.yml -f docker-compose.prod.yml ps",
             "docker image prune -a -f"
           ]}

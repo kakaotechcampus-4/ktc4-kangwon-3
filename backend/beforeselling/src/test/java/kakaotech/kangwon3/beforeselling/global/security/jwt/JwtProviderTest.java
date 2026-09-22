@@ -36,7 +36,7 @@ class JwtProviderTest {
     @DisplayName("액세스 토큰을 발급하면 사용자 ID와 역할을 다시 읽어낼 수 있다.")
     void issueAccessToken_thenParseClaims() {
         // given
-        Long userId = 1L;
+        UUID userId = UUID.randomUUID();
 
         // when
         TokenPair tokenPair = jwtProvider.issueTokenPair(userId, Role.USER);
@@ -53,7 +53,7 @@ class JwtProviderTest {
     @DisplayName("리프레시 토큰에는 고유한 jti가 포함되고 토큰 쌍의 jti와 일치한다.")
     void issueRefreshToken_thenJtiMatches() {
         // given & when
-        TokenPair tokenPair = jwtProvider.issueTokenPair(1L, Role.USER);
+        TokenPair tokenPair = jwtProvider.issueTokenPair(UUID.randomUUID(), Role.USER);
         TokenClaims claims = jwtProvider.parse(tokenPair.refreshToken(), TokenType.REFRESH);
 
         // then
@@ -67,7 +67,7 @@ class JwtProviderTest {
         // given
         JwtProvider expiredProvider = new JwtProvider(
                 new JwtProperties(SECRET, Duration.ofSeconds(-1), Duration.ofDays(14)));
-        TokenPair tokenPair = expiredProvider.issueTokenPair(1L, Role.USER);
+        TokenPair tokenPair = expiredProvider.issueTokenPair(UUID.randomUUID(), Role.USER);
 
         // when & then
         assertThatThrownBy(() -> jwtProvider.parse(tokenPair.accessToken(), TokenType.ACCESS))
@@ -82,7 +82,7 @@ class JwtProviderTest {
         // given
         JwtProvider expiredProvider = new JwtProvider(
                 new JwtProperties(SECRET, Duration.ofMinutes(30), Duration.ofSeconds(-1)));
-        TokenPair tokenPair = expiredProvider.issueTokenPair(1L, Role.USER);
+        TokenPair tokenPair = expiredProvider.issueTokenPair(UUID.randomUUID(), Role.USER);
 
         // when & then
         assertThatThrownBy(() -> jwtProvider.parse(tokenPair.refreshToken(), TokenType.REFRESH))
@@ -95,7 +95,7 @@ class JwtProviderTest {
     @DisplayName("리프레시 토큰을 액세스 토큰으로 검증하면 INVALID_ACCESS_TOKEN 예외가 발생한다.")
     void parseRefreshTokenAsAccess_thenThrowInvalidAccess() {
         // given
-        TokenPair tokenPair = jwtProvider.issueTokenPair(1L, Role.USER);
+        TokenPair tokenPair = jwtProvider.issueTokenPair(UUID.randomUUID(), Role.USER);
 
         // when & then
         assertThatThrownBy(() -> jwtProvider.parse(tokenPair.refreshToken(), TokenType.ACCESS))
@@ -110,7 +110,7 @@ class JwtProviderTest {
         // given
         JwtProvider otherProvider = new JwtProvider(
                 new JwtProperties(OTHER_SECRET, Duration.ofMinutes(30), Duration.ofDays(14)));
-        TokenPair tokenPair = otherProvider.issueTokenPair(1L, Role.USER);
+        TokenPair tokenPair = otherProvider.issueTokenPair(UUID.randomUUID(), Role.USER);
 
         // when & then
         assertThatThrownBy(() -> jwtProvider.parse(tokenPair.accessToken(), TokenType.ACCESS))
@@ -147,7 +147,7 @@ class JwtProviderTest {
 
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
-                .subject("1")
+                .subject(UUID.randomUUID().toString())
                 .claim("role", rawRole)
                 .claim("type", TokenType.ACCESS.name())
                 .issuedAt(Date.from(now))

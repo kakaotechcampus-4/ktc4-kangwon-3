@@ -114,7 +114,7 @@ jobs:
             "cp ${APP_DIR}/.env ${APP_DIR}/release/.env",
             "cd ${APP_DIR}/release",
             "docker compose up -d --build --remove-orphans --wait --wait-timeout 120",
-            "curl -sf http://localhost:8000/health/ready || exit 1",
+            "curl -sf http://localhost:8000/api/ai/v1/health/ready || exit 1",
             "docker compose ps",
             "docker image prune -f"
           ]}

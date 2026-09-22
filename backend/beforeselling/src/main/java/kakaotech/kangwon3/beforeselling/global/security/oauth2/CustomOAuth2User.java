@@ -8,12 +8,13 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * 소셜 로그인 직후 성공 핸들러에 전달되는 인증 주체.
  */
 public record CustomOAuth2User(
-        Long userId,
+        UUID userId,
         Role role,
         boolean isNewUser,
         Map<String, Object> attributes
