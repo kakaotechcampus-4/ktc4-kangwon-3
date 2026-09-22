@@ -1,7 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.user.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.AuthTokenService;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductService;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.unlink.SocialUnlinkService;
