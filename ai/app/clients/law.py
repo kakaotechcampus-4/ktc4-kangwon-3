@@ -189,7 +189,9 @@ class LawClient(BaseClient):
             "query": request.query,      # 검색어
             "display": str(request.display),  # 결과 건수
         })
-        return self._parse_xml(response)
+        root = self._parse_xml(response)
+        self._check_api_error(root)
+        return root
 
     def _fetch_text(self, request: LawTextRequest, target: str, id_param: str) -> LawTextResponse:
         """법령본문 조회 공통 로직.
@@ -209,6 +211,7 @@ class LawClient(BaseClient):
             "type": "XML",
         })
         root = self._parse_xml(response)
+        self._check_api_error(root)
 
         # law/eflaw: <조문> > <조문단위> 구조
         articles_el = root.find("조문")
@@ -232,6 +235,22 @@ class LawClient(BaseClient):
             )
 
         return LawTextResponse(articles=[])
+
+    @staticmethod
+    def _check_api_error(root: Element) -> None:
+        """법제처 API 에러 응답을 감지한다.
+
+        Args:
+            root: 파싱된 XML 루트 엘리먼트.
+
+        Raises:
+            RuntimeError: API가 에러 응답(<Response>)을 반환한 경우.
+        """
+        if root.tag != "Response":
+            return
+        result = root.findtext("result", "")
+        msg = root.findtext("msg", "")
+        raise RuntimeError(f"법제처 API 오류: {result} — {msg}")
 
     # -- target별 검색결과 파싱 --
 
