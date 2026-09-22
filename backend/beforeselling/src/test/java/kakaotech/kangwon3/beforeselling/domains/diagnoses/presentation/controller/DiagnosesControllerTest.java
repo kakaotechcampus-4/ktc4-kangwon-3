@@ -45,10 +45,10 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -69,6 +69,8 @@ class DiagnosesControllerTest {
 
     private static final String BASE_URL = "/api/v1/diagnoses";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID();
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -110,8 +112,8 @@ class DiagnosesControllerTest {
     @DisplayName("상세페이지 URL로 진단을 요청하면 생성된 진단서 ID를 응답한다.")
     void createDiagnoses_withUrlType_thenReturnDiagnosesId() throws Exception {
         // given
-        given(diagnosesUseCase.createDiagnoses(anyLong(), any()))
-                .willReturn(new DiagnosesCreateResponse(42L));
+        given(diagnosesUseCase.createDiagnoses(any(UUID.class), any()))
+                .willReturn(new DiagnosesCreateResponse(DIAGNOSES_ID));
 
         // when & then
         mockMvc.perform(post(BASE_URL)
@@ -120,9 +122,9 @@ class DiagnosesControllerTest {
                         .content(objectMapper.writeValueAsString(urlTypeRequest())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
-                .andExpect(jsonPath("$.data.diagnosesId").value(42));
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()));
 
-        then(diagnosesUseCase).should().createDiagnoses(eq(1L), any());
+        then(diagnosesUseCase).should().createDiagnoses(eq(USER_ID), any());
     }
 
     @Test
@@ -172,8 +174,8 @@ class DiagnosesControllerTest {
     @DisplayName("상세페이지 이미지 키로 진단을 요청하면 생성된 진단서 ID를 응답한다.")
     void createDiagnoses_withImageKeys_thenReturnDiagnosesId() throws Exception {
         // given
-        given(diagnosesUseCase.createDiagnoses(anyLong(), any()))
-                .willReturn(new DiagnosesCreateResponse(42L));
+        given(diagnosesUseCase.createDiagnoses(any(UUID.class), any()))
+                .willReturn(new DiagnosesCreateResponse(DIAGNOSES_ID));
 
         Map<String, Object> request = new HashMap<>();
         request.put("productName", "대나무 헬리콥터");
@@ -187,21 +189,21 @@ class DiagnosesControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.diagnosesId").value(42));
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()));
     }
 
     @Test
     @DisplayName("본인의 진단서를 단건 조회하면 진단서 상세 정보를 응답한다.")
     void getDiagnoses_thenReturnDetail() throws Exception {
         // given
-        given(diagnosesUseCase.getDiagnoses(1L, 1L)).willReturn(detailResponse());
+        given(diagnosesUseCase.getDiagnoses(USER_ID, DIAGNOSES_ID)).willReturn(detailResponse());
 
         // when & then
-        mockMvc.perform(get(BASE_URL + "/{diagnosesId}", 1L)
+        mockMvc.perform(get(BASE_URL + "/{diagnosesId}", DIAGNOSES_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
-                .andExpect(jsonPath("$.data.diagnosesId").value(1))
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()))
                 .andExpect(jsonPath("$.data.productName").value("대나무 헬리콥터"))
                 .andExpect(jsonPath("$.data.processingStatus").value("PENDING"))
                 .andExpect(jsonPath("$.data.resultStatus").doesNotExist())
@@ -213,10 +215,10 @@ class DiagnosesControllerTest {
     void getDiagnoses_withOtherUsersDiagnoses_thenNotFound() throws Exception {
         // given
         willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
-                .given(diagnosesUseCase).getDiagnoses(anyLong(), anyLong());
+                .given(diagnosesUseCase).getDiagnoses(any(UUID.class), any(UUID.class));
 
         // when & then
-        mockMvc.perform(get(BASE_URL + "/{diagnosesId}", 1L)
+        mockMvc.perform(get(BASE_URL + "/{diagnosesId}", DIAGNOSES_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMMON-006"));
@@ -226,7 +228,7 @@ class DiagnosesControllerTest {
     @DisplayName("페이징 조건 없이 목록을 조회하면 첫 페이지를 최신순으로 조회한다.")
     void getDiagnosesList_withDefaultParameters_thenSortByLatest() throws Exception {
         // given
-        given(diagnosesUseCase.getDiagnosesList(anyLong(), any(), any())).willReturn(listResponse());
+        given(diagnosesUseCase.getDiagnosesList(any(UUID.class), any(), any())).willReturn(listResponse());
 
         // when
         mockMvc.perform(get(BASE_URL).with(authentication(loginUser())))
@@ -237,7 +239,7 @@ class DiagnosesControllerTest {
 
         // then
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        then(diagnosesUseCase).should().getDiagnosesList(eq(1L), isNull(), pageableCaptor.capture());
+        then(diagnosesUseCase).should().getDiagnosesList(eq(USER_ID), isNull(), pageableCaptor.capture());
         Pageable pageable = pageableCaptor.getValue();
 
         assertThat(pageable.getPageNumber()).isZero();
@@ -249,7 +251,7 @@ class DiagnosesControllerTest {
     @DisplayName("오래된순으로 목록을 조회하면 등록 시각 오름차순으로 조회한다.")
     void getDiagnosesList_withOldestSortType_thenSortByAscending() throws Exception {
         // given
-        given(diagnosesUseCase.getDiagnosesList(anyLong(), any(), any())).willReturn(listResponse());
+        given(diagnosesUseCase.getDiagnosesList(any(UUID.class), any(), any())).willReturn(listResponse());
 
         // when
         mockMvc.perform(get(BASE_URL)
@@ -259,7 +261,7 @@ class DiagnosesControllerTest {
 
         // then
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-        then(diagnosesUseCase).should().getDiagnosesList(anyLong(), any(), pageableCaptor.capture());
+        then(diagnosesUseCase).should().getDiagnosesList(any(UUID.class), any(), pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getSort())
                 .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
     }
@@ -268,7 +270,7 @@ class DiagnosesControllerTest {
     @DisplayName("결과 필터를 지정해 목록을 조회하면 해당 필터가 함께 전달된다.")
     void getDiagnosesList_withResultStatus_thenPassFilter() throws Exception {
         // given
-        given(diagnosesUseCase.getDiagnosesList(anyLong(), any(), any())).willReturn(listResponse());
+        given(diagnosesUseCase.getDiagnosesList(any(UUID.class), any(), any())).willReturn(listResponse());
 
         // when
         mockMvc.perform(get(BASE_URL)
@@ -278,7 +280,7 @@ class DiagnosesControllerTest {
 
         // then
         then(diagnosesUseCase).should()
-                .getDiagnosesList(eq(1L), eq(ResultStatus.RECHECK_REQUIRED), any(Pageable.class));
+                .getDiagnosesList(eq(USER_ID), eq(ResultStatus.RECHECK_REQUIRED), any(Pageable.class));
     }
 
     @Test
@@ -342,12 +344,12 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("본인의 진단서를 삭제하면 성공 응답을 받는다.")
     void removeDiagnoses_thenSuccess() throws Exception {
-        mockMvc.perform(delete(BASE_URL + "/{diagnosesId}", 1L)
+        mockMvc.perform(delete(BASE_URL + "/{diagnosesId}", DIAGNOSES_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"));
 
-        then(diagnosesUseCase).should().removeDiagnoses(1L, 1L);
+        then(diagnosesUseCase).should().removeDiagnoses(USER_ID, DIAGNOSES_ID);
     }
 
     @Test
@@ -355,10 +357,10 @@ class DiagnosesControllerTest {
     void removeDiagnoses_withUnknownId_thenNotFound() throws Exception {
         // given
         willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
-                .given(diagnosesUseCase).removeDiagnoses(anyLong(), anyLong());
+                .given(diagnosesUseCase).removeDiagnoses(any(UUID.class), any(UUID.class));
 
         // when & then
-        mockMvc.perform(delete(BASE_URL + "/{diagnosesId}", 1L)
+        mockMvc.perform(delete(BASE_URL + "/{diagnosesId}", DIAGNOSES_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMMON-006"));
@@ -366,7 +368,7 @@ class DiagnosesControllerTest {
 
     private Authentication loginUser() {
         return UsernamePasswordAuthenticationToken.authenticated(
-                new UserPrincipal(1L, Role.USER),
+                new UserPrincipal(USER_ID, Role.USER),
                 null,
                 List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
     }
@@ -382,7 +384,7 @@ class DiagnosesControllerTest {
 
     private DiagnosesDetailResponse detailResponse() {
         return new DiagnosesDetailResponse(
-                1L, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                DIAGNOSES_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg", S3_URL_PREFIX + "product-detail/1/uuid_a2.jpg"),
                 ProcessingStatus.PENDING, null, null,
@@ -391,7 +393,7 @@ class DiagnosesControllerTest {
 
     private DiagnosesListResponse listResponse() {
         DiagnosesSummaryResponse summary = new DiagnosesSummaryResponse(
-                1L, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                DIAGNOSES_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 ProcessingStatus.PENDING, null, LocalDateTime.now());
 
         return new DiagnosesListResponse(

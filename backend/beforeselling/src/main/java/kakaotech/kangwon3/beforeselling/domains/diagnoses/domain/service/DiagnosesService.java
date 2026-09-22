@@ -19,6 +19,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -51,7 +52,7 @@ public class DiagnosesService {
     }
 
     // 단건 조회 + 소유권 검증
-    public Diagnoses getDiagnoses(Long userId, Long diagnosesId) {
+    public Diagnoses getDiagnoses(UUID userId, UUID diagnosesId) {
         Diagnoses diagnoses = diagnosesRepository.findWithImagesById(diagnosesId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
@@ -62,7 +63,7 @@ public class DiagnosesService {
     }
 
     // 목록 조회, 필터 유무 분기
-    public Page<Diagnoses> getDiagnosesList(Long userId, ResultStatus resultStatus, Pageable pageable) {
+    public Page<Diagnoses> getDiagnosesList(UUID userId, ResultStatus resultStatus, Pageable pageable) {
         if(resultStatus == null) {
             return diagnosesRepository.findByUserId(userId, pageable);
         }
@@ -71,7 +72,7 @@ public class DiagnosesService {
 
     // 진단서 삭제(딸린 이미지는 cascade로 함께 삭제)
     @Transactional
-    public void removeDiagnoses(Long userId, Long diagnosesId) {
+    public void removeDiagnoses(UUID userId, UUID diagnosesId) {
         Diagnoses diagnoses = getDiagnoses(userId, diagnosesId);
         List<String> imageKeys = collectImageKeys(diagnoses);
         diagnosesRepository.delete(diagnoses);
@@ -82,7 +83,7 @@ public class DiagnosesService {
 
     // 회원 탈퇴 시 해당 사용자의 모든 진단서 이미지에 대한 S3 삭제 요청
     @Transactional
-    public void removeAllByUserId(Long userId) {
+    public void removeAllByUserId(UUID userId) {
         List<Diagnoses> diagnosesList = diagnosesRepository.findWithImagesByUserId(userId);
 
         List<String> imageKeys = diagnosesList.stream()

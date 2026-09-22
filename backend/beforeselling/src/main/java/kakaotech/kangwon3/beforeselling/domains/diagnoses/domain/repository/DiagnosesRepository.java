@@ -9,16 +9,17 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface DiagnosesRepository extends JpaRepository<Diagnoses, Long> {
-    
-    @EntityGraph(attributePaths = "images")
-    Optional<Diagnoses> findWithImagesById(Long diagnosesId);
+public interface DiagnosesRepository extends JpaRepository<Diagnoses, UUID> {
 
     @EntityGraph(attributePaths = "images")
-    List<Diagnoses> findWithImagesByUserId(Long userId);
+    Optional<Diagnoses> findWithImagesById(UUID diagnosesId);
 
-    Page<Diagnoses> findByUserId(Long userId, Pageable pageable);
+    @EntityGraph(attributePaths = "images")
+    List<Diagnoses> findWithImagesByUserId(UUID userId);
 
-    Page<Diagnoses> findByUserIdAndResultStatus(Long userId, ResultStatus resultStatus, Pageable pageable);
+    Page<Diagnoses> findByUserId(UUID userId, Pageable pageable);
+
+    Page<Diagnoses> findByUserIdAndResultStatus(UUID userId, ResultStatus resultStatus, Pageable pageable);
 }
