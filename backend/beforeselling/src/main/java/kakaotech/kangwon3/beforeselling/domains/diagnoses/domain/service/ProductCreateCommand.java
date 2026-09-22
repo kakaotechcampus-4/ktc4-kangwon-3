@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.UUID;
 
 public record ProductCreateCommand(
-        UUID userId,
         String productName,
         String productImageKey,
         SourceType sourceType,
