@@ -11,8 +11,9 @@ function NotificationSettings() {
     const [revisionAlertEnabled, setRevisionAlertEnabled] = useState(false);
 
     return (
-        <DefaultBox>
-            <SectionIntro title="알림 설정" size="xl" />
+        <DefaultBox className="flex flex-col gap-5">
+            <SectionIntro title="알림 설정" size="xl"/>
+            <hr className="w-full border-neutral-border" />
             <SettingToggleRow
                 title="고시 개정 알림"
                 description="관련 법령·고시가 바뀌면 마이페이지 상단에 알려드립니다."
