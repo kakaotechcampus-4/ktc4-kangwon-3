@@ -1,12 +1,15 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.DiagnosesCreateRequest;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductCreateRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
@@ -38,37 +41,39 @@ class DiagnosesMapperTest {
             Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null)));
 
     @Test
-    @DisplayName("진단 요청을 변환하면 로그인 사용자 정보가 함께 담긴다.")
-    void toCommand_thenIncludeUserId() {
+    @DisplayName("진단 요청을 변환하면 상품마다 커맨드가 요청 순서대로 만들어진다.")
+    void toCommands_thenKeepRequestOrder() {
         // given
-        DiagnosesCreateRequest request = new DiagnosesCreateRequest(
-                PRODUCT_NAME, PRODUCT_IMAGE_KEY, SourceType.URL, SOURCE_URL, null,
-                List.of("product-detail/1/uuid_a1.jpg"));
+        DiagnosesCreateRequest request = new DiagnosesCreateRequest(List.of(
+                productRequest("상품 A", List.of("product-detail/1/uuid_a1.jpg")),
+                productRequest("상품 B", List.of())));
 
         // when
-        ProductCreateCommand command = diagnosesMapper.toCommand(USER_ID, request);
+        List<ProductCreateCommand> commands = diagnosesMapper.toCommands(request);
 
         // then
-        assertThat(command.userId()).isEqualTo(USER_ID);
-        assertThat(command.productName()).isEqualTo(PRODUCT_NAME);
-        assertThat(command.productImageKey()).isEqualTo(PRODUCT_IMAGE_KEY);
-        assertThat(command.sourceType()).isEqualTo(SourceType.URL);
-        assertThat(command.sourceUrl()).isEqualTo(SOURCE_URL);
-        assertThat(command.imageKeys()).containsExactly("product-detail/1/uuid_a1.jpg");
+        assertThat(commands).extracting(ProductCreateCommand::productName)
+                .containsExactly("상품 A", "상품 B");
+
+        ProductCreateCommand first = commands.getFirst();
+        assertThat(first.productImageKey()).isEqualTo(PRODUCT_IMAGE_KEY);
+        assertThat(first.sourceType()).isEqualTo(SourceType.URL);
+        assertThat(first.sourceUrl()).isEqualTo(SOURCE_URL);
+        assertThat(first.imageKeys()).containsExactly("product-detail/1/uuid_a1.jpg");
     }
 
     @Test
-    @DisplayName("이미지 없이 진단을 요청하면 이미지 목록이 빈 값으로 변환된다.")
-    void toCommand_withoutImageKeys_thenReturnEmptyList() {
+    @DisplayName("이미지 없이 상품을 요청하면 이미지 목록이 빈 값으로 변환된다.")
+    void toCommands_withoutImageKeys_thenReturnEmptyList() {
         // given
-        DiagnosesCreateRequest request = new DiagnosesCreateRequest(
-                PRODUCT_NAME, null, SourceType.URL, SOURCE_URL, null, null);
+        DiagnosesCreateRequest request = new DiagnosesCreateRequest(List.of(
+                new ProductCreateRequest(PRODUCT_NAME, null, SourceType.URL, SOURCE_URL, null, null)));
 
         // when
-        ProductCreateCommand command = diagnosesMapper.toCommand(USER_ID, request);
+        List<ProductCreateCommand> commands = diagnosesMapper.toCommands(request);
 
         // then
-        assertThat(command.imageKeys()).isNotNull().isEmpty();
+        assertThat(commands.getFirst().imageKeys()).isNotNull().isEmpty();
     }
 
     @Test
@@ -85,29 +90,51 @@ class DiagnosesMapperTest {
     @DisplayName("진단서 상세로 변환하면 저장된 key가 접근 가능한 URL로 조립된다.")
     void toDetailResponse_thenConvertKeysToUrls() {
         // given
-        Product product = createDiagnoses(1L, PRODUCT_IMAGE_KEY);
-        product.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
+        Diagnoses diagnoses = createDiagnoses(1L, PRODUCT_IMAGE_KEY);
+        diagnoses.getProducts().getFirst()
+                .addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
 
         // when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(product);
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
 
         // then
         assertThat(response.diagnosesId()).isEqualTo(1L);
-        assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
-        assertThat(response.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
-        assertThat(response.imageUrls()).containsExactly(
+        assertThat(response.products()).hasSize(1);
+
+        ProductResponse product = response.products().getFirst();
+        assertThat(product.productName()).isEqualTo(PRODUCT_NAME);
+        assertThat(product.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
+        assertThat(product.imageUrls()).containsExactly(
                 URL_PREFIX + "product-detail/1/uuid_a1.jpg",
                 URL_PREFIX + "product-detail/1/uuid_a2.jpg");
     }
 
     @Test
-    @DisplayName("대표 이미지 없이 등록한 진단서를 변환하면 대표 이미지 URL이 비어 있다.")
+    @DisplayName("상품 여러 개를 담은 진단서를 변환하면 정렬 값과 함께 모두 반환된다.")
+    void toDetailResponse_withMultipleProducts_thenIncludeAllInOrder() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(1L, PRODUCT_IMAGE_KEY, "상품 A", "상품 B", "상품 C");
+
+        // when
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
+
+        // then
+        assertThat(response.products())
+                .extracting(ProductResponse::productName, ProductResponse::sortOrder)
+                .containsExactly(
+                        org.assertj.core.api.Assertions.tuple("상품 A", 0),
+                        org.assertj.core.api.Assertions.tuple("상품 B", 1),
+                        org.assertj.core.api.Assertions.tuple("상품 C", 2));
+    }
+
+    @Test
+    @DisplayName("대표 이미지 없이 등록한 상품을 변환하면 대표 이미지 URL이 비어 있다.")
     void toDetailResponse_withoutProductImageKey_thenProductImageUrlIsNull() {
         // given & when
         DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(1L, null));
 
         // then
-        assertThat(response.productImageUrl()).isNull();
+        assertThat(response.products().getFirst().productImageUrl()).isNull();
     }
 
     @Test
@@ -118,23 +145,27 @@ class DiagnosesMapperTest {
 
         // then
         assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
-        assertThat(response.resultStatus()).isNull();
-        assertThat(response.summary()).isNull();
-        assertThat(response.imageUrls()).isEmpty();
+
+        ProductResponse product = response.products().getFirst();
+        assertThat(product.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
+        assertThat(product.resultStatus()).isNull();
+        assertThat(product.summary()).isNull();
+        assertThat(product.imageUrls()).isEmpty();
     }
 
     @Test
-    @DisplayName("목록 카드로 변환하면 썸네일 URL과 상태 값만 담긴다.")
-    void toSummaryResponse_thenIncludeThumbnailAndStatus() {
+    @DisplayName("목록 카드로 변환하면 상품 수와 대표 상품 정보가 담긴다.")
+    void toSummaryResponse_thenIncludeProductCountAndRepresentative() {
         // given & when
-        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(createDiagnoses(1L, PRODUCT_IMAGE_KEY));
+        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(
+                createDiagnoses(1L, PRODUCT_IMAGE_KEY, "상품 A", "상품 B"));
 
         // then
         assertThat(response.diagnosesId()).isEqualTo(1L);
-        assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
-        assertThat(response.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
+        assertThat(response.productCount()).isEqualTo(2);
+        assertThat(response.representativeProductName()).isEqualTo("상품 A");
+        assertThat(response.representativeProductImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
         assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
-        assertThat(response.resultStatus()).isNull();
     }
 
     @Test
@@ -144,14 +175,31 @@ class DiagnosesMapperTest {
         DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(createDiagnoses(1L, null));
 
         // then
-        assertThat(response.productImageUrl()).isNull();
+        assertThat(response.representativeProductImageUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("상품이 하나도 없는 진단서를 목록 카드로 변환해도 예외 없이 빈 값이 담긴다.")
+    void toSummaryResponse_withoutProducts_thenRepresentativeIsNull() {
+        // given
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        ReflectionTestUtils.setField(diagnoses, "id", 1L);
+        ReflectionTestUtils.setField(diagnoses, "createdAt", LocalDateTime.now());
+
+        // when
+        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(diagnoses);
+
+        // then
+        assertThat(response.productCount()).isZero();
+        assertThat(response.representativeProductName()).isNull();
+        assertThat(response.representativeProductImageUrl()).isNull();
     }
 
     @Test
     @DisplayName("목록으로 변환하면 진단서 요약과 페이징 정보가 함께 담긴다.")
     void toListResponse_thenIncludeSummariesAndPageInfo() {
         // given
-        Page<Product> page = new PageImpl<>(
+        Page<Diagnoses> page = new PageImpl<>(
                 List.of(createDiagnoses(1L, PRODUCT_IMAGE_KEY), createDiagnoses(2L, PRODUCT_IMAGE_KEY)),
                 PageRequest.of(0, 2),
                 5);
@@ -172,13 +220,25 @@ class DiagnosesMapperTest {
         assertThat(pageInfo.hasNext()).isTrue();
     }
 
-    private Product createDiagnoses(Long diagnosesId, String productImageKey) {
-        Product product = Product.pending(
-                USER_ID, PRODUCT_NAME, productImageKey, SourceType.URL, SOURCE_URL, null);
+    private ProductCreateRequest productRequest(String productName, List<String> imageKeys) {
+        return new ProductCreateRequest(
+                productName, PRODUCT_IMAGE_KEY, SourceType.URL, SOURCE_URL, null, imageKeys);
+    }
 
-        ReflectionTestUtils.setField(product, "id", diagnosesId);
-        ReflectionTestUtils.setField(product, "createdAt", LocalDateTime.now());
-        ReflectionTestUtils.setField(product, "updatedAt", LocalDateTime.now());
-        return product;
+    private Diagnoses createDiagnoses(Long diagnosesId, String productImageKey) {
+        return createDiagnoses(diagnosesId, productImageKey, PRODUCT_NAME);
+    }
+
+    private Diagnoses createDiagnoses(Long diagnosesId, String productImageKey, String... productNames) {
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        ReflectionTestUtils.setField(diagnoses, "id", diagnosesId);
+        ReflectionTestUtils.setField(diagnoses, "createdAt", LocalDateTime.now());
+        ReflectionTestUtils.setField(diagnoses, "updatedAt", LocalDateTime.now());
+
+        diagnoses.addProducts(List.of(productNames).stream()
+                .map(name -> Product.pending(name, productImageKey, SourceType.URL, SOURCE_URL, null))
+                .toList());
+
+        return diagnoses;
     }
 }

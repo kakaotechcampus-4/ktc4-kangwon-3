@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.user.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.AuthTokenService;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.SocialProvider;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
@@ -31,7 +32,7 @@ class UserWithdrawalUseCaseTest {
     private SocialUnlinkService socialUnlinkService;
 
     @Mock
-    private ProductService productService;
+    private DiagnosesService diagnosesService;
 
     @InjectMocks
     private UserWithdrawalUseCase userWithdrawalUseCase;
@@ -47,10 +48,10 @@ class UserWithdrawalUseCaseTest {
         userWithdrawalUseCase.withdraw(1L, "refresh-token");
 
         // then
-        InOrder inOrder = inOrder(userService, productService, socialUnlinkService, authTokenService);
+        InOrder inOrder = inOrder(userService, diagnosesService, socialUnlinkService, authTokenService);
         then(userService).should(inOrder).getUser(1L);
         then(userService).should(inOrder).withdraw(1L);
-        then(productService).should(inOrder).removeAllByUserId(1L);
+        then(diagnosesService).should(inOrder).removeAllByUserId(1L);
         then(authTokenService).should(inOrder).removeRefreshToken("refresh-token");
         then(socialUnlinkService).should(inOrder).unlink(user);
     }
@@ -68,7 +69,7 @@ class UserWithdrawalUseCaseTest {
         // then
         then(socialUnlinkService).should().unlink(user);
         then(userService).should().withdraw(1L);
-        then(productService).should().removeAllByUserId(1L);
+        then(diagnosesService).should().removeAllByUserId(1L);
         then(authTokenService).should().removeRefreshToken(null);
     }
 

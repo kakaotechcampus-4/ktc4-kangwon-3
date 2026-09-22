@@ -5,6 +5,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesSummaryResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.DiagnosesUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
@@ -128,8 +129,9 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("제품명 없이 진단을 요청하면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withoutProductName_thenBadRequest() throws Exception {
-        Map<String, Object> request = urlTypeRequest();
-        request.remove("productName");
+        Map<String, Object> product = urlTypeProduct();
+        product.remove("productName");
+        Map<String, Object> request = wrap(product);
 
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
@@ -142,8 +144,9 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("URL 등록 방식인데 상세페이지 URL이 없으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withUrlTypeAndNoSourceUrl_thenBadRequest() throws Exception {
-        Map<String, Object> request = urlTypeRequest();
-        request.remove("sourceUrl");
+        Map<String, Object> product = urlTypeProduct();
+        product.remove("sourceUrl");
+        Map<String, Object> request = wrap(product);
 
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
@@ -156,9 +159,10 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("텍스트·이미지 등록 방식인데 본문과 이미지가 모두 없으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withTextImageTypeAndNoContent_thenBadRequest() throws Exception {
-        Map<String, Object> request = new HashMap<>();
-        request.put("productName", "대나무 헬리콥터");
-        request.put("sourceType", SourceType.TEXT_IMAGE.name());
+        Map<String, Object> product = new HashMap<>();
+        product.put("productName", "대나무 헬리콥터");
+        product.put("sourceType", SourceType.TEXT_IMAGE.name());
+        Map<String, Object> request = wrap(product);
 
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
@@ -175,11 +179,12 @@ class DiagnosesControllerTest {
         given(diagnosesUseCase.createDiagnoses(anyLong(), any()))
                 .willReturn(new DiagnosesCreateResponse(42L));
 
-        Map<String, Object> request = new HashMap<>();
-        request.put("productName", "대나무 헬리콥터");
-        request.put("sourceType", SourceType.TEXT_IMAGE.name());
-        request.put("imageKeys", List.of(
+        Map<String, Object> product = new HashMap<>();
+        product.put("productName", "대나무 헬리콥터");
+        product.put("sourceType", SourceType.TEXT_IMAGE.name());
+        product.put("imageKeys", List.of(
                 "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
+        Map<String, Object> request = wrap(product);
 
         // when & then
         mockMvc.perform(post(BASE_URL)
@@ -202,24 +207,26 @@ class DiagnosesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.diagnosesId").value(1))
-                .andExpect(jsonPath("$.data.productName").value("대나무 헬리콥터"))
                 .andExpect(jsonPath("$.data.processingStatus").value("PENDING"))
-                .andExpect(jsonPath("$.data.resultStatus").doesNotExist())
-                .andExpect(jsonPath("$.data.imageUrls.length()").value(2));
+                .andExpect(jsonPath("$.data.products.length()").value(1))
+                .andExpect(jsonPath("$.data.products[0].productName").value("대나무 헬리콥터"))
+                .andExpect(jsonPath("$.data.products[0].resultStatus").doesNotExist())
+                .andExpect(jsonPath("$.data.products[0].imageUrls.length()").value(2));
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서를 조회하면 403과 COMMON-005 코드를 응답한다.")
-    void getDiagnoses_withOtherUsersDiagnoses_thenForbidden() throws Exception {
-        // given
-        willThrow(new BaseException(CommonResponseCode.FORBIDDEN))
+    @DisplayName("다른 사용자의 진단서를 조회하면 404와 COMMON-006 코드를 응답한다.")
+    void getDiagnoses_withOtherUsersDiagnoses_thenNotFound() throws Exception {
+        // given: 소유권이 조회 조건에 포함되어 있어 남의 진단서는 "없는 것"과 같게 응답한다.
+        // 403을 주면 진단서 id의 존재 여부가 새어 나간다.
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
                 .given(diagnosesUseCase).getDiagnoses(anyLong(), anyLong());
 
         // when & then
         mockMvc.perform(get(BASE_URL + "/{diagnosesId}", 1L)
                         .with(authentication(loginUser())))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("COMMON-005"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMMON-006"));
     }
 
     @Test
@@ -231,7 +238,7 @@ class DiagnosesControllerTest {
         // when
         mockMvc.perform(get(BASE_URL).with(authentication(loginUser())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.diagnoses[0].productName").value("대나무 헬리콥터"))
+                .andExpect(jsonPath("$.data.diagnoses[0].representativeProductName").value("대나무 헬리콥터"))
                 .andExpect(jsonPath("$.data.pageInfo.page").value(0))
                 .andExpect(jsonPath("$.data.pageInfo.hasNext").value(false));
 
@@ -372,27 +379,40 @@ class DiagnosesControllerTest {
     }
 
     private Map<String, Object> urlTypeRequest() {
+        return wrap(urlTypeProduct());
+    }
+
+    private Map<String, Object> urlTypeProduct() {
+        Map<String, Object> product = new HashMap<>();
+        product.put("productName", "대나무 헬리콥터");
+        product.put("productImageKey", "product-main/1/uuid_thumbnail.jpg");
+        product.put("sourceType", SourceType.URL.name());
+        product.put("sourceUrl", "https://ko.aliexpress.com/item/100500628491");
+        return product;
+    }
+
+    private Map<String, Object> wrap(Map<String, Object>... products) {
         Map<String, Object> request = new HashMap<>();
-        request.put("productName", "대나무 헬리콥터");
-        request.put("productImageKey", "product-main/1/uuid_thumbnail.jpg");
-        request.put("sourceType", SourceType.URL.name());
-        request.put("sourceUrl", "https://ko.aliexpress.com/item/100500628491");
+        request.put("products", List.of(products));
         return request;
     }
 
     private DiagnosesDetailResponse detailResponse() {
-        return new DiagnosesDetailResponse(
-                1L, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+        ProductResponse product = new ProductResponse(
+                10L, 0, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg", S3_URL_PREFIX + "product-detail/1/uuid_a2.jpg"),
-                ProcessingStatus.PENDING, null, null,
+                ProcessingStatus.PENDING, null, null);
+
+        return new DiagnosesDetailResponse(
+                1L, ProcessingStatus.PENDING, List.of(product),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 
     private DiagnosesListResponse listResponse() {
         DiagnosesSummaryResponse summary = new DiagnosesSummaryResponse(
-                1L, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
-                ProcessingStatus.PENDING, null, LocalDateTime.now());
+                1L, ProcessingStatus.PENDING, 1, "대나무 헬리콥터",
+                S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg", LocalDateTime.now());
 
         return new DiagnosesListResponse(
                 List.of(summary),
