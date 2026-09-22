@@ -50,16 +50,4 @@ public class DiagnosesController implements DiagnosesApi {
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
     }
-
-    // 진단서 단건 삭제
-    @Override
-    @DeleteMapping("/{diagnosesId}")
-    public ResponseEntity<ApiResponse<Void>> removeDiagnoses(
-            @LoginUser UserPrincipal principal,
-            @PathVariable UUID diagnosesId
-    ) {
-        diagnosesUseCase.removeDiagnoses(principal.userId(), diagnosesId);
-
-        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
-    }
 }
