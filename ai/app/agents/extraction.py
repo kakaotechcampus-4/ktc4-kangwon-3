@@ -3,6 +3,7 @@
 import logging
 from functools import lru_cache
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Protocol
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -10,6 +11,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ..config import build_chat_model
 from ..schemas.agent import ExtractionInput
 from ..schemas.product import Attribute, ProductAttributes, Product
+from ..usage import CallUsage, from_response, record
 from ..utils.extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 
 # 평가 모듈이 프롬프트 지문을 기록할 때 이 경로를 참조한다. 에이전트 내부 전용이 아니므로
@@ -57,14 +59,25 @@ def _load_system_prompt() -> str:
 class ExtractionAgent:
     """상품 원문에서 정보를 추출한다. 툴 선택이나 규제 판정은 맡지 않는다."""
 
-    def __init__(self, model: _ModelLike | None = None) -> None:
+    def __init__(
+        self,
+        model: _ModelLike | None = None,
+        *,
+        configured_model: str | None = None,
+        usage_agent: str = "extraction",
+    ) -> None:
         # 모델 생성은 config.build_chat_model()에 맡긴다. 에이전트마다 ChatOpenAI를 직접
         # 만들면 base_url·허용 모델·타임아웃 설정이 흩어지고, base_url이 비었을 때
         # OpenAI 공식 서버로 요청이 나가 원인을 알기 어려운 401을 만난다.
         # model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있다.
+        chat_model = model or build_chat_model()
+        # 비용 단가는 모델별로 다르다. 요청한 모델 이름을 알아야 비용을 계산할 수 있다.
+        self._configured_model = configured_model or getattr(chat_model, "model_name", None)
+        # 평가로 쓴 비용과 운영으로 쓴 비용은 나눠 봐야 한다. 그 구분은 호출자만 안다.
+        self._usage_agent = usage_agent
         # include_raw=True: 파싱 결과와 함께 원본 응답을 받아 토큰 사용량(캐시 적용 여부 포함)을
         # 기록한다. 측정이 없으면 토큰 최적화도 할 수 없다.
-        self._structured_model = (model or build_chat_model()).with_structured_output(
+        self._structured_model = chat_model.with_structured_output(
             ProductAttributes, include_raw=True
         )
 
@@ -77,22 +90,35 @@ class ExtractionAgent:
             text_blocks·image_urls가 모두 비어 입력 자체가 없는 경우는 ValueError.
         """
         messages = self._build_messages(source)
+        started_at = perf_counter()
         try:
             result = self._structured_model.invoke(messages)
         except Exception as exc:
+            # 호출 자체가 실패하면 사용량을 알 수 없지만, 실패도 집계에 남겨야
+            # "몇 번 시도해서 몇 번 성공했는지"를 볼 수 있다.
+            self._record_usage(None, source, started_at, error=type(exc).__name__)
             # langchain·openai SDK의 구체적인 예외 타입(레이트리밋·인증 오류 등)을
             # 호출부가 몰라도 되게 하나로 감싼다. 여기서 삼키지 않고 원인은 그대로 보존한다.
             raise ExtractionFailedError(f"상품 정보 추출에 실패했습니다: {exc}") from exc
+
+        raw_message = result.get("raw")
+        usage = from_response(raw_message)
 
         # include_raw=True면 스키마 불일치는 예외가 아니라 parsing_error로 돌아온다.
         parsing_error = result.get("parsing_error")
         fields = result.get("parsed")
         if parsing_error is not None or fields is None:
+            # 파싱에 실패해도 토큰은 이미 썼다. 비용에서 빠지면 안 된다.
+            self._record_usage(
+                usage, source, started_at,
+                error=type(parsing_error).__name__ if parsing_error else "MissingParsedOutput",
+            )
             raise ExtractionFailedError(
                 f"모델 응답이 상품 스키마와 맞지 않습니다: {parsing_error}"
             ) from parsing_error
 
-        _log_token_usage(result.get("raw"))
+        self._record_usage(usage, source, started_at)
+        _log_token_usage(usage, raw_message)
 
         # 규칙 기반 사전추출: LLM 호출과 완전히 독립적으로 실행하고 결과만 합친다
         # ("규칙은 규칙, AI는 AI" — 정규식이 하나도 안 걸려도 LLM 판단엔 영향 없음).
@@ -108,6 +134,25 @@ class ExtractionAgent:
             product_id=source.product_id,
             source_url=source.source_url,
             **payload,
+        )
+
+    def _record_usage(
+        self,
+        usage: CallUsage | None,
+        source: ExtractionInput,
+        started_at: float,
+        *,
+        error: str | None = None,
+    ) -> None:
+        """호출 1건을 공용 사용량 로그에 남긴다. 팀 크레딧이 공용이라 집계가 필요하다."""
+        record(
+            self._usage_agent,
+            usage,
+            configured_model=self._configured_model,
+            subject_id=source.product_id,
+            ok=error is None,
+            elapsed_ms=round((perf_counter() - started_at) * 1000),
+            error_type=error,
         )
 
     def _build_messages(self, source: ExtractionInput) -> list[SystemMessage | HumanMessage]:
@@ -130,19 +175,17 @@ class ExtractionAgent:
         ]
 
 
-def _log_token_usage(raw_message: Any) -> None:
+def _log_token_usage(usage: CallUsage | None, raw_message: Any) -> None:
     # 고정 prefix(시스템 프롬프트+스키마 ≈ 2,250토큰)가 캐시되면 cache_read에 잡힌다.
     # 이 값이 계속 0이면 프롬프트 캐시가 안 먹는 것이므로 prefix가 호출마다 달라지는지 봐야 한다.
-    usage = getattr(raw_message, "usage_metadata", None)
-    if not usage:
+    if usage is None:
         return
-    input_details = usage.get("input_token_details") or {}
     logger.info(
         "추출 토큰 사용량 input=%s (cache_read=%s) output=%s total=%s",
-        usage.get("input_tokens"),
-        input_details.get("cache_read"),
-        usage.get("output_tokens"),
-        usage.get("total_tokens"),
+        usage.input_tokens,
+        usage.cached_tokens,
+        usage.output_tokens,
+        usage.total_tokens,
     )
     # 게이트웨이(엘리스 MLAPI)가 주는 원본 필드명은 OpenAI와 다를 수 있어 디버그로 남긴다.
     response_metadata = getattr(raw_message, "response_metadata", None) or {}
