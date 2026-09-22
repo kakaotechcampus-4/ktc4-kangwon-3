@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # -- KC인증정보 --
@@ -10,36 +10,40 @@ from pydantic import BaseModel
 class CertFactory(BaseModel):
     """KC인증 공장 정보."""
 
-    makerName: str | None = None
-    makerCntryName: str | None = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    maker_name: str | None = Field(None, alias="makerName")
+    maker_cntry_name: str | None = Field(None, alias="makerCntryName")
 
 
 class CertItem(BaseModel):
     """KC인증정보 단건."""
 
-    certUid: int | None = None
-    certOrganName: str | None = None
-    certNum: str | None = None
-    certState: str | None = None
-    certDiv: str | None = None
-    certDate: str | None = None
-    certChgDate: str | None = None
-    certChgReason: str | None = None
-    firstCertNum: str | None = None
-    productName: str | None = None
-    brandName: str | None = None
-    modelName: str | None = None
-    categoryName: str | None = None
-    importDiv: str | None = None
-    makerName: str | None = None
-    makerCntryName: str | None = None
-    importerName: str | None = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    cert_uid: int | None = Field(None, alias="certUid")
+    cert_organ_name: str | None = Field(None, alias="certOrganName")
+    cert_num: str | None = Field(None, alias="certNum")
+    cert_state: str | None = Field(None, alias="certState")
+    cert_div: str | None = Field(None, alias="certDiv")
+    cert_date: str | None = Field(None, alias="certDate")
+    cert_chg_date: str | None = Field(None, alias="certChgDate")
+    cert_chg_reason: str | None = Field(None, alias="certChgReason")
+    first_cert_num: str | None = Field(None, alias="firstCertNum")
+    product_name: str | None = Field(None, alias="productName")
+    brand_name: str | None = Field(None, alias="brandName")
+    model_name: str | None = Field(None, alias="modelName")
+    category_name: str | None = Field(None, alias="categoryName")
+    import_div: str | None = Field(None, alias="importDiv")
+    maker_name: str | None = Field(None, alias="makerName")
+    maker_cntry_name: str | None = Field(None, alias="makerCntryName")
+    importer_name: str | None = Field(None, alias="importerName")
     remark: str | None = None
-    signDate: str | None = None
-    derivationModels: list[str] | None = None
-    certificationImageUrls: list[str] | None = None
+    sign_date: str | None = Field(None, alias="signDate")
+    derivation_models: list[str] | None = Field(None, alias="derivationModels")
+    certification_image_urls: list[str] | None = Field(None, alias="certificationImageUrls")
     factories: list[CertFactory] | None = None
-    similarCertifications: list[CertItem] | None = None
+    similar_certifications: list[CertItem] | None = Field(None, alias="similarCertifications")
 
 
 class CertSearchResponse(BaseModel):
@@ -57,41 +61,45 @@ class CertSearchResponse(BaseModel):
 class RecallFile(BaseModel):
     """국내리콜 첨부파일."""
 
-    fileDiv: str | None = None
-    imageUrl: str | None = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    file_div: str | None = Field(None, alias="fileDiv")
+    image_url: str | None = Field(None, alias="imageUrl")
 
 
 class RecallItem(BaseModel):
     """국내리콜정보 단건."""
 
-    recallUid: str | None = None
-    recallProductName: str | None = None
-    recallBrandName: str | None = None
-    recallModelName: str | None = None
-    recallModelCnt: int | None = None
-    recallTypeName: str | None = None
-    recallMeans: str | None = None
-    barcodeNum: str | None = None
-    categoryName: str | None = None
-    certNum: str | None = None
-    productItemName: str | None = None
-    recallCmpnyDivName: str | None = None
-    recallInqryTel: str | None = None
-    recallCmpnyName: str | None = None
-    recallCmpnySsn: str | None = None
-    recallFrgnCmpnyName: str | None = None
-    makerCntryName: str | None = None
-    makerName: str | None = None
-    makingCntryName: str | None = None
-    publishDate: str | None = None
-    publishRecallVol: str | None = None
-    recallActionAmt: str | None = None
-    recallStaDate: str | None = None
-    recallEndDate: str | None = None
-    harmDscr: str | None = None
-    accidentCaseDscr: str | None = None
-    publishActionDscr: str | None = None
-    recallFiles: list[RecallFile] | None = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    recall_uid: str | None = Field(None, alias="recallUid")
+    recall_product_name: str | None = Field(None, alias="recallProductName")
+    recall_brand_name: str | None = Field(None, alias="recallBrandName")
+    recall_model_name: str | None = Field(None, alias="recallModelName")
+    recall_model_cnt: int | None = Field(None, alias="recallModelCnt")
+    recall_type_name: str | None = Field(None, alias="recallTypeName")
+    recall_means: str | None = Field(None, alias="recallMeans")
+    barcode_num: str | None = Field(None, alias="barcodeNum")
+    category_name: str | None = Field(None, alias="categoryName")
+    cert_num: str | None = Field(None, alias="certNum")
+    product_item_name: str | None = Field(None, alias="productItemName")
+    recall_cmpny_div_name: str | None = Field(None, alias="recallCmpnyDivName")
+    recall_inqry_tel: str | None = Field(None, alias="recallInqryTel")
+    recall_cmpny_name: str | None = Field(None, alias="recallCmpnyName")
+    recall_cmpny_ssn: str | None = Field(None, alias="recallCmpnySsn")
+    recall_frgn_cmpny_name: str | None = Field(None, alias="recallFrgnCmpnyName")
+    maker_cntry_name: str | None = Field(None, alias="makerCntryName")
+    maker_name: str | None = Field(None, alias="makerName")
+    making_cntry_name: str | None = Field(None, alias="makingCntryName")
+    publish_date: str | None = Field(None, alias="publishDate")
+    publish_recall_vol: str | None = Field(None, alias="publishRecallVol")
+    recall_action_amt: str | None = Field(None, alias="recallActionAmt")
+    recall_sta_date: str | None = Field(None, alias="recallStaDate")
+    recall_end_date: str | None = Field(None, alias="recallEndDate")
+    harm_dscr: str | None = Field(None, alias="harmDscr")
+    accident_case_dscr: str | None = Field(None, alias="accidentCaseDscr")
+    publish_action_dscr: str | None = Field(None, alias="publishActionDscr")
+    recall_files: list[RecallFile] | None = Field(None, alias="recallFiles")
 
 
 class RecallSearchResponse(BaseModel):
@@ -109,25 +117,27 @@ class RecallSearchResponse(BaseModel):
 class ForeignRecallItem(BaseModel):
     """국외리콜정보 단건."""
 
-    fRecallUid: str | None = None
-    recallModelName: str | None = None
-    recallModelCnt: str | None = None
-    recallProductName: str | None = None
-    recallBrandName: str | None = None
-    makerName: str | None = None
-    makingCntryName: str | None = None
-    recallTypeName: str | None = None
-    recallPblshCntryName: str | None = None
-    recallPblshOrgnName: str | None = None
-    recallMeans: str | None = None
-    violateDscr: str | None = None
-    accidentCaseDscr: str | None = None
-    publishActionDscr: str | None = None
-    recallProductDscr: str | None = None
-    recallUrl: str | None = None
-    publishDate: str | None = None
-    signDttm: str | None = None
-    imageUrl: str | None = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    f_recall_uid: str | None = Field(None, alias="fRecallUid")
+    recall_model_name: str | None = Field(None, alias="recallModelName")
+    recall_model_cnt: str | None = Field(None, alias="recallModelCnt")
+    recall_product_name: str | None = Field(None, alias="recallProductName")
+    recall_brand_name: str | None = Field(None, alias="recallBrandName")
+    maker_name: str | None = Field(None, alias="makerName")
+    making_cntry_name: str | None = Field(None, alias="makingCntryName")
+    recall_type_name: str | None = Field(None, alias="recallTypeName")
+    recall_pblsh_cntry_name: str | None = Field(None, alias="recallPblshCntryName")
+    recall_pblsh_orgn_name: str | None = Field(None, alias="recallPblshOrgnName")
+    recall_means: str | None = Field(None, alias="recallMeans")
+    violate_dscr: str | None = Field(None, alias="violateDscr")
+    accident_case_dscr: str | None = Field(None, alias="accidentCaseDscr")
+    publish_action_dscr: str | None = Field(None, alias="publishActionDscr")
+    recall_product_dscr: str | None = Field(None, alias="recallProductDscr")
+    recall_url: str | None = Field(None, alias="recallUrl")
+    publish_date: str | None = Field(None, alias="publishDate")
+    sign_dttm: str | None = Field(None, alias="signDttm")
+    image_url: str | None = Field(None, alias="imageUrl")
 
 
 class ForeignRecallSearchResponse(BaseModel):
