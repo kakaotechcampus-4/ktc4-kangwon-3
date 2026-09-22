@@ -21,7 +21,7 @@ class LawClient(BaseClient):
     """법제처 법령정보 클라이언트.
 
     방식 : GET/XML
-    서비스 키 : 불필요 (OC=test).
+    서비스 키 : OC 값 (기본 test).
     비고
         법령검색과 법령본문 두 엔드포인트를 제공한다.
         XML 태그명이 한글이며, 텍스트에 CDATA가 포함된다.
@@ -30,12 +30,13 @@ class LawClient(BaseClient):
     _SEARCH_ENDPOINT = "/DRF/lawSearch.do"
     _TEXT_ENDPOINT = "/DRF/lawService.do"
 
-    def __init__(self):
+    def __init__(self, oc: str = "test"):
         super().__init__(
             base_url="https://www.law.go.kr",
             # 법령본문 응답이 커서 timeout을 넉넉하게 설정 (전파법 기준 ~200KB)
-            timeout=30.0,  
+            timeout=30.0,
         )
+        self._oc = oc
 
     # -- 법령검색 (target별) --
 
@@ -182,7 +183,7 @@ class LawClient(BaseClient):
             Element: 파싱된 XML 루트 엘리먼트.
         """
         response = self._get(self._SEARCH_ENDPOINT, params={
-            "OC": "test",               # 공개 테스트 계정
+            "OC": self._oc,
             "target": target,            # 검색 대상
             "type": "XML",               # 응답 포맷
             "query": request.query,      # 검색어
@@ -202,7 +203,7 @@ class LawClient(BaseClient):
             LawTextResponse: 조문 목록이 담긴 본문 응답.
         """
         response = self._get(self._TEXT_ENDPOINT, params={
-            "OC": "test",
+            "OC": self._oc,
             "target": target,
             id_param: request.mst,       # 일련번호
             "type": "XML",
