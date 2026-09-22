@@ -1,0 +1,38 @@
+{
+  "fixture": "ali_sample.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-22",
+  "summary": "어린이용 무선 헤어 드라이어. 전기·배터리·어린이 신호가 페이지에 명시돼 판단이 비교적 분명하다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목·카테고리의 '무선'은 전원선 없음(코드리스)을 뜻한다. 블루투스·WiFi·RF 언급 없음",
+      "why_not_other": "'무선'이라는 단어만 보고 선택하면 코드리스를 통신으로 오인한다. 다만 판단이 갈릴 수 있어 확인 필요."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "skin_contact=true이나 용도가 헤어 건조이고 성분이 피부에 흡수·반응하지 않는다. food_contact·medical_claim·cosmetic_claim 근거 없음",
+      "why_not_other": "프롬프트가 skin_contact만으로는 선택하지 않고 category·intended_use를 함께 보라고 규정한다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전력 공급 방식: USB 충전(내장 배터리)'",
+      "why_not_other": "electrical_powered·battery_included가 모두 확인된다."
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "제목 '어린이용 무선 헤어 드라이어', '키즈 모델'",
+      "why_not_other": "for_children=true이면 반드시 선택한다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '아이들의 연약한 피부에 적합한 소형 헤어 드라이어'",
+      "why_not_other": "적합성을 단정하는 판매자 문구다. 다만 '안전한 결제' 등 플랫폼 공통 문구는 근거로 쓰지 않았다. 판단 기준 확인 필요."
+    }
+  }
+}
