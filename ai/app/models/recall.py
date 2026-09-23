@@ -12,13 +12,6 @@ class Recall(Base):
     __table_args__ = (
         Index("ix_recalls_source", "source"),
         Index("ix_recalls_product_name", "product_name"),
-        Index(
-            "ix_recalls_embedding",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_with={"lists": 50},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
     )
 
     recall_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

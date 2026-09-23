@@ -13,13 +13,6 @@ class HsCase(Base):
     __tablename__ = "hs_cases"
     __table_args__ = (
         Index("ix_hs_cases_hs_code", "hs_code"),
-        Index(
-            "ix_hs_cases_embedding",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_with={"lists": 50},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
     )
 
     hs_case_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
