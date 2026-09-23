@@ -36,13 +36,6 @@ class LawArticle(Base):
     __table_args__ = (
         UniqueConstraint("law_id", "article_no", "article_branch"),
         Index("ix_law_articles_law_id", "law_id"),
-        Index(
-            "ix_law_articles_embedding",
-            "embedding",
-            postgresql_using="ivfflat",
-            postgresql_with={"lists": 100},
-            postgresql_ops={"embedding": "vector_cosine_ops"},
-        ),
     )
 
     law_article_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
