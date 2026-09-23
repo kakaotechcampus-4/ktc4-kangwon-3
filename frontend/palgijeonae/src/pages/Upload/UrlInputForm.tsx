@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 
 import Button from "@/components/common/Button";
 
-import AttachedImageList from "./AttachedImageList.tsx";
-import FormField from "./FormField.tsx";
-import ImageUploadField from "./ImageUploadField.tsx";
+import AttachedImageList from "./form/AttachedImageList.tsx";
+import FormField from "./form/FormField.tsx";
+import ImageUploadField from "./form/ImageUploadField.tsx";
 import type { Product } from "./types.ts";
 
 interface UrlInputFormProps {
@@ -36,6 +36,7 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
             type: "url",
             title: trimmedName,
             thumbnail: image ? URL.createObjectURL(image) : undefined,
+            productImageFile: image ?? undefined,
             link: trimmedLink,
         });
 

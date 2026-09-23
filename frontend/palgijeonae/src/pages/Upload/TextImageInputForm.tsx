@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 
 import Button from "@/components/common/Button/index.tsx";
 
-import AttachedImageList from "./AttachedImageList.tsx";
-import FormField from "./FormField.tsx";
-import ImageUploadField from "./ImageUploadField.tsx";
+import AttachedImageList from "./form/AttachedImageList.tsx";
+import FormField from "./form/FormField.tsx";
+import ImageUploadField from "./form/ImageUploadField.tsx";
 import type { Product } from "./types.ts";
 
 const MAX_PRODUCT_IMAGE_COUNT = 20;
@@ -39,6 +39,7 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
             type: "text/image",
             title: trimmedName,
             thumbnail: image ? URL.createObjectURL(image) : undefined,
+            productImageFile: image ?? undefined,
             content: trimmedContent,
             images: productImages,
         });
