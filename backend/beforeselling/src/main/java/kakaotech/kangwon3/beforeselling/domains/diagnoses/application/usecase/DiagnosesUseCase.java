@@ -8,6 +8,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -16,14 +17,14 @@ public class DiagnosesUseCase {
     private final DiagnosesService diagnosesService;
     private final DiagnosesMapper diagnosesMapper;
 
-    public DiagnosesCreateResponse createDiagnoses(Long userId, DiagnosesCreateRequest request) {
+    public DiagnosesCreateResponse createDiagnoses(UUID userId, DiagnosesCreateRequest request) {
         Diagnoses diagnoses = diagnosesService.createDiagnoses(userId, diagnosesMapper.toCommands(request));
 
         // TODO: AI 서버에 진단 요청을 보내고 상품들의 processingStatus를 IN_PROGRESS로 전이
         return diagnosesMapper.toCreateResponse(diagnoses);
     }
 
-    public DiagnosesDetailResponse getDiagnoses(Long userId, Long diagnosesId) {
+    public DiagnosesDetailResponse getDiagnoses(UUID userId, UUID diagnosesId) {
         return diagnosesMapper.toDetailResponse(diagnosesService.getDiagnoses(userId, diagnosesId));
     }
 }

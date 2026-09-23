@@ -5,9 +5,10 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultSt
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 
 import java.util.List;
+import java.util.UUID;
 
 public record ProductResponse(
-        Long productId,
+        UUID productId,
         int sortOrder,
         String productName,
         String productImageUrl,

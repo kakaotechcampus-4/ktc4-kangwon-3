@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.UUID;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -34,8 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnableConfigurationProperties(CryptoProperties.class)
 class DiagnosesRepositoryTest {
 
-    private static final Long USER_ID = 1L;
-    private static final Long OTHER_USER_ID = 2L;
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID OTHER_USER_ID = UUID.randomUUID();
 
     @Autowired
     private DiagnosesRepository diagnosesRepository;
@@ -63,7 +64,7 @@ class DiagnosesRepositoryTest {
                 createProduct("상품 A", null),
                 createProduct("상품 B", null),
                 createProduct("상품 C", null)));
-        Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
         // when
@@ -88,7 +89,7 @@ class DiagnosesRepositoryTest {
         product.addImages(List.of(
                 "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg"));
         diagnoses.addProducts(List.of(product));
-        Long diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
         // when
@@ -111,13 +112,13 @@ class DiagnosesRepositoryTest {
         Product targetProduct = createProduct("대나무 헬리콥터", null);
         targetProduct.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
         target.addProducts(List.of(targetProduct));
-        Long targetId = diagnosesRepository.save(target).getId();
+        UUID targetId = diagnosesRepository.save(target).getId();
 
         Diagnoses other = Diagnoses.pending(USER_ID);
         Product otherProduct = createProduct("대나무 헬리콥터", null);
         otherProduct.addImages(List.of("product-detail/1/uuid_a9.jpg"));
         other.addProducts(List.of(otherProduct));
-        Long otherId = diagnosesRepository.save(other).getId();
+        UUID otherId = diagnosesRepository.save(other).getId();
         flushAndClear();
 
         // when
@@ -156,7 +157,7 @@ class DiagnosesRepositoryTest {
                 .containsExactly("product-detail/1/uuid_a1.jpg");
     }
 
-    private Diagnoses createDiagnoses(Long userId, ResultStatus resultStatus) {
+    private Diagnoses createDiagnoses(UUID userId, ResultStatus resultStatus) {
         Diagnoses diagnoses = Diagnoses.pending(userId);
         diagnoses.addProducts(List.of(createProduct("대나무 헬리콥터", resultStatus)));
         return diagnoses;

@@ -15,6 +15,7 @@ import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import org.springframework.http.ResponseEntity;
+import java.util.UUID;
 
 @Tag(name = "Products", description = """
         상품 API.
@@ -55,11 +56,10 @@ public interface ProductApi {
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(description = "삭제 성공"),
             errors = {
-                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "FORBIDDEN"),
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
     ResponseEntity<ApiResponse<Void>> removeProduct(
             @Parameter(hidden = true) UserPrincipal principal,
-            Long productId);
+            UUID productId);
 }

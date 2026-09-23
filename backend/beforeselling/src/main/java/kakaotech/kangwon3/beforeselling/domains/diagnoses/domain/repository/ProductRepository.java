@@ -10,11 +10,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.UUID;
 
-public interface ProductRepository extends JpaRepository<Product, Long> {
+public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     @EntityGraph(attributePaths = "images")
-    Optional<Product> findWithImagesById(Long productId);
+    Optional<Product> findWithImagesById(UUID productId);
 
     @Query("""
             select p from Product p
@@ -22,7 +23,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
               and (:resultStatus is null or p.resultStatus = :resultStatus)
               and (:keyword is null or lower(p.productName) like lower(concat('%', :keyword, '%')))
             """)
-    Page<Product> search(@Param("userId") Long userId,
+    Page<Product> search(@Param("userId") UUID userId,
                          @Param("resultStatus") ResultStatus resultStatus,
                          @Param("keyword") String keyword,
                          Pageable pageable);

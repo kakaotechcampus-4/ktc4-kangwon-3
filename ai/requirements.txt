@@ -1,12 +1,24 @@
+# LLM / 에이전트
 langchain==1.3.18
 langchain-core==1.6.1
 langchain-openai==1.6.0
-pydantic==2.13.5
+
+# 웹 프레임워크
 fastapi==0.115.12
 uvicorn[standard]==0.34.3
-python-dotenv==1.2.3
+
+# 데이터 / 검증
+pydantic==2.13.5
+
+# DB
 sqlalchemy==2.0.41
 psycopg[binary]==3.3.5
 
-# 개발/테스트용
+# 외부 API 호출
+httpx==0.28.1
+
+# 설정
+python-dotenv==1.2.3
+
+# 개발 / 테스트
 pytest==9.1.1

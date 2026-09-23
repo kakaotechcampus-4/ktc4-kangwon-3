@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.UUID;
 
 @RestController
 @Validated
@@ -52,7 +53,7 @@ public class ProductController implements ProductApi {
     @DeleteMapping("/{productId}")
     public ResponseEntity<ApiResponse<Void>> removeProduct(
             @LoginUser UserPrincipal principal,
-            @PathVariable Long productId
+            @PathVariable UUID productId
     ) {
         productUseCase.removeProduct(principal.userId(), productId);
 

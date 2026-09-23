@@ -9,6 +9,8 @@ import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.UuidGenerator;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -20,12 +22,12 @@ import java.util.List;
 public class Diagnoses extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "diagnoses_id")
-    private Long id;
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "processing_status", nullable = false)
@@ -36,12 +38,12 @@ public class Diagnoses extends BaseEntity {
     @BatchSize(size = 100)
     private List<Product> products = new ArrayList<>();
 
-    private Diagnoses(Long userId) {
+    private Diagnoses(UUID userId) {
         this.userId = userId;
         this.processingStatus = ProcessingStatus.PENDING;
     }
 
-    public static Diagnoses pending(Long userId) {
+    public static Diagnoses pending(UUID userId) {
         return new Diagnoses(userId);
     }
 
@@ -61,7 +63,7 @@ public class Diagnoses extends BaseEntity {
         return products.isEmpty();
     }
 
-    public boolean isOwnedBy(Long userId) {
+    public boolean isOwnedBy(UUID userId) {
         return this.userId.equals(userId);
     }
 

@@ -22,10 +22,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.UUID;
 
 class ProductMapperTest {
 
-    private static final Long USER_ID = 1L;
+    private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID PRODUCT_ID_2 = UUID.randomUUID();
+    private static final UUID USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -40,10 +43,10 @@ class ProductMapperTest {
     void toSummaryResponse_thenIncludeThumbnailAndSourceTypeAndStatus() {
         // given & when
         ProductSummaryResponse response = productMapper.toSummaryResponse(
-                createProduct(10L, PRODUCT_IMAGE_KEY, SourceType.URL, null));
+                createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, null));
 
         // then
-        assertThat(response.productId()).isEqualTo(10L);
+        assertThat(response.productId()).isEqualTo(PRODUCT_ID);
         assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
         assertThat(response.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
         assertThat(response.sourceType()).isEqualTo(SourceType.URL);
@@ -57,7 +60,7 @@ class ProductMapperTest {
     void toSummaryResponse_withTextImageType_thenKeepSourceType() {
         // given & when
         ProductSummaryResponse response = productMapper.toSummaryResponse(
-                createProduct(10L, PRODUCT_IMAGE_KEY, SourceType.TEXT_IMAGE, null));
+                createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.TEXT_IMAGE, null));
 
         // then
         assertThat(response.sourceType()).isEqualTo(SourceType.TEXT_IMAGE);
@@ -68,7 +71,7 @@ class ProductMapperTest {
     void toSummaryResponse_withoutProductImageKey_thenThumbnailIsNull() {
         // given & when
         ProductSummaryResponse response = productMapper.toSummaryResponse(
-                createProduct(10L, null, SourceType.URL, null));
+                createProduct(PRODUCT_ID, null, SourceType.URL, null));
 
         // then
         assertThat(response.productImageUrl()).isNull();
@@ -79,7 +82,7 @@ class ProductMapperTest {
     void toSummaryResponse_withResultStatus_thenIncludeResult() {
         // given & when
         ProductSummaryResponse response = productMapper.toSummaryResponse(
-                createProduct(10L, PRODUCT_IMAGE_KEY, SourceType.URL, ResultStatus.RECHECK_REQUIRED));
+                createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, ResultStatus.RECHECK_REQUIRED));
 
         // then
         assertThat(response.resultStatus()).isEqualTo(ResultStatus.RECHECK_REQUIRED);
@@ -90,8 +93,8 @@ class ProductMapperTest {
     void toListResponse_thenIncludeSummariesAndPageInfo() {
         // given
         Page<Product> page = new PageImpl<>(
-                List.of(createProduct(10L, PRODUCT_IMAGE_KEY, SourceType.URL, null),
-                        createProduct(11L, PRODUCT_IMAGE_KEY, SourceType.TEXT_IMAGE, null)),
+                List.of(createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, null),
+                        createProduct(PRODUCT_ID_2, PRODUCT_IMAGE_KEY, SourceType.TEXT_IMAGE, null)),
                 PageRequest.of(0, 2),
                 5);
 
@@ -101,7 +104,7 @@ class ProductMapperTest {
         // then
         assertThat(response.products())
                 .extracting(ProductSummaryResponse::productId)
-                .containsExactly(10L, 11L);
+                .containsExactly(PRODUCT_ID, PRODUCT_ID_2);
 
         assertThat(response.pageInfo().page()).isZero();
         assertThat(response.pageInfo().size()).isEqualTo(2);
@@ -110,7 +113,7 @@ class ProductMapperTest {
         assertThat(response.pageInfo().hasNext()).isTrue();
     }
 
-    private Product createProduct(Long productId, String productImageKey,
+    private Product createProduct(UUID productId, String productImageKey,
                                   SourceType sourceType, ResultStatus resultStatus) {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = Product.pending(PRODUCT_NAME, productImageKey, sourceType, SOURCE_URL, null);

@@ -22,10 +22,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.UUID;
 
 class DiagnosesMapperTest {
 
-    private static final Long USER_ID = 1L;
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID();
+    private static final UUID USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -75,17 +77,17 @@ class DiagnosesMapperTest {
     @DisplayName("진단 요청 생성 응답으로 변환하면 진단서 ID가 담긴다.")
     void toCreateResponse_thenIncludeDiagnosesId() {
         // given & when
-        DiagnosesCreateResponse response = diagnosesMapper.toCreateResponse(createDiagnoses(42L, PRODUCT_IMAGE_KEY));
+        DiagnosesCreateResponse response = diagnosesMapper.toCreateResponse(createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY));
 
         // then
-        assertThat(response.diagnosesId()).isEqualTo(42L);
+        assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
     }
 
     @Test
     @DisplayName("진단서 상세로 변환하면 저장된 key가 접근 가능한 URL로 조립된다.")
     void toDetailResponse_thenConvertKeysToUrls() {
         // given
-        Diagnoses diagnoses = createDiagnoses(1L, PRODUCT_IMAGE_KEY);
+        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY);
         diagnoses.getProducts().getFirst()
                 .addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
 
@@ -93,7 +95,7 @@ class DiagnosesMapperTest {
         DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
 
         // then
-        assertThat(response.diagnosesId()).isEqualTo(1L);
+        assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
         assertThat(response.products()).hasSize(1);
 
         ProductResponse product = response.products().getFirst();
@@ -108,7 +110,7 @@ class DiagnosesMapperTest {
     @DisplayName("상품 여러 개를 담은 진단서를 변환하면 정렬 값과 함께 모두 반환된다.")
     void toDetailResponse_withMultipleProducts_thenIncludeAllInOrder() {
         // given
-        Diagnoses diagnoses = createDiagnoses(1L, PRODUCT_IMAGE_KEY, "상품 A", "상품 B", "상품 C");
+        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY, "상품 A", "상품 B", "상품 C");
 
         // when
         DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
@@ -126,7 +128,7 @@ class DiagnosesMapperTest {
     @DisplayName("대표 이미지 없이 등록한 상품을 변환하면 대표 이미지 URL이 비어 있다.")
     void toDetailResponse_withoutProductImageKey_thenProductImageUrlIsNull() {
         // given & when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(1L, null));
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(DIAGNOSES_ID, null));
 
         // then
         assertThat(response.products().getFirst().productImageUrl()).isNull();
@@ -136,7 +138,7 @@ class DiagnosesMapperTest {
     @DisplayName("진단이 완료되지 않은 진단서를 변환하면 진단 결과가 비어 있다.")
     void toDetailResponse_withPendingDiagnoses_thenResultIsEmpty() {
         // given & when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(1L, PRODUCT_IMAGE_KEY));
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY));
 
         // then
         assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
@@ -153,11 +155,11 @@ class DiagnosesMapperTest {
                 productName, PRODUCT_IMAGE_KEY, SourceType.URL, SOURCE_URL, null, imageKeys);
     }
 
-    private Diagnoses createDiagnoses(Long diagnosesId, String productImageKey) {
+    private Diagnoses createDiagnoses(UUID diagnosesId, String productImageKey) {
         return createDiagnoses(diagnosesId, productImageKey, PRODUCT_NAME);
     }
 
-    private Diagnoses createDiagnoses(Long diagnosesId, String productImageKey, String... productNames) {
+    private Diagnoses createDiagnoses(UUID diagnosesId, String productImageKey, String... productNames) {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         ReflectionTestUtils.setField(diagnoses, "id", diagnosesId);
         ReflectionTestUtils.setField(diagnoses, "createdAt", LocalDateTime.now());

@@ -17,6 +17,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -30,7 +31,7 @@ public class DiagnosesService {
 
     // 진단서 + 상품 + 상품 이미지 저장(하위는 cascade로 함께 저장된다)
     @Transactional
-    public Diagnoses createDiagnoses(Long userId, List<ProductCreateCommand> commands) {
+    public Diagnoses createDiagnoses(UUID userId, List<ProductCreateCommand> commands) {
         Diagnoses diagnoses = Diagnoses.pending(userId);
         diagnoses.addProducts(commands.stream().map(this::toProduct).toList());
 
@@ -43,12 +44,14 @@ public class DiagnosesService {
     }
 
     // 단건 조회 + 소유권 검증
-    public Diagnoses getDiagnoses(Long userId, Long diagnosesId) {
+    public Diagnoses getDiagnoses(UUID userId, UUID diagnosesId) {
         Diagnoses diagnoses = diagnosesRepository.findWithProductsById(diagnosesId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
+        // 타인 소유 리소스도 404로 응답한다. 403을 주면 해당 id가 존재한다는 사실이
+        // 노출되어 ID 탐색에 악용될 수 있다(CODE_CONVENTION.md 참고).
         if (!diagnoses.isOwnedBy(userId)) {
-            throw new BaseException(CommonResponseCode.FORBIDDEN);
+            throw new BaseException(CommonResponseCode.NOT_FOUND);
         }
 
         // open-in-view=false 라 DTO 매핑 시점에는 세션이 닫혀 있다.
@@ -61,7 +64,7 @@ public class DiagnosesService {
 
     // 회원 탈퇴 시 해당 사용자의 모든 진단서를 삭제한다.
     @Transactional
-    public void removeAllByUserId(Long userId) {
+    public void removeAllByUserId(UUID userId) {
         List<Diagnoses> diagnosesList = diagnosesRepository.findWithProductsByUserId(userId);
 
         List<String> imageKeys = diagnosesList.stream()

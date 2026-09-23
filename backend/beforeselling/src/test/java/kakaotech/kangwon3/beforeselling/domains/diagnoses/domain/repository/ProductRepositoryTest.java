@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.UUID;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -34,8 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnableConfigurationProperties(CryptoProperties.class)
 class ProductRepositoryTest {
 
-    private static final Long USER_ID = 1L;
-    private static final Long OTHER_USER_ID = 2L;
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID OTHER_USER_ID = UUID.randomUUID();
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
 
@@ -56,7 +57,7 @@ class ProductRepositoryTest {
         Product product = createProduct("대나무 헬리콥터", null);
         product.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
         diagnoses.addProducts(List.of(product));
-        Long productId = diagnosesRepository.save(diagnoses).getProducts().getFirst().getId();
+        UUID productId = diagnosesRepository.save(diagnoses).getProducts().getFirst().getId();
         flushAndClear();
 
         // when
@@ -209,7 +210,7 @@ class ProductRepositoryTest {
         assertThat(result.hasNext()).isTrue();
     }
 
-    private void saveDiagnoses(Long userId, String... productNames) {
+    private void saveDiagnoses(UUID userId, String... productNames) {
         Diagnoses diagnoses = Diagnoses.pending(userId);
         diagnoses.addProducts(List.of(productNames).stream()
                 .map(name -> createProduct(name, null))

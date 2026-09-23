@@ -4,9 +4,10 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Processi
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 public record DiagnosesDetailResponse(
-        Long diagnosesId,
+        UUID diagnosesId,
         ProcessingStatus processingStatus,
         List<ProductResponse> products,
         LocalDateTime createdAt,

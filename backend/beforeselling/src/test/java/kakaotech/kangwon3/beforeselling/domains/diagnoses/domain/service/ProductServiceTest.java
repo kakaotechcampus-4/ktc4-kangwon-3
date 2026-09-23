@@ -34,12 +34,15 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
+import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
 
-    private static final Long USER_ID = 1L;
-    private static final Long OTHER_USER_ID = 2L;
+    private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID();
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID OTHER_USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -122,10 +125,10 @@ class ProductServiceTest {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
         Product target = diagnoses.getProducts().getFirst();
-        given(productRepository.findWithImagesById(1L)).willReturn(Optional.of(target));
+        given(productRepository.findWithImagesById(PRODUCT_ID)).willReturn(Optional.of(target));
 
         // when
-        productService.removeProduct(USER_ID, 1L);
+        productService.removeProduct(USER_ID, PRODUCT_ID);
 
         // then
         assertThat(diagnoses.getProducts())
@@ -140,10 +143,10 @@ class ProductServiceTest {
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
         Product target = diagnoses.getProducts().getFirst();
         target.addImages(List.of("product-detail/1/uuid_a1.jpg"));
-        given(productRepository.findWithImagesById(1L)).willReturn(Optional.of(target));
+        given(productRepository.findWithImagesById(PRODUCT_ID)).willReturn(Optional.of(target));
 
         // when
-        productService.removeProduct(USER_ID, 1L);
+        productService.removeProduct(USER_ID, PRODUCT_ID);
 
         // then
         then(eventPublisher).should().publishEvent(eventCaptor.capture());
@@ -156,11 +159,11 @@ class ProductServiceTest {
     void removeProduct_withRemainingProducts_thenKeepDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
-        given(productRepository.findWithImagesById(1L))
+        given(productRepository.findWithImagesById(PRODUCT_ID))
                 .willReturn(Optional.of(diagnoses.getProducts().getFirst()));
 
         // when
-        productService.removeProduct(USER_ID, 1L);
+        productService.removeProduct(USER_ID, PRODUCT_ID);
 
         // then
         then(diagnosesRepository).should(never()).delete(any());
@@ -171,11 +174,11 @@ class ProductServiceTest {
     void removeProduct_withLastProduct_thenDeleteDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
-        given(productRepository.findWithImagesById(1L))
+        given(productRepository.findWithImagesById(PRODUCT_ID))
                 .willReturn(Optional.of(diagnoses.getProducts().getFirst()));
 
         // when
-        productService.removeProduct(USER_ID, 1L);
+        productService.removeProduct(USER_ID, PRODUCT_ID);
 
         // then
         assertThat(diagnoses.getProducts()).isEmpty();
@@ -186,28 +189,28 @@ class ProductServiceTest {
     @DisplayName("존재하지 않는 상품을 삭제하면 NOT_FOUND 예외가 발생한다.")
     void removeProduct_withUnknownId_thenThrowNotFound() {
         // given
-        given(productRepository.findWithImagesById(1L)).willReturn(Optional.empty());
+        given(productRepository.findWithImagesById(PRODUCT_ID)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> productService.removeProduct(USER_ID, 1L))
+        assertThatThrownBy(() -> productService.removeProduct(USER_ID, PRODUCT_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
     }
 
     @Test
-    @DisplayName("다른 사용자의 상품을 삭제하려 하면 FORBIDDEN 예외가 발생하고 아무것도 삭제되지 않는다.")
-    void removeProduct_withOtherUsersProduct_thenThrowForbidden() {
+    @DisplayName("다른 사용자의 상품을 삭제하려 하면 NOT_FOUND 예외가 발생하고 아무것도 삭제되지 않는다.")
+    void removeProduct_withOtherUsersProduct_thenThrowNotFound() {
         // given
         Diagnoses diagnoses = createDiagnoses(OTHER_USER_ID, List.of("상품 A"));
-        given(productRepository.findWithImagesById(1L))
+        given(productRepository.findWithImagesById(PRODUCT_ID))
                 .willReturn(Optional.of(diagnoses.getProducts().getFirst()));
 
         // when & then
-        assertThatThrownBy(() -> productService.removeProduct(USER_ID, 1L))
+        assertThatThrownBy(() -> productService.removeProduct(USER_ID, PRODUCT_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.FORBIDDEN);
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
 
         assertThat(diagnoses.getProducts()).hasSize(1);
         then(diagnosesRepository).should(never()).delete(any());
@@ -218,9 +221,9 @@ class ProductServiceTest {
         return createDiagnoses(USER_ID, productNames);
     }
 
-    private Diagnoses createDiagnoses(Long ownerId, List<String> productNames) {
+    private Diagnoses createDiagnoses(UUID ownerId, List<String> productNames) {
         Diagnoses diagnoses = Diagnoses.pending(ownerId);
-        ReflectionTestUtils.setField(diagnoses, "id", 1L);
+        ReflectionTestUtils.setField(diagnoses, "id", DIAGNOSES_ID);
 
         diagnoses.addProducts(productNames.stream()
                 .map(name -> Product.pending(name, PRODUCT_IMAGE_KEY, SourceType.URL, SOURCE_URL, null))

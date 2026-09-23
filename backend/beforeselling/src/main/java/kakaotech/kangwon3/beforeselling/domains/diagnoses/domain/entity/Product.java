@@ -10,6 +10,8 @@ import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.UuidGenerator;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -21,9 +23,9 @@ import java.util.List;
 public class Product extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "product_id")
-    private Long id;
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "diagnoses_id", nullable = false)

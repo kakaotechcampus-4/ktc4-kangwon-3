@@ -7,6 +7,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.Product
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -15,13 +16,13 @@ public class ProductUseCase {
     private final ProductService productService;
     private final ProductMapper productMapper;
 
-    public ProductListResponse getProductList(Long userId, ResultStatus resultStatus,
+    public ProductListResponse getProductList(UUID userId, ResultStatus resultStatus,
                                               String keyword, Pageable pageable) {
         return productMapper.toListResponse(
                 productService.getProductList(userId, resultStatus, keyword, pageable));
     }
 
-    public void removeProduct(Long userId, Long productId) {
+    public void removeProduct(UUID userId, UUID productId) {
         productService.removeProduct(userId, productId);
     }
 }

@@ -40,10 +40,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -61,6 +61,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
 class ProductControllerTest {
 
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final String BASE_URL = "/api/v1/products";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
@@ -100,7 +102,7 @@ class ProductControllerTest {
     @DisplayName("페이징 조건 없이 목록을 조회하면 첫 페이지를 최신순으로 조회한다.")
     void getProductList_withDefaultParameters_thenSortByLatest() throws Exception {
         // given
-        given(productUseCase.getProductList(anyLong(), any(), any(), any())).willReturn(listResponse());
+        given(productUseCase.getProductList(any(UUID.class), any(), any(), any())).willReturn(listResponse());
 
         // when
         mockMvc.perform(get(BASE_URL).with(authentication(loginUser())))
@@ -114,7 +116,7 @@ class ProductControllerTest {
         // then
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         then(productUseCase).should()
-                .getProductList(eq(1L), isNull(), isNull(), pageableCaptor.capture());
+                .getProductList(eq(USER_ID), isNull(), isNull(), pageableCaptor.capture());
         Pageable pageable = pageableCaptor.getValue();
 
         assertThat(pageable.getPageNumber()).isZero();
@@ -126,7 +128,7 @@ class ProductControllerTest {
     @DisplayName("오래된순으로 목록을 조회하면 등록 시각 오름차순으로 조회한다.")
     void getProductList_withOldestSortType_thenSortByAscending() throws Exception {
         // given
-        given(productUseCase.getProductList(anyLong(), any(), any(), any())).willReturn(listResponse());
+        given(productUseCase.getProductList(any(UUID.class), any(), any(), any())).willReturn(listResponse());
 
         // when
         mockMvc.perform(get(BASE_URL)
@@ -137,7 +139,7 @@ class ProductControllerTest {
         // then
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         then(productUseCase).should()
-                .getProductList(anyLong(), any(), any(), pageableCaptor.capture());
+                .getProductList(any(UUID.class), any(), any(), pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getSort())
                 .isEqualTo(Sort.by(Sort.Direction.ASC, "createdAt"));
     }
@@ -146,7 +148,7 @@ class ProductControllerTest {
     @DisplayName("결과 필터를 지정해 목록을 조회하면 해당 필터가 함께 전달된다.")
     void getProductList_withResultStatus_thenPassFilter() throws Exception {
         // given
-        given(productUseCase.getProductList(anyLong(), any(), any(), any())).willReturn(listResponse());
+        given(productUseCase.getProductList(any(UUID.class), any(), any(), any())).willReturn(listResponse());
 
         // when
         mockMvc.perform(get(BASE_URL)
@@ -156,14 +158,14 @@ class ProductControllerTest {
 
         // then
         then(productUseCase).should()
-                .getProductList(eq(1L), eq(ResultStatus.RECHECK_REQUIRED), isNull(), any(Pageable.class));
+                .getProductList(eq(USER_ID), eq(ResultStatus.RECHECK_REQUIRED), isNull(), any(Pageable.class));
     }
 
     @Test
     @DisplayName("상품명 검색어를 지정해 목록을 조회하면 검색어가 함께 전달된다.")
     void getProductList_withKeyword_thenPassKeyword() throws Exception {
         // given
-        given(productUseCase.getProductList(anyLong(), any(), any(), any())).willReturn(listResponse());
+        given(productUseCase.getProductList(any(UUID.class), any(), any(), any())).willReturn(listResponse());
 
         // when
         mockMvc.perform(get(BASE_URL)
@@ -173,7 +175,7 @@ class ProductControllerTest {
 
         // then
         then(productUseCase).should()
-                .getProductList(eq(1L), isNull(), eq("헬리콥터"), any(Pageable.class));
+                .getProductList(eq(USER_ID), isNull(), eq("헬리콥터"), any(Pageable.class));
     }
 
     @Test
@@ -201,12 +203,12 @@ class ProductControllerTest {
     @Test
     @DisplayName("본인의 상품을 삭제하면 성공 응답을 받는다.")
     void removeProduct_thenSuccess() throws Exception {
-        mockMvc.perform(delete(BASE_URL + "/{productId}", 10L)
+        mockMvc.perform(delete(BASE_URL + "/{productId}", PRODUCT_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"));
 
-        then(productUseCase).should().removeProduct(1L, 10L);
+        then(productUseCase).should().removeProduct(USER_ID, PRODUCT_ID);
     }
 
     @Test
@@ -214,39 +216,25 @@ class ProductControllerTest {
     void removeProduct_withUnknownId_thenNotFound() throws Exception {
         // given
         willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
-                .given(productUseCase).removeProduct(anyLong(), anyLong());
+                .given(productUseCase).removeProduct(any(UUID.class), any(UUID.class));
 
         // when & then
-        mockMvc.perform(delete(BASE_URL + "/{productId}", 10L)
+        mockMvc.perform(delete(BASE_URL + "/{productId}", PRODUCT_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMMON-006"));
     }
 
-    @Test
-    @DisplayName("다른 사용자의 상품을 삭제하면 403과 COMMON-005 코드를 응답한다.")
-    void removeProduct_withOtherUsersProduct_thenForbidden() throws Exception {
-        // given
-        willThrow(new BaseException(CommonResponseCode.FORBIDDEN))
-                .given(productUseCase).removeProduct(anyLong(), anyLong());
-
-        // when & then
-        mockMvc.perform(delete(BASE_URL + "/{productId}", 10L)
-                        .with(authentication(loginUser())))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("COMMON-005"));
-    }
-
     private Authentication loginUser() {
         return UsernamePasswordAuthenticationToken.authenticated(
-                new UserPrincipal(1L, Role.USER),
+                new UserPrincipal(USER_ID, Role.USER),
                 null,
                 List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
     }
 
     private ProductListResponse listResponse() {
         ProductSummaryResponse summary = new ProductSummaryResponse(
-                10L, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, ProcessingStatus.PENDING, null, LocalDateTime.now());
 
         return new ProductListResponse(List.of(summary), new PageInfo(0, 10, 1, 1, false));

@@ -31,12 +31,15 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
+import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
 class DiagnosesServiceTest {
 
-    private static final Long USER_ID = 1L;
-    private static final Long OTHER_USER_ID = 2L;
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID();
+    private static final UUID DIAGNOSES_ID_2 = UUID.randomUUID();
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID OTHER_USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -63,7 +66,7 @@ class DiagnosesServiceTest {
     @DisplayName("진단을 요청하면 진단서와 상품이 모두 PENDING 상태로 저장되고 진단 결과는 비어 있다.")
     void createDiagnoses_thenSaveAsPending() {
         // given
-        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(1L));
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
 
         // when
         diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(List.of())));
@@ -87,7 +90,7 @@ class DiagnosesServiceTest {
     @DisplayName("상품을 여러 개 등록하면 요청한 순서대로 정렬 값이 부여되고 하나의 진단서로 묶인다.")
     void createDiagnoses_withMultipleProducts_thenAssignSortOrderByRequestOrder() {
         // given
-        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(1L));
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
 
         // when
         diagnosesService.createDiagnoses(USER_ID, List.of(
@@ -110,7 +113,7 @@ class DiagnosesServiceTest {
     @DisplayName("상품에 이미지를 여러 장 등록하면 업로드한 순서대로 정렬 값이 부여된다.")
     void createDiagnoses_withImages_thenAssignSortOrderByUploadOrder() {
         // given
-        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(1L));
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
         List<String> imageKeys = List.of(
                 "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg");
 
@@ -132,7 +135,7 @@ class DiagnosesServiceTest {
     @DisplayName("진단서를 생성하면 모든 상품의 대표 이미지와 첨부 이미지 key가 CONFIRMED로 전환된다.")
     void createDiagnoses_thenMarkImageKeysOfAllProductsAsConfirmed() {
         // given
-        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(1L));
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
 
         // when
         diagnosesService.createDiagnoses(USER_ID, List.of(
@@ -149,7 +152,7 @@ class DiagnosesServiceTest {
     @DisplayName("이미지 없이 진단을 요청하면 상품만 저장된다.")
     void createDiagnoses_withoutImages_thenSaveProductOnly() {
         // given
-        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(1L));
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
 
         // when
         diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(List.of())));
@@ -163,11 +166,11 @@ class DiagnosesServiceTest {
     @DisplayName("본인의 진단서를 조회하면 해당 진단서를 반환한다.")
     void getDiagnoses_thenReturnDiagnoses() {
         // given
-        Diagnoses diagnoses = createDiagnoses(1L);
-        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.of(diagnoses));
+        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID);
+        given(diagnosesRepository.findWithProductsById(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
 
         // when
-        Diagnoses result = diagnosesService.getDiagnoses(USER_ID, 1L);
+        Diagnoses result = diagnosesService.getDiagnoses(USER_ID, DIAGNOSES_ID);
 
         // then
         assertThat(result).isEqualTo(diagnoses);
@@ -177,35 +180,35 @@ class DiagnosesServiceTest {
     @DisplayName("존재하지 않는 진단서를 조회하면 NOT_FOUND 예외가 발생한다.")
     void getDiagnoses_withUnknownId_thenThrowNotFound() {
         // given
-        given(diagnosesRepository.findWithProductsById(1L)).willReturn(Optional.empty());
+        given(diagnosesRepository.findWithProductsById(DIAGNOSES_ID)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> diagnosesService.getDiagnoses(USER_ID, 1L))
+        assertThatThrownBy(() -> diagnosesService.getDiagnoses(USER_ID, DIAGNOSES_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
     }
 
     @Test
-    @DisplayName("다른 사용자의 진단서를 조회하면 FORBIDDEN 예외가 발생한다.")
-    void getDiagnoses_withOtherUsersDiagnoses_thenThrowForbidden() {
+    @DisplayName("다른 사용자의 진단서를 조회하면 NOT_FOUND 예외가 발생한다.")
+    void getDiagnoses_withOtherUsersDiagnoses_thenThrowNotFound() {
         // given
-        given(diagnosesRepository.findWithProductsById(1L))
-                .willReturn(Optional.of(createDiagnoses(1L, OTHER_USER_ID, List.of())));
+        given(diagnosesRepository.findWithProductsById(DIAGNOSES_ID))
+                .willReturn(Optional.of(createDiagnoses(DIAGNOSES_ID, OTHER_USER_ID, List.of())));
 
         // when & then
-        assertThatThrownBy(() -> diagnosesService.getDiagnoses(USER_ID, 1L))
+        assertThatThrownBy(() -> diagnosesService.getDiagnoses(USER_ID, DIAGNOSES_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.FORBIDDEN);
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
     }
 
     @Test
     @DisplayName("회원 탈퇴 시 해당 사용자의 모든 진단서가 저장소에서 삭제된다.")
     void removeAllByUserId_thenDeleteAllDiagnosesOfUser() {
         // given
-        Diagnoses first = createDiagnoses(1L);
-        Diagnoses second = createDiagnoses(2L);
+        Diagnoses first = createDiagnoses(DIAGNOSES_ID);
+        Diagnoses second = createDiagnoses(DIAGNOSES_ID_2);
         given(diagnosesRepository.findWithProductsByUserId(USER_ID)).willReturn(List.of(first, second));
 
         // when
@@ -219,8 +222,8 @@ class DiagnosesServiceTest {
     @DisplayName("회원 탈퇴 시 모든 진단서에 속한 상품 이미지 key에 대해 S3 삭제 이벤트가 한 번에 발행된다.")
     void removeAllByUserId_thenPublishS3FileDeleteEventForAllDiagnoses() {
         // given
-        Diagnoses first = createDiagnoses(1L, List.of("product-detail/1/uuid_a1.jpg"));
-        Diagnoses second = createDiagnoses(2L);
+        Diagnoses first = createDiagnoses(DIAGNOSES_ID, List.of("product-detail/1/uuid_a1.jpg"));
+        Diagnoses second = createDiagnoses(DIAGNOSES_ID_2);
         given(diagnosesRepository.findWithProductsByUserId(USER_ID)).willReturn(List.of(first, second));
 
         // when
@@ -245,15 +248,15 @@ class DiagnosesServiceTest {
         then(eventPublisher).should(never()).publishEvent(any());
     }
 
-    private Diagnoses createDiagnoses(Long diagnosesId) {
+    private Diagnoses createDiagnoses(UUID diagnosesId) {
         return createDiagnoses(diagnosesId, List.of());
     }
 
-    private Diagnoses createDiagnoses(Long diagnosesId, List<String> imageKeys) {
+    private Diagnoses createDiagnoses(UUID diagnosesId, List<String> imageKeys) {
         return createDiagnoses(diagnosesId, USER_ID, imageKeys);
     }
 
-    private Diagnoses createDiagnoses(Long diagnosesId, Long ownerId, List<String> imageKeys) {
+    private Diagnoses createDiagnoses(UUID diagnosesId, UUID ownerId, List<String> imageKeys) {
         Diagnoses diagnoses = Diagnoses.pending(ownerId);
         ReflectionTestUtils.setField(diagnoses, "id", diagnosesId);
 
