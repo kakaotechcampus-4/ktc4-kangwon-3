@@ -26,7 +26,9 @@ class Law(Base):
     competent_authority: Mapped[str | None] = mapped_column(String(100))
     is_current: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
-    articles: Mapped[list["LawArticle"]] = relationship(back_populates="law")
+    articles: Mapped[list["LawArticle"]] = relationship(
+        back_populates="law", cascade="all, delete-orphan", passive_deletes=True,
+    )
 
 
 class LawArticle(Base):
@@ -39,7 +41,9 @@ class LawArticle(Base):
     )
 
     law_article_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    law_id: Mapped[int] = mapped_column(ForeignKey("laws.law_id"), nullable=False)
+    law_id: Mapped[int] = mapped_column(
+        ForeignKey("laws.law_id", ondelete="CASCADE"), nullable=False,
+    )
     article_no: Mapped[int] = mapped_column(Integer, nullable=False)
     article_branch: Mapped[int | None] = mapped_column(Integer)
     title: Mapped[str | None] = mapped_column(String(300))
