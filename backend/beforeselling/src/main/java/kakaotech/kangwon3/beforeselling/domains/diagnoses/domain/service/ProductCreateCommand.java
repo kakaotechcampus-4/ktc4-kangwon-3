@@ -3,7 +3,6 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 
 import java.util.List;
-import java.util.UUID;
 
 public record ProductCreateCommand(
         String productName,

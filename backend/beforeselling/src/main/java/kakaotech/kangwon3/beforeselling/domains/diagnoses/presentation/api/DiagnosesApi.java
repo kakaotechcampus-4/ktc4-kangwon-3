@@ -14,7 +14,6 @@ import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import org.springframework.http.ResponseEntity;
-
 import java.util.UUID;
 
 @Tag(name = "Diagnoses", description = """
