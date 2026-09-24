@@ -14,39 +14,49 @@ const PAGE_SIZE = 2;
 // TODO: 백엔드 연동 전까지 쓰는 임시 목업. 실제 연동은 별도 브랜치에서 진행 예정(검색 파라미터 등 백엔드 작업 필요).
 const PRODUCTS: MyProductItem[] = [
     {
-        id: 1,
-        title: "오이 모양 크런치 말랑이",
+        productId: 1,
+        productName: "오이 모양 크런치 말랑이",
+        sourceType: "URL",
         inputType: "url",
+        processingStatus: "COMPLETE",
         resultStatus: "PURCHASING_AGENT_ALLOWED",
-        link: "https://example.com/product/1",
+        createdAt: new Date("2026-09-01"),
     },
     {
-        id: 2,
-        title: "유아용 사이즈 딸기 무늬 신발",
+        productId: 2,
+        productName: "유아용 사이즈 딸기 무늬 신발",
+        sourceType: "TEXT_IMAGE",
         inputType: "text",
+        processingStatus: "COMPLETE",
         resultStatus: "DIRECT_IMPORT_CERTIFICATION_REQUIRED",
-        content: "유아용 신발, 사이즈 130, 딸기 무늬",
+        createdAt: new Date("2026-09-02"),
     },
     {
-        id: 3,
-        title: "팔찌 만들기 DIY용 야광 비즈 5색",
+        productId: 3,
+        productName: "팔찌 만들기 DIY용 야광 비즈 5색",
+        sourceType: "TEXT_IMAGE",
         inputType: "image",
+        processingStatus: "COMPLETE",
         resultStatus: "RECHECK_REQUIRED",
-        images: [],
+        createdAt: new Date("2026-09-03"),
     },
     {
-        id: 4,
-        title: "강아지 겨울용 니트 조끼",
+        productId: 4,
+        productName: "강아지 겨울용 니트 조끼",
+        sourceType: "URL",
         inputType: "url",
+        processingStatus: "COMPLETE",
         resultStatus: "PURCHASING_AGENT_ALLOWED",
-        link: "https://example.com/product/4",
+        createdAt: new Date("2026-09-04"),
     },
     {
-        id: 5,
-        title: "실리콘 유아 식판 세트",
+        productId: 5,
+        productName: "실리콘 유아 식판 세트",
+        sourceType: "TEXT_IMAGE",
         inputType: "text",
+        processingStatus: "COMPLETE",
         resultStatus: "RECHECK_REQUIRED",
-        content: "실리콘 재질, BPA free, 유아용 식판",
+        createdAt: new Date("2026-09-05"),
     },
 ];
 
@@ -59,7 +69,7 @@ function MyPage() {
         const trimmed = searchTerm.trim();
         return PRODUCTS
             .filter((product) => filter === "all" || product.resultStatus === filter)
-            .filter((product) => product.title.includes(trimmed));
+            .filter((product) => product.productName.includes(trimmed));
     }, [searchTerm, filter]);
 
     const totalPages = Math.max(Math.ceil(filteredProducts.length / PAGE_SIZE), 1);

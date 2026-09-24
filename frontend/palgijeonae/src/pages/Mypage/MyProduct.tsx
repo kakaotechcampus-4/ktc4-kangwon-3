@@ -3,16 +3,17 @@ import { cva } from "class-variance-authority";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
 import DefaultBox from "@/components/common/DefaultBox";
 
-import type { ProductInputType, ResultStatus } from "./types.ts";
+import type { ProcessingStatusType, ProductInputType, ResultStatus } from "./types.ts";
 
 interface MyProductProps {
-    title: string
-    thumbnail?: string
+    productId: number
+    productName: string
+    productImageUrl?: string
+    sourceType: string
     inputType: ProductInputType
+    processingStatus: ProcessingStatusType
     resultStatus: ResultStatus
-    link?: string
-    content?: string
-    images?: string[]
+    createdAt: Date
 }
 
 const RESULT_STATUS_LABELS: Record<ResultStatus, string> = {
@@ -32,18 +33,18 @@ const resultStatusBadgeVariants = cva("px-2.5 py-1 border rounded-full text-sm f
     },
 });
 
-function MyProduct({ title, resultStatus, thumbnail }: MyProductProps) {
+function MyProduct({ productName, resultStatus, productImageUrl }: MyProductProps) {
     return (
         <DefaultBox>
             <div className="flex flex-row w-full gap-4 cursor-pointer">
-                <img src={thumbnail ?? defaultThumbnail}
+                <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"
                     className="w-20 h-20 object-cover rounded-lg border border-neutral-border" />
                 <div className="flex flex-col items-start gap-2">
                     <div className={resultStatusBadgeVariants({ resultStatus })}>
                         {RESULT_STATUS_LABELS[resultStatus]}
                     </div>
-                    <h3 className="text-lg font-semibold pl-1">{title}</h3>
+                    <h3 className="text-lg font-semibold pl-1">{productName}</h3>
                 </div>
             </div>
         </DefaultBox>
