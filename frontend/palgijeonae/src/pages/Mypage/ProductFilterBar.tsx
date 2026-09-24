@@ -1,4 +1,5 @@
 import { cva } from "class-variance-authority";
+import { type FormEvent, useState } from "react";
 
 import search from "@/assets/mypage-search.svg"
 
@@ -41,25 +42,32 @@ interface ProductFilterBarProps {
 }
 
 function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChange }: ProductFilterBarProps) {
+    // 타이핑 중인 값과 실제로 검색을 실행할 값을 분리한다 — 한 글자씩 바뀔 때마다 조회하면 안 되고,
+    // Enter나 검색 버튼을 눌렀을 때만(=commitSearch) 부모에 알려서 조회가 나가야 한다.
+    const [draftSearchTerm, setDraftSearchTerm] = useState(searchTerm);
+
+    const handleSubmit = (event: FormEvent) => {
+        event.preventDefault();
+        onSearchTermChange(draftSearchTerm);
+    };
+
     return (
         <div className="px-1.5 flex flex-col gap-3">
-            <div className="relative w-full">
+            <form onSubmit={handleSubmit} className="relative w-full">
                 <input
                     type="text"
                     placeholder="상품명으로 검색하세요"
-                    value={searchTerm}
-                    onChange={(event) => onSearchTermChange(event.target.value)}
+                    value={draftSearchTerm}
+                    onChange={(event) => setDraftSearchTerm(event.target.value)}
                     className="w-full rounded-full border border-neutral-border px-5 py-3 pr-12"
                 />
                 <button
-                    type="button"
-                    // TODO: 지금은 onChange로 이미 실시간 필터링되고 있어서 자리만 잡아둠. 실제 검색 트리거가 필요하면 여기에 채워넣기.
-                    onClick={() => {}}
+                    type="submit"
                     className="absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 cursor-pointer"
                 >
                     <img src={search} alt="검색" className="h-full w-full" />
                 </button>
-            </div>
+            </form>
             <div className="flex w-full items-center gap-2">
                 {FILTER_TABS.map(({ key, label }) => (
                     <button
