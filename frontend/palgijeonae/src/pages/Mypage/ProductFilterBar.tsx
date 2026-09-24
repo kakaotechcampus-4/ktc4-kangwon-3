@@ -1,6 +1,7 @@
 import { cva } from "class-variance-authority";
 import { type FormEvent, useState } from "react";
 
+import clear from "@/assets/delete-gray.svg"
 import search from "@/assets/mypage-search.svg"
 
 import type { ProductFilter } from "./types.ts";
@@ -42,13 +43,26 @@ interface ProductFilterBarProps {
 }
 
 function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChange }: ProductFilterBarProps) {
-    // 타이핑 중인 값과 실제로 검색을 실행할 값을 분리한다 — 한 글자씩 바뀔 때마다 조회하면 안 되고,
-    // Enter나 검색 버튼을 눌렀을 때만(=commitSearch) 부모에 알려서 조회가 나가야 한다.
+    // 탭 : onChange 시에 바로 반영
+    // 키워드 : 엔터/버튼(onSubmit)시에 반영
     const [draftSearchTerm, setDraftSearchTerm] = useState(searchTerm);
 
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
         onSearchTermChange(draftSearchTerm);
+    };
+
+    const handleChange = (value: string) => {
+        setDraftSearchTerm(value);
+        // 검색어를 비우는 건 "전체 보기"라는 의도가 명확해서, Enter 없이 바로 반영하도록 설계.
+        if (value === "") {
+            onSearchTermChange("");
+        }
+    };
+
+    const handleClear = () => {
+        setDraftSearchTerm("");
+        onSearchTermChange("");
     };
 
     return (
@@ -58,9 +72,18 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
                     type="text"
                     placeholder="상품명으로 검색하세요"
                     value={draftSearchTerm}
-                    onChange={(event) => setDraftSearchTerm(event.target.value)}
-                    className="w-full rounded-full border border-neutral-border px-5 py-3 pr-12"
+                    onChange={(event) => handleChange(event.target.value)}
+                    className="w-full rounded-full border border-neutral-border px-5 py-3 pr-20"
                 />
+                {draftSearchTerm && (
+                    <button
+                        type="button"
+                        onClick={handleClear}
+                        className="absolute right-13 top-1/2 h-4 w-4 -translate-y-1/2 cursor-pointer"
+                    >
+                        <img src={clear} alt="검색어 지우기" className="h-full w-full" />
+                    </button>
+                )}
                 <button
                     type="submit"
                     className="absolute right-4 top-1/2 h-6 w-6 -translate-y-1/2 cursor-pointer"
