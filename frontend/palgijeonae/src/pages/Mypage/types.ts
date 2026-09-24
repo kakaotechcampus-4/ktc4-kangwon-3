@@ -9,14 +9,16 @@ export type ResultStatus =
 export type ProductInputType = "url" | "text" | "image";
 
 export interface MyProductItem {
-    id: number
-    title: string
-    thumbnail?: string
+    productId: number
+    productName: string
+    productImageUrl?: string
+    sourceType: string
     inputType: ProductInputType
+    processingStatus: ProcessingStatusType
     resultStatus: ResultStatus
-    link?: string
-    content?: string
-    images?: string[]
+    createdAt: Date
 }
 
 export type ProductFilter = "all" | ResultStatus;
+
+export type ProcessingStatusType = "PENDING" | "IN_PROGRESS" | "AWAITING_INPUT" | "COMPLETE" | "FAILED";
