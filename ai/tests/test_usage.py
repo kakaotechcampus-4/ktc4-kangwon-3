@@ -88,3 +88,29 @@ def test_로그_기록이_실패해도_예외를_밖으로_내지_않는다(tmp_
     monkeypatch.setattr(usage, "USAGE_LOG", target / "usage.jsonl" / "nested.jsonl")
 
     usage.record("verification", None)  # 예외가 새면 여기서 실패한다
+
+def test_구조화_출력_원본에서_사용량을_뽑는다():
+    # include_raw=True로 받은 응답에는 usage_metadata가 붙어 있다.
+    raw = SimpleNamespace(
+        usage_metadata={
+            "input_tokens": 4000,
+            "output_tokens": 500,
+            "input_token_details": {"cache_read": 2200},
+        },
+        response_metadata={"model_name": "openai/gpt-4.1-mini"},
+    )
+
+    result = usage.from_response(raw)
+
+    assert result.reported_model == "openai/gpt-4.1-mini"
+    assert result.input_tokens == 4000
+    assert result.cached_tokens == 2200
+    assert result.output_tokens == 500
+    # 캐시 적중분은 input에 포함된 값이라 단가가 다른 나머지를 따로 센다.
+    assert result.uncached_input == 1800
+
+
+def test_사용량이_없는_응답은_None이다():
+    # 테스트 스텁처럼 실제 호출이 없었던 경우다.
+    assert usage.from_response(SimpleNamespace()) is None
+    assert usage.from_response(SimpleNamespace(usage_metadata={})) is None
