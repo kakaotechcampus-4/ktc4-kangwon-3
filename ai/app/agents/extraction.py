@@ -12,7 +12,9 @@ from ..schemas.agent import ExtractionInput
 from ..schemas.product import Attribute, ProductAttributes, Product
 from ..utils.extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 
-_PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "extraction.md"
+# 평가 모듈이 프롬프트 지문을 기록할 때 이 경로를 참조한다. 에이전트 내부 전용이 아니므로
+# 공개 이름으로 둔다(경로를 두 곳에 적으면 한쪽만 옮겨졌을 때 조용히 갈라진다).
+PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "extraction.md"
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ class _ModelLike(Protocol):
 @lru_cache(maxsize=1)
 def _load_system_prompt() -> str:
     # extract() 호출마다 디스크를 다시 읽지 않도록 캐싱한다. 프롬프트 파일은 배포 중 안 바뀐다.
-    return _PROMPT_PATH.read_text(encoding="utf-8")
+    return PROMPT_PATH.read_text(encoding="utf-8")
 
 
 class ExtractionAgent:

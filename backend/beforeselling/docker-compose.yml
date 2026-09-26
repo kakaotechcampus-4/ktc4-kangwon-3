@@ -1,7 +1,8 @@
+name: be
 services:
   db:
     image: postgres:16-alpine
-    container_name: app-db
+    container_name: be-db
     restart: unless-stopped
     mem_limit: 1g
     environment:
@@ -27,7 +28,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: app-redis
+    container_name: be-redis
     restart: unless-stopped
     mem_limit: 512m
     environment:
@@ -56,7 +57,7 @@ services:
       context: .
       target: local
     image: beforeselling-app:${IMAGE_TAG:-latest}
-    container_name: app-server
+    container_name: be-server
     restart: unless-stopped
     mem_limit: 1500m
     depends_on:

@@ -22,12 +22,15 @@ import org.springframework.util.unit.DataSize;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DiagnosesMapperTest {
 
-    private static final Long USER_ID = 1L;
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID();
+    private static final UUID OTHER_DIAGNOSES_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -75,24 +78,24 @@ class DiagnosesMapperTest {
     @DisplayName("진단 요청 생성 응답으로 변환하면 진단서 ID가 담긴다.")
     void toCreateResponse_thenIncludeDiagnosesId() {
         // given & when
-        DiagnosesCreateResponse response = diagnosesMapper.toCreateResponse(createDiagnoses(42L, PRODUCT_IMAGE_KEY));
+        DiagnosesCreateResponse response = diagnosesMapper.toCreateResponse(createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY));
 
         // then
-        assertThat(response.diagnosesId()).isEqualTo(42L);
+        assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
     }
 
     @Test
     @DisplayName("진단서 상세로 변환하면 저장된 key가 접근 가능한 URL로 조립된다.")
     void toDetailResponse_thenConvertKeysToUrls() {
         // given
-        Diagnoses diagnoses = createDiagnoses(1L, PRODUCT_IMAGE_KEY);
+        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY);
         diagnoses.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
 
         // when
         DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
 
         // then
-        assertThat(response.diagnosesId()).isEqualTo(1L);
+        assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
         assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
         assertThat(response.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
         assertThat(response.imageUrls()).containsExactly(
@@ -104,7 +107,7 @@ class DiagnosesMapperTest {
     @DisplayName("대표 이미지 없이 등록한 진단서를 변환하면 대표 이미지 URL이 비어 있다.")
     void toDetailResponse_withoutProductImageKey_thenProductImageUrlIsNull() {
         // given & when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(1L, null));
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(DIAGNOSES_ID, null));
 
         // then
         assertThat(response.productImageUrl()).isNull();
@@ -114,7 +117,7 @@ class DiagnosesMapperTest {
     @DisplayName("진단이 완료되지 않은 진단서를 변환하면 진단 결과가 비어 있다.")
     void toDetailResponse_withPendingDiagnoses_thenResultIsEmpty() {
         // given & when
-        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(1L, PRODUCT_IMAGE_KEY));
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY));
 
         // then
         assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
@@ -127,10 +130,10 @@ class DiagnosesMapperTest {
     @DisplayName("목록 카드로 변환하면 썸네일 URL과 상태 값만 담긴다.")
     void toSummaryResponse_thenIncludeThumbnailAndStatus() {
         // given & when
-        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(createDiagnoses(1L, PRODUCT_IMAGE_KEY));
+        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY));
 
         // then
-        assertThat(response.diagnosesId()).isEqualTo(1L);
+        assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
         assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
         assertThat(response.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
         assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
@@ -141,7 +144,7 @@ class DiagnosesMapperTest {
     @DisplayName("대표 이미지 없이 등록한 진단서를 목록 카드로 변환하면 썸네일이 비어 있다.")
     void toSummaryResponse_withoutProductImageKey_thenThumbnailIsNull() {
         // given & when
-        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(createDiagnoses(1L, null));
+        DiagnosesSummaryResponse response = diagnosesMapper.toSummaryResponse(createDiagnoses(DIAGNOSES_ID, null));
 
         // then
         assertThat(response.productImageUrl()).isNull();
@@ -152,7 +155,7 @@ class DiagnosesMapperTest {
     void toListResponse_thenIncludeSummariesAndPageInfo() {
         // given
         Page<Diagnoses> page = new PageImpl<>(
-                List.of(createDiagnoses(1L, PRODUCT_IMAGE_KEY), createDiagnoses(2L, PRODUCT_IMAGE_KEY)),
+                List.of(createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY), createDiagnoses(OTHER_DIAGNOSES_ID, PRODUCT_IMAGE_KEY)),
                 PageRequest.of(0, 2),
                 5);
 
@@ -162,7 +165,7 @@ class DiagnosesMapperTest {
         // then
         assertThat(response.diagnoses())
                 .extracting(DiagnosesSummaryResponse::diagnosesId)
-                .containsExactly(1L, 2L);
+                .containsExactly(DIAGNOSES_ID, OTHER_DIAGNOSES_ID);
 
         DiagnosesListResponse.PageInfo pageInfo = response.pageInfo();
         assertThat(pageInfo.page()).isZero();
@@ -172,7 +175,7 @@ class DiagnosesMapperTest {
         assertThat(pageInfo.hasNext()).isTrue();
     }
 
-    private Diagnoses createDiagnoses(Long diagnosesId, String productImageKey) {
+    private Diagnoses createDiagnoses(UUID diagnosesId, String productImageKey) {
         Diagnoses diagnoses = Diagnoses.pending(
                 USER_ID, PRODUCT_NAME, productImageKey, SourceType.URL, SOURCE_URL, null);
 

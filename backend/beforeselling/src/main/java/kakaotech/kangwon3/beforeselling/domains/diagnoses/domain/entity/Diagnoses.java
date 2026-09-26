@@ -6,9 +6,11 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Getter
@@ -20,12 +22,12 @@ import java.util.List;
 public class Diagnoses extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "diagnoses_id")
-    private Long id;
+    private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private UUID userId;
 
     @Column(name = "product_name", nullable = false)
     private String productName;
@@ -59,7 +61,7 @@ public class Diagnoses extends BaseEntity {
     private List<DiagnosesImage> images = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
-    private Diagnoses(Long userId, String productName, String productImageKey,
+    private Diagnoses(UUID userId, String productName, String productImageKey,
                       SourceType sourceType, String sourceUrl, String sourceText) {
         this.userId = userId;
         this.productName = productName;
@@ -70,7 +72,7 @@ public class Diagnoses extends BaseEntity {
         this.processingStatus = ProcessingStatus.PENDING;
     }
 
-    public static Diagnoses pending(Long userId, String productName, String productImageKey,
+    public static Diagnoses pending(UUID userId, String productName, String productImageKey,
                                     SourceType sourceType, String sourceUrl, String sourceText) {
         return Diagnoses.builder()
                 .userId(userId)
@@ -88,7 +90,7 @@ public class Diagnoses extends BaseEntity {
         }
     }
 
-    public boolean isOwnedBy(Long userId) {
+    public boolean isOwnedBy(UUID userId) {
         return this.userId.equals(userId);
     }
 }

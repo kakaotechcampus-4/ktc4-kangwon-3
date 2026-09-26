@@ -1,11 +1,14 @@
 package kakaotech.kangwon3.beforeselling.domains.user.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.AuthTokenService;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.unlink.SocialUnlinkService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -14,10 +17,12 @@ public class UserWithdrawalUseCase {
     private final UserService userService;
     private final AuthTokenService authTokenService;
     private final SocialUnlinkService socialUnlinkService;
+    private final DiagnosesService diagnosesService;
 
-    public void withdraw(Long userId, String refreshToken) {
+    public void withdraw(UUID userId, String refreshToken) {
         User user = userService.getUser(userId);
         userService.withdraw(userId);
+        diagnosesService.removeAllByUserId(userId);
         authTokenService.removeRefreshToken(refreshToken);
         socialUnlinkService.unlink(user);
     }
