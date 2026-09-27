@@ -1,8 +1,8 @@
-import { cva } from "class-variance-authority";
 import { type FormEvent, useState } from "react";
 
 import clear from "@/assets/delete-gray.svg"
 import search from "@/assets/mypage-search.svg"
+import { cn } from "@/lib/cn";
 
 import type { ProductFilter } from "./types.ts";
 
@@ -13,27 +13,21 @@ const FILTER_TABS: { key: ProductFilter; label: string }[] = [
     { key: "RECHECK_REQUIRED", label: "재확인 필요" },
 ];
 
-const filterTabVariants = cva("px-3.5 py-1.5 border rounded-full text-sm font-semibold", {
-    variants: {
-        tone: {
-            all: "",
-            PURCHASING_AGENT_ALLOWED: "",
-            DIRECT_IMPORT_CERTIFICATION_REQUIRED: "",
-            RECHECK_REQUIRED: "",
-        },
-        selected: {
-            true: "",
-            false: "cursor-pointer text-neutral-border bg-white",
-        },
-    },
-    // 선택됐을 때만 tone별로 다른 색을 얹는다.
-    compoundVariants: [
-        { tone: "all", selected: true, className: "text-black bg-neutral-border" },
-        { tone: "PURCHASING_AGENT_ALLOWED", selected: true, className: "text-status-success bg-status-success-bg" },
-        { tone: "DIRECT_IMPORT_CERTIFICATION_REQUIRED", selected: true, className: "text-status-danger bg-status-danger-bg" },
-        { tone: "RECHECK_REQUIRED", selected: true, className: "text-status-warning bg-status-warning-bg" },
-    ],
-});
+// 선택된 탭들에 서로 다른 색을 얹는다.
+const FILTER_TAB_SELECTED_CLASSES: Record<ProductFilter, string> = {
+    all: "text-black bg-neutral-border",
+    PURCHASING_AGENT_ALLOWED: "text-status-success bg-status-success-bg",
+    DIRECT_IMPORT_CERTIFICATION_REQUIRED: "text-status-danger bg-status-danger-bg",
+    RECHECK_REQUIRED: "text-status-warning bg-status-warning-bg",
+};
+
+// 선택되지 않은 탭들은 공통 스타일링을 사용한다.
+function filterTabClassName(tone: ProductFilter, selected: boolean) {
+    return cn(
+        "px-3.5 py-1.5 border rounded-full text-sm font-semibold",
+        selected ? FILTER_TAB_SELECTED_CLASSES[tone] : "cursor-pointer text-neutral-border bg-white",
+    );
+}
 
 interface ProductFilterBarProps {
     searchTerm: string
@@ -97,7 +91,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
                         key={key}
                         type="button"
                         onClick={() => onFilterChange(key)}
-                        className={filterTabVariants({ tone: key, selected: filter === key })}
+                        className={filterTabClassName(key, filter === key)}
                     >
                         {label}
                     </button>
