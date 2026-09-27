@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { getMyProducts } from "@/api/myProducts.ts";
 import SectionIntro from "@/components/common/SectionIntro";
@@ -17,6 +17,7 @@ function MyPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filter, setFilter] = useState<ProductFilter>("all");
     const [page, setPage] = useState(0);
+    const productListRef = useRef<HTMLDivElement>(null);
 
     const { items: pagedProducts, pageInfo } = useMemo(
         () => getMyProducts({
@@ -47,7 +48,10 @@ function MyPage() {
                 revisedDate="2026-09-03"
                 title="어린이제품 안전 특별법 시행규칙 별표2가 개정되었습니다. 완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다."
                 description="사입으로 등록한 상품 1개는 재확인이 필요합니다. 구매대행 상품은 이 조문의 적용을 받지 않아 영향이 없습니다."
-                onCheckClick={() => handleFilterChange("RECHECK_REQUIRED")}
+                onCheckClick={() => {
+                    handleFilterChange("RECHECK_REQUIRED");
+                    productListRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
             />
             <NotificationSettings />
             <ProductFilterBar
@@ -56,13 +60,15 @@ function MyPage() {
                 filter={filter}
                 onFilterChange={handleFilterChange}
             />
-            <MyProductList
-                products={pagedProducts}
-                page={page}
-                totalPages={pageInfo.totalPages}
-                hasNext={pageInfo.hasNext}
-                onPageChange={setPage}
-            />
+            <div ref={productListRef}>
+                <MyProductList
+                    products={pagedProducts}
+                    page={page}
+                    totalPages={pageInfo.totalPages}
+                    hasNext={pageInfo.hasNext}
+                    onPageChange={setPage}
+                />
+            </div>
         </div>
     );
 }
