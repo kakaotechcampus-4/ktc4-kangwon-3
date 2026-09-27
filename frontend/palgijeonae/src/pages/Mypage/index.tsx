@@ -18,7 +18,7 @@ function MyPage() {
     const [filter, setFilter] = useState<ProductFilter>("all");
     const [page, setPage] = useState(0);
 
-    const { items: pagedProducts, totalPages } = useMemo(
+    const { items: pagedProducts, pageInfo } = useMemo(
         () => getMyProducts({
             resultStatus: filter === "all" ? undefined : filter,
             keyword: searchTerm,
@@ -59,7 +59,8 @@ function MyPage() {
             <MyProductList
                 products={pagedProducts}
                 page={page}
-                totalPages={totalPages}
+                totalPages={pageInfo.totalPages}
+                hasNext={pageInfo.hasNext}
                 onPageChange={setPage}
             />
         </div>

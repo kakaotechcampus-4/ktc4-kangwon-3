@@ -26,3 +26,11 @@ export interface MyProductItem {
 }
 
 export type ProductFilter = "all" | ResultStatus;
+
+export interface PageInfo {
+    page: number
+    size: number
+    totalElements: number
+    totalPages: number
+    hasNext: boolean
+}
