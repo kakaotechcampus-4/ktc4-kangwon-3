@@ -19,7 +19,13 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 if not DATABASE_URL:
     raise RuntimeError(f"DATABASE_URL이 없습니다. {_ENV_FILE}에 DB 연결 문자열을 설정하세요.")
 
-engine = create_engine(DATABASE_URL, pool_size=5, max_overflow=5)
+# DB에 패킷이 닿지 않으면 OS TCP 타임아웃(약 2분)까지 기동이 멈추므로 연결 대기를 제한한다.
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=5,
+    max_overflow=5,
+    connect_args={"connect_timeout": 3},
+)
 
 SessionLocal = sessionmaker(bind=engine)
 
