@@ -3,18 +3,9 @@ import { cva } from "class-variance-authority";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
 import DefaultBox from "@/components/common/DefaultBox";
 
-import type { ProcessingStatusType, ProductInputType, ResultStatus } from "./types.ts";
+import type { MyProductItem, ResultStatus } from "./types.ts";
 
-interface MyProductProps {
-    productId: number
-    productName: string
-    productImageUrl?: string
-    sourceType: string
-    inputType: ProductInputType
-    processingStatus: ProcessingStatusType
-    resultStatus: ResultStatus
-    createdAt: Date
-}
+type MyProductProps = MyProductItem;
 
 const RESULT_STATUS_LABELS: Record<ResultStatus, string> = {
     PURCHASING_AGENT_ALLOWED: "구매 대행 가능",
