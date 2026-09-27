@@ -8,10 +8,12 @@ import ProductFilterBar from "./ProductFilterBar.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
 import type { MyProductItem, ProductFilter } from "./types.ts";
 
-// TODO: 실제 연동 시 백엔드 페이지네이션(page/size)으로 교체. 지금은 목업 개수가 적어 페이지당 2개로 작게 잡아 UI만 미리 확인한다.
+// TODO: 실제 연동 시 백엔드 페이지네이션(page/size)으로 교체.
+// 지금은 목업 확인용으로 2로 설정.
 const PAGE_SIZE = 2;
 
-// TODO: 백엔드 연동 전까지 쓰는 임시 목업. 실제 연동은 별도 브랜치에서 진행 예정(검색 파라미터 등 백엔드 작업 필요).
+// TODO: 백엔드 연동 전까지 쓰는 임시 목업. 
+// 실제 연동은 별도 브랜치에서 진행
 const PRODUCTS: MyProductItem[] = [
     {
         productId: 1,
@@ -65,6 +67,8 @@ function MyPage() {
     const [filter, setFilter] = useState<ProductFilter>("all");
     const [page, setPage] = useState(0);
 
+    // TODO: 백엔드 연동 시 걷어내고 필터 / 검색어에 따른 get 요청으로 교체한다.
+    // searchTerm과 filter에 변화가 있을 때 작동한다.
     const filteredProducts = useMemo(() => {
         const trimmed = searchTerm.trim();
         return PRODUCTS
@@ -75,7 +79,7 @@ function MyPage() {
     const totalPages = Math.max(Math.ceil(filteredProducts.length / PAGE_SIZE), 1);
     const pagedProducts = filteredProducts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-    // 검색어/필터가 바뀌면 이전 페이지 번호가 새 결과 범위를 벗어날 수 있어, 그 시점에 같이 0으로 되돌린다.
+    // 검색어 / 필터가 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정
     const handleSearchTermChange = (value: string) => {
         setSearchTerm(value);
         setPage(0);
