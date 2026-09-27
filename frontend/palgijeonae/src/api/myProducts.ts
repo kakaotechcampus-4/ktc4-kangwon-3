@@ -1,4 +1,4 @@
-import type { MyProductItem, ResultStatus } from "@/pages/Mypage/types";
+import type { MyProductItem, PageInfo, ResultStatus } from "@/pages/Mypage/types";
 
 interface GetMyProductsParams {
     resultStatus?: ResultStatus;
@@ -10,11 +10,12 @@ interface GetMyProductsParams {
 
 interface GetMyProductResult {
     items: MyProductItem[];
-    totalPages: number;
+    pageInfo: PageInfo;
 }
 
-// TODO: 백엔드 연동 전까지 쓰는 임시 목업. 
+// TODO: 백엔드 연동 전까지 쓰는 임시 목업.
 // 실제 연동은 별도 브랜치에서 진행
+
 const PRODUCTS: MyProductItem[] = [
     {
         productId: "1",
@@ -66,6 +67,12 @@ export function getMyProducts(params: GetMyProductsParams): GetMyProductResult {
     const totalPages = Math.max(Math.ceil(filtered.length / params.size), 1);
     return {
         items: filtered.slice(params.page * params.size, (params.page + 1) * params.size),
-        totalPages,
+        pageInfo: {
+            page: params.page,
+            size: params.size,
+            totalElements: filtered.length,
+            totalPages,
+            hasNext: params.page < totalPages - 1,
+        },
     };
 }

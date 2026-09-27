@@ -10,12 +10,13 @@ interface MyProductListProps {
     products: MyProductItem[]
     page: number
     totalPages: number
+    hasNext: boolean
     onPageChange: (page: number) => void
 }
 
 const PAGE_GROUP_SIZE = 10;
 
-function MyProductList({ products, page, totalPages, onPageChange }: MyProductListProps) {
+function MyProductList({ products, page, totalPages, hasNext, onPageChange }: MyProductListProps) {
     const groupStart = Math.floor(page / PAGE_GROUP_SIZE) * PAGE_GROUP_SIZE;
     const groupEnd = Math.min(groupStart + PAGE_GROUP_SIZE, totalPages);
     const pageNumbers = Array.from({ length: groupEnd - groupStart }, (_, index) => groupStart + index);
@@ -49,10 +50,10 @@ function MyProductList({ products, page, totalPages, onPageChange }: MyProductLi
                             {pageNumber + 1}
                         </button>
                     ))}
-                    <button type="button" disabled={page === totalPages - 1} onClick={() => onPageChange(page + 1)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
+                    <button type="button" disabled={!hasNext} onClick={() => onPageChange(page + 1)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
                         <img src={nextPageIcon} alt="다음" className="h-4 w-4" />
                     </button>
-                    <button type="button" disabled={page === totalPages - 1} onClick={() => onPageChange(totalPages - 1)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
+                    <button type="button" disabled={!hasNext} onClick={() => onPageChange(totalPages - 1)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
                         <img src={lastPageIcon} alt="마지막 페이지" className="h-4 w-4" />
                     </button>
                 </div>
