@@ -13,6 +13,7 @@ pydantic==2.13.5
 # DB
 sqlalchemy==2.0.41
 psycopg[binary]==3.3.5
+pgvector==0.3.6
 
 # 외부 API 호출
 httpx==0.28.1
