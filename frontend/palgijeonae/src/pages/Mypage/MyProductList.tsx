@@ -27,11 +27,17 @@ function MyProductList({ products, page, totalPages, hasNext, onPageChange }: My
     return (
         <div className="flex w-full flex-col gap-6">
             <SectionIntro title="전체 상품" size="xl" />
-            <div className="flex w-full flex-col gap-3.5">
-                {products.map((product) => (
-                    <MyProduct key={product.productId} {...product} />
-                ))}
-            </div>
+            {products.length === 0 ? (
+                <p className="w-full py-12 text-center text-sm font-medium text-neutral-border">
+                    조건에 맞는 상품이 없어요.
+                </p>
+            ) : (
+                <div className="flex w-full flex-col gap-3.5">
+                    {products.map((product) => (
+                        <MyProduct key={product.productId} {...product} />
+                    ))}
+                </div>
+            )}
             {totalPages > 1 && (
                 <div className="flex w-full items-center justify-center gap-3">
                     <button type="button" disabled={page === 0} onClick={() => onPageChange(0)} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
