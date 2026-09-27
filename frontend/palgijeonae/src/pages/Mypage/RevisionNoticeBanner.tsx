@@ -26,7 +26,7 @@ function RevisionNoticeBanner({ revisedDate, title, description, onCheckClick }:
                 <p className="whitespace-pre-line text-base font-medium text-neutral-text">{description}</p>
             </div>
             <div className="flex w-full justify-end">
-                <button type="button" onClick={onCheckClick} className="px-5 py-2 text-sm font-semibold rounded-full bg-status-warning text-white">재확인 필요 상품 확인하기</button>
+                <button type="button" onClick={onCheckClick} className="px-5 py-2 cursor-pointer text-sm font-semibold rounded-full bg-status-warning text-white">재확인 필요 상품 확인하기</button>
             </div>
         </DefaultBox>
     );
