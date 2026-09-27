@@ -14,10 +14,13 @@ interface MyProductListProps {
     onPageChange: (page: number) => void
 }
 
+// 한 화면에 페이지 번호 버튼을 몇 개까지 보여줄 지 결정
 const PAGE_GROUP_SIZE = 10;
 
 function MyProductList({ products, page, totalPages, hasNext, onPageChange }: MyProductListProps) {
-    const groupStart = Math.floor(page / PAGE_GROUP_SIZE) * PAGE_GROUP_SIZE;
+    // 현재 페이지가 중심에 오도록 10개 단위 구간을 잡는다.
+    const halfGroupSize = Math.floor(PAGE_GROUP_SIZE / 2);
+    const groupStart = Math.max(0, Math.min(page - halfGroupSize, totalPages - PAGE_GROUP_SIZE));
     const groupEnd = Math.min(groupStart + PAGE_GROUP_SIZE, totalPages);
     const pageNumbers = Array.from({ length: groupEnd - groupStart }, (_, index) => groupStart + index);
 
