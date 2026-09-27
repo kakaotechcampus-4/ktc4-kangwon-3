@@ -1,4 +1,5 @@
 import { cva } from "class-variance-authority";
+import { useNavigate } from "react-router-dom";
 
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
 import DefaultBox from "@/components/common/DefaultBox";
@@ -7,13 +8,14 @@ import type { MyProductItem, ResultStatus } from "./types.ts";
 
 type MyProductProps = MyProductItem;
 
+// 상품 결과(ResultStatus) 텍스트 매핑
 const RESULT_STATUS_LABELS: Record<ResultStatus, string> = {
     PURCHASING_AGENT_ALLOWED: "구매 대행 가능",
     DIRECT_IMPORT_CERTIFICATION_REQUIRED: "사입 인증 필요",
     RECHECK_REQUIRED: "재확인 필요",
 };
 
-// 첫 번째 인자(base)는 상태와 무관하게 항상 붙는 공통 스타일(모양/크기 등), variants.resultStatus 안은 상태별로 달라지는 색만.
+// 상품 결과(ResultStatus) 태그 스타일링
 const resultStatusBadgeVariants = cva("px-2.5 py-1 border rounded-full text-sm font-semibold", {
     variants: {
         resultStatus: {
@@ -25,9 +27,15 @@ const resultStatusBadgeVariants = cva("px-2.5 py-1 border rounded-full text-sm f
 });
 
 function MyProduct({ productName, resultStatus, productImageUrl }: MyProductProps) {
+    const navigate = useNavigate();
+
     return (
         <DefaultBox>
-            <div className="flex flex-row w-full gap-4 cursor-pointer">
+            {/* TODO: Result 페이지 구현 시 /result/product?productId=로 변경. */}
+            <div
+                className="flex flex-row w-full gap-4 cursor-pointer"
+                onClick={() => navigate("/result")}
+            >
                 <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"
                     className="w-20 h-20 object-cover rounded-lg border border-neutral-border" />
