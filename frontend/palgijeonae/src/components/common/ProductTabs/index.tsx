@@ -10,22 +10,22 @@ const tabVariants = cva("shrink-0 rounded-[20px] border px-[15px] py-[7px] text-
 });
 
 interface ProductTabsProps {
-    count: number
+    productNames: string[]
     selected: number
     onSelect: (index: number) => void
 }
 
-function ProductTabs({ count, selected, onSelect }: ProductTabsProps) {
+function ProductTabs({ productNames, selected, onSelect }: ProductTabsProps) {
     return (
         <div className="flex flex-wrap items-start gap-2.5">
-            {Array.from({ length: count }, (_, index) => (
+            {productNames.map((name, index) => (
                 <button
                     key={index}
                     type="button"
                     onClick={() => onSelect(index)}
                     className={tabVariants({ selected: index === selected })}
                 >
-                    제품 {index + 1}
+                    {name}
                 </button>
             ))}
         </div>
