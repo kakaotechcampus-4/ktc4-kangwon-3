@@ -1,3 +1,4 @@
+// 진단서 목록 조회에 쓰이는 타입들
 export type SourceType = 
     | "URL"
     | "TEXT_IMAGE"
@@ -25,8 +26,10 @@ export interface MyProductItem {
     createdAt: Date
 }
 
+// 검색 필터 탭에 쓰이는 타입
 export type ProductFilter = "all" | ResultStatus;
 
+// 진단서 목록 조회 시 페이지 정보를 나타내는 타입
 export interface PageInfo {
     page: number
     size: number
