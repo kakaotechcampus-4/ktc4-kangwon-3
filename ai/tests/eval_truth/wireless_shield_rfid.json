@@ -94,5 +94,32 @@
 
   "attributes_forbidden": [
     { "name": "통신 주파수", "value": "13.56MHz", "reason": "RFID 주파수가 페이지에 적혀 있지 않다" }
+  ],
+
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "아담하니 좋아요",
+      "evidence": "원문 39행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "효과는 100%",
+      "evidence": "원문 47행, 구매자 리뷰. 최상급 표현이라 섞이면 표시광고가 괜히 선택된다"
+    },
+    {
+      "must_not_contain": "검은색 천 지갑이에요",
+      "evidence": "원문 53행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "캔버스 같은 소재",
+      "evidence": "원문 59행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "문제 발생 시 환불",
+      "evidence": "원문 6·12행, Temu 상단 배너"
+    },
+    {
+      "must_not_contain": "왜 Temu를 선택해야 할까요",
+      "evidence": "원문 118행, Temu 푸터"
+    }
   ]
 }
