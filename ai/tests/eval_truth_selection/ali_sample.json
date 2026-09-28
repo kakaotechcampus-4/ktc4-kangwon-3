@@ -1,7 +1,7 @@
 {
   "fixture": "ali_sample.txt",
   "reviewed_by": "gityhb",
-  "reviewed_at": "2026-09-22",
+  "reviewed_at": "2026-09-28",
   "summary": "어린이용 무선 헤어 드라이어. 전기·배터리·어린이 신호가 페이지에 명시돼 판단이 비교적 분명하다.",
   "tools": {
     "customs_requirements": {
@@ -10,14 +10,14 @@
       "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
     },
     "radio_compliance": {
-      "selected": false,
-      "evidence": "제목·카테고리의 '무선'은 전원선 없음(코드리스)을 뜻한다. 블루투스·WiFi·RF 언급 없음",
-      "why_not_other": "'무선'이라는 단어만 보고 선택하면 코드리스를 통신으로 오인한다. 다만 판단이 갈릴 수 있어 확인 필요."
+      "selected": true,
+      "evidence": "wireless_comm·wireless_charging·wireless_shield가 모두 null. 제목 '충전 거치대 포함', 스펙표 'USB 충전'",
+      "why_not_other": "제목의 '무선'은 코드리스라 통신 근거는 아니다. 그러나 거치대가 무선충전인지 알 수 없어 wireless_charging이 null로 남는다. 원칙 1·2와 프롬프트 예시 3(wireless_comm=None이면 정보 부족으로 선택)에 따라 선택한다."
     },
     "food_drug_safety": {
       "selected": false,
-      "evidence": "skin_contact=true이나 용도가 헤어 건조이고 성분이 피부에 흡수·반응하지 않는다. food_contact·medical_claim·cosmetic_claim 근거 없음",
-      "why_not_other": "프롬프트가 skin_contact만으로는 선택하지 않고 category·intended_use를 함께 보라고 규정한다."
+      "evidence": "food_contact=null, medical_claim·cosmetic_claim=false. skin_contact=true이나 용도가 헤어 건조다",
+      "why_not_other": "food_contact가 null이지만 category(헤어드라이어)가 식품 접촉과 무관해 원칙 2의 '다른 필드의 해당 없음 근거'가 된다. skin_contact는 프롬프트가 단독으로 쓰지 말고 용도를 함께 보라고 규정한다."
     },
     "electrical_safety": {
       "selected": true,
