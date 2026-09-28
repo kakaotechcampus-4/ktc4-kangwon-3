@@ -79,6 +79,13 @@ class FixtureReport:
             "items": len(self.listing_fields),
             "c1_missing": sum(1 for f in self.listing_fields if f.worst is Grade.C1),
             "c3_mixed": sum(1 for f in self.listing_fields if f.worst is Grade.C3),
+            # 항목 수만 보면 "한 번 크게 섞였는지, 매번 조금씩 섞였는지"를 구분할 수 없다.
+            # 반복 실행에서 오염이 얼마나 자주 일어나는지는 회차 단위로 본다.
+            "runs_mixed": sum(
+                1
+                for index in range(self.runs)
+                if any(f.grades[index] is Grade.C3 for f in self.listing_fields)
+            ),
         }
 
 
