@@ -180,3 +180,19 @@ def test_listing_text_기준이_있으면_미채점으로_세지_않는다():
     report = score(truth, [_run(listing_text=[])])
 
     assert "listing_text" not in report.ungraded
+
+
+def test_listing_text가_섞인_회차를_따로_센다():
+    # 멘토 리뷰(#176): 다회차 실행에서 오염이 얼마나 자주 일어나는지 봐야 한다.
+    truth = {
+        "fixture": "t",
+        "listing_text_forbidden": [{"must_not_contain": "리뷰"}, {"must_not_contain": "배송"}],
+    }
+    runs = [
+        _run(listing_text=["리뷰", "배송"]),
+        _run(listing_text=["판매자 문구"]),
+        _run(listing_text=["배송"]),
+    ]
+
+    assert score(truth, runs).listing_counts()["runs_mixed"] == 2
+
