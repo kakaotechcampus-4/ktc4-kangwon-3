@@ -17,6 +17,7 @@ function SettingToggleRow({ title, description, checked, onChange, disabled }: S
                 checked={checked}
                 onChange={onChange}
                 disabled={disabled}
+                ariaLabel={title}
                 className="absolute right-0 top-1/2 -translate-y-1/2"
             />
         </div>
