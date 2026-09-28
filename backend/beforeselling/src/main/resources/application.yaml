@@ -92,6 +92,8 @@ server:
   forward-headers-strategy: framework
 
 management:
+  server:
+    port: 8081
   endpoints:
     web:
       exposure:

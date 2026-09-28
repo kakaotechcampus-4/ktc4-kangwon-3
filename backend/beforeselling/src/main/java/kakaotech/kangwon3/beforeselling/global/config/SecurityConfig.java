@@ -57,7 +57,7 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/error-codes",
 
-            // health check / 메트릭 수집
+            // health check / 메트릭 수집 (8081)
             "/actuator/health",
             "/actuator/prometheus",
     };
