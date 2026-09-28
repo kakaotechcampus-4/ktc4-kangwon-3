@@ -8,6 +8,7 @@ import SettingToggleRow from "./SettingToggleRow.tsx";
 // 추후 다른 세팅 확장성을 위해 SettingToggleRow를 여러 개를 포함하는 컴포넌트로 분리
 function NotificationSettings() {
     // TODO: 백엔드 연동 전까지 쓰는 로컬 상태. 실제로는 설정 조회/변경 API와 연결해야 한다.
+    // TODO: 백엔드 api 스키마가 마련되지 않아 연동과 관련한 로직은 별도의 브랜치에서 진행한다.
     const [revisionAlertEnabled, setRevisionAlertEnabled] = useState(false);
 
     return (

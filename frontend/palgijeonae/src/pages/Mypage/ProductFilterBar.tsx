@@ -48,7 +48,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
 
     const handleChange = (value: string) => {
         setDraftSearchTerm(value);
-        // 검색어를 비우는 건 "전체 보기"라는 의도가 명확해서, Enter 없이 바로 반영하도록 설계.
+        // 검색어를 비우면 Enter 없이 바로 전체 보기로 반영한다.
         if (value === "") {
             onSearchTermChange("");
         }

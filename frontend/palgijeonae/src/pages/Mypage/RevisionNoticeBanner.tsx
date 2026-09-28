@@ -9,6 +9,7 @@ interface RevisionNoticeBannerProps {
     onCheckClick: () => void
 }
 
+// TODO: 백엔드 api 스키마가 마련되지 않아 연동과 관련한 로직은 별도의 브랜치에서 진행한다.
 function RevisionNoticeBanner({ revisedDate, title, description, onCheckClick }: RevisionNoticeBannerProps) {
     return (
         <DefaultBox tone="warning">
