@@ -2,6 +2,7 @@
   "fixture": "power_bank.txt",
   "reviewed_by": "gityhb",
   "reviewed_at": "2026-09-28",
+  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
   "summary": "MagSafe 배터리 케이스. 제목의 '1460mAh'와 스펙표의 '배터리 미포함'이 충돌해 전기 관련 필드가 전부 null이다. conflicts 처리를 보는 케이스.",
   "tools": {
     "customs_requirements": {
