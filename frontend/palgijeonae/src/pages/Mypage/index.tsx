@@ -20,6 +20,7 @@ function MyPage() {
     const [page, setPage] = useState(0);
     const productListRef = useRef<HTMLDivElement>(null);
 
+    // 상품 목록 불러오기
     const { data } = useQuery({
         queryKey: ["myProducts", { filter, searchTerm, page, size: PAGE_SIZE }],
         queryFn: () => getMyProducts({
@@ -31,11 +32,11 @@ function MyPage() {
         }),
     });
 
-    // 비동기로 데이터를 받아오기까지 띄울 임시 데이터
+    // 비동기로 데이터를 받아오기까지 띄울 상품 목록 임시 데이터
     const pagedProducts = data?.items ?? [];
     const pageInfo = data?.pageInfo ?? { page, size: PAGE_SIZE, totalElements: 0, totalPages: 1, hasNext: false };
 
-    // 검색어 / 필터가 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정
+    // 상품 검색어 / 필터가 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정
     const handleSearchTermChange = (value: string) => {
         setSearchTerm(value);
         setPage(0);
