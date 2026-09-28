@@ -27,8 +27,6 @@ from app.schemas.schemas import (
     ToolName,
     ToolResult,
     ToolStatus,
-    VerificationIssue,
-    VerificationIssueType,
     VerificationResult,
     VerificationStatus,
 )
@@ -55,7 +53,7 @@ from app.schemas.schemas import (
         ),
         (
             VerificationResult(
-                status=VerificationStatus.REVISION_REQUIRED,
+                status=VerificationStatus.TOOLS_REQUIRED,
                 additional_tools_required=[ToolName.RADIO],
             ),
             _PipelineNextAction.RETRY_TOOLS,
@@ -67,38 +65,6 @@ def test_검증_결과를_pipeline의_다음_행동으로_변환한다(
     expected_action: _PipelineNextAction,
 ):
     assert _determine_next_action(verification) is expected_action
-
-
-def test_다음_행동은_critical_사용자_입력_추가_tool_순서로_결정한다():
-    critical_issue = VerificationIssue(
-        severity="critical",
-        issue_type=VerificationIssueType.CONTRADICTION,
-        description="초안의 판단이 서로 모순됩니다.",
-    )
-    required_question = FollowUpQuestion(
-        question="상품의 실제 사용 대상은 누구인가요?",
-        reason="사용 대상에 따라 심사 기준이 달라집니다.",
-        required=True,
-    )
-    all_conditions = VerificationResult(
-        status=VerificationStatus.REVISION_REQUIRED,
-        issues=[critical_issue],
-        additional_tools_required=[ToolName.RADIO],
-        follow_up_questions=[required_question],
-    )
-    user_input_and_tools = VerificationResult(
-        status=VerificationStatus.USER_INPUT_REQUIRED,
-        additional_tools_required=[ToolName.RADIO],
-    )
-
-    assert (
-        _determine_next_action(all_conditions)
-        is _PipelineNextAction.STOP_FOR_REVISION
-    )
-    assert (
-        _determine_next_action(user_input_and_tools)
-        is _PipelineNextAction.AWAIT_USER_INPUT
-    )
 
 
 def test_추가_tool_분기는_다음_회차의_재실행_요청을_생성한다():
@@ -127,7 +93,7 @@ def test_추가_tool_분기는_다음_회차의_재실행_요청을_생성한다
         tool_result_history=[],
     )
     verification = VerificationResult(
-        status=VerificationStatus.REVISION_REQUIRED,
+        status=VerificationStatus.TOOLS_REQUIRED,
         additional_tools_required=[ToolName.RADIO],
     )
 
@@ -154,6 +120,7 @@ def test_추가_tool_분기는_다음_회차의_재실행_요청을_생성한다
         ),
         (VerificationStatus.REVISION_REQUIRED, FinalVerificationStatus.INCOMPLETE),
         (VerificationStatus.USER_INPUT_REQUIRED, FinalVerificationStatus.INCOMPLETE),
+        (VerificationStatus.TOOLS_REQUIRED, FinalVerificationStatus.INCOMPLETE),
     ],
 )
 def test_최초_실행은_각_단계를_순서대로_연결하고_최종_상태를_변환한다(
