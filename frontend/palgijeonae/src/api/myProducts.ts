@@ -57,6 +57,34 @@ const PRODUCTS: MyProductItem[] = [
         resultStatus: "RECHECK_REQUIRED",
         createdAt: new Date("2026-09-05"),
     },
+    {
+        productId: "6",
+        productName: "차량용 접이식 트렁크 정리함",
+        sourceType: "URL",
+        processingStatus: "PENDING",
+        createdAt: new Date("2026-09-06"),
+    },
+    {
+        productId: "7",
+        productName: "휴대용 미니 가습기",
+        sourceType: "TEXT_IMAGE",
+        processingStatus: "IN_PROGRESS",
+        createdAt: new Date("2026-09-07"),
+    },
+    {
+        productId: "8",
+        productName: "아기 이유식 실리콘 트레이",
+        sourceType: "TEXT_IMAGE",
+        processingStatus: "AWAITING_INPUT",
+        createdAt: new Date("2026-09-08"),
+    },
+    {
+        productId: "9",
+        productName: "무선 이어폰 방수 케이스",
+        sourceType: "URL",
+        processingStatus: "FAILED",
+        createdAt: new Date("2026-09-09"),
+    },
 ];
 
 // TODO: 백엔드 연동 시 이 함수의 내부만 백엔드 api GET 호출로 교체한다.
