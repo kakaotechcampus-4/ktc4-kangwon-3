@@ -78,6 +78,12 @@ app:
   cookie:
     secure: ${COOKIE_SECURE:false}
     same-site: ${COOKIE_SAME_SITE:Lax}
+  mail:
+    from: ${MAIL_FROM:noreply@palgijeone.com}
+    from-name: ${MAIL_FROM_NAME:팔기전에}
+    region: ${AWS_REGION:ap-northeast-2}
+    # NONE(로그만) | SES_API
+    type: ${MAIL_TYPE:NONE}
 
 aws:
   s3:
