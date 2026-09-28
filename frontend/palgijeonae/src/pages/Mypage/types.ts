@@ -22,7 +22,7 @@ export interface MyProductItem {
     productImageUrl?: string
     sourceType: SourceType
     processingStatus: ProcessingStatusType
-    resultStatus: ResultStatus
+    resultStatus?: ResultStatus
     createdAt: Date
 }
 
