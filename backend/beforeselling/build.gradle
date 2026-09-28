@@ -43,6 +43,7 @@ dependencies {
 
 	// AWS
 	implementation 'software.amazon.awssdk:s3'
+	implementation 'software.amazon.awssdk:ses'
 	runtimeOnly 'software.amazon.awssdk:sso'
 	runtimeOnly 'software.amazon.awssdk:ssooidc'
 
