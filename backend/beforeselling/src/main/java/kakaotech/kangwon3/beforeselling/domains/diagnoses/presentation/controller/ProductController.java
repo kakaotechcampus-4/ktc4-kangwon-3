@@ -41,7 +41,9 @@ public class ProductController implements ProductApi {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "LATEST") SortType sortType
     ) {
-        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100), sortType.getSort());
+        // page/size 범위는 ProductApi 의 @Min/@Max 가 검증한다. 여기서 다시 보정하면
+        // 규칙이 두 곳에 생겨 한쪽만 바뀔 때 어긋난다.
+        Pageable pageable = PageRequest.of(page, size, sortType.getSort());
         ProductListResponse response =
                 productUseCase.getProductList(principal.userId(), resultStatus, keyword, pageable);
 
