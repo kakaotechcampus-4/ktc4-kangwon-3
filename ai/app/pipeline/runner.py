@@ -30,6 +30,13 @@ class ToolExecutionStage(Protocol):
         selection: ToolSelectionResponse,
     ) -> SelectionResult: ...
 
+    def execute_retry(
+        self,
+        product: Product,
+        selection_result: SelectionResult,
+        retry_request: RetryRequest,
+    ) -> SelectionResult: ...
+
 
 class AggregationStage(Protocol):
     def aggregate(
@@ -82,8 +89,11 @@ def _build_retry_request(
     return RetryRequest(
         retry_round=retry_round,
         requested_tools=verification.additional_tools_required,
-        verification=verification,
-        latest_tool_results=selection_result.tool_results,
+        verification=verification.model_copy(deep=True),
+        latest_tool_results=[
+            result.model_copy(deep=True)
+            for result in selection_result.tool_results
+        ],
     )
 
 

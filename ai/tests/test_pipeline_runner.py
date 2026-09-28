@@ -110,6 +110,57 @@ def test_추가_tool_분기는_다음_회차의_재실행_요청을_생성한다
     assert result.latest_tool_results == tool_results
 
 
+def test_재실행_요청은_현재_Tool_결과를_독립된_스냅샷으로_보존한다():
+    selection = ToolSelectionResponse(
+        decisions=[
+            ToolSelectionItem(
+                tool_name=tool_name,
+                selected=False,
+                reason="최초 실행에서는 검토 신호 없음",
+            )
+            for tool_name in ToolName
+        ]
+    )
+    selection_result = SelectionResult(
+        selection=selection,
+        tool_results=[
+            ToolResult(
+                tool_name=decision.tool_name,
+                status=ToolStatus.SKIPPED,
+                selected=False,
+                selection_reason=decision.reason,
+            )
+            for decision in selection.decisions
+        ],
+        tool_result_history=[],
+    )
+    verification = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED,
+        additional_tools_required=[ToolName.RADIO],
+    )
+
+    request = _build_retry_request(
+        verification,
+        selection_result,
+        retry_round=1,
+    )
+    snapshot = request.model_copy(deep=True)
+
+    selection_result.tool_results[0].selection_reason = "요청 생성 이후 변경됨"
+    verification.additional_tools_required.append(ToolName.ELECTRICAL)
+
+    assert request == snapshot
+    assert request.verification is not verification
+    assert all(
+        request_result is not current_result
+        for request_result, current_result in zip(
+            request.latest_tool_results,
+            selection_result.tool_results,
+            strict=True,
+        )
+    )
+
+
 @pytest.mark.parametrize(
     ("verification_status", "expected_final_status"),
     [
