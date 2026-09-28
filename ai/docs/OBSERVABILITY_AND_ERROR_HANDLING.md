@@ -235,10 +235,9 @@ JSONL은 로컬 개발과 초기 검증에는 적합하다고 생각합니다. J
 
 AI 파트에서의 공통 예외는 최소한 다음 정보를 제공해야 한다고 생각합니다.
 
-- `error_code`: 코드에서 안정적으로 분기할 수 있는 값
+- `response_code`: 코드에서 안정적으로 분기할 수 있는 값. HTTP 상태, 오류 코드, 공개 메시지를 포함 (AIResponseCode)
 - `stage`: 실패한 Pipeline 단계
 - `retryable`: 같은 입력으로 재시도할 수 있는지 여부
-- `public_message`: 외부에 공개해도 되는 메시지
 - `partial_result`: 실패 전까지 생성된 결과가 있을 때 보존하는 값
 - 원본 예외: `raise ... from exc`를 사용해 내부 원인을 보존
 ```python
@@ -246,26 +245,49 @@ class AIServiceError(Exception):
     def __init__(
         self,
         *,
-        error_code: str,
+        response_code: AIResponseCode,
         stage: str | None = None,
         retryable: bool = False,
-        public_message: str = "AI 처리 중 오류가 발생했습니다.",
         partial_result: object | None = None,
     ) -> None:
-        super().__init__(public_message)
-        self.error_code = error_code
+        super().__init__(response_code.message)
+        self.response_code = response_code
         self.stage = stage
         self.retryable = retryable
-        self.public_message = public_message
         self.partial_result = partial_result
 ```
-error코드도 가능하면 문자열이 아닌 별도의 enum으로 관리하면 좋을 것 같습니다.
+오류 응답은 BE의 `BaseResponseCode`와 동일하게 HTTP 상태, 오류 코드, 공개 메시지를 하나의 응답 코드에서 관리합니다.
 ```python
-class ErrorCode(StrEnum):
-    MODEL_TIMEOUT = "model_timeout"
-    MODEL_OUTPUT_INVALID = "model_output_invalid"
-    EXTERNAL_API_UNAVAILABLE = "external_api_unavailable"
-    TOOL_CONTRACT_VIOLATION = "tool_contract_violation"
+class AIResponseCode(Enum):
+    MODEL_TIMEOUT = (
+        504,
+        "AI-001",
+        "AI 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.",
+    )
+    MODEL_OUTPUT_INVALID = (
+        502,
+        "AI-002",
+        "AI 응답을 처리할 수 없습니다.",
+    )
+    EXTERNAL_API_UNAVAILABLE = (
+        503,
+        "AI-003",
+        "외부 서비스에 일시적으로 연결할 수 없습니다.",
+    )
+    TOOL_CONTRACT_VIOLATION = (
+        500,
+        "AI-004",
+        "AI 처리 중 오류가 발생했습니다.",
+    )
+    def __init__(
+        self,
+        http_status: int,
+        code: str,
+        message: str,
+    ) -> None:
+        self.http_status = http_status
+        self.code = code
+        self.message = message
 ```
 모든 오류마다 클래스를 새로 만들면 너무 많아질 것 같고, 그렇다고 AIServiceError같은 공통 오류로 다 처리하면, 다시 구분하기 어려워질 것 같습니다. 
 그래서 다음과 같은 상위 분류를 공통 코드나 하위 예외 타입으로 표현하면 좋을 것 같습니다.
@@ -279,6 +301,8 @@ class ErrorCode(StrEnum):
 - 내부 계약 위반
 - Repository 오류
 - Pipeline 실행 오류
+
+현재 `ApiResponse`에는 `retryable` 필드가 없으므로, 이를 오류 응답에 포함할지 또는 BE가 오류 코드별 재시도 정책을 관리할지는 BE API 계약과 함께 결정합니다.
 
 ### 6.2 실패 유형별 처리 원칙
 
