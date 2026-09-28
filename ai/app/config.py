@@ -6,6 +6,7 @@ API 키는 저장소에 커밋하지 않고 ``ai/.env`` 또는 환경변수로 �
 
 import os
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -139,6 +140,22 @@ def load_settings() -> Settings:
         **values,
         database_url=os.environ.get("DATABASE_URL", "").strip(),
     )
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """프로세스 전체가 공유하는 설정을 돌려준다.
+
+    처음 호출할 때 ``load_settings()``로 한 번 읽고 검증한 뒤 같은 객체를 계속 돌려준다.
+    검증에 실패하면 예외는 캐시되지 않으므로, 다음 호출에서 다시 읽는다.
+
+    Returns:
+        Settings: 검증을 마친 공용 설정.
+
+    Raises:
+        ConfigError: 필수 환경변수가 없거나 값이 형식·허용 범위를 벗어난 경우.
+    """
+    return load_settings()
 
 
 def build_chat_model(

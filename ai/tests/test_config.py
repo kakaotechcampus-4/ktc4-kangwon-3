@@ -43,6 +43,14 @@ def _env(monkeypatch, **overrides):
             monkeypatch.setenv(name, value)
 
 
+@pytest.fixture(autouse=True)
+def _fresh_settings_cache():
+    """이 파일의 테스트마다 get_settings() 캐시를 비워, 앞 테스트의 설정이 남지 않게 한다."""
+    config.get_settings.cache_clear()
+    yield
+    config.get_settings.cache_clear()
+
+
 def test_api_key가_없으면_설정_로딩에_실패한다(monkeypatch):
     """환경과 .env 어디에도 API 키가 없으면 호출 전에 실패한다."""
 
@@ -212,3 +220,25 @@ def test_build_chat_model이_설정값을_chatopenai에_전달한다(monkeypatch
         "timeout": config.TIMEOUT_SECONDS,
         "max_retries": config.MAX_RETRIES,
     }
+
+
+def test_get_settings는_한_번_읽은_설정을_계속_재사용한다(monkeypatch):
+    _env(monkeypatch)
+    first = config.get_settings()
+
+    # 이후에 환경변수가 바뀌어도 기동 시점에 검증한 설정을 그대로 쓴다.
+    monkeypatch.setenv("LAW_GO_KR_OC", "changed-oc")
+
+    assert config.get_settings() is first
+    assert config.get_settings().law_oc == _VALID_ENV["LAW_GO_KR_OC"]
+
+
+def test_get_settings는_검증에_실패한_결과를_캐시하지_않는다(monkeypatch):
+    # 설정을 고친 뒤 다시 호출하면 새로 읽어야 한다. 실패가 캐시되면 고쳐도 계속 실패한다.
+    _env(monkeypatch, KEY_SAFETYKOREA=None)
+    with pytest.raises(config.ConfigError, match="KEY_SAFETYKOREA"):
+        config.get_settings()
+
+    monkeypatch.setenv("KEY_SAFETYKOREA", "fixed-key")
+
+    assert config.get_settings().safetykorea_key == "fixed-key"
