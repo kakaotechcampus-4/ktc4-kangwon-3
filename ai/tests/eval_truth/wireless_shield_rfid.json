@@ -120,6 +120,42 @@
     {
       "must_not_contain": "왜 Temu를 선택해야 할까요",
       "evidence": "원문 118행, Temu 푸터"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 100행, 상품 옆 Temu 배송·가격 안내"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 104행, 상품 옆 Temu 배송·가격 안내"
+    },
+    {
+      "must_not_contain": "배송업체",
+      "evidence": "원문 106행, 상품 옆 Temu 배송·가격 안내"
+    },
+    {
+      "must_not_contain": "디자인이 정말 예쁘고",
+      "evidence": "원문 47행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "스캐닝 방지 기능을 테스트",
+      "evidence": "원문 47행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "잠금장치와 수납칸이 있어서",
+      "evidence": "원문 53행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "심플하고 예쁘면서도 기능적",
+      "evidence": "원문 53행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "잠금장치도 멋지고",
+      "evidence": "원문 59행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "설명과 사진처럼 여러 개의 수납공간",
+      "evidence": "원문 59행, 구매자 리뷰"
     }
   ]
 }
