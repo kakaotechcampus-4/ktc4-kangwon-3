@@ -193,6 +193,53 @@ class ProductControllerTest {
     }
 
     @Test
+    @DisplayName("페이지 크기를 0으로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
+    void getProductList_withZeroSize_thenBadRequestWithFieldDetail() throws Exception {
+        mockMvc.perform(get(BASE_URL)
+                        .param("size", "0")
+                        .with(authentication(loginUser())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].field").value("size"))
+                .andExpect(jsonPath("$.details[0].message").value("페이지 크기는 1 이상이어야 합니다."));
+    }
+
+    @Test
+    @DisplayName("페이지 크기가 허용 범위를 넘으면 어떤 값이 잘못되었는지 함께 응답한다.")
+    void getProductList_withTooLargeSize_thenBadRequestWithFieldDetail() throws Exception {
+        mockMvc.perform(get(BASE_URL)
+                        .param("size", "101")
+                        .with(authentication(loginUser())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].field").value("size"))
+                .andExpect(jsonPath("$.details[0].message").value("페이지 크기는 100 이하여야 합니다."));
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 정렬 기준으로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
+    void getProductList_withUnknownSortType_thenBadRequestWithFieldDetail() throws Exception {
+        mockMvc.perform(get(BASE_URL)
+                        .param("sortType", "UNKNOWN")
+                        .with(authentication(loginUser())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].field").value("sortType"));
+    }
+
+    @Test
+    @DisplayName("검색어가 100자를 넘으면 어떤 값이 잘못되었는지 함께 응답한다.")
+    void getProductList_withTooLongKeyword_thenBadRequestWithFieldDetail() throws Exception {
+        mockMvc.perform(get(BASE_URL)
+                        .param("keyword", "가".repeat(101))
+                        .with(authentication(loginUser())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].field").value("keyword"))
+                .andExpect(jsonPath("$.details[0].message").value("검색어는 100자를 넘을 수 없습니다."));
+    }
+
+    @Test
     @DisplayName("지원하지 않는 결과 필터로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
     void getProductList_withUnknownResultStatus_thenBadRequestWithFieldDetail() throws Exception {
         mockMvc.perform(get(BASE_URL)
