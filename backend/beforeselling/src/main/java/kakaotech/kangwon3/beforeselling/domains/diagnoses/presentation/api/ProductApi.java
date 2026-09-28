@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.SortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
@@ -39,7 +40,8 @@ public interface ProductApi {
     ResponseEntity<ApiResponse<ProductListResponse>> getProductList(
             @Parameter(hidden = true) UserPrincipal principal,
             @Parameter(description = "결과 필터. 생략하면 전체") ResultStatus resultStatus,
-            @Parameter(description = "상품명 검색어. 생략하면 전체") String keyword,
+            @Parameter(description = "상품명 검색어. 생략하면 전체")
+            @Size(max = 100, message = "검색어는 100자를 넘을 수 없습니다.") String keyword,
             @Parameter(description = "페이지 번호 (0부터)")
             @Min(value = 0, message = "페이지 번호는 0 이상이어야 합니다.") int page,
             @Parameter(description = "페이지 크기")
