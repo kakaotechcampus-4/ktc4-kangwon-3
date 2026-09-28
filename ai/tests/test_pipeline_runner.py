@@ -171,10 +171,9 @@ def test_재실행_요청은_현재_Tool_결과를_독립된_스냅샷으로_보
         ),
         (VerificationStatus.REVISION_REQUIRED, FinalVerificationStatus.INCOMPLETE),
         (VerificationStatus.USER_INPUT_REQUIRED, FinalVerificationStatus.INCOMPLETE),
-        (VerificationStatus.TOOLS_REQUIRED, FinalVerificationStatus.INCOMPLETE),
     ],
 )
-def test_최초_실행은_각_단계를_순서대로_연결하고_최종_상태를_변환한다(
+def test_재실행이_필요하지_않으면_각_단계를_한_번씩_실행한다(
     verification_status: VerificationStatus,
     expected_final_status: FinalVerificationStatus,
 ):
@@ -275,6 +274,173 @@ def test_최초_실행은_각_단계를_순서대로_연결하고_최종_상태�
     assert result.assessment_id == draft.assessment_id
     assert result.verification_status is expected_final_status
     assert result.verification == verification
+
+
+def test_추가_Tool이_필요하면_재실행한_결과를_재종합하고_재검증한다():
+    calls: list[str] = []
+    source = ExtractionInput(product_id="product-1", text_blocks=["테스트 상품"])
+    product = Product(product_id="product-1", product_name="테스트 상품")
+    selection = ToolSelectionResponse(
+        decisions=[
+            ToolSelectionItem(
+                tool_name=tool_name,
+                selected=False,
+                reason="검토 신호 없음",
+            )
+            for tool_name in ToolName
+        ]
+    )
+    initial_tool_results = [
+        ToolResult(
+            tool_name=decision.tool_name,
+            status=ToolStatus.SKIPPED,
+            selected=False,
+            selection_reason=decision.reason,
+        )
+        for decision in selection.decisions
+    ]
+    initial_result = SelectionResult(
+        selection=selection,
+        tool_results=initial_tool_results,
+        tool_result_history=[],
+    )
+
+    retry_selection = selection.model_copy(deep=True)
+    radio_decision = next(
+        decision
+        for decision in retry_selection.decisions
+        if decision.tool_name is ToolName.RADIO
+    )
+    radio_decision.selected = True
+    radio_decision.reason = "검증 결과 추가 검토 필요"
+    radio_result = ToolResult(
+        execution_id="radio-retry-1",
+        retry_round=1,
+        tool_name=ToolName.RADIO,
+        status=ToolStatus.SUCCESS,
+        selected=True,
+        selection_reason=radio_decision.reason,
+    )
+    retried_tool_results = [
+        radio_result
+        if result.tool_name is ToolName.RADIO
+        else result.model_copy(deep=True)
+        for result in initial_tool_results
+    ]
+    retried_result = SelectionResult(
+        selection=retry_selection,
+        tool_results=retried_tool_results,
+        tool_result_history=[radio_result],
+    )
+    initial_draft = DraftAssessment(
+        product=product,
+        selected_tools=[],
+        tool_results=initial_tool_results,
+        findings=[],
+        overall_status=OverallStatus.INSUFFICIENT_INFORMATION,
+        summary="추가 Tool 검토가 필요합니다.",
+    )
+    retried_draft = DraftAssessment(
+        product=product,
+        selected_tools=[ToolName.RADIO],
+        tool_results=retried_tool_results,
+        findings=[],
+        overall_status=OverallStatus.LIKELY_COMPLIANT,
+        summary="재실행 후 추가 조치가 확인되지 않았습니다.",
+    )
+    tools_required = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED,
+        additional_tools_required=[ToolName.RADIO],
+    )
+    approved = VerificationResult(status=VerificationStatus.APPROVED)
+
+    class FakeExtractor:
+        def extract(self, received: ExtractionInput) -> Product:
+            calls.append("extract")
+            assert received == source
+            return product
+
+    class FakeSelector:
+        def select(self, received: Product) -> ToolSelectionResponse:
+            calls.append("select")
+            assert received == product
+            return selection
+
+    class FakeToolExecutor:
+        def execute_initial(
+            self,
+            received_product: Product,
+            received_selection: ToolSelectionResponse,
+        ) -> SelectionResult:
+            calls.append("execute_initial")
+            assert received_product == product
+            assert received_selection == selection
+            return initial_result
+
+        def execute_retry(
+            self,
+            received_product: Product,
+            received_result: SelectionResult,
+            retry_request: RetryRequest,
+        ) -> SelectionResult:
+            calls.append("execute_retry")
+            assert received_product == product
+            assert received_result == initial_result
+            assert retry_request.retry_round == 1
+            assert retry_request.requested_tools == [ToolName.RADIO]
+            assert retry_request.latest_tool_results == initial_tool_results
+            return retried_result
+
+    class FakeAggregator:
+        def aggregate(
+            self,
+            received_product: Product,
+            received_result: SelectionResult,
+        ) -> DraftAssessment:
+            calls.append(
+                "aggregate_initial"
+                if not received_result.tool_result_history
+                else "aggregate_retry"
+            )
+            assert received_product == product
+            if received_result == initial_result:
+                return initial_draft
+            assert received_result == retried_result
+            return retried_draft
+
+    class FakeVerifier:
+        def verify(self, received: DraftAssessment) -> VerificationResult:
+            if received == initial_draft:
+                calls.append("verify_initial")
+                return tools_required
+            calls.append("verify_retry")
+            assert received == retried_draft
+            return approved
+
+    pipeline = CompliancePipeline(
+        extractor=FakeExtractor(),
+        selector=FakeSelector(),
+        tool_executor=FakeToolExecutor(),
+        aggregator=FakeAggregator(),
+        verifier=FakeVerifier(),
+    )
+
+    result = pipeline.run(source)
+
+    assert calls == [
+        "extract",
+        "select",
+        "execute_initial",
+        "aggregate_initial",
+        "verify_initial",
+        "execute_retry",
+        "aggregate_retry",
+        "verify_retry",
+    ]
+    assert result.summary == retried_draft.summary
+    assert result.tool_results == retried_result.tool_results
+    assert result.verification_status is FinalVerificationStatus.VERIFIED
+    assert result.verification == approved
 
 
 def test_최종_결과는_계약_필드와_검증_질문을_중복_없이_조립한다():

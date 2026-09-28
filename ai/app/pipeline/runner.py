@@ -165,4 +165,18 @@ class CompliancePipeline:
         draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
         verification: VerificationResult = self._verifier.verify(draft)
 
+        if _determine_next_action(verification) is _PipelineNextAction.RETRY_TOOLS:
+            retry_request = _build_retry_request(
+                verification,
+                selection_result,
+                retry_round=1,
+            )
+            selection_result = self._tool_executor.execute_retry(
+                product,
+                selection_result,
+                retry_request,
+            )
+            draft = self._aggregator.aggregate(product, selection_result)
+            verification = self._verifier.verify(draft)
+
         return _build_final_assessment(draft, verification)
