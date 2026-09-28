@@ -2,7 +2,7 @@
   "fixture": "ali_sample.txt",
   "reviewed_by": "gityhb",
   "reviewed_at": "2026-09-28",
-  "summary": "어린이용 무선 헤어 드라이어. 전기·배터리·어린이 신호가 페이지에 명시돼 판단이 비교적 분명하다.",
+  "summary": "어린이용 무선 헤어 드라이어. 전기·배터리·어린이 신호는 페이지에 명시돼 있다. 전파는 충전 거치대가 무선충전인지 알 수 없어, 제목의 '무선'(코드리스)에 끌리지 않고 null을 선택으로 처리하는지 보는 케이스다.",
   "tools": {
     "customs_requirements": {
       "selected": true,

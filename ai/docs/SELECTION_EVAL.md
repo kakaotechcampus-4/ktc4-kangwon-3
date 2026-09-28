@@ -38,7 +38,7 @@ A에서는 선택 에이전트가 전파를 선택하고, B에서는 `null`을 "
 판단 필드가 여러 개면 하나라도 추출 탓 행에 해당하는 필드가 있으면 추출 탓으로 센다. 그 `false`가
 선택에게 "해당 없음"의 근거를 준 셈이기 때문이다.
 
-전기처럼 `conflicts`로도 선택하는 도메인(원칙 6)은 정답에 있는 충돌을 추출이 빠뜨렸으면
+`conflicts` 때문에 선택하는 경우(원칙 6)는 정답에 있는 충돌을 추출이 빠뜨렸으면
 추출 탓이다. `power_bank` 전기가 이 경우다. 판단 필드가 전부 `null`이라 충돌이 선택의 유일한
 근거다.
 
@@ -71,7 +71,7 @@ A에서는 선택 에이전트가 전파를 선택하고, B에서는 `null`을 "
 {
   "fixture": "wireless_shield_rfid.txt",
   "reviewed_by": "gityhb",
-  "reviewed_at": "2026-09-22",
+  "reviewed_at": "2026-09-28",
   "summary": "RFID 차단 지갑. 전파를 막는 기능과 주고받는 기능을 구분하는지 보는 케이스다.",
   "tools": {
     "radio_compliance": {
@@ -92,13 +92,14 @@ A에서는 선택 에이전트가 전파를 선택하고, B에서는 `null`을 "
 ## 4. 툴별 판정 기준
 
 선택 프롬프트의 기준을 그대로 따른다. 정답을 매길 때 추가로 정한 것만 적는다.
+판단 필드 중 `true`가 있으면 선택한다. `true`가 없고 `null`이 섞여 있으면 5절의 null 처리를 따른다.
 
 | 도메인 | 정답을 매길 때 본 것 |
 |---|---|
 | 통관 | 해외 직구 수입품이면 선택. 원칙 3 그대로 |
-| 전파 | `wireless_comm`·`wireless_charging`·`wireless_shield` 중 확인된 것. 제목의 "무선"이 코드리스를 뜻하면 근거로 쓰지 않는다 |
-| 식약 | `food_contact`·`medical_claim`·`cosmetic_claim` 중 확인된 것. `skin_contact`는 단독으로 쓰지 않고 용도를 함께 본다 |
-| 전기 | `electrical_powered`·`battery_included`·`battery_is_the_product`·`heating` 중 확인된 것. 관련 필드가 `null`이어도 `conflicts`가 있으면 선택(원칙 6) |
+| 전파 | `wireless_comm`·`wireless_charging`·`wireless_shield`. 제목의 "무선"이 코드리스를 뜻하면 근거로 쓰지 않는다 |
+| 식약 | `food_contact`·`medical_claim`·`cosmetic_claim`. `skin_contact`는 단독으로 쓰지 않고 용도를 함께 본다 |
+| 전기 | `electrical_powered`·`battery_included`·`battery_is_the_product`·`heating`. 관련 필드가 `false`여도 `conflicts`가 있으면 선택(원칙 6) |
 | 어린이 | `for_children`이 확인되거나 연령 표기가 만 13세 이하를 포함하면 선택 |
 | 표시광고 | 판매자가 쓴 상품 문구만 본다. 아래 제외 규칙 참고 |
 
