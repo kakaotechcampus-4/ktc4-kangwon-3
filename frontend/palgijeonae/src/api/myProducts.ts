@@ -88,7 +88,7 @@ const PRODUCTS: MyProductItem[] = [
 ];
 
 // TODO: 백엔드 연동 시 이 함수의 내부만 백엔드 api GET 호출로 교체한다.
-export function getMyProducts(params: GetMyProductsParams): GetMyProductResult {
+export async function getMyProducts(params: GetMyProductsParams): Promise<GetMyProductResult> {
     const filtered = PRODUCTS
         .filter((p) => !params.resultStatus || p.resultStatus === params.resultStatus)
         .filter((p) => !params.keyword || p.productName.includes(params.keyword));
