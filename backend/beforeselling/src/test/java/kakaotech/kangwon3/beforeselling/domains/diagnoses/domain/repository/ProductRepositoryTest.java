@@ -3,7 +3,6 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 import jakarta.persistence.EntityManager;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
@@ -50,24 +49,23 @@ class ProductRepositoryTest {
     private EntityManager entityManager;
 
     @Test
-    @DisplayName("상품을 이미지와 함께 조회하면 영속성 컨텍스트에서 분리된 뒤에도 이미지를 읽을 수 있다.")
-    void findWithImagesById_thenImagesAreInitializedBeforeDetach() {
+    @DisplayName("상품 id로 소속 진단서 id를 조회한다.")
+    void findDiagnosesIdById_thenReturnOwningDiagnosesId() {
         // given
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
-        Product product = createProduct("대나무 헬리콥터", null);
-        product.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
-        diagnoses.addProducts(List.of(product));
-        UUID productId = diagnosesRepository.save(diagnoses).getProducts().getFirst().getId();
+        diagnoses.addProducts(List.of(createProduct("대나무 헬리콥터", null)));
+        Diagnoses saved = diagnosesRepository.save(diagnoses);
+        UUID productId = saved.getProducts().getFirst().getId();
         flushAndClear();
 
-        // when
-        Product found = productRepository.findWithImagesById(productId).orElseThrow();
-        entityManager.detach(found);
+        // when & then
+        assertThat(productRepository.findDiagnosesIdById(productId)).contains(saved.getId());
+    }
 
-        // then
-        assertThat(found.getImages())
-                .extracting(ProductImage::getImageKey)
-                .containsExactly("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg");
+    @Test
+    @DisplayName("존재하지 않는 상품 id로 진단서 id를 조회하면 빈 값을 반환한다.")
+    void findDiagnosesIdById_withUnknownId_thenReturnEmpty() {
+        assertThat(productRepository.findDiagnosesIdById(UUID.randomUUID())).isEmpty();
     }
 
     @Test
