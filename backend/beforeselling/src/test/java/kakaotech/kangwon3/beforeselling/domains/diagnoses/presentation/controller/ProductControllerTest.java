@@ -6,6 +6,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.Pr
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller.ProductController;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.common.PageInfo;
@@ -63,6 +64,7 @@ class ProductControllerTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID(); // 추가
     private static final String BASE_URL = "/api/v1/products";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
@@ -108,6 +110,7 @@ class ProductControllerTest {
         mockMvc.perform(get(BASE_URL).with(authentication(loginUser())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.products[0].diagnosesId").value(DIAGNOSES_ID.toString())) // 추가
                 .andExpect(jsonPath("$.data.products[0].productName").value("대나무 헬리콥터"))
                 .andExpect(jsonPath("$.data.products[0].sourceType").value("URL"))
                 .andExpect(jsonPath("$.data.pageInfo.page").value(0))
@@ -233,8 +236,9 @@ class ProductControllerTest {
     }
 
     private ProductListResponse listResponse() {
+        // 수정: DIAGNOSES_ID 인자 추가
         ProductSummaryResponse summary = new ProductSummaryResponse(
-                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, ProcessingStatus.PENDING, null, LocalDateTime.now());
 
         return new ProductListResponse(List.of(summary), new PageInfo(0, 10, 1, 1, false));
