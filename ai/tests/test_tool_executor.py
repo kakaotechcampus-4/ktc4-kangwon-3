@@ -477,7 +477,9 @@ def test_여러_Tool_재실행은_요청된_결과만_교체한다(requested_too
     tools = _tools()
     executor = ToolExecutor(tools)
     product = Product(product_id="p1")
-    initial_result = executor.execute_initial(product, _selection())
+    selection = _selection()
+    selection.decisions.reverse()
+    initial_result = executor.execute_initial(product, selection)
     initial_by_name = {
         item.tool_name: item.model_copy(deep=True)
         for item in initial_result.tool_results
@@ -506,7 +508,11 @@ def test_여러_Tool_재실행은_요청된_결과만_교체한다(requested_too
             assert tools[tool_name].calls == []
             assert result_by_name[tool_name] == initial_by_name[tool_name]
 
-    assert {item.tool_name for item in result.tool_result_history} == requested_set
+    assert [item.tool_name for item in result.tool_result_history] == [
+        tool_name
+        for tool_name in ToolName
+        if tool_name in requested_set
+    ]
 
 
 @pytest.mark.parametrize(

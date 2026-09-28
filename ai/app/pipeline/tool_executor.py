@@ -72,9 +72,14 @@ class ToolExecutor:
             for result in selection_result.tool_result_history
         ]
 
-        for decision in selection.decisions:
-            if decision.tool_name not in requested_tools:
+        decisions = {
+            decision.tool_name: decision
+            for decision in selection.decisions
+        }
+        for tool_name in ToolName:
+            if tool_name not in requested_tools:
                 continue
+            decision = decisions[tool_name]
 
             # 최초 미선택 Tool도 Verification 요청을 받으면 실행 대상으로 변경한다.
             decision.selected = True
@@ -88,7 +93,7 @@ class ToolExecutor:
                 decision,
                 retry_round=retry_request.retry_round,
             )
-            latest_results[decision.tool_name] = result.model_copy(deep=True)
+            latest_results[tool_name] = result.model_copy(deep=True)
             history.append(result.model_copy(deep=True))
 
         return SelectionResult(
