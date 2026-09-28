@@ -1,9 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,13 +10,10 @@ import java.util.UUID;
 
 public interface DiagnosesRepository extends JpaRepository<Diagnoses, UUID> {
 
-    @EntityGraph(attributePaths = "images")
-    Optional<Diagnoses> findWithImagesById(UUID diagnosesId);
+    // 소유권은 서비스에서 검증한다.
+    @EntityGraph(attributePaths = "products")
+    Optional<Diagnoses> findWithProductsById(UUID diagnosesId);
 
-    @EntityGraph(attributePaths = "images")
-    List<Diagnoses> findWithImagesByUserId(UUID userId);
-
-    Page<Diagnoses> findByUserId(UUID userId, Pageable pageable);
-
-    Page<Diagnoses> findByUserIdAndResultStatus(UUID userId, ResultStatus resultStatus, Pageable pageable);
+    @EntityGraph(attributePaths = "products")
+    List<Diagnoses> findWithProductsByUserId(UUID userId);
 }
