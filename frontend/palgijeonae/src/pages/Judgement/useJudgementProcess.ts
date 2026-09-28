@@ -13,6 +13,7 @@ export interface Agent {
 
 // 에이전트 목록 + 공개된(이미 확정된) 개수를 제품 단위로 묶은 상태.
 interface ProductState {
+    name: string
     agents: Agent[]
     visibleCount: number
 }
@@ -32,8 +33,8 @@ const MOCK_INITIAL_AGENTS: Agent[] = [
     { id: "agent-4", title: "식약 전문가", job: "식품/성분 규제", detail: "에이전트를 부를 지 결정중", status: "call" },
 ];
 
-// TODO: 실제로는 업로드 단계에서 넘어온 상품 개수를 써야 한다. 아직 페이지 간 데이터 전달이 연동되지 않아 임시로 고정.
-const MOCK_PRODUCT_COUNT = 3;
+// TODO: 실제로는 업로드 단계에서 넘어온 상품명을 써야 한다. 아직 페이지 간 데이터 전달이 연동되지 않아 임시로 고정.
+const MOCK_PRODUCT_NAMES = ["제품 1", "제품 2", "제품 3"];
 
 // TODO: SSE 연동 전 임시 데모 데이터. 연동 시 이 시퀀스, tickDemo, 데모용 useEffect를 제거하고
 // SSE onmessage에서 updateAgent를 호출한다.
@@ -73,7 +74,8 @@ const getNaturalVisibleCount = (agents: Agent[]) => {
 };
 
 const createInitialState = (): JudgementState => ({
-    products: Array.from({ length: MOCK_PRODUCT_COUNT }, () => ({
+    products: MOCK_PRODUCT_NAMES.map((name) => ({
+        name,
         agents: MOCK_INITIAL_AGENTS.map((agent) => ({ ...agent })),
         visibleCount: 1,
     })),
@@ -94,6 +96,7 @@ const updateAgent = (
     );
     // 공개된 에이전트는 정정으로 다시 숨겨지지 않도록 최대값을 유지한다.
     const updatedProduct: ProductState = {
+        ...targetProduct,
         agents: updatedAgents,
         visibleCount: Math.max(targetProduct.visibleCount, getNaturalVisibleCount(updatedAgents)),
     };
@@ -162,7 +165,7 @@ export function useJudgementProcess() {
     }, [currentProduct.agents, selectedProduct, furthestProduct, products.length]);
 
     return {
-        productCount: products.length,
+        productNames: products.map((product) => product.name),
         selectedProduct,
         visibleAgents,
         isCurrentProductDone,
