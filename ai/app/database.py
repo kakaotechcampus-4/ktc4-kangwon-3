@@ -21,8 +21,13 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 if not DATABASE_URL:
     raise RuntimeError(f"DATABASE_URL이 없습니다. {_ENV_FILE}에 DB 연결 문자열을 설정하세요.")
 
-# SQLAlchemy 엔진 및 세션 설정
-engine = create_engine(DATABASE_URL, pool_size=5, max_overflow=5)
+engine = create_engine(
+    DATABASE_URL,
+    pool_size=5,
+    max_overflow=5,
+    connect_args={"connect_timeout": 3},
+)
+
 SessionLocal = sessionmaker(bind=engine)
 
 def get_db_session() -> Generator[Session, None, None]:
