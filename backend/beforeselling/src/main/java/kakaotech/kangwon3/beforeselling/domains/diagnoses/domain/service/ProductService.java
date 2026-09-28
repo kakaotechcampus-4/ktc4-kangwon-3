@@ -49,8 +49,6 @@ public class ProductService {
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
         Diagnoses diagnoses = product.getDiagnoses();
-        // 타인 소유 리소스도 404로 응답한다. 403을 주면 해당 id가 존재한다는 사실이
-        // 노출되어 ID 탐색에 악용될 수 있다(CODE_CONVENTION.md 참고).
         if (!diagnoses.isOwnedBy(userId)) {
             throw new BaseException(CommonResponseCode.NOT_FOUND);
         }
