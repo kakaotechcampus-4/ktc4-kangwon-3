@@ -161,6 +161,29 @@ def test_재실행_요청은_현재_Tool_결과를_독립된_스냅샷으로_보
     )
 
 
+def test_재실행_회차는_최신_Tool_결과의_회차보다_커야_한다():
+    latest_result = ToolResult(
+        execution_id="radio-retry-1",
+        retry_round=1,
+        tool_name=ToolName.RADIO,
+        status=ToolStatus.SUCCESS,
+        selected=True,
+        selection_reason="1회차 전파 규제 재검토",
+    )
+    verification = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED,
+        additional_tools_required=[ToolName.RADIO],
+    )
+
+    with pytest.raises(ValueError, match="최신 Tool 결과의 회차보다 커야"):
+        RetryRequest(
+            retry_round=1,
+            requested_tools=[ToolName.RADIO],
+            verification=verification,
+            latest_tool_results=[latest_result],
+        )
+
+
 @pytest.mark.parametrize(
     ("verification_status", "expected_final_status"),
     [
@@ -441,6 +464,183 @@ def test_추가_Tool이_필요하면_재실행한_결과를_재종합하고_재�
     assert result.tool_results == retried_result.tool_results
     assert result.verification_status is FinalVerificationStatus.VERIFIED
     assert result.verification == approved
+
+
+@pytest.mark.parametrize(
+    ("last_verification", "expected_final_status"),
+    [
+        (
+            VerificationResult(status=VerificationStatus.APPROVED),
+            FinalVerificationStatus.VERIFIED,
+        ),
+        (
+            VerificationResult(
+                status=VerificationStatus.TOOLS_REQUIRED,
+                additional_tools_required=[ToolName.RADIO],
+            ),
+            FinalVerificationStatus.INCOMPLETE,
+        ),
+        (
+            VerificationResult(status=VerificationStatus.USER_INPUT_REQUIRED),
+            FinalVerificationStatus.INCOMPLETE,
+        ),
+        (
+            VerificationResult(status=VerificationStatus.REVISION_REQUIRED),
+            FinalVerificationStatus.INCOMPLETE,
+        ),
+    ],
+)
+def test_Tool_재실행은_최대_3회이며_회차별_결과를_다음_입력으로_연결한다(
+    last_verification: VerificationResult,
+    expected_final_status: FinalVerificationStatus,
+):
+    source = ExtractionInput(product_id="product-1", text_blocks=["테스트 상품"])
+    product = Product(product_id="product-1", product_name="테스트 상품")
+    selection = ToolSelectionResponse(
+        decisions=[
+            ToolSelectionItem(
+                tool_name=tool_name,
+                selected=tool_name is ToolName.RADIO,
+                reason=(
+                    "전파 규제 검토"
+                    if tool_name is ToolName.RADIO
+                    else "검토 신호 없음"
+                ),
+            )
+            for tool_name in ToolName
+        ]
+    )
+    initial_tool_results = [
+        ToolResult(
+            execution_id="radio-initial" if decision.selected else None,
+            retry_round=0,
+            tool_name=decision.tool_name,
+            status=ToolStatus.SUCCESS if decision.selected else ToolStatus.SKIPPED,
+            selected=decision.selected,
+            selection_reason=decision.reason,
+        )
+        for decision in selection.decisions
+    ]
+    initial_result = SelectionResult(
+        selection=selection,
+        tool_results=initial_tool_results,
+        tool_result_history=[
+            result.model_copy(deep=True)
+            for result in initial_tool_results
+            if result.status is not ToolStatus.SKIPPED
+        ],
+    )
+    tools_required = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED,
+        additional_tools_required=[ToolName.RADIO],
+    )
+    verifications = [tools_required, tools_required, tools_required, last_verification]
+    retry_rounds: list[int] = []
+    extraction_calls = 0
+    selection_calls = 0
+    aggregate_calls = 0
+    verification_calls = 0
+
+    class FakeExtractor:
+        def extract(self, received: ExtractionInput) -> Product:
+            nonlocal extraction_calls
+            extraction_calls += 1
+            assert received == source
+            return product
+
+    class FakeSelector:
+        def select(self, received: Product) -> ToolSelectionResponse:
+            nonlocal selection_calls
+            selection_calls += 1
+            assert received == product
+            return selection
+
+    class FakeToolExecutor:
+        def execute_initial(
+            self,
+            received_product: Product,
+            received_selection: ToolSelectionResponse,
+        ) -> SelectionResult:
+            assert received_product == product
+            assert received_selection == selection
+            return initial_result
+
+        def execute_retry(
+            self,
+            received_product: Product,
+            received_result: SelectionResult,
+            retry_request: RetryRequest,
+        ) -> SelectionResult:
+            assert received_product == product
+            assert retry_request.latest_tool_results == received_result.tool_results
+            retry_rounds.append(retry_request.retry_round)
+
+            updated_result = received_result.model_copy(deep=True)
+            radio_result = next(
+                result
+                for result in updated_result.tool_results
+                if result.tool_name is ToolName.RADIO
+            )
+            radio_result.execution_id = f"radio-retry-{retry_request.retry_round}"
+            radio_result.retry_round = retry_request.retry_round
+            updated_result.tool_result_history.append(radio_result.model_copy(deep=True))
+            return updated_result
+
+    class FakeAggregator:
+        def aggregate(
+            self,
+            received_product: Product,
+            received_result: SelectionResult,
+        ) -> DraftAssessment:
+            nonlocal aggregate_calls
+            aggregate_calls += 1
+            assert received_product == product
+            return DraftAssessment(
+                product=product,
+                selected_tools=[ToolName.RADIO],
+                tool_results=received_result.tool_results,
+                findings=[],
+                overall_status=OverallStatus.INSUFFICIENT_INFORMATION,
+                summary="추가 Tool 검토가 필요합니다.",
+            )
+
+    class FakeVerifier:
+        def verify(self, received: DraftAssessment) -> VerificationResult:
+            nonlocal verification_calls
+            assert received.product == product
+            result = verifications[verification_calls]
+            verification_calls += 1
+            return result
+
+    pipeline = CompliancePipeline(
+        extractor=FakeExtractor(),
+        selector=FakeSelector(),
+        tool_executor=FakeToolExecutor(),
+        aggregator=FakeAggregator(),
+        verifier=FakeVerifier(),
+    )
+
+    result = pipeline.run(source)
+
+    assert retry_rounds == [1, 2, 3]
+    assert extraction_calls == 1
+    assert selection_calls == 1
+    assert aggregate_calls == 4
+    assert verification_calls == 4
+    assert result.verification_status is expected_final_status
+    assert result.verification == last_verification
+
+
+def test_최대_Tool_재실행_횟수는_음수일_수_없다():
+    with pytest.raises(ValueError, match="0 이상"):
+        CompliancePipeline(
+            extractor=object(),
+            selector=object(),
+            tool_executor=object(),
+            aggregator=object(),
+            verifier=object(),
+            max_retry_rounds=-1,
+        )
 
 
 def test_최종_결과는_계약_필드와_검증_질문을_중복_없이_조립한다():

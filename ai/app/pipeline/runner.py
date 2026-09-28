@@ -148,12 +148,16 @@ class CompliancePipeline:
         tool_executor: ToolExecutionStage,
         aggregator: AggregationStage,
         verifier: VerificationStage,
+        max_retry_rounds: int = 3,
     ) -> None:
+        if max_retry_rounds < 0:
+            raise ValueError("max_retry_rounds는 0 이상이어야 합니다.")
         self._extractor = extractor
         self._selector = selector
         self._tool_executor = tool_executor
         self._aggregator = aggregator
         self._verifier = verifier
+        self._max_retry_rounds = max_retry_rounds
 
     def run(self, source: ExtractionInput) -> FinalAssessment:
         product: Product = self._extractor.extract(source)
@@ -165,11 +169,16 @@ class CompliancePipeline:
         draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
         verification: VerificationResult = self._verifier.verify(draft)
 
-        if _determine_next_action(verification) is _PipelineNextAction.RETRY_TOOLS:
+        retry_round = 0
+        while (
+            _determine_next_action(verification) is _PipelineNextAction.RETRY_TOOLS
+            and retry_round < self._max_retry_rounds
+        ):
+            retry_round += 1
             retry_request = _build_retry_request(
                 verification,
                 selection_result,
-                retry_round=1,
+                retry_round=retry_round,
             )
             selection_result = self._tool_executor.execute_retry(
                 product,
