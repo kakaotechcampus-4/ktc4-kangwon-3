@@ -29,7 +29,9 @@ public class SesApiMailSender implements MailSender {
                     .destination(destination -> destination.toAddresses(message.to()))
                     .message(mail -> mail
                             .subject(subject -> subject.data(message.subject()).charset(CHARSET))
-                            .body(body -> body.html(html -> html.data(message.htmlBody()).charset(CHARSET))))
+                            .body(body -> body
+                                    .html(html -> html.data(message.htmlBody()).charset(CHARSET))
+                                    .text(text -> text.data(message.textBody()).charset(CHARSET))))
                     .build());
 
             log.debug("메일 발송 완료. to={}, subject={}", message.to(), message.subject());

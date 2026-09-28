@@ -15,7 +15,7 @@ public class LoggingMailSender implements MailSender {
                 [메일 발송 생략 — app.mail.type=NONE]
                   to      : {}
                   subject : {}
-                  body    :
-                {}""", message.to(), message.subject(), message.htmlBody());
+                  text    :
+                {}""", message.to(), message.subject(), message.textBody());
     }
 }
