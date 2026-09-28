@@ -27,4 +27,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                          @Param("resultStatus") ResultStatus resultStatus,
                          @Param("keyword") String keyword,
                          Pageable pageable);
+
+    @Query("select p.diagnoses.id from Product p where p.id = :productId")
+    Optional<UUID> findDiagnosesIdById(@Param("productId") UUID productId);
 }
