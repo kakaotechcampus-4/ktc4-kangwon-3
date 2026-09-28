@@ -38,6 +38,11 @@ app:
   cookie:
     secure: false
     same-site: Lax
+  mail:
+    from: noreply@test.local
+    from-name: 팔기전에
+    region: ap-northeast-2
+    type: NONE
 
 oauth2:
   unlink:
