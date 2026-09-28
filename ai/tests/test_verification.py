@@ -804,3 +804,39 @@ def test_critical_수정과_추가_툴이_겹치면_revision_required가_된다(
 
     assert result.status is VerificationStatus.REVISION_REQUIRED
     assert ToolName.RADIO in result.additional_tools_required
+
+@pytest.mark.parametrize(
+    "tool_name",
+    list(ToolName),
+    ids=lambda tool_name: tool_name.value,
+)
+def test_선택된_툴의_실행_기록이_누락되면_revision_required가_된다(
+    tool_name: ToolName,
+):
+    draft = _draft()
+
+    # 기본 픽스처의 ELECTRICAL 실행 결과와 종합 finding을 제거해
+    # 모든 Tool이 미선택된 일관된 상태로 만든다.
+    _unselect_tool(draft, ToolName.ELECTRICAL)
+
+    # 검사할 Tool을 선택 목록에는 남기고 실행 기록만 제거한다.
+    draft.selected_tools = [tool_name]
+    draft.tool_results = [
+        result
+        for result in draft.tool_results
+        if result.tool_name is not tool_name
+    ]
+
+    result = VerificationAgent().verify_rules(draft)
+
+    issue = next(
+        issue
+        for issue in result.issues
+        if issue.issue_type is VerificationIssueType.MISSING_TOOL
+        and issue.description.startswith(f"{tool_name}:")
+        and "실행 기록이 없습니다" in issue.description
+    )
+
+    assert issue.severity == "critical"
+    assert tool_name in result.additional_tools_required
+    assert result.status is VerificationStatus.REVISION_REQUIRED
