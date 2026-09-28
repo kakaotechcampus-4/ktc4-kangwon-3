@@ -264,11 +264,14 @@ class VerificationIssue(StrictModel):
 
 # 검증 후 다음 단계의 판단. 실제 분기와 재시도 제한은 파이프라인의 책임이다.
 # REVISION_REQUIRED는 보완 필요, USER_INPUT_REQUIRED는 사용자 답변이 필요한 상태이다.
+# TOOLS_REQUIRED는 추가 Tool 실행으로 보완할 수 있는 상태이다.
+# REVISION_REQUIRED는 Tool 재실행만으로 해결할 수 없는 수정 필요 상태이다.
 class VerificationStatus(StrEnum):
     APPROVED = "approved"
     APPROVED_WITH_WARNINGS = "approved_with_warnings"
     REVISION_REQUIRED = "revision_required"
     USER_INPUT_REQUIRED = "user_input_required"
+    TOOLS_REQUIRED = "tools_required"
 
 
 # 검증 결과와 후속 요청. additional_tools_required는 추가·재실행할 툴 목록이다.
