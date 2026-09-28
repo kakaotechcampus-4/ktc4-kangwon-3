@@ -643,6 +643,130 @@ def test_최대_Tool_재실행_횟수는_음수일_수_없다():
         )
 
 
+@pytest.mark.parametrize("invalid_max_retry_rounds", [True, 2.5, "3"])
+def test_최대_Tool_재실행_횟수는_정수여야_한다(invalid_max_retry_rounds):
+    with pytest.raises(TypeError, match="정수"):
+        CompliancePipeline(
+            extractor=object(),
+            selector=object(),
+            tool_executor=object(),
+            aggregator=object(),
+            verifier=object(),
+            max_retry_rounds=invalid_max_retry_rounds,
+        )
+
+
+@pytest.mark.parametrize(
+    ("max_retry_rounds", "expected_retry_calls"),
+    [(0, 0), (1, 1)],
+)
+def test_설정한_최대_횟수만큼만_Tool을_재실행한다(
+    max_retry_rounds: int,
+    expected_retry_calls: int,
+):
+    source = ExtractionInput(product_id="product-1", text_blocks=["테스트 상품"])
+    product = Product(product_id="product-1", product_name="테스트 상품")
+    selection = ToolSelectionResponse(
+        decisions=[
+            ToolSelectionItem(
+                tool_name=tool_name,
+                selected=False,
+                reason="검토 신호 없음",
+            )
+            for tool_name in ToolName
+        ]
+    )
+    tool_results = [
+        ToolResult(
+            tool_name=decision.tool_name,
+            status=ToolStatus.SKIPPED,
+            selected=False,
+            selection_reason=decision.reason,
+        )
+        for decision in selection.decisions
+    ]
+    selection_result = SelectionResult(
+        selection=selection,
+        tool_results=tool_results,
+        tool_result_history=[],
+    )
+    draft = DraftAssessment(
+        product=product,
+        selected_tools=[],
+        tool_results=tool_results,
+        findings=[],
+        overall_status=OverallStatus.INSUFFICIENT_INFORMATION,
+        summary="추가 Tool 검토가 필요합니다.",
+    )
+    tools_required = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED,
+        additional_tools_required=[ToolName.RADIO],
+    )
+    retry_calls = 0
+
+    class FakeExtractor:
+        def extract(self, received: ExtractionInput) -> Product:
+            assert received == source
+            return product
+
+    class FakeSelector:
+        def select(self, received: Product) -> ToolSelectionResponse:
+            assert received == product
+            return selection
+
+    class FakeToolExecutor:
+        def execute_initial(
+            self,
+            received_product: Product,
+            received_selection: ToolSelectionResponse,
+        ) -> SelectionResult:
+            assert received_product == product
+            assert received_selection == selection
+            return selection_result
+
+        def execute_retry(
+            self,
+            received_product: Product,
+            received_result: SelectionResult,
+            retry_request: RetryRequest,
+        ) -> SelectionResult:
+            nonlocal retry_calls
+            retry_calls += 1
+            assert received_product == product
+            assert received_result == selection_result
+            assert retry_request.retry_round == retry_calls
+            return selection_result
+
+    class FakeAggregator:
+        def aggregate(
+            self,
+            received_product: Product,
+            received_result: SelectionResult,
+        ) -> DraftAssessment:
+            assert received_product == product
+            assert received_result == selection_result
+            return draft
+
+    class FakeVerifier:
+        def verify(self, received: DraftAssessment) -> VerificationResult:
+            assert received == draft
+            return tools_required
+
+    pipeline = CompliancePipeline(
+        extractor=FakeExtractor(),
+        selector=FakeSelector(),
+        tool_executor=FakeToolExecutor(),
+        aggregator=FakeAggregator(),
+        verifier=FakeVerifier(),
+        max_retry_rounds=max_retry_rounds,
+    )
+
+    result = pipeline.run(source)
+
+    assert retry_calls == expected_retry_calls
+    assert result.verification_status is FinalVerificationStatus.INCOMPLETE
+
+
 def test_최종_결과는_계약_필드와_검증_질문을_중복_없이_조립한다():
     product = Product(product_id="product-1", product_name="테스트 상품")
     finding = RegulatoryFinding(

@@ -150,6 +150,10 @@ class CompliancePipeline:
         verifier: VerificationStage,
         max_retry_rounds: int = 3,
     ) -> None:
+        if isinstance(max_retry_rounds, bool) or not isinstance(
+            max_retry_rounds, int
+        ):
+            raise TypeError("max_retry_rounds는 정수여야 합니다.")
         if max_retry_rounds < 0:
             raise ValueError("max_retry_rounds는 0 이상이어야 합니다.")
         self._extractor = extractor
