@@ -137,11 +137,21 @@ def print_report(report: FixtureReport) -> None:
     problems = [f for f in report.fields if f.worst is not Grade.OK or f.stability is Stability.UNSTABLE]
     if not problems:
         print("  문제 없음")
-        return
     for field in sorted(problems, key=lambda f: (f.stability is not Stability.STABLE_WRONG, f.name)):
         flag = "!" if field.hard_flip else " "
         print(f"  {flag} {field.name:26s} 정답={field.truth!r:>7} 실행={field.values} "
               f"[{field.worst.value}/{field.stability.value}]")
+
+    # 위 C1·C2·C3 집계와 섞지 않는다. 섞으면 이전 측정치와 분모가 달라진다.
+    if report.listing_fields:
+        listing = report.listing_counts()
+        # 등록한 문구만 세므로 섞인 양 자체가 아니라 하한값이다(EXTRACTION_EVAL.md 1.3).
+        print(f"  [listing_text] 등록 문구 {listing['items']}개 중 놓친 판매자 문구 {listing['c1_missing']}  "
+              f"섞인 리뷰·플랫폼 문구 {listing['c3_mixed']} (하한값)")
+        for field in report.listing_fields:
+            if field.worst is not Grade.OK:
+                hits = sum(1 for g in field.grades if g is not Grade.OK)
+                print(f"    {field.name:40s} {hits}/{report.runs}회")
 
 
 def warn_if_prompt_changed(meta: dict | None) -> list[str]:

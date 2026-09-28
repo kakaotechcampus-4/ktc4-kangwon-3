@@ -54,6 +54,9 @@ class FixtureReport:
     fields: list[FieldReport] = field(default_factory=list)
     # 정답표에 기준이 없어 채점하지 않은 필드. 커버리지를 속이지 않으려고 남긴다.
     ungraded: list[str] = field(default_factory=list)
+    # listing_text 채점은 counts()에 넣지 않고 따로 둔다. 넣으면 분모가 늘어 아무것도
+    # 안 고쳤는데 C1 비율이 내려가 보이고, 이전 측정치와 비교할 수 없게 된다.
+    listing_fields: list[FieldReport] = field(default_factory=list)
 
     def counts(self) -> dict[str, int]:
         """등급·안정성별 필드 수. 분모는 '채점한 필드 수'다."""
@@ -68,6 +71,14 @@ class FixtureReport:
             "stable_wrong": sum(1 for f in graded if f.stability is Stability.STABLE_WRONG),
             "unstable": sum(1 for f in graded if f.stability is Stability.UNSTABLE),
             "hard_flip": sum(1 for f in graded if f.hard_flip),
+        }
+
+    def listing_counts(self) -> dict[str, int]:
+        """listing_text 항목별 등급. 놓친 판매자 문구(C1)와 섞인 문구(C3)를 나눠 센다."""
+        return {
+            "items": len(self.listing_fields),
+            "c1_missing": sum(1 for f in self.listing_fields if f.worst is Grade.C1),
+            "c3_mixed": sum(1 for f in self.listing_fields if f.worst is Grade.C3),
         }
 
 
@@ -139,8 +150,11 @@ def score(truth: dict, runs: list[dict]) -> FixtureReport:
 
     _score_attributes(truth, runs, report)
     _score_conflicts(truth, runs, report)
+    _score_listing_text(truth, runs, report)
 
     graded_names = {f.name for f in report.fields}
+    if report.listing_fields:
+        graded_names.add("listing_text")
     report.ungraded = [
         name for name in runs[0] if name not in graded_names and name not in _NEVER_GRADED
     ]
@@ -231,6 +245,49 @@ def _score_conflicts(truth: dict, runs: list[dict], report: FixtureReport) -> No
                 grades=grades,
                 stability=classify_stability(grades, values),
                 hard_flip=is_hard_flip(values),
+                evidence=item.get("evidence"),
+            )
+        )
+
+
+def _score_listing_text(truth: dict, runs: list[dict], report: FixtureReport) -> None:
+    """listing_text에 담겨야 할 판매자 문구와 섞이면 안 되는 문구를 따로 본다.
+
+    놓치면 C1이다. 선택 프롬프트는 표시광고를 listing_text만 보고 정하므로, 의심 문구가
+    빠지면 표시광고 심사가 통째로 빠진다(conflicts 누락이 C1인 이유와 같다).
+    구매자 리뷰나 플랫폼 공통 문구가 섞이면 C3이다. 페이지에 있는 문구라 지어낸 것은
+    아니고, 표시광고를 괜히 돌리게 만드는 쪽이다.
+    """
+    per_run = [run.get("listing_text") or [] for run in runs]
+
+    for item in truth.get("listing_text_required") or []:
+        needle = item["must_contain"]
+        values = [any(needle in line for line in lines) for lines in per_run]
+        grades = [Grade.OK if found else Grade.C1 for found in values]
+        report.listing_fields.append(
+            FieldReport(
+                name=f"listing[{needle}]",
+                truth=True,
+                values=values,
+                grades=grades,
+                stability=classify_stability(grades, values),
+                hard_flip=False,
+                evidence=item.get("evidence"),
+            )
+        )
+
+    for item in truth.get("listing_text_forbidden") or []:
+        needle = item["must_not_contain"]
+        values = [any(needle in line for line in lines) for lines in per_run]
+        grades = [Grade.C3 if found else Grade.OK for found in values]
+        report.listing_fields.append(
+            FieldReport(
+                name=f"listing금지[{needle}]",
+                truth=False,
+                values=values,
+                grades=grades,
+                stability=classify_stability(grades, values),
+                hard_flip=False,
                 evidence=item.get("evidence"),
             )
         )
