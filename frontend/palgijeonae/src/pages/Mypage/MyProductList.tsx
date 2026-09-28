@@ -8,6 +8,7 @@ import type { MyProductItem } from "./types.ts";
 
 interface MyProductListProps {
     products: MyProductItem[]
+    isLoading: boolean
     page: number
     totalPages: number
     hasNext: boolean
@@ -17,7 +18,7 @@ interface MyProductListProps {
 // 한 화면에 페이지 번호 버튼을 몇 개까지 보여줄 지 결정
 const PAGE_GROUP_SIZE = 10;
 
-function MyProductList({ products, page, totalPages, hasNext, onPageChange }: MyProductListProps) {
+function MyProductList({ products, isLoading, page, totalPages, hasNext, onPageChange }: MyProductListProps) {
     // 현재 페이지가 중심에 오도록 10개 단위 구간을 잡는다.
     const halfGroupSize = Math.floor(PAGE_GROUP_SIZE / 2);
     const groupStart = Math.max(0, Math.min(page - halfGroupSize, totalPages - PAGE_GROUP_SIZE));
@@ -27,7 +28,11 @@ function MyProductList({ products, page, totalPages, hasNext, onPageChange }: My
     return (
         <div className="flex w-full flex-col gap-6">
             <SectionIntro title="전체 상품" size="xl" />
-            {products.length === 0 ? (
+            {isLoading ? (
+                <div className="flex w-full justify-center py-12">
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
+                </div>
+            ) : products.length === 0 ? (
                 <p className="w-full py-12 text-center text-sm font-medium text-neutral-border">
                     조건에 맞는 상품이 없어요.
                 </p>
