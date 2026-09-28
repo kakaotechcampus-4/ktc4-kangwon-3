@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from uuid import uuid4
 
 from ..schemas.agent import ToolSelectionItem, ToolSelectionResponse
-from ..schemas.pipeline import SelectionResult
+from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.base import utc_now
 from ..schemas.product import Product
 from ..schemas.schemas import ToolName, ToolResult, ToolStatus
@@ -27,9 +27,13 @@ class ToolExecutor:
         selection: ToolSelectionResponse,
     ) -> SelectionResult:
         """최초 선택 결과 6개를 실행 또는 건너뛰고 실행 기록을 만든다."""
-        tool_results = [
-            self._execute_one(product, decision, retry_round=0)
+        decisions = {
+            decision.tool_name: decision
             for decision in selection.decisions
+        }
+        tool_results = [
+            self._execute_one(product, decisions[tool_name], retry_round=0)
+            for tool_name in ToolName
         ]
         history = [
             result.model_copy(deep=True)
@@ -39,6 +43,60 @@ class ToolExecutor:
         return SelectionResult(
             selection=selection.model_copy(deep=True),
             tool_results=[result.model_copy(deep=True) for result in tool_results],
+            tool_result_history=history,
+        )
+
+    def execute_retry(
+        self,
+        product: Product,
+        selection_result: SelectionResult,
+        retry_request: RetryRequest,
+    ) -> SelectionResult:
+        """요청된 Tool만 재실행하고 최신 결과와 실행 이력을 갱신한다."""
+
+        if retry_request.latest_tool_results != selection_result.tool_results:
+            raise ValueError(
+                "RetryRequest의 최신 Tool 결과가 현재 Tool 결과와 다릅니다."
+            )
+
+        requested_tools = set(retry_request.requested_tools)
+
+        # 입력 객체를 변경하지 않도록 모두 복사한다.
+        selection = selection_result.selection.model_copy(deep=True)
+        latest_results = {
+            result.tool_name: result.model_copy(deep=True)
+            for result in selection_result.tool_results
+        }
+        history = [
+            result.model_copy(deep=True)
+            for result in selection_result.tool_result_history
+        ]
+
+        for decision in selection.decisions:
+            if decision.tool_name not in requested_tools:
+                continue
+
+            # 최초 미선택 Tool도 Verification 요청을 받으면 실행 대상으로 변경한다.
+            decision.selected = True
+            decision.reason = (
+                f"Verification Agent가 {retry_request.retry_round}회차 "
+                "추가 검토를 요청했습니다."
+            )
+
+            result = self._execute_one(
+                product,
+                decision,
+                retry_round=retry_request.retry_round,
+            )
+            latest_results[decision.tool_name] = result.model_copy(deep=True)
+            history.append(result.model_copy(deep=True))
+
+        return SelectionResult(
+            selection=selection,
+            tool_results=[
+                latest_results[tool_name]
+                for tool_name in ToolName
+            ],
             tool_result_history=history,
         )
 
