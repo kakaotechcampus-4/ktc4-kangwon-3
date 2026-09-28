@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useRef, useState } from "react";
 
 import { getMyProducts } from "@/api/myProducts.ts";
 import SectionIntro from "@/components/common/SectionIntro";
@@ -19,16 +20,20 @@ function MyPage() {
     const [page, setPage] = useState(0);
     const productListRef = useRef<HTMLDivElement>(null);
 
-    const { items: pagedProducts, pageInfo } = useMemo(
-        () => getMyProducts({
+    const { data } = useQuery({
+        queryKey: ["myProducts", { filter, searchTerm, page, size: PAGE_SIZE }],
+        queryFn: () => getMyProducts({
             resultStatus: filter === "all" ? undefined : filter,
             keyword: searchTerm,
-            page: page,
+            page,
             size: PAGE_SIZE,
             sortType: "LATEST",
         }),
-        [searchTerm, filter, page],
-    );
+    });
+
+    // 비동기로 데이터를 받아오기까지 띄울 임시 데이터
+    const pagedProducts = data?.items ?? [];
+    const pageInfo = data?.pageInfo ?? { page, size: PAGE_SIZE, totalElements: 0, totalPages: 1, hasNext: false };
 
     // 검색어 / 필터가 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정
     const handleSearchTermChange = (value: string) => {
