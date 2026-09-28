@@ -55,32 +55,19 @@ class _PipelineNextAction(StrEnum):
 def _determine_next_action(
     verification: VerificationResult,
 ) -> _PipelineNextAction:
-    """
-    검증 결과를 우선순위에 따라 Pipeline의 다음 행동으로 변환한다.
+    """Verification 상태를 Pipeline의 다음 행동으로 변환한다."""
 
-    critical issue    → STOP_FOR_REVISION
-    사용자 입력 필요     → AWAIT_USER_INPUT
-    추가 Tool 필요      → RETRY_TOOLS
-    승인·경고 포함 승인  → COMPLETE
-    그 외 수정 필요     → STOP_FOR_REVISION
-    """
-    if any(issue.severity == "critical" for issue in verification.issues):
-        return _PipelineNextAction.STOP_FOR_REVISION
-    if verification.status is VerificationStatus.USER_INPUT_REQUIRED or any(
-        question.required for question in verification.follow_up_questions
-    ):
-        return _PipelineNextAction.AWAIT_USER_INPUT
-    if verification.additional_tools_required:
-        return _PipelineNextAction.RETRY_TOOLS
-    if verification.status in {
-        VerificationStatus.APPROVED,
-        VerificationStatus.APPROVED_WITH_WARNINGS,
-    }:
-        return _PipelineNextAction.COMPLETE
-    if verification.status is VerificationStatus.REVISION_REQUIRED:
-        return _PipelineNextAction.STOP_FOR_REVISION
-
-    raise ValueError(f"처리할 수 없는 검증 결과 상태입니다: {verification.status}")
+    action_by_status = {
+        VerificationStatus.APPROVED: _PipelineNextAction.COMPLETE,
+        VerificationStatus.APPROVED_WITH_WARNINGS: _PipelineNextAction.COMPLETE,
+        VerificationStatus.USER_INPUT_REQUIRED: _PipelineNextAction.AWAIT_USER_INPUT,
+        VerificationStatus.REVISION_REQUIRED: _PipelineNextAction.STOP_FOR_REVISION,
+        VerificationStatus.TOOLS_REQUIRED: _PipelineNextAction.RETRY_TOOLS,
+    }
+    action = action_by_status.get(verification.status)
+    if action is None:
+        raise ValueError(f"처리할 수 없는 검증 결과 상태입니다: {verification.status}")
+    return action
 
 
 def _build_retry_request(
@@ -109,12 +96,13 @@ def _to_final_status(status: VerificationStatus) -> FinalVerificationStatus:
         ),
         VerificationStatus.REVISION_REQUIRED: FinalVerificationStatus.INCOMPLETE,
         VerificationStatus.USER_INPUT_REQUIRED: FinalVerificationStatus.INCOMPLETE,
+        VerificationStatus.TOOLS_REQUIRED: FinalVerificationStatus.INCOMPLETE,
     }
     
     result = status_map.get(status)
 
     if result is None:
-      raise ValueError(f"매핑되지 않은 검증 결과 상태입니다: {status}")
+        raise ValueError(f"매핑되지 않은 검증 결과 상태입니다: {status}")
     return result
 
 
