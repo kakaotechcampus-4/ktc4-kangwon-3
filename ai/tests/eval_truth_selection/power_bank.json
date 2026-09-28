@@ -1,7 +1,7 @@
 {
   "fixture": "power_bank.txt",
   "reviewed_by": "gityhb",
-  "reviewed_at": "2026-09-22",
+  "reviewed_at": "2026-09-28",
   "summary": "MagSafe 배터리 케이스. 제목의 '1460mAh'와 스펙표의 '배터리 미포함'이 충돌해 전기 관련 필드가 전부 null이다. conflicts 처리를 보는 케이스.",
   "tools": {
     "customs_requirements": {
@@ -16,8 +16,8 @@
     },
     "food_drug_safety": {
       "selected": false,
-      "evidence": "식품 접촉·의료·화장품 표방 언급 없음",
-      "why_not_other": "휴대폰 케이스로 관련 신호가 없다."
+      "evidence": "food_contact=null, medical_claim·cosmetic_claim=false. 카테고리 '보조배터리'·'휴대폰 액세서리'",
+      "why_not_other": "food_contact가 null이지만 category가 식품 접촉과 무관해 원칙 2의 '다른 필드의 해당 없음 근거'가 된다."
     },
     "electrical_safety": {
       "selected": true,
