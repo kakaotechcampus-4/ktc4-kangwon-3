@@ -28,6 +28,7 @@ class ProductMapperTest {
 
     private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final UUID PRODUCT_ID_2 = UUID.randomUUID();
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID(); // 추가
     private static final UUID USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
@@ -53,6 +54,18 @@ class ProductMapperTest {
         assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
         assertThat(response.resultStatus()).isNull();
         assertThat(response.createdAt()).isNotNull();
+    }
+
+    // 추가
+    @Test
+    @DisplayName("목록 카드로 변환하면 상품이 속한 진단서 ID가 담긴다.")
+    void toSummaryResponse_thenIncludeDiagnosesId() {
+        // given & when
+        ProductSummaryResponse response = productMapper.toSummaryResponse(
+                createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, null));
+
+        // then
+        assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
     }
 
     @Test
@@ -119,6 +132,7 @@ class ProductMapperTest {
         Product product = Product.pending(PRODUCT_NAME, productImageKey, sourceType, SOURCE_URL, null);
         diagnoses.addProducts(List.of(product));
 
+        ReflectionTestUtils.setField(diagnoses, "id", DIAGNOSES_ID); // 추가
         ReflectionTestUtils.setField(product, "id", productId);
         ReflectionTestUtils.setField(product, "createdAt", LocalDateTime.now());
         ReflectionTestUtils.setField(product, "updatedAt", LocalDateTime.now());
