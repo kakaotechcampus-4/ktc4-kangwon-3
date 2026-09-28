@@ -21,7 +21,7 @@ function MyPage() {
     const productListRef = useRef<HTMLDivElement>(null);
 
     // 상품 목록 불러오기
-    const { data } = useQuery({
+    const { data, isPending } = useQuery({
         queryKey: ["myProducts", { filter, searchTerm, page, size: PAGE_SIZE }],
         queryFn: () => getMyProducts({
             resultStatus: filter === "all" ? undefined : filter,
@@ -69,6 +69,7 @@ function MyPage() {
             <div ref={productListRef}>
                 <MyProductList
                     products={pagedProducts}
+                    isLoading={isPending}
                     page={page}
                     totalPages={pageInfo.totalPages}
                     hasNext={pageInfo.hasNext}
