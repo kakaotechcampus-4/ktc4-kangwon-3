@@ -25,14 +25,16 @@ interface ToggleProps {
     onChange: (checked: boolean) => void
     disabled?: boolean
     className?: string
+    ariaLabel?: string
 }
 
-function Toggle({ checked, onChange, disabled, className }: ToggleProps) {
+function Toggle({ checked, onChange, disabled, className, ariaLabel }: ToggleProps) {
     return (
         <button
             type="button"
             role="switch"
             aria-checked={checked}
+            aria-label={ariaLabel}
             disabled={disabled}
             onClick={() => onChange(!checked)}
             className={cn(trackVariants({ checked }), disabled && "cursor-not-allowed opacity-50", className)}
