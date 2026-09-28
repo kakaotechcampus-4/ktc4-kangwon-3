@@ -137,6 +137,18 @@
     {
       "must_not_contain": "이용 약관",
       "evidence": "원문 157행, Temu 푸터"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 62행, 상품 옆 Temu 배송·가격 안내"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 76행, 상품 옆 Temu 배송·가격 안내"
+    },
+    {
+      "must_not_contain": "배송업체",
+      "evidence": "원문 77행, 상품 옆 Temu 배송·가격 안내"
     }
   ]
 }
