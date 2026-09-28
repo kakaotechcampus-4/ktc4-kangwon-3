@@ -57,8 +57,9 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/error-codes",
 
-            // health check
+            // health check / 메트릭 수집
             "/actuator/health",
+            "/actuator/prometheus",
     };
 
     private final AppProperties appProperties;
