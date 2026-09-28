@@ -36,13 +36,15 @@ function MyProduct({ productName, processingStatus, resultStatus, productImageUr
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
+    // 진단 결과가 없을 시 진단서 이동을 막기 위한 boolean 변수
+    const isDiagnosisComplete = resultStatus !== undefined;
 
     return (
         <DefaultBox>
             {/* TODO: Result 페이지 구현 시 /result/product?productId=로 변경. */}
             <div
-                className="flex flex-row w-full gap-4 cursor-pointer"
-                onClick={() => navigate("/result")}
+                className={cn("flex flex-row w-full gap-4", isDiagnosisComplete && "cursor-pointer")}
+                onClick={isDiagnosisComplete ? () => navigate("/result") : undefined}
             >
                 <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"
