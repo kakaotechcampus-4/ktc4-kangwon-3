@@ -1,9 +1,10 @@
 """에이전트와 파이프라인 구성 요소의 최초 실행 흐름을 연결한다."""
 
+from enum import StrEnum
 from typing import Protocol
 
-from ..schemas.pipeline import SelectionResult
 from ..schemas.agent import ExtractionInput, ToolSelectionResponse
+from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import (
     DraftAssessment,
@@ -42,6 +43,50 @@ class VerificationStage(Protocol):
     def verify(self, draft: DraftAssessment) -> VerificationResult: ...
 
 
+class _PipelineNextAction(StrEnum):
+    """검증 결과를 바탕으로 Pipeline이 수행할 내부 행동."""
+
+    COMPLETE = "complete"
+    AWAIT_USER_INPUT = "await_user_input"
+    STOP_FOR_REVISION = "stop_for_revision"
+    RETRY_TOOLS = "retry_tools"
+
+
+def _determine_next_action(
+    verification: VerificationResult,
+) -> _PipelineNextAction:
+    """Verification 상태를 Pipeline의 다음 행동으로 변환한다."""
+
+    action_by_status = {
+        VerificationStatus.APPROVED: _PipelineNextAction.COMPLETE,
+        VerificationStatus.APPROVED_WITH_WARNINGS: _PipelineNextAction.COMPLETE,
+        VerificationStatus.USER_INPUT_REQUIRED: _PipelineNextAction.AWAIT_USER_INPUT,
+        VerificationStatus.REVISION_REQUIRED: _PipelineNextAction.STOP_FOR_REVISION,
+        VerificationStatus.TOOLS_REQUIRED: _PipelineNextAction.RETRY_TOOLS,
+    }
+    action = action_by_status.get(verification.status)
+    if action is None:
+        raise ValueError(f"처리할 수 없는 검증 결과 상태입니다: {verification.status}")
+    return action
+
+
+def _build_retry_request(
+    verification: VerificationResult,
+    selection_result: SelectionResult,
+    *,
+    retry_round: int,
+) -> RetryRequest:
+    """추가 Tool 실행 분기에서 다음 회차의 내부 요청을 만든다."""
+    if _determine_next_action(verification) is not _PipelineNextAction.RETRY_TOOLS:
+        raise ValueError("추가 Tool 실행이 필요한 검증 결과가 아닙니다.")
+    return RetryRequest(
+        retry_round=retry_round,
+        requested_tools=verification.additional_tools_required,
+        verification=verification,
+        latest_tool_results=selection_result.tool_results,
+    )
+
+
 def _to_final_status(status: VerificationStatus) -> FinalVerificationStatus:
     """검증 결과 상태를 최종 응답의 검증 상태로 변환한다."""
     status_map = {
@@ -51,12 +96,13 @@ def _to_final_status(status: VerificationStatus) -> FinalVerificationStatus:
         ),
         VerificationStatus.REVISION_REQUIRED: FinalVerificationStatus.INCOMPLETE,
         VerificationStatus.USER_INPUT_REQUIRED: FinalVerificationStatus.INCOMPLETE,
+        VerificationStatus.TOOLS_REQUIRED: FinalVerificationStatus.INCOMPLETE,
     }
     
     result = status_map.get(status)
 
     if result is None:
-      raise ValueError(f"매핑되지 않은 검증 결과 상태입니다: {status}")
+        raise ValueError(f"매핑되지 않은 검증 결과 상태입니다: {status}")
     return result
 
 
@@ -108,8 +154,5 @@ class CompliancePipeline:
         )
         draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
         verification: VerificationResult = self._verifier.verify(draft)
-
-        # verification 결과에 따른 분기 구현 필요.
-        ...
 
         return _build_final_assessment(draft, verification)

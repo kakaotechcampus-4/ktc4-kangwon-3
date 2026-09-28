@@ -2,13 +2,19 @@
 
 import pytest
 
-from app.pipeline.runner import CompliancePipeline, _build_final_assessment
+from app.pipeline.runner import (
+    CompliancePipeline,
+    _build_final_assessment,
+    _build_retry_request,
+    _determine_next_action,
+    _PipelineNextAction,
+)
 from app.schemas.agent import (
     ExtractionInput,
     ToolSelectionItem,
     ToolSelectionResponse,
 )
-from app.schemas.pipeline import SelectionResult
+from app.schemas.pipeline import RetryRequest, SelectionResult
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination,
@@ -27,6 +33,84 @@ from app.schemas.schemas import (
 
 
 @pytest.mark.parametrize(
+    ("verification", "expected_action"),
+    [
+        (
+            VerificationResult(status=VerificationStatus.APPROVED),
+            _PipelineNextAction.COMPLETE,
+        ),
+        (
+            VerificationResult(status=VerificationStatus.APPROVED_WITH_WARNINGS),
+            _PipelineNextAction.COMPLETE,
+        ),
+        (
+            VerificationResult(status=VerificationStatus.USER_INPUT_REQUIRED),
+            _PipelineNextAction.AWAIT_USER_INPUT,
+        ),
+        (
+            VerificationResult(status=VerificationStatus.REVISION_REQUIRED),
+            _PipelineNextAction.STOP_FOR_REVISION,
+        ),
+        (
+            VerificationResult(
+                status=VerificationStatus.TOOLS_REQUIRED,
+                additional_tools_required=[ToolName.RADIO],
+            ),
+            _PipelineNextAction.RETRY_TOOLS,
+        ),
+    ],
+)
+def test_검증_결과를_pipeline의_다음_행동으로_변환한다(
+    verification: VerificationResult,
+    expected_action: _PipelineNextAction,
+):
+    assert _determine_next_action(verification) is expected_action
+
+
+def test_추가_tool_분기는_다음_회차의_재실행_요청을_생성한다():
+    selection = ToolSelectionResponse(
+        decisions=[
+            ToolSelectionItem(
+                tool_name=tool_name,
+                selected=False,
+                reason="최초 실행에서는 검토 신호 없음",
+            )
+            for tool_name in ToolName
+        ]
+    )
+    tool_results = [
+        ToolResult(
+            tool_name=decision.tool_name,
+            status=ToolStatus.SKIPPED,
+            selected=False,
+            selection_reason=decision.reason,
+        )
+        for decision in selection.decisions
+    ]
+    selection_result = SelectionResult(
+        selection=selection,
+        tool_results=tool_results,
+        tool_result_history=[],
+    )
+    verification = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED,
+        additional_tools_required=[ToolName.RADIO],
+    )
+
+    result = _build_retry_request(
+        verification,
+        selection_result,
+        retry_round=1,
+    )
+
+    assert isinstance(result, RetryRequest)
+    assert result.retry_round == 1
+    assert result.requested_tools == [ToolName.RADIO]
+    assert result.verification == verification
+    assert result.latest_tool_results == tool_results
+
+
+@pytest.mark.parametrize(
     ("verification_status", "expected_final_status"),
     [
         (VerificationStatus.APPROVED, FinalVerificationStatus.VERIFIED),
@@ -36,6 +120,7 @@ from app.schemas.schemas import (
         ),
         (VerificationStatus.REVISION_REQUIRED, FinalVerificationStatus.INCOMPLETE),
         (VerificationStatus.USER_INPUT_REQUIRED, FinalVerificationStatus.INCOMPLETE),
+        (VerificationStatus.TOOLS_REQUIRED, FinalVerificationStatus.INCOMPLETE),
     ],
 )
 def test_최초_실행은_각_단계를_순서대로_연결하고_최종_상태를_변환한다(
