@@ -45,13 +45,20 @@ public class ProductService {
      */
     @Transactional
     public void removeProduct(UUID userId, UUID productId) {
-        Product product = productRepository.findWithImagesById(productId)
+        UUID diagnosesId = productRepository.findDiagnosesIdById(productId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
-        Diagnoses diagnoses = product.getDiagnoses();
+        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
         if (!diagnoses.isOwnedBy(userId)) {
             throw new BaseException(CommonResponseCode.NOT_FOUND);
         }
+
+        Product product = diagnoses.getProducts().stream()
+                .filter(candidate -> candidate.getId().equals(productId))
+                .findFirst()
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
         List<String> imageKeys = product.collectImageKeys();
 
