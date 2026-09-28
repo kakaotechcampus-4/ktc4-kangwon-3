@@ -46,6 +46,15 @@ _DEFINITIVE = frozenset(
     {Determination.REQUIRED, Determination.NOT_REQUIRED, Determination.NOT_APPLICABLE}
 )
 
+# 추가 Tool 실행으로 보완할 수 있는 검증 이슈이다.
+_TOOL_RECOVERABLE_ISSUES = frozenset(
+    {
+        IssueType.TOOL_FAILURE,
+        IssueType.MISSING_EVIDENCE,
+    }
+)
+
+
 _Severity = Literal["critical", "warning", "info"]
 
 
@@ -617,18 +626,31 @@ class VerificationAgent:
 
     @staticmethod
     def _status(result: VerificationResult) -> Status:
-        """심각도가 높고 더 구체적인 상태를 먼저 고른다.
+        """검증 결과에서 가장 우선하는 후속 상태를 고른다.
 
-        critical은 초안 자체가 틀렸다는 뜻이라 사용자에게 묻기 전에 먼저 바로잡아야 한다.
-        추가 툴 요청보다 필수 질문을 앞에 두는 이유는, 둘 다 해당할 때 status만 보고
-        분기하는 쪽에 "사람만 풀 수 있는 막힘"이라는 더 구체적인 정보를 남기기 위해서다.
+        Tool 재실행으로 해결할 수 없는 critical 이슈는 초안 수정을 우선한다.
+        필수 질문은 사람이 제공해야 하는 정보이므로 Tool 재실행보다 앞선다.
         """
-        if any(i.severity == "critical" for i in result.issues):
+
+        blocking_critical = any(
+            issue.severity == "critical"
+            and issue.issue_type not in _TOOL_RECOVERABLE_ISSUES
+            for issue in result.issues
+        )
+        if blocking_critical:
             return Status.REVISION_REQUIRED
-        if any(q.required for q in result.follow_up_questions):
+
+        if any(question.required for question in result.follow_up_questions):
             return Status.USER_INPUT_REQUIRED
+
         if result.additional_tools_required:
+            return Status.TOOLS_REQUIRED
+
+        # 복구 가능한 critical이라도 실행할 Tool이 지정되지 않았다면 자동 복구가 불가능.
+        if any(issue.severity == "critical" for issue in result.issues):
             return Status.REVISION_REQUIRED
+
         if result.issues or result.follow_up_questions:
             return Status.APPROVED_WITH_WARNINGS
+
         return Status.APPROVED
