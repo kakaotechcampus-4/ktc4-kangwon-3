@@ -14,7 +14,8 @@ services:
       # 에이전트 환경변수
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL}
-      OPENAI_MODEL: ${OPENAI_MODEL:-openai/gpt-4.1-mini}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL}
 
       # BE URL 환경변수
       BE_BASE_URL: ${BE_BASE_URL:-http://host.docker.internal:8080}
