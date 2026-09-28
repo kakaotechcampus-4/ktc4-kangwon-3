@@ -20,6 +20,7 @@ public class ProductMapper {
     public ProductSummaryResponse toSummaryResponse(Product product) {
         return new ProductSummaryResponse(
                 product.getId(),
+                product.getDiagnoses().getId(),
                 product.getProductName(),
                 s3UrlKeyCodec.toUrlOrNull(product.getProductImageKey()),
                 product.getSourceType(),
