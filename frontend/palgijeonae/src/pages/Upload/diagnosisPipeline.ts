@@ -59,14 +59,22 @@ export const buildDiagnosisPayload = (product: Product, keys: ProductImageKeys):
 
 // 상품 배열 전체를 업로드 → 페이로드 조립 → 한 번의 진단 요청으로 제출하는 전체 파이프라인
 export const submitDiagnosis = async (products: Product[]): Promise<string> => {
-    // 모든 product를 payload로 재조립한다.
-    const payloads = await Promise.all(
+    const results = await Promise.allSettled(
         products.map(async (product) => {
             const keys = await uploadProductImages(product);
             return buildDiagnosisPayload(product, keys);
         }),
     );
 
+    const failedProductNames = products
+        .filter((_, index) => results[index].status === "rejected")
+        .map((product) => product.title);
+
+    if (failedProductNames.length > 0) {
+        throw new Error(`다음 상품의 이미지 업로드에 실패했습니다: ${failedProductNames.join(", ")}`);
+    }
+
+    const payloads = (results as PromiseFulfilledResult<DiagnosisProductPayload>[]).map((result) => result.value);
     return postDiagnosis(payloads);
 };
 
