@@ -25,6 +25,9 @@ public enum CommonResponseCode implements BaseResponseCode {
     // 404 Not Found
     NOT_FOUND(HttpStatus.NOT_FOUND, "COMMON-006", "요청 리소스를 찾을 수 없습니다."),
 
+    // 409 Conflict
+    LOCK_CONFLICT(HttpStatus.CONFLICT, "COMMON-009", "다른 요청과 충돌했습니다. 잠시 후 다시 시도해주세요."),
+
     // 405 Method Not Allowed
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "COMMON-007", "요청 메소드를 지원하지 않습니다."),
 
