@@ -26,7 +26,7 @@ public class SesApiMailSender implements MailSender {
     public void send(MailMessage message) {
         try {
             sesClient.sendEmail(SendEmailRequest.builder()
-                    .source("%s <%s>".formatted(mailProperties.fromName(), mailProperties.from()))
+                    .source(formatSource())
                     .destination(destination -> destination.toAddresses(message.to()))
                     .message(mail -> mail
                             .subject(subject -> subject.data(message.subject()).charset(CHARSET))
