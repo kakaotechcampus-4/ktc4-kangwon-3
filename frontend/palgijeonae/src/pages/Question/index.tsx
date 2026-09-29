@@ -2,7 +2,6 @@ import { useState } from "react";
 
 import SectionIntro from "@/components/common/SectionIntro";
 import ProductTabs from "@/components/common/ProductTabs";
-import DefaultBox from "@/components/common/DefaultBox";
 
 function QuestionPage() {
     // TODO: api 연동 기반을 마련하고 삭제할 목업 데이터
