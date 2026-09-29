@@ -1,4 +1,5 @@
 import {
+    postDiagnosis,
     type PresignedFileType,
     putToS3,
     requestPresignedUrls,
@@ -15,6 +16,7 @@ interface ProductImageKeys {
 export const uploadProductImages = async (product: Product): Promise<ProductImageKeys> => {
     const mainFile = product.productImageFile;
     const detailFiles = product.type === "text/image" ? product.images ?? [] : [];
+    // mainFile(썸네일)이 있다면 썸네일이 0번, 없다면 바로 상세 페이지 이미지가 0번
     const files = mainFile ? [mainFile, ...detailFiles] : detailFiles;
 
     if (files.length === 0) {
@@ -49,5 +51,18 @@ export const buildDiagnosisPayload = (product: Product, keys: ProductImageKeys):
     return product.type === "url"
         ? { ...base, sourceType: "URL", sourceUrl: product.link }
         : { ...base, sourceType: "TEXT_IMAGE", sourceText: product.content, imageKeys: keys.imageKeys };
+};
+
+// 상품 배열 전체를 업로드 → 페이로드 조립 → 한 번의 진단 요청으로 제출하는 전체 파이프라인
+export const submitDiagnosis = async (products: Product[]): Promise<string> => {
+    // 모든 product를 payload로 재조립한다.
+    const payloads = await Promise.all(
+        products.map(async (product) => {
+            const keys = await uploadProductImages(product);
+            return buildDiagnosisPayload(product, keys);
+        }),
+    );
+
+    return postDiagnosis(payloads);
 };
 
