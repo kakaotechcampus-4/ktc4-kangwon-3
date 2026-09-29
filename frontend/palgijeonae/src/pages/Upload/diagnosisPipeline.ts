@@ -4,7 +4,7 @@ import {
     requestPresignedUrls,
 } from "@/api/diagnosis";
 
-import type { Product } from "./types.ts";
+import type { DiagnosisProductPayload, Product } from "./types.ts";
 
 interface ProductImageKeys {
     productImageKey?: string
@@ -12,7 +12,6 @@ interface ProductImageKeys {
 }
 
 // 대표 이미지(있다면 항상 0번)와 상세 이미지들을 한 배치로 요청하고, 응답을 요청과 같은 순서로 매칭한다.
-// presigned 응답엔 인덱스가 없고 파일명은 중복될 수 있어 이름으로 매칭하면 안 된다.
 export const uploadProductImages = async (product: Product): Promise<ProductImageKeys> => {
     const mainFile = product.productImageFile;
     const detailFiles = product.type === "text/image" ? product.images ?? [] : [];
@@ -41,5 +40,14 @@ export const uploadProductImages = async (product: Product): Promise<ProductImag
     return mainFile
         ? { productImageKey: keys[0], imageKeys: keys.slice(1) }
         : { productImageKey: undefined, imageKeys: keys };
+};
+
+// sourceType(url/text-image)에 따라 필드를 분기하여 Product를 DiagnosisProductPayload로 재구성한다.
+export const buildDiagnosisPayload = (product: Product, keys: ProductImageKeys): DiagnosisProductPayload => {
+    const base = { productName: product.title, productImageKey: keys.productImageKey };
+
+    return product.type === "url"
+        ? { ...base, sourceType: "URL", sourceUrl: product.link }
+        : { ...base, sourceType: "TEXT_IMAGE", sourceText: product.content, imageKeys: keys.imageKeys };
 };
 
