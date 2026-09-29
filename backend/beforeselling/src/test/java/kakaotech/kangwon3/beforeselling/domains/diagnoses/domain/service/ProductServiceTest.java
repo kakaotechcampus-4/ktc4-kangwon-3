@@ -42,7 +42,6 @@ class ProductServiceTest {
     private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final UUID DIAGNOSES_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
-    private static final UUID OTHER_USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -193,15 +192,15 @@ class ProductServiceTest {
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
 
-        then(diagnosesRepository).should(never()).findByIdForUpdate(any());
+        then(diagnosesRepository).should(never()).findByIdAndUserIdForUpdate(any(), any());
     }
 
     @Test
-    @DisplayName("락을 기다리는 사이 앞선 요청이 진단서까지 삭제했다면 NOT_FOUND 예외가 발생한다.")
+    @DisplayName("락 조회 결과가 없으면(앞선 요청이 진단서를 삭제했거나 남의 진단서) NOT_FOUND 예외가 발생한다.")
     void removeProduct_whenDiagnosesDeletedWhileWaitingForLock_thenThrowNotFound() {
         // given: 마지막 상품을 연타한 경우. 앞선 요청이 상품과 함께 빈 진단서까지 지웠다.
         given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.of(DIAGNOSES_ID));
-        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.empty());
+        given(diagnosesRepository.findByIdAndUserIdForUpdate(DIAGNOSES_ID, USER_ID)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productService.removeProduct(USER_ID, PRODUCT_ID))
@@ -231,35 +230,13 @@ class ProductServiceTest {
         then(eventPublisher).should(never()).publishEvent(any());
     }
 
-    @Test
-    @DisplayName("다른 사용자의 상품을 삭제하려 하면 NOT_FOUND 예외가 발생하고 아무것도 삭제되지 않는다.")
-    void removeProduct_withOtherUsersProduct_thenThrowNotFound() {
-        // given
-        Diagnoses diagnoses = createDiagnoses(OTHER_USER_ID, List.of("상품 A"));
-        givenLockedDiagnoses(diagnoses);
-
-        // when & then
-        assertThatThrownBy(() -> productService.removeProduct(USER_ID, PRODUCT_ID))
-                .isInstanceOf(BaseException.class)
-                .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.NOT_FOUND);
-
-        assertThat(diagnoses.getProducts()).hasSize(1);
-        then(diagnosesRepository).should(never()).delete(any());
-        then(eventPublisher).should(never()).publishEvent(any());
-    }
-
     private void givenLockedDiagnoses(Diagnoses diagnoses) {
         given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.of(DIAGNOSES_ID));
-        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+        given(diagnosesRepository.findByIdAndUserIdForUpdate(DIAGNOSES_ID, USER_ID)).willReturn(Optional.of(diagnoses));
     }
 
     private Diagnoses createDiagnoses(List<String> productNames) {
-        return createDiagnoses(USER_ID, productNames);
-    }
-
-    private Diagnoses createDiagnoses(UUID ownerId, List<String> productNames) {
-        Diagnoses diagnoses = Diagnoses.pending(ownerId);
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         ReflectionTestUtils.setField(diagnoses, "id", DIAGNOSES_ID);
 
         diagnoses.addProducts(productNames.stream()
