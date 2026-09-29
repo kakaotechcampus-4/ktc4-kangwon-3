@@ -98,3 +98,37 @@ def test_수신_실패_메시지에_target_일련번호_응답크기를_남긴�
     assert "target=law" in message
     assert "id=999999999" in message
     assert f"{len(body.encode()):,}B" in message
+
+
+def test_법령_본문의_기본정보를_파싱한다():
+    # 법령ID를 MST 자리에 넣으면 다른 법(의장법) 본문이 정상으로 와서, 기본정보로만 대조할 수 있다 (#183).
+    body = (
+        "<법령><기본정보>"
+        "<법령ID>008044</법령ID><법령명_한글>전기용품 및 생활용품 안전관리법 시행규칙</법령명_한글>"
+        "<소관부처 소관부처코드=\"1451000\">산업통상부</소관부처><시행일자>20260827</시행일자>"
+        "</기본정보><조문></조문></법령>"
+    )
+
+    result = _client_returning(_full_size(body)).get_law_text(LawTextRequest(mst="273575"))
+
+    assert result.name == "전기용품 및 생활용품 안전관리법 시행규칙"
+    assert result.document_id == "008044"
+    assert result.enforce_date == "20260827"
+    assert result.department == "산업통상부"
+
+
+def test_행정규칙_본문의_기본정보를_파싱한다():
+    body = (
+        "<AdmRulService><행정규칙기본정보>"
+        "<행정규칙명>전자상거래 등에서의 상품 등의 정보제공에 관한 고시</행정규칙명><행정규칙ID>2052005</행정규칙ID>"
+        "<소관부처명>공정거래위원회</소관부처명><시행일자>20250101</시행일자>"
+        "</행정규칙기본정보><조문내용>제1조(목적)</조문내용></AdmRulService>"
+    )
+
+    result = _client_returning(_full_size(body)).get_admrul_text(LawTextRequest(mst="2100000248568"))
+
+    assert result.name == "전자상거래 등에서의 상품 등의 정보제공에 관한 고시"
+    assert result.document_id == "2052005"
+    assert result.enforce_date == "20250101"
+    assert result.department == "공정거래위원회"
+    assert len(result.articles) == 1
