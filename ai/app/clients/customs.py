@@ -26,7 +26,7 @@ class CLIPClient(BaseClient):
     서비스 키 : 불필요
     비고
         X-Requested-With 헤더 필수.
-        응답에 <em> 태그가 섞여 오고 HS 코드에 하이픈이 포함됨.
+        응답에 <em> 태그가 섞여 오고 HS 코드에 점·하이픈이 포함됨 (예: 8414.59-9000).
     """
 
     _ENDPOINT = "/clip/prlstclsfsrch/retrieveDmstPrlstClsfCaseLst2.do"
@@ -73,10 +73,11 @@ class CLIPClient(BaseClient):
             raw: API 원본 항목.
 
         Returns:
-            CLIPCase: em 태그 제거, HS 코드 하이픈 제거가 적용된 항목.
+            CLIPCase: em 태그 제거, HS 코드 숫자만 남기기가 적용된 항목.
         """
         return CLIPCase(
-            hs_code=raw.get("DTRM_HS_SGN", "").replace("-", ""),            # 결정된 HS 코드
+            # 결정된 HS 코드. 세관장확인은 숫자 10자리만 받으므로 점·하이픈을 모두 지운다 (예: 8414.59-9000 → 8414599000)
+            hs_code=re.sub(r"\D", "", self._strip_html(raw.get("DTRM_HS_SGN", ""))),
             product_name=self._strip_html(raw.get("CMDT_NM", "")),          # 물품명
             description=self._strip_html(raw.get("CMDT_DESC", "")),         # 물품설명 (임베딩 대상)
             decision_reason=self._strip_html(raw.get("DTRM_RSN_CN", "")),   # 결정 이유
