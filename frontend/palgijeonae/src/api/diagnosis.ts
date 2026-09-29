@@ -29,17 +29,3 @@ export const putToS3 = (presignedUrl: string, file: File, contentType: string) =
     axios.put(presignedUrl, file, { headers: { "Content-Type": contentType } });
 
 export type SourceType = "URL" | "TEXT_IMAGE";
-
-export interface DiagnosisCreatePayload {
-    productName: string
-    productImageKey?: string
-    sourceType: SourceType
-    sourceUrl?: string
-    sourceText?: string
-    imageKeys?: string[]
-}
-
-export const createDiagnosis = async (payload: DiagnosisCreatePayload): Promise<number> => {
-    const response = await apiClient.post("/api/v1/diagnoses", payload);
-    return response.data.data.diagnosesId;
-};

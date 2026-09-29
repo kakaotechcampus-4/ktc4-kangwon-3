@@ -1,6 +1,4 @@
 import {
-    createDiagnosis,
-    type DiagnosisCreatePayload,
     type PresignedFileType,
     putToS3,
     requestPresignedUrls,
@@ -45,17 +43,3 @@ export const uploadProductImages = async (product: Product): Promise<ProductImag
         : { productImageKey: undefined, imageKeys: keys };
 };
 
-// sourceType(url/text-image)에 따라 diagnoses 요청 필드를 분기해서 조립
-export const buildDiagnosisPayload = (product: Product, keys: ProductImageKeys): DiagnosisCreatePayload => {
-    const base = { productName: product.title, productImageKey: keys.productImageKey };
-
-    return product.type === "url"
-        ? { ...base, sourceType: "URL", sourceUrl: product.link }
-        : { ...base, sourceType: "TEXT_IMAGE", sourceText: product.content, imageKeys: keys.imageKeys };
-};
-
-// 상품 1개를 업로드→진단 생성까지 처리하는 전체 파이프라인
-export const processProduct = async (product: Product): Promise<number> => {
-    const keys = await uploadProductImages(product);
-    return createDiagnosis(buildDiagnosisPayload(product, keys));
-};

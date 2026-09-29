@@ -1,15 +1,14 @@
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 
 import AddedProduct from "./AddedProduct.tsx";
-import type { DiagnosisStatus, Product } from "./types.ts";
+import type { Product } from "./types.ts";
 
 interface AddedProductListProps {
     products: Product[]
-    statuses: Record<string, DiagnosisStatus>
     onRemove: (id: string) => void
 }
 
-function AddedProductList({ products, statuses, onRemove }: AddedProductListProps) {
+function AddedProductList({ products, onRemove }: AddedProductListProps) {
     if (products.length === 0) {
         return null;
     }
@@ -27,7 +26,6 @@ function AddedProductList({ products, statuses, onRemove }: AddedProductListProp
                         link={product.link}
                         content={product.content}
                         images={product.images}
-                        status={statuses[product.id]}
                         onRemove={() => onRemove(product.id)}
                     />
                 ))}
