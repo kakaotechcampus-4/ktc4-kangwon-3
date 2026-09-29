@@ -1,6 +1,7 @@
 """LawClient 본문 파싱을 실제 법제처 호출 없이 검증한다."""
 
 import httpx
+import pytest
 
 from app.clients.law import LawClient
 from app.schemas.clients.law_request import LawTextRequest
@@ -11,6 +12,11 @@ def _client_returning(body: str) -> LawClient:
     request = httpx.Request("GET", "https://www.law.go.kr/DRF/lawService.do")
     client._get = lambda path, params=None: httpx.Response(200, text=body, request=request)
     return client
+
+
+def _full_size(body: str) -> str:
+    # 3KB 미만 본문은 수신 실패로 처리되므로, 파싱만 보는 테스트는 주석으로 실제 본문 크기를 채운다.
+    return body + "<!--" + " " * 4096 + "-->"
 
 
 def test_법령_본문의_별표를_조문과_함께_파싱한다():
@@ -27,7 +33,7 @@ def test_법령_본문의_별표를_조문과_함께_파싱한다():
         "</법령>"
     )
 
-    result = _client_returning(body).get_law_text(LawTextRequest(mst="273575"))
+    result = _client_returning(_full_size(body)).get_law_text(LawTextRequest(mst="273575"))
 
     assert len(result.articles) == 1
     assert len(result.annexes) == 2
@@ -47,7 +53,7 @@ def test_별표구분으로_품목표와_서식을_구분할_수_있다():
         "</별표></법령>"
     )
 
-    result = _client_returning(body).get_law_text(LawTextRequest(mst="273575"))
+    result = _client_returning(_full_size(body)).get_law_text(LawTextRequest(mst="273575"))
 
     assert [a.annex_type for a in result.annexes] == ["별표", "서식"]
 
@@ -55,6 +61,40 @@ def test_별표구분으로_품목표와_서식을_구분할_수_있다():
 def test_별표가_없는_문서는_빈_목록을_돌려준다():
     body = "<법령><조문><조문단위><조문번호>1</조문번호></조문단위></조문></법령>"
 
-    result = _client_returning(body).get_law_text(LawTextRequest(mst="276591"))
+    result = _client_returning(_full_size(body)).get_law_text(LawTextRequest(mst="276591"))
 
     assert result.annexes == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # 없는 MST → 126B 안내 XML
+        "<Law>일치하는 법령이 없습니다. 법령명을 확인하여 주십시오.</Law>",
+        # 없는 행정규칙 ID → 138B 안내 XML
+        "<Law>일치하는 행정규칙이 없습니다. 행정규칙명을 확인하여 주십시오.</Law>",
+    ],
+)
+def test_3KB_미만_본문은_빈_결과_대신_수신_실패로_올린다(body):
+    # 빈 결과로 넘기면 판정 단계가 "해당 규정 없음"으로 읽는다 (#183).
+    with pytest.raises(RuntimeError, match="3KB 미만"):
+        _client_returning(body).get_law_text(LawTextRequest(mst="999999999"))
+
+
+def test_XML이_아닌_본문은_크기와_관계없이_수신_실패로_올린다():
+    # licbyl 본문 요청은 3,225B짜리 HTML 껍데기가 와서 크기 기준만으로는 걸러지지 않는다.
+    body = "<!DOCTYPE html><html><head><title>국가법령통합관리시스템</title></head><body>" + "&nbsp;" * 600
+    with pytest.raises(RuntimeError, match="XML이 아닌 응답"):
+        _client_returning(body).get_law_text(LawTextRequest(mst="18166257"))
+
+
+def test_수신_실패_메시지에_target_일련번호_응답크기를_남긴다():
+    body = "<Law>일치하는 법령이 없습니다. 법령명을 확인하여 주십시오.</Law>"
+
+    with pytest.raises(RuntimeError) as exc_info:
+        _client_returning(body).get_law_text(LawTextRequest(mst="999999999"))
+
+    message = str(exc_info.value)
+    assert "target=law" in message
+    assert "id=999999999" in message
+    assert f"{len(body.encode()):,}B" in message

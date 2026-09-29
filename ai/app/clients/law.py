@@ -1,6 +1,8 @@
 """법제처 소관 외부 API 클라이언트."""
 
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, ParseError
+
+import httpx
 
 from .base import BaseClient
 from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
@@ -30,6 +32,8 @@ class LawClient(BaseClient):
 
     _SEARCH_ENDPOINT = "/DRF/lawSearch.do"
     _TEXT_ENDPOINT = "/DRF/lawService.do"
+    # 이보다 작은 본문 응답은 "일치하는 법령이 없습니다" 같은 안내 응답으로 본다
+    _MIN_TEXT_BYTES = 3 * 1024
 
     def __init__(self, oc: str = "test"):
         super().__init__(
@@ -126,6 +130,7 @@ class LawClient(BaseClient):
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 3KB 미만인 응답).
         """
         return self._fetch_text(request, target="law", id_param="MST")
 
@@ -140,6 +145,7 @@ class LawClient(BaseClient):
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 3KB 미만인 응답).
         """
         return self._fetch_text(request, target="admrul", id_param="ID")
 
@@ -154,6 +160,7 @@ class LawClient(BaseClient):
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 3KB 미만인 응답).
         """
         return self._fetch_text(request, target="eflaw", id_param="MST")
 
@@ -168,6 +175,7 @@ class LawClient(BaseClient):
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 3KB 미만인 응답).
         """
         return self._fetch_text(request, target="licbyl", id_param="ID")
 
@@ -204,6 +212,9 @@ class LawClient(BaseClient):
 
         Returns:
             LawTextResponse: 조문·별표 목록이 담긴 본문 응답.
+
+        Raises:
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 3KB 미만인 응답).
         """
         response = self._get(self._TEXT_ENDPOINT, params={
             "OC": self._oc,
@@ -211,8 +222,7 @@ class LawClient(BaseClient):
             id_param: request.mst,       # 일련번호
             "type": "XML",
         })
-        root = self._parse_xml(response)
-        self._check_api_error(root)
+        root = self._parse_text_root(response, target, request.mst)
 
         # 별표(품목표 등)는 조문과 별개로 <별표> > <별표단위> 아래에 오게 됨
         annexes = [self._parse_annex(el) for el in root.iter("별표단위")]
@@ -241,6 +251,41 @@ class LawClient(BaseClient):
             )
 
         return LawTextResponse(articles=[], annexes=annexes)
+
+    def _parse_text_root(self, response: httpx.Response, target: str, id_value: str) -> Element:
+        """본문 응답을 XML로 파싱하고, 본문을 받지 못한 응답을 걸러낸다.
+
+        법제처는 요청이 잘못되면 본문 대신 HTML 안내 페이지나 수백 B짜리 안내 XML을 성공으로 돌려준다.
+        이를 빈 결과로 넘기면 "받지 못한 것"과 "받았는데 조문이 없는 것"을 호출하는 쪽에서 구분할 수 없다.
+
+        Args:
+            response: 본문 조회 HTTP 응답.
+            target: 검색 대상 (예외 메시지용).
+            id_value: 요청한 일련번호 (예외 메시지용).
+
+        Returns:
+            Element: 파싱된 XML 루트 엘리먼트.
+
+        Raises:
+            RuntimeError: API 에러 응답이거나, XML이 아니거나(HTML 등), 3KB 미만인 응답인 경우.
+        """
+        size = len(response.content)
+        where = f"target={target}, id={id_value}, 응답 {size:,}B"
+
+        # licbyl 껍데기 HTML(3,225B)은 크기 기준을 통과하므로 XML 여부를 먼저 본다
+        try:
+            root = self._parse_xml(response)
+        except ParseError as e:
+            raise RuntimeError(f"법제처 본문 수신 실패: XML이 아닌 응답 ({where})") from e
+        if root.tag.lower() == "html":
+            raise RuntimeError(f"법제처 본문 수신 실패: XML이 아닌 응답 ({where})")
+
+        self._check_api_error(root)
+
+        # 정상 본문은 가장 작은 고시도 약 17KB (노션 [서비스 구체화] 구조 1-2-2절 실측)
+        if size < self._MIN_TEXT_BYTES:
+            raise RuntimeError(f"법제처 본문 수신 실패: 3KB 미만 응답 ({where})")
+        return root
 
     @staticmethod
     def _check_api_error(root: Element) -> None:
