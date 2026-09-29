@@ -150,19 +150,22 @@ class LawClient(BaseClient):
         return self._fetch_text(request, target="admrul", id_param="ID")
 
     def get_eflaw_text(self, request: LawTextRequest) -> LawTextResponse:
-        """시행법령 본문을 조회한다.
+        """시행법령(연혁 포함) 본문을 조회한다.
+
+        target=eflaw는 검색 전용이라 본문을 요청하면 HTML이 온다.
+        연혁 본문은 target=law에 그 시점 버전의 MST를 넣어야 받을 수 있다.
 
         Args:
-            request: 본문 조회 요청 파라미터.
+            request: 본문 조회 요청 파라미터. mst에는 search_eflaw() 결과의 버전별 mst를 넣는다.
 
         Returns:
-            LawTextResponse: 조문 목록이 담긴 본문 응답.
+            LawTextResponse: 해당 버전의 조문·별표 목록이 담긴 본문 응답.
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
             RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 3KB 미만인 응답).
         """
-        return self._fetch_text(request, target="eflaw", id_param="MST")
+        return self._fetch_text(request, target="law", id_param="MST")
 
     def get_licbyl_text(self, request: LawTextRequest) -> LawTextResponse:
         """자치법규 본문을 조회한다.
@@ -207,8 +210,8 @@ class LawClient(BaseClient):
 
         Args:
             request: 본문 조회 요청 파라미터.
-            target: 검색 대상 (law, admrul, eflaw, licbyl).
-            id_param: 일련번호 파라미터명 (law/eflaw은 MST, admrul/licbyl은 ID).
+            target: 검색 대상 (law, admrul, licbyl). eflaw 본문도 target=law로 조회한다.
+            id_param: 일련번호 파라미터명 (law는 MST, admrul/licbyl은 ID).
 
         Returns:
             LawTextResponse: 조문·별표 목록이 담긴 본문 응답.
