@@ -223,6 +223,7 @@ class LawClient(BaseClient):
             "type": "XML",
         })
         root = self._parse_text_root(response, target, request.mst)
+        info = self._parse_text_info(root)
 
         # 별표(품목표 등)는 조문과 별개로 <별표> > <별표단위> 아래에 오게 됨
         annexes = [self._parse_annex(el) for el in root.iter("별표단위")]
@@ -231,6 +232,7 @@ class LawClient(BaseClient):
         articles_el = root.find("조문")
         if articles_el is not None:
             return LawTextResponse(
+                **info,
                 articles=[
                     self._parse_article(el)
                     for el in articles_el.iter("조문단위")
@@ -242,6 +244,7 @@ class LawClient(BaseClient):
         content_els = root.findall("조문내용")
         if content_els:
             return LawTextResponse(
+                **info,
                 articles=[
                     LawArticle(article_content=el.text)
                     for el in content_els
@@ -250,7 +253,38 @@ class LawClient(BaseClient):
                 annexes=annexes,
             )
 
-        return LawTextResponse(articles=[], annexes=annexes)
+        return LawTextResponse(**info, articles=[], annexes=annexes)
+
+    def _parse_text_info(self, root: Element) -> dict[str, str | None]:
+        """본문 응답의 기본정보를 파싱한다.
+
+        Args:
+            root: 본문 응답 XML 루트 엘리먼트.
+
+        Returns:
+            dict[str, str | None]: LawTextResponse의 기본정보 필드. 기본정보가 없으면 빈 dict.
+        """
+        # law/eflaw: <기본정보> 아래 법령명_한글, 법령ID, 소관부처
+        law_info = root.find("기본정보")
+        if law_info is not None:
+            return {
+                "name": self._text(law_info, "법령명_한글"),
+                "document_id": self._text(law_info, "법령ID"),
+                "enforce_date": self._text(law_info, "시행일자"),
+                "department": self._text(law_info, "소관부처"),
+            }
+
+        # admrul: <행정규칙기본정보> 아래 행정규칙명, 행정규칙ID, 소관부처명
+        admrul_info = root.find("행정규칙기본정보")
+        if admrul_info is not None:
+            return {
+                "name": self._text(admrul_info, "행정규칙명"),
+                "document_id": self._text(admrul_info, "행정규칙ID"),
+                "enforce_date": self._text(admrul_info, "시행일자"),
+                "department": self._text(admrul_info, "소관부처명"),
+            }
+
+        return {}
 
     def _parse_text_root(self, response: httpx.Response, target: str, id_value: str) -> Element:
         """본문 응답을 XML로 파싱하고, 본문을 받지 못한 응답을 걸러낸다.
