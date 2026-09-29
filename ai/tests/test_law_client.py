@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from app.clients.law import LawClient
-from app.schemas.clients.law_request import LawTextRequest
+from app.schemas.clients.law_request import LawTextRequest, LicbylTextRequest
 
 
 def _client_returning(body: str) -> LawClient:
@@ -132,3 +132,46 @@ def test_행정규칙_본문의_기본정보를_파싱한다():
     assert result.enforce_date == "20250101"
     assert result.department == "공정거래위원회"
     assert len(result.articles) == 1
+
+
+_SAME_NUMBER_ANNEX_BODY = (
+    "<법령><조문></조문><별표>"
+    "<별표단위><별표번호>0003</별표번호><별표가지번호>00</별표가지번호><별표구분>별표</별표구분>"
+    "<별표제목>안전인증대상제품</별표제목><별표내용>1. 전기용품</별표내용></별표단위>"
+    "<별표단위><별표번호>0003</별표번호><별표가지번호>00</별표가지번호><별표구분>서식</별표구분>"
+    "<별표제목>안전인증기관 지정신청서</별표제목><별표내용>신청서 양식</별표내용></별표단위>"
+    "</별표></법령>"
+)
+
+
+@pytest.mark.parametrize(
+    ("table_type", "expected_title"),
+    [
+        ("별표", "안전인증대상제품"),
+        ("서식", "안전인증기관 지정신청서"),
+    ],
+)
+def test_별표는_관련_법령_본문에서_번호와_종류가_맞는_것을_고른다(table_type, expected_title):
+    # 한 법령 안에 같은 번호(0003/00)의 별표와 서식이 따로 있어 번호만으로는 고를 수 없다 (#184).
+    client = _client_returning(_full_size(_SAME_NUMBER_ANNEX_BODY))
+
+    annex = client.get_licbyl_text(
+        LicbylTextRequest(related_law_mst="273575", table_number="000300", table_type=table_type)
+    )
+
+    assert annex.annex_title == expected_title
+
+
+def test_관련_법령_본문에_요청한_별표가_없으면_빈_결과_대신_예외를_올린다():
+    client = _client_returning(_full_size(_SAME_NUMBER_ANNEX_BODY))
+
+    with pytest.raises(RuntimeError, match="요청한 별표가 없음"):
+        client.get_licbyl_text(
+            LicbylTextRequest(related_law_mst="273575", table_number="000400", table_type="별표")
+        )
+
+
+@pytest.mark.parametrize("table_number", ["0003", "0003-00", "00030000"])
+def test_별표번호는_6자리만_허용한다(table_number):
+    with pytest.raises(ValueError):
+        LicbylTextRequest(related_law_mst="273575", table_number=table_number, table_type="별표")
