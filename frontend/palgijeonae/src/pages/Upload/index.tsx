@@ -56,10 +56,6 @@ function UploadPage() {
             return;
         }
 
-        if (isPending) {
-            return;
-        }
-
         runSubmitDiagnosis(products);
     };
 
