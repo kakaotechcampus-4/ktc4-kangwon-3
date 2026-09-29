@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.ses.SesClient;
 import software.amazon.awssdk.services.ses.model.SendEmailRequest;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 @Slf4j
 @Component
@@ -39,5 +40,11 @@ public class SesApiMailSender implements MailSender {
             // 호출부(비동기 리스너)가 재시도 여부를 판단할 수 있도록 삼키지 않고 올린다.
             throw new MailSendFailedException(message.to(), e);
         }
+    }
+    // SES 는 Source 에 ASCII 가 아닌 문자가 있으면 RFC 2047 인코딩을 요구한다.
+    private String formatSource() {
+        String encodedName = Base64.getEncoder()
+                .encodeToString(mailProperties.fromName().getBytes(StandardCharsets.UTF_8));
+        return "=?UTF-8?B?%s?= <%s>".formatted(encodedName, mailProperties.from());
     }
 }
