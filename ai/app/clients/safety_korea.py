@@ -55,7 +55,7 @@ class SafetyKoreaClient(BaseClient):
             request: 검색 요청. 사용 가능한 condition_key는 CertSearchRequest 참고.
 
         Returns:
-            CertSearchResponse: 인증정보 목록.
+            CertSearchResponse: 인증정보 목록. certNum 조회는 인증번호가 요청과 일치하는 항목만 담는다.
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
@@ -65,6 +65,9 @@ class SafetyKoreaClient(BaseClient):
             "conditionValue": request.condition_value,
         })
         raw_items = data.get("resultData") or []
+        # 필터가 무시된 응답의 첫 항목을 요청한 인증으로 믿으면 다른 제품의 인증 상태를 답하게 된다 (#185)
+        if request.condition_key == "certNum":
+            raw_items = [item for item in raw_items if item.get("certNum") == request.condition_value]
         return CertSearchResponse(
             items=[CertItem(**item) for item in raw_items],
         )
