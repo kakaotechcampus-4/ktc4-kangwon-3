@@ -48,12 +48,11 @@ public class ProductService {
         UUID diagnosesId = productRepository.findDiagnosesIdById(productId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
-        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
+        // 소유권은 락 쿼리에서 함께 검증한다. 이유는 DiagnosesRepository의 findByIdAndUserIdForUpdate 참고
+        // 없는 진단서와 남의 진단서 모두 빈 결과라 같은 NOT_FOUND 로 응답한다.
+        Diagnoses diagnoses = diagnosesRepository.findByIdAndUserIdForUpdate(diagnosesId, userId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
-        if (!diagnoses.isOwnedBy(userId)) {
-            throw new BaseException(CommonResponseCode.NOT_FOUND);
-        }
 
         Product product = diagnoses.getProducts().stream()
                 .filter(candidate -> candidate.getId().equals(productId))
