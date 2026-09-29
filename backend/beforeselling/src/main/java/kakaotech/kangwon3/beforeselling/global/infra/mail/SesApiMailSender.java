@@ -37,7 +37,7 @@ public class SesApiMailSender implements MailSender {
 
             log.debug("메일 발송 완료. to={}, subject={}", message.to(), message.subject());
         } catch (Exception e) {
-            // 호출부(비동기 리스너)가 재시도 여부를 판단할 수 있도록 삼키지 않고 올린다.
+            // 호출부(MailSendEventListener)가 실패를 기록할 수 있도록 삼키지 않고 올린다.
             throw new MailSendFailedException(message.to(), e);
         }
     }
