@@ -32,6 +32,10 @@ export const uploadProductImages = async (product: Product): Promise<ProductImag
         })),
     );
 
+    if (presignedFiles.length !== files.length) {
+        throw new Error("발급받은 presigned URL 개수가 요청한 파일 개수와 다릅니다.");
+    }
+
     // 발급받은 presigned URL로 각 파일을 S3에 업로드
     await Promise.all(
         files.map((file, index) => putToS3(presignedFiles[index].presignedUrl, file, presignedFiles[index].contentType)),
