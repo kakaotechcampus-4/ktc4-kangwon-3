@@ -7,6 +7,7 @@ import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -59,6 +60,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(AccessDeniedException e) {
         log.error("AccessDeniedException: ", e);
         BaseResponseCode responseCode = CommonResponseCode.FORBIDDEN;
+
+        return ResponseEntity
+                .status(responseCode.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.ofFail(responseCode));
+    }
+
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePessimisticLockingFailureException(PessimisticLockingFailureException e) {
+        log.warn("PessimisticLockingFailureException: {}", e.getMessage());
+        BaseResponseCode responseCode = CommonResponseCode.LOCK_CONFLICT;
 
         return ResponseEntity
                 .status(responseCode.getStatus())
