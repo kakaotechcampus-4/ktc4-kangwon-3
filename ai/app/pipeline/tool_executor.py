@@ -7,8 +7,21 @@ from ..schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.base import utc_now
 from ..schemas.product import Product
-from ..schemas.schemas import ToolName, ToolResult, ToolStatus
+from ..schemas.schemas import (
+    ToolName,
+    ToolResult,
+    ToolStatus,
+    VerificationIssueType,
+)
 from ..tools.base import RegulatoryTool
+
+
+_FINDING_INVALIDATING_ISSUES = frozenset(
+    {
+        VerificationIssueType.TOOL_FAILURE,
+        VerificationIssueType.MISSING_EVIDENCE,
+    }
+)
 
 
 class ToolExecutor:
@@ -88,13 +101,19 @@ class ToolExecutor:
                 "추가 검토를 요청했습니다."
             )
 
-            result = self._execute_one(
+            retry_result = self._execute_one(
                 product,
                 decision,
                 retry_round=retry_request.retry_round,
             )
+            # 이력에는 Tool이 이번 회차에 실제로 반환한 결과만 기록한다.
+            history.append(retry_result.model_copy(deep=True))
+            result = self._retain_unchallenged_findings(
+                previous_result=latest_results[tool_name],
+                retry_result=retry_result,
+                retry_request=retry_request,
+            )
             latest_results[tool_name] = result.model_copy(deep=True)
-            history.append(result.model_copy(deep=True))
 
         return SelectionResult(
             selection=selection,
@@ -156,6 +175,47 @@ class ToolExecutor:
                 "retry_round": retry_round,
                 "selection_reason": decision.reason,
                 "executed_at": started_at,
+            },
+            deep=True,
+        )
+
+    @staticmethod
+    def _retain_unchallenged_findings(
+        *,
+        previous_result: ToolResult,
+        retry_result: ToolResult,
+        retry_request: RetryRequest,
+    ) -> ToolResult:
+        """재실행 실패가 검증에서 지적하지 않은 과거 판단까지 숨기지 않게 한다."""
+        if retry_result.status is not ToolStatus.FAILED:
+            return retry_result
+
+        challenged_finding_ids = {
+            finding_id
+            for issue in retry_request.verification.issues
+            if issue.severity == "critical"
+            and issue.issue_type in _FINDING_INVALIDATING_ISSUES
+            for finding_id in issue.related_finding_ids
+        }
+        retained_findings = [
+            finding.model_copy(deep=True)
+            for finding in previous_result.findings
+            if finding.finding_id not in challenged_finding_ids
+        ]
+        if not retained_findings:
+            return retry_result
+
+        # 재실행 자체는 실패했지만 이전 회차의 유효한 판단과 부가 정보가 남아 있다.
+        previous_snapshot = previous_result.model_copy(deep=True)
+        return retry_result.model_copy(
+            update={
+                "status": ToolStatus.PARTIAL,
+                "query": previous_snapshot.query,
+                "result": previous_snapshot.result,
+                "findings": retained_findings,
+                "required_actions": previous_snapshot.required_actions,
+                "missing_information": previous_snapshot.missing_information,
+                "raw_response": previous_snapshot.raw_response,
             },
             deep=True,
         )

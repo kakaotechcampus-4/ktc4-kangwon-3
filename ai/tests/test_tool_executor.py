@@ -8,9 +8,14 @@ import pytest
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
 from app.schemas.schemas import (
+    Determination,
+    RegulatoryFinding,
+    RiskLevel,
     ToolName,
     ToolResult,
     ToolStatus,
+    VerificationIssue,
+    VerificationIssueType,
     VerificationResult,
     VerificationStatus,
 )
@@ -466,6 +471,81 @@ def test_Tool_재실행_실패를_최신_결과와_이력으로_보존한다(too
 
     # 재실행 실패 후에도 입력 객체는 변경하지 않는다.
     assert initial_result == original_result
+
+
+@pytest.mark.parametrize(
+    "tool_name",
+    list(ToolName),
+    ids=lambda tool_name: tool_name.value,
+)
+def test_재실행_실패_시_이전_판단이_모두_critical로_지적되면_FAILED를_유지한다(
+    tool_name: ToolName,
+):
+    finding = RegulatoryFinding(
+        tool_name=tool_name,
+        subject="근거 보완 대상",
+        determination=Determination.REQUIRED,
+        risk_level=RiskLevel.MEDIUM,
+        summary="근거가 부족한 판단",
+        rationale="확정 판단을 뒷받침할 출처가 없습니다.",
+    )
+    invocation_count = 0
+
+    def succeed_then_fail(
+        product: Product,
+        decision: ToolSelectionItem,
+    ) -> ToolResult:
+        nonlocal invocation_count
+        invocation_count += 1
+        if invocation_count == 2:
+            raise RuntimeError("재실행 실패")
+        return ToolResult(
+            tool_name=tool_name,
+            status=ToolStatus.SUCCESS,
+            selected=True,
+            selection_reason=decision.reason,
+            findings=[finding],
+        )
+
+    tools = _tools()
+    tools[tool_name] = _StubTool(tool_name, succeed_then_fail)
+    executor = ToolExecutor(tools)
+    product = Product(product_id="p1")
+    initial_result = executor.execute_initial(product, _selection(tool_name))
+    verification = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED,
+        issues=[
+            VerificationIssue(
+                severity="critical",
+                issue_type=VerificationIssueType.MISSING_EVIDENCE,
+                description="확정 판단의 근거가 부족합니다.",
+                related_finding_ids=[finding.finding_id],
+            )
+        ],
+        additional_tools_required=[tool_name],
+    )
+    retry_request = RetryRequest(
+        retry_round=1,
+        requested_tools=[tool_name],
+        verification=verification,
+        latest_tool_results=initial_result.tool_results,
+    )
+
+    result = executor.execute_retry(product, initial_result, retry_request)
+
+    latest_result = next(
+        item for item in result.tool_results if item.tool_name is tool_name
+    )
+    tool_history = [
+        item for item in result.tool_result_history if item.tool_name is tool_name
+    ]
+    assert latest_result.status is ToolStatus.FAILED
+    assert latest_result.findings == []
+    assert [item.status for item in tool_history] == [
+        ToolStatus.SUCCESS,
+        ToolStatus.FAILED,
+    ]
+    assert tool_history[-1].findings == []
 
 
 @pytest.mark.parametrize(
