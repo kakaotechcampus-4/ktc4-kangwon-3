@@ -1,4 +1,6 @@
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
@@ -6,6 +8,7 @@ import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import { cn } from "@/lib/cn";
 
 import AddedProductList from "./AddedProductList.tsx";
+import { submitDiagnosis } from "./diagnosisPipeline.ts";
 import TextImageInputForm from "./TextImageInputForm.tsx";
 import type { Product } from "./types.ts";
 import UrlInputForm from "./UrlInputForm.tsx";
@@ -20,8 +23,7 @@ type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 function UploadPage() {
     const [inputType, setInputType] = useState<InputType>("url");
     const [products, setProducts] = useState<Product[]>([]);
-    // 제출 이후엔 입력 폼을 숨긴다.
-    const [hasSubmitted, setHasSubmitted] = useState(false);
+    const navigate = useNavigate();
 
     const handleAddProduct = (product: Product) => {
         setProducts((prev) => [...prev, product]);
@@ -38,21 +40,34 @@ function UploadPage() {
         setProducts((prev) => prev.filter((product) => product.id !== id));
     };
 
-    // TODO: 배치(products 배열 한 번에) 진단 생성 API에 맞춰 다시 구현한다.
+    const { mutate: runSubmitDiagnosis, isPending } = useMutation({
+        mutationFn: submitDiagnosis,
+        onSuccess: (diagnosesId) => {
+            navigate("/judgement", { state: { diagnosesId } });
+        },
+        onError: () => {
+            alert("진단 요청에 실패했습니다. 다시 시도해주세요.");
+        },
+    });
+
     const handleStartDiagnosis = () => {
         if (products.length === 0) {
             alert("진단할 상품을 먼저 추가해주세요.");
             return;
         }
 
-        setHasSubmitted(true);
+        if (isPending) {
+            return;
+        }
+
+        runSubmitDiagnosis(products);
     };
 
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="상품 업로드" description="상세페이지를 붙여넣거나 이미지·URL로 추가하세요.
 여러 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다." />
-            {!hasSubmitted && (
+            {!isPending && (
                 <DefaultBox align="left">
                     <div className="flex flex-row w-full gap-4">
                         {INPUT_TYPE_TABS.map(({ key, label }) => (
@@ -78,7 +93,7 @@ function UploadPage() {
             )}
             <AddedProductList products={products} onRemove={handleRemoveProduct} />
             <div className="flex w-full justify-end">
-                <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} />
+                <Button text={isPending ? "진단 요청 중..." : "진단 시작하기"} onClick={handleStartDiagnosis} fontSize={15} />
             </div>
         </div>
     );
