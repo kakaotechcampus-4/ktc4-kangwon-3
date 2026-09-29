@@ -15,7 +15,7 @@ interface ProductTabsProps {
     onSelect: (index: number) => void
 }
 
-// 탭에 상품명을 몇 글자까지 그대로 보여줄지 결정
+// 상품명을 몇 글자까지 보여줄 지 결정
 const MAX_PRODUCT_NAME_LENGTH = 10;
 
 const truncateProductName = (name: string) =>
