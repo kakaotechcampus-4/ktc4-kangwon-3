@@ -35,7 +35,6 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
             id: crypto.randomUUID(),
             type: "url",
             title: trimmedName,
-            thumbnail: image ? URL.createObjectURL(image) : undefined,
             productImageFile: image ?? undefined,
             link: trimmedLink,
         });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import deleteIcon from "@/assets/delete-gray.svg"
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
@@ -13,7 +13,7 @@ import AttachedImageList from "./form/AttachedImageList.tsx"
 interface AddedProductProps {
     type: "url" | "text/image";
     title: string;
-    thumbnail?: string;
+    productImageFile?: File;
     link?: string;
     content?: string;
     images?: File[];
@@ -21,8 +21,21 @@ interface AddedProductProps {
 }
 
 
-function AddedProduct({ type, title, thumbnail, link, content, images, onRemove }: AddedProductProps) {
+function AddedProduct({ type, title, productImageFile, link, content, images, onRemove }: AddedProductProps) {
     const [expanded, setExpanded] = useState(false);
+    const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
+
+    // 자동으로 해제 되게끔 File을 받아와 useEffect 안에서 url을 생성한다.
+    useEffect(() => {
+        const url = productImageFile ? URL.createObjectURL(productImageFile) : undefined;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setThumbnail(url);
+        return () => {
+            if (url) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [productImageFile]);
 
     return (
         <DefaultBox>

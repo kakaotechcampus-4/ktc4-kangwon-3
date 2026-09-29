@@ -38,7 +38,6 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
             id: crypto.randomUUID(),
             type: "text/image",
             title: trimmedName,
-            thumbnail: image ? URL.createObjectURL(image) : undefined,
             productImageFile: image ?? undefined,
             content: trimmedContent,
             images: productImages,
