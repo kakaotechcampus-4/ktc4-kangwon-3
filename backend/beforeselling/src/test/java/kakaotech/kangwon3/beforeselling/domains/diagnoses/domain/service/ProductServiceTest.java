@@ -42,7 +42,6 @@ class ProductServiceTest {
     private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final UUID DIAGNOSES_ID = UUID.randomUUID();
     private static final UUID USER_ID = UUID.randomUUID();
-    private static final UUID OTHER_USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
@@ -124,8 +123,7 @@ class ProductServiceTest {
     void removeProduct_thenRemoveFromDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
-        Product target = diagnoses.getProducts().getFirst();
-        given(productRepository.findWithImagesById(PRODUCT_ID)).willReturn(Optional.of(target));
+        givenLockedDiagnoses(diagnoses);
 
         // when
         productService.removeProduct(USER_ID, PRODUCT_ID);
@@ -141,9 +139,8 @@ class ProductServiceTest {
     void removeProduct_thenPublishS3FileDeleteEvent() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
-        Product target = diagnoses.getProducts().getFirst();
-        target.addImages(List.of("product-detail/1/uuid_a1.jpg"));
-        given(productRepository.findWithImagesById(PRODUCT_ID)).willReturn(Optional.of(target));
+        diagnoses.getProducts().getFirst().addImages(List.of("product-detail/1/uuid_a1.jpg"));
+        givenLockedDiagnoses(diagnoses);
 
         // when
         productService.removeProduct(USER_ID, PRODUCT_ID);
@@ -159,8 +156,7 @@ class ProductServiceTest {
     void removeProduct_withRemainingProducts_thenKeepDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
-        given(productRepository.findWithImagesById(PRODUCT_ID))
-                .willReturn(Optional.of(diagnoses.getProducts().getFirst()));
+        givenLockedDiagnoses(diagnoses);
 
         // when
         productService.removeProduct(USER_ID, PRODUCT_ID);
@@ -174,8 +170,7 @@ class ProductServiceTest {
     void removeProduct_withLastProduct_thenDeleteDiagnoses() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
-        given(productRepository.findWithImagesById(PRODUCT_ID))
-                .willReturn(Optional.of(diagnoses.getProducts().getFirst()));
+        givenLockedDiagnoses(diagnoses);
 
         // when
         productService.removeProduct(USER_ID, PRODUCT_ID);
@@ -186,25 +181,43 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 상품을 삭제하면 NOT_FOUND 예외가 발생한다.")
+    @DisplayName("존재하지 않는 상품을 삭제하면 진단서를 잠그지 않고 NOT_FOUND 예외가 발생한다.")
     void removeProduct_withUnknownId_thenThrowNotFound() {
         // given
-        given(productRepository.findWithImagesById(PRODUCT_ID)).willReturn(Optional.empty());
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> productService.removeProduct(USER_ID, PRODUCT_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
+
+        then(diagnosesRepository).should(never()).findByIdAndUserIdForUpdate(any(), any());
     }
 
     @Test
-    @DisplayName("다른 사용자의 상품을 삭제하려 하면 NOT_FOUND 예외가 발생하고 아무것도 삭제되지 않는다.")
-    void removeProduct_withOtherUsersProduct_thenThrowNotFound() {
-        // given
-        Diagnoses diagnoses = createDiagnoses(OTHER_USER_ID, List.of("상품 A"));
-        given(productRepository.findWithImagesById(PRODUCT_ID))
-                .willReturn(Optional.of(diagnoses.getProducts().getFirst()));
+    @DisplayName("락 조회 결과가 없으면(앞선 요청이 진단서를 삭제했거나 남의 진단서) NOT_FOUND 예외가 발생한다.")
+    void removeProduct_whenDiagnosesDeletedWhileWaitingForLock_thenThrowNotFound() {
+        // given: 마지막 상품을 연타한 경우. 앞선 요청이 상품과 함께 빈 진단서까지 지웠다.
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.of(DIAGNOSES_ID));
+        given(diagnosesRepository.findByIdAndUserIdForUpdate(DIAGNOSES_ID, USER_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> productService.removeProduct(USER_ID, PRODUCT_ID))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("락을 얻은 뒤 보니 상품이 이미 삭제되었다면 NOT_FOUND 예외가 발생하고 아무것도 삭제되지 않는다.")
+    void removeProduct_whenProductDeletedWhileWaitingForLock_thenThrowNotFound() {
+        // given: 같은 상품을 연타한 경우. 앞선 요청이 대상 상품만 지워 목록에는 다른 상품만 남아 있다.
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 B"));
+        ReflectionTestUtils.setField(diagnoses.getProducts().getFirst(), "id", UUID.randomUUID());
+        givenLockedDiagnoses(diagnoses);
 
         // when & then
         assertThatThrownBy(() -> productService.removeProduct(USER_ID, PRODUCT_ID))
@@ -217,17 +230,25 @@ class ProductServiceTest {
         then(eventPublisher).should(never()).publishEvent(any());
     }
 
-    private Diagnoses createDiagnoses(List<String> productNames) {
-        return createDiagnoses(USER_ID, productNames);
+    private void givenLockedDiagnoses(Diagnoses diagnoses) {
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.of(DIAGNOSES_ID));
+        given(diagnosesRepository.findByIdAndUserIdForUpdate(DIAGNOSES_ID, USER_ID)).willReturn(Optional.of(diagnoses));
     }
 
-    private Diagnoses createDiagnoses(UUID ownerId, List<String> productNames) {
-        Diagnoses diagnoses = Diagnoses.pending(ownerId);
+    private Diagnoses createDiagnoses(List<String> productNames) {
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         ReflectionTestUtils.setField(diagnoses, "id", DIAGNOSES_ID);
 
         diagnoses.addProducts(productNames.stream()
                 .map(name -> Product.pending(name, PRODUCT_IMAGE_KEY, SourceType.URL, SOURCE_URL, null))
                 .toList());
+
+        // 서비스가 락을 얻은 뒤 목록에서 productId 로 대상을 찾으므로 id 가 있어야 한다.
+        // 첫 번째 상품을 삭제 대상(PRODUCT_ID)으로 두고, 나머지는 임의 id 를 준다.
+        List<Product> products = diagnoses.getProducts();
+        for (int i = 0; i < products.size(); i++) {
+            ReflectionTestUtils.setField(products.get(i), "id", i == 0 ? PRODUCT_ID : UUID.randomUUID());
+        }
 
         return diagnoses;
     }

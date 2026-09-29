@@ -24,6 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.UUID;
@@ -155,6 +156,35 @@ class DiagnosesRepositoryTest {
                 .flatExtracting(Product::getImages)
                 .extracting(ProductImage::getImageKey)
                 .containsExactly("product-detail/1/uuid_a1.jpg");
+    }
+
+    @Test
+    @DisplayName("본인의 진단서를 잠금 조회하면 진단서가 반환된다.")
+    void findByIdAndUserIdForUpdate_withOwner_thenReturnDiagnoses() {
+        // given
+        UUID diagnosesId = diagnosesRepository.save(createDiagnoses(USER_ID, null)).getId();
+        flushAndClear();
+
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdAndUserIdForUpdate(diagnosesId, USER_ID);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getProducts()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 진단서를 잠금 조회하면 빈 결과가 반환된다.")
+    void findByIdAndUserIdForUpdate_withOtherUser_thenReturnEmpty() {
+        // given
+        UUID diagnosesId = diagnosesRepository.save(createDiagnoses(OTHER_USER_ID, null)).getId();
+        flushAndClear();
+
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdAndUserIdForUpdate(diagnosesId, USER_ID);
+
+        // then
+        assertThat(result).isEmpty();
     }
 
     private Diagnoses createDiagnoses(UUID userId, ResultStatus resultStatus) {
