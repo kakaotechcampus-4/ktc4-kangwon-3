@@ -5,7 +5,7 @@ from xml.etree.ElementTree import Element, ParseError
 import httpx
 
 from .base import BaseClient
-from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
+from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest, LicbylTextRequest
 from ..schemas.clients.law_response import (
     AdmrulSearchItem,
     AdmrulSearchResponse,
@@ -167,20 +167,35 @@ class LawClient(BaseClient):
         """
         return self._fetch_text(request, target="law", id_param="MST")
 
-    def get_licbyl_text(self, request: LawTextRequest) -> LawTextResponse:
-        """자치법규 본문을 조회한다.
+    def get_licbyl_text(self, request: LicbylTextRequest) -> LawAnnex:
+        """별표·서식 본문을 조회한다.
+
+        target=licbyl은 검색 전용이라 본문을 요청하면 HTML 껍데기가 온다.
+        별표 본문은 관련 법령 본문(target=law)에 함께 오므로, 그 안에서 번호와 종류가 맞는 별표를 골라 반환한다.
 
         Args:
-            request: 본문 조회 요청 파라미터.
+            request: 별표 조회 요청 파라미터. search_licbyl() 결과의 관련 법령 MST, 별표번호, 별표종류를 넣는다.
 
         Returns:
-            LawTextResponse: 조문 목록이 담긴 본문 응답.
+            LawAnnex: 요청한 별표·서식 본문.
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
-            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 3KB 미만인 응답).
+            RuntimeError: 본문을 받지 못했거나, 관련 법령 본문에 요청한 별표가 없는 경우.
         """
-        return self._fetch_text(request, target="licbyl", id_param="ID")
+        text = self._fetch_text(LawTextRequest(mst=request.related_law_mst), target="law", id_param="MST")
+
+        # 검색 결과 별표번호 "000300" = 본문 별표번호 "0003" + 별표가지번호 "00"
+        number, branch = request.table_number[:4], request.table_number[4:]
+        for annex in text.annexes:
+            if (annex.annex_number, annex.annex_branch_number, annex.annex_type) == (number, branch, request.table_type):
+                return annex
+
+        # 빈 결과로 넘기면 "별표 내용 없음"으로 읽히므로 수신 실패와 같이 예외로 올린다
+        raise RuntimeError(
+            f"법제처 별표 조회 실패: 관련 법령 본문에 요청한 별표가 없음 "
+            f"(mst={request.related_law_mst}, 별표번호={request.table_number}, 종류={request.table_type})"
+        )
 
     # -- 내부 공통 --
 
@@ -210,8 +225,8 @@ class LawClient(BaseClient):
 
         Args:
             request: 본문 조회 요청 파라미터.
-            target: 검색 대상 (law, admrul, licbyl). eflaw 본문도 target=law로 조회한다.
-            id_param: 일련번호 파라미터명 (law는 MST, admrul/licbyl은 ID).
+            target: 본문 대상 (law, admrul). eflaw·licbyl 본문도 target=law로 조회한다.
+            id_param: 일련번호 파라미터명 (law는 MST, admrul은 ID).
 
         Returns:
             LawTextResponse: 조문·별표 목록이 담긴 본문 응답.
