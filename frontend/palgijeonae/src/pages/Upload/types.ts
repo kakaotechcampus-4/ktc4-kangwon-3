@@ -2,8 +2,7 @@ export interface Product {
     id: string
     type: "url" | "text/image"
     title: string
-    thumbnail?: string
-    // 대표 이미지 원본 File. S3 업로드엔 blob url(string)이 아닌 원본 파일이 필요해서 들고 있는다.
+    // 대표 이미지 원본 File. 미리보기 blob URL은 AddedProduct가 이 File로부터 직접 만들고 관리한다.
     productImageFile?: File
     link?: string
     content?: string
