@@ -15,6 +15,12 @@ interface ProductTabsProps {
     onSelect: (index: number) => void
 }
 
+// 탭에 상품명을 몇 글자까지 그대로 보여줄지 결정
+const MAX_PRODUCT_NAME_LENGTH = 10;
+
+const truncateProductName = (name: string) =>
+    name.length > MAX_PRODUCT_NAME_LENGTH ? `${name.slice(0, MAX_PRODUCT_NAME_LENGTH)}...` : name;
+
 function ProductTabs({ productNames, selected, onSelect }: ProductTabsProps) {
     return (
         <div className="flex flex-wrap items-start gap-2.5">
@@ -25,7 +31,7 @@ function ProductTabs({ productNames, selected, onSelect }: ProductTabsProps) {
                     onClick={() => onSelect(index)}
                     className={tabVariants({ selected: index === selected })}
                 >
-                    {name}
+                    {truncateProductName(name)}
                 </button>
             ))}
         </div>
