@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
@@ -124,6 +125,57 @@ class ProductMapperTest {
         assertThat(response.pageInfo().totalElements()).isEqualTo(5);
         assertThat(response.pageInfo().totalPages()).isEqualTo(3);
         assertThat(response.pageInfo().hasNext()).isTrue();
+    }
+
+    @Test
+    @DisplayName("상세로 변환하면 원본 입력과 이미지 URL이 등록 순서대로 담긴다.")
+    void toResponse_thenIncludeSourceAndImageUrlsInOrder() {
+        // given
+        Product product = createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, null);
+        product.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
+
+        // when
+        ProductResponse response = productMapper.toResponse(product);
+
+        // then
+        assertThat(response.productId()).isEqualTo(PRODUCT_ID);
+        assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
+        assertThat(response.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
+        assertThat(response.sourceType()).isEqualTo(SourceType.URL);
+        assertThat(response.sourceUrl()).isEqualTo(SOURCE_URL);
+        assertThat(response.imageUrls()).containsExactly(
+                URL_PREFIX + "product-detail/1/uuid_a1.jpg",
+                URL_PREFIX + "product-detail/1/uuid_a2.jpg");
+        assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.PENDING);
+        assertThat(response.resultStatus()).isNull();
+        assertThat(response.summary()).isNull();
+    }
+
+    @Test
+    @DisplayName("상세 이미지와 대표 이미지 없이 등록한 상품을 변환하면 이미지가 비어 있다.")
+    void toResponse_withoutImages_thenImagesAreEmpty() {
+        // given & when
+        ProductResponse response = productMapper.toResponse(
+                createProduct(PRODUCT_ID, null, SourceType.URL, null));
+
+        // then
+        assertThat(response.productImageUrl()).isNull();
+        assertThat(response.imageUrls()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("판정이 끝난 상품을 상세로 변환하면 진단 결과와 요약이 함께 담긴다.")
+    void toResponse_withResult_thenIncludeResultAndSummary() {
+        // given
+        Product product = createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, ResultStatus.RECHECK_REQUIRED);
+        ReflectionTestUtils.setField(product, "summary", "배터리 표시 항목 재확인이 필요합니다.");
+
+        // when
+        ProductResponse response = productMapper.toResponse(product);
+
+        // then
+        assertThat(response.resultStatus()).isEqualTo(ResultStatus.RECHECK_REQUIRED);
+        assertThat(response.summary()).isEqualTo("배터리 표시 항목 재확인이 필요합니다.");
     }
 
     private Product createProduct(UUID productId, String productImageKey,
