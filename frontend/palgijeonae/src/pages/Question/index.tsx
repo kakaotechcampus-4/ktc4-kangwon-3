@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import Button from "@/components/common/Button";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 
@@ -71,6 +72,20 @@ function QuestionPage() {
         setAnswers((prev) => ({ ...prev, [questionId]: value }));
     };
 
+    const handleNextProduct = () => {
+        setSelectedProductIndex(selectedProductIndex + 1);
+    };
+
+    const handleSubmitAnswers = () => {
+        // TODO: 제출 로직은 추후 구현
+        // 비어있는 입력 폼 검증도 추후 구현
+    };
+
+    // 상품이 바뀔 때(다음 상품으로 버튼, 탭 클릭) 화면 맨 위로 이동.
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    }, [selectedProductIndex]);
+
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="추가적인 확인이 필요한 정보들을 확인합니다. 제품 각각 입력해주세요."/>
@@ -87,8 +102,13 @@ function QuestionPage() {
                     />
                 ))}
             </div>
+            <div className="flex w-full justify-end">
+                {selectedProductIndex < productNames.length - 1 ?
+                    (<Button text="다음 상품으로 →" onClick={handleNextProduct} fontSize={15} />) :
+                    (<Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} />)}
+            </div>
         </div>
-     );
+    );
 }
 
 export default QuestionPage;
