@@ -98,8 +98,13 @@ class SelectionAgent:
             result = self._structured_model.invoke(messages)
 
         except Exception as exc:
+            # 사용량 없음, 실패 횟수 집계용
+            self._record_usage(None, product, started_at, error=type(exc).__name__)
+
             # LLM 호출 실패 시 SelectionFailedError로 감싸서 호출부에 전달한다.
             raise SelectionFailedError(f"심사 도메인 선택에 실패했습니다: {exc}") from exc
+
+        usage = from_response(result.get("raw"))
 
         # 구조화 출력 파싱 중 발생한 예외. 정상 파싱이면 None.
         parsing_error = result.get("parsing_error")
@@ -110,13 +115,19 @@ class SelectionAgent:
         # 파싱 에러가 존재하거나 파싱 결과가 None인 경우
         if parsing_error is not None or selection is None:
 
+            # 파싱 실패여도 토큰은 이미 사용됨
+            self._record_usage(
+                usage, product, started_at,
+                error=type(parsing_error).__name__ if parsing_error else "MissingParsedOutput",
+            )
+
             # 스키마 불일치로 간주하고 원인 예외를 체이닝하여 raise한다.
             raise SelectionFailedError(
                 f"모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: {parsing_error}"
             ) from parsing_error
 
         # 공용 사용량 로그 기록 (#221)
-        self._record_usage(from_response(result.get("raw")), product, started_at)
+        self._record_usage(usage, product, started_at)
 
         # LLM 응답의 토큰 사용량을 INFO 레벨로 기록한다.
         _log_token_usage(result.get("raw"))

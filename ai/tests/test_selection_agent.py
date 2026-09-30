@@ -235,3 +235,38 @@ def test_usage_agent로_평가_호출을_구분해_남긴다():
     agent.select(_make_product())
 
     assert _usage_rows()[0]["agent"] == "selection-eval"
+
+
+def test_모델_호출_실패도_사용량_로그에_실패로_남는다():
+    agent = SelectionAgent(model=_RaisingChatModel())
+
+    with pytest.raises(SelectionFailedError):
+        agent.select(_make_product(product_id="prod-usage-fail"))
+
+    row = _usage_rows()[0]
+    assert row["success"] is False
+    assert row["error_type"] == "RuntimeError"
+    assert row["subject_id"] == "prod-usage-fail"
+    assert row["input_tokens"] is None
+
+
+def test_파싱_실패도_사용한_토큰과_함께_남는다():
+    agent = SelectionAgent(model=_StubChatModel(None, parsing_error=ValueError("스키마 불일치")))
+
+    with pytest.raises(SelectionFailedError):
+        agent.select(_make_product())
+
+    row = _usage_rows()[0]
+    assert row["success"] is False
+    assert row["error_type"] == "ValueError"
+    assert row["input_tokens"] == 3000
+    assert row["output_tokens"] == 400
+
+
+def test_파싱_결과만_없으면_MissingParsedOutput으로_남는다():
+    agent = SelectionAgent(model=_StubChatModel(None))
+
+    with pytest.raises(SelectionFailedError):
+        agent.select(_make_product())
+
+    assert _usage_rows()[0]["error_type"] == "MissingParsedOutput"
