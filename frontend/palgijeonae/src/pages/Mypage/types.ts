@@ -23,7 +23,7 @@ export interface MyProductItem {
     productImageUrl?: string
     sourceType: SourceType
     processingStatus: ProcessingStatusType
-    resultStatus?: ResultStatus
+    resultStatus: ResultStatus | null
     createdAt: string
 }
 

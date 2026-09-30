@@ -51,8 +51,8 @@ function MyProduct({ productName, productImageUrl, sourceType, processingStatus,
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
-    // 진단 결과가 없을 시 진단서 이동을 막기 위한 boolean 변수
-    const isDiagnosisComplete = resultStatus !== undefined;
+    // 진단 결과가 없을 시 진단서 이동을 막기 위한 boolean 변수.
+    const isDiagnosisComplete = resultStatus != null;
 
     return (
         <DefaultBox>
