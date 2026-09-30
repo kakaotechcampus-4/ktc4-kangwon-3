@@ -6,6 +6,11 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
+  - job_name: cadvisor
+    scrape_interval: 30s
+    static_configs:
+      - targets: ["mon-cadvisor:8080"]
+
   - job_name: be-app
     metrics_path: /actuator/prometheus
     static_configs:
