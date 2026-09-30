@@ -31,7 +31,7 @@ function MyPage() {
         }),
     });
 
-    // 비동기로 데이터를 받아오기까지 띄울 상품 목록 임시 데이터
+    // 렌더링 시 type error / Pagination 크래시 방지용 빈 데이터 배열과 빈 페이지 정보.
     const pagedProducts = data?.items ?? [];
     const pageInfo = data?.pageInfo ?? { page, size: PAGE_SIZE, totalElements: 0, totalPages: 1, hasNext: false };
 
