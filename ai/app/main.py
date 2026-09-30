@@ -4,6 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -54,3 +55,6 @@ api_v1.include_router(diagnose.router)
 api_v1.include_router(dummy.router)
 
 app.include_router(api_v1)
+
+# /api/ai/v1 밖에 둠 (nginx가 /api/ai/만 프록시하므로 외부 미노출)
+Instrumentator().expose(app, endpoint="/metrics", include_in_schema=False)
