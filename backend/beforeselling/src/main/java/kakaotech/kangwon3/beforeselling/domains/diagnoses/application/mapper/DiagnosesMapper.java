@@ -20,6 +20,7 @@ import java.util.List;
 public class DiagnosesMapper {
 
     private final S3UrlKeyCodec s3UrlKeyCodec;
+    private final ProductMapper productMapper;
 
     public List<ProductCreateCommand> toCommands(DiagnosesCreateRequest request) {
         return request.products().stream()
@@ -44,7 +45,7 @@ public class DiagnosesMapper {
 
     public DiagnosesDetailResponse toDetailResponse(Diagnoses diagnoses) {
         List<ProductResponse> products = diagnoses.getProducts().stream()
-                .map(this::toProductResponse)
+                .map(productMapper::toResponse)
                 .toList();
 
         return new DiagnosesDetailResponse(
