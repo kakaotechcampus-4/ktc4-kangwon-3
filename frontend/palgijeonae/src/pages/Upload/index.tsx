@@ -55,7 +55,7 @@ function UploadPage() {
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="상품 업로드" description="상세페이지를 붙여넣거나 이미지·URL로 추가하세요.
-여러 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다." />
+최대 10개까지의 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다." />
             {isPending ? (
                 <div className="flex w-full flex-col items-center justify-center gap-4 py-12">
                     <div className="h-16 w-16 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
@@ -63,28 +63,36 @@ function UploadPage() {
                 </div>
             ) : (
                 <>
-                    <DefaultBox align="left">
-                        <div className="flex flex-row w-full gap-4">
-                            {INPUT_TYPE_TABS.map(({ key, label }) => (
-                                <button
-                                    key={key}
-                                    type="button"
-                                    onClick={() => setInputType(key)}
-                                    className={cn(
-                                        "flex cursor-pointer items-center justify-center rounded-lg border px-6 py-2 text-base font-medium",
-                                        inputType === key ? "border-neutral-border" : "border-transparent",
-                                    )}
-                                >
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
-                        {inputType === "url" ? (
-                            <UrlInputForm onAdd={handleAddProduct} />
-                        ) : (
-                            <TextImageInputForm onAdd={handleAddProduct} />
-                        )}
-                    </DefaultBox>
+                    {products.length < 10 ? (
+                        <DefaultBox align="left">
+                            <div className="flex flex-row w-full gap-4">
+                                {INPUT_TYPE_TABS.map(({ key, label }) => (
+                                    <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => setInputType(key)}
+                                        className={cn(
+                                            "flex cursor-pointer items-center justify-center rounded-lg border px-6 py-2 text-base font-medium",
+                                            inputType === key ? "border-neutral-border" : "border-transparent",
+                                        )}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+                            {inputType === "url" ? (
+                                <UrlInputForm onAdd={handleAddProduct} />
+                            ) : (
+                                <TextImageInputForm onAdd={handleAddProduct} />
+                            )}
+                        </DefaultBox>
+                    ) : (
+                        <DefaultBox className="border-status-warning bg-status-warning-bg">
+                            <p className="w-full text-center text-base font-semibold text-status-warning">
+                                상품은 최대 10개까지 담을 수 있어요. 진단을 시작해주세요.
+                            </p>
+                        </DefaultBox>
+                    )}
                     <AddedProductList products={products} onRemove={handleRemoveProduct} />
                     <div className="flex w-full justify-end">
                         <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} />
