@@ -31,13 +31,14 @@ export type ResultStatus =
 
 /**
  * 목록 조회에서 상품 하나의 정보를 담은 타입.
+ * - productImageUrl: 대표 이미지가 없으면 null
  * - resultStatus: 진단이 끝나지 않았으면 null
  */
 export interface MyProductItem {
     productId: string
     diagnosesId: string
     productName: string
-    productImageUrl?: string
+    productImageUrl: string | null
     sourceType: SourceType
     processingStatus: ProcessingStatusType
     resultStatus: ResultStatus | null
