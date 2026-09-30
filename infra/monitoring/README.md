@@ -21,6 +21,7 @@ Prometheus + Grafana로 API·JVM·호스트 지표를 수집해 확인하는 대
 | mon-prometheus | 수집·저장(보존 7일 / 최대 1GB) | 384m |
 | mon-grafana | 대시보드 (`/grafana/`) | 256m |
 | mon-node-exporter | 호스트 CPU·메모리·디스크·네트워크 지표 | 64m |
+| mon-cadvisor | 컨테이너별 CPU·메모리·OOM·재시작 | 128m |
 
 - 백엔드 actuator는 포트 8081로 분리돼 있고 호스트에 공개하지 않습니다.
 - 호스트에 publish 하는 포트는 Grafana `127.0.0.1:3000` 하나뿐이다. **보안그룹에 3000/8081/9090/9100을 열지 말 것.**
@@ -52,6 +53,7 @@ infra/monitoring/
 | API | RPS, 상태코드별 요청, p50/p95/p99, 엔드포인트별 p95·5xx |
 | JVM·커넥션 풀 | 힙, GC 일시정지, Hikari active/idle/pending |
 | 호스트 | CPU·메모리·루트 디스크 사용률, load/코어, CPU 모드별(steal·iowait), 메모리·스왑, PSI, 디스크 I/O, 네트워크 |
+| 컨테이너 | 컨테이너별 메모리(mem_limit 대비·사용량), CPU, OOM 발생·재시작 횟수(24h) |
 
 ## 로컬에서 검증
 
