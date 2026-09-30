@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .metrics import LLM_COST_KRW, LLM_DURATION, LLM_REQUESTS, LLM_TOKENS
+
 # 테스트에서 monkeypatch로 바꿔 쓰므로 모듈 전역으로 둔다.
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
 
@@ -106,6 +108,7 @@ def record(
     error_type: str | None = None,
 ) -> None:
     """호출 1건을 기록한다. 로깅 실패가 검증을 막지 않도록 어떤 예외도 밖으로 내지 않는다."""
+    _observe_metrics(agent, usage, configured_model=configured_model, ok=ok, elapsed_ms=elapsed_ms)
     try:
         row = {
             "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -129,6 +132,40 @@ def record(
             handle.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
     except Exception:
         # 사용량 기록은 부가 기능이다. 파일 오류든 직렬화 오류든 호출 결과를 버리지 않는다.
+        pass
+
+
+def _observe_metrics(
+    agent: str,
+    usage: CallUsage | None,
+    *,
+    configured_model: str | None,
+    ok: bool,
+    elapsed_ms: int | None,
+) -> None:
+    """호출 1건을 Prometheus 지표에 반영한다. 파일 기록과 별개로 어떤 예외도 밖으로 내지 않는다.
+
+    Args:
+        agent: 호출한 에이전트 이름.
+        usage: 토큰 사용량. 실제 모델 호출이 없었으면 None.
+        configured_model: 설정한 모델 이름.
+        ok: 호출 성공 여부.
+        elapsed_ms: 호출 소요시간(ms).
+    """
+    try:
+        model = configured_model or "unknown"
+        LLM_REQUESTS.labels(agent=agent, model=model, result="success" if ok else "error").inc()
+        if elapsed_ms is not None:
+            LLM_DURATION.labels(agent=agent).observe(elapsed_ms / 1000)
+        if usage is None:
+            return
+        LLM_TOKENS.labels(agent=agent, model=model, type="uncached").inc(usage.uncached_input)
+        LLM_TOKENS.labels(agent=agent, model=model, type="cached").inc(usage.cached_tokens)
+        LLM_TOKENS.labels(agent=agent, model=model, type="output").inc(usage.output_tokens)
+        cost = estimate_krw(usage, configured_model)
+        if cost is not None:
+            LLM_COST_KRW.labels(agent=agent, model=model).inc(cost)
+    except Exception:
         pass
 
 

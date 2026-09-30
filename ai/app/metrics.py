@@ -21,3 +21,30 @@ EXTERNAL_API_DURATION = Histogram(
     ["client"],
     buckets=EXTERNAL_API_LATENCY_BUCKETS,
 )
+
+LLM_LATENCY_BUCKETS = (0.5, 1, 2.5, 5, 10, 20, 30, 60, 120)
+
+LLM_REQUESTS = Counter(
+    "ai_llm_requests_total",
+    "LLM 호출 수",
+    ["agent", "model", "result"],
+)
+
+LLM_DURATION = Histogram(
+    "ai_llm_request_duration_seconds",
+    "LLM 호출 소요시간",
+    ["agent"],
+    buckets=LLM_LATENCY_BUCKETS,
+)
+
+LLM_TOKENS = Counter(
+    "ai_llm_tokens_total",
+    "LLM 토큰 사용량 (type: uncached, cached, output)",
+    ["agent", "model", "type"],
+)
+
+LLM_COST_KRW = Counter(
+    "ai_llm_cost_krw_total",
+    "LLM 추정 비용 (KRW)",
+    ["agent", "model"],
+)
