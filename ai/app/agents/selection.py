@@ -8,6 +8,7 @@ import json
 import logging
 from functools import lru_cache
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Protocol
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -15,6 +16,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ..config import build_chat_model
 from ..schemas.agent import ToolSelectionResponse
 from ..schemas.product import Product
+from ..usage import CallUsage, from_response, record
 
 _PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "selection.md"
 
@@ -54,13 +56,24 @@ def _load_system_prompt() -> str:
 class SelectionAgent:
     """상품 정보를 보고 필요한 심사 도메인을 선택한다. 툴 실행은 파이프라인의 몫이다."""
 
-    def __init__(self, model: _ModelLike | None = None) -> None:
+    def __init__(
+        self,
+        model: _ModelLike | None = None,
+        *,
+        configured_model: str | None = None,
+        usage_agent: str = "selection",
+    ) -> None:
         """선택 에이전트를 초기화한다.
 
         Args:
             model: 구조화 출력을 지원하는 LLM. None이면 build_chat_model()로 생성한다.
+            configured_model: 비용 계산에 쓸 모델 이름. None이면 model의 model_name을 쓴다.
+            usage_agent: 공용 사용량 로그에 남길 에이전트 이름 (평가 호출은 "selection-eval" 등으로 구분).
         """
-        self._structured_model = (model or build_chat_model()).with_structured_output(
+        chat_model = model or build_chat_model()
+        self._configured_model = configured_model or getattr(chat_model, "model_name", None)
+        self._usage_agent = usage_agent
+        self._structured_model = chat_model.with_structured_output(
             ToolSelectionResponse, include_raw=True
         )
 
@@ -78,6 +91,7 @@ class SelectionAgent:
         """
         # 시스템 프롬프트와 Product JSON을 LLM 메시지 리스트로 조립한다. 
         messages = self._build_messages(product)
+        started_at = perf_counter()
 
         try:
             # 조합한 메시지 리스트를 LLM에 보내고, 구조화된 응답과 원본 메시지를 받는다.
@@ -101,11 +115,40 @@ class SelectionAgent:
                 f"모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: {parsing_error}"
             ) from parsing_error
 
+        # 공용 사용량 로그 기록 (#221)
+        self._record_usage(from_response(result.get("raw")), product, started_at)
+
         # LLM 응답의 토큰 사용량을 INFO 레벨로 기록한다.
         _log_token_usage(result.get("raw"))
 
         # 선택 결과를 반환한다.
         return selection
+
+    def _record_usage(
+        self,
+        usage: CallUsage | None,
+        product: Product,
+        started_at: float,
+        *,
+        error: str | None = None,
+    ) -> None:
+        """호출 1건을 공용 사용량 로그에 남긴다.
+
+        Args:
+            usage: 원본 응답에서 뽑은 토큰 사용량. 호출 자체가 실패했으면 None.
+            product: 선택 대상 상품 (product_id를 기록).
+            started_at: 호출 시작 시각 (perf_counter 값).
+            error: 실패 시 예외 타입 이름. 성공이면 None.
+        """
+        record(
+            self._usage_agent,
+            usage,
+            configured_model=self._configured_model,
+            subject_id=product.product_id,
+            ok=error is None,
+            elapsed_ms=round((perf_counter() - started_at) * 1000),
+            error_type=error,
+        )
 
     @staticmethod
     def _build_messages(product: Product) -> list[SystemMessage | HumanMessage]:
