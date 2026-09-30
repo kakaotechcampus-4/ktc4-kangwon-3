@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -56,5 +56,13 @@ api_v1.include_router(dummy.router)
 
 app.include_router(api_v1)
 
+# 진단 요청은 수십 초 소요 (기본 구간은 1초까지)
+HTTP_LATENCY_BUCKETS = (0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120)
+
 # /api/ai/v1 밖에 둠 (nginx가 /api/ai/만 프록시하므로 외부 미노출)
-Instrumentator().expose(app, endpoint="/metrics", include_in_schema=False)
+Instrumentator(
+    should_group_status_codes=False,
+    excluded_handlers=["/metrics", "/api/ai/v1/health.*"],
+).add(
+    metrics.default(latency_lowr_buckets=HTTP_LATENCY_BUCKETS, latency_highr_buckets=HTTP_LATENCY_BUCKETS),
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
