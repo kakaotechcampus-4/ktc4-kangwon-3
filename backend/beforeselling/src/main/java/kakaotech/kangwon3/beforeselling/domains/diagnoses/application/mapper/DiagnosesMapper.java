@@ -17,7 +17,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DiagnosesMapper {
 
-    private final S3UrlKeyCodec s3UrlKeyCodec;
     private final ProductMapper productMapper;
 
     public List<ProductCreateCommand> toCommands(DiagnosesCreateRequest request) {
