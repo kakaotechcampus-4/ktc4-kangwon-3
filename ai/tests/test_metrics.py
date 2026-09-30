@@ -1,28 +1,35 @@
-"""Prometheus 지표 엔드포인트를 서버 기동(lifespan) 없이 검증한다."""
+"""Prometheus 지표 수집과 지표 전용 서버를 앱 기동(lifespan) 없이 검증한다."""
 
+import httpx
 from fastapi.testclient import TestClient
-from prometheus_client import REGISTRY
+from prometheus_client import REGISTRY, generate_latest
 
 from app.main import app
+from app.monitoring import start_metrics_server
 
 
-def test_metrics는_prometheus_형식으로_응답한다():
-    response = TestClient(app).get("/metrics")
+def _exposed() -> str:
+    return generate_latest(REGISTRY).decode()
+
+
+def test_지표_서버는_별도_포트에서_prometheus_형식으로_응답한다():
+    server = start_metrics_server(port=0)
+    try:
+        response = httpx.get(f"http://127.0.0.1:{server.server_port}/metrics")
+    finally:
+        server.shutdown()
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/plain")
     assert "# TYPE process_resident_memory_bytes gauge" in response.text
 
 
-def test_metrics는_api_경로_밖에_있다():
-    # nginx는 /api/ai/만 AI로 넘김
+def test_앱_포트에는_metrics_경로가_없다():
+    # 지표는 전용 포트에서만 노출
     client = TestClient(app)
 
+    assert client.get("/metrics").status_code == 404
     assert client.get("/api/ai/v1/metrics").status_code == 404
-
-
-def test_metrics는_openapi_문서에_노출되지_않는다():
-    assert "/metrics" not in app.openapi()["paths"]
 
 
 def _requests_total(handler: str, method: str, status: str) -> float:
@@ -53,19 +60,13 @@ def test_없는_경로는_하나의_handler로_묶인다():
     assert _requests_total("none", "GET", "404") == before + 1
 
 
-def test_health와_metrics_요청은_집계하지_않는다():
-    client = TestClient(app)
-    client.get("/api/ai/v1/health")
-    client.get("/metrics")
+def test_health_요청은_집계하지_않는다():
+    TestClient(app).get("/api/ai/v1/health")
 
-    body = client.get("/metrics").text
-    assert 'handler="/api/ai/v1/health"' not in body
-    assert 'handler="/metrics"' not in body
+    assert 'handler="/api/ai/v1/health"' not in _exposed()
 
 
 def test_응답시간_구간은_120초까지_있다():
-    client = TestClient(app)
-    client.post(DUMMY_ROUTE, json={})
+    TestClient(app).post(DUMMY_ROUTE, json={})
 
-    body = client.get("/metrics").text
-    assert f'http_request_duration_seconds_bucket{{handler="{DUMMY_ROUTE}",le="120.0",method="POST"}}' in body
+    assert f'http_request_duration_seconds_bucket{{handler="{DUMMY_ROUTE}",le="120.0",method="POST"}}' in _exposed()

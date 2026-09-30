@@ -4,12 +4,12 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator, metrics
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from .config import get_settings
 from .database import DatabaseNotConfiguredError, get_engine
+from .monitoring import METRICS_PORT, instrument_http, start_metrics_server
 from .routers import diagnose, dummy, health
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,12 @@ async def lifespan(app: FastAPI):
             logger.info("DB 연결 확인 완료")
         except SQLAlchemyError as e:
             logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
+
+    # 포트 충돌 시 기동 중단 (설정 문제)
+    metrics_server = start_metrics_server()
+    logger.info("지표 서버 기동: :%d/metrics", METRICS_PORT)
     yield
+    metrics_server.shutdown()
 
 
 app = FastAPI(
@@ -56,13 +61,4 @@ api_v1.include_router(dummy.router)
 
 app.include_router(api_v1)
 
-# 진단 요청은 수십 초 소요 (기본 구간은 1초까지)
-HTTP_LATENCY_BUCKETS = (0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120)
-
-# /api/ai/v1 밖에 둠 (nginx가 /api/ai/만 프록시하므로 외부 미노출)
-Instrumentator(
-    should_group_status_codes=False,
-    excluded_handlers=["/metrics", "/api/ai/v1/health.*"],
-).add(
-    metrics.default(latency_lowr_buckets=HTTP_LATENCY_BUCKETS, latency_highr_buckets=HTTP_LATENCY_BUCKETS),
-).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+instrument_http(app)
