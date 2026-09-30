@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { getErrorMessage } from "@/api/client";
 import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
@@ -39,7 +40,7 @@ function UploadPage() {
             navigate(`/judgement/${diagnosesId}`);
         },
         onError: (error) => {
-            alert(error instanceof Error ? error.message : "진단 요청에 실패했습니다. 다시 시도해주세요.");
+            alert(getErrorMessage(error, "진단 요청에 실패했습니다. 다시 시도해주세요."));
         },
     });
 

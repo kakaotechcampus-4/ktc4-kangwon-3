@@ -1,3 +1,4 @@
+import { getErrorMessage } from "@/api/client";
 import {
     postDiagnosis,
     type PresignedFileType,
@@ -66,12 +67,17 @@ export const submitDiagnosis = async (products: Product[]): Promise<string> => {
         }),
     );
 
-    const failedProductNames = products
-        .filter((_, index) => results[index].status === "rejected")
-        .map((product) => product.title);
+    // 실패 시 그 원인을 사용자에게 안내한다.
+    const failureMessages = results
+        .map((result, index) =>
+            result.status === "rejected"
+                ? `${products[index].title}(${getErrorMessage(result.reason, "이미지 업로드에 실패했습니다.")})`
+                : null,
+        )
+        .filter((message) => message !== null);
 
-    if (failedProductNames.length > 0) {
-        throw new Error(`다음 상품의 이미지 업로드에 실패했습니다: ${failedProductNames.join(", ")}`);
+    if (failureMessages.length > 0) {
+        throw new Error(`다음 상품의 진단 요청에 실패했습니다: ${failureMessages.join(", ")}`);
     }
 
     const payloads = (results as PromiseFulfilledResult<DiagnosisProductPayload>[]).map((result) => result.value);
