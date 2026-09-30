@@ -1,11 +1,53 @@
 """외부 API 클라이언트 공통 베이스."""
 
 import re
+import time
 from xml.etree.ElementTree import Element, fromstring
 
 import httpx
 
+from ..metrics import EXTERNAL_API_DURATION, EXTERNAL_API_REQUESTS
+
 _SENSITIVE_PARAM_RE = re.compile(r"(serviceKey=)[^&]+", re.IGNORECASE)
+
+
+class _InstrumentedClient(httpx.Client):
+    """모든 요청의 결과와 소요시간을 지표로 남기는 httpx 클라이언트.
+
+    send()는 응답 본문을 다 읽은 뒤 반환하므로 본문 수신 시간까지 포함된다.
+    _get/_post를 거치지 않고 self._client를 직접 쓰는 호출도 함께 집계된다.
+
+    Args:
+        client_name: 지표 라벨로 쓸 클라이언트 이름.
+        **kwargs: httpx.Client 생성 인자.
+    """
+
+    def __init__(self, client_name: str, **kwargs):
+        super().__init__(**kwargs)
+        self._client_name = client_name
+
+    def send(self, request: httpx.Request, **kwargs) -> httpx.Response:
+        """요청을 보내고 결과(success, http_error, timeout, connection_error)를 기록한다.
+
+        Args:
+            request: 보낼 요청.
+            **kwargs: httpx.Client.send 인자.
+
+        Returns:
+            httpx.Response: 응답.
+        """
+        start = time.perf_counter()
+        result = "connection_error"
+        try:
+            response = super().send(request, **kwargs)
+            result = "success" if response.is_success else "http_error"
+            return response
+        except httpx.TimeoutException:
+            result = "timeout"
+            raise
+        finally:
+            EXTERNAL_API_REQUESTS.labels(client=self._client_name, result=result).inc()
+            EXTERNAL_API_DURATION.labels(client=self._client_name).observe(time.perf_counter() - start)
 
 
 class BaseClient:
@@ -23,7 +65,8 @@ class BaseClient:
         timeout: float = 10.0,
         headers: dict[str, str] | None = None,
     ):
-        self._client = httpx.Client(
+        self._client = _InstrumentedClient(
+            type(self).__name__,
             base_url=base_url,
             timeout=timeout,
             headers=headers or {},
