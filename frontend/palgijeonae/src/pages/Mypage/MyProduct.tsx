@@ -56,7 +56,7 @@ function MyProduct({ productName, productImageUrl, sourceType, processingStatus,
 
     return (
         <DefaultBox>
-            {/* TODO: Result 페이지 구현 시 쿼리 파라미터나 라우터 state로 id 전달 예정 */}
+            {/* TODO: Result 페이지 구현 시 경로 파라미터로 id 전달 예정 */}
             <div
                 className={cn("flex flex-row w-full gap-4", isDiagnosisComplete && "cursor-pointer")}
                 onClick={isDiagnosisComplete ? () => navigate("/result") : undefined}
