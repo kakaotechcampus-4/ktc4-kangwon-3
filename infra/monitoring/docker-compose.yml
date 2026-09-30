@@ -14,12 +14,31 @@ services:
     volumes:
       - ./prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
+    # host 네트워크에서 도는 node-exporter에 접근하기 위한 docker0 게이트웨이
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/ready >/dev/null || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
     networks: [monitoring, be_appnet]
+
+  # 호스트 eth0 트래픽을 보려면 host 네트워크가 필요하고
+  # 외부 노출을 막기 위해 0.0.0.0이 아닌 docker0 게이트웨이(172.17.0.1)에만 바인딩
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    container_name: mon-node-exporter
+    restart: unless-stopped
+    mem_limit: 64m
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=172.17.0.1:9100
+      - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/docker/.+)($|/)
+    volumes:
+      - /:/host:ro,rslave
 
   grafana:
     image: grafana/grafana:12.1.0
