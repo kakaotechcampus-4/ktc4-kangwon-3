@@ -15,15 +15,16 @@ export type ResultStatus =
     | "DIRECT_IMPORT_CERTIFICATION_REQUIRED"
     | "RECHECK_REQUIRED";
 
-
+// 목록 조회에서 상품 하나의 정보를 담은 타입
 export interface MyProductItem {
     productId: string
+    diagnosesId: string
     productName: string
     productImageUrl?: string
     sourceType: SourceType
     processingStatus: ProcessingStatusType
     resultStatus?: ResultStatus
-    createdAt: Date
+    createdAt: string
 }
 
 // 검색 필터 탭에 쓰이는 타입
