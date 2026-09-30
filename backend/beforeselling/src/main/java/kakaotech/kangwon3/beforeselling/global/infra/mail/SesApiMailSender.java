@@ -12,10 +12,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 @Slf4j
-@Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(prefix = "app.mail", name = "type", havingValue = "SES_API")
-public class SesApiMailSender implements MailSender {
+public class SesApiMailSender implements MailSender, AutoCloseable {
 
     private static final String CHARSET = StandardCharsets.UTF_8.name();
 
@@ -46,5 +44,11 @@ public class SesApiMailSender implements MailSender {
         String encodedName = Base64.getEncoder()
                 .encodeToString(mailProperties.fromName().getBytes(StandardCharsets.UTF_8));
         return "=?UTF-8?B?%s?= <%s>".formatted(encodedName, mailProperties.from());
+    }
+
+    // SesClient 가 빈이 아니라서 스프링이 대신 닫아 주지 않는다.
+    @Override
+    public void close() {
+        sesClient.close();
     }
 }
