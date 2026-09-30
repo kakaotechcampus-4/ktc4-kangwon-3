@@ -17,7 +17,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             select p from Product p
             where p.diagnoses.userId = :userId
               and (:resultStatus is null or p.resultStatus = :resultStatus)
-              and (:keyword is null or lower(p.productName) like lower(concat('%', :keyword, '%')))
+              and (cast(:keyword as String) is null or lower(p.productName) like lower(concat('%', cast(:keyword as String), '%')))
             """)
     Page<Product> search(@Param("userId") UUID userId,
                          @Param("resultStatus") ResultStatus resultStatus,
