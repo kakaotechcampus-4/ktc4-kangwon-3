@@ -5,9 +5,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-from .config import load_settings
-from .database import engine
+from .config import get_settings
+from .database import DatabaseNotConfiguredError, get_engine
 from .routers import diagnose, dummy, health
 
 logger = logging.getLogger(__name__)
@@ -19,16 +20,24 @@ async def lifespan(app: FastAPI):
 
     검증 실패 시 예외가 전파되어 서버가 뜨지 않는다.
     """
-    load_settings()
-    logger.info("LLM 설정 검증 완료")
 
+    ## 에러가 발생하면 서버가 뜨지 않도록, try-except로 잡지 않고 그대로 전파한다.
+    get_settings()
+    logger.info("환경변수 검증 완료")
+
+    # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
+    # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
     try:
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        logger.info("DB 연결 확인 완료")
-    except Exception as e:
-        logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
-
+        engine = get_engine()
+    except DatabaseNotConfiguredError:
+        logger.warning("DATABASE_URL 미설정 — DB 기능 없이 기동합니다")
+    else:
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            logger.info("DB 연결 확인 완료")
+        except SQLAlchemyError as e:
+            logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     yield
 
 
