@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.ProductUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
@@ -251,6 +252,55 @@ class ProductControllerTest {
     }
 
     @Test
+    @DisplayName("인증 없이 상품을 단건 조회하면 401과 COMMON-004 코드를 응답한다.")
+    void getProduct_withoutAuthentication_thenUnauthorized() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/{productId}", PRODUCT_ID))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON-004"));
+    }
+
+    @Test
+    @DisplayName("본인의 상품을 단건 조회하면 진단서 상세의 상품 항목과 같은 형태로 응답한다.")
+    void getProduct_thenReturnProductResponse() throws Exception {
+        // given
+        given(productUseCase.getProduct(USER_ID, PRODUCT_ID)).willReturn(productResponse());
+
+        // when & then
+        mockMvc.perform(get(BASE_URL + "/{productId}", PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(jsonPath("$.data.productId").value(PRODUCT_ID.toString()))
+                .andExpect(jsonPath("$.data.productName").value("대나무 헬리콥터"))
+                .andExpect(jsonPath("$.data.sourceType").value("URL"))
+                .andExpect(jsonPath("$.data.imageUrls[0]").value(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"))
+                .andExpect(jsonPath("$.data.resultStatus").value("RECHECK_REQUIRED"))
+                .andExpect(jsonPath("$.data.summary").value("배터리 표시 항목 재확인이 필요합니다."));
+    }
+
+    @Test
+    @DisplayName("없는 상품이나 다른 사용자의 상품을 단건 조회하면 404와 COMMON-006 코드를 응답한다.")
+    void getProduct_withUnknownId_thenNotFound() throws Exception {
+        // given
+        given(productUseCase.getProduct(any(UUID.class), any(UUID.class)))
+                .willThrow(new BaseException(CommonResponseCode.NOT_FOUND));
+
+        // when & then
+        mockMvc.perform(get(BASE_URL + "/{productId}", PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMMON-006"));
+    }
+
+    @Test
+    @DisplayName("UUID 형식이 아닌 상품 id로 단건 조회하면 400을 응답한다.")
+    void getProduct_withMalformedId_thenBadRequest() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/{productId}", "not-a-uuid")
+                        .with(authentication(loginUser())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("본인의 상품을 삭제하면 성공 응답을 받는다.")
     void removeProduct_thenSuccess() throws Exception {
         mockMvc.perform(delete(BASE_URL + "/{productId}", PRODUCT_ID)
@@ -289,5 +339,13 @@ class ProductControllerTest {
                 SourceType.URL, ProcessingStatus.PENDING, null, LocalDateTime.now());
 
         return new ProductListResponse(List.of(summary), new PageInfo(0, 10, 1, 1, false));
+    }
+
+    private ProductResponse productResponse() {
+        return new ProductResponse(
+                PRODUCT_ID, 0, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
+                List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"),
+                ProcessingStatus.COMPLETED, ResultStatus.RECHECK_REQUIRED, "배터리 표시 항목 재확인이 필요합니다.");
     }
 }
