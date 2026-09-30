@@ -2,8 +2,7 @@ import { cva } from "class-variance-authority";
 import type { Ref } from "react";
 
 import { isCorrectableStatus } from "./processStatus";
-
-export type ProcessType = "call" | "act" | "end" | "skip" | "fail";
+import type { ProcessType } from "./type";
 
 interface ProcessProps {
     type: ProcessType;
@@ -11,7 +10,7 @@ interface ProcessProps {
     job: string;
     detail: string;
     onCorrect?: () => void; // type="skip" | "fail"일 때 "수동으로 에이전트 호출" 버튼용
-    ref?: Ref<HTMLDivElement>; // 자동 스크롤 포커싱(Judgement/index.tsx)용
+    ref?: Ref<HTMLDivElement>; // 자동 스크롤 포커싱용
 }
 
 const statusIconVariants = cva("h-10 w-10 rounded-full border-2 flex items-center justify-center text-xl", {

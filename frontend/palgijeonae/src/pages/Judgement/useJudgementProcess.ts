@@ -1,29 +1,7 @@
 import { useEffect, useState } from "react";
 
-import type { ProcessType } from "./Process";
 import { isActiveStatus, isTerminalStatus } from "./processStatus";
-
-export interface Agent {
-    id: string
-    title: string
-    job: string
-    detail: string
-    status: ProcessType
-}
-
-// 에이전트 목록 + 공개된(이미 확정된) 개수를 제품 단위로 묶은 상태.
-interface ProductState {
-    name: string
-    agents: Agent[]
-    visibleCount: number
-}
-
-interface JudgementState {
-    products: ProductState[]
-    selectedProduct: number
-    // 자동 전환의 기준이 되는, 실제 진행 중인 제품.
-    furthestProduct: number
-}
+import type { Agent, JudgementState, ProcessType, ProductState } from "./type";
 
 // TODO: 백엔드(SSE) 연동 전 임시 목업. 연동 시 이 배열과 초기 에이전트 목록 로직을 교체한다.
 const MOCK_INITIAL_AGENTS: Agent[] = [

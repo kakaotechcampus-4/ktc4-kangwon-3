@@ -1,4 +1,4 @@
-import type { ProcessType } from "./Process";
+import type { ProcessType } from "./type";
 
 // 상태 그룹을 여기 한 곳에서만 정의한다. 새 상태가 추가되면 이 파일만 고치면 된다.
 export const TERMINAL_STATUSES: ProcessType[] = ["end", "skip", "fail"];
