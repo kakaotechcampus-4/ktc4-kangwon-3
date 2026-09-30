@@ -8,6 +8,7 @@ import SectionIntro from "@/components/common/SectionIntro";
 import Process from "./Process";
 import { useJudgementProcess } from "./useJudgementProcess";
 
+// TODO: SSE 연동(api/judgement.ts) 시 useParams()로 라우트의 :diagnosesId를 읽어 useJudgementProcess에 넘긴다.
 function JudgementPage() {
     const { productCount, selectedProduct, visibleAgents, isCurrentProductDone, allProductsDone, selectProduct, correctAgent } =
         useJudgementProcess();
