@@ -10,9 +10,8 @@ import ProductFilterBar from "./ProductFilterBar.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
 import type { ProductFilter } from "./types.ts";
 
-// TODO: 실제 연동 시 백엔드 페이지네이션(page/size)으로 교체.
-// 지금은 목업 확인용으로 2로 설정.
-const PAGE_SIZE = 2;
+
+const PAGE_SIZE = 10;
 
 function MyPage() {
     const [searchTerm, setSearchTerm] = useState("");
