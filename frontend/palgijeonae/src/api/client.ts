@@ -64,4 +64,23 @@ apiClient.interceptors.response.use(
     }
 )
 
+interface ApiErrorResponse {
+    message?: string
+    details?: { message: string }[]
+}
+
+// 백엔드 에러 응답(details[0].message 우선, 없으면 message)에서 사용자에게 보여줄 메시지를 꺼낸다.
+export function getErrorMessage(error: unknown, fallback: string): string {
+    if (axios.isAxiosError<ApiErrorResponse>(error)) {
+        const data = error.response?.data
+        return data?.details?.[0]?.message ?? data?.message ?? error.message
+    }
+
+    if (error instanceof Error) {
+        return error.message
+    }
+
+    return fallback
+}
+
 export default apiClient
