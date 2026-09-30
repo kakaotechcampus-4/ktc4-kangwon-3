@@ -53,6 +53,28 @@ services:
       start_period: 20s
     networks: [monitoring]
 
+  # 컨테이너별 CPU·메모리(mem_limit 대비)·OOM 확인용
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.6
+    container_name: mon-cadvisor
+    restart: unless-stopped
+    mem_limit: 128m
+    cap_add: [SYSLOG]
+    devices:
+      - /dev/kmsg
+    command:
+      - --docker_only=true
+      - --containerd=/var/run/containerd/containerd.sock
+      - --housekeeping_interval=30s
+      - --store_container_labels=false
+      - --enable_metrics=cpu,memory,oom_event
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    networks: [monitoring]
+
 volumes:
   prometheus-data:
   grafana-data:
