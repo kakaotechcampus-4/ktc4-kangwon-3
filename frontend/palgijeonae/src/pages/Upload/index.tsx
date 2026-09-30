@@ -36,7 +36,7 @@ function UploadPage() {
     const { mutate: runSubmitDiagnosis, isPending } = useMutation({
         mutationFn: submitDiagnosis,
         onSuccess: (diagnosesId) => {
-            navigate("/judgement", { state: { diagnosesId } });
+            navigate(`/judgement/${diagnosesId}`);
         },
         onError: (error) => {
             alert(error instanceof Error ? error.message : "진단 요청에 실패했습니다. 다시 시도해주세요.");
