@@ -1,8 +1,6 @@
 package kakaotech.kangwon3.beforeselling.global.infra.mail;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 
 @Slf4j
 public class LoggingMailSender implements MailSender {
