@@ -2,6 +2,7 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controll
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.SortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.ProductUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.api.ProductApi;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
@@ -46,6 +47,16 @@ public class ProductController implements ProductApi {
         Pageable pageable = PageRequest.of(page, size, sortType.getSort());
         ProductListResponse response =
                 productUseCase.getProductList(principal.userId(), resultStatus, keyword, pageable);
+
+        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
+    }
+
+    @Override
+    @GetMapping("/{productId}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProduct(
+            @LoginUser UserPrincipal principal,
+            @PathVariable UUID productId) {
+        ProductResponse response = productUseCase.getProduct(principal.userId(), productId);
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
     }
