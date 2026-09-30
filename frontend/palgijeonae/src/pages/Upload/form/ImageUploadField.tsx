@@ -16,16 +16,25 @@ interface ImageUploadFieldProps {
 // accept 속성은 파일 선택창 필터일 뿐이라 드래그앤드롭에는 적용되지 않아, 여기서 한 번 더 검증한다.
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 
+// 이미지 파일 크기 제한(10MB)
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
 function ImageUploadField({ id, title, description, multiple = false, isOption = false, countLabel, onChange }: ImageUploadFieldProps) {
     const handleFiles = (fileList: FileList | null) => {
         if (!fileList) {
             return;
         }
         const files = Array.from(fileList);
-        const validFiles = files.filter((file) => ALLOWED_MIME_TYPES.includes(file.type));
+        const hasInvalidType = files.some((file) => !ALLOWED_MIME_TYPES.includes(file.type));
+        const hasOversizedFile = files.some((file) => file.size > MAX_FILE_SIZE_BYTES);
+        const validFiles = files.filter((file) => ALLOWED_MIME_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE_BYTES);
 
-        if (validFiles.length < files.length) {
+        if (hasInvalidType) {
             alert("jpg, jpeg, png, webp 형식의 이미지만 첨부할 수 있습니다.");
+        }
+        
+        if (hasOversizedFile) {
+            alert("이미지는 1장당 10MB까지만 첨부할 수 있습니다.");
         }
 
         if (validFiles.length === 0) {
