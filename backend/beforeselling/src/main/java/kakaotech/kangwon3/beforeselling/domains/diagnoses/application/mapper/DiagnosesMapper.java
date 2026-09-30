@@ -7,7 +7,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
-import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
