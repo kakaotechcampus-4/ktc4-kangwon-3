@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { getQuestions, submitAnswers } from "@/api/question";
@@ -49,24 +50,52 @@ function QuestionPage() {
         setSelectedProductIndex(selectedProductIndex + 1);
     };
 
+    /** 답변하지 않은 질문의 textarea를 포커스하고 스크롤하는 함수 */
+    const focusQuestion = (questionId: string) => {
+        const element = document.getElementById(questionId);
+        element?.focus();
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
     const handleSubmitAnswers = () => {
-        // TODO: 비어있는 입력 폼 검증도 추후 구현
+        // 답변하지 않은(빈 문자열 또는 공백 문자열) 첫 번째 질문을 찾는다
+        const firstEmpty = productQuestions
+            .flatMap((product, productIndex) =>
+                product.questions.map((question) => ({ productIndex, question })),
+            )
+            .find(({ question }) => !answers[question.id]?.trim());
+
+        if (firstEmpty) {
+            alert("질문에 모두 답변해 주세요.");
+            if (firstEmpty.productIndex === selectedProductIndex) {
+                // 이미 화면에 띄워진 상태이므로 재렌더링 없이 바로 포커싱
+                focusQuestion(firstEmpty.question.id);
+            } else {
+                // flushSync로 탭 전환을 동기 렌더링한 다음, 포커싱한다.
+                flushSync(() => {
+                    setSelectedProductIndex(firstEmpty.productIndex);
+                });
+                focusQuestion(firstEmpty.question.id);
+            }
+            return;
+        }
+
         runSubmitAnswers();
     };
 
-    // 상품이 바뀔 때(다음 상품으로 버튼, 탭 클릭) 화면 맨 위로 이동.
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
     }, [selectedProductIndex]);
 
     return (
         <div className="flex w-full flex-col gap-8">
-            <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="추가적인 확인이 필요한 정보들을 확인합니다. 제품 각각 입력해주세요."/>
+            <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="추가적인 확인이 필요한 정보들을 확인합니다. 제품 각각 입력해주세요." />
             <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
             <div className="flex flex-col gap-4">
                 {(productQuestions[selectedProductIndex]?.questions ?? []).map((question, index) => (
                     <Question
                         key={question.id}
+                        id={question.id}
                         questionNumber={index + 1}
                         title={question.title}
                         description={question.description ?? ""}

@@ -2,6 +2,7 @@ import DefaultBox from "@/components/common/DefaultBox";
 import SectionIntro from "@/components/common/SectionIntro";
 
 interface QuestionProps {
+    id: string
     questionNumber: number
     title: string
     description: string
@@ -9,12 +10,13 @@ interface QuestionProps {
     onChange: (value: string) => void
 }
 
-function Question({questionNumber, title, description, answer, onChange}: QuestionProps) {
+function Question({id, questionNumber, title, description, answer, onChange}: QuestionProps) {
     return (
         <DefaultBox align="left">
             <div className="flex flex-col gap-4 w-full">
                 <SectionIntro title={`${questionNumber}. ${title}`} description={description} size="xl" />
-                <textarea value={answer}
+                <textarea id={id}
+                        value={answer}
                         aria-label={title}
                         onChange={(e) => onChange(e.target.value)}
                         className="box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2"
