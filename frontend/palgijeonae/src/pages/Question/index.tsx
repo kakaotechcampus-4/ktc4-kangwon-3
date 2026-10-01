@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 
-import { getQuestions } from "@/api/question";
+import { getQuestions, submitAnswers } from "@/api/question";
 import Button from "@/components/common/Button";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
@@ -9,15 +10,35 @@ import SectionIntro from "@/components/common/SectionIntro";
 import Question from "./Question";
 
 function QuestionPage() {
+    const { diagnosesId } = useParams<{ diagnosesId: string }>();
     const [selectedProductIndex, setSelectedProductIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
+    const navigate = useNavigate();
 
-    // 상품별 확인 질문 목록 불러오기
     const { data } = useQuery({
-        queryKey: ["questions"],
-        queryFn: getQuestions,
+        queryKey: ["questions", diagnosesId],
+        queryFn: () => getQuestions(diagnosesId!),
     });
+
+    const { mutate: runSubmitAnswers } = useMutation({
+        mutationFn: () =>
+            submitAnswers(
+                diagnosesId!,
+                Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
+            ),
+        onSuccess: () => {
+            // TODO: 추후 result 페이지 구현 후 경로 파라미터로 교체 (/result/diagnosis/:diagnosisId)
+            navigate("/result")
+        },
+        onError: (error) => {
+            alert(error instanceof Error ? error.message : "답변 제출에 실패했습니다. 다시 시도해주세요.");
+        },
+    });
+
+    // 로딩 중 undefined 방지용 기본값
     const productQuestions = data ?? [];
+
+    // ProductTabs에 넘길 이름만 추출
     const productNames = productQuestions.map((product) => product.productName);
 
     const handleAnswerChange = (questionId: string, value: string) => {
@@ -29,8 +50,9 @@ function QuestionPage() {
     };
 
     const handleSubmitAnswers = () => {
-        // TODO: 제출 로직은 추후 구현
-        // 비어있는 입력 폼 검증도 추후 구현
+        // TODO: 비어있는 입력 폼 검증도 추후 구현
+        
+        runSubmitAnswers();
     };
 
     // 상품이 바뀔 때(다음 상품으로 버튼, 탭 클릭) 화면 맨 위로 이동.

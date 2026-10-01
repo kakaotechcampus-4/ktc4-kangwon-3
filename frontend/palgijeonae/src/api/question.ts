@@ -1,4 +1,4 @@
-import type { ProductQuestions } from "@/pages/Question/types";
+import type { AnswerSubmission, ProductQuestions } from "@/pages/Question/types";
 
 // TODO: 백엔드 연동 전까지 쓰는 목업 데이터. 연동 시 이 파일 내부만 실제 GET 호출로 교체한다.
 const MOCK_PRODUCT_QUESTIONS: ProductQuestions[] = [
@@ -69,9 +69,23 @@ const MOCK_PRODUCT_QUESTIONS: ProductQuestions[] = [
 
 /**
  * 확인이 필요한 질문 목록을 상품별로 가져온다.
- * TODO: 지금은 목업 데이터를 반환한다. 백엔드 연동 시 이 함수 내부만 실제 GET 호출로 교체한다.
+ * TODO: 지금은 diagnosesId와 무관하게 고정된 목업 데이터를 반환한다. 백엔드 연동 시 이 함수 내부만 실제 GET 호출로 교체한다.
+ * @param _diagnosesId 질문을 조회할 진단서 id
  * @returns 상품별 질문 목록
  */
-export async function getQuestions(): Promise<ProductQuestions[]> {
+export async function getQuestions(_diagnosesId: string): Promise<ProductQuestions[]> {
     return MOCK_PRODUCT_QUESTIONS;
 }
+
+/**
+ * 답변을 제출한다.
+ * TODO: 지금은 목업으로 성공 처리만 한다. 백엔드 연동 시 이 함수 내부만 실제 POST 호출로 교체한다.
+ * @param _diagnosesId 답변을 제출할 진단서 id
+ * @param _answers 제출할 답변 목록
+ */
+export async function submitAnswers(_diagnosesId: string, _answers: AnswerSubmission[]): Promise<void> {
+    return;
+}
+
+
+
