@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { getQuestions, submitAnswers } from "@/api/question";
 import Button from "@/components/common/Button";
@@ -20,6 +20,12 @@ function QuestionPage() {
         queryFn: () => getQuestions(diagnosesId!),
     });
 
+    // 로딩 중 undefined 방지용 기본값
+    const productQuestions = data ?? [];
+
+    // ProductTabs에 넘길 이름만 추출
+    const productNames = productQuestions.map((product) => product.productName);
+
     const { mutate: runSubmitAnswers } = useMutation({
         mutationFn: () =>
             submitAnswers(
@@ -35,12 +41,6 @@ function QuestionPage() {
         },
     });
 
-    // 로딩 중 undefined 방지용 기본값
-    const productQuestions = data ?? [];
-
-    // ProductTabs에 넘길 이름만 추출
-    const productNames = productQuestions.map((product) => product.productName);
-
     const handleAnswerChange = (questionId: string, value: string) => {
         setAnswers((prev) => ({ ...prev, [questionId]: value }));
     };
@@ -51,7 +51,6 @@ function QuestionPage() {
 
     const handleSubmitAnswers = () => {
         // TODO: 비어있는 입력 폼 검증도 추후 구현
-        
         runSubmitAnswers();
     };
 
