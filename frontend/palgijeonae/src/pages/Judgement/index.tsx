@@ -44,7 +44,7 @@ function JudgementPage() {
 
             {allProductsDone && (
                 <div className="flex w-full justify-end">
-                    {/* TODO: /question이 :diagnosesId를 받도록 바뀌어서, 이 페이지에 diagnosesId가 연동되면 navigate(`/question/${diagnosesId}`)로 교체한다. */}
+                    {/* TODO: 이 페이지에 diagnosesId가 연동되면 navigate(`/question/${diagnosesId}`)로 교체한다. */}
                     <Button text="확인이 필요한 질문 →" onClick={() => navigate("/question")} fontSize={15} />
                 </div>
             )}
