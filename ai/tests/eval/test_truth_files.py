@@ -11,7 +11,7 @@ import pytest
 
 from app.eval.scoring import check_truth, load_truth
 
-TRUTH_DIR = Path(__file__).parent / "eval_truth"
+TRUTH_DIR = Path(__file__).parents[1] / "eval_truth"
 TRUTH_FILES = sorted(TRUTH_DIR.glob("*.json"))
 
 
