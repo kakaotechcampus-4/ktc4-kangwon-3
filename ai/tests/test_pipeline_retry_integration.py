@@ -152,6 +152,7 @@ def test_Tool_재실행이_실패하면_지적된_판단만_제외하고_유효�
         risk_level=RiskLevel.MEDIUM,
         summary="규제 검토가 필요합니다.",
         rationale="규제 대상 특성이 확인되었습니다.",
+        requirements=["제거할 조치", "공통 조치"],
     )
     valid_high_risk_finding = RegulatoryFinding(
         tool_name=selected_tool,
@@ -168,6 +169,7 @@ def test_Tool_재실행이_실패하면_지적된_판단만_제외하고_유효�
                 is_mock=False,
             )
         ],
+        requirements=["확인된 규제 조치 이행", "공통 조치"],
     )
     warning_finding = RegulatoryFinding(
         tool_name=selected_tool,
@@ -183,6 +185,7 @@ def test_Tool_재실행이_실패하면_지적된_판단만_제외하고_유효�
                 source_url="https://example.test/law",
             )
         ],
+        requirements=["공통 조치"],
     )
 
     def selected_tool_behavior(
@@ -202,7 +205,12 @@ def test_Tool_재실행이_실패하면_지적된_판단만_제외하고_유효�
                     valid_high_risk_finding,
                     warning_finding,
                 ],
-                required_actions=["확인된 규제 조치 이행"],
+                required_actions=[
+                    "제거할 조치",
+                    "공통 조치",
+                    "확인된 규제 조치 이행",
+                    "제조사 사양서 확보",
+                ],
                 missing_information=["추가 상품 사양"],
                 raw_response={"status": "ok"},
             )
@@ -242,7 +250,11 @@ def test_Tool_재실행이_실패하면_지적된_판단만_제외하고_유효�
     assert result.verification.status is VerificationStatus.TOOLS_REQUIRED
     assert result.overall_status is OverallStatus.HIGH_RISK
     assert result.findings == [valid_high_risk_finding, warning_finding]
-    assert result.required_actions == ["확인된 규제 조치 이행"]
+    assert result.required_actions == [
+        "공통 조치",
+        "확인된 규제 조치 이행",
+        "제조사 사양서 확보",
+    ]
     assert result.missing_information == ["추가 상품 사양"]
 
     latest_tool_result = next(
@@ -253,7 +265,11 @@ def test_Tool_재실행이_실패하면_지적된_판단만_제외하고_유효�
     assert latest_tool_result.query == {"product_id": product.product_id}
     assert latest_tool_result.result == _assessment_for(selected_tool)
     assert latest_tool_result.findings == [valid_high_risk_finding, warning_finding]
-    assert latest_tool_result.required_actions == ["확인된 규제 조치 이행"]
+    assert latest_tool_result.required_actions == [
+        "공통 조치",
+        "확인된 규제 조치 이행",
+        "제조사 사양서 확보",
+    ]
     assert latest_tool_result.missing_information == ["추가 상품 사양"]
     assert latest_tool_result.raw_response == {"status": "ok"}
 
@@ -277,6 +293,12 @@ def test_Tool_재실행이_실패하면_지적된_판단만_제외하고_유효�
         challenged_finding,
         valid_high_risk_finding,
         warning_finding,
+    ]
+    assert selected_tool_history[0].required_actions == [
+        "제거할 조치",
+        "공통 조치",
+        "확인된 규제 조치 이행",
+        "제조사 사양서 확보",
     ]
     assert selected_tool_history[1].findings == []
     assert effective_latest.query is not selected_tool_history[0].query

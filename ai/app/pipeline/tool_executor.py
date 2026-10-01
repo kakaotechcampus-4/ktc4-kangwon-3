@@ -205,15 +205,35 @@ class ToolExecutor:
         if not retained_findings:
             return retry_result
 
+        removed_requirements = {
+            requirement
+            for finding in previous_result.findings
+            if finding.finding_id in challenged_finding_ids
+            for requirement in finding.requirements
+        }
+        retained_requirements = {
+            requirement
+            for finding in retained_findings
+            for requirement in finding.requirements
+        }
+        # 완전히 같은 문구로 연결된 조치 중, 제외한 판단만 요구한 조치를 제거한다.
+        # 남은 판단의 공통 조치와 판단에 연결되지 않은 Tool 단위 조치는 보존한다.
+        removed_only_requirements = removed_requirements - retained_requirements
+
         # 재실행 자체는 실패했지만 이전 회차의 유효한 판단과 부가 정보가 남아 있다.
         previous_snapshot = previous_result.model_copy(deep=True)
+
         return retry_result.model_copy(
             update={
                 "status": ToolStatus.PARTIAL,
                 "query": previous_snapshot.query,
                 "result": previous_snapshot.result,
                 "findings": retained_findings,
-                "required_actions": previous_snapshot.required_actions,
+                "required_actions": [
+                    action
+                    for action in previous_snapshot.required_actions
+                    if action not in removed_only_requirements
+                ],
                 "missing_information": previous_snapshot.missing_information,
                 "raw_response": previous_snapshot.raw_response,
             },
