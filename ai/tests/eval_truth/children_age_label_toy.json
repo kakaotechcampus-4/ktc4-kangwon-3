@@ -1,0 +1,160 @@
+{
+  "fixture": "children_age_label_toy.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-01",
+  "tags": [
+    "확인용",
+    "어린이",
+    "연령표기"
+  ],
+  "summary": "어린이 교육용 플라스틱 블록 126개(Temu). 스펙표 '사용연령: 3년 이상'을 원문 그대로 옮기는지, '지능 향상'을 의료 표방으로 오인하지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "스펙표 '주요 재질: PP', 제목 '사각형 플라스틱 블록'. 전원 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "플라스틱 블록. 전자 부품 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "플라스틱 블록. 전원·충전 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "재질만으로 차폐 여부를 알 수 없다."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "플라스틱 블록. 전지 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "카테고리 '빌딩 블록', '블록 장난감'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "플라스틱 블록. 발열 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "'손으로 가지고 논다'는 상품 종류에서 나온 추론이다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "제목 '창의력과 지능 향상'",
+      "why_not_other": "교육 효과 표방이고 질병명이나 신체기능 개선 표방이 아니다. 표시광고 쪽 의심 문구로는 listing_text에서 본다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "카테고리 '빌딩 블록', 형태가 사각 블록",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "스펙표 '주요 재질: PP'",
+      "why_not_other": "재질이 플라스틱으로 명시돼 있다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '블록 장난감', 세정·방향·살균 기능 표기 없음",
+      "why_not_other": "주된 기능이 장난감이다."
+    },
+    "for_children": {
+      "value": true,
+      "evidence": "제목 '어린이 교육용 STEM 장난감', '남아와 여아에 적합', 스펙표 '사용연령: 3년 이상'",
+      "why_not_other": "광고가 어린이를 겨냥한다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": "3년 이상",
+      "evidence": "스펙표 '사용연령: 3년 이상'"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "블록"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "빌딩 블록",
+        "블록 장난감",
+        "장난감&게임",
+        "STEM 장난감",
+        "블록",
+        "조립 블록",
+        "숫자 블록",
+        "교육용 장난감"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "주요 재질",
+      "value": "PP",
+      "evidence": "스펙표 '주요 재질: PP'"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "창의력과 지능 향상",
+      "evidence": "원문 28·112행, 판매자 제목의 효능 표방. 빠지면 표시광고 심사가 빠진다"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "아들이 재밌어 해요",
+      "evidence": "원문 39행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "딸이 즐겁게 놀 수 있게",
+      "evidence": "원문 45행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "조립이나 만들기 같은 걸 정말 좋아하는",
+      "evidence": "원문 53행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "예상보다 작을 줄 알았는데",
+      "evidence": "원문 59행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 120행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 124행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "배송업체",
+      "evidence": "원문 126행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "문제 발생 시 환불",
+      "evidence": "원문 6·12행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    }
+  ]
+}
