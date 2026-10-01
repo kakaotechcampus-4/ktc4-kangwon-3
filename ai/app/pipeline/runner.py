@@ -30,6 +30,13 @@ class ToolExecutionStage(Protocol):
         selection: ToolSelectionResponse,
     ) -> SelectionResult: ...
 
+    def execute_retry(
+        self,
+        product: Product,
+        selection_result: SelectionResult,
+        retry_request: RetryRequest,
+    ) -> SelectionResult: ...
+
 
 class AggregationStage(Protocol):
     def aggregate(
@@ -82,8 +89,11 @@ def _build_retry_request(
     return RetryRequest(
         retry_round=retry_round,
         requested_tools=verification.additional_tools_required,
-        verification=verification,
-        latest_tool_results=selection_result.tool_results,
+        verification=verification.model_copy(deep=True),
+        latest_tool_results=[
+            result.model_copy(deep=True)
+            for result in selection_result.tool_results
+        ],
     )
 
 
@@ -138,12 +148,20 @@ class CompliancePipeline:
         tool_executor: ToolExecutionStage,
         aggregator: AggregationStage,
         verifier: VerificationStage,
+        max_retry_rounds: int = 3,
     ) -> None:
+        if isinstance(max_retry_rounds, bool) or not isinstance(
+            max_retry_rounds, int
+        ):
+            raise TypeError("max_retry_rounds는 정수여야 합니다.")
+        if max_retry_rounds < 0:
+            raise ValueError("max_retry_rounds는 0 이상이어야 합니다.")
         self._extractor = extractor
         self._selector = selector
         self._tool_executor = tool_executor
         self._aggregator = aggregator
         self._verifier = verifier
+        self._max_retry_rounds = max_retry_rounds
 
     def run(self, source: ExtractionInput) -> FinalAssessment:
         product: Product = self._extractor.extract(source)
@@ -154,5 +172,24 @@ class CompliancePipeline:
         )
         draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
         verification: VerificationResult = self._verifier.verify(draft)
+
+        retry_round = 0
+        while (
+            _determine_next_action(verification) is _PipelineNextAction.RETRY_TOOLS
+            and retry_round < self._max_retry_rounds
+        ):
+            retry_round += 1
+            retry_request = _build_retry_request(
+                verification,
+                selection_result,
+                retry_round=retry_round,
+            )
+            selection_result = self._tool_executor.execute_retry(
+                product,
+                selection_result,
+                retry_request,
+            )
+            draft = self._aggregator.aggregate(product, selection_result)
+            verification = self._verifier.verify(draft)
 
         return _build_final_assessment(draft, verification)
