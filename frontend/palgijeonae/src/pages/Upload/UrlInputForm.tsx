@@ -2,10 +2,12 @@ import { useMemo, useState } from "react";
 
 import Button from "@/components/common/Button";
 
+import { MAX_PRODUCT_NAME_LENGTH } from "./constraints.ts";
 import AttachedImageList from "./form/AttachedImageList.tsx";
 import FormField from "./form/FormField.tsx";
 import ImageUploadField from "./form/ImageUploadField.tsx";
 import type { Product } from "./types.ts";
+import { validateProduct } from "./validation.ts";
 
 interface UrlInputFormProps {
     onAdd: (product: Product) => void
@@ -19,25 +21,21 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
     const imageFiles = useMemo(() => (image ? [image] : []), [image]);
 
     const handleAddProduct = () => {
-        const trimmedLink = link.trim();
-        if (!trimmedLink) {
-            alert("상세페이지 링크를 입력해주세요.");
-            return;
-        }
-
-        const trimmedName = productName.trim();
-        if (!trimmedName) {
-            alert("제품명을 입력해주세요.");
-            return;
-        }
-
-        onAdd({
+        const candidate: Product = {
             id: crypto.randomUUID(),
             type: "url",
-            title: trimmedName,
+            title: productName.trim(),
             productImageFile: image ?? undefined,
-            link: trimmedLink,
-        });
+            link: link.trim(),
+        };
+
+        const error = validateProduct(candidate);
+        if (error) {
+            alert(error);
+            return;
+        }
+
+        onAdd(candidate);
 
         setProductName("");
         setLink("");
@@ -52,7 +50,7 @@ function UrlInputForm({ onAdd }: UrlInputFormProps) {
                 placeholder="제품을 구분하기 위한 상품명이나 별명을 입력하세요."
                 value={productName}
                 onChange={setProductName}
-                maxLength={100}
+                maxLength={MAX_PRODUCT_NAME_LENGTH}
             />
             <FormField
                 id="product-link"

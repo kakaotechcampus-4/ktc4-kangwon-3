@@ -2,6 +2,8 @@ import { type DragEvent } from "react";
 
 import uploadInputIcon from "@/assets/upload-inputImage.png";
 
+import { isAllowedImageType, isWithinFileSizeLimit } from "../validation.ts";
+
 interface ImageUploadFieldProps {
     id: string
     title: string
@@ -12,22 +14,15 @@ interface ImageUploadFieldProps {
     onChange: (files: File[]) => void
 }
 
-// 백엔드 presigned URL 발급이 jpg, jpeg, png, webp 확장자만 허용하므로 동일하게 제한한다.
-// accept 속성은 파일 선택창 필터일 뿐이라 드래그앤드롭에는 적용되지 않아, 여기서 한 번 더 검증한다.
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-
-// 이미지 파일 크기 제한(10MB)
-const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
-
 function ImageUploadField({ id, title, description, multiple = false, isOption = false, countLabel, onChange }: ImageUploadFieldProps) {
     const handleFiles = (fileList: FileList | null) => {
         if (!fileList) {
             return;
         }
         const files = Array.from(fileList);
-        const hasInvalidType = files.some((file) => !ALLOWED_MIME_TYPES.includes(file.type));
-        const hasOversizedFile = files.some((file) => file.size > MAX_FILE_SIZE_BYTES);
-        const validFiles = files.filter((file) => ALLOWED_MIME_TYPES.includes(file.type) && file.size <= MAX_FILE_SIZE_BYTES);
+        const hasInvalidType = files.some((file) => !isAllowedImageType(file));
+        const hasOversizedFile = files.some((file) => !isWithinFileSizeLimit(file));
+        const validFiles = files.filter((file) => isAllowedImageType(file) && isWithinFileSizeLimit(file));
 
         if (hasInvalidType) {
             alert("jpg, jpeg, png, webp 형식의 이미지만 첨부할 수 있습니다.");
