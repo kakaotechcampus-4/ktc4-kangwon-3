@@ -1,5 +1,7 @@
 import { cva } from "class-variance-authority";
 
+import { countGraphemes, truncateGraphemes } from "@/lib/text";
+
 const tabVariants = cva("shrink-0 rounded-[20px] border px-[15px] py-[7px] text-base font-medium", {
     variants: {
         selected: {
@@ -19,7 +21,7 @@ interface ProductTabsProps {
 const MAX_PRODUCT_NAME_LENGTH = 10;
 
 const truncateProductName = (name: string) =>
-    name.length > MAX_PRODUCT_NAME_LENGTH ? `${name.slice(0, MAX_PRODUCT_NAME_LENGTH)}...` : name;
+    countGraphemes(name) > MAX_PRODUCT_NAME_LENGTH ? `${truncateGraphemes(name, MAX_PRODUCT_NAME_LENGTH)}...` : name;
 
 function ProductTabs({ productNames, selected, onSelect }: ProductTabsProps) {
     return (
