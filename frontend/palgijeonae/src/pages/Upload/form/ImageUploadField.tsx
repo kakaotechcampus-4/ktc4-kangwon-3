@@ -2,6 +2,7 @@ import { type DragEvent } from "react";
 
 import uploadInputIcon from "@/assets/upload-inputImage.png";
 
+import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from "../constraints.ts";
 import { isAllowedImageType, isWithinFileSizeLimit } from "../validation.ts";
 
 interface ImageUploadFieldProps {
@@ -25,11 +26,11 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
         const validFiles = files.filter((file) => isAllowedImageType(file) && isWithinFileSizeLimit(file));
 
         if (hasInvalidType) {
-            alert("jpg, jpeg, png, webp 형식의 이미지만 첨부할 수 있습니다.");
+            alert(`${ALLOWED_IMAGE_EXTENSIONS_LABEL} 형식의 이미지만 첨부할 수 있습니다.`);
         }
-        
+
         if (hasOversizedFile) {
-            alert("이미지는 1장당 10MB까지만 첨부할 수 있습니다.");
+            alert(`이미지는 1장당 ${MAX_FILE_SIZE_MB}MB까지만 첨부할 수 있습니다.`);
         }
 
         if (validFiles.length === 0) {
