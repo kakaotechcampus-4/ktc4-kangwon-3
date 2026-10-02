@@ -1,4 +1,11 @@
-import { ALLOWED_IMAGE_MIME_TYPES, MAX_FILE_SIZE_BYTES, MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "./constraints.ts";
+import {
+    ALLOWED_IMAGE_EXTENSIONS_LABEL,
+    ALLOWED_IMAGE_MIME_TYPES,
+    MAX_FILE_SIZE_BYTES,
+    MAX_FILE_SIZE_MB,
+    MAX_PRODUCT_IMAGE_COUNT,
+    MAX_PRODUCT_NAME_LENGTH,
+} from "./constraints.ts";
 import type { Product } from "./types.ts";
 
 // 상품 추가 / 제출 직전에 사용하는 상품 공용 검증.
@@ -8,10 +15,10 @@ export const isWithinFileSizeLimit = (file: File): boolean => file.size <= MAX_F
 // 이미지 형식/크기에 대한 검증
 export const validateImageFile = (file: File): string | null => {
     if (!isAllowedImageType(file)) {
-        return "jpg, jpeg, png, webp 형식의 이미지만 첨부할 수 있습니다.";
+        return `${ALLOWED_IMAGE_EXTENSIONS_LABEL} 형식의 이미지만 첨부할 수 있습니다.`;
     }
     if (!isWithinFileSizeLimit(file)) {
-        return "이미지는 1장당 10MB까지만 첨부할 수 있습니다.";
+        return `이미지는 1장당 ${MAX_FILE_SIZE_MB}MB까지만 첨부할 수 있습니다.`;
     }
     return null;
 };
