@@ -1,0 +1,153 @@
+{
+  "fixture": "coupang_direct_import.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-01",
+  "tags": [
+    "확인용",
+    "식품접촉",
+    "쿠팡",
+    "다른 상품 혼입"
+  ],
+  "summary": "스테인리스 텀블러 1200ML(쿠팡 로켓직구). 판매자 텍스트는 제목·재질·필수 표기 정보뿐이고, 다른 상품의 광고·추천이 페이지 대부분을 차지한다. 남의 상품 정보를 이 상품 것으로 옮기지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "옵션 '재질: 스테인리스', 제목 '304 스테인리스 스틸 대용량 캐릭터 텀블러'. 전원 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "스테인리스 텀블러. 전자 부품 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "스테인리스 텀블러. 전원·충전 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "재질만으로 차폐 여부를 알 수 없다."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "스테인리스 텀블러. 전지 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "분류 '컵/잔', '물컵/주스컵'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "스테인리스 텀블러. 발열 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준). 바로 아래 추천 상품의 '보온 텀블러'는 다른 상품이다."
+    },
+    "food_contact": {
+      "value": true,
+      "evidence": "분류 '주방용품', '테이블웨어', '물컵/주스컵', 제목 '텀블러 1200ML'",
+      "why_not_other": "음료를 담는 컵이라고 페이지 분류가 말한다."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부·구강 접촉을 말하는 문구 없음)",
+      "why_not_other": "'입을 대고 마신다'는 용도에서 한 번 더 나간 추론이다(실리콘 조리도구와 같은 기준)."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병명·신체기능 개선 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "분류 '물컵/주스컵', 형태가 텀블러",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "옵션 '재질: 스테인리스'",
+      "why_not_other": "재질이 금속으로 명시돼 있다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "분류 '테이블웨어', 세정·방향·살균 기능 표기 없음",
+      "why_not_other": "주된 기능이 음료 용기다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "분류 '결혼준비', 제목 '대용량'",
+      "why_not_other": "'캐릭터' 디자인이지만 어린이를 겨냥하는 문구나 연령 표기가 없다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기가 없다"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "텀블러"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "물컵/주스컵",
+        "컵/잔",
+        "테이블웨어",
+        "주방용품",
+        "텀블러",
+        "스테인리스 텀블러"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "재질",
+      "value": "스테인리스",
+      "evidence": "옵션 '재질: 스테인리스'"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "오슬로 아웃백 트래블 텀블러",
+      "evidence": "원문 102·105행, 다른 상품의 광고·추천"
+    },
+    {
+      "must_not_contain": "아이스 킹 듀얼 드링크",
+      "evidence": "원문 698·699·1148·1909·1911행, 다른 상품의 광고·추천"
+    },
+    {
+      "must_not_contain": "멸균우유",
+      "evidence": "원문 1692·1693행, 다른 상품의 광고·추천"
+    },
+    {
+      "must_not_contain": "도자기 컵+받침",
+      "evidence": "원문 493·495행, 다른 상품의 광고·추천"
+    },
+    {
+      "must_not_contain": "다른 디자인으로 5개 선택으로 구입",
+      "evidence": "원문 1441행, 구매자 문의와 답변"
+    },
+    {
+      "must_not_contain": "동일 디자인으로 5개 구성",
+      "evidence": "원문 1446행, 구매자 문의와 답변"
+    },
+    {
+      "must_not_contain": "모든 로켓직구 상품은 관부가세 포함가",
+      "evidence": "원문 684행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "채무지급보증 안내",
+      "evidence": "원문 2183행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    }
+  ]
+}
