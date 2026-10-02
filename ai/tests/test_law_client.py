@@ -1,9 +1,10 @@
 """LawClient 본문 파싱을 실제 법제처 호출 없이 검증한다."""
 
 import httpx
+import pytest
 
 from app.clients.law import LawClient
-from app.schemas.clients.law_request import LawTextRequest
+from app.schemas.clients.law_request import LawTextRequest, LicbylTextRequest
 
 
 def _client_returning(body: str) -> LawClient:
@@ -16,7 +17,7 @@ def _client_returning(body: str) -> LawClient:
 def test_법령_본문의_별표를_조문과_함께_파싱한다():
     # 판정 대상 품목표(안전확인대상제품 등)는 조문이 아니라 시행규칙 별표에 있다.
     body = (
-        "<법령>"
+        "<법령><기본정보></기본정보>"
         "<조문><조문단위><조문번호>1</조문번호><조문내용>제1조(목적)</조문내용></조문단위></조문>"
         "<별표>"
         "<별표단위><별표번호>0004</별표번호><별표가지번호>00</별표가지번호><별표구분>별표</별표구분>"
@@ -41,7 +42,7 @@ def test_법령_본문의_별표를_조문과_함께_파싱한다():
 def test_별표구분으로_품목표와_서식을_구분할_수_있다():
     # "안전인증…"으로 시작하는 제목에도 서식(지정신청서 등)이 섞여 있어 제목만으로는 거를 수 없다.
     body = (
-        "<법령><조문></조문><별표>"
+        "<법령><기본정보></기본정보><조문></조문><별표>"
         "<별표단위><별표번호>0003</별표번호><별표구분>별표</별표구분><별표제목>안전인증대상제품</별표제목></별표단위>"
         "<별표단위><별표번호>0001</별표번호><별표구분>서식</별표구분><별표제목>안전인증기관 지정신청서</별표제목></별표단위>"
         "</별표></법령>"
@@ -53,8 +54,143 @@ def test_별표구분으로_품목표와_서식을_구분할_수_있다():
 
 
 def test_별표가_없는_문서는_빈_목록을_돌려준다():
-    body = "<법령><조문><조문단위><조문번호>1</조문번호></조문단위></조문></법령>"
+    body = "<법령><기본정보></기본정보><조문><조문단위><조문번호>1</조문번호></조문단위></조문></법령>"
 
     result = _client_returning(body).get_law_text(LawTextRequest(mst="276591"))
 
     assert result.annexes == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # 없는 MST → 126B 안내 XML
+        "<Law>일치하는 법령이 없습니다. 법령명을 확인하여 주십시오.</Law>",
+        # 없는 행정규칙 ID → 138B 안내 XML
+        "<Law>일치하는 행정규칙이 없습니다. 행정규칙명을 확인하여 주십시오.</Law>",
+    ],
+)
+def test_기본정보가_없는_안내_응답은_빈_결과_대신_수신_실패로_올린다(body):
+    # 빈 결과로 넘기면 판정 단계가 "해당 규정 없음"으로 읽음 (#183)
+    with pytest.raises(RuntimeError, match="기본정보 없음"):
+        _client_returning(body).get_law_text(LawTextRequest(mst="999999999"))
+
+
+def test_XML이_아닌_본문은_수신_실패로_올린다():
+    # eflaw·licbyl 본문 요청 시 HTML 페이지 수신
+    body = "<!DOCTYPE html><html><head><title>국가법령통합관리시스템</title></head><body>" + "&nbsp;" * 600
+    with pytest.raises(RuntimeError, match="XML이 아닌 응답"):
+        _client_returning(body).get_law_text(LawTextRequest(mst="18166257"))
+
+
+def test_수신_실패_메시지에_target_일련번호_응답크기_안내문을_남긴다():
+    body = "<Law>일치하는 법령이 없습니다. 법령명을 확인하여 주십시오.</Law>"
+
+    with pytest.raises(RuntimeError) as exc_info:
+        _client_returning(body).get_law_text(LawTextRequest(mst="999999999"))
+
+    message = str(exc_info.value)
+    assert "target=law" in message
+    assert "id=999999999" in message
+    assert f"{len(body.encode()):,}B" in message
+    assert "루트 Law: 일치하는 법령이 없습니다" in message
+
+
+def test_XML로_파싱되는_XHTML_안내_페이지도_수신_실패로_올린다():
+    # MST 빈 값 요청 시 2,002B XHTML 수신
+    body = '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>국가법령정보센터</title></head><body/></html>'
+
+    with pytest.raises(RuntimeError, match="기본정보 없음"):
+        _client_returning(body).get_law_text(LawTextRequest(mst="273575"))
+
+
+def test_작은_정상_행정규칙도_기본정보가_있으면_받는다():
+    # 1,366B 정상 행정규칙 존재 (크기 기준으로 판별 불가)
+    body = (
+        "<AdmRulService><행정규칙기본정보><행정규칙명>과세자료조사를 위한 열람시에 수수료 면제</행정규칙명>"
+        "</행정규칙기본정보><조문내용>세무공무원이 과세자료 조사를 위하여 열람하는 경우 수수료를 면제한다.</조문내용>"
+        "</AdmRulService>"
+    )
+
+    result = _client_returning(body).get_admrul_text(LawTextRequest(mst="2200000093083"))
+
+    assert len(body.encode()) < 3 * 1024
+    assert result.name == "과세자료조사를 위한 열람시에 수수료 면제"
+    assert len(result.articles) == 1
+
+
+def test_법령_본문의_기본정보를_파싱한다():
+    # 법령ID를 MST 자리에 넣으면 다른 법(의장법) 본문이 정상으로 와서, 기본정보로만 대조할 수 있다 (#183).
+    body = (
+        "<법령><기본정보>"
+        "<법령ID>008044</법령ID><법령명_한글>전기용품 및 생활용품 안전관리법 시행규칙</법령명_한글>"
+        "<소관부처 소관부처코드=\"1451000\">산업통상부</소관부처><시행일자>20260827</시행일자>"
+        "</기본정보><조문></조문></법령>"
+    )
+
+    result = _client_returning(body).get_law_text(LawTextRequest(mst="273575"))
+
+    assert result.name == "전기용품 및 생활용품 안전관리법 시행규칙"
+    assert result.document_id == "008044"
+    assert result.enforce_date == "20260827"
+    assert result.department == "산업통상부"
+
+
+def test_행정규칙_본문의_기본정보를_파싱한다():
+    body = (
+        "<AdmRulService><행정규칙기본정보>"
+        "<행정규칙명>전자상거래 등에서의 상품 등의 정보제공에 관한 고시</행정규칙명><행정규칙ID>2052005</행정규칙ID>"
+        "<소관부처명>공정거래위원회</소관부처명><시행일자>20250101</시행일자>"
+        "</행정규칙기본정보><조문내용>제1조(목적)</조문내용></AdmRulService>"
+    )
+
+    result = _client_returning(body).get_admrul_text(LawTextRequest(mst="2100000248568"))
+
+    assert result.name == "전자상거래 등에서의 상품 등의 정보제공에 관한 고시"
+    assert result.document_id == "2052005"
+    assert result.enforce_date == "20250101"
+    assert result.department == "공정거래위원회"
+    assert len(result.articles) == 1
+
+
+_SAME_NUMBER_ANNEX_BODY = (
+    "<법령><기본정보></기본정보><조문></조문><별표>"
+    "<별표단위><별표번호>0003</별표번호><별표가지번호>00</별표가지번호><별표구분>별표</별표구분>"
+    "<별표제목>안전인증대상제품</별표제목><별표내용>1. 전기용품</별표내용></별표단위>"
+    "<별표단위><별표번호>0003</별표번호><별표가지번호>00</별표가지번호><별표구분>서식</별표구분>"
+    "<별표제목>안전인증기관 지정신청서</별표제목><별표내용>신청서 양식</별표내용></별표단위>"
+    "</별표></법령>"
+)
+
+
+@pytest.mark.parametrize(
+    ("table_type", "expected_title"),
+    [
+        ("별표", "안전인증대상제품"),
+        ("서식", "안전인증기관 지정신청서"),
+    ],
+)
+def test_별표는_관련_법령_본문에서_번호와_종류가_맞는_것을_고른다(table_type, expected_title):
+    # 한 법령 안에 같은 번호(0003/00)의 별표와 서식이 따로 있어 번호만으로는 고를 수 없다 (#184).
+    client = _client_returning(_SAME_NUMBER_ANNEX_BODY)
+
+    annex = client.get_licbyl_text(
+        LicbylTextRequest(related_law_mst="273575", table_number="000300", table_type=table_type)
+    )
+
+    assert annex.annex_title == expected_title
+
+
+def test_관련_법령_본문에_요청한_별표가_없으면_빈_결과_대신_예외를_올린다():
+    client = _client_returning(_SAME_NUMBER_ANNEX_BODY)
+
+    with pytest.raises(RuntimeError, match="요청한 별표가 없음"):
+        client.get_licbyl_text(
+            LicbylTextRequest(related_law_mst="273575", table_number="000400", table_type="별표")
+        )
+
+
+@pytest.mark.parametrize("table_number", ["0003", "0003-00", "00030000"])
+def test_별표번호는_6자리만_허용한다(table_number):
+    with pytest.raises(ValueError):
+        LicbylTextRequest(related_law_mst="273575", table_number=table_number, table_type="별표")
