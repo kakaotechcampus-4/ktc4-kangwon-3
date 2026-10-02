@@ -111,5 +111,44 @@
       "must_contain": "1460mAh",
       "evidence": "용량 표기와 '배터리 미포함'이 같은 페이지에 있어 모순 후보로 보고해야 한다"
     }
+  ],
+
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "문제 발생 시 환불",
+      "evidence": "원문 6·12행, Temu 상단 배너"
+    },
+    {
+      "must_not_contain": "왜 Temu를 선택해야 할까요",
+      "evidence": "원문 89행, Temu 푸터"
+    },
+    {
+      "must_not_contain": "Temu 구매 보호",
+      "evidence": "원문 111행, Temu 푸터"
+    },
+    {
+      "must_not_contain": "채용 정보",
+      "evidence": "원문 99행, Temu 푸터"
+    },
+    {
+      "must_not_contain": "보안 인증",
+      "evidence": "원문 152행, Temu 푸터의 결제 보안 배지"
+    },
+    {
+      "must_not_contain": "이용 약관",
+      "evidence": "원문 157행, Temu 푸터"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 62행, 상품 옆 Temu 배송·가격 안내"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 76행, 상품 옆 Temu 배송·가격 안내"
+    },
+    {
+      "must_not_contain": "배송업체",
+      "evidence": "원문 77행, 상품 옆 Temu 배송·가격 안내"
+    }
   ]
 }

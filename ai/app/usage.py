@@ -62,6 +62,26 @@ def from_handler(handler) -> CallUsage | None:
     return CallUsage(models, total_in, total_cached, total_out)
 
 
+def from_response(raw) -> CallUsage | None:
+    """구조화 출력의 원본 응답(AIMessage)에서 사용량을 뽑는다.
+
+    ``include_raw=True``로 받은 응답에는 usage_metadata가 이미 붙어 있다.
+    콜백 핸들러를 따로 달면 같은 값을 두 군데서 읽게 되므로 그대로 쓴다.
+    사용량이 없으면(테스트 스텁 등) None을 돌려준다.
+    """
+    usage = getattr(raw, "usage_metadata", None) or {}
+    if not usage:
+        return None
+    details = usage.get("input_token_details") or {}
+    metadata = getattr(raw, "response_metadata", None) or {}
+    return CallUsage(
+        reported_model=metadata.get("model_name") or "",
+        input_tokens=usage.get("input_tokens", 0) or 0,
+        cached_tokens=details.get("cache_read", 0) or 0,
+        output_tokens=usage.get("output_tokens", 0) or 0,
+    )
+
+
 def estimate_krw(usage: CallUsage, configured_model: str | None) -> float | None:
     """카테캠 ML API 단가로 예상 비용을 계산한다. 단가를 모르면 None이다."""
     price = PRICING_KRW.get(configured_model or "")

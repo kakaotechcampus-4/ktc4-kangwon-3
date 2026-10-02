@@ -6,7 +6,7 @@ import org.springframework.data.domain.Sort;
 
 @Getter
 @RequiredArgsConstructor
-public enum DiagnosesSortType {
+public enum SortType {
 
     LATEST(Sort.by(Sort.Direction.DESC, "createdAt")),
     OLDEST(Sort.by(Sort.Direction.ASC, "createdAt")),

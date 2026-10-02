@@ -35,6 +35,19 @@ def test_정답표에_사람_판단_근거가_남아_있다(path: Path):
 
 
 @pytest.mark.parametrize("path", TRUTH_FILES, ids=lambda p: p.stem)
+def test_listing_text_기준에_원문_근거가_남아_있다(path: Path):
+    # 섞이면 안 되는 문구가 판매자 문구와 겹치면 멀쩡한 결과를 오답으로 센다.
+    # 원문 어디에서 왔는지 적혀 있어야 그 경우를 다시 확인할 수 있다.
+    truth = json.loads(path.read_text(encoding="utf-8"))
+    for item in truth.get("listing_text_required") or []:
+        assert item.get("must_contain"), f"{path.stem}: must_contain이 없습니다"
+        assert item.get("evidence"), f"{path.stem}.{item.get('must_contain')}: evidence가 없습니다"
+    for item in truth.get("listing_text_forbidden") or []:
+        assert item.get("must_not_contain"), f"{path.stem}: must_not_contain이 없습니다"
+        assert item.get("evidence"), f"{path.stem}.{item.get('must_not_contain')}: evidence가 없습니다"
+
+
+@pytest.mark.parametrize("path", TRUTH_FILES, ids=lambda p: p.stem)
 def test_정답표에_픽스처와_검토자가_적혀_있다(path: Path):
     truth = json.loads(path.read_text(encoding="utf-8"))
     assert truth.get("fixture"), "fixture 이름이 없습니다"

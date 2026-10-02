@@ -7,6 +7,7 @@ from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
 from ..schemas.clients.law_response import (
     AdmrulSearchItem,
     AdmrulSearchResponse,
+    LawAnnex,
     LawArticle,
     LawArticleSubItem,
     LawSearchItem,
@@ -202,7 +203,7 @@ class LawClient(BaseClient):
             id_param: 일련번호 파라미터명 (law/eflaw은 MST, admrul/licbyl은 ID).
 
         Returns:
-            LawTextResponse: 조문 목록이 담긴 본문 응답.
+            LawTextResponse: 조문·별표 목록이 담긴 본문 응답.
         """
         response = self._get(self._TEXT_ENDPOINT, params={
             "OC": self._oc,
@@ -213,6 +214,9 @@ class LawClient(BaseClient):
         root = self._parse_xml(response)
         self._check_api_error(root)
 
+        # 별표(품목표 등)는 조문과 별개로 <별표> > <별표단위> 아래에 오게 됨
+        annexes = [self._parse_annex(el) for el in root.iter("별표단위")]
+
         # law/eflaw: <조문> > <조문단위> 구조
         articles_el = root.find("조문")
         if articles_el is not None:
@@ -221,6 +225,7 @@ class LawClient(BaseClient):
                     self._parse_article(el)
                     for el in articles_el.iter("조문단위")
                 ],
+                annexes=annexes,
             )
 
         # admrul: <조문내용> 태그가 루트 바로 아래 나열되는 구조
@@ -232,9 +237,10 @@ class LawClient(BaseClient):
                     for el in content_els
                     if el.text
                 ],
+                annexes=annexes,
             )
 
-        return LawTextResponse(articles=[])
+        return LawTextResponse(articles=[], annexes=annexes)
 
     @staticmethod
     def _check_api_error(root: Element) -> None:
@@ -341,6 +347,23 @@ class LawClient(BaseClient):
             sub_items=self._parse_sub_items(el, "목", "목번호", "목내용"),
             enforce_date=self._text(el, "조문시행일자"),
             reference=self._text(el, "조문참고자료"),
+        )
+
+    def _parse_annex(self, el: Element) -> LawAnnex:
+        """법령본문 별표 하나를 파싱한다.
+
+        Args:
+            el: <별표단위> 엘리먼트.
+
+        Returns:
+            LawAnnex: 파싱된 별표.
+        """
+        return LawAnnex(
+            annex_number=self._text(el, "별표번호"),
+            annex_branch_number=self._text(el, "별표가지번호"),
+            annex_type=self._text(el, "별표구분"),
+            annex_title=self._text(el, "별표제목"),
+            annex_content=self._text(el, "별표내용"),
         )
 
     @staticmethod

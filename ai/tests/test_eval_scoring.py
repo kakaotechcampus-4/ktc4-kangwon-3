@@ -136,3 +136,63 @@ def test_빈_문자열을_준_필드는_지어낸_것으로_세지_않는다():
 
     assert counts["c1"] == 0
     assert counts["stable_ok"] == 1
+
+
+def test_listing_text에서_놓친_판매자_문구는_치명으로_잡힌다():
+    truth = {"fixture": "t", "listing_text_required": [{"must_contain": "연약한 피부에 적합한"}]}
+
+    found = score(truth, [_run(listing_text=["아이들의 연약한 피부에 적합한 소형 헤어 드라이어"])] * 3)
+    missed = score(truth, [_run(listing_text=["소형 헤어 드라이어"])] * 3)
+
+    assert found.listing_counts()["c1_missing"] == 0
+    assert missed.listing_counts()["c1_missing"] == 1
+
+
+def test_listing_text에_섞인_리뷰와_플랫폼_문구는_오탐으로_잡힌다():
+    truth = {"fixture": "t", "listing_text_forbidden": [{"must_not_contain": "효과는 100%"}]}
+
+    mixed = score(truth, [_run(listing_text=["RFID 차단 지갑", "하지만 효과는 100%입니다."])] * 3)
+    clean = score(truth, [_run(listing_text=["RFID 차단 지갑"])] * 3)
+
+    assert mixed.listing_counts()["c3_mixed"] == 1
+    assert clean.listing_counts()["c3_mixed"] == 0
+
+
+def test_listing_text_채점은_기존_집계의_분모를_바꾸지_않는다():
+    # 분모가 늘면 아무것도 안 고쳤는데 C1 비율이 내려가 보이고, v1·v2 측정치와 비교할 수 없다.
+    base = {"fixture": "t", "booleans": {"battery_included": {"value": True}}}
+    with_listing = {
+        **base,
+        "listing_text_required": [{"must_contain": "없는 문구"}],
+        "listing_text_forbidden": [{"must_not_contain": "섞인 문구"}],
+    }
+    runs = [_run(battery_included=False, listing_text=["섞인 문구"])] * 3
+
+    assert score(with_listing, runs).counts() == {
+        **score(base, runs).counts(),
+        # listing_text는 따로 채점했으므로 미채점 목록에서만 빠진다.
+        "ungraded_fields": score(base, runs).counts()["ungraded_fields"] - 1,
+    }
+
+
+def test_listing_text_기준이_있으면_미채점으로_세지_않는다():
+    truth = {"fixture": "t", "listing_text_forbidden": [{"must_not_contain": "x"}]}
+    report = score(truth, [_run(listing_text=[])])
+
+    assert "listing_text" not in report.ungraded
+
+
+def test_listing_text가_섞인_회차를_따로_센다():
+    # 멘토 리뷰(#176): 다회차 실행에서 오염이 얼마나 자주 일어나는지 봐야 한다.
+    truth = {
+        "fixture": "t",
+        "listing_text_forbidden": [{"must_not_contain": "리뷰"}, {"must_not_contain": "배송"}],
+    }
+    runs = [
+        _run(listing_text=["리뷰", "배송"]),
+        _run(listing_text=["판매자 문구"]),
+        _run(listing_text=["배송"]),
+    ]
+
+    assert score(truth, runs).listing_counts()["runs_mixed"] == 2
+

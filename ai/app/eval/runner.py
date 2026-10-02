@@ -24,9 +24,8 @@ from pathlib import Path
 # 적으면 한쪽만 옮겨졌을 때 "다른 프롬프트로 잰 결과"를 같은 것으로 착각하게 된다.
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
-from ..config import DEFAULT_MODEL, load_settings
+from ..config import load_settings
 from ..schemas.agent import ExtractionInput
-from ..usage import record
 from .grading import Grade, Stability
 from .scoring import FixtureReport, load_truth, score
 
@@ -96,9 +95,7 @@ def describe_metadata(meta: dict) -> str:
     )
 
 
-def run_fixture(
-    agent: ExtractionAgent, name: str, runs: int, model: str = DEFAULT_MODEL
-) -> list[dict]:
+def run_fixture(agent: ExtractionAgent, name: str, runs: int) -> list[dict]:
     """픽스처 하나를 N회 추출한다. 실패한 회차도 결과로 남긴다."""
     path = RAW_DIR / name
     if not path.exists():
@@ -118,16 +115,12 @@ def run_fixture(
             product = agent.extract(source)
         except ExtractionFailedError as exc:
             elapsed = int((time.perf_counter() - started) * 1000)
-            # 실패도 한 회차로 센다. "5회 중 1회 실패"를 집계할 수 있어야 한다.
-            record("extraction-eval", None, configured_model=model,
-                   subject_id=source.product_id, ok=False, elapsed_ms=elapsed,
-                   error_type=type(exc.__cause__ or exc).__name__)
+            # 사용량 기록은 에이전트가 직접 남긴다(실패 회차 포함). 여기서 또 남기면
+            # 토큰이 빠진 행이 하나 더 생겨 집계가 두 배로 보인다.
             outputs.append({"_failed": True, "_error": str(exc)})
             print(f"    {index + 1}/{runs} 실패: {exc}", file=sys.stderr)
             continue
         elapsed = int((time.perf_counter() - started) * 1000)
-        record("extraction-eval", None, configured_model=model,
-               subject_id=source.product_id, ok=True, elapsed_ms=elapsed)
         outputs.append(product.model_dump(mode="json"))
         print(f"    {index + 1}/{runs} 완료 ({elapsed}ms)", file=sys.stderr)
     return outputs
@@ -144,11 +137,22 @@ def print_report(report: FixtureReport) -> None:
     problems = [f for f in report.fields if f.worst is not Grade.OK or f.stability is Stability.UNSTABLE]
     if not problems:
         print("  문제 없음")
-        return
     for field in sorted(problems, key=lambda f: (f.stability is not Stability.STABLE_WRONG, f.name)):
         flag = "!" if field.hard_flip else " "
         print(f"  {flag} {field.name:26s} 정답={field.truth!r:>7} 실행={field.values} "
               f"[{field.worst.value}/{field.stability.value}]")
+
+    # 위 C1·C2·C3 집계와 섞지 않는다. 섞으면 이전 측정치와 분모가 달라진다.
+    if report.listing_fields:
+        listing = report.listing_counts()
+        # 등록한 문구만 세므로 섞인 양 자체가 아니라 하한값이다(EXTRACTION_EVAL.md 1.3).
+        print(f"  [listing_text] 등록 문구 {listing['items']}개 중 놓친 판매자 문구 {listing['c1_missing']}  "
+              f"섞인 리뷰·플랫폼 문구 {listing['c3_mixed']} (하한값), "
+              f"섞인 회차 {listing['runs_mixed']}/{report.runs}")
+        for field in report.listing_fields:
+            if field.worst is not Grade.OK:
+                hits = sum(1 for g in field.grades if g is not Grade.OK)
+                print(f"    {field.name:40s} {hits}/{report.runs}회")
 
 
 def warn_if_prompt_changed(meta: dict | None) -> list[str]:
@@ -209,7 +213,8 @@ def main() -> int:
               f"(tests/fixtures/README.md 참고).", file=sys.stderr)
         return 1
 
-    agent = ExtractionAgent()
+    # 평가로 쓴 비용이 운영 비용과 섞이면 어느 쪽이 얼마인지 볼 수 없다.
+    agent = ExtractionAgent(usage_agent="extraction-eval")
     # ExtractionAgent()가 설정을 이미 검증했으므로 여기서 다시 읽어도 실패하지 않는다.
     meta = run_metadata(runs=args.runs, model=load_settings().model)
     print(f"측정 조건: {describe_metadata(meta)}", file=sys.stderr)
@@ -221,7 +226,7 @@ def main() -> int:
     for name in names:
         truth = load_truth(TRUTH_DIR / f"{name}.json")
         print(f"  {truth['fixture']} x{args.runs}", file=sys.stderr)
-        results[name] = run_fixture(agent, truth["fixture"], args.runs, meta["model"])
+        results[name] = run_fixture(agent, truth["fixture"], args.runs)
 
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
