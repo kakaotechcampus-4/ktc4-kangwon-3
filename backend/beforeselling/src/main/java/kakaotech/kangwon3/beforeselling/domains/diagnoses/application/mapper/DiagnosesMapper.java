@@ -6,10 +6,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
-import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DiagnosesMapper {
 
-    private final S3UrlKeyCodec s3UrlKeyCodec;
+    private final ProductMapper productMapper;
 
     public List<ProductCreateCommand> toCommands(DiagnosesCreateRequest request) {
         return request.products().stream()
@@ -44,7 +41,7 @@ public class DiagnosesMapper {
 
     public DiagnosesDetailResponse toDetailResponse(Diagnoses diagnoses) {
         List<ProductResponse> products = diagnoses.getProducts().stream()
-                .map(this::toProductResponse)
+                .map(productMapper::toResponse)
                 .toList();
 
         return new DiagnosesDetailResponse(
@@ -56,24 +53,4 @@ public class DiagnosesMapper {
         );
     }
 
-    private ProductResponse toProductResponse(Product product) {
-        List<String> imageUrls = product.getImages().stream()
-                .map(ProductImage::getImageKey)
-                .map(s3UrlKeyCodec::toUrl)
-                .toList();
-
-        return new ProductResponse(
-                product.getId(),
-                product.getSortOrder(),
-                product.getProductName(),
-                s3UrlKeyCodec.toUrlOrNull(product.getProductImageKey()),
-                product.getSourceType(),
-                product.getSourceUrl(),
-                product.getSourceText(),
-                imageUrls,
-                product.getProcessingStatus(),
-                product.getResultStatus(),
-                product.getSummary()
-        );
-    }
 }

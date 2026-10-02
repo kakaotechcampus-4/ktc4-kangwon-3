@@ -33,9 +33,12 @@ class DiagnosesMapperTest {
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
     private static final String URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
-    private final DiagnosesMapper diagnosesMapper = new DiagnosesMapper(new S3UrlKeyCodec(new S3Properties(
+    private final S3UrlKeyCodec s3UrlKeyCodec = new S3UrlKeyCodec(new S3Properties(
             "test-bucket", "ap-northeast-2",
-            Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null)));
+            Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null));
+
+    private final DiagnosesMapper diagnosesMapper =
+            new DiagnosesMapper(new ProductMapper(s3UrlKeyCodec));
 
     @Test
     @DisplayName("진단 요청을 변환하면 상품마다 커맨드가 요청 순서대로 만들어진다.")
