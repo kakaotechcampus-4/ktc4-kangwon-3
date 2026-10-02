@@ -1,3 +1,5 @@
+import { truncateToCodeUnitLength } from "@/lib/text";
+
 interface FormFieldProps {
     id: string
     title: string
@@ -13,8 +15,9 @@ const FIELD_CLASSES =
 
 function FormField({ id, title, placeholder, variant = 'input', value, onChange, maxLength }: FormFieldProps) {
     // 네이티브 maxLength는 한글 등 IME 조합 중에는 실시간으로 길이를 막지 못하므로 직접 잘라준다.
+    // 이모지가 중간에서 잘리지 않도록 grapheme 단위로 자른다.
     const handleChange = (newValue: string) => {
-        onChange(maxLength !== undefined ? newValue.slice(0, maxLength) : newValue);
+        onChange(maxLength !== undefined ? truncateToCodeUnitLength(newValue, maxLength) : newValue);
     };
 
     return (
