@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 
 import Button from "@/components/common/Button/index.tsx";
 
+import { MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "./constraints.ts";
 import AttachedImageList from "./form/AttachedImageList.tsx";
 import FormField from "./form/FormField.tsx";
 import ImageUploadField from "./form/ImageUploadField.tsx";
 import type { Product } from "./types.ts";
-
-const MAX_PRODUCT_IMAGE_COUNT = 20;
+import { validateProduct } from "./validation.ts";
 
 interface TextImageInputFormProps {
     onAdd: (product: Product) => void
@@ -22,26 +22,22 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
     const imageFiles = useMemo(() => (image ? [image] : []), [image]);
 
     const handleAddProduct = () => {
-        const trimmedContent = productContent.trim();
-        if (!trimmedContent && productImages.length === 0) {
-            alert("상세페이지 내용이나 이미지를 입력해주세요.");
-            return;
-        }
-
-        const trimmedName = productName.trim();
-        if (!trimmedName) {
-            alert("제품명을 입력해주세요.");
-            return;
-        }
-
-        onAdd({
+        const candidate: Product = {
             id: crypto.randomUUID(),
             type: "text/image",
-            title: trimmedName,
+            title: productName.trim(),
             productImageFile: image ?? undefined,
-            content: trimmedContent,
+            content: productContent.trim(),
             images: productImages,
-        });
+        };
+
+        const error = validateProduct(candidate);
+        if (error) {
+            alert(error);
+            return;
+        }
+
+        onAdd(candidate);
 
         setProductName("");
         setProductContent("");
@@ -57,7 +53,7 @@ function TextImageInputForm({ onAdd }: TextImageInputFormProps) {
                 placeholder="제품을 구분하기 위한 상품명이나 별명을 입력하세요."
                 value={productName}
                 onChange={setProductName}
-                maxLength={100}
+                maxLength={MAX_PRODUCT_NAME_LENGTH}
             />
             <FormField
                 id="product-content"

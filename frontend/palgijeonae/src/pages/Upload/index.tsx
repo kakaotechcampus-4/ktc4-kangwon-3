@@ -13,6 +13,7 @@ import { submitDiagnosis } from "./diagnosisPipeline.ts";
 import TextImageInputForm from "./TextImageInputForm.tsx";
 import type { Product } from "./types.ts";
 import UrlInputForm from "./UrlInputForm.tsx";
+import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [
     { key: "url", label: "URL" },
@@ -47,6 +48,15 @@ function UploadPage() {
     const handleStartDiagnosis = () => {
         if (products.length === 0) {
             alert("진단할 상품을 먼저 추가해주세요.");
+            return;
+        }
+
+        const firstInvalid = products
+            .map((product) => ({ product, error: validateProduct(product) }))
+            .find(({ error }) => error !== null);
+
+        if (firstInvalid) {
+            alert(`${firstInvalid.product.title || "이름 없는 상품"}: ${firstInvalid.error}`);
             return;
         }
 
