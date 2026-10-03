@@ -12,7 +12,6 @@
 """
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -25,6 +24,7 @@ from pathlib import Path
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..config import load_settings
+from ..prompts import fingerprint_text
 from ..schemas.agent import ExtractionInput
 from .grading import Grade, Stability
 from .scoring import FixtureReport, load_truth, score
@@ -43,11 +43,11 @@ def prompt_fingerprint(path: Path | None = None) -> str:
     """추출 프롬프트의 SHA-256. 한 글자만 달라도 값이 바뀐다.
 
     줄바꿈은 LF로 맞춰서 잰다. 같은 내용인데 윈도우(CRLF)와 CI(LF)에서 다른 값이
-    나오면 "프롬프트가 바뀌었다"는 잘못된 경고가 뜬다.
+    나오면 "프롬프트가 바뀌었다"는 잘못된 경고가 뜬다. 계산은 에이전트가 쓰는
+    공용 로더(app.prompts)와 같은 함수를 쓴다.
     """
     target = path or EXTRACTION_PROMPT_PATH
-    normalized = target.read_text(encoding="utf-8").replace("\r\n", "\n")
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return fingerprint_text(target.read_text(encoding="utf-8"))
 
 
 def _git(*args: str) -> str | None:
