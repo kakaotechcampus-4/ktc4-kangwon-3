@@ -5,6 +5,23 @@ from functools import lru_cache
 from pathlib import Path
 
 
+def prompt_path(name: str) -> Path:
+    """등록된 프롬프트 파일 경로. 프롬프트 경로는 이 함수 한 곳에서만 정한다.
+
+    Args:
+        name: 프롬프트 이름 (extraction, selection, verification).
+
+    Returns:
+        Path: 프롬프트 파일 경로.
+
+    Raises:
+        ValueError: 등록하지 않은 이름인 경우.
+    """
+    if name not in {"extraction", "selection", "verification"}:
+        raise ValueError("등록하지 않은 프롬프트입니다.")
+    return Path(__file__).with_name(f"{name}.md")
+
+
 @lru_cache(maxsize=None)
 def load_prompt(name: str) -> str:
     """등록된 프롬프트를 읽는다. 같은 이름은 프로세스에서 한 번만 읽는다.
@@ -19,9 +36,7 @@ def load_prompt(name: str) -> str:
         ValueError: 등록하지 않은 이름인 경우.
         FileNotFoundError: 프롬프트 파일이 없는 경우.
     """
-    if name not in {"extraction", "selection", "verification"}:
-        raise ValueError("등록하지 않은 프롬프트입니다.")
-    return Path(__file__).with_name(f"{name}.md").read_text(encoding="utf-8")
+    return prompt_path(name).read_text(encoding="utf-8")
 
 
 def prompt_fingerprint(name: str) -> str:

@@ -142,7 +142,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             calls.append((schema, include_raw))
             return self
 
-    monkeypatch.setattr("app.agents.extraction.build_chat_model", lambda: _FakeModel())
+    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
 
     ExtractionAgent()
 
@@ -233,7 +233,7 @@ def _captured_usage(monkeypatch) -> list[dict]:
     """공용 사용량 로그로 나가는 인자를 가로챈다."""
     calls: list[dict] = []
     monkeypatch.setattr(
-        "app.agents.extraction.record",
+        "app.usage.record",
         lambda agent, usage, **kwargs: calls.append({"agent": agent, "usage": usage, **kwargs}),
     )
     return calls
