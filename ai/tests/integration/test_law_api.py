@@ -5,7 +5,7 @@ import pytest
 from app.clients.law import LawClient
 from app.schemas.clients.law_request import LawTextRequest
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.external_api
 
 # 전기용품 및 생활용품 안전관리법 시행규칙 (품목표 별표 3·4 포함)
 ELECTRICAL_RULE_MST = "273575"
