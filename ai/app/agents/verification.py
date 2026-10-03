@@ -6,12 +6,7 @@
 
 import json
 from dataclasses import dataclass, field
-from functools import lru_cache
-from pathlib import Path
-from time import perf_counter
-from typing import Literal, Protocol
-
-from langchain_core.callbacks import UsageMetadataCallbackHandler
+from typing import Literal
 
 from ..schemas.base import StrictModel, utc_now
 from ..schemas.schemas import (
@@ -27,9 +22,7 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus as Status,
 )
-from ..usage import from_handler, record
-
-_PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "verification.md"
+from .base import AgentError, AgentSpec, BaseAgent
 
 # 상세 결과의 kind와 툴 종류의 대응. 판별 유니온이 둘의 일치까지 검사하지는 않는다.
 _RESULT_KINDS = {
@@ -77,28 +70,13 @@ class _RuleCheckContext:
             self.additional_tools.append(tool)
 
 
-@lru_cache(maxsize=1)
-def _load_system_prompt() -> str:
-    """고정 시스템 프롬프트를 프로세스에서 한 번만 읽는다."""
-    return _PROMPT_PATH.read_text(encoding="utf-8")
-
-
-class VerificationError(RuntimeError):
+class VerificationError(AgentError):
     """모델 검증을 완료하지 못했다.
 
-    ``partial_result``에는 모델 호출 전 완료한 규칙 검사 결과를 보존할 수 있다.
+    ``partial_result``에는 모델 호출 전 완료한 규칙 검사 결과(VerificationResult)를 보존할 수 있다.
     파이프라인은 이를 ``FinalVerificationStatus.INCOMPLETE`` 결과에 포함하고,
     정상 검증 완료로 취급하지 않아야 한다.
     """
-
-    def __init__(
-        self,
-        message: str,
-        *,
-        partial_result: VerificationResult | None = None,
-    ) -> None:
-        super().__init__(message)
-        self.partial_result = partial_result
 
 
 # 모델이 채우는 필드만 담는다. issue_id·question_id·verified_at은 서버가 만든다.
@@ -126,40 +104,23 @@ class _Review(StrictModel):
     checked_finding_ids: list[str]
 
 
-class _StructuredModel(Protocol):
-    """``model.with_structured_output(...)``이 돌려주는 결과물의 최소 인터페이스."""
+class VerificationAgent(BaseAgent[_Review]):
+    """종합된 심사 결과의 근거·누락·모순을 검증한다.
 
-    def invoke(self, messages: list, config: dict | None = None) -> _Review: ...
-
-
-class _ModelLike(Protocol):
-    """VerificationAgent가 실제로 쓰는 메서드만 좁혀 놓은 타입.
-
-    ``BaseChatModel``이 이 구조를 만족하므로 실제 모델도 그대로 넘길 수 있고,
-    테스트에서는 이를 상속하지 않는 가벼운 스텁도 그대로 넘길 수 있다.
+    model 없이도 verify_rules()는 동작하고, verify()는 명시적으로 실패한다.
     """
 
-    def with_structured_output(self, schema: type[_Review], **kwargs) -> _StructuredModel: ...
-
-
-class VerificationAgent:
-    """종합된 심사 결과의 근거·누락·모순을 검증한다."""
-
-    def __init__(
-        self,
-        model: _ModelLike | None = None,
-        *,
-        configured_model: str | None = None,
-    ) -> None:
-        # model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있다.
-        # model 없이도 verify_rules()는 동작하고, verify()는 명시적으로 실패한다.
-        self._configured_model = configured_model or getattr(model, "model_name", None)
-        self._structured = (
-            None
-            if model is None
-            # 프록시가 strict json_schema를 지원하므로 함수호출 방식 대신 스키마를 강제한다.
-            else model.with_structured_output(_Review, method="json_schema", strict=True)
-        )
+    spec = AgentSpec(
+        name="verification",
+        prompt="verification",
+        output=_Review,
+        error=VerificationError,
+        call_failed_message="모델 검토 호출에 실패했습니다: {exc_type}: {exc}",
+        parse_failed_message="모델 검토 응답이 _Review 스키마와 맞지 않습니다: {error}",
+        # 프록시가 strict json_schema를 지원하므로 스키마를 강제
+        strict=True,
+        requires_model=False,
+    )
 
     @classmethod
     def from_env(cls) -> "VerificationAgent":
@@ -208,43 +169,22 @@ class VerificationAgent:
             status="started",
             detail="DraftAssessment를 GPT 구조화 출력 _Review로 검토합니다.",
         )
-        usage_handler = UsageMetadataCallbackHandler()
-        started_at = perf_counter()
         try:
-            review = self._structured.invoke(
-                self._build_messages(draft),
-                config={"callbacks": [usage_handler]},
-            )
-        except Exception as exc:
-            record(
-                "verification",
-                from_handler(usage_handler),
-                configured_model=self._configured_model,
+            review = self._invoke(
+                self._user_content(draft),
                 subject_id=draft.product.product_id,
-                ok=False,
-                elapsed_ms=round((perf_counter() - started_at) * 1000),
-                error_type=type(exc).__name__,
+                partial_result=rules,
             )
+        except VerificationError as exc:
+            cause = exc.__cause__
             self._append_trace(
                 trace,
                 action="model_review_failed",
                 status="failed",
-                detail=f"_Review 생성 실패: {type(exc).__name__}",
+                detail=f"_Review 생성 실패: {type(cause).__name__ if cause else 'MissingParsedOutput'}",
             )
-            # 원인은 __cause__에 그대로 남는다. 응답 본문이 메시지에 섞일 수 있으므로
-            # 이 로그를 그대로 외부에 공유하지 않는다.
-            raise VerificationError(
-                f"모델 검토 호출에 실패했습니다: {type(exc).__name__}: {exc}",
-                partial_result=rules,
-            ) from exc
-
-        record(
-            "verification",
-            from_handler(usage_handler),
-            configured_model=self._configured_model,
-            subject_id=draft.product.product_id,
-            elapsed_ms=round((perf_counter() - started_at) * 1000),
-        )
+            # 원인은 __cause__에 그대로 남음. 응답 본문이 메시지에 섞일 수 있어 외부 공유 금지
+            raise
 
         self._append_trace(
             trace,
@@ -544,7 +484,7 @@ class VerificationAgent:
                     )
 
     @staticmethod
-    def _build_messages(draft: DraftAssessment) -> list[dict[str, str]]:
+    def _user_content(draft: DraftAssessment) -> str:
         payload = draft.model_dump(mode="json")
         # 조회 파라미터와 원시 응답에는 키·토큰·개인정보가 섞일 수 있어 모델에 보내지 않는다.
         # tool_results[].findings는 최상위 findings와 항상 같아야 한다는 규칙을 verify_rules()가 이미 검사하므로, 모델에는 최상위 목록 한 벌만 보내 입력 토큰을 줄인다.
@@ -553,10 +493,7 @@ class VerificationAgent:
                 tool_record.pop(key, None)
         # 출력 JSON Schema는 with_structured_output이 API에 직접 전달한다.
         # 프롬프트에 다시 붙이면 토큰만 늘고 두 스키마가 어긋날 수 있어 넣지 않는다.
-        return [
-            {"role": "system", "content": _load_system_prompt()},
-            {"role": "user", "content": json.dumps({"draft": payload}, ensure_ascii=False)},
-        ]
+        return json.dumps({"draft": payload}, ensure_ascii=False)
 
     @staticmethod
     def _check_scope(review: _Review, draft: DraftAssessment) -> None:

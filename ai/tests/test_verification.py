@@ -1,6 +1,7 @@
 """VerificationAgent 동작 검증. 실제 ML API 호출 없이 모델을 스텁으로 대체한다."""
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -117,24 +118,47 @@ class _StubModel:
         self.structured_kwargs = kwargs
         return self
 
-    def invoke(self, messages: list, config: dict | None = None) -> _Review:
+    def invoke(self, messages: list, config: dict | None = None) -> dict:
         self.received_messages = messages
         self.received_config = config
-        return self._review
+        # include_raw=True 응답 형태: 원본 응답(토큰 사용량) + 파싱 결과
+        return {"raw": _fake_raw(), "parsed": self._review, "parsing_error": None}
 
 
 class _RaisingModel:
     def with_structured_output(self, schema: type, **kwargs):
         return self
 
-    def invoke(self, messages: list, config: dict | None = None) -> _Review:
+    def invoke(self, messages: list, config: dict | None = None) -> dict:
         raise RuntimeError("rate limit exceeded")
+
+
+class _UnparsableModel:
+    """응답은 왔지만 _Review 스키마로 바꾸지 못한 경우."""
+
+    def with_structured_output(self, schema: type, **kwargs):
+        return self
+
+    def invoke(self, messages: list, config: dict | None = None) -> dict:
+        return {"raw": _fake_raw(), "parsed": None, "parsing_error": ValueError("issues 필드 누락")}
+
+
+def _fake_raw() -> SimpleNamespace:
+    return SimpleNamespace(
+        usage_metadata={
+            "input_tokens": 5200,
+            "output_tokens": 800,
+            "total_tokens": 6000,
+            "input_token_details": {"cache_read": 3000},
+        },
+        response_metadata={"model_name": "gpt-4.1-mini"},
+    )
 
 
 @pytest.fixture(autouse=True)
 def _disable_usage_file_writes(monkeypatch):
     """에이전트 단위 테스트가 로컬 usage 로그를 만들지 않게 한다."""
-    monkeypatch.setattr("app.agents.verification.record", lambda *args, **kwargs: None)
+    monkeypatch.setattr("app.usage.record", lambda *args, **kwargs: None)
 
 
 # ---------- 규칙 검사 (API 없이) ----------
@@ -483,7 +507,7 @@ def test_strict_json_schema로_구조화_출력을_요구한다():
 
     VerificationAgent(model=stub)
 
-    assert stub.structured_kwargs == {"method": "json_schema", "strict": True}
+    assert stub.structured_kwargs == {"include_raw": True, "method": "json_schema", "strict": True}
 
 
 def test_문제가_없으면_approved를_돌려준다():
@@ -694,50 +718,64 @@ def test_겹치는_질문은_required가_강한_쪽을_남긴다():
     assert merged.question_id == existing.question_id  # 기존 식별자 보존
     assert result.status is VerificationStatus.USER_INPUT_REQUIRED
 
-def test_모델_호출에_사용량_콜백을_전달하고_성공을_기록한다(monkeypatch):
-    stub = _StubModel(_review())
-    captured: dict = {}
-    usage = object()
+def _captured_usage(monkeypatch) -> list[dict]:
+    """공용 사용량 로그로 나가는 인자를 가로챈다."""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        "app.usage.record",
+        lambda agent, call_usage, **kwargs: calls.append({"agent": agent, "usage": call_usage, **kwargs}),
+    )
+    return calls
 
-    monkeypatch.setattr("app.agents.verification.from_handler", lambda handler: usage)
 
-    def capture(agent, call_usage, **kwargs):
-        captured.update(agent=agent, usage=call_usage, **kwargs)
-
-    monkeypatch.setattr("app.agents.verification.record", capture)
+def test_모델_검토가_성공하면_원본_응답의_사용량을_기록한다(monkeypatch):
+    calls = _captured_usage(monkeypatch)
 
     VerificationAgent(
-        model=stub,
+        model=_StubModel(_review()),
         configured_model="openai/gpt-4.1-mini",
     ).verify(_draft())
 
-    assert len(stub.received_config["callbacks"]) == 1
+    assert len(calls) == 1
+    captured = calls[0]
     assert captured["agent"] == "verification"
-    assert captured["usage"] is usage
+    assert captured["usage"].input_tokens == 5200
+    assert captured["usage"].cached_tokens == 3000
     assert captured["configured_model"] == "openai/gpt-4.1-mini"
     assert captured["subject_id"] == "p1"
     assert captured["elapsed_ms"] >= 0
-    assert "ok" not in captured  # 성공은 record()의 기본값을 쓴다.
+    assert captured["ok"] is True
 
 
 def test_모델_호출_실패도_오류_타입과_함께_기록한다(monkeypatch):
-    captured: dict = {}
-
-    monkeypatch.setattr("app.agents.verification.from_handler", lambda handler: None)
-
-    def capture(agent, call_usage, **kwargs):
-        captured.update(agent=agent, usage=call_usage, **kwargs)
-
-    monkeypatch.setattr("app.agents.verification.record", capture)
+    calls = _captured_usage(monkeypatch)
 
     with pytest.raises(VerificationError):
         VerificationAgent(model=_RaisingModel()).verify(_draft())
 
+    assert len(calls) == 1
+    captured = calls[0]
     assert captured["agent"] == "verification"
     assert captured["usage"] is None
     assert captured["ok"] is False
     assert captured["error_type"] == "RuntimeError"
     assert captured["elapsed_ms"] >= 0
+
+
+def test_응답_파싱_실패는_토큰과_함께_기록하고_규칙_결과를_보존한다(monkeypatch):
+    calls = _captured_usage(monkeypatch)
+    trace: list[TraceEvent] = []
+
+    with pytest.raises(VerificationError) as exc_info:
+        VerificationAgent(model=_UnparsableModel()).verify(_draft(), trace=trace)
+
+    assert isinstance(exc_info.value.__cause__, ValueError)
+    assert exc_info.value.partial_result is not None
+    assert trace[-1].action == "model_review_failed"
+    assert len(calls) == 1
+    assert calls[0]["ok"] is False
+    assert calls[0]["error_type"] == "ValueError"
+    assert calls[0]["usage"].output_tokens == 800
 
 
 # ---------- 실패 처리 ----------
@@ -806,7 +844,7 @@ def test_조회_파라미터와_원시_응답은_모델에_보내지_않는다()
 
     VerificationAgent(model=stub).verify(draft)
 
-    payload = stub.received_messages[-1]["content"]
+    payload = stub.received_messages[-1].content
     assert "절대-보내면-안-됨" not in payload
     assert "원시 응답" not in payload
     assert "내부 오류 메시지" not in payload
@@ -818,7 +856,7 @@ def test_툴_판단은_최상위_findings로만_모델에_보낸다():
 
     VerificationAgent(model=stub).verify(_draft())
 
-    payload = json.loads(stub.received_messages[-1]["content"])["draft"]
+    payload = json.loads(stub.received_messages[-1].content)["draft"]
     assert [f["finding_id"] for f in payload["findings"]] == ["f1"]
     assert all("findings" not in record for record in payload["tool_results"])
 
@@ -828,7 +866,7 @@ def test_출력_스키마를_프롬프트에_중복으로_붙이지_않는다():
 
     VerificationAgent(model=stub).verify(_draft())
 
-    system_prompt = stub.received_messages[0]["content"]
+    system_prompt = stub.received_messages[0].content
     assert "checked_finding_ids" in system_prompt  # 규칙 설명은 있다
     assert "앞 단계의 도메인 판단을 반복하지 않는다" in system_prompt
     assert "다시 `missing_evidence`로 지적하지 않는다" in system_prompt
