@@ -174,7 +174,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             calls.append((schema, include_raw))
             return self
 
-    monkeypatch.setattr("app.agents.selection.build_chat_model", lambda: _FakeModel())
+    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
 
     SelectionAgent()
 

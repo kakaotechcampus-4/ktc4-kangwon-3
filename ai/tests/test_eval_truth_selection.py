@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.selection import _PROMPT_PATH as SELECTION_PROMPT_PATH
 from app.eval.runner import prompt_fingerprint
+from app.prompts import prompt_path
 from app.schemas.schemas import ToolName
 
 TRUTH_DIR = Path(__file__).parent / "eval_truth_selection"
@@ -88,7 +88,7 @@ def test_정답을_매긴_선택_프롬프트가_지금과_같다(path: Path):
     # 규칙에서 나온다. 프롬프트가 바뀌면 정답표가 옛 규칙 기준으로 조용히 남으므로,
     # 바뀐 규칙으로 정답을 다시 검토하게 만든다.
     recorded = _load(path).get("prompt_sha256")
-    current = prompt_fingerprint(SELECTION_PROMPT_PATH)
+    current = prompt_fingerprint(prompt_path("selection"))
 
     assert recorded, f"{path.stem}: 어떤 선택 프롬프트로 정답을 매겼는지(prompt_sha256)가 없습니다"
     assert recorded == current, (
