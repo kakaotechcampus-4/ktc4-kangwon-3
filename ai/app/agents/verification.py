@@ -124,9 +124,17 @@ class VerificationAgent(BaseAgent[_Review]):
 
     @classmethod
     def from_env(cls) -> "VerificationAgent":
-        from ..config import build_chat_model, load_settings
+        """공용 설정(get_settings)으로 모델을 만들어 전체 검증이 가능한 에이전트를 만든다.
 
-        settings = load_settings()
+        Returns:
+            VerificationAgent: 모델이 연결된 검증 에이전트.
+
+        Raises:
+            ConfigError: 필수 환경변수가 없거나 값이 잘못된 경우.
+        """
+        from ..config import build_chat_model, get_settings
+
+        settings = get_settings()
         return cls(build_chat_model(settings), configured_model=settings.model)
 
     def verify(

@@ -222,6 +222,18 @@ def test_build_chat_model이_설정값을_chatopenai에_전달한다(monkeypatch
     }
 
 
+def test_build_chat_model은_설정을_안_넘기면_공용_설정_캐시를_쓴다(monkeypatch):
+    monkeypatch.setattr(langchain_openai, "ChatOpenAI", lambda **kwargs: kwargs)
+    _env(monkeypatch)
+    shared = config.get_settings()
+    monkeypatch.setattr(config, "load_settings", lambda: pytest.fail("매번 다시 읽으면 안 됨"))
+
+    result = config.build_chat_model()
+
+    assert result["model"] == shared.model
+    assert result["api_key"] == shared.api_key
+
+
 def test_get_settings는_한_번_읽은_설정을_계속_재사용한다(monkeypatch):
     _env(monkeypatch)
     first = config.get_settings()

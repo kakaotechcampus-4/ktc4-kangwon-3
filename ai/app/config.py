@@ -163,12 +163,23 @@ def build_chat_model(
     *,
     temperature: float = 0,
 ) -> "BaseChatModel":
-    """공통 설정으로 LangChain ``ChatOpenAI`` 모델을 만든다."""
+    """공통 설정으로 LangChain ``ChatOpenAI`` 모델을 만든다.
+
+    Args:
+        settings: 사용할 설정. None이면 ``get_settings()``의 공용 설정(캐시).
+        temperature: 샘플링 온도.
+
+    Returns:
+        BaseChatModel: 설정값을 적용한 ``ChatOpenAI``.
+
+    Raises:
+        ConfigError: settings 없이 호출했는데 필수 환경변수가 없거나 값이 잘못된 경우.
+    """
 
     # 설정 검사만 하는 코드가 SDK 없이도 import되도록 지연 import한다.
     from langchain_openai import ChatOpenAI
 
-    resolved = settings or load_settings()
+    resolved = settings or get_settings()
     return ChatOpenAI(
         model=resolved.model,
         base_url=resolved.base_url,

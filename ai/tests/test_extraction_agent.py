@@ -8,7 +8,7 @@ import pytest
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes, Product
 from app.agents.extraction import ExtractionAgent, ExtractionFailedError
-from app.config import ConfigError
+from app.config import ConfigError, get_settings
 
 _FAKE_USAGE = {
     "input_tokens": 4000,
@@ -155,6 +155,8 @@ def test_base_url이_없으면_401_대신_ConfigError로_알려준다(monkeypatc
     monkeypatch.setattr("app.config.load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    # 모델 생성이 공용 설정 캐시를 쓰므로 앞선 테스트가 캐시한 설정을 비움
+    get_settings.cache_clear()
 
     with pytest.raises(ConfigError):
         ExtractionAgent()
