@@ -50,12 +50,10 @@ function UploadPage() {
             return;
         }
 
-        const firstInvalid = products
-            .map((product) => ({ product, error: validateProduct(product) }))
-            .find(({ error }) => error !== null);
-
-        if (firstInvalid) {
-            alert(`${firstInvalid.product.title || "이름 없는 상품"}: ${firstInvalid.error}`);
+        const firstInvalidProduct = products.find((product) => validateProduct(product) !== null);
+        if (firstInvalidProduct) {
+            const error = validateProduct(firstInvalidProduct);
+            alert(`${firstInvalidProduct.title || "이름 없는 상품"}: ${error}`);
             return;
         }
 
