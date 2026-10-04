@@ -10,9 +10,8 @@ import { cn } from "@/lib/cn";
 
 import AddedProductList from "./AddedProductList.tsx";
 import { submitDiagnosis } from "./diagnosisPipeline.ts";
-import TextImageInputForm from "./TextImageInputForm.tsx";
+import InputForm from "./InputForm.tsx";
 import type { Product } from "./types.ts";
-import UrlInputForm from "./UrlInputForm.tsx";
 import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [
@@ -91,11 +90,7 @@ function UploadPage() {
                                     </button>
                                 ))}
                             </div>
-                            {inputType === "url" ? (
-                                <UrlInputForm onAdd={handleAddProduct} />
-                            ) : (
-                                <TextImageInputForm onAdd={handleAddProduct} />
-                            )}
+                            <InputForm type={inputType} onAdd={handleAddProduct} />
                         </DefaultBox>
                     ) : (
                         <DefaultBox className="border-status-warning bg-status-warning-bg">
