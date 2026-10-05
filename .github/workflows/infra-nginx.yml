@@ -6,13 +6,11 @@ on:
     paths:
       - "infra/nginx/**"
       - ".github/workflows/infra-nginx.yml"
-      - ".github/actions/ssm-run/**"
   push:
     branches: [develop]
     paths:
       - "infra/nginx/**"
       - ".github/workflows/infra-nginx.yml"
-      - ".github/actions/ssm-run/**"
   workflow_dispatch:
 
 permissions:
