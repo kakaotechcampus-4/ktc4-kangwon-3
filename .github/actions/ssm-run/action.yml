@@ -1,0 +1,98 @@
+name: EC2 SSM 명령 실행
+description: EC2를 깨워 SSM 에이전트 연결을 기다린 뒤, 명령 목록을 실행하고 결과 로그를 출력한다.
+
+inputs:
+  instance-id:
+    description: 대상 EC2 인스턴스 ID
+    required: true
+  commands:
+    description: 서버에서 실행할 명령 목록 (한 줄에 하나)
+    required: true
+  label:
+    description: SSM 명령 comment 에 붙일 이름 (뒤에 SHA 7자리가 붙음)
+    required: true
+  sha:
+    description: comment 에 붙일 커밋 SHA (비우면 GITHUB_SHA)
+    required: false
+    default: ""
+  max-attempts:
+    description: 실행 결과 확인 최대 횟수
+    required: false
+    default: "60"
+  poll-interval:
+    description: 실행 결과 확인 간격(초)
+    required: false
+    default: "10"
+  error-message:
+    description: "실패 시 ::error:: 에 출력할 문구 (뒤에 상태가 붙음)"
+    required: false
+    default: 배포 실패
+
+runs:
+  using: composite
+  steps:
+    # 서버 꺼져있으면 켜서 SSM 대기
+    - name: 서버 준비
+      shell: bash
+      env:
+        INSTANCE_ID: ${{ inputs.instance-id }}
+      run: |
+        STATE=$(aws ec2 describe-instances --instance-ids "$INSTANCE_ID" \
+                --query 'Reservations[0].Instances[0].State.Name' --output text)
+        echo "현재 상태: $STATE"
+        if [ "$STATE" != "running" ]; then
+          echo "서버를 시작합니다..."
+          aws ec2 start-instances --instance-ids "$INSTANCE_ID"
+          aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+        fi
+        echo "SSM 에이전트 연결 대기..."
+        for i in $(seq 1 30); do
+          PING=$(aws ssm describe-instance-information \
+                 --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+                 --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null || echo "")
+          if [ "$PING" = "Online" ]; then echo "준비 완료"; exit 0; fi
+          sleep 10
+        done
+        echo "::error::SSM 에이전트가 응답하지 않습니다"; exit 1
+
+    # aws ssm wait command-executed 는 대기 시간이 약 100초로 고정이라 직접 확인한다.
+    - name: 명령 실행
+      shell: bash
+      env:
+        INSTANCE_ID: ${{ inputs.instance-id }}
+        COMMANDS: ${{ inputs.commands }}
+        LABEL: ${{ inputs.label }}
+        INPUT_SHA: ${{ inputs.sha }}
+        MAX_ATTEMPTS: ${{ inputs.max-attempts }}
+        POLL_INTERVAL: ${{ inputs.poll-interval }}
+        ERROR_MESSAGE: ${{ inputs.error-message }}
+      run: |
+        SHA="${INPUT_SHA:-$GITHUB_SHA}"
+        PARAMS=$(mktemp)
+        printf '%s\n' "$COMMANDS" | jq -Rn '
+          {commands: (["#!/bin/bash", "set -euo pipefail"]
+                      + [inputs | select(test("\\S"))])}' > "$PARAMS"
+
+        CMD=$(aws ssm send-command \
+              --instance-ids "$INSTANCE_ID" \
+              --document-name AWS-RunShellScript \
+              --comment "$LABEL ${SHA:0:7}" \
+              --parameters "file://$PARAMS" \
+              --query 'Command.CommandId' --output text)
+        echo "CommandId: $CMD"
+
+        for i in $(seq 1 "$MAX_ATTEMPTS"); do
+          ST=$(aws ssm get-command-invocation --command-id "$CMD" \
+               --instance-id "$INSTANCE_ID" --query Status --output text 2>/dev/null || echo Pending)
+          case "$ST" in Success|Failed|Cancelled|TimedOut) break ;; esac
+          sleep "$POLL_INTERVAL"
+        done
+
+        echo "----- 실행 로그 -----"
+        aws ssm get-command-invocation --command-id "$CMD" \
+          --instance-id "$INSTANCE_ID" --query 'StandardOutputContent' --output text
+        echo "----- 에러 로그 -----"
+        aws ssm get-command-invocation --command-id "$CMD" \
+          --instance-id "$INSTANCE_ID" --query 'StandardErrorContent' --output text
+
+        [ "$ST" = "Success" ] || { echo "::error::$ERROR_MESSAGE ($ST)"; exit 1; }
