@@ -57,7 +57,7 @@ public class Diagnoses extends BaseEntity {
 
     public void removeProduct(Product product) {
         products.remove(product);
-        if(!isEmpty()) {
+        if (!isEmpty()) {
             refreshProcessingStatus();
         }
     }
