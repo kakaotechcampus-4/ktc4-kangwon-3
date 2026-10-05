@@ -79,7 +79,7 @@ function QuestionPage() {
         setSelectedProductIndex(selectedProductIndex + 1);
     };
 
-    /** 답변하지 않은 질문의 textarea를 포커스하고 스크롤하는 함수 */
+    // 답변하지 않은 질문의 textarea를 포커스하고 스크롤하는 함수
     const focusQuestion = (questionId: string) => {
         const element = document.getElementById(questionId);
         element?.focus();
