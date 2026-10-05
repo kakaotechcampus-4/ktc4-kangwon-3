@@ -10,20 +10,22 @@ interface QuestionProps {
     onChange: (value: string) => void
 }
 
-function Question({id, questionNumber, title, description, answer, onChange}: QuestionProps) {
+// TODO: 추후 응답 스키마 구성에 따라 placeholder도 props로 구성 가능성 있음.
+function Question({ id, questionNumber, title, description, answer, onChange }: QuestionProps) {
     return (
         <DefaultBox align="left">
-            <div className="flex flex-col gap-4 w-full">
-                <SectionIntro title={`${questionNumber}. ${title}`} description={description} size="xl" />
-                <textarea id={id}
-                        value={answer}
-                        aria-label={title}
-                        onChange={(e) => onChange(e.target.value)}
-                        className="box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2"
-                        placeholder="주어진 질문에 자유롭게 답변하세요. 답변 분석은 AI가 합니다."></textarea>
+            <div className="flex flex-row items-start gap-4 w-full">
+                <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 text-primary text-base font-semibold leading-none flex items-center justify-center">{questionNumber}</div>
+                <SectionIntro title={title} description={description} size="xl" />
             </div>
+            <textarea id={id}
+                value={answer}
+                aria-label={title}
+                onChange={(e) => onChange(e.target.value)}
+                className="box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2"
+                placeholder="주어진 질문에 자유롭게 답변하세요. 답변 분석은 AI가 합니다." />
         </DefaultBox>
-     );
+    );
 }
 
 export default Question;
