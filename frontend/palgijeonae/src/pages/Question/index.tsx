@@ -8,6 +8,7 @@ import Button from "@/components/common/Button";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 
+import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
 import type { QuestionItem } from "./types";
 
@@ -27,6 +28,14 @@ function QuestionPage() {
 
     // ProductTabs에 넘길 이름만 추출
     const productNames = productQuestions.map((product) => product.productName);
+
+    const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
+    const currentQuestions = productQuestions[selectedProductIndex]?.questions ?? [];
+    const currentAnswered = currentQuestions.map((question) => isAnswered(question.id));
+    const productRatios = productQuestions.map(
+        (product) =>
+            product.questions.filter((question) => isAnswered(question.id)).length / (product.questions.length || 1),
+    );
 
     const { mutate: runSubmitAnswers } = useMutation({
         mutationFn: () =>
@@ -63,7 +72,7 @@ function QuestionPage() {
         let firstEmpty: { productIndex: number; question: QuestionItem } | undefined;
         outer: for (const productQuestion of productQuestions) {
             for (const question of productQuestion.questions) {
-                if (!answers[question.id]?.trim()) {
+                if (!isAnswered(question.id)) {
                     firstEmpty = { productIndex: productQuestions.indexOf(productQuestion), question };
                     break outer;
                 }
@@ -95,9 +104,12 @@ function QuestionPage() {
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="추가적인 확인이 필요한 정보들을 확인합니다. 제품 각각 입력해주세요." />
-            <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
+            <div className="flex flex-col gap-3">
+                <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
+                <ProgressSummary currentAnswered={currentAnswered} productRatios={productRatios} />
+            </div>
             <div className="flex flex-col gap-4">
-                {(productQuestions[selectedProductIndex]?.questions ?? []).map((question, index) => (
+                {currentQuestions.map((question, index) => (
                     <Question
                         key={question.id}
                         id={question.id}
