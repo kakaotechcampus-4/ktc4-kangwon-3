@@ -8,8 +8,9 @@ import SectionIntro from "@/components/common/SectionIntro";
 import Process from "./Process";
 import { useJudgementProcess } from "./useJudgementProcess";
 
+// TODO: SSE 연동(api/judgement.ts) 시 useParams()로 라우트의 :diagnosesId를 읽어 useJudgementProcess에 넘긴다.
 function JudgementPage() {
-    const { productCount, selectedProduct, visibleAgents, isCurrentProductDone, allProductsDone, selectProduct, correctAgent } =
+    const { productNames, selectedProduct, visibleAgents, isCurrentProductDone, allProductsDone, selectProduct, correctAgent } =
         useJudgementProcess();
     const navigate = useNavigate();
 
@@ -25,7 +26,7 @@ function JudgementPage() {
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="상품을 확인하고 있습니다." description="네 명의 전문가가 각자 맡은 법령을 확인합니다."/>
 
-            <ProductTabs count={productCount} selected={selectedProduct} onSelect={selectProduct} />
+            <ProductTabs productNames={productNames} selected={selectedProduct} onSelect={selectProduct} />
 
             <div className="flex flex-col gap-4">
                 {visibleAgents.map((agent, index) => (

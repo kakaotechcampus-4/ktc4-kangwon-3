@@ -2,17 +2,22 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respo
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 
-import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
-public record DiagnosesSummaryResponse(
-        UUID diagnosesId,
+public record ProductResponse(
+        UUID productId,
+        int sortOrder,
         String productName,
         String productImageUrl,
+        SourceType sourceType,
+        String sourceUrl,
+        String sourceText,
+        List<String> imageUrls,
         ProcessingStatus processingStatus,
         ResultStatus resultStatus,
-        LocalDateTime createdAt
+        String summary
 ) {
 }
-

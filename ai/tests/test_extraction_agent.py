@@ -227,3 +227,71 @@ def test_LLM이_이미_뽑은_값과_겹치는_규칙_결과는_중복으로_안
 
     # LLM이 이미 담아둔 것과 겹치므로 규칙이 같은 값을 또 추가하지 않는다.
     assert len(result.attributes) == 1
+
+
+def _captured_usage(monkeypatch) -> list[dict]:
+    """공용 사용량 로그로 나가는 인자를 가로챈다."""
+    calls: list[dict] = []
+    monkeypatch.setattr(
+        "app.agents.extraction.record",
+        lambda agent, usage, **kwargs: calls.append({"agent": agent, "usage": usage, **kwargs}),
+    )
+    return calls
+
+
+def test_추출_호출이_공용_사용량_로그에_남는다(monkeypatch):
+    # 팀 크레딧이 공용이라 어느 에이전트가 얼마나 썼는지 보여야 한다.
+    calls = _captured_usage(monkeypatch)
+    agent = ExtractionAgent(_StubChatModel(ProductAttributes()), configured_model="openai/gpt-4.1-mini")
+
+    agent.extract(ExtractionInput(product_id="prod-10", text_blocks=["아무 텍스트"]))
+
+    assert len(calls) == 1
+    entry = calls[0]
+    assert entry["agent"] == "extraction"
+    assert entry["configured_model"] == "openai/gpt-4.1-mini"
+    assert entry["subject_id"] == "prod-10"
+    assert entry["ok"] is True
+    assert entry["usage"].input_tokens == 4000
+    assert entry["usage"].cached_tokens == 2200
+    assert entry["usage"].output_tokens == 500
+
+
+def test_모델_호출이_실패해도_시도한_사실은_남는다(monkeypatch):
+    # 실패를 안 남기면 "몇 번 시도해서 몇 번 성공했는지"를 볼 수 없다.
+    calls = _captured_usage(monkeypatch)
+    agent = ExtractionAgent(_RaisingChatModel())
+
+    with pytest.raises(ExtractionFailedError):
+        agent.extract(ExtractionInput(product_id="prod-11", text_blocks=["아무 텍스트"]))
+
+    assert len(calls) == 1
+    assert calls[0]["ok"] is False
+    assert calls[0]["error_type"] == "RuntimeError"
+    # 호출 자체가 실패했으므로 사용량은 알 수 없다.
+    assert calls[0]["usage"] is None
+
+
+def test_파싱에_실패해도_이미_쓴_토큰은_기록한다(monkeypatch):
+    # 응답을 못 읽었을 뿐 토큰은 이미 나갔다. 비용에서 빠지면 안 된다.
+    calls = _captured_usage(monkeypatch)
+    stub = _StubChatModel(result=None, parsing_error=ValueError("field required"))
+    agent = ExtractionAgent(stub)
+
+    with pytest.raises(ExtractionFailedError):
+        agent.extract(ExtractionInput(product_id="prod-12", text_blocks=["아무 텍스트"]))
+
+    assert len(calls) == 1
+    assert calls[0]["ok"] is False
+    assert calls[0]["error_type"] == "ValueError"
+    assert calls[0]["usage"].input_tokens == 4000
+
+
+def test_평가_실행은_운영과_다른_이름으로_집계된다(monkeypatch):
+    # 평가로 쓴 비용과 운영으로 쓴 비용이 섞이면 어느 쪽이 얼마인지 볼 수 없다.
+    calls = _captured_usage(monkeypatch)
+    agent = ExtractionAgent(_StubChatModel(ProductAttributes()), usage_agent="extraction-eval")
+
+    agent.extract(ExtractionInput(product_id="eval-1", text_blocks=["아무 텍스트"]))
+
+    assert calls[0]["agent"] == "extraction-eval"
