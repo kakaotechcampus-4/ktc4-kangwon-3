@@ -9,6 +9,7 @@ import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 
 import Question from "./Question";
+import type { QuestionItem } from "./types";
 
 function QuestionPage() {
     const { diagnosesId } = useParams<{ diagnosesId: string }>();
@@ -58,12 +59,16 @@ function QuestionPage() {
     };
 
     const handleSubmitAnswers = () => {
-        // 답변하지 않은(빈 문자열 또는 공백 문자열) 첫 번째 질문을 찾는다
-        const firstEmpty = productQuestions
-            .flatMap((product, productIndex) =>
-                product.questions.map((question) => ({ productIndex, question })),
-            )
-            .find(({ question }) => !answers[question.id]?.trim());
+        // 답변이 비어있는 첫 번째 질문을 찾는다
+        let firstEmpty: { productIndex: number; question: QuestionItem } | undefined;
+        outer: for (const productQuestion of productQuestions) {
+            for (const question of productQuestion.questions) {
+                if (!answers[question.id]?.trim()) {
+                    firstEmpty = { productIndex: productQuestions.indexOf(productQuestion), question };
+                    break outer;
+                }
+            }
+        }
 
         if (firstEmpty) {
             alert("질문에 모두 답변해 주세요.");
