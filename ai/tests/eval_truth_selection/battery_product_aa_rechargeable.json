@@ -1,0 +1,39 @@
+{
+  "fixture": "battery_product_aa_rechargeable.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-05",
+  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "summary": "AA·AAA 니켈수소 충전지와 USB 충전기 세트(Temu). 전기는 확인되고, 전파는 무선 필드가 모두 null인 전자기기, 표시광고는 스펙표의 해외 인증 표기를 어떻게 보는지가 갈리는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "wireless_comm·wireless_charging·wireless_shield가 모두 null. 스펙표 '전원 모드: USB 충전'",
+      "why_not_other": "충전기는 전자기기인데 통신·무선충전 여부를 페이지가 말하지 않는다. 원칙 1·2와 프롬프트 예시 3(wireless_comm=None이면 정보 부족으로 선택)에 따라 선택한다. 판단이 갈릴 수 있어 확인 필요."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "food_contact=null, medical_claim·cosmetic_claim=false. 카테고리 '배터리&보조배터리'",
+      "why_not_other": "food_contact가 null이지만 category가 식품 접촉과 무관해 원칙 2의 '다른 필드의 해당 없음 근거'가 된다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 모드: USB 충전', 제목 '800mAh AA 배터리 4개 ... 포함'",
+      "why_not_other": "electrical_powered·battery_included·battery_is_the_product가 모두 true다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없고 어린이 대상 문구 없음",
+      "why_not_other": "for_children=false로 확인된다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 '인증정보: CE-RoHS; CE-EMC(Electric)'(84행). 그 밖의 판매자 문구는 제목과 규격 나열",
+      "why_not_other": "리뷰의 '완벽하게 작동'은 구매자 리뷰라 근거로 쓰지 않았다. 지금 선택 프롬프트는 '미검증 인증 표방'을 의심 유형으로 두고 원칙 1('확실하지 않으면 선택')을 따른다. 5절 ③(국내 인증으로 오인하게 썼는지로 본다)은 아직 프롬프트에 반영되지 않아, 프롬프트 기준으로 선택이다. ③이 프롬프트에 들어가면 미선택이 될 수 있어 선택 담당 확인 필요."
+    }
+  }
+}
