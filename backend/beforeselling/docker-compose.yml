@@ -104,6 +104,9 @@ services:
       S3_ALLOWED_EXTENSIONS: ${S3_ALLOWED_EXTENSIONS}
       S3_BASE_URL: ${S3_BASE_URL}
 
+      # 모니터링
+      SENTRY_DSN: ${SENTRY_DSN:-}
+
       # 메일 발송 (NONE: 로그만 | SES_API: 실제 발송)
       MAIL_TYPE: ${MAIL_TYPE:-NONE}
       MAIL_FROM: ${MAIL_FROM:-noreply@palgijeone.com}
