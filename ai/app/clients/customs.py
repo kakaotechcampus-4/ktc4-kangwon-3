@@ -30,6 +30,8 @@ class CLIPClient(BaseClient):
     """
 
     _ENDPOINT = "/clip/prlstclsfsrch/retrieveDmstPrlstClsfCaseLst2.do"
+    # CLIP 서버 고정값. 요청으로 바꿀 수 없음
+    PAGE_SIZE = 10
 
     def __init__(self):
         super().__init__(
@@ -61,10 +63,15 @@ class CLIPClient(BaseClient):
         response.raise_for_status()
         body = response.json()
         uls = body.get("uls_dmst", {})
+        total_count = int(uls.get("thisTotalCount", 0))
+        items = [self._parse_item(item) for item in uls.get("itemList", [])]
 
         return CLIPSearchResponse(
-            total_count=int(uls.get("thisTotalCount", 0)),
-            items=[self._parse_item(item) for item in uls.get("itemList", [])],
+            page=request.page,
+            total_count=total_count,
+            # 빈 페이지면 끝으로 판단
+            has_next=bool(items) and request.page * self.PAGE_SIZE < total_count,
+            items=items,
         )
 
     def _parse_item(self, raw: dict) -> CLIPCase:

@@ -4,17 +4,15 @@ from pydantic import BaseModel, Field
 
 
 class CLIPSearchRequest(BaseModel):
-    """CLIP 품목분류 결정사례 검색 요청.
+    """CLIP 품목분류 결정사례 검색 요청. 페이지당 10건 고정.
 
     Args:
         query: 검색어 (예: "드론", "블루투스 이어폰").
         page: 페이지 번호. 기본 1.
-        page_size: 페이지당 건수. 기본 50.
     """
 
     query: str = Field(min_length=1)
     page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=50, ge=1, le=100)
 
 
 class CustomsGwConfirmationRequest(BaseModel):
