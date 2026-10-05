@@ -75,6 +75,10 @@ function QuestionPage() {
         setAnswers((prev) => ({ ...prev, [questionId]: value }));
     };
 
+    const handlePrevProduct = () => {
+        setSelectedProductIndex(selectedProductIndex - 1);
+    };
+
     const handleNextProduct = () => {
         setSelectedProductIndex(selectedProductIndex + 1);
     };
@@ -126,10 +130,24 @@ function QuestionPage() {
                     />
                 ))}
             </div>
-            <div className="flex w-full justify-end">
-                {selectedProductIndex < productNames.length - 1 ?
-                    (<Button text="다음 상품으로 →" onClick={handleNextProduct} fontSize={15} />) :
-                    (<Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} />)}
+            <div className="flex w-full items-center justify-between">
+                <Button
+                    text="← 이전 상품"
+                    onClick={handlePrevProduct}
+                    fontSize={15}
+                    variant="secondary"
+                    disabled={selectedProductIndex === 0}
+                />
+                <div className="flex gap-2.5">
+                    <Button
+                        text="다음 상품으로 →"
+                        onClick={handleNextProduct}
+                        fontSize={15}
+                        variant="secondary"
+                        disabled={selectedProductIndex === productQuestions.length - 1}
+                    />
+                    <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} />
+                </div>
             </div>
         </div>
     );
