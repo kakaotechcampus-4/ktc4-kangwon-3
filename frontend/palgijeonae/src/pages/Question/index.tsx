@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -10,7 +10,6 @@ import SectionIntro from "@/components/common/SectionIntro";
 
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
-import type { QuestionItem } from "./types";
 
 function QuestionPage() {
     const { diagnosesId } = useParams<{ diagnosesId: string }>();
@@ -29,13 +28,33 @@ function QuestionPage() {
     // ProductTabs에 넘길 이름만 추출
     const productNames = productQuestions.map((product) => product.productName);
 
-    const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
+    // 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 같은 답변 판정 결과를 공유하도록 한 번에 계산한다.
+    const { answeredMatrix, productRatios, firstUnanswered } = useMemo(() => {
+        const questions = data ?? [];
+        const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
+
+        // [제품][질문] 답변 여부
+        const answeredMatrix = questions.map((product) =>
+            product.questions.map((question) => isAnswered(question.id)),
+        );
+
+        const productRatios = answeredMatrix.map((row) => row.filter(Boolean).length / (row.length || 1));
+
+        let firstUnanswered: { productIndex: number; questionId: string } | null = null;
+        for (const [productIndex, row] of answeredMatrix.entries()) {
+            const questionIndex = row.indexOf(false);
+            if (questionIndex !== -1) {
+                firstUnanswered = { productIndex, questionId: questions[productIndex].questions[questionIndex].id };
+                break;
+            }
+        }
+
+        return { answeredMatrix, productRatios, firstUnanswered };
+    }, [data, answers]);
+
+    // 탭 전환은 계산된 결과에서 꺼내기만 한다.
     const currentQuestions = productQuestions[selectedProductIndex]?.questions ?? [];
-    const currentAnswered = currentQuestions.map((question) => isAnswered(question.id));
-    const productRatios = productQuestions.map(
-        (product) =>
-            product.questions.filter((question) => isAnswered(question.id)).length / (product.questions.length || 1),
-    );
+    const currentAnswered = answeredMatrix[selectedProductIndex] ?? [];
 
     const { mutate: runSubmitAnswers } = useMutation({
         mutationFn: () =>
@@ -68,29 +87,15 @@ function QuestionPage() {
     };
 
     const handleSubmitAnswers = () => {
-        // 답변이 비어있는 첫 번째 질문을 찾는다
-        let firstEmpty: { productIndex: number; question: QuestionItem } | undefined;
-        outer: for (const productQuestion of productQuestions) {
-            for (const question of productQuestion.questions) {
-                if (!isAnswered(question.id)) {
-                    firstEmpty = { productIndex: productQuestions.indexOf(productQuestion), question };
-                    break outer;
-                }
-            }
-        }
-
-        if (firstEmpty) {
+        if (firstUnanswered) {
             alert("질문에 모두 답변해 주세요.");
-            if (firstEmpty.productIndex === selectedProductIndex) {
-                // 이미 화면에 띄워진 상태이므로 재렌더링 없이 바로 포커싱
-                focusQuestion(firstEmpty.question.id);
-            } else {
-                // flushSync로 탭 전환을 동기 렌더링한 다음, 포커싱한다.
+            if (firstUnanswered.productIndex !== selectedProductIndex) {
+                // 다른 제품의 질문이면 flushSync로 탭 전환을 동기 렌더링한 다음 포커싱한다.
                 flushSync(() => {
-                    setSelectedProductIndex(firstEmpty.productIndex);
+                    setSelectedProductIndex(firstUnanswered.productIndex);
                 });
-                focusQuestion(firstEmpty.question.id);
             }
+            focusQuestion(firstUnanswered.questionId);
             return;
         }
 
