@@ -28,6 +28,8 @@ function QuestionPage() {
     // ProductTabs에 넘길 이름만 추출
     const productNames = productQuestions.map((product) => product.productName);
 
+    const currentQuestions = productQuestions[selectedProductIndex]?.questions ?? [];
+
     // 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 같은 답변 판정 결과를 공유하도록 한 번에 계산한다.
     const { answeredMatrix, productRatios, firstUnanswered } = useMemo(() => {
         const questions = data ?? [];
@@ -52,8 +54,6 @@ function QuestionPage() {
         return { answeredMatrix, productRatios, firstUnanswered };
     }, [data, answers]);
 
-    // 탭 전환은 계산된 결과에서 꺼내기만 한다.
-    const currentQuestions = productQuestions[selectedProductIndex]?.questions ?? [];
     const currentAnswered = answeredMatrix[selectedProductIndex] ?? [];
 
     const { mutate: runSubmitAnswers } = useMutation({
