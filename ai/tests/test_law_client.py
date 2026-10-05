@@ -1,5 +1,7 @@
 """LawClient 본문 파싱을 실제 법제처 호출 없이 검증한다."""
 
+from xml.etree.ElementTree import fromstring
+
 import httpx
 import pytest
 
@@ -194,3 +196,66 @@ def test_관련_법령_본문에_요청한_별표가_없으면_빈_결과_대신
 def test_별표번호는_6자리만_허용한다(table_number):
     with pytest.raises(ValueError):
         LicbylTextRequest(related_law_mst="273575", table_number=table_number, table_type="별표")
+
+
+# 원문 XML 순서: ①[1. 2.] ② ④[1.[가.]] (#210)
+_NESTED_ARTICLE = """
+<조문단위>
+  <조문번호>4</조문번호>
+  <조문여부>조문</조문여부>
+  <조문내용>제4조(안전인증기관의 지정신청 등)</조문내용>
+  <항>
+    <항번호>①</항번호><항내용>① 첫째 항</항내용>
+    <호><호번호>1.</호번호><호내용>1. 첫째 항의 1호</호내용></호>
+    <호><호번호>2.</호번호><호내용>2. 첫째 항의 2호</호내용></호>
+  </항>
+  <항><항번호>②</항번호><항내용>② 둘째 항</항내용></항>
+  <항>
+    <항번호>④</항번호><항내용>④ 넷째 항</항내용>
+    <호>
+      <호번호>1.</호번호><호내용>1. 넷째 항의 1호</호내용>
+      <목><목번호>가.</목번호><목내용>가. 1호의 가목
+</목내용></목>
+    </호>
+  </항>
+</조문단위>
+"""
+
+# 항번호·항내용 없이 호만 있는 항 (예: 정의 조문)
+_NUMBERLESS_PARAGRAPH_ARTICLE = """
+<조문단위>
+  <조문번호>2</조문번호>
+  <조문여부>조문</조문여부>
+  <조문내용>제2조(정의) 이 규칙에서 사용하는 용어의 뜻은 다음과 같다.</조문내용>
+  <항>
+    <호><호번호>1.</호번호><호내용>1. 첫째 용어</호내용></호>
+    <호><호번호>2.</호번호><호내용>2. 둘째 용어</호내용></호>
+  </항>
+</조문단위>
+"""
+
+
+def test_호는_소속된_항_아래에_들어간다():
+    article = LawClient()._parse_article(fromstring(_NESTED_ARTICLE))
+
+    assert [paragraph.number for paragraph in article.paragraphs] == ["①", "②", "④"]
+    assert [item.number for item in article.paragraphs[0].items] == ["1.", "2."]
+    assert article.paragraphs[1].items == []
+    assert [item.content for item in article.paragraphs[2].items] == ["1. 넷째 항의 1호"]
+
+
+def test_목은_소속된_호_아래에_들어간다():
+    article = LawClient()._parse_article(fromstring(_NESTED_ARTICLE))
+
+    sub_items = article.paragraphs[2].items[0].sub_items
+    assert [sub_item.number for sub_item in sub_items] == ["가."]
+    assert article.paragraphs[0].items[0].sub_items == []
+
+
+def test_항번호_없이_호만_있는_항은_번호와_내용_없이_호만_담는다():
+    article = LawClient()._parse_article(fromstring(_NUMBERLESS_PARAGRAPH_ARTICLE))
+
+    paragraph = article.paragraphs[0]
+    assert paragraph.number is None
+    assert paragraph.content is None
+    assert [item.number for item in paragraph.items] == ["1.", "2."]
