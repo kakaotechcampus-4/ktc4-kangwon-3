@@ -17,7 +17,7 @@ function QuestionPage() {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const navigate = useNavigate();
 
-    const { data } = useQuery({
+    const { data, isPending, isError, refetch } = useQuery({
         queryKey: ["questions", diagnosesId],
         queryFn: () => getQuestions(diagnosesId!),
     });
@@ -57,6 +57,7 @@ function QuestionPage() {
     const currentAnswered = answeredMatrix[selectedProductIndex] ?? [];
 
     const { mutate: runSubmitAnswers } = useMutation({
+        // TODO: 질문이 0개인 진단서는 answers가 빈 배열로 제출된다. 백엔드 연동 시 백엔드 제약조건에 따라 처리 필요
         mutationFn: () =>
             submitAnswers(
                 diagnosesId!,
@@ -113,42 +114,68 @@ function QuestionPage() {
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="추가적인 확인이 필요한 정보들을 확인합니다. 제품 각각 입력해주세요." />
-            <div className="flex flex-col gap-3">
-                <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
-                <ProgressSummary currentAnswered={currentAnswered} productRatios={productRatios} />
-            </div>
-            <div className="flex flex-col gap-4">
-                {currentQuestions.map((question, index) => (
-                    <Question
-                        key={question.id}
-                        id={question.id}
-                        questionNumber={index + 1}
-                        title={question.title}
-                        description={question.description ?? ""}
-                        answer={answers[question.id] ?? ""}
-                        onChange={(value) => handleAnswerChange(question.id, value)}
-                    />
-                ))}
-            </div>
-            <div className="flex w-full items-center justify-between">
-                <Button
-                    text="← 이전 상품"
-                    onClick={handlePrevProduct}
-                    fontSize={15}
-                    variant="secondary"
-                    disabled={selectedProductIndex === 0}
-                />
-                <div className="flex gap-2.5">
-                    <Button
-                        text="다음 상품으로 →"
-                        onClick={handleNextProduct}
-                        fontSize={15}
-                        variant="secondary"
-                        disabled={selectedProductIndex === productQuestions.length - 1}
-                    />
-                    <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} />
+            {isPending ? (
+                <div className="flex w-full justify-center py-12">
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
                 </div>
-            </div>
+            ) : isError ? (
+                <div className="flex w-full flex-col items-center gap-3 py-12">
+                    <p className="text-sm font-medium text-status-danger">질문을 불러오지 못했어요.</p>
+                    <button
+                        type="button"
+                        onClick={() => refetch()}
+                        className="text-sm font-medium cursor-pointer text-neutral-border underline underline-offset-2"
+                    >
+                        다시 시도
+                    </button>
+                </div>
+            ) : productQuestions.length === 0 ? (
+                <div className="flex w-full flex-col items-center gap-3 py-12">
+                    <p className="text-sm font-medium text-neutral-border">확인이 필요한 질문이 없어요.</p>
+                    <div className="flex w-full justify-end mt-10">
+                        <Button text="진단서 확인하기" onClick={handleSubmitAnswers} fontSize={15} />
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="flex flex-col gap-3">
+                        <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
+                        <ProgressSummary currentAnswered={currentAnswered} productRatios={productRatios} />
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        {currentQuestions.map((question, index) => (
+                            <Question
+                                key={question.id}
+                                id={question.id}
+                                questionNumber={index + 1}
+                                title={question.title}
+                                description={question.description ?? ""}
+                                answer={answers[question.id] ?? ""}
+                                onChange={(value) => handleAnswerChange(question.id, value)}
+                            />
+                        ))}
+                    </div>
+                    <div className="flex w-full items-center justify-between">
+                        <Button
+                            text="← 이전 상품"
+                            onClick={handlePrevProduct}
+                            fontSize={15}
+                            variant="secondary"
+                            disabled={selectedProductIndex === 0}
+                        />
+                        <div className="flex gap-2.5">
+                            <Button
+                                text="다음 상품으로 →"
+                                onClick={handleNextProduct}
+                                fontSize={15}
+                                variant="secondary"
+                                disabled={selectedProductIndex === productQuestions.length - 1}
+                            />
+                            <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} />
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
