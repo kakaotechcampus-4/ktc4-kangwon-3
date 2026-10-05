@@ -18,11 +18,15 @@ class CLIPSearchResponse(BaseModel):
     """CLIP 품목분류 결정사례 검색 응답.
 
     Attributes:
+        page: 요청한 페이지 번호.
         total_count: 전체 검색 건수.
+        has_next: 다음 페이지 존재 여부.
         items: 결정사례 목록.
     """
 
+    page: int
     total_count: int
+    has_next: bool
     items: list[CLIPCase]
 
 
