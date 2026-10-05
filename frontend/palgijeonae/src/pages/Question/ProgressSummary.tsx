@@ -24,18 +24,18 @@ const segmentVariants = cva("h-1.5 w-5 rounded-full", {
 
 interface ProgressSummaryProps {
     currentAnswered: boolean[] // 현재 선택된 제품의 질문들에 대한 답변 여부
-    productRatios: number[] // 각 제품별 답변 완료 비율 (0~1)
+    productStatuses: ("complete" | "partial" | "empty")[] // 각 제품별 답변 완료 상태
 }
 
-function ProgressSummary({ currentAnswered, productRatios }: ProgressSummaryProps) {
+function ProgressSummary({ currentAnswered, productStatuses }: ProgressSummaryProps) {
     // 현재 선택된 제품의 질문들에 대한 답변 여부
     const answeredCount = currentAnswered.filter(Boolean).length;
     const totalCount = currentAnswered.length;
     const isCurrentComplete = totalCount > 0 && answeredCount === totalCount;
 
     // 전체 제품에 대한 답변 완료 여부
-    const completedProductCount = productRatios.filter((ratio) => ratio === 1).length;
-    const totalProductCount = productRatios.length;
+    const completedProductCount = productStatuses.filter((status) => status === "complete").length;
+    const totalProductCount = productStatuses.length;
     const isAllComplete = totalProductCount > 0 && completedProductCount === totalProductCount;
 
     return (
@@ -61,12 +61,10 @@ function ProgressSummary({ currentAnswered, productRatios }: ProgressSummaryProp
             <div className="flex items-center gap-2.5">
                 <p>전체 제품</p>
                 <div aria-hidden="true" className="flex gap-0.75">
-                    {productRatios.map((ratio, index) => (
+                    {productStatuses.map((status, index) => (
                         <span
                             key={index}
-                            className={segmentVariants({
-                                state: ratio === 1 ? "complete" : ratio > 0 ? "partial" : "empty",
-                            })}
+                            className={segmentVariants({ state: status })}
                         />
                     ))}
                 </div>

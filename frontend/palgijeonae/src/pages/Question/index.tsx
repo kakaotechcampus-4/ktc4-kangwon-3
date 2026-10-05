@@ -31,7 +31,7 @@ function QuestionPage() {
     const currentQuestions = productQuestions[selectedProductIndex]?.questions ?? [];
 
     // 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 같은 답변 판정 결과를 공유하도록 한 번에 계산한다.
-    const { answeredMatrix, productRatios, firstUnanswered } = useMemo(() => {
+    const { answeredMatrix, productStatuses, firstUnanswered } = useMemo(() => {
         const questions = data ?? [];
         const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
 
@@ -40,7 +40,11 @@ function QuestionPage() {
             product.questions.map((question) => isAnswered(question.id)),
         );
 
-        const productRatios = answeredMatrix.map((row) => row.filter(Boolean).length / (row.length || 1));
+        const productStatuses = answeredMatrix.map((row): "complete" | "partial" | "empty" => {
+            const answeredCount = row.filter(Boolean).length;
+            if (answeredCount === 0) return "empty";
+            return answeredCount === row.length ? "complete" : "partial";
+        });
 
         let firstUnanswered: { productIndex: number; questionId: string } | null = null;
         for (const [productIndex, row] of answeredMatrix.entries()) {
@@ -51,7 +55,7 @@ function QuestionPage() {
             }
         }
 
-        return { answeredMatrix, productRatios, firstUnanswered };
+        return { answeredMatrix, productStatuses, firstUnanswered };
     }, [data, answers]);
 
     const currentAnswered = answeredMatrix[selectedProductIndex] ?? [];
@@ -140,7 +144,7 @@ function QuestionPage() {
                 <>
                     <div className="flex flex-col gap-3">
                         <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
-                        <ProgressSummary currentAnswered={currentAnswered} productRatios={productRatios} />
+                        <ProgressSummary currentAnswered={currentAnswered} productStatuses={productStatuses} />
                     </div>
                     <div className="flex flex-col gap-4">
                         {currentQuestions.map((question, index) => (
