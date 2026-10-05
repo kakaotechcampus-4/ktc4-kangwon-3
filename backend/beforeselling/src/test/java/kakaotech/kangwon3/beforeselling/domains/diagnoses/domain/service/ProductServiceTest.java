@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
@@ -181,6 +182,67 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("답변 대기 중인 상품을 삭제하면 남은 상품 기준으로 진단서 상태가 완료로 바뀐다.")
+    void removeProduct_withAwaitingInputProduct_thenRefreshToCompleted() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
+        givenProcessingStatuses(diagnoses, ProcessingStatus.AWAITING_INPUT, ProcessingStatus.COMPLETED);
+        givenLockedDiagnoses(diagnoses);
+
+        // when
+        productService.removeProduct(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("진행 중인 상품을 삭제하면 남은 상품 중 일부만 실패했어도 진단서 상태는 완료가 된다.")
+    void removeProduct_withInProgressProduct_thenRefreshToCompleted() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B", "상품 C"));
+        givenProcessingStatuses(diagnoses,
+                ProcessingStatus.IN_PROGRESS, ProcessingStatus.COMPLETED, ProcessingStatus.FAILED);
+        givenLockedDiagnoses(diagnoses);
+
+        // when
+        productService.removeProduct(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("완료된 상품을 삭제해 실패한 상품만 남으면 진단서 상태는 실패가 된다.")
+    void removeProduct_withOnlyFailedRemaining_thenRefreshToFailed() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
+        givenProcessingStatuses(diagnoses, ProcessingStatus.COMPLETED, ProcessingStatus.FAILED);
+        givenLockedDiagnoses(diagnoses);
+
+        // when
+        productService.removeProduct(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("마지막 상품을 삭제하면 빈 목록으로 상태를 다시 계산하지 않는다.")
+    void removeProduct_withLastProduct_thenKeepProcessingStatus() {
+        // given: 빈 목록으로 다시 계산하면 allMatch가 true라 FAILED가 된다.
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
+        givenProcessingStatuses(diagnoses, ProcessingStatus.AWAITING_INPUT);
+        givenLockedDiagnoses(diagnoses);
+
+        // when
+        productService.removeProduct(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+    }
+
+    @Test
     @DisplayName("존재하지 않는 상품을 삭제하면 진단서를 잠그지 않고 NOT_FOUND 예외가 발생한다.")
     void removeProduct_withUnknownId_thenThrowNotFound() {
         // given
@@ -251,5 +313,15 @@ class ProductServiceTest {
         }
 
         return diagnoses;
+    }
+
+    // 상품 상태를 순서대로 지정하고, 진단서 상태도 그 기준으로 맞춰 둔다.
+    // Product에 아직 상태 변경 메서드가 없어 리플렉션으로 넣는다.
+    private void givenProcessingStatuses(Diagnoses diagnoses, ProcessingStatus... statuses) {
+        List<Product> products = diagnoses.getProducts();
+        for (int i = 0; i < statuses.length; i++) {
+            ReflectionTestUtils.setField(products.get(i), "processingStatus", statuses[i]);
+        }
+        diagnoses.refreshProcessingStatus();
     }
 }
