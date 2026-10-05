@@ -67,6 +67,8 @@ const MOCK_PRODUCT_QUESTIONS: ProductQuestions[] = [
     },
 ];
 
+// TODO: 언더바 접두사는 미사용 매개변수 표시 관례로, 연동 시 실제로 사용하게 되면 제거한다.
+
 /**
  * 확인이 필요한 질문 목록을 상품별로 가져온다.
  * TODO: 지금은 diagnosesId와 무관하게 고정된 목업 데이터를 반환한다. 백엔드 연동 시 이 함수 내부만 실제 GET 호출로 교체한다.
