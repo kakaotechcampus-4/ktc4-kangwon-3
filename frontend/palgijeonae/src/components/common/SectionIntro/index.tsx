@@ -13,12 +13,12 @@ const titleVariants = cva("text-black", {
     },
 });
 
-const descriptionVariants = cva("whitespace-pre-line", {
+const descriptionVariants = cva("whitespace-pre-line text-neutral-text", {
     variants: {
         size: {
-            '3xl': 'text-xl leading-8.75 text-neutral-text',
-            '2xl': 'text-xl leading-8.75 text-neutral-text',
-            'xl': 'text-sm leading-4.25 text-neutral-border',
+            '3xl': 'text-xl leading-8.75',
+            '2xl': 'text-xl leading-8.75',
+            'xl': 'text-sm leading-4.25',
         },
     },
     defaultVariants: {
