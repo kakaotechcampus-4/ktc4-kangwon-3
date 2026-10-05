@@ -5,8 +5,10 @@ import httpx
 from .base import BaseClient
 from ..schemas.clients.safety_korea_request import (
     CertDetailRequest,
+    CertSearchRequest,
+    ForeignRecallSearchRequest,
     RecallDetailRequest,
-    SafetyKoreaSearchRequest,
+    RecallSearchRequest,
 )
 from ..schemas.clients.safety_korea_response import (
     CertItem,
@@ -45,16 +47,15 @@ class SafetyKoreaClient(BaseClient):
     # -- KC인증정보 --
 
     def search_certifications(
-        self, request: SafetyKoreaSearchRequest,
+        self, request: CertSearchRequest,
     ) -> CertSearchResponse:
         """KC인증정보를 검색한다.
 
         Args:
-            request: 검색 요청. condition_key에 all, certNum,
-                productName, modelName, certDate, signDate 사용 가능.
+            request: 검색 요청. 사용 가능한 condition_key는 CertSearchRequest 참고.
 
         Returns:
-            CertSearchResponse: 인증정보 목록.
+            CertSearchResponse: 인증정보 목록. certNum 조회는 인증번호가 요청과 일치하는 항목만 담는다.
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
@@ -64,6 +65,9 @@ class SafetyKoreaClient(BaseClient):
             "conditionValue": request.condition_value,
         })
         raw_items = data.get("resultData") or []
+        # 필터가 무시된 응답의 첫 항목을 요청한 인증으로 믿으면 다른 제품의 인증 상태를 답하게 된다 (#185)
+        if request.condition_key == "certNum":
+            raw_items = [item for item in raw_items if item.get("certNum") == request.condition_value]
         return CertSearchResponse(
             items=[CertItem(**item) for item in raw_items],
         )
@@ -89,14 +93,12 @@ class SafetyKoreaClient(BaseClient):
     # -- 국내리콜 --
 
     def search_recalls(
-        self, request: SafetyKoreaSearchRequest,
+        self, request: RecallSearchRequest,
     ) -> RecallSearchResponse:
         """국내리콜정보를 검색한다.
 
         Args:
-            request: 검색 요청. condition_key에 all, barcodeNum,
-                recallProductName, recallBrandName, recallModelName,
-                certNum, publishDate 사용 가능.
+            request: 검색 요청. 사용 가능한 condition_key는 RecallSearchRequest 참고.
 
         Returns:
             RecallSearchResponse: 리콜정보 목록.
@@ -138,14 +140,12 @@ class SafetyKoreaClient(BaseClient):
     # -- 국외리콜 --
 
     def search_foreign_recalls(
-        self, request: SafetyKoreaSearchRequest,
+        self, request: ForeignRecallSearchRequest,
     ) -> ForeignRecallSearchResponse:
         """국외리콜정보를 검색한다.
 
         Args:
-            request: 검색 요청. condition_key에 all, recallProductName,
-                recallBrandName, recallModelName, publishDate,
-                fRecallUid 사용 가능.
+            request: 검색 요청. 사용 가능한 condition_key는 ForeignRecallSearchRequest 참고.
 
         Returns:
             ForeignRecallSearchResponse: 국외리콜 목록.
