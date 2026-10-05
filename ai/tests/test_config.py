@@ -219,6 +219,9 @@ def test_build_chat_model이_설정값을_chatopenai에_전달한다(monkeypatch
         "temperature": 0,
         "timeout": config.TIMEOUT_SECONDS,
         "max_retries": config.MAX_RETRIES,
+        # 게이트웨이의 비스트리밍 출력 한도(2,000토큰)를 피한다. 빠지면 긴 페이지 추출이 실패한다.
+        "streaming": True,
+        "stream_usage": True,
     }
 
 
