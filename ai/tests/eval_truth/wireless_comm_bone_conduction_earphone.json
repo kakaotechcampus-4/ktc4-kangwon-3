@@ -1,0 +1,182 @@
+{
+  "fixture": "wireless_comm_bone_conduction_earphone.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-06",
+  "tags": [
+    "재현용",
+    "AI 상품 요약",
+    "무선통신",
+    "인증표기",
+    "AliExpress"
+  ],
+  "summary": "골전도 블루투스 이어폰(AliExpress). 판매자 설명이 길고, AI 상품 요약의 사양(무선 범위 20m, 재생 8시간)이 판매자 사양(전송 거리 10미터 이상, 약 10시간)과 어긋난다. AI 요약 사양을 옮기지 않는지(#229), 자석 충전 케이블('자기 충전')을 무선충전으로 오인하지 않는지, 인증번호(FCC ID)를 그대로 옮기는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "제목 '블루투스 헤드폰', 사양 '배터리: 200mah', '충전 방법: 자기 충전'",
+      "why_not_other": "전지와 충전 방식이 판매자 사양에 있다."
+    },
+    "wireless_comm": {
+      "value": true,
+      "evidence": "제목 '무선 이어폰', '블루투스 헤드폰', 판매자 설명 '블루투스 모드'",
+      "why_not_other": "블루투스 통신이 판매자 문구에 명시돼 있다."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "사양 '충전 방법: 자기 충전', 판매자 설명 '충전 자석 부분은 부식되기 쉽습니다', '충전 단자 부분의 물기를 닦아주세요', 패키지 '충전 케이블 * 1'",
+      "why_not_other": "'자기 충전'은 자석으로 붙이는 단자식 충전 케이블이다. 판매자가 충전 단자와 충전 케이블을 적어 자기유도·자기공명 무선충전이 아님을 알 수 있다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": true,
+      "evidence": "사양 '배터리: 200mah', '배터리 수명: 볼륨 65%에서 약 10시간'",
+      "why_not_other": "전지 용량이 판매자 사양에 있다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '블루투스 헤드폰'",
+      "why_not_other": "전지는 내장 부품이고 상품은 이어폰이다."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "(발열 기능 언급 없음)",
+      "why_not_other": "전기제품이라 발열이 없다고 할 근거가 없다(battery_product_aa_rechargeable과 같은 기준). '화기, 열…로부터 멀리 보관'은 보관 주의다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": true,
+      "evidence": "제목 '뼈 전도 방식', 판매자 설명 '편안하고 안정적인 착용, 떨어지거나 흔들리거나 움직이지 않습니다'",
+      "why_not_other": "골전도는 진동을 머리뼈에 직접 전달하는 방식이라 피부에 닿아야 작동한다. 착용한다는 상품 종류 추론이 아니라 판매자가 밝힌 작동 방식에서 나온다. 쓰는 방법에 따라 맨살에 닿을 수도 옷 위에 찰 수도 있어 null로 둔 자세교정 밴드·무릎 온열 패드와 기준이 갈리는 이유다. '귀에 들어가지 않아'는 귀 안에 넣지 않는다는 뜻이지 닿지 않는다는 뜻이 아니다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "판매자 설명 '귀 내부 위생을 유지하는 데 매우 도움이 됩니다'",
+      "why_not_other": "질병명이나 신체기능 개선이 아니라 위생 관리 편의를 말한다. '감염이나 청력 손상을 일으키지 않습니다'는 구매자 리뷰다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 판매자 문구에 없다",
+      "why_not_other": "언급 없음."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "제목 '블루투스 헤드폰', 형태가 이어폰",
+      "why_not_other": "형태가 확인된다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "상품 정보 '재료: 실리카겔'",
+      "why_not_other": "식물성 소재 표기가 없다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "상품 정보 '고농도 화학 물질: 없음'",
+      "why_not_other": "세정·방향·살균 기능 표기가 없다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "상품 정보 '부서: 남녀공용-성인'",
+      "why_not_other": "성인용으로 표기돼 있다."
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "이어폰"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "골전도 이어폰",
+        "블루투스 이어폰",
+        "무선 이어폰",
+        "블루투스 헤드폰",
+        "스포츠 이어폰",
+        "골전도 헤드폰",
+        "이어폰",
+        "헤드폰"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "FCC ID",
+      "value": "2AXV7-X7A",
+      "evidence": "상품 정보 'FCC ID: 2AXV7-X7A'(253행)"
+    },
+    {
+      "name": "배터리",
+      "value": "200mah",
+      "evidence": "사양 '배터리: 200mah'(295행)"
+    },
+    {
+      "name": "방수 등급",
+      "value": "IPX8",
+      "evidence": "사양 '방수 등급: IPX8'(297행)"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "뼈 전도 방식 무선 이어폰",
+      "evidence": "원문 23행, 판매자 제목. AliExpress에서 판매자 제목이 빠지고 AI 요약만 남는 문제(#229)를 본다"
+    },
+    {
+      "must_contain": "저가형 이어폰은 절대 판매하지 않습니다",
+      "evidence": "원문 269행, 판매자의 절대적 표현('최고 품질', '절대'). 빠지면 표시광고 심사가 빠진다"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "외부 환경 인식이 뛰어나",
+      "evidence": "원문 45행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "최대 20m의 무선 범위",
+      "evidence": "원문 46행, AliExpress AI 상품 요약. 판매자 사양은 '전송 거리: > 10미터'"
+    },
+    {
+      "must_not_contain": "최대 20m 깊이까지",
+      "evidence": "원문 48행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "8시간 지속 가능한 배터리",
+      "evidence": "원문 49행, AliExpress AI 상품 요약. 판매자 사양은 '약 10시간'"
+    },
+    {
+      "must_not_contain": "레노버 S106",
+      "evidence": "원문 64행, 다른 상품(연관 상품)"
+    },
+    {
+      "must_not_contain": "감염이나 청력 손상",
+      "evidence": "원문 247행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "작은 안전 조명",
+      "evidence": "원문 231행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "아마존 뮤직을 사용해",
+      "evidence": "원문 323행, 구매자 질문 답변"
+    },
+    {
+      "must_not_contain": "수면용 무선 이어폰",
+      "evidence": "원문 371행, 판매 사이트 관련 검색어"
+    },
+    {
+      "must_not_contain": "30일 내 미배송 시 전액 환불",
+      "evidence": "원문 347행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "AliExpress의 약속",
+      "evidence": "원문 334행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    }
+  ]
+}
