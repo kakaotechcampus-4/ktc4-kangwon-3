@@ -131,12 +131,6 @@ class _RaisingModel:
         raise RuntimeError("rate limit exceeded")
 
 
-@pytest.fixture(autouse=True)
-def _disable_usage_file_writes(monkeypatch):
-    """에이전트 단위 테스트가 로컬 usage 로그를 만들지 않게 한다."""
-    monkeypatch.setattr("app.agents.verification.record", lambda *args, **kwargs: None)
-
-
 # ---------- 규칙 검사 (API 없이) ----------
 
 

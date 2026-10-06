@@ -1,8 +1,10 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.global.common.PageInfo;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import lombok.RequiredArgsConstructor;
@@ -36,5 +38,26 @@ public class ProductMapper {
                 .toList();
 
         return new ProductListResponse(products, PageInfo.from(page));
+    }
+
+    public ProductResponse toResponse(Product product) {
+        List<String> imageUrls = product.getImages().stream()
+                .map(ProductImage::getImageKey)
+                .map(s3UrlKeyCodec::toUrl)
+                .toList();
+
+        return new ProductResponse(
+                product.getId(),
+                product.getSortOrder(),
+                product.getProductName(),
+                s3UrlKeyCodec.toUrlOrNull(product.getProductImageKey()),
+                product.getSourceType(),
+                product.getSourceUrl(),
+                product.getSourceText(),
+                imageUrls,
+                product.getProcessingStatus(),
+                product.getResultStatus(),
+                product.getSummary()
+        );
     }
 }
