@@ -94,11 +94,11 @@ function QuestionPage() {
     };
 
     const handlePrevProduct = () => {
-        setSelectedProductIndex(selectedProductIndex - 1);
+        setSelectedProductIndex((prev) => prev - 1);
     };
 
     const handleNextProduct = () => {
-        setSelectedProductIndex(selectedProductIndex + 1);
+        setSelectedProductIndex((prev) => prev + 1);
     };
 
     // 답변하지 않은 질문의 textarea를 포커스하고 스크롤하는 함수
