@@ -8,6 +8,7 @@ from ..schemas.schemas import (
     CustomsAssessment,
     Determination,
     ElectricalAssessment,
+    ExecutionEndReason,
     FinalAssessment,
     FinalVerificationStatus,
     LegalSource,
@@ -230,6 +231,7 @@ def build_dummy_assessment(product_id: str) -> FinalAssessment:
         assessment_id=f"dummy-{product_id}",
         product=product,
         verification_status=FinalVerificationStatus.VERIFIED_WITH_WARNINGS,
+        termination_reason=ExecutionEndReason.COMPLETED,
         overall_status=OverallStatus.ACTION_REQUIRED,
         summary=(
             "2.4GHz 무선 RC 보트로, 전파법(적합인증), 전안법(리튬전지 안전확인), "

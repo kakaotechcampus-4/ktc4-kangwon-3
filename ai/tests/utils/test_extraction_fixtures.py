@@ -23,7 +23,7 @@ from app.utils.extraction_rules import (
     extract_rule_based_attributes,
 )
 
-FIXTURES_DIR = Path(__file__).parent / "fixtures"
+FIXTURES_DIR = Path(__file__).parents[1] / "fixtures"
 
 # 픽스처별로 규칙 레이어가 뽑아야 하는 (항목, 값) 전부와 모순 후보 개수.
 # 값은 원문 표기 그대로여야 한다(대소문자·한정어 포함).
