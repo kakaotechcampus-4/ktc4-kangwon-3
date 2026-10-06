@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>관련 법령이 개정되었습니다</title>
+</head>
+<!--/*
+  메일 클라이언트 호환을 위해 table 레이아웃과 인라인 style 만 쓴다.
+  Gmail 은 <style> 블록 일부를, Outlook 은 flex/grid 를 무시한다.
+  태그 안의 기본 텍스트는 이 파일을 브라우저로 열었을 때 확인하기 위한 값이며,
+  렌더링 시점에 변수 값으로 교체된다.
+  이 주석은 Thymeleaf 파서 주석이라 렌더링 결과에 남지 않는다.
+*/-->
+<body style="margin:0; padding:0; background-color:#f5f5f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background-color:#f5f5f5; padding:24px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+                   style="max-width:600px; width:100%; background-color:#ffffff; border-radius:10px; padding:32px;
+                          font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif; color:#3B3B3B;">
+                <tr>
+                    <td style="font-size:22px; font-weight:bold; padding-bottom:8px;">
+                        관련 법령이 개정되었습니다
+                    </td>
+                </tr>
+                <tr>
+                    <td style="font-size:14px; color:#646464; padding-bottom:24px;">
+                        개정일 <span th:text="${amendedOn}">2026-09-03</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="background-color:#F5EED7; border-radius:8px; padding:20px; font-size:15px; line-height:1.6;">
+                        <strong th:text="${lawName}">어린이제품 안전 특별법 시행규칙 별표2</strong>
+                        <p style="margin:8px 0 0;" th:text="${summary}">완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="font-size:15px; line-height:1.6; padding-top:24px;">
+                        재확인이 필요한 상품이 <strong th:text="${affectedProductCount}">1</strong>개 있습니다.
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding-top:28px;">
+                        <a th:href="${myPageUrl}" href="#"
+                           style="display:inline-block; background-color:#1058FC; color:#ffffff;
+                                  text-decoration:none; font-weight:bold; font-size:15px;
+                                  padding:14px 28px; border-radius:10px;">
+                            재확인 필요 상품 확인하기
+                        </a>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="font-size:12px; color:#9D9D9D; padding-top:32px;">
+                        이 메일은 마이페이지의 고시 개정 알림 설정에 따라 발송되었습니다.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

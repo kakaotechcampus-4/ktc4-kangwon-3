@@ -22,7 +22,7 @@ function AddedProductList({ products, onRemove }: AddedProductListProps) {
                         key={product.id}
                         type={product.type}
                         title={product.title}
-                        thumbnail={product.thumbnail}
+                        productImageFile={product.productImageFile}
                         link={product.link}
                         content={product.content}
                         images={product.images}

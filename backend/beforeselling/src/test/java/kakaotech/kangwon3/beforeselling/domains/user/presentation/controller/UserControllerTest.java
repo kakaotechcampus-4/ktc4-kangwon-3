@@ -31,6 +31,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.BDDMockito.then;
@@ -82,8 +83,9 @@ class UserControllerTest {
     @DisplayName("인증된 회원이 탈퇴를 요청하면 성공하고 리프레시 토큰 쿠키가 만료된다.")
     void withdraw_thenSuccessAndExpireCookie() throws Exception {
         // given
+        UUID userId = UUID.randomUUID();
         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
-                new UserPrincipal(1L, Role.USER), null, List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
+                new UserPrincipal(userId, Role.USER), null, List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
 
         // when & then
         mockMvc.perform(delete("/api/v1/users/me")
@@ -93,6 +95,6 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refresh_token=;")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
-        then(userWithdrawalUseCase).should().withdraw(1L, "refresh");
+        then(userWithdrawalUseCase).should().withdraw(userId, "refresh");
     }
 }

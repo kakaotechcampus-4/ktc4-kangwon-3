@@ -36,3 +36,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### 로컬 검증 도구 ###
+# 실제 요청-응답과 DB 행 변화를 눈으로 확인하는 스크립트.
+# 단정(assertion)이 없어 CI 회귀 감지에는 쓰이지 않으므로 추적하지 않는다.
+src/test/java/kakaotech/kangwon3/beforeselling/verify/

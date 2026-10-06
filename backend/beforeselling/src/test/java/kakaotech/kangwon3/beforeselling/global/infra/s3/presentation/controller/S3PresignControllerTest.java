@@ -35,6 +35,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,6 +51,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
 class S3PresignControllerTest {
+
+    private static final UUID USER_ID = UUID.randomUUID();
 
     @Autowired
     private MockMvc mockMvc;
@@ -77,7 +80,7 @@ class S3PresignControllerTest {
     @MockitoBean
     private OAuth2AuthorizedClientRepository authorizedClientRepository;
 
-    private static Authentication authenticationOf(Long userId) {
+    private static Authentication authenticationOf(UUID userId) {
         return UsernamePasswordAuthenticationToken.authenticated(
                 new UserPrincipal(userId, Role.USER), null, List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
     }
@@ -104,22 +107,22 @@ class S3PresignControllerTest {
         PresignedUrlResponse response = new PresignedUrlResponse(List.of(
                 new PresignedUrlResponse.PresignedFile(
                         "thumb.jpg",
-                        "product-main/1/uuid_thumb.jpg",
-                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1/uuid_thumb.jpg?X-Amz-Signature=...",
+                        "product-main/" + USER_ID + "/uuid_thumb.jpg",
+                        "https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/" + USER_ID + "/uuid_thumb.jpg?X-Amz-Signature=...",
                         "image/jpeg")));
-        given(s3PresignedUrlProvider.issuePresignedUrls(eq(1L), any())).willReturn(response);
+        given(s3PresignedUrlProvider.issuePresignedUrls(eq(USER_ID), any())).willReturn(response);
 
         // when & then
         mockMvc.perform(post("/api/v1/presigned-url")
-                        .with(authentication(authenticationOf(1L)))
+                        .with(authentication(authenticationOf(USER_ID)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.files[0].fileName").value("thumb.jpg"))
-                .andExpect(jsonPath("$.data.files[0].key").value("product-main/1/uuid_thumb.jpg"))
+                .andExpect(jsonPath("$.data.files[0].key").value("product-main/" + USER_ID + "/uuid_thumb.jpg"))
                 .andExpect(jsonPath("$.data.files[0].contentType").value("image/jpeg"));
-        then(s3PresignedUrlProvider).should().issuePresignedUrls(eq(1L), any());
+        then(s3PresignedUrlProvider).should().issuePresignedUrls(eq(USER_ID), any());
     }
 
     @Test
@@ -128,7 +131,7 @@ class S3PresignControllerTest {
         PresignedUrlRequest request = new PresignedUrlRequest(List.of());
 
         mockMvc.perform(post("/api/v1/presigned-url")
-                        .with(authentication(authenticationOf(1L)))
+                        .with(authentication(authenticationOf(USER_ID)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -143,7 +146,7 @@ class S3PresignControllerTest {
                 new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, tooLongFileName, 1024)));
 
         mockMvc.perform(post("/api/v1/presigned-url")
-                        .with(authentication(authenticationOf(1L)))
+                        .with(authentication(authenticationOf(USER_ID)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -156,12 +159,12 @@ class S3PresignControllerTest {
         // given
         PresignedUrlRequest request = new PresignedUrlRequest(List.of(
                 new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "malware.exe", 1024)));
-        given(s3PresignedUrlProvider.issuePresignedUrls(eq(1L), any()))
+        given(s3PresignedUrlProvider.issuePresignedUrls(eq(USER_ID), any()))
                 .willThrow(new BaseException(FileResponseCode.NOT_SUPPORTED_EXTENSION));
 
         // when & then
         mockMvc.perform(post("/api/v1/presigned-url")
-                        .with(authentication(authenticationOf(1L)))
+                        .with(authentication(authenticationOf(USER_ID)))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())

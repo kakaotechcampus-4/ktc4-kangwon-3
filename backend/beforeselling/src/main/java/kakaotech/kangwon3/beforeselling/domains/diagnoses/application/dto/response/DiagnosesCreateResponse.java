@@ -1,6 +1,8 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response;
 
+import java.util.UUID;
+
 public record DiagnosesCreateResponse(
-        Long diagnosesId
+        UUID diagnosesId
 ) {
 }

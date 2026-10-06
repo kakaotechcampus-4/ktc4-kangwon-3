@@ -295,7 +295,14 @@ class FinalVerificationStatus(StrEnum):
 
 
 class ExecutionEndReason(StrEnum):
-    """이번 Pipeline 실행의 종료 이유. 진단 전체의 최종 완료와 구분한다."""
+    """이번 Pipeline 실행의 종료 이유. 진단 전체의 최종 완료와 구분한다.
+
+    FinalAssessment 생성 주체는 다음 검증 상태 조합을 지켜야 한다.
+    COMPLETED: VERIFIED 또는 VERIFIED_WITH_WARNINGS.
+    그 외 사유: INCOMPLETE.
+    USER_INPUT_REQUIRED는 이번 실행의 종료이며, 진단은 사용자 답변을 기다린다.
+    응답과 실행 종료 이벤트는 같은 Enum 값을 사용한다.
+    """
 
     COMPLETED = "completed"
     USER_INPUT_REQUIRED = "user_input_required"

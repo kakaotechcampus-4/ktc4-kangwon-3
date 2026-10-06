@@ -48,7 +48,7 @@ public class S3PresignedUrlProvider {
     private final S3Properties s3Properties;
     private final S3FileService s3FileService;
 
-    public PresignedUrlResponse issuePresignedUrls(Long userId, List<FileMeta> files) {
+    public PresignedUrlResponse issuePresignedUrls(UUID userId, List<FileMeta> files) {
         List<PresignedFile> presignedFiles = files.stream()
                 .map(file -> issuePresignedUrl(userId, file))
                 .toList();
@@ -56,7 +56,7 @@ public class S3PresignedUrlProvider {
         return new PresignedUrlResponse(presignedFiles);
     }
 
-    private PresignedFile issuePresignedUrl(Long userId, FileMeta file) {
+    private PresignedFile issuePresignedUrl(UUID userId, FileMeta file) {
         String fileName = Normalizer.normalize(file.fileName(), Normalizer.Form.NFC);
         validateExtension(fileName);
         validateFileSize(file.fileSize());
@@ -101,7 +101,7 @@ public class S3PresignedUrlProvider {
         }
     }
 
-    private String createKey(Long userId, FileType type, String fileName) {
+    private String createKey(UUID userId, FileType type, String fileName) {
         String sanitizedFileName = StringUtils.getFilename(fileName);
         String uniqueFileName = "%s_%s".formatted(UUID.randomUUID(), sanitizedFileName);
         return String.join(KEY_DELIMITER, type.getFolderName(), String.valueOf(userId), uniqueFileName);
