@@ -40,6 +40,15 @@ public class ProductService {
     }
 
     /**
+     * 상품 단건 조회. 마이페이지에서 상품 하나의 진단 결과를 볼 때 쓴다.
+     */
+    public Product getProduct(UUID userId, UUID productId) {
+        // 없는 상품과 남의 상품 모두 빈 결과라 같은 NOT_FOUND 로 응답한다.
+        return productRepository.findWithImagesByIdAndUserId(productId, userId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+    }
+
+    /**
      * 상품 단건 삭제. 딸린 이미지는 cascade로 함께 삭제되고,
      * 진단서에 남은 상품이 없으면 진단서도 정리한다
      */

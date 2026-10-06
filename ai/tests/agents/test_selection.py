@@ -9,6 +9,7 @@ import pytest
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName
+from app import usage
 from app.agents.selection import SelectionAgent, SelectionFailedError
 
 
@@ -202,3 +203,70 @@ def test_ToolSelectionResponse는_중복_도메인을_거부한다():
                 ToolSelectionItem(tool_name=ToolName.CHILDREN, selected=False, reason="어린이 아님"),
             ]
         )
+
+
+def _usage_rows() -> list[dict]:
+    if not usage.USAGE_LOG.exists():
+        return []
+    return [json.loads(line) for line in usage.USAGE_LOG.read_text(encoding="utf-8").splitlines()]
+
+
+def test_선택_호출_1건이_공용_사용량_로그에_남는다():
+    agent = SelectionAgent(model=_StubChatModel(_make_mixed_response()), configured_model="openai/gpt-4.1-mini")
+
+    agent.select(_make_product(product_id="prod-usage-1"))
+
+    rows = _usage_rows()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["agent"] == "selection"
+    assert row["subject_id"] == "prod-usage-1"
+    assert row["success"] is True
+    assert row["input_tokens"] == 3000
+    assert row["cached_input_tokens"] == 1800
+    assert row["output_tokens"] == 400
+    assert row["estimated_cost_krw"] is not None
+    assert row["latency_ms"] is not None
+
+
+def test_usage_agent로_평가_호출을_구분해_남긴다():
+    agent = SelectionAgent(model=_StubChatModel(_make_mixed_response()), usage_agent="selection-eval")
+
+    agent.select(_make_product())
+
+    assert _usage_rows()[0]["agent"] == "selection-eval"
+
+
+def test_모델_호출_실패도_사용량_로그에_실패로_남는다():
+    agent = SelectionAgent(model=_RaisingChatModel())
+
+    with pytest.raises(SelectionFailedError):
+        agent.select(_make_product(product_id="prod-usage-fail"))
+
+    row = _usage_rows()[0]
+    assert row["success"] is False
+    assert row["error_type"] == "RuntimeError"
+    assert row["subject_id"] == "prod-usage-fail"
+    assert row["input_tokens"] is None
+
+
+def test_파싱_실패도_사용한_토큰과_함께_남는다():
+    agent = SelectionAgent(model=_StubChatModel(None, parsing_error=ValueError("스키마 불일치")))
+
+    with pytest.raises(SelectionFailedError):
+        agent.select(_make_product())
+
+    row = _usage_rows()[0]
+    assert row["success"] is False
+    assert row["error_type"] == "ValueError"
+    assert row["input_tokens"] == 3000
+    assert row["output_tokens"] == 400
+
+
+def test_파싱_결과만_없으면_MissingParsedOutput으로_남는다():
+    agent = SelectionAgent(model=_StubChatModel(None))
+
+    with pytest.raises(SelectionFailedError):
+        agent.select(_make_product())
+
+    assert _usage_rows()[0]["error_type"] == "MissingParsedOutput"
