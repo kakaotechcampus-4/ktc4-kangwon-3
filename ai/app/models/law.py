@@ -38,6 +38,11 @@ class LawArticle(Base):
     __table_args__ = (
         UniqueConstraint("law_id", "article_no", "article_branch"),
         Index("ix_law_articles_law_id", "law_id"),
+        # 데이터 양과 관계없이 검색 품질 유지, 빈 테이블에서도 생성 가능 (#247)
+        Index(
+            "ix_law_articles_embedding", "embedding",
+            postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     law_article_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
