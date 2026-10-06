@@ -13,6 +13,7 @@ from ..schemas.agent import ExtractionInput
 from ..schemas.product import Attribute, ProductAttributes, Product
 from ..usage import CallUsage, from_response, record
 from ..utils.extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
+from ..utils.seller_region import extract_seller_region
 
 # 평가 모듈이 프롬프트 지문을 기록할 때 이 경로를 참조한다. 에이전트 내부 전용이 아니므로
 # 공개 이름으로 둔다(경로를 두 곳에 적으면 한쪽만 옮겨졌을 때 조용히 갈라진다).
@@ -89,6 +90,12 @@ class ExtractionAgent:
         raises ExtractionFailedError: LLM 호출·구조화 출력 파싱이 실패한 경우.
             text_blocks·image_urls가 모두 비어 입력 자체가 없는 경우는 ValueError.
         """
+        # 쇼핑몰이 붙인 글(AI 상품 요약·연관 상품·리뷰·검색창 등)을 LLM과 규칙 레이어에 넘기기
+        # 전에 잘라낸다(#253). 자르지 못한 블록은 원문 그대로라 지금보다 나빠지지 않는다.
+        regions = [extract_seller_region(block) for block in source.text_blocks]
+        source = source.model_copy(update={"text_blocks": [region.text for region in regions]})
+        titles = list(dict.fromkeys(region.title for region in regions if region.title))
+
         messages = self._build_messages(source)
         started_at = perf_counter()
         try:
@@ -126,6 +133,7 @@ class ExtractionAgent:
         rule_conflicts = detect_battery_capacity_conflict(source.text_blocks)
 
         payload = fields.model_dump()
+        payload["listing_text"] = _keep_seller_titles(fields.listing_text, titles)
         payload["attributes"] = _merge_attributes(fields.attributes, rule_attributes)
         payload["conflicts"] = _merge_conflicts(fields.conflicts, rule_conflicts)
 
@@ -173,6 +181,17 @@ class ExtractionAgent:
             SystemMessage(content=_load_system_prompt()),
             HumanMessage(content=content),
         ]
+
+
+def _keep_seller_titles(listing_text: list[str], titles: list[str]) -> list[str]:
+    """판매자 제목 원문이 listing_text에 없으면 맨 앞에 넣는다(#253 논의 ③).
+
+    표시광고 검사는 listing_text를 읽는다. 모델은 제목을 product_name으로만 옮기고 listing_text에서
+    빼는 경우가 있었고(골전도 이어폰 10/10), product_name은 다듬어지거나 번역될 수 있다.
+    제목은 정제 단계에서 화면 구조로 찾았으므로 모델에 맡기지 않고 코드가 원문 그대로 넣는다.
+    """
+    missing = [title for title in titles if not any(title in item for item in listing_text)]
+    return missing + list(listing_text)
 
 
 def _log_token_usage(usage: CallUsage | None, raw_message: Any) -> None:
