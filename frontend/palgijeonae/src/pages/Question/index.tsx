@@ -12,14 +12,26 @@ import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
 
 function QuestionPage() {
-    const { diagnosesId } = useParams<{ diagnosesId: string }>();
+    const { diagnosesId } = useParams<{ diagnosesId?: string }>();
     const [selectedProductIndex, setSelectedProductIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const navigate = useNavigate();
 
+    // diagnosesId가 없거나, undefined/null이 문자 그대로 들어온 경우
+    const isMissingDiagnosesId = !diagnosesId || diagnosesId === "undefined" || diagnosesId === "null";
+
+    // diagnosesId 없이 잘못 진입한 경우(예: /question/undefined) 요청을 보내지 않고 업로드 페이지로 되돌린다.
+    useEffect(() => {
+        if (isMissingDiagnosesId) {
+            alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
+            navigate("/upload", { replace: true });
+        }
+    }, [isMissingDiagnosesId, navigate]);
+
     const { data, isPending, isError, refetch } = useQuery({
         queryKey: ["questions", diagnosesId],
         queryFn: () => getQuestions(diagnosesId!),
+        enabled: !isMissingDiagnosesId,
     });
 
     // 로딩 중 undefined 방지용 기본값
