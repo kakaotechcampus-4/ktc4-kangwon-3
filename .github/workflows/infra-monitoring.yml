@@ -23,7 +23,7 @@ concurrency:
 
 env:
   AWS_REGION: ap-northeast-2
-  S3_BUCKET: ktc4-kangwon3-deploy
+  S3_BUCKET: ${{ vars.S3_BUCKET }}
   APP_DIR: /home/ubuntu/app
   PROMETHEUS_IMAGE: prom/prometheus:v3.5.0
 
@@ -71,71 +71,26 @@ jobs:
             "s3://${S3_BUCKET}/monitoring/${GITHUB_SHA}/" --delete \
             --exclude ".env" --exclude ".env.*" --exclude "README.md"
 
-      - name: 서버 준비
-        run: |
-          STATE=$(aws ec2 describe-instances --instance-ids "${{ vars.INSTANCE_ID }}" \
-                  --query 'Reservations[0].Instances[0].State.Name' --output text)
-          echo "현재 상태: $STATE"
-          if [ "$STATE" != "running" ]; then
-            echo "서버를 시작합니다..."
-            aws ec2 start-instances --instance-ids "${{ vars.INSTANCE_ID }}"
-            aws ec2 wait instance-running --instance-ids "${{ vars.INSTANCE_ID }}"
-          fi
-          echo "SSM 에이전트 연결 대기..."
-          for i in $(seq 1 30); do
-            PING=$(aws ssm describe-instance-information \
-                   --filters "Key=InstanceIds,Values=${{ vars.INSTANCE_ID }}" \
-                   --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null || echo "")
-            if [ "$PING" = "Online" ]; then echo "준비 완료"; exit 0; fi
-            sleep 10
-          done
-          echo "::error::SSM 에이전트가 응답하지 않습니다"; exit 1
-
       # .env는 서버에서 직접 관리한다 — sync의 --exclude 로 삭제 대상에서도 빠진다.
       # bind mount된 설정 파일 변경은 compose가 감지하지 못하므로 prometheus/grafana를 재시작한다.
       - name: 배포 실행
-        run: |
-          cat > /tmp/params.json <<EOF
-          {"commands":[
-            "#!/bin/bash",
-            "set -euo pipefail",
-            "MON_DIR=${APP_DIR}/monitoring",
-            "mkdir -p \$MON_DIR",
-            "[ -f \$MON_DIR/.env ] || { echo \$MON_DIR/.env 가 없습니다 - .env.example 참고해 먼저 작성하세요; exit 1; }",
-            "docker network inspect be_appnet >/dev/null || { echo be_appnet 네트워크가 없습니다 - be 스택을 먼저 띄우세요; exit 1; }",
-            "aws s3 sync s3://${S3_BUCKET}/monitoring/${GITHUB_SHA}/ \$MON_DIR/ --delete --exclude .env",
-            "cd \$MON_DIR",
-            "docker compose up -d --remove-orphans --wait --wait-timeout 180 || { docker compose ps; docker compose logs --tail 50; exit 1; }",
-            "docker compose restart prometheus grafana",
-            "for i in \$(seq 1 30); do [ \"\$(docker inspect -f '{{.State.Health.Status}}' mon-prometheus)\" = healthy ] && [ \"\$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)\" = healthy ] && break; sleep 5; done",
-            "docker compose ps",
-            "[ \"\$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)\" = healthy ] || { docker compose logs --tail 50 grafana; exit 1; }"
-          ]}
-          EOF
-
-          CMD=$(aws ssm send-command \
-                --instance-ids "${{ vars.INSTANCE_ID }}" \
-                --document-name AWS-RunShellScript \
-                --comment "monitoring ${GITHUB_SHA:0:7}" \
-                --parameters file:///tmp/params.json \
-                --query 'Command.CommandId' --output text)
-          echo "CommandId: $CMD"
-
-          for i in $(seq 1 60); do
-            ST=$(aws ssm get-command-invocation --command-id "$CMD" \
-                 --instance-id "${{ vars.INSTANCE_ID }}" --query Status --output text 2>/dev/null || echo Pending)
-            case "$ST" in Success|Failed|Cancelled|TimedOut) break ;; esac
-            sleep 10
-          done
-
-          echo "----- 실행 로그 -----"
-          aws ssm get-command-invocation --command-id "$CMD" \
-            --instance-id "${{ vars.INSTANCE_ID }}" --query 'StandardOutputContent' --output text
-          echo "----- 에러 로그 -----"
-          aws ssm get-command-invocation --command-id "$CMD" \
-            --instance-id "${{ vars.INSTANCE_ID }}" --query 'StandardErrorContent' --output text
-
-          [ "$ST" = "Success" ] || { echo "::error::모니터링 스택 배포 실패 ($ST)"; exit 1; }
+        uses: ./.github/actions/ssm-run
+        with:
+          instance-id: ${{ vars.INSTANCE_ID }}
+          label: monitoring
+          error-message: 모니터링 스택 배포 실패
+          commands: |
+            MON_DIR=${{ env.APP_DIR }}/monitoring
+            mkdir -p $MON_DIR
+            [ -f $MON_DIR/.env ] || { echo $MON_DIR/.env 가 없습니다 - .env.example 참고해 먼저 작성하세요; exit 1; }
+            docker network inspect be_appnet >/dev/null || { echo be_appnet 네트워크가 없습니다 - be 스택을 먼저 띄우세요; exit 1; }
+            aws s3 sync s3://${{ env.S3_BUCKET }}/monitoring/${{ github.sha }}/ $MON_DIR/ --delete --exclude .env
+            cd $MON_DIR
+            docker compose up -d --remove-orphans --wait --wait-timeout 180 || { docker compose ps; docker compose logs --tail 50; exit 1; }
+            docker compose restart prometheus grafana
+            for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' mon-prometheus)" = healthy ] && [ "$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)" = healthy ] && break; sleep 5; done
+            docker compose ps
+            [ "$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)" = healthy ] || { docker compose logs --tail 50 grafana; exit 1; }
 
       - name: 서비스 확인
         run: |

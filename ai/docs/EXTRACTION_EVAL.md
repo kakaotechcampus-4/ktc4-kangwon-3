@@ -627,10 +627,10 @@ C3 오탐률     = C3 / 전체
 | `app/eval/scoring.py` | 정답표 + N회 실행 결과 → 리포트 |
 | `app/eval/runner.py` | 실행·저장·채점 CLI |
 | `tests/eval_truth/*.json` | 정답표 |
-| `tests/test_eval_grading.py` | 채점 규칙 검증 (LLM 없음) |
-| `tests/test_eval_scoring.py` | 집계 로직 검증 (LLM 없음) |
-| `tests/test_eval_truth_files.py` | 커밋된 정답표가 스키마와 맞는지 검사 |
-| `tests/test_eval_runner.py` | 원문이 없을 때의 안내 검증 |
+| `tests/eval/test_grading.py` | 채점 규칙 검증 (LLM 없음) |
+| `tests/eval/test_scoring.py` | 집계 로직 검증 (LLM 없음) |
+| `tests/eval/test_truth_files.py` | 커밋된 정답표가 스키마와 맞는지 검사 |
+| `tests/eval/test_runner.py` | 원문이 없을 때의 안내 검증 |
 
 ```bash
 python -m app.eval.runner --all --runs 5          # 전체 실행 + 채점

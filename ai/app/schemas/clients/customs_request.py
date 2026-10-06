@@ -21,9 +21,10 @@ class CustomsGwConfirmationRequest(BaseModel):
     """세관장확인대상물품 조회 요청.
 
     Args:
-        hs_code: HS 품목코드. 10자리 풀코드를 넣어야 결과가 나온다.
+        hs_code: HS 품목코드. 숫자 10자리만 허용한다.
+            점이 남은 값이나 4자리 HS는 API가 오류 없이 0건을 돌려줘서 "요건 없음"과 구분할 수 없다.
         import_export: 수출입 구분. "1"=수출, "2"=수입. 기본값 수입.
     """
 
-    hs_code: str = Field(min_length=1)
+    hs_code: str = Field(pattern=r"^\d{10}$")
     import_export: str = Field(default="2", pattern=r"^[12]$")

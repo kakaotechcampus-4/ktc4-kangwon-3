@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.SortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiErrorResponseExplanation;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiResponseExplanations;
@@ -48,6 +49,25 @@ public interface ProductApi {
             @Min(value = 1, message = "페이지 크기는 1 이상이어야 합니다.")
             @Max(value = 100, message = "페이지 크기는 100 이하여야 합니다.") int size,
             @Parameter(description = "정렬 기준") SortType sortType);
+
+    @Operation(
+            summary = "상품 단건 조회",
+            description = """
+                    상품 하나의 진단 결과를 조회합니다. (마이페이지 → 상품 클릭)
+                    응답은 진단서 단건 조회의 `products[]` 항목과 같은 형태입니다.
+                    저장은 S3 key로 하지만 응답의 `imageUrls`와 `productImageUrl`은 접근 가능한 URL로 조립되어 내려갑니다.
+                    진단이 완료되지 않은 경우 `resultStatus`와 `summary`는 `null`입니다.
+                    없는 상품과 다른 사용자의 상품은 모두 `NOT_FOUND`로 응답합니다.
+                    """)
+    @ApiResponseExplanations(
+            success = @ApiSuccessResponseExplanation(responseClass = ProductResponse.class, description = "조회 성공"),
+            errors = {
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
+            }
+    )
+    ResponseEntity<ApiResponse<ProductResponse>> getProduct(
+            @Parameter(hidden = true) UserPrincipal principal,
+            UUID productId);
 
     @Operation(
             summary = "상품 단건 삭제",
