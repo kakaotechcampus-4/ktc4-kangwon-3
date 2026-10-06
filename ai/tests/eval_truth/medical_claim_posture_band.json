@@ -36,7 +36,7 @@
     },
     "battery_is_the_product": {
       "value": false,
-      "evidence": "카테고리 '자세교정 밴드'",
+      "evidence": "제목 '등 자세 교정기 벨트 버팀대'. 원문 3행 '자세교정 밴드'는 검색창 글자라 근거로 쓰지 않는다(#252)",
       "why_not_other": "전력 공급이 기능이 아니다."
     },
     "heating": {
