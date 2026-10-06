@@ -644,6 +644,8 @@ from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
+from ..schemas.schemas import ExecutionEndReason
+
 
 class ComponentType(StrEnum):
     AGENT = "agent"
@@ -676,7 +678,7 @@ class ExecutionEvent(BaseModel):
     call_id: str | None = None
     error_code: str | None = None
     retryable: bool | None = None
-    termination_reason: str | None = None
+    termination_reason: ExecutionEndReason | None = None
 
     @field_validator("timestamp")
     @classmethod
@@ -687,10 +689,30 @@ class ExecutionEvent(BaseModel):
 - ExecutionEvent는 전체 Pipeline용이다. 기존 Verification 내부 TraceEvent와 같은 타입으로 취급하지 않는다.
 - 시작 이벤트는 latency_ms=null, 완료·실패 이벤트는 측정값을 넣는다.
 - status는 작업의 완료 상태다. VerificationStatus·OverallStatus와 다른 개념이다.
-- event·termination_reason 목록은 Trace 구현 전에 확정한다.
+- event 이름과 BE/FE 공개 범위는 Trace 구현 전에 확정한다. termination_reason은 ExecutionEndReason을 사용하며 별도 문자열 목록을 만들지 않는다.
 - 실패·미완료 상태에 따른 정상적인 loop 종료와 미처리 예외에 따른 pipeline_failed를 구분한다.
 - 종료 사유·대상 Tool·검증 상태를 자유문으로만 기록하지 않는다.
 - 검증 내부 Trace 연결과 외부 공개 범위는 M1 범위 밖이다.
+
+### 7.1.1 응답·종료 이벤트의 공통 종료 사유
+
+정의 위치는 `app/schemas/schemas.py`의 `ExecutionEndReason`이다. 아래 표는 #240의 계약을 명시하며, Enum을 Trace 모듈에 중복 정의하지 않는다.
+
+| Enum | JSON 값 | FinalAssessment.verification_status |
+| --- | --- | --- |
+| `COMPLETED` | `completed` | `verified` 또는 `verified_with_warnings` |
+| `USER_INPUT_REQUIRED` | `user_input_required` | `incomplete` |
+| `REVISION_REQUIRED` | `revision_required` | `incomplete` |
+| `RETRY_LIMIT_EXCEEDED` | `retry_limit_exceeded` | `incomplete` |
+| `NO_PROGRESS` | `no_progress` | `incomplete` |
+| `COST_LIMIT_EXCEEDED` | `cost_limit_exceeded` | `incomplete` |
+
+- `FinalAssessment.termination_reason`은 필수이며, 해당 실행의 Pipeline 종료 이벤트에는 응답과 같은 Enum 값을 기록한다. 응답과 Trace의 종료 사유는 Runner가 결정한 동일한 값에서 생성한다.
+- `ExecutionEvent.termination_reason`은 선택 필드다. 시작·진행·개별 구성 요소 완료 이벤트에는 Pipeline 종료 사유가 없을 수 있으므로 `None`을 허용한다. `EventStatus.COMPLETED`만으로 `ExecutionEndReason.COMPLETED`를 자동 지정하지 않는다.
+- `COMPLETED`는 검증 흐름 완료이지 상품의 규제상 적합이나 기관 인증을 뜻하지 않는다.
+- `USER_INPUT_REQUIRED`는 이번 실행이 종료됐다는 뜻이며 진단 전체의 완료가 아니다. 사용자 답변 이후 저장 상태를 사용한 재개는 별도 API 계약으로 정의한다.
+- 현재 처리되지 않은 예외는 `FinalAssessment`를 생성하지 않는다. 이때 `pipeline_failed` 이벤트는 `status=FAILED`와 오류 코드·실패 단계를 기록하며, 여섯 종료 사유 중 하나로 강제 변환하지 않는다. 예외의 `partial_result`도 자동으로 최종 응답이 되지 않는다.
+- 비용 제한은 Enum 값이 정의됐다고 구현된 것이 아니다. 실제 예산 계산·확인·중단 정책은 별도 작업이다. 신규 종료 사유가 필요하면 공통 Enum과 응답·Trace 소비 계약을 함께 갱신한다.
 
 ### 7.2 운영 로그 규칙
 
@@ -766,11 +788,11 @@ class ExecutionEvent(BaseModel):
 
 | 항목 | 별도 확정할 내용 |
 | --- | --- |
-| 비용 상한 중단 | 상품 / 진단서 단위 상한, 호출 전 추정, 병렬 예약, 종료 상태 |
+| 비용 상한 중단 | 상품 / 진단서 단위 상한, 호출 전 추정, 병렬 예약, 실제 중단·결과 반환 정책. 종료 사유 값은 COST_LIMIT_EXCEEDED로 정의됨 |
 | 동일 결과 조기 중단 | 비교 대상, 의미적 동일성, 실패 원인별 복구 가능성 |
 | 재개 API | 답변 후 run_id, 이전·새 실행 연결, 저장·복원 |
 | AIResponseCode 목록 | 채번·HTTP 상태·공개 문구·BE retry |
-| Trace 목록 | 이벤트 이름·종료 사유·BE/FE 공개 범위 |
+| Trace 목록 | 이벤트 이름·BE/FE 공개 범위. 종료 사유는 §7.1.1의 공통 Enum 사용 |
 | 운영 저장소 | JSONL / stdout / DB, 수집·보관, 다중 process 원자성 |
 | Prompt 캐시 갱신 | 재시작 반영 / 명시적 갱신 / 평가 시 처리 |
 | SDK retry 측정 | 실제 요청별 usage·비용 수집 범위 |
