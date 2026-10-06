@@ -34,7 +34,7 @@ function QuestionPage() {
         enabled: !isMissingDiagnosesId,
     });
 
-    // 로딩 중 undefined 방지용 기본값
+    // 빈 배열은 로딩 중 undefined 방지용 기본값
     const productQuestions = data ?? [];
 
     // ProductTabs에 넘길 이름만 추출
