@@ -7,8 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
-public interface S3FileRepository extends JpaRepository<S3File, Long> {
+public interface S3FileRepository extends JpaRepository<S3File, UUID> {
 
     List<S3File> findByKeyIn(List<String> keys);
 

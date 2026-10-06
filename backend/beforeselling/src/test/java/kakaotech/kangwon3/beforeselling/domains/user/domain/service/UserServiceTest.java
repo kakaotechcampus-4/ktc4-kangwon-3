@@ -14,16 +14,18 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
+
+    private static final UUID USER_ID = UUID.randomUUID();
 
     @Mock
     private UserRepository userRepository;
@@ -35,11 +37,11 @@ class UserServiceTest {
     @DisplayName("존재하는 회원 ID로 조회하면 회원을 반환한다.")
     void getUser_thenReturnUser() {
         // given
-        User user = createUser(1L);
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        User user = createUser(USER_ID);
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
         // when
-        User result = userService.getUser(1L);
+        User result = userService.getUser(USER_ID);
 
         // then
         assertThat(result).isEqualTo(user);
@@ -49,10 +51,10 @@ class UserServiceTest {
     @DisplayName("존재하지 않는 회원 ID로 조회하면 NOT_FOUND 예외가 발생한다.")
     void getUser_withUnknownId_thenThrow() {
         // given
-        given(userRepository.findById(1L)).willReturn(Optional.empty());
+        given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> userService.getUser(1L))
+        assertThatThrownBy(() -> userService.getUser(USER_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
@@ -62,7 +64,7 @@ class UserServiceTest {
     @DisplayName("이미 가입된 소셜 사용자로 조회하면 기존 회원을 반환하고 isNewUser는 false다.")
     void getOrCreateUser_withExistingSocialUser_thenReturnExistingUser() {
         // given
-        User user = createUser(1L);
+        User user = createUser(USER_ID);
         given(userRepository.findBySocialProviderAndSocialId(SocialProvider.KAKAO, "social-id"))
                 .willReturn(Optional.of(user));
 
@@ -80,7 +82,7 @@ class UserServiceTest {
     @DisplayName("가입되지 않은 소셜 사용자로 조회하면 신규 가입시키고 isNewUser는 true다.")
     void getOrCreateUser_withNewSocialUser_thenCreateUser() {
         // given
-        User newUser = createUser(1L);
+        User newUser = createUser(USER_ID);
         given(userRepository.findBySocialProviderAndSocialId(SocialProvider.KAKAO, "social-id"))
                 .willReturn(Optional.empty());
         given(userRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(User.class))).willReturn(newUser);
@@ -98,11 +100,11 @@ class UserServiceTest {
     @DisplayName("회원을 탈퇴 처리하면 저장소에서 삭제된다.")
     void withdraw_thenDeleteUser() {
         // given
-        User user = createUser(1L);
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        User user = createUser(USER_ID);
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
         // when
-        userService.withdraw(1L);
+        userService.withdraw(USER_ID);
 
         // then
         then(userRepository).should().delete(user);
@@ -112,10 +114,10 @@ class UserServiceTest {
     @DisplayName("존재하지 않는 회원을 탈퇴 처리하면 NOT_FOUND 예외가 발생하고 삭제가 호출되지 않는다.")
     void withdraw_withUnknownId_thenThrow() {
         // given
-        given(userRepository.findById(1L)).willReturn(Optional.empty());
+        given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> userService.withdraw(1L))
+        assertThatThrownBy(() -> userService.withdraw(USER_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
@@ -126,17 +128,17 @@ class UserServiceTest {
     @DisplayName("소셜 로그인 성공 시 refresh_token을 갱신한다.")
     void updateSocialRefreshToken_thenUpdate() {
         // given
-        User user = createUser(1L);
-        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        User user = createUser(USER_ID);
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
 
         // when
-        userService.updateSocialRefreshToken(1L, "new-refresh-token");
+        userService.updateSocialRefreshToken(USER_ID, "new-refresh-token");
 
         // then
         assertThat(user.getSocialRefreshToken()).isEqualTo("new-refresh-token");
     }
 
-    private User createUser(Long id) {
+    private User createUser(UUID id) {
         User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "사용자");
         ReflectionTestUtils.setField(user, "id", id);
         return user;

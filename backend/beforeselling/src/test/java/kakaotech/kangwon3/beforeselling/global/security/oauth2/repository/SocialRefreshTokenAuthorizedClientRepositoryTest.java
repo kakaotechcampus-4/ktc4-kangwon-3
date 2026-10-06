@@ -19,6 +19,7 @@ import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +29,8 @@ import static org.mockito.BDDMockito.willThrow;
 
 @ExtendWith(MockitoExtension.class)
 class SocialRefreshTokenAuthorizedClientRepositoryTest {
+
+    private static final UUID USER_ID = UUID.randomUUID();
 
     @Mock
     private UserService userService;
@@ -76,7 +79,7 @@ class SocialRefreshTokenAuthorizedClientRepositoryTest {
         repository.saveAuthorizedClient(authorizedClient, principal, null, null);
 
         // then
-        then(userService).should().updateSocialRefreshToken(1L, "refresh-token");
+        then(userService).should().updateSocialRefreshToken(USER_ID, "refresh-token");
     }
 
     @Test
@@ -94,7 +97,7 @@ class SocialRefreshTokenAuthorizedClientRepositoryTest {
     }
 
     private CustomOAuth2User customOAuth2User() {
-        return new CustomOAuth2User(1L, Role.USER, false, Map.of());
+        return new CustomOAuth2User(USER_ID, Role.USER, false, Map.of());
     }
 
     private Authentication authenticationOf(CustomOAuth2User principal) {

@@ -293,15 +293,36 @@ class FinalVerificationStatus(StrEnum):
     VERIFIED_WITH_WARNINGS = "verified_with_warnings"
     INCOMPLETE = "incomplete"
 
+
+class ExecutionEndReason(StrEnum):
+    """이번 Pipeline 실행의 종료 이유. 진단 전체의 최종 완료와 구분한다.
+
+    FinalAssessment 생성 주체는 다음 검증 상태 조합을 지켜야 한다.
+    COMPLETED: VERIFIED 또는 VERIFIED_WITH_WARNINGS.
+    그 외 사유: INCOMPLETE.
+    USER_INPUT_REQUIRED는 이번 실행의 종료이며, 진단은 사용자 답변을 기다린다.
+    응답과 실행 종료 이벤트는 같은 Enum 값을 사용한다.
+    """
+
+    COMPLETED = "completed"
+    USER_INPUT_REQUIRED = "user_input_required"
+    REVISION_REQUIRED = "revision_required"
+    RETRY_LIMIT_EXCEEDED = "retry_limit_exceeded"
+    NO_PROGRESS = "no_progress"
+    # 비용 제한 종료 계약. 누적 비용 계산과 호출 전 예산 확인은 후속 구현한다.
+    COST_LIMIT_EXCEEDED = "cost_limit_exceeded"
+
 # 검증 결과까지 포함한 최종 결과
 # 최종 응답이라도 INCOMPLETE일 수 있다. 검증 완료 여부와 종합 판단을 함께 확인한다.
 # schema_version은 소비자가 데이터 규격을 구분하기 위한 문자열이다.
 # 현재 초안에는 재검사 이력 필드가 없어 기존 재검사 파이프라인과 정합성 확인이 필요하다.
 class FinalAssessment(StrictModel):
     assessment_id: str
-    schema_version: str = "0.2.0"
+    schema_version: str = "0.3.0"
     product: Product
     verification_status: FinalVerificationStatus
+    # 실행 주체가 명시한다. 검증 상태만으로 횟수 제한과 동일 결과 중단을 구분할 수 없다.
+    termination_reason: ExecutionEndReason
     overall_status: OverallStatus
     summary: str
     selected_tools: list[ToolName]

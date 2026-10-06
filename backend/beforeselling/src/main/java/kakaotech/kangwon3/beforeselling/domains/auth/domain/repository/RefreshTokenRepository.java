@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 리프레시 토큰 저장소 (Redis).
@@ -19,13 +20,13 @@ public class RefreshTokenRepository {
 
     private final StringRedisTemplate redisTemplate;
 
-    public void insertRefreshToken(String jti, Long userId, Duration ttl) {
+    public void insertRefreshToken(String jti, UUID userId, Duration ttl) {
         redisTemplate.opsForValue().set(keyOf(jti), String.valueOf(userId), ttl);
     }
 
-    public Optional<Long> getAndDeleteUserIdByJti(String jti) {
+    public Optional<UUID> getAndDeleteUserIdByJti(String jti) {
         return Optional.ofNullable(redisTemplate.opsForValue().getAndDelete(keyOf(jti)))
-                .map(Long::valueOf);
+                .map(UUID::fromString);
     }
 
     public void deleteRefreshToken(String jti) {

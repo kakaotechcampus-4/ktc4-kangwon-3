@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,6 +21,9 @@ import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class RefreshTokenServiceTest {
+
+    private static final UUID USER_ID = UUID.randomUUID();
+    private static final UUID OTHER_USER_ID = UUID.randomUUID();
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
@@ -34,20 +38,20 @@ class RefreshTokenServiceTest {
         Duration ttl = Duration.ofDays(14);
 
         // when
-        refreshTokenService.saveRefreshToken("jti", 1L, ttl);
+        refreshTokenService.saveRefreshToken("jti", USER_ID, ttl);
 
         // then
-        then(refreshTokenRepository).should().insertRefreshToken("jti", 1L, ttl);
+        then(refreshTokenRepository).should().insertRefreshToken("jti", USER_ID, ttl);
     }
 
     @Test
     @DisplayName("저장된 jti이고 소유자가 일치하면 소비에 성공한다.")
     void consumeRefreshToken_withOwnedJti_thenSucceed() {
         // given
-        given(refreshTokenRepository.getAndDeleteUserIdByJti("jti")).willReturn(Optional.of(1L));
+        given(refreshTokenRepository.getAndDeleteUserIdByJti("jti")).willReturn(Optional.of(USER_ID));
 
         // when & then
-        assertThatCode(() -> refreshTokenService.consumeRefreshToken("jti", 1L))
+        assertThatCode(() -> refreshTokenService.consumeRefreshToken("jti", USER_ID))
                 .doesNotThrowAnyException();
     }
 
@@ -58,7 +62,7 @@ class RefreshTokenServiceTest {
         given(refreshTokenRepository.getAndDeleteUserIdByJti("jti")).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> refreshTokenService.consumeRefreshToken("jti", 1L))
+        assertThatThrownBy(() -> refreshTokenService.consumeRefreshToken("jti", USER_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(AuthResponseCode.INVALID_REFRESH_TOKEN);
@@ -67,11 +71,11 @@ class RefreshTokenServiceTest {
     @Test
     @DisplayName("저장된 jti의 소유자와 요청한 userId가 다르면, GETDEL로 이미 소비된 뒤에도 방어적으로 INVALID_REFRESH_TOKEN 예외가 발생한다.")
     void consumeRefreshToken_withMismatchedOwner_thenThrow() {
-        // given: jti는 존재하지만 저장된 소유자(2L)와 요청한 userId(1L)가 다른 방어적 시나리오
-        given(refreshTokenRepository.getAndDeleteUserIdByJti("jti")).willReturn(Optional.of(2L));
+        // given: jti는 존재하지만 저장된 소유자(OTHER_USER_ID)와 요청한 userId(USER_ID)가 다른 방어적 시나리오
+        given(refreshTokenRepository.getAndDeleteUserIdByJti("jti")).willReturn(Optional.of(OTHER_USER_ID));
 
         // when & then
-        assertThatThrownBy(() -> refreshTokenService.consumeRefreshToken("jti", 1L))
+        assertThatThrownBy(() -> refreshTokenService.consumeRefreshToken("jti", USER_ID))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(AuthResponseCode.INVALID_REFRESH_TOKEN);

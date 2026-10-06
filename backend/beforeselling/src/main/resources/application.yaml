@@ -78,6 +78,12 @@ app:
   cookie:
     secure: ${COOKIE_SECURE:false}
     same-site: ${COOKIE_SAME_SITE:Lax}
+  mail:
+    from: ${MAIL_FROM:noreply@palgijeone.com}
+    from-name: ${MAIL_FROM_NAME:팔기전에}
+    region: ${AWS_REGION:ap-northeast-2}
+    # NONE(로그만) | SES_API
+    type: ${MAIL_TYPE:NONE}
 
 aws:
   s3:
@@ -92,12 +98,32 @@ server:
   forward-headers-strategy: framework
 
 management:
+  server:
+    port: 8081
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   endpoint:
     health:
       probes:
         enabled: true
       show-details: never
+
+sentry:
+  dsn: ${SENTRY_DSN:} # 고유 주소
+  environment: ${spring.profiles.active}
+  exception-resolver-order: -2147483647 # @ExceptionHandler에서 잡는 예외도 전송
+  send-default-pii: true # RequestBody 캡처
+  max-request-body-size: medium
+  logs:
+    enabled: true
+  traces-sample-rate: 1.0
+  profile-session-sample-rate: 1.0
+  profile-lifecycle: TRACE

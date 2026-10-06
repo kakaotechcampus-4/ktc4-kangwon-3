@@ -2,7 +2,7 @@ name: be
 services:
   db:
     image: postgres:16-alpine
-    container_name: app-db
+    container_name: be-db
     restart: unless-stopped
     mem_limit: 1g
     environment:
@@ -28,7 +28,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: app-redis
+    container_name: be-redis
     restart: unless-stopped
     mem_limit: 512m
     environment:
@@ -57,7 +57,7 @@ services:
       context: .
       target: local
     image: beforeselling-app:${IMAGE_TAG:-latest}
-    container_name: app-server
+    container_name: be-server
     restart: unless-stopped
     mem_limit: 1500m
     depends_on:
@@ -104,6 +104,14 @@ services:
       S3_ALLOWED_EXTENSIONS: ${S3_ALLOWED_EXTENSIONS}
       S3_BASE_URL: ${S3_BASE_URL}
 
+      # 모니터링
+      SENTRY_DSN: ${SENTRY_DSN:-}
+
+      # 메일 발송 (NONE: 로그만 | SES_API: 실제 발송)
+      MAIL_TYPE: ${MAIL_TYPE:-NONE}
+      MAIL_FROM: ${MAIL_FROM:-noreply@palgijeone.com}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-팔기전에}
+
       # 프론트 연동 / 쿠키
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173}
       FRONTEND_REDIRECT_URIS: ${FRONTEND_REDIRECT_URIS:-http://localhost:5173/oauth/callback}
@@ -112,7 +120,7 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5

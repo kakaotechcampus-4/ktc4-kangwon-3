@@ -21,6 +21,7 @@ import java.net.URL;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,6 +31,8 @@ import static org.mockito.BDDMockito.then;
 
 @ExtendWith(MockitoExtension.class)
 class S3PresignedUrlProviderTest {
+
+    private static final UUID USER_ID = UUID.randomUUID();
 
     @Mock
     private S3Presigner s3Presigner;
@@ -61,13 +64,13 @@ class S3PresignedUrlProviderTest {
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", 1024L);
 
         // when
-        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
+        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file));
 
         // then
         assertThat(response.files()).hasSize(1);
         PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
         assertThat(presignedFile.fileName()).isEqualTo("thumb.jpg");
-        assertThat(presignedFile.key()).matches("product-main/1/[0-9a-f-]+_thumb\\.jpg");
+        assertThat(presignedFile.key()).matches("product-main/" + USER_ID + "/[0-9a-f-]+_thumb\\.jpg");
         assertThat(presignedFile.presignedUrl()).isEqualTo(presignedUrl.toString());
         assertThat(presignedFile.contentType()).isEqualTo("image/jpeg");
     }
@@ -83,7 +86,7 @@ class S3PresignedUrlProviderTest {
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", 1024L);
 
         // when
-        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
+        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file));
 
         // then
         String issuedKey = response.files().get(0).key();
@@ -103,7 +106,7 @@ class S3PresignedUrlProviderTest {
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, nfdFileName, 1024L);
 
         // when
-        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
+        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file));
 
         // then
         PresignedUrlResponse.PresignedFile presignedFile = response.files().get(0);
@@ -123,7 +126,7 @@ class S3PresignedUrlProviderTest {
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "photo.heic", 1024L);
 
         // when
-        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file));
+        PresignedUrlResponse response = s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file));
 
         // then
         assertThat(response.files().get(0).contentType()).isEqualTo("image/heic");
@@ -134,7 +137,7 @@ class S3PresignedUrlProviderTest {
     void issuePresignedUrls_withUnsupportedExtension_thenThrowException() {
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "malware.exe", 1024L);
 
-        assertThatThrownBy(() -> s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file)))
+        assertThatThrownBy(() -> s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file)))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(FileResponseCode.NOT_SUPPORTED_EXTENSION);
@@ -152,7 +155,7 @@ class S3PresignedUrlProviderTest {
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.unknown", 1024L);
 
         // when & then
-        assertThatThrownBy(() -> provider.issuePresignedUrls(1L, List.of(file)))
+        assertThatThrownBy(() -> provider.issuePresignedUrls(USER_ID, List.of(file)))
                 .isInstanceOf(IllegalStateException.class);
     }
 
@@ -172,7 +175,7 @@ class S3PresignedUrlProviderTest {
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", 1024L);
 
         // when
-        PresignedUrlResponse response = provider.issuePresignedUrls(1L, List.of(file));
+        PresignedUrlResponse response = provider.issuePresignedUrls(USER_ID, List.of(file));
 
         // then
         assertThat(response.files()).hasSize(1);
@@ -184,7 +187,7 @@ class S3PresignedUrlProviderTest {
         long exceedSize = DataSize.ofMegabytes(10).toBytes() + 1;
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", exceedSize);
 
-        assertThatThrownBy(() -> s3PresignedUrlProvider.issuePresignedUrls(1L, List.of(file)))
+        assertThatThrownBy(() -> s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file)))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(FileResponseCode.EXCEED_FILE_SIZE);

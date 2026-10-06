@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * 토큰 쌍 발급/재발급/폐기의 단일 진입점.
  * 소셜 로그인 성공 핸들러(발급)와 인증 API(재발급/로그아웃)가 공통으로 사용합니다.
@@ -25,7 +27,7 @@ public class AuthTokenService {
     private final RefreshTokenService refreshTokenService;
     private final UserService userService;
 
-    public TokenPair issueTokens(Long userId, Role role) {
+    public TokenPair issueTokens(UUID userId, Role role) {
         TokenPair tokenPair = jwtProvider.issueTokenPair(userId, role);
         refreshTokenService.saveRefreshToken(
                 tokenPair.refreshTokenJti(), userId, jwtProvider.getRefreshTokenExpiration());

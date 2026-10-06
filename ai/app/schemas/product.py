@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, field_validator
 
 from .base import StrictModel
 
@@ -75,6 +75,16 @@ class ProductAttributes(StrictModel):
     # 않고 여기에 문장으로 남긴다. LLM이 문맥으로 발견한 것과, ExtractionAgent가 규칙
     # 기반으로 발견한 것(extraction_rules.py)이 합쳐져서 들어온다.
     conflicts: list[str] = Field(default_factory=list)
+
+    # 모델이 "값 없음"을 None이 아니라 ""(또는 공백)으로 주는 경우가 있다.
+    # 그대로 두면 하위 단계가 "값이 있다"로 오해해서, 예를 들어 target_age가 ""인데도
+    # 연령 표기가 있는 것처럼 처리된다. 들어오는 지점에서 한 번에 None으로 맞춘다.
+    @field_validator("product_name", "category", "intended_use", "target_age", mode="before")
+    @classmethod
+    def _blank_text_to_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
 
 # 상품 페이지에서 파싱한 사실

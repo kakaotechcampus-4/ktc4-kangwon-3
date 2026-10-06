@@ -35,6 +35,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.BDDMockito.given;
@@ -136,7 +137,7 @@ class AuthControllerTest {
     void logout_thenExpireCookie() throws Exception {
         // given
         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
-                new UserPrincipal(1L, Role.USER), null, List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
+                new UserPrincipal(UUID.randomUUID(), Role.USER), null, List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
 
         // when & then
         mockMvc.perform(post("/api/v1/auth/logout")

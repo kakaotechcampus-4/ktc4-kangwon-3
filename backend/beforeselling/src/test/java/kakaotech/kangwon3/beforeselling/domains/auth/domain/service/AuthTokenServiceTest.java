@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,6 +36,7 @@ import static org.mockito.BDDMockito.willThrow;
 class AuthTokenServiceTest {
 
     private static final Duration REFRESH_TTL = Duration.ofDays(14);
+    private static final UUID USER_ID = UUID.randomUUID();
 
     @Mock
     private JwtProvider jwtProvider;
@@ -53,27 +55,27 @@ class AuthTokenServiceTest {
     void issueTokens_thenSaveRefreshTokenJti() {
         // given
         TokenPair tokenPair = new TokenPair("access", "refresh", "new-jti", 1800L);
-        given(jwtProvider.issueTokenPair(1L, Role.USER)).willReturn(tokenPair);
+        given(jwtProvider.issueTokenPair(USER_ID, Role.USER)).willReturn(tokenPair);
         given(jwtProvider.getRefreshTokenExpiration()).willReturn(REFRESH_TTL);
 
         // when
-        TokenPair result = authTokenService.issueTokens(1L, Role.USER);
+        TokenPair result = authTokenService.issueTokens(USER_ID, Role.USER);
 
         // then
         assertThat(result).isEqualTo(tokenPair);
-        then(refreshTokenService).should().saveRefreshToken("new-jti", 1L, REFRESH_TTL);
+        then(refreshTokenService).should().saveRefreshToken("new-jti", USER_ID, REFRESH_TTL);
     }
 
     @Test
     @DisplayName("유효한 리프레시 토큰으로 재발급하면 기존 토큰은 원자적으로 소비되고 새 토큰 쌍이 발급된다.")
     void reissueTokens_thenRotateRefreshToken() {
         // given
-        User user = createUser(1L, Role.USER);
+        User user = createUser(USER_ID, Role.USER);
         TokenPair newPair = new TokenPair("new-access", "new-refresh", "new-jti", 1800L);
         given(jwtProvider.parse("old-refresh", TokenType.REFRESH))
-                .willReturn(new TokenClaims(1L, Role.USER, TokenType.REFRESH, "old-jti"));
-        given(userService.getUser(1L)).willReturn(user);
-        given(jwtProvider.issueTokenPair(1L, Role.USER)).willReturn(newPair);
+                .willReturn(new TokenClaims(USER_ID, Role.USER, TokenType.REFRESH, "old-jti"));
+        given(userService.getUser(USER_ID)).willReturn(user);
+        given(jwtProvider.issueTokenPair(USER_ID, Role.USER)).willReturn(newPair);
         given(jwtProvider.getRefreshTokenExpiration()).willReturn(REFRESH_TTL);
 
         // when
@@ -82,8 +84,8 @@ class AuthTokenServiceTest {
         // then
         assertThat(result).isEqualTo(newPair);
         InOrder inOrder = inOrder(refreshTokenService);
-        then(refreshTokenService).should(inOrder).consumeRefreshToken("old-jti", 1L);
-        then(refreshTokenService).should(inOrder).saveRefreshToken("new-jti", 1L, REFRESH_TTL);
+        then(refreshTokenService).should(inOrder).consumeRefreshToken("old-jti", USER_ID);
+        then(refreshTokenService).should(inOrder).saveRefreshToken("new-jti", USER_ID, REFRESH_TTL);
     }
 
     @Test
@@ -91,9 +93,9 @@ class AuthTokenServiceTest {
     void reissueTokens_withUnknownJti_thenThrow() {
         // given
         given(jwtProvider.parse("old-refresh", TokenType.REFRESH))
-                .willReturn(new TokenClaims(1L, Role.USER, TokenType.REFRESH, "old-jti"));
+                .willReturn(new TokenClaims(USER_ID, Role.USER, TokenType.REFRESH, "old-jti"));
         willThrow(new BaseException(AuthResponseCode.INVALID_REFRESH_TOKEN))
-                .given(refreshTokenService).consumeRefreshToken("old-jti", 1L);
+                .given(refreshTokenService).consumeRefreshToken("old-jti", USER_ID);
 
         // when & then
         assertThatThrownBy(() -> authTokenService.reissueTokens("old-refresh"))
@@ -107,11 +109,11 @@ class AuthTokenServiceTest {
     @DisplayName("재발급 시 사용자의 역할은 DB 기준으로 최신화된다.")
     void reissueTokens_thenUseLatestRole() {
         // given
-        User admin = createUser(1L, Role.ADMIN);
+        User admin = createUser(USER_ID, Role.ADMIN);
         given(jwtProvider.parse("old-refresh", TokenType.REFRESH))
-                .willReturn(new TokenClaims(1L, Role.USER, TokenType.REFRESH, "old-jti"));
-        given(userService.getUser(1L)).willReturn(admin);
-        given(jwtProvider.issueTokenPair(1L, Role.ADMIN))
+                .willReturn(new TokenClaims(USER_ID, Role.USER, TokenType.REFRESH, "old-jti"));
+        given(userService.getUser(USER_ID)).willReturn(admin);
+        given(jwtProvider.issueTokenPair(USER_ID, Role.ADMIN))
                 .willReturn(new TokenPair("a", "r", "new-jti", 1800L));
         given(jwtProvider.getRefreshTokenExpiration()).willReturn(REFRESH_TTL);
 
@@ -119,7 +121,7 @@ class AuthTokenServiceTest {
         authTokenService.reissueTokens("old-refresh");
 
         // then
-        then(jwtProvider).should().issueTokenPair(1L, Role.ADMIN);
+        then(jwtProvider).should().issueTokenPair(USER_ID, Role.ADMIN);
     }
 
     @Test
@@ -127,7 +129,7 @@ class AuthTokenServiceTest {
     void removeRefreshToken_thenDelete() {
         // given
         given(jwtProvider.parse("refresh", TokenType.REFRESH))
-                .willReturn(new TokenClaims(1L, Role.USER, TokenType.REFRESH, "jti"));
+                .willReturn(new TokenClaims(USER_ID, Role.USER, TokenType.REFRESH, "jti"));
 
         // when
         authTokenService.removeRefreshToken("refresh");
@@ -161,7 +163,7 @@ class AuthTokenServiceTest {
         then(refreshTokenService).shouldHaveNoInteractions();
     }
 
-    private User createUser(Long id, Role role) {
+    private User createUser(UUID id, Role role) {
         User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "사용자");
         ReflectionTestUtils.setField(user, "id", id);
         ReflectionTestUtils.setField(user, "role", role);

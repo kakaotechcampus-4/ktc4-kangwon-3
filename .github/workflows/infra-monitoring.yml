@@ -1,0 +1,100 @@
+name: 모니터링 스택 배포
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "infra/monitoring/**"
+      - ".github/workflows/infra-monitoring.yml"
+  push:
+    branches: [develop]
+    paths:
+      - "infra/monitoring/**"
+      - ".github/workflows/infra-monitoring.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: monitoring-deploy
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-northeast-2
+  S3_BUCKET: ${{ vars.S3_BUCKET }}
+  APP_DIR: /home/ubuntu/app
+  PROMETHEUS_IMAGE: prom/prometheus:v3.5.0
+
+jobs:
+  validate:
+    name: 설정 검사
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prometheus 설정 검사
+        run: |
+          PROMTOOL="docker run --rm -v ${PWD}/infra/monitoring/prometheus:/etc/prometheus:ro -w /etc/prometheus --entrypoint promtool ${PROMETHEUS_IMAGE}"
+          $PROMTOOL check config prometheus.yml
+
+      - name: compose 문법 검사
+        working-directory: infra/monitoring
+        env:
+          GF_ADMIN_PASSWORD: dummy
+        run: docker compose config -q
+
+      - name: 대시보드 JSON 검사
+        run: |
+          for f in infra/monitoring/grafana/dashboards/*.json; do
+            python3 -m json.tool "$f" > /dev/null || { echo "::error::$f 파싱 실패"; exit 1; }
+          done
+
+  deploy:
+    name: 서버 반영
+    needs: validate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: AWS 자격증명 설정
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 설정 파일 업로드
+        run: |
+          aws s3 sync infra/monitoring \
+            "s3://${S3_BUCKET}/monitoring/${GITHUB_SHA}/" --delete \
+            --exclude ".env" --exclude ".env.*" --exclude "README.md"
+
+      # .env는 서버에서 직접 관리한다 — sync의 --exclude 로 삭제 대상에서도 빠진다.
+      # bind mount된 설정 파일 변경은 compose가 감지하지 못하므로 prometheus/grafana를 재시작한다.
+      - name: 배포 실행
+        uses: ./.github/actions/ssm-run
+        with:
+          instance-id: ${{ vars.INSTANCE_ID }}
+          label: monitoring
+          error-message: 모니터링 스택 배포 실패
+          commands: |
+            MON_DIR=${{ env.APP_DIR }}/monitoring
+            mkdir -p $MON_DIR
+            [ -f $MON_DIR/.env ] || { echo $MON_DIR/.env 가 없습니다 - .env.example 참고해 먼저 작성하세요; exit 1; }
+            docker network inspect be_appnet >/dev/null || { echo be_appnet 네트워크가 없습니다 - be 스택을 먼저 띄우세요; exit 1; }
+            aws s3 sync s3://${{ env.S3_BUCKET }}/monitoring/${{ github.sha }}/ $MON_DIR/ --delete --exclude .env
+            cd $MON_DIR
+            docker compose up -d --remove-orphans --wait --wait-timeout 180 || { docker compose ps; docker compose logs --tail 50; exit 1; }
+            docker compose restart prometheus grafana
+            for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' mon-prometheus)" = healthy ] && [ "$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)" = healthy ] && break; sleep 5; done
+            docker compose ps
+            [ "$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)" = healthy ] || { docker compose logs --tail 50 grafana; exit 1; }
+
+      - name: 서비스 확인
+        run: |
+          # nginx /grafana/ 설정은 infra-nginx 워크플로가 반영하므로 여기서는 경고만
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 https://palgijeone.com/grafana/api/health)
+          echo "grafana : ${CODE}"
+          [ "$CODE" = "200" ] || echo "::warning::Grafana 외부 응답 ${CODE} — nginx 설정 반영 여부를 확인하세요"
