@@ -143,6 +143,7 @@ function QuestionPage() {
                 <div className="flex w-full justify-center py-12">
                     <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
                 </div>
+
             ) : isQuestionsError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
                     <p className="text-sm font-medium text-status-danger">질문을 불러오지 못했어요.</p>
@@ -154,6 +155,7 @@ function QuestionPage() {
                         다시 시도
                     </button>
                 </div>
+
             ) : productQuestions.length === 0 ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
                     <p className="text-sm font-medium text-neutral-border">확인이 필요한 질문이 없어요.</p>
@@ -161,6 +163,7 @@ function QuestionPage() {
                         <Button text="진단서 확인하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} />
                     </div>
                 </div>
+
             ) : (
                 <>
                     <div className="flex flex-col gap-3">
