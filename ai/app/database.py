@@ -45,7 +45,11 @@ def get_engine() -> Engine:
             pool_size=5,
             max_overflow=5,
             # DB에 패킷이 닿지 않으면 OS TCP 타임아웃(약 2분)까지 기다리므로 제한한다.
-            connect_args={"connect_timeout": 3},
+            connect_args={
+                "connect_timeout": 3,
+                # HNSW 기본 탐색 폭(40)에선 거리가 비슷한 1·2위가 뒤바뀜 (#247)
+                "options": "-c hnsw.ef_search=100",
+            },
         )
     except (ArgumentError, ImportError) as e:
         # URL 형식이나 드라이버 문제는 기다려도 풀리지 않는 설정·배포 오류다.
