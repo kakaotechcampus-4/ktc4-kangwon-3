@@ -10,9 +10,9 @@ import { cn } from "@/lib/cn";
 
 import AddedProductList from "./AddedProductList.tsx";
 import { submitDiagnosis } from "./diagnosisPipeline.ts";
-import TextImageInputForm from "./TextImageInputForm.tsx";
+import InputForm from "./InputForm.tsx";
 import type { Product } from "./types.ts";
-import UrlInputForm from "./UrlInputForm.tsx";
+import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [
     { key: "url", label: "URL" },
@@ -50,6 +50,13 @@ function UploadPage() {
             return;
         }
 
+        const firstInvalidProduct = products.find((product) => validateProduct(product) !== null);
+        if (firstInvalidProduct) {
+            const error = validateProduct(firstInvalidProduct);
+            alert(`${firstInvalidProduct.title || "이름 없는 상품"}: ${error}`);
+            return;
+        }
+
         runSubmitDiagnosis(products);
     };
 
@@ -81,11 +88,7 @@ function UploadPage() {
                                     </button>
                                 ))}
                             </div>
-                            {inputType === "url" ? (
-                                <UrlInputForm onAdd={handleAddProduct} />
-                            ) : (
-                                <TextImageInputForm onAdd={handleAddProduct} />
-                            )}
+                            <InputForm type={inputType} onAdd={handleAddProduct} />
                         </DefaultBox>
                     ) : (
                         <DefaultBox className="border-status-warning bg-status-warning-bg">
