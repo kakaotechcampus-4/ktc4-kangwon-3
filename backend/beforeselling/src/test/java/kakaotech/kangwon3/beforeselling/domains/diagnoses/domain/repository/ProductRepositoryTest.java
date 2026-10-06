@@ -3,11 +3,13 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 import jakarta.persistence.EntityManager;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.CryptoProperties;
 import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
+import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -206,6 +208,46 @@ class ProductRepositoryTest {
         assertThat(result.getTotalElements()).isEqualTo(3);
         assertThat(result.getTotalPages()).isEqualTo(2);
         assertThat(result.hasNext()).isTrue();
+    }
+
+    @Test
+    @DisplayName("본인의 상품을 단건 조회하면 상세 이미지가 등록 순서대로 함께 로딩된다.")
+    void findWithImagesByIdAndUserId_thenReturnProductWithImagesLoaded() {
+        // given
+        Product product = createProduct("대나무 헬리콥터", null);
+        product.addImages(List.of("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg"));
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        diagnoses.addProducts(List.of(product));
+        UUID productId = diagnosesRepository.save(diagnoses).getProducts().getFirst().getId();
+        flushAndClear();
+
+        // when
+        Product found = productRepository.findWithImagesByIdAndUserId(productId, USER_ID).orElseThrow();
+
+        // then: 세션이 닫힌 뒤 매핑해도 되도록 이미지가 이미 초기화되어 있어야 한다.
+        assertThat(Hibernate.isInitialized(found.getImages())).isTrue();
+        assertThat(found.getImages())
+                .extracting(ProductImage::getImageKey)
+                .containsExactly("product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg");
+    }
+
+    @Test
+    @DisplayName("다른 사용자의 상품을 단건 조회하면 빈 값을 반환한다.")
+    void findWithImagesByIdAndUserId_withOtherUsersProduct_thenReturnEmpty() {
+        // given
+        Diagnoses diagnoses = Diagnoses.pending(OTHER_USER_ID);
+        diagnoses.addProducts(List.of(createProduct("남의 상품", null)));
+        UUID productId = diagnosesRepository.save(diagnoses).getProducts().getFirst().getId();
+        flushAndClear();
+
+        // when & then
+        assertThat(productRepository.findWithImagesByIdAndUserId(productId, USER_ID)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품을 단건 조회하면 빈 값을 반환한다.")
+    void findWithImagesByIdAndUserId_withUnknownId_thenReturnEmpty() {
+        assertThat(productRepository.findWithImagesByIdAndUserId(UUID.randomUUID(), USER_ID)).isEmpty();
     }
 
     private void saveDiagnoses(UUID userId, String... productNames) {
