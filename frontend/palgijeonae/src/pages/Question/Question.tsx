@@ -10,7 +10,7 @@ interface QuestionProps {
     onChange: (value: string) => void
 }
 
-// TODO: 추후 결정되는 BE 응답 스키마 구성에 따라 placeholder도 props로 구성 가능성 있음.
+// 추후 결정되는 BE 응답 스키마 구성에 따라 placeholder도 props로 구성해야 할 수 있음.
 function Question({ id, questionNumber, title, description, answer, onChange }: QuestionProps) {
     return (
         <DefaultBox align="left" className="focus-within:border-primary">
