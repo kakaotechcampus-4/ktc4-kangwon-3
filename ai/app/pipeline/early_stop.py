@@ -19,6 +19,8 @@ from ..schemas.schemas import (
 
 def _canonical(value: Any) -> str:
     """집합 성격의 목록만 정렬하고, HS 후보 순서·중복·문자열은 보존한다."""
+    # HS 후보 외 목록은 정렬한다. 순서가 의미를 갖는 스키마 필드가 추가되면
+    # 해당 필드도 순서 보존 대상으로 함께 갱신해야 한다.
     def normalize(item: Any, *, preserve_order: bool = False) -> Any:
         if isinstance(item, dict):
             return {
@@ -37,6 +39,10 @@ def _canonical(value: Any) -> str:
 
 
 def _normal_execution(result: ToolResult) -> bool:
+    """판단이 없는 빈 findings는 보수적으로 동일 결과 중단 대상에서 제외한다.
+
+    SUCCESS여도 판단 내용 없이 같다는 이유로 중단하지 않고 횟수 제한을 적용한다.
+    """
     return (
         result.selected
         and result.status in {ToolStatus.SUCCESS, ToolStatus.PARTIAL}
