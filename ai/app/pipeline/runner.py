@@ -1,13 +1,15 @@
-"""에이전트와 파이프라인 구성 요소의 최초 실행 흐름을 연결한다."""
+"""최초 실행과 재실행을 연결하고 종료 정책에 따라 마지막 결과를 반환한다."""
 
 from enum import StrEnum
 from typing import Protocol
 
+from .early_stop import has_no_progress
 from ..schemas.agent import ExtractionInput, ToolSelectionResponse
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import (
     DraftAssessment,
+    ExecutionEndReason,
     FinalAssessment,
     FinalVerificationStatus,
     VerificationResult,
@@ -119,12 +121,15 @@ def _to_final_status(status: VerificationStatus) -> FinalVerificationStatus:
 def _build_final_assessment(
     draft: DraftAssessment,
     verification: VerificationResult,
+    *,
+    termination_reason: ExecutionEndReason,
 ) -> FinalAssessment:
     """검증을 마친 초안을 외부에 반환할 최종 결과로 조립한다."""
     return FinalAssessment(
         assessment_id=draft.assessment_id,
         product=draft.product,
         verification_status=_to_final_status(verification.status),
+        termination_reason=termination_reason,
         overall_status=draft.overall_status,
         summary=draft.summary,
         selected_tools=draft.selected_tools,
@@ -174,10 +179,23 @@ class CompliancePipeline:
         verification: VerificationResult = self._verifier.verify(draft)
 
         retry_round = 0
-        while (
-            _determine_next_action(verification) is _PipelineNextAction.RETRY_TOOLS
-            and retry_round < self._max_retry_rounds
-        ):
+        while True:
+            action = _determine_next_action(verification)
+            # 검증이 다른 종료 분기로 전환되면 반복 비교보다 그 판단을 우선한다.
+            if action is not _PipelineNextAction.RETRY_TOOLS:
+                termination_reason = {
+                    _PipelineNextAction.COMPLETE: ExecutionEndReason.COMPLETED,
+                    _PipelineNextAction.AWAIT_USER_INPUT: ExecutionEndReason.USER_INPUT_REQUIRED,
+                    _PipelineNextAction.STOP_FOR_REVISION: ExecutionEndReason.REVISION_REQUIRED,
+                }[action]
+                break
+            if retry_round >= self._max_retry_rounds:
+                termination_reason = ExecutionEndReason.RETRY_LIMIT_EXCEEDED
+                break
+
+            # 주입된 구성 요소가 입력을 변경해도 비교 기준이 오염되지 않도록 보존한다.
+            previous_result = selection_result.model_copy(deep=True)
+            previous_verification = verification.model_copy(deep=True)
             retry_round += 1
             retry_request = _build_retry_request(
                 verification,
@@ -192,4 +210,18 @@ class CompliancePipeline:
             draft = self._aggregator.aggregate(product, selection_result)
             verification = self._verifier.verify(draft)
 
-        return _build_final_assessment(draft, verification)
+            if has_no_progress(
+                previous_result,
+                previous_verification,
+                selection_result,
+                verification,
+                executed_tools=retry_request.requested_tools,
+                retry_round=retry_round,
+            ):
+                # 마지막 허용 회차에서도 동일 결과가 확인되면 그 사유를 우선 기록한다.
+                termination_reason = ExecutionEndReason.NO_PROGRESS
+                break
+
+        return _build_final_assessment(
+            draft, verification, termination_reason=termination_reason,
+        )

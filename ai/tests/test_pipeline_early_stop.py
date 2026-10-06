@@ -5,13 +5,15 @@ from datetime import timedelta
 import pytest
 
 from app.pipeline.early_stop import has_no_progress
+from app.pipeline.runner import CompliancePipeline
 from app.pipeline.tool_executor import ToolExecutor
-from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
+from app.schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from app.schemas.pipeline import RetryRequest, SelectionResult
 from app.schemas.product import Product
 from app.schemas.schemas import (
     AdvertisingAssessment, ChildrenAssessment, CustomsAssessment, Determination,
-    ElectricalAssessment, FollowUpQuestion, FoodDrugAssessment, LegalSource,
+    DraftAssessment, ElectricalAssessment, ExecutionEndReason,
+    FinalVerificationStatus, FollowUpQuestion, FoodDrugAssessment, LegalSource, OverallStatus,
     RadioAssessment, RegulatoryFinding, RiskLevel, ToolName, ToolResult,
     ToolStatus, VerificationIssue, VerificationIssueType, VerificationResult,
     VerificationStatus,
@@ -344,3 +346,139 @@ def test_실제_Executor의_전체_결과와_누적이력에서_반복과_실패
             assert latest.status is ToolStatus.PARTIAL
             assert current.tool_result_history[-1].status is ToolStatus.FAILED
         previous, previous_review = current, current_review
+
+
+class _LoopStages:
+    """비교용 상태를 생성하고 Runner의 호출 횟수와 마지막 결과를 관찰한다."""
+
+    def __init__(self, name, scenario):
+        self.name = name
+        self.scenario = scenario
+        self.initial_calls = 0
+        self.retry_calls = 0
+        self.extract_calls = 0
+        self.select_calls = 0
+        self.verify_calls = 0
+        self.last_draft = None
+        self.last_verification = None
+        self.initial_result = None
+        self.retry_results = []
+
+    def extract(self, source):
+        self.extract_calls += 1
+        return Product(product_id=source.product_id)
+
+    def select(self, product):
+        self.select_calls += 1
+        return _state(self.name, 0)[0].selection
+
+    def execute_initial(self, product, selection):
+        self.initial_calls += 1
+        self.initial_result = _state(self.name, 0)[0]
+        return self.initial_result
+
+    def execute_retry(self, product, selection_result, retry_request):
+        self.retry_calls += 1
+        current, _ = _state(self.name, retry_request.retry_round)
+        if self.scenario == "changed":
+            current.tool_results[0].findings[0].rationale = f"새 근거 {self.retry_calls}"
+            current.tool_result_history[0] = current.tool_results[0].model_copy(deep=True)
+        if self.scenario == "failed":
+            current.tool_results[0].status = ToolStatus.FAILED
+            current.tool_results[0].error = "조회 실패"
+            current.tool_result_history[0] = current.tool_results[0].model_copy(deep=True)
+        if self.scenario == "recovered" and self.retry_calls == 1:
+            # 실제 실행은 실패했지만 최신 유효 상태에는 이전 판단을 보존한 경우다.
+            current.tool_results[0].status = ToolStatus.PARTIAL
+            current.tool_results[0].error = "조회 실패"
+            actual = current.tool_results[0].model_copy(deep=True)
+            actual.status = ToolStatus.FAILED
+            actual.result = None
+            actual.findings = []
+            current.tool_result_history[0] = actual
+        if self.scenario == "mutated":
+            # 입력이 바뀌어도 Runner가 보관한 직전 상태로 비교해야 한다.
+            selection_result.tool_results[0].findings[0].rationale = "입력 오염"
+        current.tool_result_history = [
+            result.model_copy(deep=True) for result in selection_result.tool_result_history
+        ] + current.tool_result_history
+        self.retry_results.append(current.model_copy(deep=True))
+        return current
+
+    def aggregate(self, product, selection_result):
+        self.last_draft = DraftAssessment(
+            product=product,
+            selected_tools=[self.name],
+            tool_results=selection_result.tool_results,
+            findings=[finding for result in selection_result.tool_results for finding in result.findings],
+            overall_status=OverallStatus.INSUFFICIENT_INFORMATION,
+            summary=f"마지막 종합 결과 {self.retry_calls}",
+        )
+        return self.last_draft
+
+    def verify(self, draft):
+        self.verify_calls += 1
+        review = _state(self.name, self.retry_calls)[1]
+        review.checked_finding_ids = [finding.finding_id for finding in draft.findings]
+        review.issues[0].related_finding_ids = review.checked_finding_ids[:]
+        terminal_statuses = {
+            "approved": VerificationStatus.APPROVED,
+            "warnings": VerificationStatus.APPROVED_WITH_WARNINGS,
+            "input": VerificationStatus.USER_INPUT_REQUIRED,
+            "revision": VerificationStatus.REVISION_REQUIRED,
+        }
+        if self.retry_calls and self.scenario in terminal_statuses:
+            review.status = terminal_statuses[self.scenario]
+            review.additional_tools_required = []
+        self.last_verification = review
+        return review
+
+
+@pytest.mark.parametrize("name", list(ToolName))
+@pytest.mark.parametrize("scenario,limit,retries,reason,final_status", [
+    ("repeat", 3, 1, ExecutionEndReason.NO_PROGRESS, FinalVerificationStatus.INCOMPLETE),
+    ("repeat", 1, 1, ExecutionEndReason.NO_PROGRESS, FinalVerificationStatus.INCOMPLETE),
+    ("repeat", 0, 0, ExecutionEndReason.RETRY_LIMIT_EXCEEDED, FinalVerificationStatus.INCOMPLETE),
+    ("changed", 3, 3, ExecutionEndReason.RETRY_LIMIT_EXCEEDED, FinalVerificationStatus.INCOMPLETE),
+    ("failed", 3, 3, ExecutionEndReason.RETRY_LIMIT_EXCEEDED, FinalVerificationStatus.INCOMPLETE),
+    ("recovered", 4, 3, ExecutionEndReason.NO_PROGRESS, FinalVerificationStatus.INCOMPLETE),
+    ("mutated", 3, 1, ExecutionEndReason.NO_PROGRESS, FinalVerificationStatus.INCOMPLETE),
+    ("approved", 3, 1, ExecutionEndReason.COMPLETED, FinalVerificationStatus.VERIFIED),
+    ("warnings", 3, 1, ExecutionEndReason.COMPLETED, FinalVerificationStatus.VERIFIED_WITH_WARNINGS),
+    ("input", 3, 1, ExecutionEndReason.USER_INPUT_REQUIRED, FinalVerificationStatus.INCOMPLETE),
+    ("revision", 3, 1, ExecutionEndReason.REVISION_REQUIRED, FinalVerificationStatus.INCOMPLETE),
+])
+def test_Runner는_종료정책을_적용하고_마지막_결과를_보존한다(
+    name, scenario, limit, retries, reason, final_status,
+):
+    stages = _LoopStages(name, scenario)
+    pipeline = CompliancePipeline(
+        extractor=stages, selector=stages, tool_executor=stages,
+        aggregator=stages, verifier=stages, max_retry_rounds=limit,
+    )
+
+    result = pipeline.run(ExtractionInput(product_id="p1", text_blocks=["상품 원문"]))
+
+    assert stages.extract_calls == stages.select_calls == stages.initial_calls == 1
+    assert stages.retry_calls == retries
+    assert stages.verify_calls == retries + 1
+    assert result.termination_reason is reason
+    assert result.verification_status is final_status
+    assert result.summary == stages.last_draft.summary
+    assert result.tool_results == stages.last_draft.tool_results
+    assert result.findings == stages.last_draft.findings
+    assert result.verification == stages.last_verification
+    assert result.follow_up_questions == stages.last_verification.follow_up_questions
+    assert result.termination_reason is not ExecutionEndReason.COST_LIMIT_EXCEEDED
+    if scenario == "recovered":
+        # r1 실패와 r2 회복에서는 중단하지 않고, r2 == r3에서 중단한다.
+        # 한도를 4로 두어 3회 실행이 단순한 횟수 소진이 아님을 확인한다.
+        first, recovered, repeated = stages.retry_results
+        assert first.tool_results[0].status is ToolStatus.PARTIAL
+        assert first.tool_results[0].error == "조회 실패"
+        assert first.tool_result_history[-1].status is ToolStatus.FAILED
+        for state, expected_round in [(recovered, 2), (repeated, 3)]:
+            assert state.tool_results[0].status is ToolStatus.SUCCESS
+            assert state.tool_results[0].error is None
+            assert state.tool_result_history[-1].status is ToolStatus.SUCCESS
+            assert state.tool_results[0].retry_round == expected_round

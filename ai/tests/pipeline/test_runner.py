@@ -19,6 +19,7 @@ from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination,
     DraftAssessment,
+    ExecutionEndReason,
     FinalVerificationStatus,
     FollowUpQuestion,
     OverallStatus,
@@ -823,7 +824,9 @@ def test_최종_결과는_계약_필드와_검증_질문을_중복_없이_조립
         checked_finding_ids=[finding.finding_id],
     )
 
-    result = _build_final_assessment(draft, verification)
+    result = _build_final_assessment(
+        draft, verification, termination_reason=ExecutionEndReason.COMPLETED,
+    )
 
     assert result.assessment_id == draft.assessment_id
     assert result.product == draft.product
