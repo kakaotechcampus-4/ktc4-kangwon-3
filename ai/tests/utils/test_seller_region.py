@@ -59,3 +59,17 @@ def test_쇼핑몰을_모르는_입력은_그대로_두고_경고하지_않는�
 
     assert region.text == text and region.site is None and not region.trimmed
     assert caplog.text == ""
+
+
+def test_AliExpress에_구매자_질문과_면책_조항이_없어도_판매자_가게_앞에서_끊는다(aliexpress_page):
+    page = "\n".join(
+        line for line in aliexpress_page.splitlines()
+        if not line.startswith(("구매자 질문", "질문 문장")) and line != "면책 조항"
+    )
+    page = page.replace("AliExpress의 약속", "판매자\n가게 이름\nAliExpress의 약속\n배송 안내 문장")
+
+    region = extract_seller_region(page)
+
+    assert region.trimmed and "판매자 설명 문장" in region.text
+    for removed in ("가게 이름", "AliExpress의 약속", "배송 안내 문장"):
+        assert removed not in region.text

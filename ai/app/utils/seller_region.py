@@ -80,7 +80,12 @@ def _cut_aliexpress(lines, stripped):
     if stop1 is None or len(info) < 2:
         return None
     start2 = info[1]
-    stop2 = _index(stripped, start2, lambda s: s.startswith("구매자 질문") or s == "면책 조항")
+    # 구매자 질문·면책 조항이 없는 페이지도 있다. 그 뒤에 오는 판매자 가게("판매자")와
+    # 플랫폼 안내("AliExpress의 약속")에서도 끊는다.
+    stop2 = _index(
+        stripped, start2,
+        lambda s: s.startswith("구매자 질문") or s in ("면책 조항", "판매자", "AliExpress의 약속"),
+    )
     stop2 = len(lines) if stop2 is None else stop2
     return lines[top:stop1] + lines[start2:stop2], _first_text(lines, top, stop1)
 
