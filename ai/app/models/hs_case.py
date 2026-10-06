@@ -13,6 +13,11 @@ class HsCase(Base):
     __tablename__ = "hs_cases"
     __table_args__ = (
         Index("ix_hs_cases_hs_code", "hs_code"),
+        # 데이터 양과 관계없이 검색 품질 유지, 빈 테이블에서도 생성 가능 (#247)
+        Index(
+            "ix_hs_cases_embedding", "embedding",
+            postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     hs_case_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
