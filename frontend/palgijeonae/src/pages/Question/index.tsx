@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -108,11 +108,15 @@ function QuestionPage() {
         element?.scrollIntoView({ behavior: "smooth", block: "center" });
     };
 
+    // 미답변 질문으로 포커싱하면서 유발된 탭 전환인 경우, 아래 scrollToTop effect를 한 번 건너뛴다.
+    const skipScrollToTopRef = useRef(false);
+
     const handleSubmitAnswers = () => {
         if (firstUnanswered) {
             alert("질문에 모두 답변해 주세요.");
             if (firstUnanswered.productIndex !== selectedProductIndex) {
                 // 다른 제품의 질문이면 flushSync로 탭 전환을 동기 렌더링한 다음 포커싱한다.
+                skipScrollToTopRef.current = true;
                 flushSync(() => {
                     setSelectedProductIndex(firstUnanswered.productIndex);
                 });
@@ -125,6 +129,10 @@ function QuestionPage() {
     };
 
     useEffect(() => {
+        if (skipScrollToTopRef.current) {
+            skipScrollToTopRef.current = false;
+            return;
+        }
         window.scrollTo({ top: 0, behavior: "smooth" });
     }, [selectedProductIndex]);
 
