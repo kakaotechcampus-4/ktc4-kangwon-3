@@ -63,7 +63,7 @@
 > "보조배터리 등", "RFID 차단")은 상품 종류로 추론하는 예시가 아니라 필드 정의에 가까워 남겼다.
 > 이 3곳과 겹치는 칸(`ali_sample`의 무선 3종, `power_bank.battery_is_the_product`,
 > `wireless_shield_rfid.wireless_shield`)은 v4에서도 기존 3건 수치가 좋게 나올 수 있다.
-> 지운 예시가 다시 들어오지 않게 `tests/test_extraction_prompt_examples.py`가 막는다.
+> 지운 예시가 다시 들어오지 않게 `tests/agents/test_extraction_prompt_examples.py`가 막는다.
 >
 > **v2에 들어간 4곳(예시 7개)은 v1 → v2 개선폭을 부풀렸을 수 있다.** 오류를 보고 그 상품을 예시로
 > 적었으니 당연한 결과다. v1부터 있던 2곳은 두 측정에 모두 들어 있어 개선폭과는 무관하지만,
