@@ -10,6 +10,7 @@ import SectionIntro from "@/components/common/SectionIntro";
 
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
+import type { ProductStatus } from "./types";
 
 function QuestionPage() {
     const { diagnosesId } = useParams<{ diagnosesId?: string }>();
@@ -53,7 +54,7 @@ function QuestionPage() {
             product.questions.map((question) => isAnswered(question.id)),
         );
 
-        const productStatuses = answeredMatrix.map((row): "complete" | "partial" | "empty" => {
+        const productStatuses = answeredMatrix.map((row): ProductStatus => {
             const answeredCount = row.filter(Boolean).length;
             if (answeredCount === 0) return "empty";
             return answeredCount === row.length ? "complete" : "partial";
