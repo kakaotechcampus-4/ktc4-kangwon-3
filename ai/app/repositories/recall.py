@@ -78,7 +78,20 @@ class RecallRepository(BaseRepository[Recall]):
 
         Returns:
             int: 저장 또는 갱신된 행 수.
+
+        Raises:
+            ValueError: 첫 dict와 키가 다른 dict가 있는 경우. DB에 보내기 전에 검사함.
         """
+        # 갱신 컬럼을 첫 행 키로 정하므로 키가 다르면 값이 버려지거나 SQL 생성 실패
+        if rows:
+            expected = set(rows[0])
+            for index, row in enumerate(rows):
+                if set(row) != expected:
+                    raise ValueError(
+                        f"rows[{index}]의 키가 rows[0]과 다릅니다. "
+                        f"빠진 키: {sorted(expected - set(row))}, 추가된 키: {sorted(set(row) - expected)}"
+                    )
+
         unique_rows = list({(row["source"], row["source_uid"]): row for row in rows}.values())
         if not unique_rows:
             return 0
