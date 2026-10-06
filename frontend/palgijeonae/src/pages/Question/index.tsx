@@ -10,7 +10,43 @@ import SectionIntro from "@/components/common/SectionIntro";
 
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
-import type { ProductStatus } from "./types";
+import type { ProductQuestions, ProductStatus } from "./types";
+
+// data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
+const EMPTY_PRODUCT_QUESTIONS: ProductQuestions[] = [];
+
+interface AnswerState {
+    answeredMatrix: boolean[][]
+    productStatuses: ProductStatus[]
+    firstUnanswered: { productIndex: number; questionId: string } | null
+}
+
+// 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 공유하는 답변 판정 결과를 계산한다.
+function computeAnswerState(questions: ProductQuestions[], answers: Record<string, string>): AnswerState {
+    const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
+
+    // [제품][질문] 답변 여부
+    const answeredMatrix = questions.map((product) =>
+        product.questions.map((question) => isAnswered(question.id)),
+    );
+
+    const productStatuses = answeredMatrix.map((row): ProductStatus => {
+        const answeredCount = row.filter(Boolean).length;
+        if (answeredCount === 0) return "empty";
+        return answeredCount === row.length ? "complete" : "partial";
+    });
+
+    let firstUnanswered: { productIndex: number; questionId: string } | null = null;
+    for (const [productIndex, row] of answeredMatrix.entries()) {
+        const questionIndex = row.indexOf(false);
+        if (questionIndex !== -1) {
+            firstUnanswered = { productIndex, questionId: questions[productIndex].questions[questionIndex].id };
+            break;
+        }
+    }
+
+    return { answeredMatrix, productStatuses, firstUnanswered };
+}
 
 function QuestionPage() {
     const { diagnosesId } = useParams<{ diagnosesId?: string }>();
@@ -29,50 +65,27 @@ function QuestionPage() {
         }
     }, [isMissingDiagnosesId, navigate]);
 
+
     const { data, isPending: isQuestionsPending, isError: isQuestionsError, refetch: refetchQuestions } = useQuery({
         queryKey: ["questions", diagnosesId],
         queryFn: () => getQuestions(diagnosesId!),
         enabled: !isMissingDiagnosesId,
     });
 
-    // 빈 배열은 로딩 중 undefined 방지용 기본값
-    const productQuestions = data ?? [];
-
-    // ProductTabs에 넘길 이름만 추출
+    // 질문 데이터에서 화면에 필요한 파생값(기본값 적용, 탭 이름, 현재 선택된 질문)을 꺼낸다.
+    const productQuestions = data ?? EMPTY_PRODUCT_QUESTIONS;
     const productNames = productQuestions.map((product) => product.productName);
-
     const currentQuestions = productQuestions[selectedProductIndex]?.questions ?? [];
 
+
     // 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 같은 답변 판정 결과를 공유하도록 한 번에 계산
-    const { answeredMatrix, productStatuses, firstUnanswered } = useMemo(() => {
-        // memo 무효화를 피하기 위해 로딩 중 매 렌더 새로 생성되는 productQuestions를 사용하지 않고 새로 계산
-        const questions = data ?? [];
-        const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
-
-        // [제품][질문] 답변 여부
-        const answeredMatrix = questions.map((product) =>
-            product.questions.map((question) => isAnswered(question.id)),
-        );
-
-        const productStatuses = answeredMatrix.map((row): ProductStatus => {
-            const answeredCount = row.filter(Boolean).length;
-            if (answeredCount === 0) return "empty";
-            return answeredCount === row.length ? "complete" : "partial";
-        });
-
-        let firstUnanswered: { productIndex: number; questionId: string } | null = null;
-        for (const [productIndex, row] of answeredMatrix.entries()) {
-            const questionIndex = row.indexOf(false);
-            if (questionIndex !== -1) {
-                firstUnanswered = { productIndex, questionId: questions[productIndex].questions[questionIndex].id };
-                break;
-            }
-        }
-
-        return { answeredMatrix, productStatuses, firstUnanswered };
-    }, [data, answers]);
+    const { answeredMatrix, productStatuses, firstUnanswered } = useMemo(
+        () => computeAnswerState(productQuestions, answers),
+        [productQuestions, answers],
+    );
 
     const currentAnswered = answeredMatrix[selectedProductIndex] ?? [];
+
 
     const { mutate: runSubmitAnswers, isPending: isSubmitting } = useMutation({
         // TODO: 질문이 0개인 진단서는 answers가 빈 배열로 제출된다. 백엔드 연동 시 백엔드 제약조건에 따라 처리 필요
@@ -90,6 +103,7 @@ function QuestionPage() {
         },
     });
 
+
     const handleAnswerChange = (questionId: string, value: string) => {
         setAnswers((prev) => ({ ...prev, [questionId]: value }));
     };
@@ -101,6 +115,7 @@ function QuestionPage() {
     const handleNextProduct = () => {
         setSelectedProductIndex((prev) => prev + 1);
     };
+
 
     // 답변하지 않은 질문의 textarea를 포커스하고 스크롤하는 함수
     const focusQuestion = (questionId: string) => {
