@@ -42,8 +42,9 @@ function QuestionPage() {
 
     const currentQuestions = productQuestions[selectedProductIndex]?.questions ?? [];
 
-    // 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 같은 답변 판정 결과를 공유하도록 한 번에 계산한다.
+    // 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 같은 답변 판정 결과를 공유하도록 한 번에 계산
     const { answeredMatrix, productStatuses, firstUnanswered } = useMemo(() => {
+        // memo 무효화를 피하기 위해 로딩 중 매 렌더 새로 생성되는 productQuestions를 사용하지 않고 새로 계산
         const questions = data ?? [];
         const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
 
