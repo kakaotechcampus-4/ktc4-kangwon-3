@@ -1,5 +1,7 @@
 import { cva } from "class-variance-authority";
 
+import type { ProductStatus } from "./types";
+
 // 상품별 질문 진행 상태를 나타내는 점 스타일
 const dotVariants = cva("size-2 rounded-full", {
     variants: {
@@ -24,7 +26,7 @@ const segmentVariants = cva("h-1.5 w-5 rounded-full", {
 
 interface ProgressSummaryProps {
     currentAnswered: boolean[] // 현재 선택된 제품의 질문들에 대한 답변 여부
-    productStatuses: ("complete" | "partial" | "empty")[] // 각 제품별 답변 완료 상태
+    productStatuses: ProductStatus[] // 각 제품별 답변 완료 상태
 }
 
 function ProgressSummary({ currentAnswered, productStatuses }: ProgressSummaryProps) {
