@@ -28,7 +28,7 @@ function QuestionPage() {
         }
     }, [isMissingDiagnosesId, navigate]);
 
-    const { data, isPending, isError, refetch } = useQuery({
+    const { data, isPending: isQuestionsPending, isError: isQuestionsError, refetch: refetchQuestions } = useQuery({
         queryKey: ["questions", diagnosesId],
         queryFn: () => getQuestions(diagnosesId!),
         enabled: !isMissingDiagnosesId,
@@ -73,7 +73,7 @@ function QuestionPage() {
 
     const currentAnswered = answeredMatrix[selectedProductIndex] ?? [];
 
-    const { mutate: runSubmitAnswers } = useMutation({
+    const { mutate: runSubmitAnswers, isPending: isSubmitting } = useMutation({
         // TODO: 질문이 0개인 진단서는 answers가 빈 배열로 제출된다. 백엔드 연동 시 백엔드 제약조건에 따라 처리 필요
         mutationFn: () =>
             submitAnswers(
@@ -139,16 +139,16 @@ function QuestionPage() {
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="상세페이지만으로는 판단이 어려운 부분이에요. 제품마다 답해 주시면 진단서에 반영됩니다." />
-            {isPending ? (
+            {isQuestionsPending ? (
                 <div className="flex w-full justify-center py-12">
                     <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
                 </div>
-            ) : isError ? (
+            ) : isQuestionsError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
                     <p className="text-sm font-medium text-status-danger">질문을 불러오지 못했어요.</p>
                     <button
                         type="button"
-                        onClick={() => refetch()}
+                        onClick={() => refetchQuestions()}
                         className="text-sm font-medium cursor-pointer text-neutral-border underline underline-offset-2"
                     >
                         다시 시도
@@ -158,7 +158,7 @@ function QuestionPage() {
                 <div className="flex w-full flex-col items-center gap-3 py-12">
                     <p className="text-sm font-medium text-neutral-border">확인이 필요한 질문이 없어요.</p>
                     <div className="flex w-full justify-end mt-10">
-                        <Button text="진단서 확인하기" onClick={handleSubmitAnswers} fontSize={15} />
+                        <Button text="진단서 확인하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} />
                     </div>
                 </div>
             ) : (
@@ -196,7 +196,7 @@ function QuestionPage() {
                                 variant="secondary"
                                 disabled={selectedProductIndex === productQuestions.length - 1}
                             />
-                            <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} />
+                            <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} />
                         </div>
                     </div>
                 </>
