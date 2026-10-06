@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 
+import pytest
 from sqlalchemy.dialects import postgresql
 
 from app.repositories.recall import RecallRepository
@@ -72,6 +73,30 @@ def test_upsert는_batch_size_단위로_나눠_보낸다():
 
     assert len(session.statements) == 3
     assert affected == 2500
+
+
+@pytest.mark.parametrize(
+    ("rows", "message"),
+    [
+        # 첫 행에만 embedding: 뒷행 값이 없어 SQL 생성 실패하던 경우
+        (
+            [{**_row("domestic", "1"), "embedding": [0.1]}, _row("domestic", "2")],
+            r"rows\[1\].*빠진 키: \['embedding'\]",
+        ),
+        # 뒷행에만 embedding: 갱신 대상에서 빠져 조용히 버려지던 경우
+        (
+            [_row("domestic", "1"), {**_row("foreign", "2"), "embedding": [0.1]}],
+            r"rows\[1\].*추가된 키: \['embedding'\]",
+        ),
+    ],
+)
+def test_upsert는_행마다_키가_다르면_보내기_전에_거부한다(rows, message):
+    session = _RecordingSession()
+
+    with pytest.raises(ValueError, match=message):
+        RecallRepository(session).upsert_many(rows)
+
+    assert session.statements == []
 
 
 def test_upsert는_빈_목록이면_아무것도_보내지_않는다():
