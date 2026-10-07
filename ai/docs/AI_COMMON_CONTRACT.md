@@ -737,7 +737,7 @@ from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import (
-    AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator,
+    AwareDatetime, BaseModel, ConfigDict, Field, model_validator,
 )
 from pydantic.alias_generators import to_camel
 
@@ -767,11 +767,6 @@ class ProductEventBase(ApiModel):
     diagnosis_id: str = Field(min_length=1)
     product_id: str = Field(min_length=1)
     sequence: int = Field(ge=1, strict=True)
-
-    @field_validator("timestamp")
-    @classmethod
-    def normalize_timestamp(cls, value: AwareDatetime) -> AwareDatetime:
-        return value.astimezone(timezone.utc)
 
 
 # 사용자 질문 형식
@@ -821,7 +816,6 @@ class ProductResultEvent(ProductEventBase):
     event_type: Literal["product_result"] = "product_result"
     status: Literal["finished"] = "finished"
     assessment_id: str = Field(min_length=1)
-    
 
 
 class PublicErrorDto(ApiModel):
