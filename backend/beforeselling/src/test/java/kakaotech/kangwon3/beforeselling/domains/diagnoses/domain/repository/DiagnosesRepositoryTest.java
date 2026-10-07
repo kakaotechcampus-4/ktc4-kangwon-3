@@ -8,6 +8,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductQuestion;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
@@ -197,10 +198,12 @@ class DiagnosesRepositoryTest {
         // given: 질문을 순서와 반대로 추가한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
+        product.startDiagnosis();
         product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
         product.recordAgentReview(AgentType.FOOD_DRUG, AgentReviewStatus.SKIPPED, "식품 접촉 항목이 없습니다.");
-        product.addQuestion("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null);
-        product.addQuestion("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null);
+        product.askQuestions(List.of(
+                new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null),
+                new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
@@ -264,11 +267,13 @@ class DiagnosesRepositoryTest {
         // given: 상품 2개 중 하나만 제거한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product target = createProduct("상품 A", null);
+        target.startDiagnosis();
         target.recordAgentReview(AgentType.CHILDREN, AgentReviewStatus.COMPLETED, "완구에 해당합니다.");
-        target.addQuestion("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null);
+        target.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         Product remaining = createProduct("상품 B", null);
+        remaining.startDiagnosis();
         remaining.recordAgentReview(AgentType.CHILDREN, AgentReviewStatus.SKIPPED, "어린이제품이 아닙니다.");
-        remaining.addQuestion("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null);
+        remaining.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         diagnoses.addProducts(List.of(target, remaining));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
@@ -287,8 +292,9 @@ class DiagnosesRepositoryTest {
     private Diagnoses createDiagnosesWithReviewAndQuestion() {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
+        product.startDiagnosis();
         product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
-        product.addQuestion("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null);
+        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
         return diagnoses;
     }

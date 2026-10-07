@@ -6,6 +6,8 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
@@ -197,21 +199,76 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("질문을 추가하면 답변이 없는 상태로 상품에 연결된다.")
-    void addQuestion_thenAddUnansweredQuestion() {
+    @DisplayName("진행 중인 상품이 질문을 받으면 답변 없는 질문이 추가되고 답변 대기 상태가 된다.")
+    void askQuestions_whenInProgress_thenAddQuestionsAndAwaitInput() {
         // given
         Product product = createInProgressProduct();
 
         // when
-        product.addQuestion("target_age", 1, "실제로 주로 판매하는 대상 연령은?", "상세페이지에 연령이 함께 적혀 있으면 확인이 필요합니다.");
+        product.askQuestions(List.of(
+                new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null),
+                new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?",
+                        "상세페이지에 연령이 함께 적혀 있으면 확인이 필요합니다.")));
 
         // then
-        assertThat(product.getQuestions()).singleElement().satisfies(question -> {
-            assertThat(question.getProduct()).isSameAs(product);
-            assertThat(question.getQuestionKey()).isEqualTo("target_age");
-            assertThat(question.getQuestionOrder()).isEqualTo(1);
-            assertThat(question.isAnswered()).isFalse();
-        });
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(product.getQuestions())
+                .extracting(ProductQuestion::getQuestionKey, ProductQuestion::getQuestionOrder, ProductQuestion::isAnswered)
+                .containsExactly(tuple("sales_type", 1, false), tuple("target_age", 2, false));
+        assertThat(product.getQuestions()).allSatisfy(question -> assertThat(question.getProduct()).isSameAs(product));
+    }
+
+    @Test
+    @DisplayName("이미 질문을 받은 상품이 다시 질문을 받으면 CONFLICT 예외가 발생하고 질문이 늘지 않는다.")
+    void askQuestions_whenAlreadyAsked_thenThrowConflict() {
+        // given
+        Product product = createInProgressProduct();
+        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+
+        // when & then
+        assertConflict(() -> product.askQuestions(
+                List.of(new QuestionContent("target_age", 1, "대상 연령은?", null))));
+        assertThat(product.getQuestions()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("답변 후 재진단 중인 상품이 질문을 받으면 CONFLICT 예외가 발생한다.")
+    void askQuestions_whenResumed_thenThrowConflict() {
+        // given: 질문은 첫 진단(회차 0)에서만 받는다.
+        Product product = createInProgressProduct();
+        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+        product.resume();
+
+        // when & then
+        assertConflict(() -> product.askQuestions(
+                List.of(new QuestionContent("target_age", 1, "대상 연령은?", null))));
+        assertThat(product.getQuestions()).hasSize(1);
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("빈 질문 목록을 받으면 BAD_REQUEST 예외가 발생하고 상태가 바뀌지 않는다.")
+    void askQuestions_whenEmpty_thenThrowBadRequest() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertBadRequest(() -> product.askQuestions(List.of()));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("같은 키의 질문이 함께 오면 BAD_REQUEST 예외가 발생하고 아무것도 저장되지 않는다.")
+    void askQuestions_whenDuplicateKey_thenThrowBadRequest() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertBadRequest(() -> product.askQuestions(List.of(
+                new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null),
+                new QuestionContent("sales_type", 2, "사입해서 파나요?", null))));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getQuestions()).isEmpty();
     }
 
     private Product createProduct() {
@@ -229,5 +286,12 @@ class ProductTest {
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.CONFLICT);
+    }
+
+    private void assertBadRequest(ThrowingCallable action) {
+        assertThatThrownBy(action)
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.BAD_REQUEST);
     }
 }
