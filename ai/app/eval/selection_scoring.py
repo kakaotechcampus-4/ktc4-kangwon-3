@@ -28,10 +28,17 @@ JUDGEMENT_FIELDS: dict[ToolName, tuple[str, ...]] = {
 
 
 class Blame:
-    """B에서만 생긴 C1이 누구 탓인지."""
+    """B에서만 생긴 C1이 누구 탓인지(SELECTION_EVAL.md 1절)."""
 
+    # 판단 필드를 근거 없이 false로 확정했다
     EXTRACTION = "추출"
-    SELECTION = "선택"
+    # 판단 필드는 같은데 다른 boolean이 정답과 달랐다. A·B 입력은 boolean만 다르므로
+    # 판단 필드가 같으면 차이는 나머지 boolean에서 온다(power_bank 전파에서 실측)
+    EXTRACTION_OTHER = "추출(다른 필드)"
+    # 추출은 모른다고(null) 넘겼는데 선택이 "없음"으로 봤다. 원칙 2 위반
+    SELECTION = "선택(원칙 2)"
+    # boolean 입력이 A와 똑같은데 결과만 달랐다. 같은 입력에서 나오는 흔들림
+    NOISE = "선택(흔들림)"
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict:
@@ -77,14 +84,15 @@ def grade_selection(truth_selected: bool, predicted: bool) -> Grade:
 
 
 def blame_for(tool: ToolName, extraction_truth: dict, extracted: dict) -> str:
-    """B에서만 생긴 C1을 추출 탓과 선택 탓으로 나눈다(SELECTION_EVAL.md 1절 표).
+    """B에서만 생긴 C1이 누구 탓인지 나눈다(SELECTION_EVAL.md 1절 표).
 
     판단 필드 중 하나라도 정답이 true·null인데 추출이 false로 넘겼으면 추출 탓이다.
     그 false가 선택에게 "해당 없음"의 근거를 준 셈이다. 정답에 있는 모순을 추출이
     conflicts에서 빠뜨린 경우도 추출 탓이다(원칙 6, power_bank 전기).
     """
     booleans = extraction_truth.get("booleans") or {}
-    for name in JUDGEMENT_FIELDS.get(tool, ()):
+    judgement = JUDGEMENT_FIELDS.get(tool, ())
+    for name in judgement:
         truth_value = booleans.get(name, {}).get("value")
         if truth_value is not False and extracted.get(name) is False:
             return Blame.EXTRACTION
@@ -93,7 +101,11 @@ def blame_for(tool: ToolName, extraction_truth: dict, extracted: dict) -> str:
         for item in extraction_truth.get("conflicts_required") or []:
             if not any(item["must_contain"] in line for line in conflicts):
                 return Blame.EXTRACTION
-    return Blame.SELECTION
+    if any(booleans.get(name, {}).get("value") is True and extracted.get(name) is None for name in judgement):
+        return Blame.SELECTION
+    if any(extracted.get(name) != spec["value"] for name, spec in booleans.items()):
+        return Blame.EXTRACTION_OTHER
+    return Blame.NOISE
 
 
 def selected_map(response: dict) -> dict[ToolName, bool]:
