@@ -30,8 +30,6 @@ class CLIPClient(BaseClient):
     """
 
     _ENDPOINT = "/clip/prlstclsfsrch/retrieveDmstPrlstClsfCaseLst2.do"
-    # CLIP 서버 고정값. 요청으로 바꿀 수 없음
-    PAGE_SIZE = 10
 
     def __init__(self):
         super().__init__(
@@ -43,7 +41,7 @@ class CLIPClient(BaseClient):
     def search(self, request: CLIPSearchRequest) -> CLIPSearchResponse:
         """품목분류 결정사례를 검색한다.
 
-        페이지당 10건 고정, 페이지 번호는 `pageIndex`만 인식.
+        페이지 번호는 `pageIndex`, 페이지당 건수는 `pageUnit`만 인식.
 
         Args:
             request: CLIP 검색 요청 파라미터.
@@ -59,6 +57,7 @@ class CLIPClient(BaseClient):
             "srchYn": "Y",                              # 검색 실행 플래그
             "srwr": request.query,                      # 검색어
             "pageIndex": str(request.page),             # 페이지 번호
+            "pageUnit": str(request.page_size),         # 페이지당 건수
         })
         response.raise_for_status()
         body = response.json()
@@ -70,7 +69,7 @@ class CLIPClient(BaseClient):
             page=request.page,
             total_count=total_count,
             # 빈 페이지면 끝으로 판단
-            has_next=bool(items) and request.page * self.PAGE_SIZE < total_count,
+            has_next=bool(items) and request.page * request.page_size < total_count,
             items=items,
         )
 
