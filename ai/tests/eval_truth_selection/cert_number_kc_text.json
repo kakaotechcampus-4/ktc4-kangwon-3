@@ -1,0 +1,39 @@
+{
+  "fixture": "cert_number_kc_text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-07",
+  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "summary": "USB 충전식 전기 모기채(Temu). 전기는 확인되고, 전파는 적합성평가 고시의 해충퇴치기류에 해당한다. 표시광고는 제목의 '고효율'을 효능 표방으로 본 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 '휴대용 전기 모기채, USB 충전, 고효율 수직형 해충 퇴치기, LED 야간등 베이스 포함, 듀얼 모드 전기 충격 모기 퇴치기'(29행). wireless_comm·wireless_charging·wireless_shield는 모두 null",
+      "why_not_other": "방송통신기자재등의 적합성평가에 관한 고시 별표 1의 '10) 해충퇴치기류'(고전압을 사용하여 빛으로 유도한 해충을 감전시키는 기기, 대표 품목 전격살충기)에 해당해 무선 기능이 없어도 적합성평가 대상이다. 무선 필드 null(원칙 1·2)보다 강한 근거다. 지금 선택 프롬프트의 전파 기준은 무선 필드만 본다(#246 리뷰)."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "food_contact=null, medical_claim·cosmetic_claim=false, chemical_product=false. 카테고리 '전기 파리채'",
+      "why_not_other": "food_contact가 null이지만 category가 식품 접촉과 무관해 원칙 2의 '다른 필드의 해당 없음 근거'가 된다. 살충 성분이 아니라 전기 충격 방식이다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 모드: USB 충전', '배터리 속성: 충전식 배터리'",
+      "why_not_other": "electrical_powered·battery_included가 true다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없고 어린이 대상 문구 없음",
+      "why_not_other": "for_children=false로 확인된다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '고효율 수직형 해충 퇴치기'(29행)",
+      "why_not_other": "해충 퇴치 성능을 근거 없이 표방하는 효능 문구로 보았다. '#2 최고 평점'은 Temu 순위 표시, '효과는 대단했습니다'는 구매자 리뷰라 근거로 쓰지 않았다. '고효율'은 실증이 필요한 성능 주장이라 선택 담당 확인 결과 선택으로 둔다(#246 리뷰). '고효율'을 빼고 보면 스펙표 '인증정보: CE-EMC(Electric); CE-RoHS'는 5절 ③으로 판단한다."
+    }
+  }
+}

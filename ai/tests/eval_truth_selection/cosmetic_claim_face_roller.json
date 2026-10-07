@@ -1,0 +1,39 @@
+{
+  "fixture": "cosmetic_claim_face_roller.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-05",
+  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "summary": "얼굴·전신 마사지용 괄사(Temu). 미용 효능과 신체기능 표방이 함께 있어 식약과 표시광고가 선택된다. 추출이 medical_claim을 놓쳐도 cosmetic_claim으로 식약이 선택되는지 보는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '전력 공급 방식: 전기 불필요', wireless_shield=null",
+      "why_not_other": "wireless_comm·wireless_charging=false로 확인되고, wireless_shield가 null이지만 비전기 마사지 도구라 전파 차폐와 무관하다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '얼굴 리프팅 및 탄력을 위한', '미용 장치', '근육 이완 보드', '경락선 개통 마사지기'",
+      "why_not_other": "cosmetic_claim·medical_claim이 true다. skin_contact=true이고 용도가 얼굴 피부 마사지라 그것만으로도 선택 대상이다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '전력 공급 방식: 전기 불필요', '배터리 속성: 배터리 미포함'",
+      "why_not_other": "관련 필드가 모두 false로 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '여성을 위한 실용적인 미용 마사지 선물'",
+      "why_not_other": "for_children=false로 확인된다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '얼굴 리프팅 및 탄력을 위한'(29행), '근육 이완', '경락선 개통'",
+      "why_not_other": "미용 효능과 신체기능 개선 표방이다."
+    }
+  }
+}
