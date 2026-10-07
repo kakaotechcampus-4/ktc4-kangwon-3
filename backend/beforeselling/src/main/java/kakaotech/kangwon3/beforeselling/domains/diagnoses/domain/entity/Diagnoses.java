@@ -57,6 +57,14 @@ public class Diagnoses extends BaseEntity {
 
     public void removeProduct(Product product) {
         products.remove(product);
+        if (!isEmpty()) {
+            refreshProcessingStatus();
+        }
+    }
+
+    public void startDiagnosis() {
+        products.forEach(Product::startDiagnosis);
+        refreshProcessingStatus();
     }
 
     public boolean isEmpty() {

@@ -10,7 +10,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -38,14 +41,15 @@ class ActuatorAccessTest {
         // given: 서비스 포트로 요청을 한 번 보내 http.server.requests 메트릭을 만든다.
         get(serverPort, "/v3/api-docs");
 
-        // when
-        ResponseEntity<String> response = get(managementPort, "/actuator/prometheus");
+        // when & then: 응답이 클라이언트에 먼저 flush된 뒤 메트릭이 기록되므로, 나타날 때까지 기다린다.
+        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+            ResponseEntity<String> response = get(managementPort, "/actuator/prometheus");
 
-        // then
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(response.getBody())
-                .contains("http_server_requests_seconds_bucket")
-                .contains("application=\"beforeselling\"");
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(response.getBody())
+                    .contains("http_server_requests_seconds_bucket")
+                    .contains("application=\"beforeselling\"");
+        });
     }
 
     @Test

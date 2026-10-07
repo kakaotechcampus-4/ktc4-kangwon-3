@@ -115,11 +115,42 @@ class LawArticle(BaseModel):
     reference: str | None = None
 
 
+class LawAnnex(BaseModel):
+    """법령 별표 단건.
+
+    Attributes:
+        annex_number: 별표번호 (예: "0003").
+        annex_branch_number: 별표가지번호 (예: "00").
+        annex_type: 별표구분. "별표"(품목표·기준표)와 "서식"(신청서 등)을 구분한다.
+        annex_title: 별표제목.
+        annex_content: 별표내용 원문.
+    """
+
+    annex_number: str | None = None
+    annex_branch_number: str | None = None
+    annex_type: str | None = None
+    annex_title: str | None = None
+    annex_content: str | None = None
+
+
 class LawTextResponse(BaseModel):
     """법령 본문 조회 응답.
 
+    기본정보(name, document_id 등)는 요청한 문서를 받았는지 검색 결과와 대조하는 데 쓴다.
+    법령ID를 MST 자리에 넣는 등 번호가 틀려도 법제처는 다른 법의 정상 본문을 돌려주기 때문이다.
+
     Attributes:
+        name: 법령명 (admrul은 행정규칙명).
+        document_id: 법령ID (admrul은 행정규칙ID). 검색 결과의 law_id / rule_id와 대조한다.
+        enforce_date: 시행일자 (YYYYMMDD).
+        department: 소관부처명.
         articles: 조문 목록.
+        annexes: 별표 목록. 별표가 없는 문서는 빈 목록.
     """
 
+    name: str | None = None
+    document_id: str | None = None
+    enforce_date: str | None = None
+    department: str | None = None
     articles: list[LawArticle]
+    annexes: list[LawAnnex] = []
