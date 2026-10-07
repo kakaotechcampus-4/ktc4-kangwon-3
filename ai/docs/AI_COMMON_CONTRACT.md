@@ -687,6 +687,7 @@ class ExecutionEvent(BaseModel):
 ```
 
 - ExecutionEvent는 전체 Pipeline용이다. 기존 Verification 내부 TraceEvent와 같은 타입으로 취급하지 않는다.
+- ExecutionEvent는 내부 관측용이며 BE에 직접 직렬화해서 전달하지 않는다. 외부 전달은 §7.1.2의 별도 API DTO로 변환한다.
 - 시작 이벤트는 latency_ms=null, 완료·실패 이벤트는 측정값을 넣는다.
 - status는 작업의 완료 상태다. VerificationStatus·OverallStatus와 다른 개념이다.
 - event 이름과 BE/FE 공개 범위는 Trace 구현 전에 확정한다. termination_reason은 ExecutionEndReason을 사용하며 별도 문자열 목록을 만들지 않는다.
@@ -713,6 +714,153 @@ class ExecutionEvent(BaseModel):
 - `USER_INPUT_REQUIRED`는 이번 실행이 종료됐다는 뜻이며 진단 전체의 완료가 아니다. 사용자 답변 이후 저장 상태를 사용한 재개는 별도 API 계약으로 정의한다.
 - 현재 처리되지 않은 예외는 `FinalAssessment`를 생성하지 않는다. 이때 `pipeline_failed` 이벤트는 `status=FAILED`와 오류 코드·실패 단계를 기록하며, 여섯 종료 사유 중 하나로 강제 변환하지 않는다. 예외의 `partial_result`도 자동으로 최종 응답이 되지 않는다.
 - 비용 제한은 Enum 값이 정의됐다고 구현된 것이 아니다. 실제 예산 계산·확인·중단 정책은 별도 작업이다. 신규 종료 사유가 필요하면 공통 Enum과 응답·Trace 소비 계약을 함께 갱신한다.
+
+### 7.1.2 BE 전달용 상품 실행 이벤트 DTO — 제안
+
+상태: **Proposed / BE 합의 전**. 아래는 API 계약 후보이며 실제 모듈·전송 경로는 아직 구현하지 않았다.
+예정 위치: `app/schemas/api/pipeline_events.py`. SSE·콜백·최종 응답 중 전달 방식은 이 DTO가 결정하지 않는다.
+
+| 내부 기록 | BE 전달 |
+| --- | --- |
+| Agent·Tool·Client·Repository의 모든 ExecutionEvent | 상품 실행의 공개 단계·상태 변화만 선별 |
+| 전체 ExecutionContext | diagnosis_id / product_id / run_id만 전달 |
+| call_id, 내부 execution_id, component_name, run_type | 기본적으로 비공개 |
+| 원본 예외, stack trace, 원문 응답·query | 비공개 |
+| Runner가 결정한 종료 사유 | 공통 ExecutionEndReason을 재사용 |
+
+별도 ApiModel을 사용한다. 내부 StrictModel·LLM 스키마에 API alias를 적용하지 않는다.
+아래는 camelCase 직렬화를 제안하며, 실제 외부 필드명은 BE와 확인한다.
+
+```python
+from datetime import timezone
+from enum import StrEnum
+from typing import Annotated, Literal
+
+from pydantic import (
+    AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator,
+)
+from pydantic.alias_generators import to_camel
+
+from app.schemas.schemas import (
+    ExecutionEndReason, FinalVerificationStatus, OverallStatus, ToolName,
+)
+
+
+class ApiModel(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid", frozen=True,
+        alias_generator=to_camel, populate_by_name=True,
+    )
+
+
+class PublicPipelineStage(StrEnum):
+    EXTRACTION = "extraction"
+    SELECTION = "selection"
+    TOOL_EXECUTION = "tool_execution"
+    AGGREGATION = "aggregation"
+    VERIFICATION = "verification"
+    FINALIZATION = "finalization"
+
+
+class ProductEventBase(ApiModel):
+    schema_version: Literal["0.1.0"] = "0.1.0"
+    event_id: str = Field(min_length=1)
+    diagnosis_id: str = Field(min_length=1)
+    product_id: str = Field(min_length=1)
+    sequence: int = Field(ge=1, strict=True)
+    timestamp: AwareDatetime
+
+    @field_validator("timestamp")
+    @classmethod
+    def normalize_timestamp(cls, value: AwareDatetime) -> AwareDatetime:
+        return value.astimezone(timezone.utc)
+
+
+# 부모 클래스
+class PublicQuestionDto(ApiModel):
+    question_id: str = Field(min_length=1)
+    question: str = Field(min_length=1)
+    reason: str | None = None
+    required: bool
+    related_tools: list[ToolName] = Field(default_factory=list)
+    answer_type: Literal["text"] | None = None
+
+
+# 진행 중
+class ProductProgressEvent(ProductEventBase):
+    event_type: Literal["product_progress"] = "product_progress"
+    status: Literal["running"] = "running"
+    stage: PublicPipelineStage
+    stage_status: Literal["started", "completed", "skipped"]
+    tool_name: ToolName | None = None
+    retry_round: int = Field(default=0, ge=0, strict=True)
+
+    @model_validator(mode="after")
+    def validate_tool_stage(self):
+        if self.tool_name is not None and self.stage is not PublicPipelineStage.TOOL_EXECUTION:
+            raise ValueError("tool_name은 Tool 실행 단계에서만 전달합니다.")
+        return self
+
+
+# 사용자 답변 대기
+class ProductAwaitingInputEvent(ProductEventBase):
+    event_type: Literal["product_awaiting_input"] = "product_awaiting_input"
+    status: Literal["awaiting_input"] = "awaiting_input"
+    assessment_id: str = Field(min_length=1)
+    termination_reason: Literal[ExecutionEndReason.USER_INPUT_REQUIRED]
+    verification_status: Literal[FinalVerificationStatus.INCOMPLETE]
+    questions: list[PublicQuestionDto] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def require_required_question(self):
+        if not any(question.required for question in self.questions):
+            raise ValueError("사용자 입력 대기에는 필수 질문이 있어야 합니다.")
+        return self
+
+
+# 파이프라인 결과 반환
+class ProductResultEvent(ProductEventBase):
+    event_type: Literal["product_result"] = "product_result"
+    status: Literal["finished"] = "finished"
+    assessment_id: str = Field(min_length=1)
+    termination_reason: ExecutionEndReason
+    verification_status: FinalVerificationStatus
+    overall_status: OverallStatus
+    summary: str
+
+    @model_validator(mode="after")
+    def validate_result_status(self):
+        if self.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:
+            raise ValueError("사용자 입력 대기는 별도 이벤트로 전달합니다.")
+        if self.termination_reason is ExecutionEndReason.COMPLETED:
+            if self.verification_status not in (
+                FinalVerificationStatus.VERIFIED,
+                FinalVerificationStatus.VERIFIED_WITH_WARNINGS,
+            ):
+                raise ValueError("정상 완료에는 검증 완료 상태가 필요합니다.")
+        elif self.verification_status is not FinalVerificationStatus.INCOMPLETE:
+            raise ValueError("미완료 종료에는 incomplete 상태가 필요합니다.")
+        return self
+
+
+class PublicErrorDto(ApiModel):
+    code: str = Field(min_length=1)
+    message: str = Field(min_length=1)
+    retryable: bool | None = None
+
+
+class ProductFailedEvent(ProductEventBase):
+    event_type: Literal["product_failed"] = "product_failed"
+    status: Literal["failed"] = "failed"
+    stage: PublicPipelineStage | None = None
+    error: PublicErrorDto
+
+
+PublicProductEvent = Annotated[
+    ProductProgressEvent | ProductAwaitingInputEvent | ProductResultEvent | ProductFailedEvent,
+    Field(discriminator="event_type"),
+]
+```
 
 ### 7.2 운영 로그 규칙
 
