@@ -14,6 +14,11 @@ class Recall(Base):
         UniqueConstraint("source", "source_uid"),
         Index("ix_recalls_source", "source"),
         Index("ix_recalls_product_name", "product_name"),
+        # 데이터 양과 관계없이 검색 품질 유지, 빈 테이블에서도 생성 가능 (#247)
+        Index(
+            "ix_recalls_embedding", "embedding",
+            postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     recall_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

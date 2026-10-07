@@ -69,3 +69,14 @@ def test_세션_팩토리는_공용_엔진에_묶인다(monkeypatch):
         assert session.get_bind() is database.get_engine()
     finally:
         session.close()
+
+
+def test_엔진은_HNSW_검색_탐색_폭을_100으로_넓혀_연결한다(monkeypatch):
+    # 기본값 40에선 거리가 비슷한 1·2위가 뒤바뀜 (#247)
+    _use(monkeypatch, "postgresql+psycopg://ai:ai@localhost:5433/ai")
+    captured = {}
+    monkeypatch.setattr(database, "create_engine", lambda url, **kwargs: captured.update(kwargs))
+
+    database.get_engine()
+
+    assert "-c hnsw.ef_search=100" in captured["connect_args"]["options"]
