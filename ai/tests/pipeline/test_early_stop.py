@@ -96,6 +96,56 @@ def test_판단이나_근거가_달라지면_중단하지_않는다(field, value
     assert not _compare(before, review, after, next_review)
 
 
+@pytest.mark.parametrize("name", list(ToolName))
+def test_양쪽_findings가_비어있어도_동일_결과로_중단하지_않는다(name):
+    before, review = _state(name, 0)
+    after, next_review = _state(name, 1)
+    assert _compare(before, review, after, next_review)
+
+    for state, check in ((before, review), (after, next_review)):
+        state.tool_results[0].findings = []
+        state.tool_result_history[0].findings = []
+        # 누락된 finding 참조 때문에 우연히 거부되지 않도록 양쪽 참조도 비운다.
+        check.checked_finding_ids = []
+        for issue in check.issues:
+            issue.related_finding_ids = []
+
+    # 양쪽 내용은 동일하지만 판단이 없어 비교 가능한 정상 실행이 아니다.
+    assert not _compare(before, review, after, next_review)
+
+
+@pytest.mark.parametrize("name", list(ToolName))
+def test_양쪽_finding_ID가_중복돼도_동일_결과로_중단하지_않는다(name):
+    before, review = _state(name, 0)
+    after, next_review = _state(name, 1)
+
+    for state, check in ((before, review), (after, next_review)):
+        first = state.tool_results[0].findings[0]
+        second = first.model_copy(deep=True)
+        second.finding_id = f"{first.finding_id}-second"
+        state.tool_results[0].findings.append(second)
+        state.tool_result_history[0].findings = [
+            finding.model_copy(deep=True) for finding in state.tool_results[0].findings
+        ]
+        check.checked_finding_ids = [first.finding_id, second.finding_id]
+        check.issues[0].related_finding_ids = [first.finding_id]
+
+    # 내용과 개수가 같고 ID는 고유한 정상 상태에서는 중단 후보가 된다.
+    assert _compare(before, review, after, next_review)
+
+    for state, check in ((before, review), (after, next_review)):
+        first, second = state.tool_results[0].findings
+        second.finding_id = first.finding_id
+        state.tool_result_history[0].findings = [
+            finding.model_copy(deep=True) for finding in state.tool_results[0].findings
+        ]
+        # 검증 참조는 존재하는 ID 한 개만 사용해 참조 중복·누락과 구분한다.
+        check.checked_finding_ids = [first.finding_id]
+
+    # 양쪽 판단 내용과 개수는 그대로이며 ID 중복 방어만으로 거부해야 한다.
+    assert not _compare(before, review, after, next_review)
+
+
 @pytest.mark.parametrize("change", ["detail", "missing", "actions", "issue", "issue_action", "question", "summary", "requested"])
 def test_상세결과와_검증정보의_변화도_보존한다(change):
     before, review = _state(ToolName.RADIO, 0)
