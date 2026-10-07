@@ -13,6 +13,19 @@ const titleVariants = cva("text-black", {
     },
 });
 
+const descriptionVariants = cva("whitespace-pre-line text-neutral-text", {
+    variants: {
+        size: {
+            '3xl': 'text-xl leading-8.75',
+            '2xl': 'text-xl leading-8.75',
+            'xl': 'text-sm leading-4.25',
+        },
+    },
+    defaultVariants: {
+        size: '3xl',
+    },
+});
+
 interface SectionIntroProps extends VariantProps<typeof titleVariants> {
     title: string
     description?: string
@@ -22,7 +35,7 @@ function SectionIntro({ title, description, size }: SectionIntroProps) {
     return (
         <div className="flex flex-col items-start gap-2">
             <div className={titleVariants({ size })}>{title}</div>
-            {description && <p className="whitespace-pre-line text-xl leading-8.75 text-neutral-text">{description}</p>}
+            {description && <p className={descriptionVariants({ size })}>{description}</p>}
         </div>
     );
 }
