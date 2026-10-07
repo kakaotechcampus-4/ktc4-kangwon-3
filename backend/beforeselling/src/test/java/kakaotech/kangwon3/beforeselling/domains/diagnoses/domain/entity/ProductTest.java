@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 class ProductTest {
 
@@ -146,6 +147,71 @@ class ProductTest {
 
         // when & then
         assertConflict(product::fail);
+    }
+
+    @Test
+    @DisplayName("처음 받은 에이전트 카드는 새로 추가된다.")
+    void recordAgentReview_whenNew_thenAdd() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.recordAgentReview(AgentType.CUSTOMS, AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다.");
+
+        // then
+        assertThat(product.getAgentReviews())
+                .extracting(AgentReview::getAgentType, AgentReview::getStatus, AgentReview::getDescription)
+                .containsExactly(tuple(AgentType.CUSTOMS, AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다."));
+    }
+
+    @Test
+    @DisplayName("같은 에이전트의 카드를 다시 받으면 새로 추가하지 않고 덮어쓴다.")
+    void recordAgentReview_whenSameAgentType_thenOverwrite() {
+        // given: 콜백이 중복으로 오거나 재진단에서 같은 카드가 다시 온 경우
+        Product product = createInProgressProduct();
+        product.recordAgentReview(AgentType.FOOD_DRUG, AgentReviewStatus.SKIPPED, "식품 접촉 항목이 없습니다.");
+
+        // when
+        product.recordAgentReview(AgentType.FOOD_DRUG, AgentReviewStatus.COMPLETED, "식품용 기구에 해당합니다.");
+
+        // then
+        assertThat(product.getAgentReviews())
+                .extracting(AgentReview::getAgentType, AgentReview::getStatus, AgentReview::getDescription)
+                .containsExactly(tuple(AgentType.FOOD_DRUG, AgentReviewStatus.COMPLETED, "식품용 기구에 해당합니다."));
+    }
+
+    @Test
+    @DisplayName("서로 다른 에이전트의 카드는 각각 추가된다.")
+    void recordAgentReview_whenDifferentAgentType_thenAddEach() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
+        product.recordAgentReview(AgentType.RADIO, AgentReviewStatus.SKIPPED, "무선 기능이 없습니다.");
+
+        // then
+        assertThat(product.getAgentReviews())
+                .extracting(AgentReview::getAgentType)
+                .containsExactly(AgentType.INTAKE, AgentType.RADIO);
+    }
+
+    @Test
+    @DisplayName("질문을 추가하면 답변이 없는 상태로 상품에 연결된다.")
+    void addQuestion_thenAddUnansweredQuestion() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.addQuestion("target_age", 1, "실제로 주로 판매하는 대상 연령은?", "상세페이지에 연령이 함께 적혀 있으면 확인이 필요합니다.");
+
+        // then
+        assertThat(product.getQuestions()).singleElement().satisfies(question -> {
+            assertThat(question.getProduct()).isSameAs(product);
+            assertThat(question.getQuestionKey()).isEqualTo("target_age");
+            assertThat(question.getQuestionOrder()).isEqualTo(1);
+            assertThat(question.isAnswered()).isFalse();
+        });
     }
 
     private Product createProduct() {
