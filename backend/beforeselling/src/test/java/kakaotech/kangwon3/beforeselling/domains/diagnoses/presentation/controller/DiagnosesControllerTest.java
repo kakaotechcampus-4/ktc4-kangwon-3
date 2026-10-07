@@ -137,6 +137,39 @@ class DiagnosesControllerTest {
     }
 
     @Test
+    @DisplayName("제품명이 200자이면 진단을 요청할 수 있다.")
+    void createDiagnoses_withProductNameOf200Chars_thenReturnDiagnosesId() throws Exception {
+        given(diagnosesUseCase.createDiagnoses(any(UUID.class), any()))
+                .willReturn(new DiagnosesCreateResponse(DIAGNOSES_ID));
+        Map<String, Object> product = urlTypeProduct();
+        product.put("productName", "가".repeat(200));
+        Map<String, Object> request = wrap(product);
+
+        mockMvc.perform(post(BASE_URL)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()));
+    }
+
+    @Test
+    @DisplayName("제품명이 200자를 넘으면 400과 COMMON-002 코드를 응답한다.")
+    void createDiagnoses_withProductNameOver200Chars_thenBadRequest() throws Exception {
+        Map<String, Object> product = urlTypeProduct();
+        product.put("productName", "가".repeat(201));
+        Map<String, Object> request = wrap(product);
+
+        mockMvc.perform(post(BASE_URL)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].message").value("제품명은 200자를 넘을 수 없습니다."));
+    }
+
+    @Test
     @DisplayName("URL 등록 방식인데 상세페이지 URL이 없으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withUrlTypeAndNoSourceUrl_thenBadRequest() throws Exception {
         Map<String, Object> product = urlTypeProduct();
