@@ -66,8 +66,8 @@ def test_모드_A_입력은_boolean만_정답으로_바꾸고_null_정답도_nul
     [
         (True, False, Blame.EXTRACTION),   # 있는 것을 없다고 확정
         (None, False, Blame.EXTRACTION),   # 근거 없이 없다고 확정
-        (True, None, Blame.SELECTION),     # 추출은 모른다고 넘겼는데 선택이 없음으로 봄
-        (True, True, Blame.SELECTION),     # 추출은 맞았는데 선택이 흔들림
+        (True, None, Blame.SELECTION),     # 추출은 모른다고 넘겼는데 선택이 없음으로 봄(원칙 2)
+        (True, True, Blame.NOISE),         # 입력이 A와 같은데 선택만 흔들림
     ],
 )
 def test_B에서만_놓친_툴은_판단_필드의_추출값으로_탓을_나눈다(truth_value, extracted, expected):
@@ -81,8 +81,24 @@ def test_정답의_모순을_추출이_빠뜨려_전기를_놓치면_추출_탓�
     truth = {"booleans": {}, "conflicts_required": [{"must_contain": "1460mAh"}]}
 
     assert blame_for(ToolName.ELECTRICAL, truth, {"conflicts": []}) == Blame.EXTRACTION
-    assert blame_for(ToolName.ELECTRICAL, truth, {"conflicts": ["1460mAh와 배터리 미포함이 충돌"]}) == Blame.SELECTION
+    assert blame_for(ToolName.ELECTRICAL, truth, {"conflicts": ["1460mAh와 배터리 미포함이 충돌"]}) == Blame.NOISE
 
+
+
+def test_판단_필드는_같고_다른_boolean이_틀렸으면_추출의_간접_영향으로_센다():
+    # power_bank 실측: 무선 필드는 A·B 모두 null인데, 추출이 다른 필드를 근거 없이 확정한
+    # B에서만 전파를 놓쳤다. A·B 입력은 boolean만 다르므로 차이는 그 필드들에서 온다.
+    truth = {"booleans": {"wireless_charging": {"value": None}, "electrical_powered": {"value": None}}}
+
+    assert blame_for(ToolName.RADIO, truth, {"wireless_charging": None, "electrical_powered": True}) == Blame.EXTRACTION_OTHER
+    assert blame_for(ToolName.RADIO, truth, {"wireless_charging": None, "electrical_powered": None}) == Blame.NOISE
+
+
+def test_판단_필드가_없는_표시광고도_boolean이_달랐는지로_나눈다():
+    truth = {"booleans": {"medical_claim": {"value": True}}}
+
+    assert blame_for(ToolName.LABEL_AD, truth, {"medical_claim": None}) == Blame.EXTRACTION_OTHER
+    assert blame_for(ToolName.LABEL_AD, truth, {"medical_claim": True}) == Blame.NOISE
 
 def test_툴별로_결정을_세고_값이_갈리면_불안정이다():
     truth = _selection_truth(radio_compliance=True, customs_requirements=True)
