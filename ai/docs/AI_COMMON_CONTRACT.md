@@ -761,7 +761,7 @@ class PublicPipelineStage(StrEnum):
     VERIFICATION = "verification"
     FINALIZATION = "finalization"
 
-
+# 부모 클래스
 class ProductEventBase(ApiModel):
     schema_version: Literal["0.1.0"] = "0.1.0"
     event_id: str = Field(min_length=1)
@@ -776,7 +776,7 @@ class ProductEventBase(ApiModel):
         return value.astimezone(timezone.utc)
 
 
-# 부모 클래스
+# 사용자 질문 형식
 class PublicQuestionDto(ApiModel):
     question_id: str = Field(min_length=1)
     question: str = Field(min_length=1)
