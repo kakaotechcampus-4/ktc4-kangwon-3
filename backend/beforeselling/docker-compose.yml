@@ -60,6 +60,7 @@ services:
     container_name: be-server
     restart: unless-stopped
     mem_limit: 1500m
+    stop_grace_period: 70s
     depends_on:
       db:
         condition: service_healthy
