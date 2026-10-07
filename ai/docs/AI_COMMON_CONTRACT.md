@@ -763,12 +763,10 @@ class PublicPipelineStage(StrEnum):
 
 # 부모 클래스
 class ProductEventBase(ApiModel):
-    schema_version: Literal["0.1.0"] = "0.1.0"
     event_id: str = Field(min_length=1)
     diagnosis_id: str = Field(min_length=1)
     product_id: str = Field(min_length=1)
     sequence: int = Field(ge=1, strict=True)
-    timestamp: AwareDatetime
 
     @field_validator("timestamp")
     @classmethod
