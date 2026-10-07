@@ -76,6 +76,16 @@ public class Product extends BaseEntity {
     @BatchSize(size = 100)
     private List<ProductImage> images = new ArrayList<>();
 
+    // 카드와 질문은 fetch join하지 않는다. List 컬렉션을 둘 이상 함께 fetch join하면 MultipleBagFetchException 발생
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    private List<AgentReview> agentReviews = new ArrayList<>();
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("questionOrder ASC")
+    @BatchSize(size = 100)
+    private List<ProductQuestion> questions = new ArrayList<>();
+
     @Builder(access = AccessLevel.PRIVATE)
     private Product(String productName, String productImageKey,
                     SourceType sourceType, String sourceUrl, String sourceText) {
@@ -124,6 +134,35 @@ public class Product extends BaseEntity {
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
         diagnosisRound++;
+    }
+
+    // 같은 에이전트의 카드가 이미 있으면 덮어쓴다(재진단 갱신, 콜백 중복 수신).
+    // 동시에 들어온 콜백끼리 경쟁하지 않도록, 호출하는 쪽에서 진단서를 비관적 락으로 잡은 뒤 호출한다.
+    public void recordAgentReview(AgentType agentType, AgentReviewStatus status, String description) {
+        agentReviews.stream()
+                .filter(review -> review.getAgentType() == agentType)
+                .findFirst()
+                .ifPresentOrElse(
+                        review -> review.update(status, description),
+                        () -> agentReviews.add(new AgentReview(this, agentType, status, description))
+                );
+    }
+
+    // 질문은 첫 진단에서 한 번만 받고, 받으면 사용자 답변을 기다리는 상태가 된다.
+    // 두 번째 호출은 상태(AWAITING_INPUT) 또는 회차 제한 때문에 awaitInput()에서 CONFLICT로 막힌다.
+    public void askQuestions(List<QuestionContent> contents) {
+        // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
+        if (contents.isEmpty()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        // 같은 키가 함께 오면 flush 시점의 유니크 제약 위반 대신 여기서 막는다.
+        if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+
+        awaitInput();
+        contents.forEach(content -> questions.add(new ProductQuestion(this, content.questionKey(),
+                content.questionOrder(), content.questionText(), content.helpText())));
     }
 
     public void fail() {
