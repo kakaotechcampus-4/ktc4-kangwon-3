@@ -21,6 +21,11 @@ API 키 없이 CI에서 돈다.
 (`.git/info/exclude`에서 제외). LLM이 채우는 필드(`for_children`, `medical_claim` 등)를
 수동으로 확인할 때 쓴다.
 
+원문은 [팀 노션](https://app.notion.com/p/ZIP-3f15a820b2b88076ba5fd83f164adc4f)에 zip으로 둔다.
+받은 zip을 풀어 `.txt`를 폴더 구분 없이 이 디렉터리에 넣는다. 같은 원문인지는 zip 안
+`MANIFEST.txt`의 지문(줄바꿈을 LF로 맞춘 SHA-256 앞 12자)으로 확인한다. `holdout_DO_NOT_OPEN`
+폴더는 프롬프트·정제 규칙을 고치는 동안 열지 않는다(#253 최종 확인용).
+
 ```bash
 python scripts/try_extraction.py --text tests/fixtures/_raw/power_bank.txt
 ```
