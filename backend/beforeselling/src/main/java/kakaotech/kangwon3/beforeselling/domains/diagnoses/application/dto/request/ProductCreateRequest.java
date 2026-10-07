@@ -14,7 +14,7 @@ import java.util.List;
 public record ProductCreateRequest(
 
         @NotBlank(message = "제품명은 필수입니다.")
-        @Size(max = 100, message = "제품명은 100자를 넘을 수 없습니다.")
+        @Size(max = 200, message = "제품명은 200자를 넘을 수 없습니다.")
         String productName,
 
         @Size(max = 2048, message = "이미지 키가 너무 깁니다.")
