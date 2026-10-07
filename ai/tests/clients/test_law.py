@@ -259,3 +259,25 @@ def test_항번호_없이_호만_있는_항은_번호와_내용_없이_호만_�
     assert paragraph.number is None
     assert paragraph.content is None
     assert [item.number for item in paragraph.items] == ["1.", "2."]
+
+
+# 같은 항 안의 4호와 4의2호: 호번호는 둘 다 "4." (#210)
+_BRANCH_ITEM_ARTICLE = """
+<조문단위>
+  <조문번호>5</조문번호>
+  <조문여부>조문</조문여부>
+  <조문내용>제5조(결격사유)</조문내용>
+  <항>
+    <항번호>①</항번호><항내용>① 다음 각 호의 어느 하나에 해당하는 자</항내용>
+    <호><호번호>4.</호번호><호내용>4. 넷째 사유</호내용></호>
+    <호><호번호>4.</호번호><호가지번호>2</호가지번호><호내용>4의2. 넷째의2 사유</호내용></호>
+  </항>
+</조문단위>
+"""
+
+
+def test_가지번호가_있는_호는_번호가_같아도_가지번호로_구분한다():
+    article = LawClient()._parse_article(fromstring(_BRANCH_ITEM_ARTICLE))
+
+    items = article.paragraphs[0].items
+    assert [(item.number, item.branch_number) for item in items] == [("4.", None), ("4.", "2")]

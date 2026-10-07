@@ -486,6 +486,7 @@ class LawClient(BaseClient):
         """
         return LawItem(
             number=self._text(el, "호번호"),
+            branch_number=self._text(el, "호가지번호"),
             content=self._text(el, "호내용"),
             sub_items=[self._parse_sub_item(sub_item) for sub_item in el.findall("목")],
         )

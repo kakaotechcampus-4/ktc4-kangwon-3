@@ -101,9 +101,13 @@ class LawSubItem(BaseModel):
 
 
 class LawItem(BaseModel):
-    """호 단건. 내용에 번호 포함 (예: "1. 법인의 정관")."""
+    """호 단건. 내용에 번호 포함 (예: "1. 법인의 정관").
+
+    4의2호는 number "4.", branch_number "2".
+    """
 
     number: str | None = None
+    branch_number: str | None = None
     content: str | None = None
     sub_items: list[LawSubItem] = []
 
