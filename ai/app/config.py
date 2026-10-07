@@ -176,4 +176,10 @@ def build_chat_model(
         temperature=temperature,
         timeout=TIMEOUT_SECONDS,
         max_retries=MAX_RETRIES,
+        # ML API 게이트웨이는 스트리밍이 아닌 응답을 출력 2,000토큰에서 끊는다. 판매자 설명이 긴
+        # 페이지는 추출 출력이 이를 넘어 JSON이 잘리고 파싱에 실패한다. 게이트웨이 안내대로 스트리밍으로
+        # 받으면 이 한도에 걸리지 않는다(헤어드라이어 페이지 추출 출력 2,364토큰으로 확인).
+        streaming=True,
+        # 스트리밍에서도 응답에 토큰 사용량을 받아 usage.record()가 비용을 남길 수 있게 한다.
+        stream_usage=True,
     )
