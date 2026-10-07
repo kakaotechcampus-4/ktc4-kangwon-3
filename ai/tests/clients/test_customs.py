@@ -71,14 +71,16 @@ def _clip_page(total_count: int, items: list[dict]) -> dict:
     return {"thisTotalCount": str(total_count), "itemList": items}
 
 
-def test_CLIP_검색은_페이지_번호를_pageIndex로_보낸다():
-    # initPageIndex·pagePerRecord는 서버가 무시해 항상 1페이지 10건 (#208)
+def test_CLIP_검색은_페이지_번호와_건수를_pageIndex와_pageUnit으로_보낸다():
+    # initPageIndex·pagePerRecord는 서버가 무시함 (#208)
     captured: list[dict] = []
     client = _clip_client(_clip_page(115, [_clip_item("d-11")]), captured)
 
-    client.search(CLIPSearchRequest(query="마우스", page=2))
+    client.search(CLIPSearchRequest(query="마우스", page=2, page_size=50))
 
-    assert captured == [{"prlstClsfCaseTpcd": "01", "srchYn": "Y", "srwr": "마우스", "pageIndex": "2"}]
+    assert captured == [
+        {"prlstClsfCaseTpcd": "01", "srchYn": "Y", "srwr": "마우스", "pageIndex": "2", "pageUnit": "50"},
+    ]
     assert client._client.headers["X-Requested-With"] == "XMLHttpRequest"
 
 
@@ -95,20 +97,24 @@ def test_CLIP_검색_응답은_요청_페이지와_정리된_결정사례를_담
 
 
 @pytest.mark.parametrize(
-    ("page", "total_count", "item_count", "expected"),
+    ("page", "page_size", "total_count", "item_count", "expected"),
     [
-        (1, 115, 10, True),
-        (11, 115, 10, True),
-        (12, 115, 5, False),
-        (11, 110, 10, False),
-        (2, 115, 0, False),
+        (1, 10, 115, 10, True),
+        (11, 10, 115, 10, True),
+        (12, 10, 115, 5, False),
+        (11, 10, 110, 10, False),
+        (2, 10, 115, 0, False),
+        (2, 50, 115, 50, True),
+        (2, 100, 115, 15, False),
     ],
 )
-def test_CLIP_다음_페이지_여부는_전체_건수와_빈_페이지로_판단한다(page, total_count, item_count, expected):
+def test_CLIP_다음_페이지_여부는_요청_건수와_전체_건수와_빈_페이지로_판단한다(
+    page, page_size, total_count, item_count, expected,
+):
     items = [_clip_item(f"d-{i}") for i in range(item_count)]
     client = _clip_client(_clip_page(total_count, items))
 
-    result = client.search(CLIPSearchRequest(query="마우스", page=page))
+    result = client.search(CLIPSearchRequest(query="마우스", page=page, page_size=page_size))
 
     assert result.has_next is expected
 
@@ -121,3 +127,10 @@ def test_CLIP_결과가_없으면_0건이고_다음_페이지가_없다():
     assert result.total_count == 0
     assert result.items == []
     assert result.has_next is False
+
+
+@pytest.mark.parametrize("page_size", [0, 101])
+def test_CLIP_페이지당_건수는_1부터_100까지만_허용한다(page_size):
+    # 1000건 요청 시 서버가 0건 응답 (#208)
+    with pytest.raises(ValidationError):
+        CLIPSearchRequest(query="제품", page_size=page_size)
