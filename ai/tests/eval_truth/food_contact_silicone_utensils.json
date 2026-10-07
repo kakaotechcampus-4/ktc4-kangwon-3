@@ -1,0 +1,155 @@
+{
+  "fixture": "food_contact_silicone_utensils.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-30",
+  "tags": [
+    "처음 보는 상품",
+    "식품접촉"
+  ],
+  "summary": "실리콘 조리도구 세트(Temu). 식품 접촉과 나무 손잡이(식물성 소재)가 판매자 문구에 있다. '내열성'을 발열 기능으로 오인하지 않는지도 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "스펙표 '재료: 실리콘', 제목 '나무 손잡이 장착'. 전원·충전 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "스펙표 '재료: 실리콘'. 전자 부품 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "스펙표 '재료: 실리콘'. 전원·충전 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "재질만으로 차폐 여부를 알 수 없다."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "스펙표 '재료: 실리콘'. 전지 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "카테고리 '실리콘 조리도구 세트', '주방 용품'",
+      "why_not_other": "주된 기능이 조리이고 전력 공급이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "제목 '내열성'",
+      "why_not_other": "'내열성'은 열을 견디는 성질이지 발열 기능이 아니다. 발열로 읽으면 true가 되지만 근거가 아니다."
+    },
+    "food_contact": {
+      "value": true,
+      "evidence": "제목 '요리 및 베이킹에 적합', '실리콘 식기 세트', 카테고리 '주방 용품'",
+      "why_not_other": "용도가 음식을 조리하는 것이라고 판매자가 적었다."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "제목 '편안한 나무 손잡이 장착'",
+      "why_not_other": "'손잡이를 쥔다'는 상품 종류에서 나온 추론이다. 피부·구강 접촉을 말하는 문구는 없다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병명·신체기능 개선 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무는 페이지를 끝까지 읽으면 확인된다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "카테고리 '실리콘 조리도구 세트', 형태가 조리도구",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": true,
+      "evidence": "제목 '편안한 나무 손잡이 장착'",
+      "why_not_other": "목재 손잡이가 판매자 문구로 확인된다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '주방 용품', 세정·방향·살균 기능 표기 없음",
+      "why_not_other": "주된 기능이 조리도구로 확인된다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다. 선물 대상도 '발렌타인데이, 부활절, 라마단'",
+      "why_not_other": "광고가 어린이를 겨냥하지 않는다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기가 없다"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "실리콘"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "실리콘 조리도구 세트",
+        "주방 용품",
+        "조리도구",
+        "실리콘 식기 세트",
+        "식기 세트",
+        "실리콘 조리도구"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "재료",
+      "value": "실리콘",
+      "evidence": "스펙표 '재료: 실리콘'"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "카자흐스탄에서도 같은 제품이",
+      "evidence": "원문 40행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "아름답고 주방에서 매우 유용해요",
+      "evidence": "원문 46행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "주방 인테리어효과도 있어요",
+      "evidence": "원문 57행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "잘쓰고 있어요 편해요",
+      "evidence": "원문 64행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 139행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 148행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "배송업체",
+      "evidence": "원문 150행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "문제 발생 시 환불",
+      "evidence": "원문 6·12행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "Temu 구매 보호",
+      "evidence": "원문 179행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    }
+  ]
+}

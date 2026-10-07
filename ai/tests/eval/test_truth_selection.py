@@ -13,7 +13,7 @@ from app.agents.selection import _PROMPT_PATH as SELECTION_PROMPT_PATH
 from app.eval.runner import prompt_fingerprint
 from app.schemas.schemas import ToolName
 
-TRUTH_DIR = Path(__file__).parent / "eval_truth_selection"
+TRUTH_DIR = Path(__file__).parents[1] / "eval_truth_selection"
 TRUTH_FILES = sorted(TRUTH_DIR.glob("*.json"))
 
 
@@ -101,7 +101,7 @@ def test_정답을_매긴_선택_프롬프트가_지금과_같다(path: Path):
 def test_추출_정답표와_같은_픽스처를_가리킨다(path: Path):
     # 두 정답표가 다른 페이지를 가리키면 "추출 오류가 선택에 미치는 영향"을
     # 잴 수 없다. 같은 픽스처여야 두 측정을 나란히 놓을 수 있다.
-    extraction_truth = Path(__file__).parent / "eval_truth" / path.name
+    extraction_truth = Path(__file__).parents[1] / "eval_truth" / path.name
 
     assert extraction_truth.exists(), f"짝이 되는 추출 정답표가 없습니다: {extraction_truth}"
     assert _load(path)["fixture"] == _load(extraction_truth)["fixture"]

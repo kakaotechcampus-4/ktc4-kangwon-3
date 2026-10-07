@@ -1,0 +1,149 @@
+{
+  "fixture": "cert_number_led_stand.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-30",
+  "tags": [
+    "처음 보는 상품",
+    "인증표기",
+    "AliExpress"
+  ],
+  "summary": "USB 전원 LED 데스크 램프(AliExpress). 인증 표기는 'ce,FCC,ROHS'뿐이고 인증번호가 없어 번호를 지어내지 않는지 본다. 스펙표가 '배터리가 포함되어 있습니까? no'로 전지 없음을 명시한다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "제목 'USB 버섯 모양 LED 데스크 램프', 스펙표 '전압: 5V', '와트: 0-5W의 경우'",
+      "why_not_other": "USB 전원으로 작동한다고 판매자가 적었다."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "스펙표 '배터리가 포함되어 있습니까?' 항목 값 'no'",
+      "why_not_other": "전지 없음이 명시돼 있다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "스펙표 '품목 유형: 테이블 램프'",
+      "why_not_other": "주된 기능이 조명이다."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "스펙표 '스마트 기기인가요?' 항목 값 'no'",
+      "why_not_other": "스마트 기기가 아니라고 명시해 통신 기능이 없다고 볼 근거가 있다."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "(무선충전 언급 없음)",
+      "why_not_other": "전기 기기라 언급 없음만으로 없다고 확정하지 않는다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "(발열 기능 언급 없음)",
+      "why_not_other": "'램프니까 발열 기능이 없다'는 상식 추론이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병명·신체기능 개선 표방 문구가 판매자 문구에 없다",
+      "why_not_other": "'눈에 부담 없이'는 AI 상품 요약에만 있다. AI 상품 요약은 페이지가 '판매자의 의견을 대변하지 않습니다'라고 밝혀 근거로 쓰지 않았다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "스펙표 '품목 유형: 테이블 램프'",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "(재질 표기 없음)",
+      "why_not_other": "구매자 질문 '전등갓이 유리로 만들어졌나요?'는 판매자 표기가 아니다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "스펙표 '고농도 화학 물질: 없음', '품목 유형: 테이블 램프'",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다. 용도는 '침실/책상/커피 바 장식'",
+      "why_not_other": "광고가 어린이를 겨냥하지 않는다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기가 없다"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "램프"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "조명 무드등",
+        "테이블 램프",
+        "데스크 램프",
+        "LED 램프",
+        "무드등",
+        "LED 데스크 램프"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "전압",
+      "value": "5V",
+      "evidence": "스펙표 '전압: 5V'"
+    },
+    {
+      "name": "모델 번호",
+      "value": "DLT6001",
+      "evidence": "스펙표 '모델 번호: DLT6001'"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "눈에 부담 없이",
+      "evidence": "원문 40행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "USB DC 5V 전원 공급 제품은",
+      "evidence": "원문 42행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "모던 스타일의 버섯 모양 디자인 모던",
+      "evidence": "원문 43행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "전등갓이 유리로 만들어졌나요",
+      "evidence": "원문 118행, 구매자 질문"
+    },
+    {
+      "must_not_contain": "30일 내 미배송 시 전액 환불",
+      "evidence": "원문 144행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "AliExpress의 약속",
+      "evidence": "원문 130행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    }
+  ]
+}

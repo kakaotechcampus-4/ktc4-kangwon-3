@@ -1,0 +1,153 @@
+{
+  "fixture": "cert_number_kc_text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-01",
+  "tags": [
+    "확인용",
+    "전기충격",
+    "인증표기"
+  ],
+  "summary": "USB 충전식 전기 모기채(Temu). 인증 표기는 'CE-EMC(Electric); CE-RoHS'뿐이고 번호가 없다. 제목의 '전기 충격'에 끌려 weapon_like를 true로 잡지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "스펙표 '전원 모드: USB 충전', 제목 '휴대용 전기 모기채'",
+      "why_not_other": "전기로 작동한다고 판매자가 적었다."
+    },
+    "battery_included": {
+      "value": true,
+      "evidence": "스펙표 '배터리 속성: 충전식 배터리', '리튬 배터리-기타 시리즈'",
+      "why_not_other": "충전식 리튬 전지가 들어 있다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "카테고리 '전기 파리채', '초음파 벌레&해충 퇴치기'",
+      "why_not_other": "주된 기능이 해충 퇴치이고 전력 공급이 아니다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "(블루투스·WiFi·RF 언급 없음)",
+      "why_not_other": "전기 기기라 언급 없음만으로 통신 없음을 확정하지 않는다(power_bank와 같은 기준)."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "스펙표 '전원 모드: USB 충전'",
+      "why_not_other": "충전 방식이 무선인지 아닌지 판매자 문구에 없다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "(발열 기능 언급 없음)",
+      "why_not_other": "'모기채니까 발열 기능이 없다'는 상식 추론이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병명·신체기능 개선 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "제목 '휴대용 전기 모기채', '해충 퇴치기', 카테고리 '전기 파리채'",
+      "why_not_other": "'전기 충격'은 해충을 잡는 방식이고 형태가 파리채다. 사람에게 쓰는 전자충격기 형태가 아니다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "스펙표 '본체재질: ABS'",
+      "why_not_other": "재질이 플라스틱으로 명시돼 있다(power_bank의 TPU와 같은 기준)."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "제목 '전기 충격 모기 퇴치기'. 살충 성분 표기 없음",
+      "why_not_other": "해충을 전기로 잡는 기기이고 세정·방향·살균·살충 화학제품이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다",
+      "why_not_other": "광고가 어린이를 겨냥하지 않는다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기가 없다"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "모기"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "전기 파리채",
+        "초음파 벌레&해충 퇴치기",
+        "전기 모기채",
+        "해충 퇴치기",
+        "모기채",
+        "전기제품",
+        "모기 퇴치기"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "본체재질",
+      "value": "ABS",
+      "evidence": "스펙표 '본체재질: ABS'"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "고장없이 오래 사용하길바랍니다",
+      "evidence": "원문 40행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "건전기사용하는것보다 성능좋고",
+      "evidence": "원문 48행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "효과는 대단했습니다",
+      "evidence": "원문 55행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "귀여운 캐처네요",
+      "evidence": "원문 62행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 130행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 134행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "배송업체",
+      "evidence": "원문 136행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "문제 발생 시 환불",
+      "evidence": "원문 6·12행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    }
+  ]
+}

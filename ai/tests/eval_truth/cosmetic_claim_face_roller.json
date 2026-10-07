@@ -1,0 +1,160 @@
+{
+  "fixture": "cosmetic_claim_face_roller.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-01",
+  "tags": [
+    "확인용",
+    "화장품표방",
+    "의료표방"
+  ],
+  "summary": "얼굴·전신 마사지용 괄사(Temu). 판매자 제목에 미용 효능('얼굴 리프팅 및 탄력')과 신체기능 표방('근육 이완', '경락선 개통')이 함께 있다. 스펙표가 전기·전지 없음을 명시한다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "스펙표 '전력 공급 방식: 전기 불필요'",
+      "why_not_other": "전기가 필요 없다고 명시돼 있다."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "스펙표 '배터리 속성: 배터리 미포함'",
+      "why_not_other": "전지 없음이 명시돼 있다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "카테고리 '얼굴 괄사', '뷰티 도구'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "스펙표 '전력 공급 방식: 전기 불필요'",
+      "why_not_other": "전기가 필요 없는 도구라 통신할 수 없다."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "스펙표 '전력 공급 방식: 전기 불필요'",
+      "why_not_other": "전기가 필요 없는 도구라 충전하지 않는다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "재질만으로 차폐 여부를 알 수 없다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "스펙표 '전력 공급 방식: 전기 불필요', '재료: 플라스틱'",
+      "why_not_other": "발열 기능 표기가 없고 전기가 필요 없는 도구다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": true,
+      "evidence": "제목 '얼굴과 다리 휴식을 위한 페이셜 과샤 스틱 전신 마사지 도구'",
+      "why_not_other": "피부에 대고 문지르는 마사지 용도라고 판매자가 적었다."
+    },
+    "medical_claim": {
+      "value": true,
+      "evidence": "제목 '근육 이완 보드', '경락선 개통 마사지기'",
+      "why_not_other": "근육 이완·경락 개통은 신체기능 개선 표방이다."
+    },
+    "cosmetic_claim": {
+      "value": true,
+      "evidence": "제목 '얼굴 리프팅 및 탄력을 위한', '미용 장치'",
+      "why_not_other": "피부 리프팅·탄력이라는 미용 효과를 표방한다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "카테고리 '얼굴 괄사', 형태가 마사지 도구",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "제목 '옥수수 뿔 과샤 보드' / 스펙표 '재료: 플라스틱'",
+      "why_not_other": "제목과 스펙표가 다른 재질을 말한다. '옥수수 뿔'은 소뿔을 잘못 옮긴 것일 수도 있어 어느 쪽으로도 확정하지 않는다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '뷰티 도구', 세정·방향·살균 기능 표기 없음",
+      "why_not_other": "주된 기능이 마사지 도구다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "제목 '여성을 위한 실용적인 미용 마사지 선물'",
+      "why_not_other": "광고가 성인 여성을 겨냥한다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기가 없다"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "마사지"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "얼굴 괄사",
+        "뷰티 도구",
+        "괄사",
+        "과샤",
+        "뷰티 & 맞춤 케어",
+        "마사지 도구",
+        "페이셜 과샤",
+        "괄사 마사지기"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "재료",
+      "value": "플라스틱",
+      "evidence": "스펙표 '재료: 플라스틱'"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "얼굴 리프팅 및 탄력을 위한",
+      "evidence": "원문 29·81·82·83·84·85행, 판매자 제목의 미용 효능 표방. 빠지면 표시광고 심사가 빠진다"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "독소때문에 목이랑 귀뒤에",
+      "evidence": "원문 40행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "너무너무너무 잘산템",
+      "evidence": "원문 47행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "쇼핑목록중에 단연 1등",
+      "evidence": "원문 53행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "마감도 부드러워서",
+      "evidence": "원문 59행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 98행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 104행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "배송업체",
+      "evidence": "원문 106행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    },
+    {
+      "must_not_contain": "문제 발생 시 환불",
+      "evidence": "원문 6·12행, 판매 사이트 공통 문구(배송·환불·가격·결제 안내)"
+    }
+  ]
+}
