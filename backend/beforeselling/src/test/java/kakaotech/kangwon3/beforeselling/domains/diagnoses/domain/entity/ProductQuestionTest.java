@@ -5,6 +5,8 @@ import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -42,7 +44,8 @@ class ProductQuestionTest {
     private ProductQuestion createQuestion() {
         Product product = Product.pending("대나무 헬리콥터", null, SourceType.URL,
                 "https://ko.aliexpress.com/item/100500628491", null);
-        product.addQuestion("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null);
+        product.startDiagnosis();
+        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         return product.getQuestions().getFirst();
     }
 }
