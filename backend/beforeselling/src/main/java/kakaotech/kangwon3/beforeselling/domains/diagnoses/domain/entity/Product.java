@@ -2,6 +2,8 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity;
 
 import jakarta.persistence.*;
 import kakaotech.kangwon3.beforeselling.global.common.BaseEntity;
+import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
+import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,6 +23,9 @@ import java.util.UUID;
         indexes = @Index(name = "idx_product_diagnoses_id_sort_order", columnList = "diagnoses_id, sort_order")
 )
 public class Product extends BaseEntity {
+
+    // 질문을 받을 수 있는 마지막 회차. 질문은 첫 진단(0)에서 한 번만 받고, 재질문은 하지 않는다.
+    public static final int MAX_QUESTION_ROUND = 0;
 
     @Id
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
@@ -54,6 +59,10 @@ public class Product extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "result_status")
     private ResultStatus resultStatus;
+
+    // 0: 첫 진단, 1: 질문 답변 후 재진단(반드시 결과로 끝난다).
+    @Column(name = "diagnosis_round", nullable = false, columnDefinition = "integer default 0")
+    private int diagnosisRound;
 
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
@@ -100,6 +109,34 @@ public class Product extends BaseEntity {
         this.diagnoses = diagnoses;
         this.sortOrder = sortOrder;
     }
+
+    public void startDiagnosis() {
+        transition(ProcessingStatus.PENDING, ProcessingStatus.IN_PROGRESS);
+    }
+
+    public void awaitInput() {
+        if (diagnosisRound > MAX_QUESTION_ROUND) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
+    }
+
+    public void resume() {
+        transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
+        diagnosisRound++;
+    }
+
+    public void fail() {
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.FAILED);
+    }
+
+    private void transition(ProcessingStatus from, ProcessingStatus to) {
+        if (processingStatus != from) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        this.processingStatus = to;
+    }
+
 
     // 대표 이미지와 상세 이미지 key를 순서대로 모은다(S3 정리·확정 처리에 사용).
     public List<String> collectImageKeys() {
