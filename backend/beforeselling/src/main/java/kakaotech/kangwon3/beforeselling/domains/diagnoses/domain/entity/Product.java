@@ -148,8 +148,21 @@ public class Product extends BaseEntity {
                 );
     }
 
-    public void addQuestion(String questionKey, int questionOrder, String questionText, String helpText) {
-        questions.add(new ProductQuestion(this, questionKey, questionOrder, questionText, helpText));
+    // 질문은 첫 진단에서 한 번만 받고, 받으면 사용자 답변을 기다리는 상태가 된다.
+    // 두 번째 호출은 상태(AWAITING_INPUT) 또는 회차 제한 때문에 awaitInput()에서 CONFLICT로 막힌다.
+    public void askQuestions(List<QuestionContent> contents) {
+        // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
+        if (contents.isEmpty()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        // 같은 키가 함께 오면 flush 시점의 유니크 제약 위반 대신 여기서 막는다.
+        if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+
+        awaitInput();
+        contents.forEach(content -> questions.add(new ProductQuestion(this, content.questionKey(),
+                content.questionOrder(), content.questionText(), content.helpText())));
     }
 
     public void fail() {
