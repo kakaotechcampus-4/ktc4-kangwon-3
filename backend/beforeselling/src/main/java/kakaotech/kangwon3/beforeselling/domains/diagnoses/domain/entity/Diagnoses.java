@@ -62,6 +62,11 @@ public class Diagnoses extends BaseEntity {
         }
     }
 
+    public void startDiagnosis() {
+        products.forEach(Product::startDiagnosis);
+        refreshProcessingStatus();
+    }
+
     public boolean isEmpty() {
         return products.isEmpty();
     }
