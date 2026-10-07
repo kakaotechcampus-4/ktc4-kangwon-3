@@ -24,6 +24,7 @@ Prometheus + Grafana로 API·JVM·호스트 지표를 수집해 확인하는 대
 | mon-cadvisor | 컨테이너별 CPU·메모리·OOM·재시작 | 128m |
 
 - 백엔드 actuator는 포트 8081로 분리돼 있고 호스트에 공개하지 않습니다.
+- `be-server`는 Blue-Green 두 컨테이너(`be-server-blue`/`be-server-green`)의 공통 네트워크 alias다. Prometheus는 이 이름을 DNS로 조회(`dns_sd_configs`)해 떠 있는 컨테이너를 각각 별도 instance로 수집하고, 전환 중에는 잠깐 두 개가 보인다. 배포 구조는 `backend/beforeselling/deploy/README.md` 참고.
 - 호스트에 publish 하는 포트는 Grafana `127.0.0.1:3000` 하나뿐이다. **보안그룹에 3000/8081/9090/9100을 열지 말 것.**
 - node-exporter는 호스트 NIC 트래픽을 보기 위해 host 네트워크로 뜨고, 외부 노출을 막으려고 docker0 게이트웨이(`172.17.0.1`)에만 바인딩한다. Prometheus는 `host.docker.internal`(host-gateway)로 접근한다. ufw를 켠다면 docker 대역 → 9100을 허용해야 한다.
 
