@@ -1,7 +1,7 @@
 {
   "fixture": "food_contact_silicone_utensils.txt",
   "reviewed_by": "gityhb",
-  "reviewed_at": "2026-10-05",
+  "reviewed_at": "2026-10-07",
   "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
   "summary": "실리콘 조리도구 세트(Temu). 식품 접촉이 확인되고, 판매자 상품 설명의 '완벽'이 표시광고 절대적 표현에 해당하는지 보는 케이스다.",
   "tools": {
@@ -32,8 +32,8 @@
     },
     "labeling_advertising_detection": {
       "selected": true,
-      "evidence": "상품 설명 '요리와 베이킹에 완벽'(116~123행), 브랜드 소개 '최고의 품질'(81행)",
-      "why_not_other": "프롬프트가 든 절대적·최상급 표현('완벽 차단', '최고')에 해당한다. 브랜드 소개는 판매자가 쓴 글이라 플랫폼 문구로 보지 않았다. 상품 설명의 '완벽'만으로도 선택이다."
+      "evidence": "상품 설명 '요리와 베이킹에 완벽'(116~123행)",
+      "why_not_other": "프롬프트가 든 절대적·최상급 표현('완벽 차단', '최고')에 해당한다. 브랜드 소개 '보증: 최고의 품질'(81행)은 가게 단위 소개라 이 상품의 표시·광고로 보지 않았다(5절 ④)."
     }
   }
 }
