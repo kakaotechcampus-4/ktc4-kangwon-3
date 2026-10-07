@@ -821,24 +821,7 @@ class ProductResultEvent(ProductEventBase):
     event_type: Literal["product_result"] = "product_result"
     status: Literal["finished"] = "finished"
     assessment_id: str = Field(min_length=1)
-    termination_reason: ExecutionEndReason
-    verification_status: FinalVerificationStatus
-    overall_status: OverallStatus
-    summary: str
-
-    @model_validator(mode="after")
-    def validate_result_status(self):
-        if self.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:
-            raise ValueError("사용자 입력 대기는 별도 이벤트로 전달합니다.")
-        if self.termination_reason is ExecutionEndReason.COMPLETED:
-            if self.verification_status not in (
-                FinalVerificationStatus.VERIFIED,
-                FinalVerificationStatus.VERIFIED_WITH_WARNINGS,
-            ):
-                raise ValueError("정상 완료에는 검증 완료 상태가 필요합니다.")
-        elif self.verification_status is not FinalVerificationStatus.INCOMPLETE:
-            raise ValueError("미완료 종료에는 incomplete 상태가 필요합니다.")
-        return self
+    
 
 
 class PublicErrorDto(ApiModel):
