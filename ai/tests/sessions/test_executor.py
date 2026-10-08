@@ -11,7 +11,7 @@ from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
 from app.schemas.session import SessionStatus
-from app.sessions.executor import ERROR_PIPELINE, ERROR_TIMEOUT, QueueFullError, SessionExecutor
+from app.sessions.executor import QueueFullError, SessionExecutor
 from app.sessions.store import SessionConflictError, SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
@@ -109,7 +109,7 @@ def test_진단_함수_예외는_실패로_기록한다(executors):
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.FAILED)
 
     session = executor.store.get("p-1")
-    assert (session.error_code, session.retryable) == (ERROR_PIPELINE, True)
+    assert (session.error_code, session.retryable) == ("AI_PIPELINE_ERROR", True)
 
 
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(executors):
@@ -183,7 +183,7 @@ def test_최대_시간을_넘긴_세션은_시간_초과로_끝내고_늦게_온
     clock.now = START + timedelta(minutes=10)
     assert executor.expire_overdue() == 1
     session = executor.store.get("p-1")
-    assert (session.status, session.error_code) == (SessionStatus.FAILED, ERROR_TIMEOUT)
+    assert (session.status, session.error_code) == (SessionStatus.FAILED, "AI_TIMEOUT")
 
     job.release("p-1")
     _wait_until(lambda: executor._inflight == 0)
