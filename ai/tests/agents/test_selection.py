@@ -10,6 +10,7 @@ from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName
 from app import usage
+from app.agents.base import AgentError, MissingParsedOutput
 from app.agents.selection import SelectionAgent, SelectionFailedError
 
 
@@ -144,6 +145,7 @@ def test_모델_호출이_실패하면_SelectionFailedError로_감싸진다():
 
     assert isinstance(exc_info.value.__cause__, RuntimeError)
     assert "rate limit exceeded" in str(exc_info.value.__cause__)
+    assert str(exc_info.value) == "심사 도메인 선택에 실패했습니다: rate limit exceeded"
 
 
 def test_모델_응답이_스키마와_안_맞으면_SelectionFailedError를_낸다():
@@ -154,12 +156,29 @@ def test_모델_응답이_스키마와_안_맞으면_SelectionFailedError를_낸
         agent.select(_make_product())
 
     assert isinstance(exc_info.value.__cause__, ValueError)
+    assert str(exc_info.value) == "모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: field required"
+
+
+def test_파싱_결과가_비면_기존_문구를_유지하고_MissingParsedOutput을_원인으로_연결한다():
+    agent = SelectionAgent(model=_StubChatModel(None))
+
+    with pytest.raises(SelectionFailedError) as exc_info:
+        agent.select(_make_product())
+
+    assert str(exc_info.value) == "모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: None"
+    assert isinstance(exc_info.value.__cause__, MissingParsedOutput)
+
+
+def test_선택_예외는_AgentError_계열이다():
+    assert issubclass(SelectionFailedError, AgentError)
+    assert issubclass(SelectionFailedError, RuntimeError)
 
 
 def test_토큰_사용량과_캐시_적용량이_로그에_남는다(caplog):
     agent = SelectionAgent(model=_StubChatModel(_make_all_selected_response()))
 
-    with caplog.at_level(logging.INFO, logger="app.agents.selection"):
+    # 콘솔 토큰 로그는 BaseAgent 공통 출력
+    with caplog.at_level(logging.INFO, logger="app.agents.base"):
         agent.select(_make_product())
 
     assert "input=3000" in caplog.text
@@ -175,7 +194,8 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             calls.append((schema, include_raw))
             return self
 
-    monkeypatch.setattr("app.agents.selection.build_chat_model", lambda: _FakeModel())
+    # 모델 생성은 BaseAgent 공통 경로
+    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
 
     SelectionAgent()
 
