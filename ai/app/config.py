@@ -36,6 +36,8 @@ MAX_RUNNING_SESSIONS = 10
 MAX_INFLIGHT_SESSIONS = 50
 # 접수부터 결과까지 최대 시간. 넘으면 시간 초과 실패
 SESSION_MAX_DURATION_SECONDS = 600
+# 시간 초과·보관 시간 정리 주기
+SESSION_SWEEP_SECONDS = 30
 
 # 서버 기동을 위한 필수 환경변수 목록
 REQUIRED_ENV = {
