@@ -89,9 +89,12 @@ def test_진행_중인_상품이_섞이면_전체를_409로_거절한다(client,
     response = client.post(CONTENT, json=_payload("p-1", "p-2", diagnosis_id="d-2"))
 
     assert response.status_code == 409
-    body = response.json()
-    assert body["code"] == "AI_SESSION_CONFLICT"
-    assert body["data"] == {"conflictProductIds": ["p-1"]}
+    assert response.json() == {
+        "code": "AI_SESSION_CONFLICT",
+        "message": "이미 진행 중인 상품이 있습니다.",
+        "details": None,
+        "data": {"conflictProductIds": ["p-1"]},
+    }
     assert executor.store.get("p-2") is None
 
 
@@ -101,7 +104,12 @@ def test_대기열이_가득_차면_429를_반환한다(client, executor):
     response = client.post(CONTENT, json=_payload("p-3", "p-4", diagnosis_id="d-2"))
 
     assert response.status_code == 429
-    assert response.json()["code"] == "AI_QUEUE_FULL"
+    assert response.json() == {
+        "code": "AI_QUEUE_FULL",
+        "message": "진단 대기열이 가득 찼습니다. 잠시 후 다시 요청해 주세요.",
+        "details": None,
+        "data": None,
+    }
     assert executor.store.get("p-3") is None
 
 
@@ -111,7 +119,11 @@ def test_대기열이_가득_차면_429를_반환한다(client, executor):
     {"diagnosisId": "d-1", "products": [{"productId": "p-1"}]},
 ])
 def test_형식이_틀린_요청은_422로_거절하고_접수하지_않는다(client, executor, payload):
-    assert client.post(CONTENT, json=payload).status_code == 422
+    response = client.post(CONTENT, json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "AI_INVALID_REQUEST"
+    assert response.json()["details"]
     assert executor.store.unfinished() == []
 
 

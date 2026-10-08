@@ -1,7 +1,6 @@
 """진단 라우터. 진단서 단위 접수(content)와 URL 진단(미구현) 엔드포인트를 제공한다."""
 
 from fastapi import APIRouter, Depends, Request, status
-from fastapi.responses import JSONResponse
 
 from ..errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
@@ -12,16 +11,11 @@ from ..schemas.response import (
     DiagnosisAccepted,
     DiagnosisAcceptedResponse,
     DiagnosisConflict,
-    fail,
 )
 from ..sessions.executor import QueueFullError, SessionExecutor
 from ..sessions.store import SessionConflictError
 
 router = APIRouter(prefix="/diagnose", tags=["진단"])
-
-# 접수 거절 코드. #171 §6 응답 코드 체계가 BE와 합의되면 교체
-ERROR_SESSION_CONFLICT = "AI_SESSION_CONFLICT"
-ERROR_QUEUE_FULL = "AI_QUEUE_FULL"
 
 
 def get_session_executor(request: Request) -> SessionExecutor:
@@ -53,7 +47,7 @@ def _to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
 async def diagnose_by_content(
     req: DiagnosisRequest,
     executor: SessionExecutor = Depends(get_session_executor),
-) -> DiagnosisAcceptedResponse | JSONResponse:
+) -> DiagnosisAcceptedResponse:
     """진단서의 상품들을 세션으로 접수하고 바로 202를 반환한다.
 
     하나라도 진행 중이면 전체를 거절함 (#263).
@@ -63,18 +57,20 @@ async def diagnose_by_content(
         executor: 세션 실행기.
 
     Returns:
-        202 접수 응답. 진행 중 상품이 섞이면 409, 대기열이 차면 429.
+        202 접수 응답.
+
+    Raises:
+        AIServiceError: 진행 중 상품이 섞이면 409(data.conflictProductIds), 대기열이 차면 429.
     """
     try:
         sessions = executor.submit(req.diagnosis_id, [_to_extraction_input(p) for p in req.products])
     except SessionConflictError as e:
-        body = fail(ERROR_SESSION_CONFLICT, str(e)).model_copy(
-            update={"data": DiagnosisConflict(conflict_product_ids=e.product_ids)},
-        )
-        return JSONResponse(status_code=status.HTTP_409_CONFLICT, content=body.model_dump(mode="json", by_alias=True))
+        raise AIServiceError(
+            response_code=AIResponseCode.SESSION_CONFLICT.value,
+            data=DiagnosisConflict(conflict_product_ids=e.product_ids),
+        ) from e
     except QueueFullError as e:
-        body = fail(ERROR_QUEUE_FULL, str(e))
-        return JSONResponse(status_code=status.HTTP_429_TOO_MANY_REQUESTS, content=body.model_dump(mode="json", by_alias=True))
+        raise AIServiceError(response_code=AIResponseCode.QUEUE_FULL.value, retryable=True) from e
 
     return DiagnosisAcceptedResponse(
         code="OK",
