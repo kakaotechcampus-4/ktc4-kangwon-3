@@ -1,4 +1,4 @@
-import { truncateToCodeUnitLength } from "@/lib/text";
+import { countGraphemes, truncateGraphemes, truncateToCodeUnitLength } from "@/lib/text";
 
 interface FormFieldProps {
     id: string
@@ -15,9 +15,15 @@ const FIELD_CLASSES =
 
 function FormField({ id, title, placeholder, variant = 'input', value, onChange, maxLength }: FormFieldProps) {
     // 네이티브 maxLength는 한글 등 IME 조합 중에는 실시간으로 길이를 막지 못하므로 직접 잘라준다.
-    // 이모지가 중간에서 잘리지 않도록 grapheme 단위로 자른다.
     const handleChange = (newValue: string) => {
-        onChange(maxLength !== undefined ? truncateToCodeUnitLength(newValue, maxLength) : newValue);
+        // 최대 길이 제한이 없다면 바로 반영한다.
+        if (maxLength === undefined) {
+            onChange(newValue);
+            return;
+        }
+        // textarea : 제품 설명에 쓰이는 type. 코드 유닛 기준으로 자른다.
+        // input : 제품명 / link에 쓰이는 type. 보이는 글자 수(grapheme) 기준으로 자른다. link는 이모지를 포함하지 않으므로 grapheme와 코드 유닛 기준 길이가 동일.
+        onChange(variant === 'textarea' ? truncateToCodeUnitLength(newValue, maxLength) : truncateGraphemes(newValue, maxLength));
     };
 
     return (
@@ -25,7 +31,7 @@ function FormField({ id, title, placeholder, variant = 'input', value, onChange,
             <div className="flex w-full items-center gap-3.75">
                 <label className="text-xl leading-6 font-semibold text-black" htmlFor={id}>{title}</label>
                 {maxLength !== undefined && (
-                    <span className="text-xs leading-3.5 text-neutral-border">{value.length}/{maxLength}</span>
+                    <span className="text-xs leading-3.5 text-neutral-border">{variant === 'textarea' ? value.length : countGraphemes(value)}/{maxLength}</span>
                 )}
             </div>
             {variant === 'textarea' ? (
@@ -44,7 +50,6 @@ function FormField({ id, title, placeholder, variant = 'input', value, onChange,
                     placeholder={placeholder}
                     value={value}
                     onChange={(e) => handleChange(e.target.value)}
-                    maxLength={maxLength}
                     className={`${FIELD_CLASSES} h-13`}
                 />
             )}
