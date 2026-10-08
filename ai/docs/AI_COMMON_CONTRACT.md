@@ -837,6 +837,145 @@ PublicProductEvent = Annotated[
 ]
 ```
 
+### 7.1.3 BE·FE 전달용 상품 진단 결과 — 새 제안
+
+상태: **Proposed / BE·FE 합의 전**. 이 절은 공개 데이터와 표시 기준만 정의한다.
+내부 판단 선별·재시도·이슈 분류 알고리즘은 이 API 계약의 범위가 아니다.
+실제 DTO 모듈·변환·전송 코드는 아직 구현하지 않았다. 아래는 BE의 현재 저장 모델과 동일한 형식이 아니며, 마지막의 세 가지 확인 사항을 합의한 뒤 적용한다.
+
+- 종료 콜백 ProductResultEvent는 실행 종료와 assessment_id만 알린다.
+- 아래 PublicAssessmentDto는 콜백과 별도로 전달하는 상품 하나의 결과다.
+- BE는 합의한 방식으로 결과를 저장·전달한다. 상품명·이미지는 기존 BE 상품 정보를 사용한다.
+- 공개 가능한 판단·안내를 결정하는 책임은 AI에 있다. BE·FE가 원본 검증 이슈로 판단의 유효성을 재검사하지 않는다.
+
+#### 목표 스키마
+
+ApiModel은 §7.1.2의 공용 API 모델을 사용한다. 질문은 입력 대기 콜백에서만 전달한다.
+내부 FinalAssessment와 LLM 스키마는 변경하지 않는다.
+
+```python
+from typing import Literal
+
+from pydantic import Field, model_validator
+
+from app.schemas.schemas import Determination, OverallStatus, RiskLevel
+
+
+class PublicLegalSourceDto(ApiModel):
+    source_name: str = Field(min_length=1)
+    law_name: str | None = None
+    article: str | None = None
+    quoted_text: str | None = None
+    source_url: str | None = None
+    effective_date: str | None = None
+
+
+class PublicFindingDto(ApiModel):
+    finding_id: str = Field(min_length=1)
+    subject: str = Field(min_length=1)
+    determination: Determination
+    risk_level: RiskLevel
+    summary: str = Field(min_length=1)
+    rationale: str = Field(min_length=1)
+    legal_sources: list[PublicLegalSourceDto] = Field(default_factory=list)
+
+
+class PublicToolReviewDto(ApiModel):
+    # BE AgentType의 6개 규제 분야 이름을 사용.
+    agent_type: Literal[
+        "CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD",
+    ]
+    # 내부 ToolStatus가 아닌 공개 검토 상태
+    status: Literal["reviewed", "skipped", "incomplete"]
+    message: str | None = None
+    findings: list[PublicFindingDto] = Field(default_factory=list)
+
+
+class PublicAssessmentDto(ApiModel):
+    diagnosis_id: str = Field(min_length=1)
+    product_id: str = Field(min_length=1)
+    assessment_id: str = Field(min_length=1)
+    status: Literal["completed", "incomplete"]
+    overall_status: OverallStatus | None
+    summary: str = Field(min_length=1)
+    tool_reviews: list[PublicToolReviewDto] = Field(default_factory=list)
+    required_actions: list[str] = Field(default_factory=list)
+    notices: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_display_state(self):
+        if self.status == "completed" and self.overall_status is None:
+            raise ValueError("완료 결과에는 종합 판단이 필요합니다.")
+        if self.status != "completed" and self.overall_status is not None:
+            raise ValueError("미완료에는 종합 결론을 넣지 않습니다.")
+        if self.status == "incomplete" and not self.notices:
+            raise ValueError("미완료 결과에는 공개 안내가 필요합니다.")
+        names = [review.agent_type for review in self.tool_reviews]
+        if len(names) != len(set(names)):
+            raise ValueError("같은 분야의 검토 카드를 중복 전달하지 않습니다.")
+        return self
+```
+
+#### 필드 의미
+
+| 필드 | 의미 / BE·FE 사용 |
+| --- | --- |
+| diagnosis_id / product_id | 진단서와 상품 연결. 요청 식별자를 유지 |
+| assessment_id | 같은 ID의 종료 콜백과 결과 연결 |
+| status | 결과의 완료 / 미완료. 입력 대기는 별도 콜백 |
+| overall_status | 완료 결과의 종합 판단. 그 외에는 null이므로 결론 배지를 만들지 않음 |
+| summary | AI가 제공하는 공개 요약·상태 안내 |
+| tool_reviews | agent_type별 카드 데이터. INTAKE는 결과 분야가 아니라 진행 카드 |
+| required_actions | 상품 전체의 후속 조치 목록. Tool 카드에 임의 배분하지 않음 |
+| notices | 검토 범위·정보 부족·제외된 내용 등의 공개 한계 안내 |
+
+Tool 카드의 status는 다음 뜻이다.
+
+| 값 | 뜻 |
+| --- | --- |
+| reviewed | 해당 분야의 공개 검토 내용을 반환함. 규제 비대상·안전·기관 인증을 뜻하지 않음 |
+| skipped | 검토하지 않은 분야. 규제 비대상 판단과 구분 |
+| incomplete | 일부 또는 전부를 확인하지 못함. 공개 가능한 부분 판단은 함께 표시할 수 있음 |
+
+기록이 누락된 분야는 AI가 incomplete와 안내 문구로 표현하거나 notices에 명시한다.
+이는 공개 검토 상태의 표현이지 원본 ToolResult를 보충·수정하는 것이 아니다.
+FE가 내부 ToolStatus·기록 개수·선택 목록을 조합해 이 상태를 추론하지 않는다.
+BE의 COMPLETED/SKIPPED/FAILED와는 별도 의미다. reviewed→COMPLETED, skipped→SKIPPED를 제안하되,
+정보 부족인 incomplete를 FAILED로 자동 변환하지 않는다. FAILED에는 FE 재호출 버튼이 연결돼 있어 별도 합의가 필요하다.
+
+#### 내부 결과와 공개 결과의 관계
+
+| 내부 기준 | 공개 status | overall_status |
+| --- | --- | --- |
+| 정상 종료 + VERIFIED / VERIFIED_WITH_WARNINGS | completed | 내부 종합 판단을 공개용으로 전달 |
+| 첫 진단의 USER_INPUT_REQUIRED + INCOMPLETE | 입력 대기 콜백만 전달. 이 결과 DTO는 보내지 않음 | 해당 없음 |
+| 수정 필요·횟수 제한·개선 없음·비용 제한 등 + INCOMPLETE | incomplete | null |
+| 결과 객체를 만들지 못한 예외 | 이 결과 DTO를 보내지 않음. 오류 계약으로 전달 | 해당 없음 |
+
+- completed는 검증 흐름이 완료됐다는 뜻이다. action_required·high_risk·insufficient_information 같은 종합 판단도 가능하며 판매 적법성이나 기관 승인을 보증하지 않는다.
+- 불확실한 판단과 검토하지 않은 범위는 AI가 summary·message·notices로 설명한다. 가정·한계를 숨긴 채 확정 문구만 내보내지 않는다.
+- finding은 해당 카드 안에만 두어 분야와 판단 배열을 중복하지 않는다. 빈 findings는 요건 없음이 아니다.
+- required_actions는 전역 목록이다. 질문·자유 형식 missing_information은 이 결과에 중복 전달하지 않는다.
+- 판단에 사용하지 않은 자료는 내부에 보존한다. 공개 근거에는 실제로 사용한 공개 자료만 연결하고 mock 근거는 생략한다. 실제 근거가 없는 판단을 근거 있는 확정 결론으로 표시하지 않도록 AI가 한계를 안내한다.
+- §7.1.1의 FinalAssessment·Pipeline 종료 Trace는 같은 내부 종료 사유를 유지한다. 이 공개 DTO에는 별도의 표시 status로 매핑하고 termination_reason을 중복 전달하지 않는다. null 종합 판단도 공개 표현이며 내부 결과를 수정하는 것이 아니다.
+
+#### 전달·표시 원칙
+
+1. AI가 허용된 공개 필드에 안전한 값만 채운다. trace·query·raw_response·원본 오류·Prompt·전체 상품 원문·내부 이슈 메타데이터는 보내지 않는다.
+2. 모든 중첩 DTO는 ApiModel을 사용하며 model_dump(mode="json", by_alias=True)로 camelCase 직렬화한다. URL·인용·안내 문구의 안전성은 필드 선택만으로 보장되지 않으므로 AI가 확인한다.
+3. completed의 overall_status는 검토 요약 배지이며 구매대행 가능·인증 필요 같은 사업 결론이 아니다. incomplete는 미완료로 표시하고 부분 판단을 상품 전체의 결론으로 확대하지 않는다.
+4. 종료 콜백과 결과는 같은 assessment_id로 연결한다. 질문은 입력 대기 콜백 하나에서만 전달하며, 콜백 수신을 결과 본문의 수신·저장 완료로 간주하지 않는다.
+5. 실제 결과 전달 경로·준비 시점·재전송·BE 상태 매핑은 별도 API 합의 대상이다. 이 문서는 새로운 endpoint나 전송 방식을 확정하지 않는다.
+
+#### BE·FE와 먼저 합의할 세 가지
+
+1. **결과 분류:** BE resultStatus는 구매대행 가능·사입 인증 필요·재확인 필요의 3종이다. AI overall_status와 단순 대응하지 않는다. BE가 overall_status를 별도 저장할지, 사업 판단 기준과 입력을 합의한 뒤 AI가 result_status도 보낼지 정한다. high_risk를 판매 불가로, action_required를 인증 필요로 임의 변환하지 않는다.
+2. **저장·카드:** 현재 AgentReview는 분야·상태·description 중심이며 findings·근거·조치·안내의 저장 계약은 없다. JSON/테이블로 보존할지, v1을 카드 message만으로 축소할지 정한다. 축소 시 근거·상세 결과를 저장·재조회할 수 없다는 범위도 명시한다. incomplete의 상태 매핑과 INTAKE 진행 카드의 생성 주체도 확인한다.
+3. **질문·재개:** 현재 BE는 첫 진단에 한 번만 질문하고 답변 후에는 다시 질문하지 않는다. 질문 회차를 AI에 전달하고, 답변 후에도 부족하면 incomplete 결과로 끝내는 처리를 #265에서 구현·합의해야 한다. 콜백 질문은 BE의 questionKey(상품 내 유일·50자 이하)·questionOrder·questionText·helpText와 맞춰야 하며 §7.1.2의 질문 DTO도 함께 이관한다. 아직 그 호환이나 재질문 제한이 구현됐다고 간주하지 않는다.
+
+내부 ToolName→공개 분야 이름은 CUSTOMS/CHILDREN/ELECTRICAL/RADIO/FOOD_DRUG/LABEL_AD의 대응으로 AI가 변환한다.
+위 사항이 미확정인 동안 이 문서는 바로 연동 가능한 명세가 아니다. 화면·저장에 필요한 필드만 추가하며 내부 선별 알고리즘은 별도로 다룬다.
+
 ### 7.2 운영 로그 규칙
 
 | 레벨 | 용도 |
