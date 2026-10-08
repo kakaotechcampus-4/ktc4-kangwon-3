@@ -93,24 +93,42 @@ class LicbylSearchResponse(BaseModel):
 
 # -- 법령본문 --
 
-class LawArticleSubItem(BaseModel):
-    """항·호·목 하위 항목."""
+class LawSubItem(BaseModel):
+    """목 단건. 내용에 번호 포함 (예: "가. 정격")."""
 
     number: str | None = None
     content: str | None = None
 
 
+class LawItem(BaseModel):
+    """호 단건. 내용에 번호 포함 (예: "1. 법인의 정관").
+
+    4의2호는 number "4.", branch_number "2".
+    """
+
+    number: str | None = None
+    branch_number: str | None = None
+    content: str | None = None
+    sub_items: list[LawSubItem] = []
+
+
+class LawParagraph(BaseModel):
+    """항 단건. 항번호 없이 호만 있는 항은 number·content가 None."""
+
+    number: str | None = None
+    content: str | None = None
+    items: list[LawItem] = []
+
+
 class LawArticle(BaseModel):
-    """법령 조문 단건."""
+    """법령 조문 단건. 항 → 호 → 목 순서로 중첩."""
 
     article_number: str | None = None
     article_branch_number: str | None = None
     article_is_exist: str | None = None
     article_title: str | None = None
     article_content: str | None = None
-    paragraphs: list[LawArticleSubItem] = []
-    items: list[LawArticleSubItem] = []
-    sub_items: list[LawArticleSubItem] = []
+    paragraphs: list[LawParagraph] = []
     enforce_date: str | None = None
     reference: str | None = None
 

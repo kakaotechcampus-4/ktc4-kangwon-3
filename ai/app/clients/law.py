@@ -11,9 +11,11 @@ from ..schemas.clients.law_response import (
     AdmrulSearchResponse,
     LawAnnex,
     LawArticle,
-    LawArticleSubItem,
+    LawItem,
+    LawParagraph,
     LawSearchItem,
     LawSearchResponse,
+    LawSubItem,
     LawTextResponse,
     LicbylSearchItem,
     LicbylSearchResponse,
@@ -436,9 +438,7 @@ class LawClient(BaseClient):
             article_is_exist=self._text(el, "조문여부"),
             article_title=self._text(el, "조문제목"),
             article_content=self._text(el, "조문내용"),
-            paragraphs=self._parse_sub_items(el, "항", "항번호", "항내용"),
-            items=self._parse_sub_items(el, "호", "호번호", "호내용"),
-            sub_items=self._parse_sub_items(el, "목", "목번호", "목내용"),
+            paragraphs=[self._parse_paragraph(paragraph) for paragraph in el.findall("항")],
             enforce_date=self._text(el, "조문시행일자"),
             reference=self._text(el, "조문참고자료"),
         )
@@ -460,33 +460,50 @@ class LawClient(BaseClient):
             annex_content=self._text(el, "별표내용"),
         )
 
-    @staticmethod
-    def _parse_sub_items(
-        parent: Element,
-        tag: str,
-        number_tag: str,
-        content_tag: str,
-    ) -> list[LawArticleSubItem]:
-        """항·호·목 하위 항목을 파싱한다.
+    def _parse_paragraph(self, el: Element) -> LawParagraph:
+        """항 하나를 파싱한다. 직계 자식 호만 읽음.
 
         Args:
-            parent: 부모 엘리먼트 (<조문단위> 또는 <항>).
-            tag: 찾을 태그명 (항, 호, 목).
-            number_tag: 번호 태그명.
-            content_tag: 내용 태그명.
+            el: <항> 엘리먼트.
 
         Returns:
-            list[LawArticleSubItem]: 파싱된 하위 항목 목록.
+            LawParagraph: 파싱된 항. 항번호 없이 호만 있으면 number·content가 None.
         """
-        results = []
-        for child in parent.iter(tag):
-            num_el = child.find(number_tag)
-            content_el = child.find(content_tag)
-            results.append(LawArticleSubItem(
-                number=num_el.text if num_el is not None else None,
-                content=content_el.text if content_el is not None else None,
-            ))
-        return results
+        return LawParagraph(
+            number=self._text(el, "항번호"),
+            content=self._text(el, "항내용"),
+            items=[self._parse_item(item) for item in el.findall("호")],
+        )
+
+    def _parse_item(self, el: Element) -> LawItem:
+        """호 하나를 파싱한다. 직계 자식 목만 읽음.
+
+        Args:
+            el: <호> 엘리먼트.
+
+        Returns:
+            LawItem: 파싱된 호.
+        """
+        return LawItem(
+            number=self._text(el, "호번호"),
+            branch_number=self._text(el, "호가지번호"),
+            content=self._text(el, "호내용"),
+            sub_items=[self._parse_sub_item(sub_item) for sub_item in el.findall("목")],
+        )
+
+    def _parse_sub_item(self, el: Element) -> LawSubItem:
+        """목 하나를 파싱한다.
+
+        Args:
+            el: <목> 엘리먼트.
+
+        Returns:
+            LawSubItem: 파싱된 목.
+        """
+        return LawSubItem(
+            number=self._text(el, "목번호"),
+            content=self._text(el, "목내용"),
+        )
 
     @staticmethod
     def _text(element: Element, tag: str) -> str | None:
