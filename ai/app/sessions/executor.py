@@ -11,6 +11,7 @@ from threading import Lock
 from typing import Protocol
 
 from ..config import MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS
+from ..errors import AIResponseCode
 from ..observability.context import ExecutionContext, PipelineStage
 from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
@@ -19,10 +20,6 @@ from ..schemas.session import DiagnosisSession
 from .store import SessionStore
 
 logger = logging.getLogger(__name__)
-
-# 실패 코드. #171 §6 응답 코드 체계가 BE와 합의되면 교체
-ERROR_PIPELINE = "AI_PIPELINE_ERROR"
-ERROR_TIMEOUT = "AI_TIMEOUT"
 
 
 class ProgressReporter(Protocol):
@@ -132,7 +129,9 @@ class SessionExecutor:
         for session in self.store.unfinished():
             if session.accepted_at > deadline:
                 continue
-            failed = self.store.fail(session.context, error_code=ERROR_TIMEOUT, retryable=True)
+            failed = self.store.fail(
+                session.context, error_code=AIResponseCode.TIMEOUT.value.code, retryable=True,
+            )
             if failed is not None:
                 expired += 1
                 self._publish(failed)
@@ -162,7 +161,9 @@ class SessionExecutor:
                     "진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id,
                 )
                 # 일시적 오류인지 알 수 없어 재시도 불가로 기록. 코드 오류를 BE가 계속 재요청하지 않게 함
-                self._publish(self.store.fail(context, error_code=ERROR_PIPELINE, retryable=False))
+                self._publish(self.store.fail(
+                    context, error_code=AIResponseCode.PIPELINE_ERROR.value.code, retryable=False,
+                ))
                 return
             self._publish(self.store.finish(context, result))
         finally:

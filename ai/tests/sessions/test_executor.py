@@ -11,7 +11,7 @@ from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
 from app.schemas.session import SessionStatus
-from app.sessions.executor import ERROR_PIPELINE, ERROR_TIMEOUT, QueueFullError, SessionExecutor
+from app.sessions.executor import QueueFullError, SessionExecutor
 from app.sessions.store import SessionConflictError, SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
@@ -110,7 +110,7 @@ def test_진단_함수_예외는_재시도_불가_실패로_기록한다(executo
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.FAILED)
 
     session = executor.store.get("p-1")
-    assert (session.error_code, session.retryable) == (ERROR_PIPELINE, False)
+    assert (session.error_code, session.retryable) == ("AI_PIPELINE_ERROR", False)
 
 
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(executors):
@@ -184,7 +184,7 @@ def test_최대_시간을_넘긴_세션은_시간_초과로_끝내고_늦게_온
     clock.now = START + timedelta(minutes=10)
     assert executor.expire_overdue() == 1
     session = executor.store.get("p-1")
-    assert (session.status, session.error_code) == (SessionStatus.FAILED, ERROR_TIMEOUT)
+    assert (session.status, session.error_code) == (SessionStatus.FAILED, "AI_TIMEOUT")
     # 시간 초과는 대기·지연 같은 일시적 원인이라 재시도 가능
     assert session.retryable is True
 
