@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .database import DatabaseNotConfiguredError, get_engine
-from .exception_handlers import register_exception_handlers
+from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .routers import diagnose, dummy, health
 from .routers._dummy import run_dummy_diagnosis
 from .sessions.executor import SessionExecutor
@@ -84,7 +84,8 @@ register_exception_handlers(app)
 
 api_v1 = APIRouter(prefix="/api/ai/v1")
 api_v1.include_router(health.router)
-api_v1.include_router(diagnose.router)
-api_v1.include_router(dummy.router)
+# 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
+api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
+api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
 
 app.include_router(api_v1)

@@ -187,3 +187,24 @@ def test_실제_앱에도_핸들러가_등록되어_있다():
 
     assert response.status_code == 404
     assert response.json()["code"] == "AI_NOT_FOUND"
+
+
+def _response_422_schema(operation: dict) -> str | None:
+    schema = operation.get("responses", {}).get("422", {}).get("content", {}).get("application/json", {}).get("schema", {})
+    return schema.get("$ref", "").rsplit("/", 1)[-1] or None
+
+
+def test_Swagger의_422는_요청_본문이_있는_API만_공통_응답_형식으로_표시한다():
+    # #283 리뷰: 기본 HTTPValidationError 대신 실제 응답 형식(ApiResponse)
+    paths = main_app.openapi()["paths"]
+    body_routes = [
+        ("/api/ai/v1/diagnose/content", "post"),
+        ("/api/ai/v1/diagnose/url", "post"),
+        ("/api/ai/v1/dummy/diagnose/content", "post"),
+        ("/api/ai/v1/dummy/diagnose/url", "post"),
+    ]
+
+    assert [_response_422_schema(paths[path][method]) for path, method in body_routes] == ["ApiResponse"] * 4
+    # 본문 없는 health에는 422가 붙지 않음
+    assert "422" not in paths["/api/ai/v1/health"]["get"]["responses"]
+    assert "422" not in paths["/api/ai/v1/health/ready"]["get"]["responses"]

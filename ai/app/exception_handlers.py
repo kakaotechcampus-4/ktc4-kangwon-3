@@ -23,6 +23,8 @@ _HTTP_STATUS_CODES = {
     404: AIResponseCode.NOT_FOUND.value,
     405: AIResponseCode.METHOD_NOT_ALLOWED.value,
 }
+# Swagger의 422 응답 스키마. 요청 본문이 있는 라우터에 지정 (기본 HTTPValidationError 대신 실제 응답 형식)
+VALIDATION_ERROR_RESPONSES = {422: {"model": ApiResponse, "description": "요청 형식 오류 (details에 필드별 오류)"}}
 # 요청 위치 접두어. 필드 경로에서 제외
 _LOCATION_PREFIXES = frozenset({"body", "query", "path", "header", "cookie"})
 _VALUE_ERROR_PREFIX = "Value error, "
