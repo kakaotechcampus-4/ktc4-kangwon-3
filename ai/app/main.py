@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .database import DatabaseNotConfiguredError, get_engine
+from .exception_handlers import register_exception_handlers
 from .routers import diagnose, dummy, health
 from .routers._dummy import run_dummy_diagnosis
 from .sessions.executor import SessionExecutor
@@ -79,6 +80,7 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+register_exception_handlers(app)
 
 api_v1 = APIRouter(prefix="/api/ai/v1")
 api_v1.include_router(health.router)
