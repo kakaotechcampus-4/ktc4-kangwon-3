@@ -109,9 +109,12 @@ def test_재채점은_어떤_조건으로_잰_값인지_먼저_알린다(tmp_pat
 def test_지문을_재는_파일과_에이전트가_읽는_내용이_같다():
     # 경로 상수만 맞춰서는 부족하다. 에이전트가 다른 경로로 읽도록 바뀌면 지문은
     # 엉뚱한 파일에서 나오는데 상수 비교로는 잡히지 않는다. 실제로 읽힌 내용으로 본다.
-    from app.agents.extraction import _load_system_prompt
+    from app.agents.extraction import ExtractionAgent
+    from app.prompts import get_prompt
 
-    assert EXTRACTION_PROMPT_PATH.read_text(encoding="utf-8") == _load_system_prompt()
+    agent_prompt = get_prompt(ExtractionAgent.prompt_name)
+    assert agent_prompt.path == EXTRACTION_PROMPT_PATH
+    assert EXTRACTION_PROMPT_PATH.read_text(encoding="utf-8") == agent_prompt.text
 
 
 def test_지문이_없는_기록도_알_수_없다고_알린다():
