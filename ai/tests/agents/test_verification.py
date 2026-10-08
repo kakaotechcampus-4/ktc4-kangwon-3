@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from openai.lib._parsing._completions import type_to_response_format_param
 from langchain_core.messages import AIMessage
 
 from app.agents.base import AgentError, MissingParsedOutput
@@ -124,7 +125,7 @@ class _StubModel:
         self.received_config: dict | None = None
 
     def with_structured_output(self, schema: type, **kwargs):
-        assert schema is _Review
+        assert schema == type_to_response_format_param(_Review)["json_schema"]
         self.structured_kwargs = kwargs
         return self
 
