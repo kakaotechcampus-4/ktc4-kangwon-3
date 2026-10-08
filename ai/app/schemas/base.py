@@ -25,3 +25,9 @@ class ApiModel(BaseModel):
         extra="forbid", frozen=True,
         alias_generator=to_camel, populate_by_name=True,
     )
+
+
+# BE가 보내는 요청 본문 전용. snake_case 키는 거부, camelCase만 허용
+# ApiModel의 populate_by_name은 응답 모델을 코드에서 필드 이름으로 만들 때만 필요
+class ApiRequestModel(ApiModel):
+    model_config = ConfigDict(validate_by_name=False)
