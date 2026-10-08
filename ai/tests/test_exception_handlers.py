@@ -82,6 +82,13 @@ def test_snake_case_키는_camelCase_필드_누락과_정의되지_않은_필드
     assert fields == {"diagnosisId", "diagnosis_id"}
 
 
+def test_JSON_문법_오류는_문자_위치_대신_body로_알린다(client):
+    response = client.post("/validate", content='{"diagnosisId":', headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 422
+    assert response.json()["details"] == [{"field": "body", "message": "JSON decode error"}]
+
+
 def test_AIServiceError는_코드의_상태와_공개_data로_응답한다(client):
     response = client.get("/conflict")
 
