@@ -39,14 +39,14 @@ class QueueFullError(RuntimeError):
 
 
 class _Progress:
-    """세션 하나의 진행 알림. 저장소 갱신 후 구독자에게 전달."""
+    """세션 하나의 진행 알림. 저장소 갱신 후 구독자에게 전달. 자기 실행(run_id)의 세션만 갱신."""
 
-    def __init__(self, executor: "SessionExecutor", product_id: str) -> None:
+    def __init__(self, executor: "SessionExecutor", context: ExecutionContext) -> None:
         self._executor = executor
-        self._product_id = product_id
+        self._context = context
 
     def stage(self, stage: PipelineStage) -> None:
-        self._executor._publish(self._executor.store.update_stage(self._product_id, stage))
+        self._executor._publish(self._executor.store.update_stage(self._context, stage))
 
 
 class SessionExecutor:
@@ -130,7 +130,7 @@ class SessionExecutor:
             if session.accepted_at > deadline:
                 continue
             failed = self.store.fail(
-                session.context.product_id, error_code=AIResponseCode.TIMEOUT.value.code, retryable=True,
+                session.context, error_code=AIResponseCode.TIMEOUT.value.code, retryable=True,
             )
             if failed is not None:
                 expired += 1
@@ -147,22 +147,25 @@ class SessionExecutor:
 
     def _run(self, item: ExtractionInput, context: ExecutionContext) -> None:
         """세션 하나를 실행한다. 예외는 실패로 기록하고 밖으로 내보내지 않음."""
-        product_id = context.product_id
+        # 저장소 갱신은 모두 이 실행의 context로. 시간 초과 뒤 재접수된 새 세션은 건드리지 않음
         try:
-            started = self.store.start(product_id)
+            started = self.store.start(context)
             # 대기 중 시간 초과로 이미 실패한 세션
             if started is None:
                 return
             self._publish(started)
             try:
-                result = self._job(item, context, _Progress(self, product_id))
+                result = self._job(item, context, _Progress(self, context))
             except Exception:
-                logger.exception("진단 실행 실패 (product_id=%s, run_id=%s)", product_id, context.run_id)
+                logger.exception(
+                    "진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id,
+                )
+                # 일시적 오류인지 알 수 없어 재시도 불가로 기록. 코드 오류를 BE가 계속 재요청하지 않게 함
                 self._publish(self.store.fail(
-                    product_id, error_code=AIResponseCode.PIPELINE_ERROR.value.code, retryable=True,
+                    context, error_code=AIResponseCode.PIPELINE_ERROR.value.code, retryable=False,
                 ))
                 return
-            self._publish(self.store.finish(product_id, result))
+            self._publish(self.store.finish(context, result))
         finally:
             # 답변 대기로 끝나도 실행 자리 반납
             with self._lock:

@@ -100,7 +100,8 @@ def test_결과가_나오면_완료로_기록하고_상태_변화를_구독자�
     ]
 
 
-def test_진단_함수_예외는_실패로_기록한다(executors):
+def test_진단_함수_예외는_재시도_불가_실패로_기록한다(executors):
+    # 원인을 알 수 없는 예외는 코드 오류일 수 있어 BE가 재요청하지 않게 함 (#280 리뷰)
     job = _GatedJob(raise_error=True)
     executor = _executor(executors, job)
 
@@ -109,7 +110,7 @@ def test_진단_함수_예외는_실패로_기록한다(executors):
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.FAILED)
 
     session = executor.store.get("p-1")
-    assert (session.error_code, session.retryable) == ("AI_PIPELINE_ERROR", True)
+    assert (session.error_code, session.retryable) == ("AI_PIPELINE_ERROR", False)
 
 
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(executors):
@@ -184,10 +185,50 @@ def test_최대_시간을_넘긴_세션은_시간_초과로_끝내고_늦게_온
     assert executor.expire_overdue() == 1
     session = executor.store.get("p-1")
     assert (session.status, session.error_code) == (SessionStatus.FAILED, "AI_TIMEOUT")
+    # 시간 초과는 대기·지연 같은 일시적 원인이라 재시도 가능
+    assert session.retryable is True
 
     job.release("p-1")
     _wait_until(lambda: executor._inflight == 0)
     assert _status(executor.store, "p-1") is SessionStatus.FAILED
+
+
+def test_시간_초과_뒤_재접수한_세션은_옛_실행이_덮어쓰지_않는다(executors):
+    # #280 리뷰 재현: 시간 초과(failed) → 재접수(새 run_id로 running) → 옛 스레드 종료
+    clock = _Clock()
+    gates = {"old": threading.Event(), "new": threading.Event()}
+    started = {"old": threading.Event(), "new": threading.Event()}
+
+    def job(item, context, progress):
+        label = "new" if started["old"].is_set() else "old"
+        started[label].set()
+        gates[label].wait(timeout=5)
+        if label == "old":
+            progress.stage(PipelineStage.VERIFICATION)
+        result = build_dummy_assessment(item.product_id)
+        return result.model_copy(update={"product": result.product.model_copy(update={"product_name": label})})
+
+    executor = _executor(executors, job, clock=clock, max_duration=timedelta(minutes=10))
+    executor.submit("d-1", _inputs("p-1"))
+    started["old"].wait(timeout=5)
+    clock.now = START + timedelta(minutes=10)
+    executor.expire_overdue()
+
+    executor.submit("d-2", _inputs("p-1"))
+    started["new"].wait(timeout=5)
+    new_run_id = executor.store.get("p-1").context.run_id
+
+    # 옛 실행이 끝나도 새 세션의 단계·상태·결과는 그대로
+    gates["old"].set()
+    _wait_until(lambda: executor._inflight == 1)
+    session = executor.store.get("p-1")
+    assert (session.status, session.stage, session.result) == (SessionStatus.RUNNING, None, None)
+
+    gates["new"].set()
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+    session = executor.store.get("p-1")
+    assert session.context.run_id == new_run_id
+    assert session.result.product.product_name == "new"
 
 
 def test_구독자_오류는_실행을_멈추지_않는다(executors):
