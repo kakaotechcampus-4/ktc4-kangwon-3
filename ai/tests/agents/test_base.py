@@ -241,14 +241,19 @@ def test_메시지는_시스템_프롬프트와_사용자_입력으로_만든다
 # ---------- 실제 ChatOpenAI + 가짜 게이트웨이 (스트리밍) ----------
 
 
-def _gateway(content: str, finish: str, requests: list[dict]) -> ChatOpenAI:
+def _gateway(content: str | None, finish: str, requests: list[dict], *, refusal: str | None = None) -> ChatOpenAI:
     """스트리밍 응답을 돌려주는 가짜 게이트웨이에 붙은 실제 ChatOpenAI. 네트워크로 나가지 않음."""
+    delta = {"role": "assistant"}
+    if content is not None:
+        delta["content"] = content
+    if refusal is not None:
+        delta["refusal"] = refusal
 
     def respond(request: httpx.Request) -> httpx.Response:
         requests.append(json.loads(request.content))
         base = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "gpt-4.1-mini"}
         chunks = [
-            {**base, "choices": [{"index": 0, "delta": {"role": "assistant", "content": content}, "finish_reason": None}]},
+            {**base, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]},
             {**base, "choices": [{"index": 0, "delta": {}, "finish_reason": finish}]},
             # 사용량은 스트림 마지막 조각으로 옴
             {**base, "choices": [], "usage": {"prompt_tokens": 1000, "completion_tokens": 100, "total_tokens": 1100}},
@@ -283,7 +288,11 @@ def test_실제_모델에서도_SDK와_같은_response_format을_보낸다(recor
 @pytest.mark.parametrize(
     ("content", "finish", "cause"),
     [
-        ("이건 JSON이 아님", "stop", "OutputParserException"),
+        ("이건 JSON이 아님", "stop", "ValidationError"),
+        # develop(SDK 엄격 파싱)에서 거절되던 출력. LangChain 파서처럼 보정해 받아들이지 않음
+        ('{"value": "ok"', "stop", "ValidationError"),
+        ('```json\n{"value": "ok"}\n```', "stop", "ValidationError"),
+        ('{"value": "ok"}\n위와 같이 판단했습니다.', "stop", "ValidationError"),
         ('{"wrong": 1}', "stop", "ValidationError"),
         ('{"value": "잘린', "length", "LengthFinishReasonError"),
         ('{"value": "ok"}', "content_filter", "ContentFilterFinishReasonError"),
@@ -300,3 +309,20 @@ def test_스트리밍_출력이_틀려도_토큰을_기록하고_PARSING으로_�
     assert len(records) == 1
     assert (records[0]["ok"], records[0]["error_type"]) == (False, cause)
     assert (records[0]["usage"].input_tokens, records[0]["usage"].output_tokens) == (1000, 100)
+
+
+def test_모델이_거절하면_토큰을_기록하고_OpenAIRefusalError를_원인으로_연결한다(records):
+    with pytest.raises(_FakeError, match="parsing 실패") as caught:
+        _FakeAgent(_gateway(None, "stop", [], refusal="처리할 수 없습니다."))._invoke(
+            [HumanMessage(content="x")], subject_id="p-1",
+        )
+
+    assert type(caught.value.__cause__).__name__ == "OpenAIRefusalError"
+    assert (records[0]["error_type"], records[0]["usage"].input_tokens) == ("OpenAIRefusalError", 1000)
+
+
+def test_빈_응답도_토큰을_기록하고_PARSING으로_감싼다(records):
+    with pytest.raises(_FakeError, match="parsing 실패"):
+        _FakeAgent(_gateway("", "stop", []))._invoke([HumanMessage(content="x")], subject_id="p-1")
+
+    assert (records[0]["ok"], records[0]["usage"].input_tokens) == (False, 1000)
