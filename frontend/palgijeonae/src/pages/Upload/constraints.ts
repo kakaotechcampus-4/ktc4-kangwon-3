@@ -1,5 +1,8 @@
-// 제품명 길이 제한
+// 제품명 길이 제한(보이는 글자 수/grapheme 기준). 입력 중 실시간으로 자르는 기준이자 사용자에게 보여주는 숫자.
 export const MAX_PRODUCT_NAME_LENGTH = 100;
+
+// 백엔드 제한(코드 유닛 기준). 입력 중 실시간으로 자르지 않고 제출 시점에 검증하는 기준.
+export const MAX_PRODUCT_NAME_CODE_UNIT_LENGTH = 200;
 
 // 상세페이지 이미지 장수 제한
 export const MAX_PRODUCT_IMAGE_COUNT = 20;
