@@ -26,6 +26,9 @@ ALLOWED_MODELS = frozenset({"openai/gpt-4.1-mini"})
 TIMEOUT_SECONDS = 45.0
 MAX_RETRIES = 1
 
+# 진단 세션 (#264). 종료된 세션 보관 시간, 답변 대기 세션은 삭제하지 않음
+SESSION_RETENTION_SECONDS = 3600
+
 # 서버 기동을 위한 필수 환경변수 목록
 REQUIRED_ENV = {
     "OPENAI_API_KEY": "api_key",
