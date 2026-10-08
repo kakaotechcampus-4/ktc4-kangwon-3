@@ -161,7 +161,8 @@ class SessionExecutor:
                 logger.exception(
                     "진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id,
                 )
-                self._publish(self.store.fail(context, error_code=ERROR_PIPELINE, retryable=True))
+                # 일시적 오류인지 알 수 없어 재시도 불가로 기록. 코드 오류를 BE가 계속 재요청하지 않게 함
+                self._publish(self.store.fail(context, error_code=ERROR_PIPELINE, retryable=False))
                 return
             self._publish(self.store.finish(context, result))
         finally:
