@@ -4,6 +4,7 @@ import logging
 from types import SimpleNamespace
 
 import pytest
+from openai.lib._parsing._completions import type_to_response_format_param
 
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes, Product
@@ -28,7 +29,7 @@ class _StubChatModel:
         self.received_messages: list | None = None
 
     def with_structured_output(self, schema: type, include_raw: bool = False) -> "_StubChatModel":
-        assert schema is ProductAttributes
+        assert schema == type_to_response_format_param(ProductAttributes)["json_schema"]
         assert include_raw is True
         return self
 
@@ -167,7 +168,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
 
     ExtractionAgent()
 
-    assert calls == [(ProductAttributes, True)]
+    assert calls == [(type_to_response_format_param(ProductAttributes)["json_schema"], True)]
 
 
 def test_base_url이_없으면_401_대신_ConfigError로_알려준다(monkeypatch):

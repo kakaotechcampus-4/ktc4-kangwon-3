@@ -9,6 +9,8 @@ from time import perf_counter
 from typing import Any, ClassVar, Generic, NoReturn, Protocol, TypeVar
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from openai import ContentFilterFinishReasonError, LengthFinishReasonError
+from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
 from ..config import build_chat_model
@@ -54,6 +56,20 @@ class MissingParsedOutput(RuntimeError):
     """파싱 오류 없이 구조화 출력이 비어 온 경우의 원인 예외."""
 
 
+def _usage_from_completion(completion: Any) -> CallUsage | None:
+    """SDK 종료 사유 예외에 담긴 ChatCompletion에서 사용량을 꺼낸다. 없으면 None."""
+    usage = getattr(completion, "usage", None)
+    if usage is None:
+        return None
+    details = getattr(usage, "prompt_tokens_details", None)
+    return CallUsage(
+        reported_model=getattr(completion, "model", None) or "",
+        input_tokens=usage.prompt_tokens or 0,
+        cached_tokens=getattr(details, "cached_tokens", 0) or 0,
+        output_tokens=usage.completion_tokens or 0,
+    )
+
+
 class ModelFailurePhase(StrEnum):
     CALL = "call"
     PARSING = "parsing"
@@ -97,12 +113,18 @@ class BaseAgent(Generic[OutputT]):
             model = build_chat_model()
         self._configured_model = configured_model or getattr(model, "model_name", None)
         self._usage_agent = usage_agent or self.component_name
-        # include_raw: 원본 응답에서 토큰 사용량을 읽고, 스키마 불일치를 parsing_error로 받음
+        # include_raw: 원본 응답에서 토큰 사용량을 읽고, JSON 오류를 parsing_error로 받음
+        # 스키마는 Pydantic 클래스가 아닌 dict로 넘김. 클래스를 넘기면 SDK가 스트림 도중 파싱하다
+        # 사용량 조각을 받기 전에 예외를 내서 파싱 실패·길이 초과 시 토큰 비용이 기록되지 않음.
+        # dict는 SDK가 클래스를 변환할 때와 같은 함수로 만들어 요청 본문은 그대로.
+        # LangChain은 {"name", "schema", "strict"} 형태만 받아 json_schema 안쪽을 넘김
         self._structured = (
             None
             if model is None
             else model.with_structured_output(
-                self.output_schema, include_raw=True, **self.structured_output_options,
+                type_to_response_format_param(self.output_schema)["json_schema"],
+                include_raw=True,
+                **self.structured_output_options,
             )
         )
 
@@ -149,6 +171,11 @@ class BaseAgent(Generic[OutputT]):
         started_at = perf_counter()
         try:
             result = self._structured.invoke(messages)
+        except (LengthFinishReasonError, ContentFilterFinishReasonError) as exc:
+            # 응답은 다 받았지만 길이 초과·필터로 출력이 잘린 경우. SDK가 예외에 사용량을 담아 줌
+            usage = _usage_from_completion(exc.completion)
+            self._record_usage(usage, subject_id, started_at, error_type=type(exc).__name__)
+            self._raise_model_error(ModelFailurePhase.PARSING, exc, partial_result=partial_result)
         except Exception as exc:
             # 호출 실패는 사용량을 알 수 없음. 시도 횟수 집계용으로 실패만 기록
             self._record_usage(None, subject_id, started_at, error_type=type(exc).__name__)
@@ -156,21 +183,40 @@ class BaseAgent(Generic[OutputT]):
 
         raw_message = result.get("raw")
         usage = from_response(raw_message)
-        parsing_error = result.get("parsing_error")
-        parsed = result.get("parsed")
-        if parsing_error is not None or parsed is None:
-            cause = (
-                parsing_error
-                if isinstance(parsing_error, Exception)
-                else MissingParsedOutput(f"{self.component_name}: 구조화 출력이 비어 있습니다.")
-            )
+        try:
+            output = self._parse_output(result)
+        except Exception as cause:
             # 파싱에 실패해도 토큰은 이미 사용됨
             self._record_usage(usage, subject_id, started_at, error_type=type(cause).__name__)
             self._raise_model_error(ModelFailurePhase.PARSING, cause, partial_result=partial_result)
 
         self._record_usage(usage, subject_id, started_at)
         self._log_token_usage(usage, raw_message)
-        return parsed
+        return output
+
+    def _parse_output(self, result: dict[str, Any]) -> OutputT:
+        """구조화 출력 결과를 출력 스키마로 검증한다. 응답을 다 받은 뒤 실행돼 사용량이 남아 있음.
+
+        Args:
+            result: ``{"raw", "parsed", "parsing_error"}``.
+
+        Returns:
+            OutputT: 검증된 출력.
+
+        Raises:
+            Exception: JSON 오류(parsing_error 그대로), 출력 누락(MissingParsedOutput),
+                스키마·검증 함수 위반(ValidationError).
+        """
+        parsing_error = result.get("parsing_error")
+        if parsing_error is not None:
+            if isinstance(parsing_error, Exception):
+                raise parsing_error
+            raise MissingParsedOutput(f"{self.component_name}: 구조화 출력 파싱 실패: {parsing_error}")
+        parsed = result.get("parsed")
+        if parsed is None:
+            raise MissingParsedOutput(f"{self.component_name}: 구조화 출력이 비어 있습니다.")
+        # dict 스키마라 JSON dict로 옴. 테스트 스텁처럼 모델 객체를 주면 그대로 검증
+        return self.output_schema.model_validate(parsed)
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
         """호출·파싱 실패 시 예외 문구. 각 에이전트가 기존 문구를 돌려줌.

@@ -1,10 +1,14 @@
 """BaseAgent의 모델 호출 순서·사용량 기록·예외 변환(#171 §4.2·§4.4)을 가짜 에이전트로 확인한다."""
 
+import json
 import logging
 
+import httpx
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from pydantic import BaseModel
+from langchain_openai import ChatOpenAI
+from openai.lib._parsing._completions import type_to_response_format_param
+from pydantic import BaseModel, ValidationError
 
 from app.agents.base import AgentError, BaseAgent, MissingParsedOutput, ModelFailurePhase
 from app.prompts import PromptName, get_prompt
@@ -12,6 +16,10 @@ from app.prompts import PromptName, get_prompt
 
 class _Answer(BaseModel):
     value: str
+
+
+# SDK가 Pydantic 클래스를 변환할 때와 같은 dict 스키마의 json_schema 부분
+_ANSWER_FORMAT = type_to_response_format_param(_Answer)["json_schema"]
 
 
 class _FakeError(AgentError):
@@ -87,8 +95,8 @@ def test_include_raw로_구조화_출력을_만들고_에이전트별_옵션을_
     _FakeAgent(plain)
     _StrictFakeAgent(strict)
 
-    assert plain.structured_calls == [(_Answer, {"include_raw": True})]
-    assert strict.structured_calls == [(_Answer, {"include_raw": True, "method": "json_schema", "strict": True})]
+    assert plain.structured_calls == [(_ANSWER_FORMAT, {"include_raw": True})]
+    assert strict.structured_calls == [(_ANSWER_FORMAT, {"include_raw": True, "method": "json_schema", "strict": True})]
 
 
 def test_성공하면_파싱_결과를_돌려주고_사용량을_한_번_기록한다(records):
@@ -141,6 +149,26 @@ def test_파싱_결과가_비면_MissingParsedOutput을_원인으로_연결한�
     assert (len(records), records[0]["error_type"]) == (1, "MissingParsedOutput")
 
 
+def test_dict_출력은_출력_스키마로_검증해_돌려준다(records):
+    model = _StubModel({"raw": _raw(), "parsed": {"value": "ok"}, "parsing_error": None})
+
+    result = _FakeAgent(model)._invoke([], subject_id="p-1")
+
+    assert result == _Answer(value="ok")
+    assert records[0]["ok"] is True
+
+
+def test_스키마_검증에_실패해도_토큰을_기록하고_PARSING으로_감싼다(records):
+    model = _StubModel({"raw": _raw(), "parsed": {"wrong": 1}, "parsing_error": None})
+
+    with pytest.raises(_FakeError, match="parsing 실패") as caught:
+        _FakeAgent(model)._invoke([], subject_id="p-1")
+
+    assert isinstance(caught.value.__cause__, ValidationError)
+    assert len(records) == 1
+    assert (records[0]["ok"], records[0]["error_type"], records[0]["usage"].input_tokens) == (False, "ValidationError", 100)
+
+
 def test_에이전트_예외는_AgentError와_RuntimeError로도_잡힌다(records):
     with pytest.raises(AgentError):
         _FakeAgent(_StubModel(error=RuntimeError("x")))._invoke([], subject_id="p-1")
@@ -162,7 +190,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model로_�
 
     _FakeAgent()
 
-    assert model.structured_calls == [(_Answer, {"include_raw": True})]
+    assert model.structured_calls == [(_ANSWER_FORMAT, {"include_raw": True})]
 
 
 def test_자동_생성을_끈_에이전트는_모델_없이_만들고_호출은_막는다(monkeypatch):
@@ -208,3 +236,67 @@ def test_메시지는_시스템_프롬프트와_사용자_입력으로_만든다
     assert [type(message) for message in messages] == [SystemMessage, HumanMessage]
     assert messages[0].content == get_prompt(PromptName.EXTRACTION).text
     assert messages[1].content == content
+
+
+# ---------- 실제 ChatOpenAI + 가짜 게이트웨이 (스트리밍) ----------
+
+
+def _gateway(content: str, finish: str, requests: list[dict]) -> ChatOpenAI:
+    """스트리밍 응답을 돌려주는 가짜 게이트웨이에 붙은 실제 ChatOpenAI. 네트워크로 나가지 않음."""
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append(json.loads(request.content))
+        base = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "gpt-4.1-mini"}
+        chunks = [
+            {**base, "choices": [{"index": 0, "delta": {"role": "assistant", "content": content}, "finish_reason": None}]},
+            {**base, "choices": [{"index": 0, "delta": {}, "finish_reason": finish}]},
+            # 사용량은 스트림 마지막 조각으로 옴
+            {**base, "choices": [], "usage": {"prompt_tokens": 1000, "completion_tokens": 100, "total_tokens": 1100}},
+        ]
+        body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks) + "data: [DONE]\n\n"
+        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body.encode())
+
+    return ChatOpenAI(
+        model="openai/gpt-4.1-mini",
+        api_key="test-key",
+        base_url="https://gateway.invalid/v1",
+        streaming=True,
+        stream_usage=True,
+        max_retries=0,
+        http_client=httpx.Client(transport=httpx.MockTransport(respond)),
+    )
+
+
+def test_실제_모델에서도_SDK와_같은_response_format을_보낸다(records):
+    requests: list[dict] = []
+
+    result = _StrictFakeAgent(_gateway('{"value": "ok"}', "stop", requests))._invoke(
+        [HumanMessage(content="x")], subject_id="p-1",
+    )
+
+    assert result == _Answer(value="ok")
+    # Pydantic 클래스를 넘겼을 때 SDK가 만드는 것과 같은 요청
+    assert requests[0]["response_format"] == type_to_response_format_param(_Answer)
+    assert (records[0]["ok"], records[0]["usage"].input_tokens) == (True, 1000)
+
+
+@pytest.mark.parametrize(
+    ("content", "finish", "cause"),
+    [
+        ("이건 JSON이 아님", "stop", "OutputParserException"),
+        ('{"wrong": 1}', "stop", "ValidationError"),
+        ('{"value": "잘린', "length", "LengthFinishReasonError"),
+        ('{"value": "ok"}', "content_filter", "ContentFilterFinishReasonError"),
+    ],
+)
+def test_스트리밍_출력이_틀려도_토큰을_기록하고_PARSING으로_감싼다(records, content, finish, cause):
+    requests: list[dict] = []
+
+    with pytest.raises(_FakeError, match="parsing 실패") as caught:
+        _FakeAgent(_gateway(content, finish, requests))._invoke([HumanMessage(content="x")], subject_id="p-1")
+
+    assert type(caught.value.__cause__).__name__ == cause
+    assert len(requests) == 1
+    assert len(records) == 1
+    assert (records[0]["ok"], records[0]["error_type"]) == (False, cause)
+    assert (records[0]["usage"].input_tokens, records[0]["usage"].output_tokens) == (1000, 100)

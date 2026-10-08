@@ -5,6 +5,7 @@ import logging
 from types import SimpleNamespace
 
 import pytest
+from openai.lib._parsing._completions import type_to_response_format_param
 
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
@@ -67,7 +68,7 @@ class _StubChatModel:
         self.received_messages: list | None = None
 
     def with_structured_output(self, schema: type, include_raw: bool = False) -> "_StubChatModel":
-        assert schema is ToolSelectionResponse
+        assert schema == type_to_response_format_param(ToolSelectionResponse)["json_schema"]
         assert include_raw is True
         return self
 
@@ -199,7 +200,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
 
     SelectionAgent()
 
-    assert calls == [(ToolSelectionResponse, True)]
+    assert calls == [(type_to_response_format_param(ToolSelectionResponse)["json_schema"], True)]
 
 
 def test_ToolSelectionResponse는_6개_미만이면_거부한다():
