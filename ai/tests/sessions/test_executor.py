@@ -100,7 +100,8 @@ def test_결과가_나오면_완료로_기록하고_상태_변화를_구독자�
     ]
 
 
-def test_진단_함수_예외는_실패로_기록한다(executors):
+def test_진단_함수_예외는_재시도_불가_실패로_기록한다(executors):
+    # 원인을 알 수 없는 예외는 코드 오류일 수 있어 BE가 재요청하지 않게 함 (#280 리뷰)
     job = _GatedJob(raise_error=True)
     executor = _executor(executors, job)
 
@@ -109,7 +110,7 @@ def test_진단_함수_예외는_실패로_기록한다(executors):
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.FAILED)
 
     session = executor.store.get("p-1")
-    assert (session.error_code, session.retryable) == (ERROR_PIPELINE, True)
+    assert (session.error_code, session.retryable) == (ERROR_PIPELINE, False)
 
 
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(executors):
@@ -184,6 +185,8 @@ def test_최대_시간을_넘긴_세션은_시간_초과로_끝내고_늦게_온
     assert executor.expire_overdue() == 1
     session = executor.store.get("p-1")
     assert (session.status, session.error_code) == (SessionStatus.FAILED, ERROR_TIMEOUT)
+    # 시간 초과는 대기·지연 같은 일시적 원인이라 재시도 가능
+    assert session.retryable is True
 
     job.release("p-1")
     _wait_until(lambda: executor._inflight == 0)
