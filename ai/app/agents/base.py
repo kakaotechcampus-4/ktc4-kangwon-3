@@ -9,6 +9,7 @@ from time import perf_counter
 from typing import Any, ClassVar, Generic, NoReturn, Protocol, TypeVar
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai.chat_models.base import OpenAIRefusalError
 from openai import ContentFilterFinishReasonError, LengthFinishReasonError
 from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
@@ -204,9 +205,21 @@ class BaseAgent(Generic[OutputT]):
             OutputT: 검증된 출력.
 
         Raises:
-            Exception: JSON 오류(parsing_error 그대로), 출력 누락(MissingParsedOutput),
-                스키마·검증 함수 위반(ValidationError).
+            Exception: JSON 오류·스키마·검증 함수 위반(ValidationError), 모델 거절(OpenAIRefusalError),
+                본문 없는 응답의 파싱 오류(parsing_error 그대로), 출력 누락(MissingParsedOutput).
         """
+        raw_message = result.get("raw")
+        # 모델이 거절한 경우. develop(SDK 파싱)과 같은 원인 예외 사용
+        refusal = (getattr(raw_message, "additional_kwargs", None) or {}).get("refusal")
+        if refusal:
+            raise OpenAIRefusalError(refusal)
+        content = getattr(raw_message, "content", None)
+        if isinstance(content, str) and content.strip():
+            # 본문은 엄격한 JSON으로 검증 (SDK와 같은 pydantic JSON 모드).
+            # LangChain 파서의 parsed는 잘린 JSON 보정·코드블록 제거 등 관대하게 해석해 쓰지 않음
+            return self.output_schema.model_validate_json(content)
+
+        # 본문이 없는 응답(빈 응답) 또는 parsed를 바로 주는 테스트 스텁
         parsing_error = result.get("parsing_error")
         if parsing_error is not None:
             if isinstance(parsing_error, Exception):
@@ -215,7 +228,6 @@ class BaseAgent(Generic[OutputT]):
         parsed = result.get("parsed")
         if parsed is None:
             raise MissingParsedOutput(f"{self.component_name}: 구조화 출력이 비어 있습니다.")
-        # dict 스키마라 JSON dict로 옴. 테스트 스텁처럼 모델 객체를 주면 그대로 검증
         return self.output_schema.model_validate(parsed)
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
