@@ -38,7 +38,7 @@ class ModelLike(Protocol):
     ``BaseChatModel``과 테스트 스텁 모두 이 구조를 만족함.
     """
 
-    def with_structured_output(self, schema: type[BaseModel], **kwargs: Any) -> StructuredModel: ...
+    def with_structured_output(self, schema: dict[str, Any], **kwargs: Any) -> StructuredModel: ...
 
 
 class AgentError(RuntimeError):
@@ -114,7 +114,7 @@ class BaseAgent(Generic[OutputT]):
             model = build_chat_model()
         self._configured_model = configured_model or getattr(model, "model_name", None)
         self._usage_agent = usage_agent or self.component_name
-        # include_raw: 원본 응답에서 토큰 사용량을 읽고, JSON 오류를 parsing_error로 받음
+        # include_raw: 원본 응답에서 토큰 사용량과 본문을 읽음. 본문 검증은 _parse_output이 직접
         # 스키마는 Pydantic 클래스가 아닌 dict로 넘김. 클래스를 넘기면 SDK가 스트림 도중 파싱하다
         # 사용량 조각을 받기 전에 예외를 내서 파싱 실패·길이 초과 시 토큰 비용이 기록되지 않음.
         # dict는 SDK가 클래스를 변환할 때와 같은 함수로 만들어 요청 본문은 그대로.

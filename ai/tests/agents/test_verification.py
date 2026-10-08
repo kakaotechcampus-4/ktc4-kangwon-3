@@ -1,5 +1,6 @@
 """VerificationAgent 동작 검증. 실제 ML API 호출 없이 모델을 스텁으로 대체한다."""
 
+import contextlib
 import json
 
 import pytest
@@ -914,3 +915,22 @@ def test_출력_스키마를_프롬프트에_중복으로_붙이지_않는다():
     assert "앞 단계의 도메인 판단을 반복하지 않는다" in system_prompt
     assert "다시 `missing_evidence`로 지적하지 않는다" in system_prompt
     assert "$defs" not in system_prompt  # JSON Schema 본문은 없다
+
+
+def test_요청_본문이_이관_전_방식과_같다(fake_gateway):
+    # 기준: 이관 전 코드처럼 _Review 클래스를 strict json_schema로 넘긴 요청 (SDK 버전이 바뀌어도 같은 비교)
+    draft = _draft()
+    actual: list[dict] = []
+    agent = VerificationAgent(fake_gateway("{}", "stop", actual))
+    expected: list[dict] = []
+    reference = fake_gateway("{}", "stop", expected).with_structured_output(
+        _Review, method="json_schema", strict=True,
+    )
+
+    # 응답 "{}"는 스키마와 맞지 않아 양쪽 모두 실패하지만 요청 본문은 이미 기록됨
+    with contextlib.suppress(Exception):
+        reference.invoke(agent._build_messages(draft))
+    with pytest.raises(VerificationError):
+        agent.verify(draft)
+
+    assert actual == expected

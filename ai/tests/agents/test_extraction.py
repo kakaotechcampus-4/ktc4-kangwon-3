@@ -317,3 +317,19 @@ def test_평가_실행은_운영과_다른_이름으로_집계된다(monkeypatch
     agent.extract(ExtractionInput(product_id="eval-1", text_blocks=["아무 텍스트"]))
 
     assert calls[0]["agent"] == "extraction-eval"
+
+
+def test_요청_본문이_이관_전_방식과_같다(fake_gateway):
+    # 기준: 이관 전 코드처럼 ProductAttributes 클래스를 그대로 넘긴 요청 (SDK 버전이 바뀌어도 같은 비교)
+    source = ExtractionInput(
+        product_id="prod-req", text_blocks=["USB 충전식 선풍기"], image_urls=["data:image/png;base64,AAA"],
+    )
+    actual: list[dict] = []
+    agent = ExtractionAgent(fake_gateway("{}", "stop", actual))
+    expected: list[dict] = []
+    reference = fake_gateway("{}", "stop", expected).with_structured_output(ProductAttributes, include_raw=True)
+
+    reference.invoke(agent._build_messages(source))
+    agent.extract(source)
+
+    assert actual == expected
