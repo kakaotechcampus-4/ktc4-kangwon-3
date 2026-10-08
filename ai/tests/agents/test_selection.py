@@ -1,5 +1,6 @@
 """SelectionAgent 동작 검증. 실제 OpenAI 호출 없이 모델을 스텁으로 대체한다."""
 
+import contextlib
 import json
 import logging
 from types import SimpleNamespace
@@ -291,3 +292,20 @@ def test_파싱_결과만_없으면_MissingParsedOutput으로_남는다():
         agent.select(_make_product())
 
     assert _usage_rows()[0]["error_type"] == "MissingParsedOutput"
+
+
+def test_요청_본문이_이관_전_방식과_같다(fake_gateway):
+    # 기준: 이관 전 코드처럼 ToolSelectionResponse 클래스를 그대로 넘긴 요청 (SDK 버전이 바뀌어도 같은 비교)
+    product = _make_product(product_name="USB 선풍기", electrical_powered=True)
+    actual: list[dict] = []
+    agent = SelectionAgent(fake_gateway("{}", "stop", actual))
+    expected: list[dict] = []
+    reference = fake_gateway("{}", "stop", expected).with_structured_output(ToolSelectionResponse, include_raw=True)
+
+    # 응답 "{}"는 스키마와 맞지 않아 양쪽 모두 실패하지만 요청 본문은 이미 기록됨
+    with contextlib.suppress(Exception):
+        reference.invoke(agent._build_messages(product))
+    with pytest.raises(SelectionFailedError):
+        agent.select(product)
+
+    assert actual == expected

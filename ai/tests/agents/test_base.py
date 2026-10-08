@@ -1,14 +1,14 @@
 """BaseAgent의 모델 호출 순서·사용량 기록·예외 변환(#171 §4.2·§4.4)을 가짜 에이전트로 확인한다."""
 
-import json
+import contextlib
 import logging
+from enum import StrEnum
+from typing import Literal
 
-import httpx
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
 from openai.lib._parsing._completions import type_to_response_format_param
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from app.agents.base import AgentError, BaseAgent, MissingParsedOutput, ModelFailurePhase
 from app.prompts import PromptName, get_prompt
@@ -241,48 +241,70 @@ def test_메시지는_시스템_프롬프트와_사용자_입력으로_만든다
 # ---------- 실제 ChatOpenAI + 가짜 게이트웨이 (스트리밍) ----------
 
 
-def _gateway(content: str | None, finish: str, requests: list[dict], *, refusal: str | None = None) -> ChatOpenAI:
-    """스트리밍 응답을 돌려주는 가짜 게이트웨이에 붙은 실제 ChatOpenAI. 네트워크로 나가지 않음."""
-    delta = {"role": "assistant"}
-    if content is not None:
-        delta["content"] = content
-    if refusal is not None:
-        delta["refusal"] = refusal
-
-    def respond(request: httpx.Request) -> httpx.Response:
-        requests.append(json.loads(request.content))
-        base = {"id": "x", "object": "chat.completion.chunk", "created": 0, "model": "gpt-4.1-mini"}
-        chunks = [
-            {**base, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]},
-            {**base, "choices": [{"index": 0, "delta": {}, "finish_reason": finish}]},
-            # 사용량은 스트림 마지막 조각으로 옴
-            {**base, "choices": [], "usage": {"prompt_tokens": 1000, "completion_tokens": 100, "total_tokens": 1100}},
-        ]
-        body = "".join(f"data: {json.dumps(chunk)}\n\n" for chunk in chunks) + "data: [DONE]\n\n"
-        return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body.encode())
-
-    return ChatOpenAI(
-        model="openai/gpt-4.1-mini",
-        api_key="test-key",
-        base_url="https://gateway.invalid/v1",
-        streaming=True,
-        stream_usage=True,
-        max_retries=0,
-        http_client=httpx.Client(transport=httpx.MockTransport(respond)),
-    )
+class _Kind(StrEnum):
+    A = "a"
+    B = "b"
 
 
-def test_실제_모델에서도_SDK와_같은_response_format을_보낸다(records):
-    requests: list[dict] = []
+class _Item(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-    result = _StrictFakeAgent(_gateway('{"value": "ok"}', "stop", requests))._invoke(
+    name: str = Field(min_length=1)
+    kind: _Kind
+    level: Literal["low", "high"]
+    note: str | None
+
+
+class _Rich(BaseModel):
+    """실제 출력 스키마의 특징(중첩 모델·enum·Literal·Optional·리스트·제약)을 갖춘 가짜 스키마."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[_Item]
+    flag: bool | None = None
+
+
+class _RichAgent(BaseAgent[_Rich]):
+    component_name = "rich"
+    prompt_name = PromptName.EXTRACTION
+    output_schema = _Rich
+    error_class = _FakeError
+
+    def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
+        return f"{phase.value} 실패"
+
+
+class _StrictRichAgent(_RichAgent):
+    structured_output_options = {"method": "json_schema", "strict": True}
+
+
+def test_실제_모델에서도_성공하면_출력과_사용량을_돌려준다(records, fake_gateway):
+    result = _StrictFakeAgent(fake_gateway('{"value": "ok"}', "stop", []))._invoke(
         [HumanMessage(content="x")], subject_id="p-1",
     )
 
     assert result == _Answer(value="ok")
-    # Pydantic 클래스를 넘겼을 때 SDK가 만드는 것과 같은 요청
-    assert requests[0]["response_format"] == type_to_response_format_param(_Answer)
     assert (records[0]["ok"], records[0]["usage"].input_tokens) == (True, 1000)
+
+
+@pytest.mark.parametrize("agent_class", [_FakeAgent, _StrictFakeAgent, _RichAgent, _StrictRichAgent])
+def test_요청_본문이_Pydantic_클래스를_넘기던_방식과_같다(records, fake_gateway, agent_class):
+    # 기준: 이관 전처럼 출력 스키마 클래스를 그대로 넘긴 요청. SDK 버전이 바뀌어도 같은 비교
+    messages = [HumanMessage(content="x")]
+    expected: list[dict] = []
+    reference = fake_gateway("{}", "stop", expected).with_structured_output(
+        agent_class.output_schema, include_raw=True, **agent_class.structured_output_options,
+    )
+    # 응답이 스키마와 맞지 않아 SDK가 파싱 중 예외를 내지만 요청은 이미 기록됨
+    with contextlib.suppress(Exception):
+        reference.invoke(messages)
+
+    actual: list[dict] = []
+    with pytest.raises(AgentError):
+        # 출력은 스키마와 맞지 않아 실패하지만 요청 본문만 비교
+        agent_class(fake_gateway("{}", "stop", actual))._invoke(messages, subject_id="p-1")
+
+    assert actual == expected
 
 
 @pytest.mark.parametrize(
@@ -298,11 +320,11 @@ def test_실제_모델에서도_SDK와_같은_response_format을_보낸다(recor
         ('{"value": "ok"}', "content_filter", "ContentFilterFinishReasonError"),
     ],
 )
-def test_스트리밍_출력이_틀려도_토큰을_기록하고_PARSING으로_감싼다(records, content, finish, cause):
+def test_스트리밍_출력이_틀려도_토큰을_기록하고_PARSING으로_감싼다(records, fake_gateway, content, finish, cause):
     requests: list[dict] = []
 
     with pytest.raises(_FakeError, match="parsing 실패") as caught:
-        _FakeAgent(_gateway(content, finish, requests))._invoke([HumanMessage(content="x")], subject_id="p-1")
+        _FakeAgent(fake_gateway(content, finish, requests))._invoke([HumanMessage(content="x")], subject_id="p-1")
 
     assert type(caught.value.__cause__).__name__ == cause
     assert len(requests) == 1
@@ -311,9 +333,9 @@ def test_스트리밍_출력이_틀려도_토큰을_기록하고_PARSING으로_�
     assert (records[0]["usage"].input_tokens, records[0]["usage"].output_tokens) == (1000, 100)
 
 
-def test_모델이_거절하면_토큰을_기록하고_OpenAIRefusalError를_원인으로_연결한다(records):
+def test_모델이_거절하면_토큰을_기록하고_OpenAIRefusalError를_원인으로_연결한다(records, fake_gateway):
     with pytest.raises(_FakeError, match="parsing 실패") as caught:
-        _FakeAgent(_gateway(None, "stop", [], refusal="처리할 수 없습니다."))._invoke(
+        _FakeAgent(fake_gateway(None, "stop", [], refusal="처리할 수 없습니다."))._invoke(
             [HumanMessage(content="x")], subject_id="p-1",
         )
 
@@ -321,8 +343,8 @@ def test_모델이_거절하면_토큰을_기록하고_OpenAIRefusalError를_원
     assert (records[0]["error_type"], records[0]["usage"].input_tokens) == ("OpenAIRefusalError", 1000)
 
 
-def test_빈_응답도_토큰을_기록하고_PARSING으로_감싼다(records):
+def test_빈_응답도_토큰을_기록하고_PARSING으로_감싼다(records, fake_gateway):
     with pytest.raises(_FakeError, match="parsing 실패"):
-        _FakeAgent(_gateway("", "stop", []))._invoke([HumanMessage(content="x")], subject_id="p-1")
+        _FakeAgent(fake_gateway("", "stop", []))._invoke([HumanMessage(content="x")], subject_id="p-1")
 
     assert (records[0]["ok"], records[0]["usage"].input_tokens) == (False, 1000)
