@@ -54,6 +54,19 @@ def test_빈_ID와_정의하지_않은_필드를_거부한다(payload):
         DiagnosisRequest.model_validate(payload)
 
 
+@pytest.mark.parametrize("payload", [
+    {"diagnosis_id": "d-1", "products": [_product()]},
+    {"diagnosisId": "d-1", "products": [{"product_id": "p-1", "text_blocks": ["상품 설명"]}]},
+])
+def test_요청은_snake_case_키를_거부한다(payload):
+    with pytest.raises(ValidationError):
+        DiagnosisRequest.model_validate(payload)
+
+
+def test_응답은_코드에서_필드_이름으로_만들_수_있다():
+    assert DiagnosisAccepted(diagnosis_id="d-1", accepted_product_ids=["p-1"]).diagnosis_id == "d-1"
+
+
 def test_접수_응답은_data를_camelCase로_내보낸다():
     response = DiagnosisAcceptedResponse(
         code="OK", message="진단 요청이 접수되었습니다.",

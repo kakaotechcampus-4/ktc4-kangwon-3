@@ -2,7 +2,7 @@
 
 from pydantic import Field, model_validator
 
-from .base import ApiModel, StrictModel
+from .base import ApiRequestModel, StrictModel
 
 
 class ContentDiagnoseRequest(StrictModel):
@@ -39,7 +39,7 @@ class UrlDiagnoseRequest(StrictModel):
     source_url: str = Field(min_length=1)
 
 
-class DiagnosisProductInput(ApiModel):
+class DiagnosisProductInput(ApiRequestModel):
     """진단서에 담긴 상품 하나. 텍스트·이미지 중 하나 이상 필수.
 
     Args:
@@ -61,7 +61,7 @@ class DiagnosisProductInput(ApiModel):
         return self
 
 
-class DiagnosisRequest(ApiModel):
+class DiagnosisRequest(ApiRequestModel):
     """진단서 한 건의 상품들을 한 번에 접수하는 요청 (#263).
 
     Args:

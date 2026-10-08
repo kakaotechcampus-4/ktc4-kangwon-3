@@ -106,7 +106,7 @@ def test_대기열이_가득_차면_429를_반환한다(client, executor):
 
 
 @pytest.mark.parametrize("payload", [
-    {"product_id": "p-1", "text_blocks": ["상품 설명"]},
+    {"diagnosis_id": "d-1", "products": [{"product_id": "p-1", "text_blocks": ["상품 설명"]}]},
     {"diagnosisId": "d-1", "products": []},
     {"diagnosisId": "d-1", "products": [{"productId": "p-1"}]},
 ])
