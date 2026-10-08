@@ -24,6 +24,7 @@ _HTTP_STATUS_CODES = {
 # 요청 위치 접두어. 필드 경로에서 제외
 _LOCATION_PREFIXES = frozenset({"body", "query", "path", "header", "cookie"})
 _VALUE_ERROR_PREFIX = "Value error, "
+_JSON_INVALID = "json_invalid"
 
 
 def _respond(
@@ -56,10 +57,19 @@ def _field_path(loc: tuple[str | int, ...]) -> str:
     return path
 
 
+def _error_loc(error: dict) -> tuple[str | int, ...]:
+    """검증 오류 위치를 꺼낸다."""
+    loc = tuple(error["loc"])
+    # JSON 문법 오류의 위치는 필드가 아닌 문자 위치(("body", 15))라 body만 남김
+    if error["type"] == _JSON_INVALID:
+        return loc[:1]
+    return loc
+
+
 def _field_errors(exc: RequestValidationError) -> list[FieldErrorDetail]:
     """검증 오류를 필드별 상세로 바꾼다. 입력값(input)은 넣지 않음."""
     return [
-        FieldErrorDetail(field=_field_path(tuple(error["loc"])), message=error["msg"].removeprefix(_VALUE_ERROR_PREFIX))
+        FieldErrorDetail(field=_field_path(_error_loc(error)), message=error["msg"].removeprefix(_VALUE_ERROR_PREFIX))
         for error in exc.errors()
     ]
 
