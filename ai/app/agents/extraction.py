@@ -8,6 +8,7 @@ from ..prompts import PromptName, get_prompt
 from ..schemas.agent import ExtractionInput
 from ..schemas.product import Attribute, ProductAttributes, Product
 from ..utils.extraction_rules import detect_battery_capacity_conflict, extract_rule_based_attributes
+from ..utils.seller_region import extract_seller_region
 from .base import AgentError, BaseAgent, MissingParsedOutput, ModelFailurePhase
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
@@ -43,6 +44,12 @@ class ExtractionAgent(BaseAgent[ProductAttributes]):
         raises ExtractionFailedError: LLM 호출·구조화 출력 파싱이 실패한 경우.
             text_blocks·image_urls가 모두 비어 입력 자체가 없는 경우는 ValueError.
         """
+        # 쇼핑몰이 붙인 글(AI 상품 요약·연관 상품·리뷰·검색창 등)을 LLM과 규칙 레이어에 넘기기
+        # 전에 잘라낸다(#253). 자르지 못한 블록은 원문 그대로라 지금보다 나빠지지 않는다.
+        regions = [extract_seller_region(block) for block in source.text_blocks]
+        source = source.model_copy(update={"text_blocks": [region.text for region in regions]})
+        titles = list(dict.fromkeys(region.title for region in regions if region.title))
+
         messages = self._build_messages(source)
         # 호출·파싱 실패 기록과 ExtractionFailedError 변환은 BaseAgent가 맡음
         fields = self._invoke(messages, subject_id=source.product_id)
@@ -53,6 +60,7 @@ class ExtractionAgent(BaseAgent[ProductAttributes]):
         rule_conflicts = detect_battery_capacity_conflict(source.text_blocks)
 
         payload = fields.model_dump()
+        payload["listing_text"] = _keep_seller_titles(fields.listing_text, titles)
         payload["attributes"] = _merge_attributes(fields.attributes, rule_attributes)
         payload["conflicts"] = _merge_conflicts(fields.conflicts, rule_conflicts)
 
@@ -85,6 +93,17 @@ class ExtractionAgent(BaseAgent[ProductAttributes]):
             raise ValueError("text_blocks와 image_urls가 모두 비어 있어 추출할 내용이 없습니다.")
 
         return self._messages(content)
+
+
+def _keep_seller_titles(listing_text: list[str], titles: list[str]) -> list[str]:
+    """판매자 제목 원문이 listing_text에 없으면 맨 앞에 넣는다(#253 논의 ③).
+
+    표시광고 검사는 listing_text를 읽는다. 모델은 제목을 product_name으로만 옮기고 listing_text에서
+    빼는 경우가 있었고(골전도 이어폰 10/10), product_name은 다듬어지거나 번역될 수 있다.
+    제목은 정제 단계에서 화면 구조로 찾았으므로 모델에 맡기지 않고 코드가 원문 그대로 넣는다.
+    """
+    missing = [title for title in titles if not any(title in item for item in listing_text)]
+    return missing + list(listing_text)
 
 
 def _split_into_tokens(value: str) -> set[str]:
