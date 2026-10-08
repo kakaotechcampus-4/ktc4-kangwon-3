@@ -1,0 +1,165 @@
+{
+  "fixture": "cosmetic_claim_led_mask.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-06",
+  "tags": [
+    "재현용",
+    "AI 상품 요약",
+    "화장품표방",
+    "의료표방",
+    "AliExpress"
+  ],
+  "summary": "7색 LED 페이스 마스크(AliExpress). 판매자 문구는 제목과 스펙표뿐이고, 제목에 미용 효능('주름 개선', '피부톤 개선')과 질병 치료('여드름 치료') 표방이 있다. AI 상품 요약의 'USB 충전 방식'이 스펙표 '배터리 포함: 아니요'와 어긋나는데, AI 요약을 근거로 전지를 확정하거나 모순을 만들지 않는지(#229) 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "스펙표 '전압: 50V 이하 교류 (안전 초저전압 교류, SELV AC)', 제목 'LED 페이스 마스크'",
+      "why_not_other": "전압 규격이 판매자 스펙표에 있다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "(블루투스·WiFi·RF 언급 없음)",
+      "why_not_other": "전기제품이라 통신 기능이 없다고 할 근거가 없다. '무선 LED 마스크'는 연관 상품 제목이다."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "(무선충전 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "스펙표 '배터리가 포함되어 있습니까? 아니요'",
+      "why_not_other": "판매자가 전지 없음을 명시한다. 'USB 충전 방식', '충전이 가능'은 AI 상품 요약에만 있어 근거로 쓰지 않았다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 'LED 페이스 마스크 뷰티 스파'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "(발열 기능 언급 없음)",
+      "why_not_other": "판매자 문구에 발열·온열 표기가 없다. 빛을 쓰는 기기라는 이유로 정하지 않았다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": true,
+      "evidence": "제목 '스킨 케어 LED 페이스 마스크'",
+      "why_not_other": "얼굴에 쓰는 마스크이고 판매자가 피부 관리 용도로 표기한다. 몸에 착용한다는 추론만 있던 자세교정 밴드와 달리 상품명이 얼굴 피부 관리를 말한다. 판단이 갈릴 수 있어 확인 필요."
+    },
+    "medical_claim": {
+      "value": true,
+      "evidence": "제목 '여드름 치료'",
+      "why_not_other": "질병명(여드름)과 치료를 함께 표방한다."
+    },
+    "cosmetic_claim": {
+      "value": true,
+      "evidence": "제목 '주름 개선 피부 재생', '피부톤 개선'",
+      "why_not_other": "미용·피부 효과 표방이다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "제목 'LED 페이스 마스크', 형태가 얼굴 마스크",
+      "why_not_other": "형태가 확인된다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "(판매자 문구에 재질 표기 없음)",
+      "why_not_other": "'수지 재질'은 AI 상품 요약에만 있다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "스펙표 '고농도 화학 물질: 없음'",
+      "why_not_other": "세정·방향·살균 기능 표기가 없다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다. 제목 '뷰티 스파'",
+      "why_not_other": "언급 없음."
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "마스크"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "LED 마스크",
+        "LED 페이스 마스크",
+        "LED 페이셜 마스크",
+        "광자 LED 마스크",
+        "뷰티 기기",
+        "미용 기기",
+        "피부 관리 기기"
+      ]
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기가 없다"
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "전압",
+      "value": "50V 이하",
+      "evidence": "스펙표 '전압: 50V 이하 교류 (안전 초저전압 교류, SELV AC)'(240행)"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "주름 개선 피부 재생",
+      "evidence": "원문 24행, 판매자 제목의 미용 효능 표방. '여드름 치료'는 AI 상품 요약(47행)에도 있어 제목에만 있는 문구로 잡았다"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "피부 재생과 주름 개선에 효과적",
+      "evidence": "원문 46행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "민감한 피부도 안심하고",
+      "evidence": "원문 48행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "USB 충전기를 통해 간편하게 충전",
+      "evidence": "원문 49행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "수지 재질로 제작되어",
+      "evidence": "원문 50행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "안티 에이징 회춘",
+      "evidence": "원문 52행, 다른 상품(연관 상품)"
+    },
+    {
+      "must_not_contain": "이중턱 제거",
+      "evidence": "원문 143행, 다른 상품(연관 상품)"
+    },
+    {
+      "must_not_contain": "박스는망가져왔지만",
+      "evidence": "원문 216행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "30일 내 미배송 시 전액 환불",
+      "evidence": "원문 272행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "AliExpress의 약속",
+      "evidence": "원문 258행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    }
+  ]
+}
