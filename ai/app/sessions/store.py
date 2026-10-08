@@ -111,42 +111,44 @@ class SessionStore:
                 if session.status in {SessionStatus.ACCEPTED, SessionStatus.RUNNING}
             ]
 
-    def start(self, product_id: str) -> DiagnosisSession | None:
+    def start(self, context: ExecutionContext) -> DiagnosisSession | None:
         """접수된 세션을 실행 중으로 바꾼다.
 
         Args:
-            product_id: 세션 ID.
+            context: 이 실행의 컨텍스트. 세션의 run_id와 같을 때만 바꿈.
 
         Returns:
-            DiagnosisSession | None: 바뀐 세션. 접수 상태가 아니면(이미 시간 초과로 실패 등) None.
+            DiagnosisSession | None: 바뀐 세션. 접수 상태가 아니거나(이미 시간 초과로 실패 등)
+                다른 실행의 세션이면 None.
         """
-        return self._transition(product_id, {SessionStatus.ACCEPTED}, status=SessionStatus.RUNNING)
+        return self._transition(context, {SessionStatus.ACCEPTED}, status=SessionStatus.RUNNING)
 
-    def update_stage(self, product_id: str, stage: PipelineStage) -> DiagnosisSession | None:
+    def update_stage(self, context: ExecutionContext, stage: PipelineStage) -> DiagnosisSession | None:
         """실행 중인 세션의 현재 단계를 기록한다.
 
         Args:
-            product_id: 세션 ID.
+            context: 이 실행의 컨텍스트. 세션의 run_id와 같을 때만 바꿈.
             stage: 새 단계.
 
         Returns:
-            DiagnosisSession | None: 바뀐 세션. 실행 중이 아니면 None.
+            DiagnosisSession | None: 바뀐 세션. 실행 중이 아니거나 다른 실행의 세션이면 None.
         """
         return self._transition(
-            product_id, {SessionStatus.RUNNING}, stage=stage, stage_started_at=self._clock(),
+            context, {SessionStatus.RUNNING}, stage=stage, stage_started_at=self._clock(),
         )
 
-    def finish(self, product_id: str, result: FinalAssessment) -> DiagnosisSession | None:
+    def finish(self, context: ExecutionContext, result: FinalAssessment) -> DiagnosisSession | None:
         """실행 결과를 기록한다.
 
         종료 사유가 user_input_required면 답변 대기, 그 외는 완료로 둠.
 
         Args:
-            product_id: 세션 ID.
+            context: 이 실행의 컨텍스트. 세션의 run_id와 같을 때만 바꿈.
             result: 파이프라인 최종 결과.
 
         Returns:
-            DiagnosisSession | None: 바뀐 세션. 실행 중이 아니면(시간 초과로 이미 실패 등) None. 늦게 끝난 결과 무시용.
+            DiagnosisSession | None: 바뀐 세션. 실행 중이 아니거나(시간 초과로 이미 실패 등)
+                재접수로 다른 실행의 세션이면 None. 늦게 끝난 결과 무시용.
         """
         status = (
             SessionStatus.AWAITING_INPUT
@@ -154,25 +156,25 @@ class SessionStore:
             else SessionStatus.COMPLETED
         )
         return self._transition(
-            product_id, {SessionStatus.RUNNING},
+            context, {SessionStatus.RUNNING},
             status=status, termination_reason=result.termination_reason, result=result,
         )
 
-    def fail(self, product_id: str, *, error_code: str, retryable: bool) -> DiagnosisSession | None:
+    def fail(self, context: ExecutionContext, *, error_code: str, retryable: bool) -> DiagnosisSession | None:
         """접수·실행 중인 세션을 실패로 끝낸다.
 
         종료 사유로 바꾸지 않고 오류 코드로만 기록함 (#171 §7.1.1).
 
         Args:
-            product_id: 세션 ID.
+            context: 이 실행의 컨텍스트. 세션의 run_id와 같을 때만 바꿈.
             error_code: 실패 코드.
             retryable: 같은 요청을 다시 보내 복구 가능한지.
 
         Returns:
-            DiagnosisSession | None: 바뀐 세션. 이미 끝났으면 None.
+            DiagnosisSession | None: 바뀐 세션. 이미 끝났거나 다른 실행의 세션이면 None.
         """
         return self._transition(
-            product_id, {SessionStatus.ACCEPTED, SessionStatus.RUNNING},
+            context, {SessionStatus.ACCEPTED, SessionStatus.RUNNING},
             status=SessionStatus.FAILED, error_code=error_code, retryable=retryable,
         )
 
@@ -193,12 +195,16 @@ class SessionStore:
             return len(expired)
 
     def _transition(
-        self, product_id: str, allowed: set[SessionStatus], **changes: Any,
+        self, context: ExecutionContext, allowed: set[SessionStatus], **changes: Any,
     ) -> DiagnosisSession | None:
-        """허용된 상태일 때만 세션을 바꾼다. 바꾼 세션은 새 객체로 교체."""
+        """같은 실행(run_id)의 세션이 허용된 상태일 때만 바꾼다. 바꾼 세션은 새 객체로 교체."""
+        product_id = context.product_id
         with self._lock:
             session = self._sessions.get(product_id)
             if session is None or session.status not in allowed:
+                return None
+            # 시간 초과 뒤 재접수되면 같은 상품에 새 세션이 생김. 옛 실행의 늦은 갱신은 무시
+            if session.context.run_id != context.run_id:
                 return None
             # 검증(UTC 정규화 등)을 다시 거치도록 model_copy 대신 새로 만듦
             updated = DiagnosisSession.model_validate(
