@@ -3,7 +3,9 @@
 import json
 
 import pytest
+from langchain_core.messages import AIMessage
 
+from app.agents.base import AgentError, MissingParsedOutput
 from app.agents.verification import (
     VerificationAgent,
     VerificationError,
@@ -103,11 +105,20 @@ def _review(**overrides) -> _Review:
     return _Review(**values)
 
 
-class _StubModel:
-    """with_structured_output(...).invoke(...) 인터페이스만 흉내 낸 테스트 전용 스텁."""
+_FAKE_USAGE = {
+    "input_tokens": 2000,
+    "output_tokens": 300,
+    "total_tokens": 2300,
+    "input_token_details": {"cache_read": 1200},
+}
 
-    def __init__(self, review: _Review) -> None:
+
+class _StubModel:
+    """with_structured_output(..., include_raw=True).invoke(...) 인터페이스만 흉내 낸 테스트 전용 스텁."""
+
+    def __init__(self, review: _Review | None, parsing_error: Exception | None = None) -> None:
         self._review = review
+        self._parsing_error = parsing_error
         self.structured_kwargs: dict | None = None
         self.received_messages: list | None = None
         self.received_config: dict | None = None
@@ -117,10 +128,14 @@ class _StubModel:
         self.structured_kwargs = kwargs
         return self
 
-    def invoke(self, messages: list, config: dict | None = None) -> _Review:
+    def invoke(self, messages: list, config: dict | None = None) -> dict:
         self.received_messages = messages
         self.received_config = config
-        return self._review
+        return {
+            "raw": AIMessage(content="", usage_metadata=_FAKE_USAGE),
+            "parsed": self._review,
+            "parsing_error": self._parsing_error,
+        }
 
 
 class _RaisingModel:
@@ -477,7 +492,16 @@ def test_strict_json_schema로_구조화_출력을_요구한다():
 
     VerificationAgent(model=stub)
 
-    assert stub.structured_kwargs == {"method": "json_schema", "strict": True}
+    # strict json_schema는 유지하고, 사용량 수집용 include_raw가 추가됨 (#171 §4.2)
+    assert stub.structured_kwargs == {"include_raw": True, "method": "json_schema", "strict": True}
+
+
+def test_모델을_주입하지_않으면_자동으로_만들지_않는다(monkeypatch):
+    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: pytest.fail("모델을 만들면 안 됨"))
+
+    agent = VerificationAgent()
+
+    assert agent.verify_rules(_draft()).status is VerificationStatus.APPROVED
 
 
 def test_문제가_없으면_approved를_돌려준다():
@@ -688,50 +712,66 @@ def test_겹치는_질문은_required가_강한_쪽을_남긴다():
     assert merged.question_id == existing.question_id  # 기존 식별자 보존
     assert result.status is VerificationStatus.USER_INPUT_REQUIRED
 
-def test_모델_호출에_사용량_콜백을_전달하고_성공을_기록한다(monkeypatch):
+def _capture_usage(monkeypatch) -> list[dict]:
+    """공용 사용량 로그로 나가는 인자를 가로챈다. 기록은 BaseAgent 공통 경로."""
+    captured: list[dict] = []
+    monkeypatch.setattr(
+        "app.agents.base.record",
+        lambda agent, call_usage, **kwargs: captured.append({"agent": agent, "usage": call_usage, **kwargs}),
+    )
+    return captured
+
+
+def test_원본_응답의_사용량으로_성공을_한_번_기록한다(monkeypatch):
+    # include_raw 원본 응답에서 사용량을 읽으므로 콜백을 넘기지 않음 (#171 §4.4)
     stub = _StubModel(_review())
-    captured: dict = {}
-    usage = object()
-
-    monkeypatch.setattr("app.agents.verification.from_handler", lambda handler: usage)
-
-    def capture(agent, call_usage, **kwargs):
-        captured.update(agent=agent, usage=call_usage, **kwargs)
-
-    monkeypatch.setattr("app.agents.verification.record", capture)
+    captured = _capture_usage(monkeypatch)
 
     VerificationAgent(
         model=stub,
         configured_model="openai/gpt-4.1-mini",
     ).verify(_draft())
 
-    assert len(stub.received_config["callbacks"]) == 1
-    assert captured["agent"] == "verification"
-    assert captured["usage"] is usage
-    assert captured["configured_model"] == "openai/gpt-4.1-mini"
-    assert captured["subject_id"] == "p1"
-    assert captured["elapsed_ms"] >= 0
-    assert "ok" not in captured  # 성공은 record()의 기본값을 쓴다.
+    assert stub.received_config is None
+    assert len(captured) == 1
+    entry = captured[0]
+    assert entry["agent"] == "verification"
+    assert (entry["usage"].input_tokens, entry["usage"].cached_tokens, entry["usage"].output_tokens) == (2000, 1200, 300)
+    assert entry["configured_model"] == "openai/gpt-4.1-mini"
+    assert entry["subject_id"] == "p1"
+    assert entry["elapsed_ms"] >= 0
+    assert entry["ok"] is True
 
 
 def test_모델_호출_실패도_오류_타입과_함께_기록한다(monkeypatch):
-    captured: dict = {}
-
-    monkeypatch.setattr("app.agents.verification.from_handler", lambda handler: None)
-
-    def capture(agent, call_usage, **kwargs):
-        captured.update(agent=agent, usage=call_usage, **kwargs)
-
-    monkeypatch.setattr("app.agents.verification.record", capture)
+    captured = _capture_usage(monkeypatch)
 
     with pytest.raises(VerificationError):
         VerificationAgent(model=_RaisingModel()).verify(_draft())
 
-    assert captured["agent"] == "verification"
-    assert captured["usage"] is None
-    assert captured["ok"] is False
-    assert captured["error_type"] == "RuntimeError"
-    assert captured["elapsed_ms"] >= 0
+    assert len(captured) == 1
+    entry = captured[0]
+    assert entry["agent"] == "verification"
+    assert entry["usage"] is None
+    assert entry["ok"] is False
+    assert entry["error_type"] == "RuntimeError"
+    assert entry["elapsed_ms"] >= 0
+
+
+def test_usage_agent로_평가_호출을_구분해_남긴다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+
+    VerificationAgent(model=_StubModel(_review()), usage_agent="verification-eval").verify(_draft())
+
+    assert captured[0]["agent"] == "verification-eval"
+
+
+def test_규칙_검사만_하면_사용량을_기록하지_않는다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+
+    VerificationAgent(model=_StubModel(_review())).verify_rules(_draft())
+
+    assert captured == []
 
 
 # ---------- 실패 처리 ----------
@@ -785,6 +825,52 @@ def test_모델_호출_실패는_원인을_보존한_채_감싸진다():
     assert isinstance(exc_info.value.__cause__, RuntimeError)
     assert "rate limit exceeded" in str(exc_info.value.__cause__)
     assert exc_info.value.partial_result is not None
+    assert str(exc_info.value) == "모델 검토 호출에 실패했습니다: RuntimeError: rate limit exceeded"
+
+
+def test_모델_호출_실패는_실패_trace를_한_번_남긴다():
+    trace: list[TraceEvent] = []
+
+    with pytest.raises(VerificationError):
+        VerificationAgent(model=_RaisingModel()).verify(_draft(), trace=trace)
+
+    failed = [event for event in trace if event.action == "model_review_failed"]
+    assert len(failed) == 1
+    assert failed[0].detail == "_Review 생성 실패: RuntimeError"
+    assert trace[-1].action == "model_review_failed"
+
+
+def test_파싱_오류는_기존_문구로_감싸고_규칙_결과와_trace를_남긴다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+    trace: list[TraceEvent] = []
+    cause = ValueError("스키마 불일치")
+
+    with pytest.raises(VerificationError) as exc_info:
+        VerificationAgent(model=_StubModel(None, parsing_error=cause)).verify(_draft(), trace=trace)
+
+    assert exc_info.value.__cause__ is cause
+    assert str(exc_info.value) == "모델 검토 호출에 실패했습니다: ValueError: 스키마 불일치"
+    assert exc_info.value.partial_result is not None
+    assert trace[-1].detail == "_Review 생성 실패: ValueError"
+    # 파싱에 실패해도 이미 쓴 토큰은 기록
+    assert (captured[0]["ok"], captured[0]["error_type"], captured[0]["usage"].input_tokens) == (False, "ValueError", 2000)
+
+
+def test_파싱_결과가_비면_MissingParsedOutput을_원인으로_연결한다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+    trace: list[TraceEvent] = []
+
+    with pytest.raises(VerificationError) as exc_info:
+        VerificationAgent(model=_StubModel(None)).verify(_draft(), trace=trace)
+
+    assert isinstance(exc_info.value.__cause__, MissingParsedOutput)
+    assert trace[-1].detail == "_Review 생성 실패: MissingParsedOutput"
+    assert captured[0]["error_type"] == "MissingParsedOutput"
+
+
+def test_검증_예외는_AgentError_계열이다():
+    assert issubclass(VerificationError, AgentError)
+    assert issubclass(VerificationError, RuntimeError)
 
 
 # ---------- 모델 입력 ----------
