@@ -119,7 +119,7 @@ def test_URL_진단은_아직_501을_반환한다(client):
     response = client.post("/api/ai/v1/diagnose/url", json={"product_id": "p-1", "source_url": "https://example.com/item"})
 
     assert response.status_code == 501
-    assert "구현되지 않았습니다" in response.json()["detail"]
+    assert response.json()["code"] == "AI_NOT_IMPLEMENTED"
 
 
 def test_더미_진단은_단계를_순서대로_알리고_고정_결과를_반환한다(monkeypatch):

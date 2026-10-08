@@ -1,8 +1,9 @@
 """진단 라우터. 진단서 단위 접수(content)와 URL 진단(미구현) 엔드포인트를 제공한다."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
 
+from ..errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
 from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, UrlDiagnoseRequest
 from ..schemas.response import (
@@ -96,4 +97,4 @@ async def diagnose_by_url(req: UrlDiagnoseRequest) -> DiagnoseResponse:
         진단 파이프라인 실행 결과.
     """
     # TODO: 크롤링 구현 후 파이프라인 연결
-    raise HTTPException(status_code=501, detail="URL 크롤링 진단은 아직 구현되지 않았습니다.")
+    raise AIServiceError(response_code=AIResponseCode.NOT_IMPLEMENTED.value)
