@@ -99,6 +99,18 @@ class SessionStore:
         with self._lock:
             return self._sessions.get(product_id)
 
+    def unfinished(self) -> list[DiagnosisSession]:
+        """접수·실행 중인 세션 목록. 답변 대기는 실행이 끝난 상태라 제외.
+
+        Returns:
+            list[DiagnosisSession]: 접수 또는 실행 중인 세션.
+        """
+        with self._lock:
+            return [
+                session for session in self._sessions.values()
+                if session.status in {SessionStatus.ACCEPTED, SessionStatus.RUNNING}
+            ]
+
     def start(self, product_id: str) -> DiagnosisSession | None:
         """접수된 세션을 실행 중으로 바꾼다.
 
