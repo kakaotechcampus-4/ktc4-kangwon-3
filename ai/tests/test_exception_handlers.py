@@ -5,6 +5,7 @@ import logging
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.errors import AIResponseCode, AIServiceError
 from app.exception_handlers import register_exception_handlers
@@ -44,6 +45,15 @@ def _build_app() -> FastAPI:
     @test_app.get("/crash")
     async def crash() -> dict:
         raise KeyError("내부 키 secret_token")
+
+    @test_app.get("/framework/{status_code}")
+    async def framework_error(status_code: int) -> dict:
+        # 프레임워크·미들웨어가 내는 HTTP 오류 흉내
+        raise StarletteHTTPException(status_code=status_code)
+
+    @test_app.get("/not-implemented")
+    async def not_implemented() -> dict:
+        raise AIServiceError(response_code=AIResponseCode.NOT_IMPLEMENTED.value)
 
     return test_app
 
@@ -143,6 +153,33 @@ def test_허용되지_않은_메서드는_405와_Allow_헤더를_유지한다(cl
     assert response.status_code == 405
     assert response.json()["code"] == "AI_METHOD_NOT_ALLOWED"
     assert response.headers["allow"] == "POST"
+
+
+def test_UTF8이_아닌_본문은_400과_요청_오류_코드로_응답한다(client):
+    # #283 리뷰: 프레임워크가 본문을 읽지 못해 내는 400
+    response = client.post("/validate", content=b'{"diagnosisId": "\xff\xfe"}', headers={"Content-Type": "application/json"})
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "AI_INVALID_REQUEST"
+
+
+@pytest.mark.parametrize(
+    ("status_code", "code"),
+    [(400, "AI_INVALID_REQUEST"), (413, "AI_INVALID_REQUEST"), (418, "AI_INVALID_REQUEST"), (503, "AI_INTERNAL_ERROR")],
+)
+def test_표에_없는_HTTP_오류는_상태_범위로_코드를_정한다(client, status_code, code):
+    response = client.get(f"/framework/{status_code}")
+
+    assert response.status_code == status_code
+    assert response.json()["code"] == code
+
+
+def test_미구현_501은_오류_로그를_남기지_않는다(client, caplog):
+    with caplog.at_level(logging.ERROR, logger="app.exception_handlers"):
+        response = client.get("/not-implemented")
+
+    assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert caplog.records == []
 
 
 def test_실제_앱에도_핸들러가_등록되어_있다():

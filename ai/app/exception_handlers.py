@@ -18,6 +18,8 @@ logger = logging.getLogger(__name__)
 
 # 프레임워크가 직접 내는 HTTP 오류. 앱 코드는 HTTPException 대신 AIServiceError 사용
 _HTTP_STATUS_CODES = {
+    # UTF-8이 아닌 본문 등 본문을 읽지 못한 경우
+    400: AIResponseCode.INVALID_REQUEST.value,
     404: AIResponseCode.NOT_FOUND.value,
     405: AIResponseCode.METHOD_NOT_ALLOWED.value,
 }
@@ -81,7 +83,8 @@ async def _handle_validation_error(request: Request, exc: RequestValidationError
 
 async def _handle_service_error(request: Request, exc: AIServiceError) -> JSONResponse:
     response_code = exc.response_code
-    if response_code.http_status >= 500:
+    # 서버 오류만 원인과 함께 기록. 미구현(501)은 예상된 응답이라 제외
+    if response_code.http_status >= 500 and response_code != AIResponseCode.NOT_IMPLEMENTED.value:
         logger.error(
             "AI 서비스 오류 (%s %s, code=%s, stage=%s)",
             request.method, request.url.path, response_code.code, exc.stage, exc_info=exc,
@@ -90,7 +93,9 @@ async def _handle_service_error(request: Request, exc: AIServiceError) -> JSONRe
 
 
 async def _handle_http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-    response_code = _HTTP_STATUS_CODES.get(exc.status_code, AIResponseCode.INTERNAL_ERROR.value)
+    # 표에 없는 상태는 범위로 정함. 클라이언트 오류(4xx)를 서버 내부 오류로 내보내지 않음
+    fallback = AIResponseCode.INVALID_REQUEST.value if 400 <= exc.status_code < 500 else AIResponseCode.INTERNAL_ERROR.value
+    response_code = _HTTP_STATUS_CODES.get(exc.status_code, fallback)
     # 405의 Allow 등 프레임워크가 붙인 헤더 유지
     return _respond(exc.status_code, response_code, headers=exc.headers)
 
