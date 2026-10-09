@@ -19,9 +19,13 @@ function Pagination({ page, totalPages, hasNext, onPageChange }: PaginationProps
     }
 
     // 현재 페이지가 중심에 오도록 10개 단위 구간을 잡는다.
-    const halfGroupSize = Math.floor(PAGE_GROUP_SIZE / 2);
-    const groupStart = Math.max(0, Math.min(page - halfGroupSize, totalPages - PAGE_GROUP_SIZE));
-    const groupEnd = Math.min(groupStart + PAGE_GROUP_SIZE, totalPages);
+    const halfGroupSize = (PAGE_GROUP_SIZE - (PAGE_GROUP_SIZE % 2)) / 2;
+    const rawStart = page - halfGroupSize;
+    const maxStart = totalPages - PAGE_GROUP_SIZE;
+    const clampedStart = rawStart > maxStart ? maxStart : rawStart;
+    const groupStart = clampedStart > 0 ? clampedStart : 0;
+    const rawEnd = groupStart + PAGE_GROUP_SIZE;
+    const groupEnd = rawEnd < totalPages ? rawEnd : totalPages;
     const pageNumbers = Array.from({ length: groupEnd - groupStart }, (_, index) => groupStart + index);
 
     return (
