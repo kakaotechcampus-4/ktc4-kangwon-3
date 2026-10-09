@@ -1,6 +1,6 @@
-import lastPageIcon from "@/assets/mypage-last-page.svg";
-import nextPageIcon from "@/assets/mypage-next-page.svg";
 import { cn } from "@/lib/cn";
+
+import PageNavButton from "./PageNavButton";
 
 interface PaginationProps {
     page: number
@@ -11,23 +11,6 @@ interface PaginationProps {
 
 // 한 화면에 페이지 번호 버튼을 몇 개까지 보여줄 지 결정
 const PAGE_GROUP_SIZE = 10;
-
-interface PageNavButtonProps {
-    icon: string
-    alt: string
-    flip?: boolean
-    disabled: boolean
-    onClick: () => void
-}
-
-// 처음/이전/다음/마지막 페이지 이동 버튼 공통 마크업
-function PageNavButton({ icon, alt, flip, disabled, onClick }: PageNavButtonProps) {
-    return (
-        <button type="button" disabled={disabled} onClick={onClick} className="cursor-pointer disabled:cursor-default disabled:opacity-30">
-            <img src={icon} alt={alt} className={cn("h-4 w-4", flip && "-scale-x-100")} />
-        </button>
-    );
-}
 
 function Pagination({ page, totalPages, hasNext, onPageChange }: PaginationProps) {
     if (totalPages <= 1) {
@@ -42,8 +25,8 @@ function Pagination({ page, totalPages, hasNext, onPageChange }: PaginationProps
 
     return (
         <div className="flex w-full items-center justify-center gap-3">
-            <PageNavButton icon={lastPageIcon} alt="처음" flip disabled={page === 0} onClick={() => onPageChange(0)} />
-            <PageNavButton icon={nextPageIcon} alt="이전" flip disabled={page === 0} onClick={() => onPageChange(page - 1)} />
+            <PageNavButton type="first" disabled={page === 0} onClick={() => onPageChange(0)} />
+            <PageNavButton type="prev" disabled={page === 0} onClick={() => onPageChange(page - 1)} />
             {pageNumbers.map((pageNumber) => (
                 <button
                     key={pageNumber}
@@ -57,8 +40,8 @@ function Pagination({ page, totalPages, hasNext, onPageChange }: PaginationProps
                     {pageNumber + 1}
                 </button>
             ))}
-            <PageNavButton icon={nextPageIcon} alt="다음" disabled={!hasNext} onClick={() => onPageChange(page + 1)} />
-            <PageNavButton icon={lastPageIcon} alt="마지막 페이지" disabled={!hasNext} onClick={() => onPageChange(totalPages - 1)} />
+            <PageNavButton type="next" disabled={!hasNext} onClick={() => onPageChange(page + 1)} />
+            <PageNavButton type="last" disabled={!hasNext} onClick={() => onPageChange(totalPages - 1)} />
         </div>
     );
 }
