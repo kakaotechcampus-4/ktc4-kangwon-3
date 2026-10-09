@@ -1,6 +1,7 @@
 import { cn } from "@/lib/cn";
 
 import PageNavButton from "./PageNavButton";
+import { PageNavButtonType } from "./types";
 
 interface PaginationProps {
     page: number
@@ -25,8 +26,8 @@ function Pagination({ page, totalPages, hasNext, onPageChange }: PaginationProps
 
     return (
         <div className="flex w-full items-center justify-center gap-3">
-            <PageNavButton type="first" disabled={page === 0} onClick={() => onPageChange(0)} />
-            <PageNavButton type="prev" disabled={page === 0} onClick={() => onPageChange(page - 1)} />
+            <PageNavButton type={PageNavButtonType.First} disabled={page === 0} onClick={() => onPageChange(0)} />
+            <PageNavButton type={PageNavButtonType.Prev} disabled={page === 0} onClick={() => onPageChange(page - 1)} />
             {pageNumbers.map((pageNumber) => (
                 <button
                     key={pageNumber}
@@ -40,8 +41,8 @@ function Pagination({ page, totalPages, hasNext, onPageChange }: PaginationProps
                     {pageNumber + 1}
                 </button>
             ))}
-            <PageNavButton type="next" disabled={!hasNext} onClick={() => onPageChange(page + 1)} />
-            <PageNavButton type="last" disabled={!hasNext} onClick={() => onPageChange(totalPages - 1)} />
+            <PageNavButton type={PageNavButtonType.Next} disabled={!hasNext} onClick={() => onPageChange(page + 1)} />
+            <PageNavButton type={PageNavButtonType.Last} disabled={!hasNext} onClick={() => onPageChange(totalPages - 1)} />
         </div>
     );
 }
