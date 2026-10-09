@@ -7,6 +7,7 @@ import { getQuestions, submitAnswers } from "@/api/question";
 import Button from "@/components/common/Button";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
+import { isMissingDiagnosesId } from "@/lib/routeParams";
 
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
@@ -55,22 +56,19 @@ function QuestionPage() {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const navigate = useNavigate();
 
-    // diagnosesId가 없거나, undefined/null이 문자 그대로 들어온 경우
-    const isMissingDiagnosesId = !diagnosesId || diagnosesId === "undefined" || diagnosesId === "null";
-
     // diagnosesId 없이 잘못 진입한 경우(예: /question/undefined) 요청을 보내지 않고 업로드 페이지로 되돌린다.
     useEffect(() => {
-        if (isMissingDiagnosesId) {
+        if (isMissingDiagnosesId(diagnosesId)) {
             alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
             navigate("/upload", { replace: true });
         }
-    }, [isMissingDiagnosesId, navigate]);
+    }, [diagnosesId, navigate]);
 
 
     const { data, isPending: isQuestionsPending, isError: isQuestionsError, refetch: refetchQuestions } = useQuery({
         queryKey: ["questions", diagnosesId],
         queryFn: () => getQuestions(diagnosesId!),
-        enabled: !isMissingDiagnosesId,
+        enabled: !isMissingDiagnosesId(diagnosesId),
     });
 
     // 질문 데이터에서 화면에 필요한 파생값(기본값 적용, 탭 이름, 현재 선택된 질문)을 꺼낸다.
