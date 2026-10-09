@@ -4,9 +4,11 @@ import logging
 from types import SimpleNamespace
 
 import pytest
+from openai.lib._parsing._completions import type_to_response_format_param
 
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes, Product
+from app.agents.base import AgentError, MissingParsedOutput
 from app.agents.extraction import ExtractionAgent, ExtractionFailedError
 from app.config import ConfigError
 
@@ -27,7 +29,7 @@ class _StubChatModel:
         self.received_messages: list | None = None
 
     def with_structured_output(self, schema: type, include_raw: bool = False) -> "_StubChatModel":
-        assert schema is ProductAttributes
+        assert schema == type_to_response_format_param(ProductAttributes)["json_schema"]
         assert include_raw is True
         return self
 
@@ -107,13 +109,31 @@ def test_모델_응답이_스키마와_안_맞으면_ExtractionFailedError를_�
         agent.extract(source)
 
     assert isinstance(exc_info.value.__cause__, ValueError)
+    assert str(exc_info.value) == "모델 응답이 상품 스키마와 맞지 않습니다: field required"
+
+
+def test_파싱_결과가_비면_기존_문구를_유지하고_MissingParsedOutput을_원인으로_연결한다():
+    agent = ExtractionAgent(model=_StubChatModel(result=None))
+    source = ExtractionInput(product_id="prod-8", text_blocks=["아무 텍스트"])
+
+    with pytest.raises(ExtractionFailedError) as exc_info:
+        agent.extract(source)
+
+    assert str(exc_info.value) == "모델 응답이 상품 스키마와 맞지 않습니다: None"
+    assert isinstance(exc_info.value.__cause__, MissingParsedOutput)
+
+
+def test_추출_예외는_AgentError_계열이다():
+    assert issubclass(ExtractionFailedError, AgentError)
+    assert issubclass(ExtractionFailedError, RuntimeError)
 
 
 def test_토큰_사용량과_캐시_적용량이_로그에_남는다(caplog):
     agent = ExtractionAgent(model=_StubChatModel(ProductAttributes()))
     source = ExtractionInput(product_id="prod-9", text_blocks=["아무 텍스트"])
 
-    with caplog.at_level(logging.INFO, logger="app.agents.extraction"):
+    # 콘솔 토큰 로그는 BaseAgent 공통 출력
+    with caplog.at_level(logging.INFO, logger="app.agents.base"):
         agent.extract(source)
 
     assert "input=4000" in caplog.text
@@ -131,6 +151,7 @@ def test_모델_호출이_실패하면_ExtractionFailedError로_감싸진다():
     # 원인 예외가 삼켜지지 않고 __cause__에 그대로 남아야 traceback으로 근본 원인을 찾을 수 있다.
     assert isinstance(exc_info.value.__cause__, RuntimeError)
     assert "rate limit exceeded" in str(exc_info.value.__cause__)
+    assert str(exc_info.value) == "상품 정보 추출에 실패했습니다: rate limit exceeded"
 
 
 def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_쓴다(monkeypatch):
@@ -142,11 +163,12 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             calls.append((schema, include_raw))
             return self
 
-    monkeypatch.setattr("app.agents.extraction.build_chat_model", lambda: _FakeModel())
+    # 모델 생성은 BaseAgent 공통 경로
+    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
 
     ExtractionAgent()
 
-    assert calls == [(ProductAttributes, True)]
+    assert calls == [(type_to_response_format_param(ProductAttributes)["json_schema"], True)]
 
 
 def test_base_url이_없으면_401_대신_ConfigError로_알려준다(monkeypatch):
@@ -233,7 +255,7 @@ def _captured_usage(monkeypatch) -> list[dict]:
     """공용 사용량 로그로 나가는 인자를 가로챈다."""
     calls: list[dict] = []
     monkeypatch.setattr(
-        "app.agents.extraction.record",
+        "app.agents.base.record",
         lambda agent, usage, **kwargs: calls.append({"agent": agent, "usage": usage, **kwargs}),
     )
     return calls
@@ -295,6 +317,22 @@ def test_평가_실행은_운영과_다른_이름으로_집계된다(monkeypatch
     agent.extract(ExtractionInput(product_id="eval-1", text_blocks=["아무 텍스트"]))
 
     assert calls[0]["agent"] == "extraction-eval"
+
+
+def test_요청_본문이_이관_전_방식과_같다(fake_gateway):
+    # 기준: 이관 전 코드처럼 ProductAttributes 클래스를 그대로 넘긴 요청 (SDK 버전이 바뀌어도 같은 비교)
+    source = ExtractionInput(
+        product_id="prod-req", text_blocks=["USB 충전식 선풍기"], image_urls=["data:image/png;base64,AAA"],
+    )
+    actual: list[dict] = []
+    agent = ExtractionAgent(fake_gateway("{}", "stop", actual))
+    expected: list[dict] = []
+    reference = fake_gateway("{}", "stop", expected).with_structured_output(ProductAttributes, include_raw=True)
+
+    reference.invoke(agent._build_messages(source))
+    agent.extract(source)
+
+    assert actual == expected
 
 
 def _message_text(messages: list) -> str:
