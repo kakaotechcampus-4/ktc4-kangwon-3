@@ -2,7 +2,7 @@ import lastPageIcon from "@/assets/mypage-last-page.svg";
 import nextPageIcon from "@/assets/mypage-next-page.svg";
 import { cn } from "@/lib/cn";
 
-type PageNavButtonType = "first" | "prev" | "next" | "last";
+import { PageNavButtonType } from "./types";
 
 interface PageNavButtonInfo {
     icon: string
@@ -12,10 +12,10 @@ interface PageNavButtonInfo {
 
 // 버튼 종류별 아이콘/라벨/좌우 반전 여부. "이전"은 "다음" 아이콘을 좌우 반전해서 재사용한다.
 const PAGE_NAV_BUTTON_INFO: Record<PageNavButtonType, PageNavButtonInfo> = {
-    first: { icon: lastPageIcon, alt: "처음", flip: true },
-    prev: { icon: nextPageIcon, alt: "이전", flip: true },
-    next: { icon: nextPageIcon, alt: "다음" },
-    last: { icon: lastPageIcon, alt: "마지막 페이지" },
+    [PageNavButtonType.First]: { icon: lastPageIcon, alt: "처음", flip: true },
+    [PageNavButtonType.Prev]: { icon: nextPageIcon, alt: "이전", flip: true },
+    [PageNavButtonType.Next]: { icon: nextPageIcon, alt: "다음" },
+    [PageNavButtonType.Last]: { icon: lastPageIcon, alt: "마지막 페이지" },
 };
 
 interface PageNavButtonProps {
