@@ -9,12 +9,12 @@ class CLIPSearchRequest(BaseModel):
     Args:
         query: 검색어 (예: "드론", "블루투스 이어폰").
         page: 페이지 번호. 기본 1.
-        page_size: 페이지당 건수. 기본 50.
+        page_size: 페이지당 건수. 기본 10, 최대 100 (1000건 요청 시 0건 응답).
     """
 
     query: str = Field(min_length=1)
     page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=50, ge=1, le=100)
+    page_size: int = Field(default=10, ge=1, le=100)
 
 
 class CustomsGwConfirmationRequest(BaseModel):

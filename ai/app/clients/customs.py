@@ -41,6 +41,8 @@ class CLIPClient(BaseClient):
     def search(self, request: CLIPSearchRequest) -> CLIPSearchResponse:
         """품목분류 결정사례를 검색한다.
 
+        페이지 번호는 `pageIndex`, 페이지당 건수는 `pageUnit`만 인식.
+
         Args:
             request: CLIP 검색 요청 파라미터.
 
@@ -54,16 +56,21 @@ class CLIPClient(BaseClient):
             "prlstClsfCaseTpcd": "01",                  # 01 = 국내 사례. 빠지면 400(Bad Request) 반환
             "srchYn": "Y",                              # 검색 실행 플래그
             "srwr": request.query,                      # 검색어
-            "pagePerRecord": str(request.page_size),    # 페이지 당 건수
-            "initPageIndex": str(request.page),         # 페이지 번호
+            "pageIndex": str(request.page),             # 페이지 번호
+            "pageUnit": str(request.page_size),         # 페이지당 건수
         })
         response.raise_for_status()
         body = response.json()
         uls = body.get("uls_dmst", {})
+        total_count = int(uls.get("thisTotalCount", 0))
+        items = [self._parse_item(item) for item in uls.get("itemList", [])]
 
         return CLIPSearchResponse(
-            total_count=int(uls.get("thisTotalCount", 0)),
-            items=[self._parse_item(item) for item in uls.get("itemList", [])],
+            page=request.page,
+            total_count=total_count,
+            # 빈 페이지면 끝으로 판단
+            has_next=bool(items) and request.page * request.page_size < total_count,
+            items=items,
         )
 
     def _parse_item(self, raw: dict) -> CLIPCase:
