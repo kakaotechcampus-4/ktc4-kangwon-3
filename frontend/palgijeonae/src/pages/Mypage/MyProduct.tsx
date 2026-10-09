@@ -54,12 +54,18 @@ function MyProduct({ productName, productImageUrl, sourceType, processingStatus,
     // 진단 결과가 없을 시 진단서 이동을 막기 위한 boolean 변수.
     const isDiagnosisComplete = resultStatus != null;
 
+    // TODO: Result 페이지 구현 시 경로 파라미터로 id 전달 예정
+    const handleClick = () => {
+        if (isDiagnosisComplete) {
+            navigate("/result");
+        }
+    };
+
     return (
         <DefaultBox>
-            {/* TODO: Result 페이지 구현 시 경로 파라미터로 id 전달 예정 */}
             <div
                 className={cn("flex flex-row w-full gap-4", isDiagnosisComplete && "cursor-pointer")}
-                onClick={isDiagnosisComplete ? () => navigate("/result") : undefined}
+                onClick={handleClick}
             >
                 <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"

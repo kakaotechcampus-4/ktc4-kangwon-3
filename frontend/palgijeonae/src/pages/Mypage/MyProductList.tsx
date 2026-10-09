@@ -1,6 +1,7 @@
 import Pagination from "@/components/common/Pagination/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 
+import { PAGE_GROUP_SIZE } from "./constraints.ts";
 import MyProduct from "./MyProduct.tsx";
 import type { MyProductItem } from "./types.ts";
 
@@ -45,7 +46,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                     ))}
                 </div>
             )}
-            <Pagination page={page} totalPages={totalPages} hasNext={hasNext} onPageChange={onPageChange} />
+            <Pagination page={page} totalPages={totalPages} hasNext={hasNext} onPageChange={onPageChange} pageGroupSize={PAGE_GROUP_SIZE} />
         </div>
     );
 }
