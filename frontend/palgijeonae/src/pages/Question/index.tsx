@@ -10,7 +10,8 @@ import SectionIntro from "@/components/common/SectionIntro";
 
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
-import type { ProductQuestions, ProductStatus } from "./types";
+import type { ProductQuestions } from "./types";
+import { ProductStatus } from "./types";
 
 // data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
 const EMPTY_PRODUCT_QUESTIONS: ProductQuestions[] = [];
@@ -32,8 +33,8 @@ function computeAnswerState(questions: ProductQuestions[], answers: Record<strin
 
     const productStatuses = answeredMatrix.map((row): ProductStatus => {
         const answeredCount = row.filter(Boolean).length;
-        if (answeredCount === 0) return "empty";
-        return answeredCount === row.length ? "complete" : "partial";
+        if (answeredCount === 0) return ProductStatus.Empty;
+        return answeredCount === row.length ? ProductStatus.Complete : ProductStatus.Partial;
     });
 
     let firstUnanswered: { productIndex: number; questionId: string } | null = null;
