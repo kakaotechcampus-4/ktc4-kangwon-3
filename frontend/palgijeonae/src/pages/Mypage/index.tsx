@@ -2,12 +2,13 @@ import { useRef, useState } from "react";
 
 import SectionIntro from "@/components/common/SectionIntro";
 
+import { PAGE_SIZE } from "./constraints.ts";
 import MyProductList from "./MyProductList.tsx";
 import NotificationSettings from "./NotificationSettings.tsx";
 import ProductFilterBar from "./ProductFilterBar.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
 import type { ProductFilter } from "./types.ts";
-import { PAGE_SIZE, useMyProducts } from "./useMyProducts.ts";
+import { useMyProducts } from "./useMyProducts.ts";
 
 function MyPage() {
     const [searchTerm, setSearchTerm] = useState("");
