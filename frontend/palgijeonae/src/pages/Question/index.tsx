@@ -9,46 +9,13 @@ import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingDiagnosesId } from "@/lib/routeParams";
 
+import { computeAnswerState } from "./answerState";
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
 import type { ProductQuestions } from "./types";
-import { ProductStatus } from "./types";
 
 // data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
 const EMPTY_PRODUCT_QUESTIONS: ProductQuestions[] = [];
-
-interface AnswerState {
-    answeredMatrix: boolean[][]
-    productStatuses: ProductStatus[]
-    firstUnanswered: { productIndex: number; questionId: string } | null
-}
-
-// 진행 표시(ProgressSummary)와 제출 전 미답변 검증이 공유하는 답변 판정 결과를 계산한다.
-function computeAnswerState(questions: ProductQuestions[], answers: Record<string, string>): AnswerState {
-    const isAnswered = (questionId: string) => Boolean(answers[questionId]?.trim());
-
-    // [제품][질문] 답변 여부
-    const answeredMatrix = questions.map((product) =>
-        product.questions.map((question) => isAnswered(question.id)),
-    );
-
-    const productStatuses = answeredMatrix.map((row): ProductStatus => {
-        const answeredCount = row.filter(Boolean).length;
-        if (answeredCount === 0) return ProductStatus.Empty;
-        return answeredCount === row.length ? ProductStatus.Complete : ProductStatus.Partial;
-    });
-
-    let firstUnanswered: { productIndex: number; questionId: string } | null = null;
-    for (const [productIndex, row] of answeredMatrix.entries()) {
-        const questionIndex = row.indexOf(false);
-        if (questionIndex !== -1) {
-            firstUnanswered = { productIndex, questionId: questions[productIndex].questions[questionIndex].id };
-            break;
-        }
-    }
-
-    return { answeredMatrix, productStatuses, firstUnanswered };
-}
 
 function QuestionPage() {
     const { diagnosesId } = useParams<{ diagnosesId?: string }>();
