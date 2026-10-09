@@ -1,7 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
-import { getMyProducts } from "@/api/myProducts.ts";
 import SectionIntro from "@/components/common/SectionIntro";
 
 import MyProductList from "./MyProductList.tsx";
@@ -9,9 +7,7 @@ import NotificationSettings from "./NotificationSettings.tsx";
 import ProductFilterBar from "./ProductFilterBar.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
 import type { ProductFilter } from "./types.ts";
-
-
-const PAGE_SIZE = 10;
+import { PAGE_SIZE, useMyProducts } from "./useMyProducts.ts";
 
 function MyPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -19,17 +15,7 @@ function MyPage() {
     const [page, setPage] = useState(0);
     const productListRef = useRef<HTMLDivElement>(null);
 
-    // 상품 목록 불러오기
-    const { data, isPending, isError, refetch } = useQuery({
-        queryKey: ["myProducts", { filter, searchTerm, page, size: PAGE_SIZE }],
-        queryFn: () => getMyProducts({
-            resultStatus: filter === "all" ? undefined : filter,
-            keyword: searchTerm,
-            page,
-            size: PAGE_SIZE,
-            sortType: "LATEST",
-        }),
-    });
+    const { data, isPending, isError, refetch } = useMyProducts(filter, searchTerm, page);
 
     // 렌더링 시 type error / Pagination 크래시 방지용 빈 데이터 배열과 빈 페이지 정보.
     const pagedProducts = data?.items ?? [];
