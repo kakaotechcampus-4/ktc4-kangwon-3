@@ -8,23 +8,21 @@ interface PaginationProps {
     totalPages: number
     hasNext: boolean
     onPageChange: (page: number) => void
+    pageGroupSize?: number
 }
 
-// 한 화면에 페이지 번호 버튼을 몇 개까지 보여줄 지 결정
-const PAGE_GROUP_SIZE = 10;
-
-function Pagination({ page, totalPages, hasNext, onPageChange }: PaginationProps) {
+function Pagination({ page, totalPages, hasNext, onPageChange, pageGroupSize = 10 }: PaginationProps) {
     if (totalPages <= 1) {
         return null;
     }
 
-    // 현재 페이지가 중심에 오도록 10개 단위 구간을 잡는다.
-    const halfGroupSize = (PAGE_GROUP_SIZE - (PAGE_GROUP_SIZE % 2)) / 2;
+    // 현재 페이지가 중심에 오도록 pageGroupSize 단위 구간을 잡는다.
+    const halfGroupSize = (pageGroupSize - (pageGroupSize % 2)) / 2;
     const rawStart = page - halfGroupSize;
-    const maxStart = totalPages - PAGE_GROUP_SIZE;
+    const maxStart = totalPages - pageGroupSize;
     const clampedStart = rawStart > maxStart ? maxStart : rawStart;
     const groupStart = clampedStart > 0 ? clampedStart : 0;
-    const rawEnd = groupStart + PAGE_GROUP_SIZE;
+    const rawEnd = groupStart + pageGroupSize;
     const groupEnd = rawEnd < totalPages ? rawEnd : totalPages;
     const pageNumbers = Array.from({ length: groupEnd - groupStart }, (_, index) => groupStart + index);
 
