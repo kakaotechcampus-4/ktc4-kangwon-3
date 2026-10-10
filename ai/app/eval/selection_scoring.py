@@ -178,7 +178,10 @@ def score_mode(fixture: str, mode: str, truth: dict, responses: list[dict]) -> M
 
 @dataclass(frozen=True)
 class OnlyInB:
-    """A에서는 맞았는데 B에서만 놓친 결정 하나."""
+    """A에서는 맞았는데 B에서만 놓친 결정 하나.
+
+    fields는 (정답, 추출값)이다. 추출(다른 필드) 탓이면 정답과 다른 boolean, 그 외에는 툴의 판단 필드.
+    """
 
     fixture: str
     run: int
@@ -211,18 +214,14 @@ def only_in_b(
                 continue
             if grade_selection(expected, selected_a[tool]) is Grade.C1:
                 continue
-            fields = {
-                name: (booleans.get(name, {}).get("value"), product.get(name))
-                for name in JUDGEMENT_FIELDS.get(tool, ())
-            }
-            found.append(
-                OnlyInB(
-                    fixture=fixture,
-                    run=index,
-                    tool=tool,
-                    blame=blame_for(tool, extraction_truth, product),
-                    fields=fields,
-                )
+            blame = blame_for(tool, extraction_truth, product)
+            # 다른 필드 탓이면 판단 필드는 A·B가 같아 원인이 보이지 않는다. 정답과 다른 boolean을 담는다
+            names = (
+                [name for name, spec in booleans.items() if product.get(name) != spec["value"]]
+                if blame == Blame.EXTRACTION_OTHER
+                else JUDGEMENT_FIELDS.get(tool, ())
             )
+            fields = {name: (booleans.get(name, {}).get("value"), product.get(name)) for name in names}
+            found.append(OnlyInB(fixture=fixture, run=index, tool=tool, blame=blame, fields=fields))
     return found
 
