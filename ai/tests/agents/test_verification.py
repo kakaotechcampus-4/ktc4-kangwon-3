@@ -90,6 +90,11 @@ def _unselect_tool(draft: DraftAssessment, name: ToolName) -> None:
     tool_record.result = None
     tool_record.findings = []
 
+    # 미선택으로 변경한 Tool에서 만들어진 종합 finding도 함께 제거한다.
+    draft.findings = [
+        finding for finding in draft.findings if finding.tool_name is not name
+    ]
+
 
 def _review(**overrides) -> _Review:
     """strict 모드라 모든 필드가 required이므로 기본값을 여기서 채운다."""
@@ -194,6 +199,7 @@ def test_선택된_툴이_실패_상태면_재실행을_요구한다():
 
     assert any(issue.issue_type is VerificationIssueType.TOOL_FAILURE for issue in result.issues)
     assert ToolName.ELECTRICAL in result.additional_tools_required
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_성공한_툴에_상세_결과나_finding이_없으면_재실행을_요구한다():
@@ -201,6 +207,7 @@ def test_성공한_툴에_상세_결과나_finding이_없으면_재실행을_요
     tool_record = _tool_record(draft, ToolName.ELECTRICAL)
     tool_record.result = None
     tool_record.findings = []
+    draft.findings = []
 
     result = VerificationAgent().verify_rules(draft)
 
@@ -210,6 +217,7 @@ def test_성공한_툴에_상세_결과나_finding이_없으면_재실행을_요
         for issue in result.issues
     )
     assert ToolName.ELECTRICAL in result.additional_tools_required
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_툴과_상세_결과_kind가_다르면_지적한다():
@@ -245,7 +253,7 @@ def test_상품의_명시적_신호에_필요한_툴이_없으면_지적한다(
 
     result = VerificationAgent().verify_rules(draft)
 
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
     assert expected_tool in result.additional_tools_required
     issue = next(
         issue
@@ -333,7 +341,7 @@ def test_확정적_판단에_근거가_아예_없으면_critical로_지적한다
 
     result = VerificationAgent().verify_rules(draft)
 
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
     issue = next(i for i in result.issues if i.issue_type.value == "missing_evidence")
     assert issue.severity == "critical"
     assert "인용문과 출처가 없습니다" in issue.description
@@ -458,7 +466,7 @@ def test_확정적_판단의_인용문과_URL_중_하나라도_없으면_근거_
         if issue.issue_type is VerificationIssueType.MISSING_EVIDENCE
     )
     assert issue.severity == "critical"
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_모델_없이_verify를_부르면_규칙_결과를_보존하고_실패한다():
@@ -501,14 +509,13 @@ def test_모델_지적과_규칙_지적이_함께_병합된다():
             )
         ],
     )
-    # 규칙 쪽에서도 critical 지적이 나오는 초안을 쓴다.
+    # 규칙 검사에서 누락된 RADIO Tool 재실행 요청이 추가된다.
     draft = _draft(Product(product_id="p1", wireless_comm=True))
 
     result = VerificationAgent(model=_StubModel(review)).verify(draft)
 
     assert len(result.issues) == 2
-    # 규칙이 찾은 critical은 모델이 지울 수 없다.
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 def test_규칙과_모델의_동일한_지적은_한_번만_남긴다():
     description = (
@@ -588,13 +595,13 @@ def test_trace에_DraftAssessment부터_VerificationResult까지_변환을_남�
     assert "VerificationResult" in trace[-1].detail
 
 
-def test_추가_툴_요청이_있으면_코드가_revision_required로_정한다():
+def test_추가_툴_요청이_있으면_tools_required로_정한다():
     review = _review(additional_tools_required=[ToolName.RADIO])
 
     result = VerificationAgent(model=_StubModel(review)).verify(_draft())
 
-    assert result.status is VerificationStatus.REVISION_REQUIRED
     assert "추가 검토 도구: radio_compliance" in result.review_summary
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_필수_질문이_있으면_user_input_required가_된다():
@@ -827,3 +834,58 @@ def test_출력_스키마를_프롬프트에_중복으로_붙이지_않는다():
     assert "앞 단계의 도메인 판단을 반복하지 않는다" in system_prompt
     assert "다시 `missing_evidence`로 지적하지 않는다" in system_prompt
     assert "$defs" not in system_prompt  # JSON Schema 본문은 없다
+
+def test_critical_수정과_추가_툴이_겹치면_revision_required가_된다():
+    review = _review(
+        issues=[
+            _Issue(
+                severity="critical",
+                issue_type="unsupported_claim",
+                description="인용문이 결론을 뒷받침하지 않습니다.",
+                related_finding_ids=["f1"],
+                recommended_action=None,
+            )
+        ],
+        additional_tools_required=[ToolName.RADIO],
+    )
+
+    result = VerificationAgent(model=_StubModel(review)).verify(_draft())
+
+    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert ToolName.RADIO in result.additional_tools_required
+
+@pytest.mark.parametrize(
+    "tool_name",
+    list(ToolName),
+    ids=lambda tool_name: tool_name.value,
+)
+def test_선택된_툴의_실행_기록이_누락되면_revision_required가_된다(
+    tool_name: ToolName,
+):
+    draft = _draft()
+
+    # 기본 픽스처의 ELECTRICAL 실행 결과와 종합 finding을 제거해
+    # 모든 Tool이 미선택된 일관된 상태로 만든다.
+    _unselect_tool(draft, ToolName.ELECTRICAL)
+
+    # 검사할 Tool을 선택 목록에는 남기고 실행 기록만 제거한다.
+    draft.selected_tools = [tool_name]
+    draft.tool_results = [
+        result
+        for result in draft.tool_results
+        if result.tool_name is not tool_name
+    ]
+
+    result = VerificationAgent().verify_rules(draft)
+
+    issue = next(
+        issue
+        for issue in result.issues
+        if issue.issue_type is VerificationIssueType.MISSING_TOOL
+        and issue.description.startswith(f"{tool_name}:")
+        and "실행 기록이 없습니다" in issue.description
+    )
+
+    assert issue.severity == "critical"
+    assert tool_name in result.additional_tools_required
+    assert result.status is VerificationStatus.REVISION_REQUIRED
