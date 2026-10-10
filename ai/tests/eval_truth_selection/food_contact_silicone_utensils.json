@@ -1,0 +1,39 @@
+{
+  "fixture": "food_contact_silicone_utensils.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-07",
+  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "summary": "실리콘 조리도구 세트(Temu). 식품 접촉이 확인되고, 판매자 상품 설명의 '완벽'이 표시광고 절대적 표현에 해당하는지 보는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "wireless_comm·wireless_charging=false, wireless_shield=null. 스펙표 '재료: 실리콘'",
+      "why_not_other": "wireless_shield가 null이지만 category(조리도구)가 전파 차폐와 무관해 원칙 2의 '다른 필드의 해당 없음 근거'가 된다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '요리 및 베이킹에 적합', '실리콘 식기 세트', 카테고리 '주방 용품'",
+      "why_not_other": "food_contact=true이면 선택한다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 실리콘', 전원·전지 표기 없음. 제목 '내열성'",
+      "why_not_other": "electrical_powered·battery_included·battery_is_the_product·heating이 모두 false로 확인된다. '내열성'은 발열 기능이 아니다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없고 선물 대상은 '발렌타인데이, 부활절, 라마단'",
+      "why_not_other": "for_children=false로 확인된다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "상품 설명 '요리와 베이킹에 완벽'(116~123행)",
+      "why_not_other": "프롬프트가 든 절대적·최상급 표현('완벽 차단', '최고')에 해당한다. 브랜드 소개 '보증: 최고의 품질'(81행)은 가게 단위 소개라 이 상품의 표시·광고로 보지 않았다(5절 ④)."
+    }
+  }
+}

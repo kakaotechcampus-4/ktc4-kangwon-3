@@ -45,7 +45,11 @@ def get_engine() -> Engine:
             pool_size=5,
             max_overflow=5,
             # DB에 패킷이 닿지 않으면 OS TCP 타임아웃(약 2분)까지 기다리므로 제한한다.
-            connect_args={"connect_timeout": 3},
+            connect_args={
+                "connect_timeout": 3,
+                # HNSW 기본 탐색 폭(40)에선 거리가 비슷한 1·2위가 뒤바뀜 (#247)
+                "options": "-c hnsw.ef_search=100",
+            },
         )
     except (ArgumentError, ImportError) as e:
         # URL 형식이나 드라이버 문제는 기다려도 풀리지 않는 설정·배포 오류다.
@@ -85,49 +89,8 @@ def init_db() -> None:
 
     Base.metadata에 등록된 모든 ORM 모델의 테이블을 생성한다.
     이미 존재하는 테이블은 건너뛴다.
-    IVFFlat 벡터 인덱스는 여기서 생성하지 않는다. 빈 테이블에
-    IVFFlat을 만들면 클러스터 중심점이 없어 검색이 동작하지 않으므로,
-    데이터 적재 후 create_vector_indexes()를 호출해야 한다.
     """
     from app.models import Base
 
     Base.metadata.create_all(bind=get_engine())
 
-
-_VECTOR_INDEXES = [
-    (
-        "ix_law_articles_embedding",
-        "law_articles",
-        "embedding vector_cosine_ops",
-        100,
-    ),
-    (
-        "ix_hs_cases_embedding",
-        "hs_cases",
-        "embedding vector_cosine_ops",
-        50,
-    ),
-    (
-        "ix_recalls_embedding",
-        "recalls",
-        "embedding vector_cosine_ops",
-        50,
-    ),
-]
-
-
-def create_vector_indexes() -> None:
-    """IVFFlat 벡터 인덱스를 생성한다. 데이터 적재 후 호출한다.
-
-    이미 존재하는 인덱스는 건너뛴다.
-    데이터 분포가 크게 바뀌면 기존 인덱스를 DROP 후 다시 호출한다.
-    """
-    from sqlalchemy import text
-
-    with get_engine().begin() as conn:
-        for name, table, ops, lists in _VECTOR_INDEXES:
-            conn.execute(text(
-                f"CREATE INDEX IF NOT EXISTS {name} "
-                f"ON {table} USING ivfflat ({ops}) "
-                f"WITH (lists = {lists})"
-            ))

@@ -295,3 +295,42 @@ def test_평가_실행은_운영과_다른_이름으로_집계된다(monkeypatch
     agent.extract(ExtractionInput(product_id="eval-1", text_blocks=["아무 텍스트"]))
 
     assert calls[0]["agent"] == "extraction-eval"
+
+
+def _message_text(messages: list) -> str:
+    return "\n".join(part["text"] for part in messages[1].content if part.get("type") == "text")
+
+
+def test_쇼핑몰이_붙인_글은_모델과_규칙_레이어에_넘기지_않는다(aliexpress_page):
+    # Given: AliExpress 화면 순서를 흉내 낸 페이지. 판매자는 배터리 미포함이라고 썼고,
+    # 연관 상품에만 5000mAh가 있다(#251에서 가짜 모순이 생긴 구조).
+    stub = _StubChatModel(ProductAttributes(product_name="접이식 원목 의자"))
+    agent = ExtractionAgent(model=stub)
+
+    result = agent.extract(ExtractionInput(product_id="prod-region", text_blocks=[aliexpress_page]))
+
+    sent = _message_text(stub.received_messages)
+    assert "재료: 원목" in sent
+    for removed in ("남아 있던 검색어", "허리 통증 완화", "5000mAh", "리뷰 문장"):
+        assert removed not in sent
+    # 규칙 레이어도 같은 정제 텍스트를 써서 다른 상품의 용량으로 모순을 만들지 않는다.
+    assert result.conflicts == []
+    assert not any("5000mAh" in a.value for a in result.attributes)
+
+
+def test_모델이_빠뜨린_판매자_제목은_listing_text_맨_앞에_원문으로_넣는다(aliexpress_page):
+    stub = _StubChatModel(ProductAttributes(listing_text=["판매자 설명 문장"]))
+    result = ExtractionAgent(model=stub).extract(
+        ExtractionInput(product_id="prod-title", text_blocks=[aliexpress_page])
+    )
+
+    assert result.listing_text == ["접이식 원목 의자 3단 높이 조절", "판매자 설명 문장"]
+
+
+def test_판매자_제목이_이미_있으면_다시_넣지_않는다(aliexpress_page):
+    stub = _StubChatModel(ProductAttributes(listing_text=["접이식 원목 의자 3단 높이 조절", "판매자 설명 문장"]))
+    result = ExtractionAgent(model=stub).extract(
+        ExtractionInput(product_id="prod-title-2", text_blocks=[aliexpress_page])
+    )
+
+    assert result.listing_text == ["접이식 원목 의자 3단 높이 조절", "판매자 설명 문장"]

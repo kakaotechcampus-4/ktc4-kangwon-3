@@ -1,0 +1,39 @@
+{
+  "fixture": "cert_number_led_stand.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-07",
+  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "summary": "USB 전원 LED 데스크 램프(AliExpress). 판매자 문구가 짧고, '안정적인 작동을 보장'은 AI 상품 요약에만 있다. 표시광고는 스펙표에 해외 인증만 나열돼 5절 ③으로 미선택이다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "스펙표 '스마트 기기인가요? no', '배터리가 포함되어 있습니까? no'. 판매자 제목의 기능 목록(3색 조광, 밝기 조절, USB 전원)에 충전 패드 언급 없음",
+      "why_not_other": "wireless_comm=false로 확인된다. 전지가 없어 무선으로 충전받을 수는 없지만, wireless_charging은 휴대폰 등을 무선으로 충전해 주는 기능(Qi 패드)도 포함한다. 유선 전원은 그 근거가 되지 않는다(충전 패드가 달린 조명도 대개 유선 전원을 쓴다). 페이지는 충전 패드를 언급하지 않을 뿐 없다고 적지 않아 wireless_charging이 null이고, 원칙 2에 따라 선택한다. 적합성평가 고시 별표 1의 조명기기류 8)은 USB·건전지 전원 조명 중 단순 조명기능(On/Off, 밝기·색의 단순 조절)만 갖는 기자재를 적합성평가 대상에서 제외해, 남는 근거는 충전 패드 가능성뿐이다. 8건 중 가장 판단이 약한 칸이지만 선택 담당 확인 결과 선택으로 둔다(#246 리뷰)."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "food_contact=null, medical_claim·cosmetic_claim=false. 품목 유형 '테이블 램프'",
+      "why_not_other": "food_contact가 null이지만 category가 식품 접촉과 무관해 원칙 2의 '다른 필드의 해당 없음 근거'가 된다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 'USB 버섯 모양 LED 데스크 램프', 스펙표 '공칭 전압: 0~5V'",
+      "why_not_other": "electrical_powered=true다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없고 용도는 '침실/책상/커피 바 장식'",
+      "why_not_other": "for_children=false로 확인된다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "스펙표 '인증: ce,FCC,ROHS'(92~93행). 판매자 제목 '침실/책상/커피 바 장식 및 야간 조명에 적합'(22행)",
+      "why_not_other": "스펙표의 해외 인증은 나열일 뿐 국내 인증으로 오인하게 쓴 문구가 없어, 5절 ③에 따라 인증 표방으로 보지 않는다. 제목은 용도 안내라 효능·안전 표방이 아니다. '눈에 부담 없이', '안정적인 작동을 보장'은 AI 상품 요약(36~43행)이라 근거로 쓰지 않았다. 지금 선택 프롬프트에는 ③이 없어 '미검증 인증 표방'과 원칙 1로 선택할 수 있지만, 정답표는 프롬프트 동작이 아니라 맞는 답을 기준으로 둔다(#246 리뷰)."
+    }
+  }
+}

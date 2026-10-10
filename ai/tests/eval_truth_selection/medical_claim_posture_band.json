@@ -1,0 +1,39 @@
+{
+  "fixture": "medical_claim_posture_band.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-05",
+  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "summary": "자세교정 밴드(AliExpress). 판매자 제목의 '굽은 등 교정기'가 의료 표방이라 식약과 표시광고가 선택된다. 추출이 이 제목을 빠뜨리면(#229) 두 툴이 함께 빠지는지 보는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "wireless_comm·wireless_charging=false, wireless_shield=null. 벨트 형태",
+      "why_not_other": "wireless_shield가 null이지만 category(자세교정 밴드)가 전파 차폐와 무관하다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '굽은 등 교정기', '앉은 자세 교정 벨트'",
+      "why_not_other": "medical_claim=true이면 선택한다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: Composite Material', 전원·전지·발열 표기 없음",
+      "why_not_other": "관련 필드가 모두 false로 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '성인 남녀', 스펙표 '나이: 유니버설'",
+      "why_not_other": "for_children=false로 확인된다. '13세 이상 사용 가능한'은 AI 상품 요약 문구라 근거로 쓰지 않았다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '굽은 등 교정기'(22행)",
+      "why_not_other": "신체기능 개선 효능 표방이다. AI 상품 요약의 '척추 건강 관리에 효과적'은 판매자 의견이 아니라고 명시돼 근거로 쓰지 않았다. 제목만으로 선택이다."
+    }
+  }
+}

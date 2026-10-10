@@ -120,6 +120,33 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("본인의 상품을 단건 조회하면 해당 상품을 반환한다.")
+    void getProduct_thenReturnProduct() {
+        // given
+        Product product = createDiagnoses(List.of("상품 A")).getProducts().getFirst();
+        given(productRepository.findWithImagesByIdAndUserId(PRODUCT_ID, USER_ID)).willReturn(Optional.of(product));
+
+        // when
+        Product result = productService.getProduct(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(result).isSameAs(product);
+    }
+
+    @Test
+    @DisplayName("없는 상품이나 다른 사용자의 상품을 단건 조회하면 NOT_FOUND 예외가 발생한다.")
+    void getProduct_withUnknownOrOthersProduct_thenThrowNotFound() {
+        // given: 소유권이 조회 조건에 들어 있어 두 경우 모두 빈 결과다.
+        given(productRepository.findWithImagesByIdAndUserId(PRODUCT_ID, USER_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> productService.getProduct(USER_ID, PRODUCT_ID))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("본인의 상품을 삭제하면 진단서에서 제거된다.")
     void removeProduct_thenRemoveFromDiagnoses() {
         // given

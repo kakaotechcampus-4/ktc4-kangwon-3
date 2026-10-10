@@ -1,17 +1,21 @@
 """법제처 소관 외부 API 클라이언트."""
 
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, ParseError
+
+import httpx
 
 from .base import BaseClient
-from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
+from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest, LicbylTextRequest
 from ..schemas.clients.law_response import (
     AdmrulSearchItem,
     AdmrulSearchResponse,
     LawAnnex,
     LawArticle,
-    LawArticleSubItem,
+    LawItem,
+    LawParagraph,
     LawSearchItem,
     LawSearchResponse,
+    LawSubItem,
     LawTextResponse,
     LicbylSearchItem,
     LicbylSearchResponse,
@@ -30,6 +34,8 @@ class LawClient(BaseClient):
 
     _SEARCH_ENDPOINT = "/DRF/lawSearch.do"
     _TEXT_ENDPOINT = "/DRF/lawService.do"
+    # 정상 본문에만 있는 기본정보 태그 (law: 기본정보, admrul: 행정규칙기본정보)
+    _BASIC_INFO_TAGS = ("기본정보", "행정규칙기본정보")
 
     def __init__(self, oc: str = "test"):
         super().__init__(
@@ -126,6 +132,7 @@ class LawClient(BaseClient):
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 기본정보가 없는 응답).
         """
         return self._fetch_text(request, target="law", id_param="MST")
 
@@ -140,36 +147,57 @@ class LawClient(BaseClient):
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 기본정보가 없는 응답).
         """
         return self._fetch_text(request, target="admrul", id_param="ID")
 
     def get_eflaw_text(self, request: LawTextRequest) -> LawTextResponse:
-        """시행법령 본문을 조회한다.
+        """시행법령(연혁 포함) 본문을 조회한다.
+
+        target=eflaw는 검색 전용이라 본문을 요청하면 HTML이 온다.
+        연혁 본문은 target=law에 그 시점 버전의 MST를 넣어야 받을 수 있다.
 
         Args:
-            request: 본문 조회 요청 파라미터.
+            request: 본문 조회 요청 파라미터. mst에는 search_eflaw() 결과의 버전별 mst를 넣는다.
 
         Returns:
-            LawTextResponse: 조문 목록이 담긴 본문 응답.
+            LawTextResponse: 해당 버전의 조문·별표 목록이 담긴 본문 응답.
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 기본정보가 없는 응답).
         """
-        return self._fetch_text(request, target="eflaw", id_param="MST")
+        return self._fetch_text(request, target="law", id_param="MST")
 
-    def get_licbyl_text(self, request: LawTextRequest) -> LawTextResponse:
-        """자치법규 본문을 조회한다.
+    def get_licbyl_text(self, request: LicbylTextRequest) -> LawAnnex:
+        """별표·서식 본문을 조회한다.
+
+        target=licbyl은 검색 전용이라 본문을 요청하면 HTML 껍데기가 온다.
+        별표 본문은 관련 법령 본문(target=law)에 함께 오므로, 그 안에서 번호와 종류가 맞는 별표를 골라 반환한다.
 
         Args:
-            request: 본문 조회 요청 파라미터.
+            request: 별표 조회 요청 파라미터. search_licbyl() 결과의 관련 법령 MST, 별표번호, 별표종류를 넣는다.
 
         Returns:
-            LawTextResponse: 조문 목록이 담긴 본문 응답.
+            LawAnnex: 요청한 별표·서식 본문.
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            RuntimeError: 본문을 받지 못했거나, 관련 법령 본문에 요청한 별표가 없는 경우.
         """
-        return self._fetch_text(request, target="licbyl", id_param="ID")
+        text = self._fetch_text(LawTextRequest(mst=request.related_law_mst), target="law", id_param="MST")
+
+        # 검색 결과 별표번호 "000300" = 본문 별표번호 "0003" + 별표가지번호 "00"
+        number, branch = request.table_number[:4], request.table_number[4:]
+        for annex in text.annexes:
+            if (annex.annex_number, annex.annex_branch_number, annex.annex_type) == (number, branch, request.table_type):
+                return annex
+
+        # 빈 결과로 넘기면 "별표 내용 없음"으로 읽히므로 수신 실패와 같이 예외로 올린다
+        raise RuntimeError(
+            f"법제처 별표 조회 실패: 관련 법령 본문에 요청한 별표가 없음 "
+            f"(mst={request.related_law_mst}, 별표번호={request.table_number}, 종류={request.table_type})"
+        )
 
     # -- 내부 공통 --
 
@@ -199,11 +227,14 @@ class LawClient(BaseClient):
 
         Args:
             request: 본문 조회 요청 파라미터.
-            target: 검색 대상 (law, admrul, eflaw, licbyl).
-            id_param: 일련번호 파라미터명 (law/eflaw은 MST, admrul/licbyl은 ID).
+            target: 본문 대상 (law, admrul). eflaw·licbyl 본문도 target=law로 조회한다.
+            id_param: 일련번호 파라미터명 (law는 MST, admrul은 ID).
 
         Returns:
             LawTextResponse: 조문·별표 목록이 담긴 본문 응답.
+
+        Raises:
+            RuntimeError: 본문을 받지 못한 경우 (XML이 아니거나 기본정보가 없는 응답).
         """
         response = self._get(self._TEXT_ENDPOINT, params={
             "OC": self._oc,
@@ -211,8 +242,8 @@ class LawClient(BaseClient):
             id_param: request.mst,       # 일련번호
             "type": "XML",
         })
-        root = self._parse_xml(response)
-        self._check_api_error(root)
+        root = self._parse_text_root(response, target, request.mst)
+        info = self._parse_text_info(root)
 
         # 별표(품목표 등)는 조문과 별개로 <별표> > <별표단위> 아래에 오게 됨
         annexes = [self._parse_annex(el) for el in root.iter("별표단위")]
@@ -221,6 +252,7 @@ class LawClient(BaseClient):
         articles_el = root.find("조문")
         if articles_el is not None:
             return LawTextResponse(
+                **info,
                 articles=[
                     self._parse_article(el)
                     for el in articles_el.iter("조문단위")
@@ -232,6 +264,7 @@ class LawClient(BaseClient):
         content_els = root.findall("조문내용")
         if content_els:
             return LawTextResponse(
+                **info,
                 articles=[
                     LawArticle(article_content=el.text)
                     for el in content_els
@@ -240,7 +273,70 @@ class LawClient(BaseClient):
                 annexes=annexes,
             )
 
-        return LawTextResponse(articles=[], annexes=annexes)
+        return LawTextResponse(**info, articles=[], annexes=annexes)
+
+    def _parse_text_info(self, root: Element) -> dict[str, str | None]:
+        """본문 응답의 기본정보를 파싱한다.
+
+        Args:
+            root: 본문 응답 XML 루트 엘리먼트.
+
+        Returns:
+            dict[str, str | None]: LawTextResponse의 기본정보 필드. 기본정보가 없으면 빈 dict.
+        """
+        # law/eflaw: <기본정보> 아래 법령명_한글, 법령ID, 소관부처
+        law_info = root.find("기본정보")
+        if law_info is not None:
+            return {
+                "name": self._text(law_info, "법령명_한글"),
+                "document_id": self._text(law_info, "법령ID"),
+                "enforce_date": self._text(law_info, "시행일자"),
+                "department": self._text(law_info, "소관부처"),
+            }
+
+        # admrul: <행정규칙기본정보> 아래 행정규칙명, 행정규칙ID, 소관부처명
+        admrul_info = root.find("행정규칙기본정보")
+        if admrul_info is not None:
+            return {
+                "name": self._text(admrul_info, "행정규칙명"),
+                "document_id": self._text(admrul_info, "행정규칙ID"),
+                "enforce_date": self._text(admrul_info, "시행일자"),
+                "department": self._text(admrul_info, "소관부처명"),
+            }
+
+        return {}
+
+    def _parse_text_root(self, response: httpx.Response, target: str, id_value: str) -> Element:
+        """본문 응답을 XML로 파싱하고, 본문을 받지 못한 응답을 걸러낸다.
+
+        법제처는 요청이 잘못되면 본문 대신 HTML 안내 페이지나 수백 B짜리 안내 XML을 성공으로 돌려준다.
+        이를 빈 결과로 넘기면 "받지 못한 것"과 "받았는데 조문이 없는 것"을 호출하는 쪽에서 구분할 수 없다.
+
+        Args:
+            response: 본문 조회 HTTP 응답.
+            target: 검색 대상 (예외 메시지용).
+            id_value: 요청한 일련번호 (예외 메시지용).
+
+        Returns:
+            Element: 파싱된 XML 루트 엘리먼트.
+
+        Raises:
+            RuntimeError: API 에러 응답이거나, XML이 아니거나(HTML 등), 기본정보가 없는 응답인 경우.
+        """
+        where = f"target={target}, id={id_value}, 응답 {len(response.content):,}B"
+
+        try:
+            root = self._parse_xml(response)
+        except ParseError as e:
+            raise RuntimeError(f"법제처 본문 수신 실패: XML이 아닌 응답 ({where})") from e
+
+        self._check_api_error(root)
+
+        # 없는 번호 → <Law>안내 문장</Law>, 파싱되는 XHTML 안내 페이지 → html 루트 (둘 다 기본정보 없음)
+        if not any(root.find(tag) is not None for tag in self._BASIC_INFO_TAGS):
+            notice = (root.text or "").strip()[:40]
+            raise RuntimeError(f"법제처 본문 수신 실패: 기본정보 없음 ({where}, 루트 {root.tag}: {notice})")
+        return root
 
     @staticmethod
     def _check_api_error(root: Element) -> None:
@@ -342,9 +438,7 @@ class LawClient(BaseClient):
             article_is_exist=self._text(el, "조문여부"),
             article_title=self._text(el, "조문제목"),
             article_content=self._text(el, "조문내용"),
-            paragraphs=self._parse_sub_items(el, "항", "항번호", "항내용"),
-            items=self._parse_sub_items(el, "호", "호번호", "호내용"),
-            sub_items=self._parse_sub_items(el, "목", "목번호", "목내용"),
+            paragraphs=[self._parse_paragraph(paragraph) for paragraph in el.findall("항")],
             enforce_date=self._text(el, "조문시행일자"),
             reference=self._text(el, "조문참고자료"),
         )
@@ -366,33 +460,50 @@ class LawClient(BaseClient):
             annex_content=self._text(el, "별표내용"),
         )
 
-    @staticmethod
-    def _parse_sub_items(
-        parent: Element,
-        tag: str,
-        number_tag: str,
-        content_tag: str,
-    ) -> list[LawArticleSubItem]:
-        """항·호·목 하위 항목을 파싱한다.
+    def _parse_paragraph(self, el: Element) -> LawParagraph:
+        """항 하나를 파싱한다. 직계 자식 호만 읽음.
 
         Args:
-            parent: 부모 엘리먼트 (<조문단위> 또는 <항>).
-            tag: 찾을 태그명 (항, 호, 목).
-            number_tag: 번호 태그명.
-            content_tag: 내용 태그명.
+            el: <항> 엘리먼트.
 
         Returns:
-            list[LawArticleSubItem]: 파싱된 하위 항목 목록.
+            LawParagraph: 파싱된 항. 항번호 없이 호만 있으면 number·content가 None.
         """
-        results = []
-        for child in parent.iter(tag):
-            num_el = child.find(number_tag)
-            content_el = child.find(content_tag)
-            results.append(LawArticleSubItem(
-                number=num_el.text if num_el is not None else None,
-                content=content_el.text if content_el is not None else None,
-            ))
-        return results
+        return LawParagraph(
+            number=self._text(el, "항번호"),
+            content=self._text(el, "항내용"),
+            items=[self._parse_item(item) for item in el.findall("호")],
+        )
+
+    def _parse_item(self, el: Element) -> LawItem:
+        """호 하나를 파싱한다. 직계 자식 목만 읽음.
+
+        Args:
+            el: <호> 엘리먼트.
+
+        Returns:
+            LawItem: 파싱된 호.
+        """
+        return LawItem(
+            number=self._text(el, "호번호"),
+            branch_number=self._text(el, "호가지번호"),
+            content=self._text(el, "호내용"),
+            sub_items=[self._parse_sub_item(sub_item) for sub_item in el.findall("목")],
+        )
+
+    def _parse_sub_item(self, el: Element) -> LawSubItem:
+        """목 하나를 파싱한다.
+
+        Args:
+            el: <목> 엘리먼트.
+
+        Returns:
+            LawSubItem: 파싱된 목.
+        """
+        return LawSubItem(
+            number=self._text(el, "목번호"),
+            content=self._text(el, "목내용"),
+        )
 
     @staticmethod
     def _text(element: Element, tag: str) -> str | None:

@@ -1,5 +1,5 @@
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Index, String, Text
+from sqlalchemy import Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -10,13 +10,20 @@ class Recall(Base):
 
     __tablename__ = "recalls"
     __table_args__ = (
+        # 국내·국외 리콜 ID 번호 중복 존재 (#209)
+        UniqueConstraint("source", "source_uid"),
         Index("ix_recalls_source", "source"),
         Index("ix_recalls_product_name", "product_name"),
+        # 데이터 양과 관계없이 검색 품질 유지, 빈 테이블에서도 생성 가능 (#247)
+        Index(
+            "ix_recalls_embedding", "embedding",
+            postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     recall_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     source: Mapped[str] = mapped_column(String(10), nullable=False)
-    source_uid: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    source_uid: Mapped[str] = mapped_column(String(50), nullable=False)     # 원본 리콜 ID
     product_name: Mapped[str | None] = mapped_column(String(500))
     brand_name: Mapped[str | None] = mapped_column(String(200))
     model_name: Mapped[str | None] = mapped_column(String(500))

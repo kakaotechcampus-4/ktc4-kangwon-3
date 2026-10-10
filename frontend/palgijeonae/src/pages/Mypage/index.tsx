@@ -1,7 +1,69 @@
+import { useRef, useState } from "react";
+
+import SectionIntro from "@/components/common/SectionIntro";
+
+import { PAGE_SIZE } from "./constraints.ts";
+import MyProductList from "./MyProductList.tsx";
+import NotificationSettings from "./NotificationSettings.tsx";
+import ProductFilterBar from "./ProductFilterBar.tsx";
+import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
+import type { ProductFilter } from "./types.ts";
+import { useMyProducts } from "./useMyProducts.ts";
+
 function MyPage() {
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filter, setFilter] = useState<ProductFilter>("all");
+    const [page, setPage] = useState(0);
+    const productListRef = useRef<HTMLDivElement>(null);
+
+    const { data, isPending, isError, refetch } = useMyProducts(filter, searchTerm, page);
+
+    // 렌더링 시 type error / Pagination 크래시 방지용 빈 데이터 배열과 빈 페이지 정보.
+    const pagedProducts = data?.items ?? [];
+    const pageInfo = data?.pageInfo ?? { page, size: PAGE_SIZE, totalElements: 0, totalPages: 1, hasNext: false };
+
+    // 상품 검색어 / 필터가 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정
+    const handleSearchTermChange = (value: string) => {
+        setSearchTerm(value);
+        setPage(0);
+    };
+
+    const handleFilterChange = (value: ProductFilter) => {
+        setFilter(value);
+        setPage(0);
+    };
+
     return (
-        <div>
-            <h1>마이 페이지 입니다.</h1>
+        <div className="flex w-full flex-col gap-8">
+            <SectionIntro title="마이페이지" description="지금까지 진단한 상품들을 확인할 수 있어요" />
+            <RevisionNoticeBanner
+                revisedDate="2026-09-03"
+                title="어린이제품 안전 특별법 시행규칙 별표2가 개정되었습니다. 완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다."
+                description="사입으로 등록한 상품 1개는 재확인이 필요합니다. 구매대행 상품은 이 조문의 적용을 받지 않아 영향이 없습니다."
+                onCheckClick={() => {
+                    handleFilterChange("RECHECK_REQUIRED");
+                    productListRef.current?.scrollIntoView({ behavior: "smooth" });
+                }}
+            />
+            <NotificationSettings />
+            <ProductFilterBar
+                searchTerm={searchTerm}
+                onSearchTermChange={handleSearchTermChange}
+                filter={filter}
+                onFilterChange={handleFilterChange}
+            />
+            <div ref={productListRef}>
+                <MyProductList
+                    products={pagedProducts}
+                    isLoading={isPending}
+                    isError={isError}
+                    onRetry={refetch}
+                    page={page}
+                    totalPages={pageInfo.totalPages}
+                    hasNext={pageInfo.hasNext}
+                    onPageChange={setPage}
+                />
+            </div>
         </div>
     );
 }

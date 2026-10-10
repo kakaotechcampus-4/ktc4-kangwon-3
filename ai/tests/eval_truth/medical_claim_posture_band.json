@@ -1,0 +1,152 @@
+{
+  "fixture": "medical_claim_posture_band.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-09-30",
+  "tags": [
+    "처음 보는 상품",
+    "의료표방",
+    "AliExpress"
+  ],
+  "summary": "자세교정 밴드(AliExpress). 판매자 제목의 '굽은 등 교정기'가 의료 효능 표방인지, 판매자 의견이 아니라고 명시된 AI 상품 요약을 근거로 쓰지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "스펙표 '재료: Composite Material', 제목 '교정기 벨트 버팀대'. 전원 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "벨트 형태. 전자 부품 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "벨트 형태. 전원·충전 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "재질만으로 차폐 여부를 알 수 없다."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "벨트 형태. 전지 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '등 자세 교정기 벨트 버팀대'. 원문 3행 '자세교정 밴드'는 검색창 글자라 근거로 쓰지 않는다(#252)",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "벨트 형태. 발열·온열 표기 없음",
+      "why_not_other": "재질·형태가 페이지에 확인되고 전기로 작동하는 구조가 아니다(wireless_shield_rfid의 지갑과 같은 기준)."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "판매자 문구에 피부 접촉을 말하는 표현이 없다",
+      "why_not_other": "'몸에 착용한다'는 상품 종류에서 나온 추론이다. '피부에 자극이 적고'는 AI 상품 요약에만 있다. AI 상품 요약은 페이지가 '판매자의 의견을 대변하지 않습니다'라고 밝혀 근거로 쓰지 않았다."
+    },
+    "medical_claim": {
+      "value": true,
+      "evidence": "제목 '굽은 등 교정기', '앉은 자세 교정 벨트'",
+      "why_not_other": "굽은 등을 교정한다는 신체 형태 개선 표방이다. '척추 건강 관리에 효과적'은 AI 상품 요약에만 있어 근거에서 뺐다. AI 상품 요약은 페이지가 '판매자의 의견을 대변하지 않습니다'라고 밝혀 근거로 쓰지 않았다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 판매자 문구에 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "벨트 형태",
+      "why_not_other": "형태·작동 방식이 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "스펙표 '재료: Composite Material'",
+      "why_not_other": "복합 소재의 구성이 적혀 있지 않아 식물성 소재 여부를 알 수 없다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "스펙표 '고농도 화학 물질: 없음', 카테고리 '자세교정 밴드'",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "제목 '성인 남녀', 스펙표 '나이: 유니버설'",
+      "why_not_other": "광고가 성인을 겨냥한다. '13세 이상'은 AI 상품 요약에만 있다. AI 상품 요약은 페이지가 '판매자의 의견을 대변하지 않습니다'라고 밝혀 근거로 쓰지 않았다."
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "교정"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "자세교정 밴드",
+        "자세 교정기",
+        "등 자세 교정기",
+        "자세교정 벨트",
+        "교정 벨트",
+        "자세 교정 벨트"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "모델 번호",
+      "value": "Back Posture Corrector",
+      "evidence": "스펙표 '모델 번호: Back Posture Corrector'"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "굽은 등 교정기",
+      "evidence": "원문 22행, 판매자 제목의 교정 효능 표방. 빠지면 표시광고 심사가 빠진다"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "척추 건강 관리에 효과적",
+      "evidence": "원문 47행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "13세 이상 사용 가능한",
+      "evidence": "원문 47행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "피부에 자극이 적고",
+      "evidence": "원문 51행, AliExpress AI 상품 요약(판매자 의견 아님이라고 명시)"
+    },
+    {
+      "must_not_contain": "끈을 잡아주는 플라스틱이 약해서",
+      "evidence": "원문 76행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "어머니 드릴려구 샀는데요",
+      "evidence": "원문 81행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "30일 내 미배송 시 전액 환불",
+      "evidence": "원문 131행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "채무지급보증 안내",
+      "evidence": "원문 140행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    },
+    {
+      "must_not_contain": "AliExpress의 약속",
+      "evidence": "원문 117행, 판매 사이트 공통 문구(배송·환불·가격 안내)"
+    }
+  ]
+}
