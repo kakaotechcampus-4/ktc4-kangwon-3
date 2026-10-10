@@ -139,6 +139,23 @@ def test_B에서만_놓친_결정만_골라내고_실패한_회차는_짝에서_
     }
 
 
+
+def test_다른_필드_탓이면_판단_필드가_아니라_정답과_다른_boolean을_보여준다():
+    # power_bank: 무선 필드는 A·B 모두 null이라 판단 필드만 보이면 원인을 알 수 없다
+    selection_truth = _selection_truth(radio_compliance=True)
+    extraction_truth = {"booleans": {
+        "wireless_charging": {"value": None},
+        "battery_is_the_product": {"value": None},
+        "electrical_powered": {"value": None},
+    }}
+    products = [{"wireless_charging": None, "battery_is_the_product": True, "electrical_powered": None}]
+
+    found = only_in_b("power_bank", selection_truth, extraction_truth, products,
+                      [_response(radio_compliance=True)], [_response()])
+
+    assert [d.blame for d in found] == [Blame.EXTRACTION_OTHER]
+    assert found[0].fields == {"battery_is_the_product": (None, True)}
+
 def test_같은_툴이_두_번_적힌_정답표는_읽을_때_실패한다(tmp_path):
     path = tmp_path / "dup.json"
     path.write_text('{"tools": {"radio_compliance": {"selected": true}, "radio_compliance": {"selected": false}}}',

@@ -12,8 +12,9 @@ from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.schemas import ToolName
 
 
-def _write_log(path, results, fingerprint="aaa"):
-    path.write_text(json.dumps({"meta": {"prompt_sha256": fingerprint}, "results": results}), encoding="utf-8")
+def _write_log(path, results, fingerprint="aaa", model="openai/gpt-4.1-mini"):
+    meta = {"prompt_sha256": fingerprint, "model": model}
+    path.write_text(json.dumps({"meta": meta, "results": results}), encoding="utf-8")
     return path
 
 
@@ -21,10 +22,10 @@ def test_추출_결과를_픽스처별로_합치고_실패한_회차는_뺀다(t
     first = _write_log(tmp_path / "1.json", {"power_bank": [{"category": "a"}, {"_failed": True}]})
     second = _write_log(tmp_path / "2.json", {"power_bank": [{"category": "b"}]})
 
-    outputs, fingerprints = selection_runner.load_extraction_outputs([first, second])
+    outputs, prompt, model = selection_runner.load_extraction_outputs([first, second])
 
     assert outputs == {"power_bank": [{"category": "a"}, {"category": "b"}]}
-    assert fingerprints == ["aaa", "aaa"]
+    assert (prompt, model) == ("aaa", "openai/gpt-4.1-mini")
 
 
 def test_추출_프롬프트가_다른_기록은_섞지_않는다(tmp_path):
@@ -32,6 +33,15 @@ def test_추출_프롬프트가_다른_기록은_섞지_않는다(tmp_path):
     second = _write_log(tmp_path / "2.json", {"power_bank": [{}]}, fingerprint="bbb")
 
     with pytest.raises(ValueError, match="섞었습니다"):
+        selection_runner.load_extraction_outputs([first, second])
+
+
+def test_프롬프트가_같아도_추출_모델이_다른_기록은_섞지_않는다(tmp_path):
+    # 같은 프롬프트로 gpt-4.1-mini와 Luna를 잰 기록(#279)이 섞이면 어떤 추출로 잰 선택인지 알 수 없다
+    first = _write_log(tmp_path / "1.json", {"power_bank": [{}]}, model="openai/gpt-4.1-mini")
+    second = _write_log(tmp_path / "2.json", {"power_bank": [{}]}, model="openai/gpt-6-luna")
+
+    with pytest.raises(ValueError, match="모델"):
         selection_runner.load_extraction_outputs([first, second])
 
 
@@ -77,6 +87,7 @@ def test_같은_추출_결과로_B는_그대로_A는_정답_boolean으로_선택
     assert saved["meta"]["prompt_path"] == "app/prompts/selection.md"
     assert saved["meta"]["extraction_logs"] == [log.as_posix()]
     assert saved["meta"]["extraction_prompt_sha256"] == "aaa"
+    assert saved["meta"]["extraction_model"] == "openai/gpt-4.1-mini"
     radio = lambda r: next(d["selected"] for d in r["decisions"] if d["tool_name"] == "radio_compliance")
     assert radio(saved["results"]["power_bank"]["B"][0]) is False
     assert radio(saved["results"]["power_bank"]["A"][0]) is True

@@ -28,6 +28,7 @@ from .grading import Grade, Stability
 from .runner import RESULT_DIR, TRUTH_DIR, describe_metadata, prompt_fingerprint, run_metadata
 from .scoring import load_truth as load_extraction_truth
 from .selection_scoring import (
+    Blame,
     ModeReport,
     OnlyInB,
     correct_booleans,
@@ -40,21 +41,28 @@ SELECTION_TRUTH_DIR = TRUTH_DIR.parent / "eval_truth_selection"
 MODES = ("A", "B")
 
 
-def load_extraction_outputs(paths: list[Path]) -> tuple[dict[str, list[dict]], list[str]]:
+def load_extraction_outputs(paths: list[Path]) -> tuple[dict[str, list[dict]], str, str]:
     """추출 결과 파일들을 픽스처별로 합친다. 실패한 회차는 뺀다.
 
-    프롬프트가 다른 기록을 섞으면 어떤 추출로 잰 선택 결과인지 알 수 없으므로 막는다.
+    프롬프트나 모델이 다른 기록을 섞으면 어떤 추출로 잰 선택 결과인지 알 수 없으므로 막는다.
+    프롬프트 지문이 같아도 모델이 다르면(gpt-4.1-mini와 Luna, #279) 출력이 다르다.
+
+    Returns:
+        픽스처별 추출 결과, 추출 프롬프트 지문, 추출 모델.
     """
     merged: dict[str, list[dict]] = {}
-    fingerprints: list[str] = []
+    conditions: list[tuple[str, str]] = []
     for path in paths:
         saved = json.loads(path.read_text(encoding="utf-8"))
-        fingerprints.append((saved.get("meta") or {}).get("prompt_sha256") or "알 수 없음")
+        meta = saved.get("meta") or {}
+        conditions.append((meta.get("prompt_sha256") or "알 수 없음", meta.get("model") or "알 수 없음"))
         for name, outputs in saved["results"].items():
             merged.setdefault(name, []).extend(o for o in outputs if not o.get("_failed"))
-    if len(set(fingerprints)) > 1:
-        raise ValueError(f"추출 프롬프트가 다른 기록을 섞었습니다: {sorted(set(fingerprints))}")
-    return merged, fingerprints
+    if len({prompt for prompt, _ in conditions}) > 1:
+        raise ValueError(f"추출 프롬프트가 다른 기록을 섞었습니다: {sorted({p for p, _ in conditions})}")
+    if len({model for _, model in conditions}) > 1:
+        raise ValueError(f"추출 모델이 다른 기록을 섞었습니다: {sorted({m for _, m in conditions})}")
+    return merged, conditions[0][0], conditions[0][1]
 
 
 def _select(agent: SelectionAgent, product: dict, product_id: str) -> dict | None:
@@ -112,7 +120,8 @@ def print_fixture(name: str, reports: dict[str, ModeReport], diffs: list[OnlyInB
         print(f"  {tool_reports[0].tool.value:32s} 정답={'선택' if tool_reports[0].truth else '미선택'}  {values}")
     for diff in diffs:
         fields = ", ".join(f"{k} 정답={t!r}/추출={e!r}" for k, (t, e) in diff.fields.items())
-        print(f"  B에서만 놓침 {diff.run + 1}회차 {diff.tool.value} → {diff.blame} 탓  ({fields or '판단 필드 없음'})")
+        label = "정답과 다른 boolean: " if diff.blame == Blame.EXTRACTION_OTHER else ""
+        print(f"  B에서만 놓침 {diff.run + 1}회차 {diff.tool.value} → {diff.blame} 탓  ({label}{fields or '판단 필드 없음'})")
 
 
 def print_summary(all_reports: list[dict[str, ModeReport]], all_diffs: list[OnlyInB]) -> None:
@@ -186,7 +195,7 @@ def main() -> int:
     if not args.extraction_log:
         parser.error("--extraction-log 또는 --rescore 를 지정하세요.")
 
-    outputs, fingerprints = load_extraction_outputs(args.extraction_log)
+    outputs, extraction_prompt, extraction_model = load_extraction_outputs(args.extraction_log)
     with_truth = [p.stem for p in sorted(SELECTION_TRUTH_DIR.glob("*.json"))]
     names = args.fixture or [n for n in with_truth if n in outputs]
     # 모델을 만들기 전에 입력이 다 있는지 본다. 뒤쪽이 비면 앞쪽 호출이 통째로 낭비된다.
@@ -200,8 +209,9 @@ def main() -> int:
     meta = run_metadata(runs=args.runs, model=load_settings().model, prompt_path=SELECTION_PROMPT_PATH)
     # 어떤 추출 결과로 잰 선택인지 함께 남긴다. 추출이 바뀌면 모드 B 수치가 달라진다.
     meta["extraction_logs"] = [p.as_posix() for p in args.extraction_log]
-    meta["extraction_prompt_sha256"] = fingerprints[0]
-    print(f"측정 조건: {describe_metadata(meta)} / 추출 프롬프트 {fingerprints[0][:12]}", file=sys.stderr)
+    meta["extraction_prompt_sha256"] = extraction_prompt
+    meta["extraction_model"] = extraction_model
+    print(f"측정 조건: {describe_metadata(meta)} / 추출 프롬프트 {extraction_prompt[:12]} / 추출 모델 {extraction_model}", file=sys.stderr)
     if meta["git_dirty"]:
         print("  커밋하지 않은 수정이 있습니다. 기록된 커밋만으로는 재현되지 않습니다.", file=sys.stderr)
 
