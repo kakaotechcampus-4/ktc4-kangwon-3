@@ -38,7 +38,7 @@ class CustomsGwConfirmation(BaseModel):
     law_name: str | None = None
     req_agency_code: str | None = None
     req_agency_name: str | None = None
-    confirm_agency_name: str | None = None
+    req_document_name: str | None = None
     apply_start_date: str | None = None
 
 

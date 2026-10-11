@@ -87,7 +87,7 @@ class CustomsGwClient(BaseClient[CustomsGwConfirmationRequest, CustomsGwConfirma
                 law_name=self._text(item, "dcerCfrmLworNm"),                # 법령 이름
                 req_agency_code=self._text(item, "reqApreIttCd"),           # 조회 요청기관 코드
                 req_agency_name=self._text(item, "reqApreIttNm"),           # 조회 요청기관 이름
-                confirm_agency_name=self._text(item, "reqCfrmIstmNm"),      # 제출 서류명
+                req_document_name=self._text(item, "reqCfrmIstmNm"),        # 제출 서류명
                 apply_start_date=self._text(item, "aplyStrtDt"),            # 적용 시작일
             ))
         return items
