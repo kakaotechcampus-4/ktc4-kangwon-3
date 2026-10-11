@@ -27,9 +27,11 @@ class ForeignRecallSearchClient(SafetyKoreaBaseClient[ForeignRecallSearchRequest
             httpx.Response: JSON 원문 응답.
 
         Raises:
+            ValueError: 공표일 검색값의 형식이 틀렸거나 최근 5년보다 오래된 경우.
             RuntimeError: 인증 실패(302 Redirect) 시.
             httpx.HTTPStatusError: 그 밖의 3xx/4xx/5xx 응답 시.
         """
+        self._check_recall_publish_date(request.condition_key, request.condition_value)
         return self._get_with_auth(self._ENDPOINT, params={
             "conditionKey": request.condition_key,       # 검색 구분
             "conditionValue": request.condition_value,   # 검색어

@@ -5,6 +5,10 @@ from typing import Any
 import httpx
 
 from ..base import BaseClient, RequestT, ResponseT
+from ...utils.date_range import is_date_prefix_within_years
+
+# 리콜은 공표일 기준 최근 5년만 수집
+RECALL_COLLECTION_YEARS = 5
 
 
 class SafetyKoreaBaseClient(BaseClient[RequestT, ResponseT]):
@@ -47,6 +51,27 @@ class SafetyKoreaBaseClient(BaseClient[RequestT, ResponseT]):
                     "SafetyKorea 인증 실패: AuthKey가 유효하지 않습니다 (302 Redirect)"
                 ) from None
             raise
+
+    @staticmethod
+    def _check_recall_publish_date(condition_key: str, condition_value: str) -> None:
+        """공표일 검색이면 검색값이 수집 기간(최근 5년) 안인지 요청 전에 확인한다.
+
+        API는 공표일을 앞부분 일치(YYYY·YYYYMM·YYYYMMDD)로만 검색하고 기간 검색은 지원하지 않음.
+        형식이 틀리면 오류 없이 0건이 오므로 형식도 함께 확인. 공표일 외 검색은 확인하지 않음.
+
+        Args:
+            condition_key: 검색 구분.
+            condition_value: 검색어.
+
+        Raises:
+            ValueError: 공표일 검색값의 형식이 틀렸거나 수집 기간보다 오래된 경우.
+        """
+        if condition_key != "publishDate":
+            return
+        if not is_date_prefix_within_years(condition_value, RECALL_COLLECTION_YEARS):
+            raise ValueError(
+                f"리콜은 최근 {RECALL_COLLECTION_YEARS}년만 수집함: 공표일 검색값 {condition_value!r}이 기간 밖"
+            )
 
     def _parse_result_data(self, raw: httpx.Response) -> Any:
         """원문 응답에서 resultData를 꺼낸다.
