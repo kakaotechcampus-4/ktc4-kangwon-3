@@ -31,7 +31,7 @@ class RadioBaseClient(BaseClient[RadioAuthRequest, ResponseT]):
 
     def __init__(self):
         super().__init__(
-            base_url="http://emsit.go.kr/openapi/service/AuthenticationInfoService",
+            base_url="https://emsit.go.kr/openapi/service/AuthenticationInfoService",
             headers={"User-Agent": _BROWSER_UA},
         )
 
