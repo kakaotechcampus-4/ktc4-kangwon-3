@@ -60,7 +60,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
     };
 
     return (
-        <div className="px-1.5 flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
             <form onSubmit={handleSubmit} className="relative w-full">
                 <input
                     type="text"
