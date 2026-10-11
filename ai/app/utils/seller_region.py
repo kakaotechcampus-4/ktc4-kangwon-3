@@ -10,6 +10,10 @@
 - 쇼핑몰을 알아봤는데 표지를 못 찾으면 원문을 그대로 돌려주고 경고를 남긴다. 화면 구조가
   바뀐 것을 알아채기 위해서다. 자르지 못해도 원래 동작과 같으므로 지금보다 나빠지지 않는다.
 - 쇼핑몰을 알아보지 못한 입력(일부만 붙여 넣은 글 등)은 그대로 돌려준다.
+- 지원하는 쇼핑몰은 판매자가 상품을 떼오는 AliExpress·Temu다. 쿠팡은 국내 판매처라 소싱 출처가
+  아니어서 지원하지 않는다(#257 리뷰). 쿠팡 페이지는 알아보지 못한 입력과 같이 그대로 넘어간다.
+- 화면 구조가 바뀐 것은 실제 페이지에서 표지 줄만 남긴 뼈대 픽스처(tests/fixtures/seller_region)로
+  잡는다. 새 페이지를 모으면 원문 점검 테스트(test_seller_region_raw.py)로 화면 변경을 확인한다.
 """
 
 import logging
@@ -25,7 +29,7 @@ class SellerRegion:
 
     text: LLM과 규칙 레이어에 넘길 텍스트. 자르지 못했으면 원문 그대로다.
     title: 판매자가 쓴 상품 제목 원문. 찾지 못했으면 None이다.
-    site: 알아본 쇼핑몰("aliexpress", "temu", "coupang"). 모르면 None이다.
+    site: 알아본 쇼핑몰("aliexpress", "temu"). 모르면 None이다.
     trimmed: 구역을 실제로 잘랐는지.
     """
 
@@ -36,6 +40,14 @@ class SellerRegion:
 
 
 def extract_seller_region(text: str) -> SellerRegion:
+    """상세페이지 원문에서 판매자 구역만 남긴다.
+
+    Args:
+        text: 상세페이지에서 복사한 원문.
+
+    Returns:
+        SellerRegion: 정제한 텍스트와 판매자 제목. 쇼핑몰을 모르거나 표지를 못 찾으면 원문 그대로.
+    """
     lines = text.replace("​", "").splitlines()
     stripped = [line.strip() for line in lines]
     head = [line for line in stripped if line][:20]
@@ -67,10 +79,20 @@ def _first_text(lines: list[str], start: int, stop: int) -> str | None:
 # 남기는 구간: 제목 구역, 두 번째 "상품 정보"(첫 번째는 탭 줄)부터 구매자 질문·면책 조항 전까지.
 
 def _is_aliexpress(head: list[str]) -> bool:
+    """상단 첫 세 줄 안에 로고 줄("AliExpress")이 있으면 AliExpress 페이지로 본다."""
     return "AliExpress" in head[:3]
 
 
-def _cut_aliexpress(lines, stripped):
+def _cut_aliexpress(lines: list[str], stripped: list[str]) -> tuple[list[str], str | None] | None:
+    """AliExpress 페이지에서 제목 구역과 스펙·설명 구역만 남긴다.
+
+    Args:
+        lines: 원문 줄 목록.
+        stripped: 앞뒤 공백을 지운 줄 목록. lines와 순서가 같다.
+
+    Returns:
+        (남긴 줄, 판매자 제목). 필요한 표지를 못 찾으면 None.
+    """
     cart = _index(stripped, 0, lambda s: s == "장바구니")
     if cart is None:
         return None
@@ -99,10 +121,24 @@ _TEMU_REVIEW_COUNT = re.compile(r"리뷰 [\d,]+건")
 
 
 def _is_temu(head: list[str]) -> bool:
-    return any("Temu" in line for line in head)
+    """상단의 고정 안내 줄("Temu 앱 다운로드")이 있으면 Temu 페이지로 본다.
+
+    "Temu"가 들어간 줄로 보면 다른 쇼핑몰의 제목·최근 검색어에 Temu가 있을 때도 Temu로 알아보고
+    "표지를 찾지 못했다"는 거짓 경고를 낸다(#257 리뷰). 실제 Temu 원문 15건 모두 이 줄이 있다.
+    """
+    return "Temu 앱 다운로드" in head
 
 
-def _cut_temu(lines, stripped):
+def _cut_temu(lines: list[str], stripped: list[str]) -> tuple[list[str], str | None] | None:
+    """Temu 페이지에서 카테고리 경로·제목과 제품 세부 정보 구역만 남긴다.
+
+    Args:
+        lines: 원문 줄 목록.
+        stripped: 앞뒤 공백을 지운 줄 목록. lines와 순서가 같다.
+
+    Returns:
+        (남긴 줄, 판매자 제목). 필요한 표지를 못 찾으면 None.
+    """
     category = _index(stripped, 0, lambda s: s == "카테고리")
     if category is None:
         return None
@@ -123,38 +159,7 @@ def _cut_temu(lines, stripped):
     return lines[top:stop1] + lines[start2:stop2], title
 
 
-# --- 쿠팡 -----------------------------------------------------------------------
-# 순서: 상단 메뉴·검색창 → 분류 경로(쿠팡 홈 …) → 제목 → 가격·결제 → 옵션 → 쿠팡상품번호
-#       → 다른 상품 광고·추천 → 상품상세 탭 → 필수 표기 정보 → 다른 고객이 함께 본 상품
-# 남기는 구간: 분류 경로부터 쿠팡상품번호까지, 필수 표기 정보부터 접기 전까지.
-
-_COUPANG_REVIEW_COUNT = re.compile(r"[\d,]+ 개 상품평")
-
-
-def _is_coupang(head: list[str]) -> bool:
-    return "Coupang" in head[:5]
-
-
-def _cut_coupang(lines, stripped):
-    top = _index(stripped, 0, lambda s: s == "쿠팡 홈")
-    if top is None:
-        return None
-    product_no = _index(stripped, top, lambda s: s.startswith("쿠팡상품번호"))
-    start2 = _index(stripped, top, lambda s: s == "필수 표기 정보")
-    if product_no is None or start2 is None:
-        return None
-    # 표 바로 아래 "모든 로켓직구 상품은 관부가세 포함가!"는 모든 직구 상품에 붙는 쿠팡 안내다.
-    stop2 = _index(stripped, start2, lambda s: s == "상품정보 접기" or s.startswith("모든 로켓직구"))
-    stop2 = len(lines) if stop2 is None else stop2
-    review = _index(stripped, top, lambda s: bool(_COUPANG_REVIEW_COUNT.fullmatch(s)))
-    title = None
-    if review is not None:
-        title = next((lines[i].strip() for i in range(review - 1, top, -1) if lines[i].strip()), None)
-    return lines[top:product_no + 1] + lines[start2:stop2], title
-
-
 _SITES = (
     ("aliexpress", _is_aliexpress, _cut_aliexpress),
     ("temu", _is_temu, _cut_temu),
-    ("coupang", _is_coupang, _cut_coupang),
 )
