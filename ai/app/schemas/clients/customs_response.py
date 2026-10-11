@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class CLIPCase(BaseModel):
     """CLIP 품목분류 결정사례 단건."""
 
-    hs_code: str
+    hs_codes: list[str]
     product_name: str
     description: str
     decision_reason: str
