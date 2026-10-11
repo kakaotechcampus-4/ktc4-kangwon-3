@@ -40,12 +40,18 @@ class FdaBaseClient(DataGoKrClient[FdaPaginationRequest, ResponseT]):
         })
 
     def _parse_body(self, raw: httpx.Response) -> dict:
-        """원문 응답에서 body를 꺼낸다.
+        """원문 응답의 결과코드를 확인하고 body를 꺼낸다.
 
         Args:
             raw: `_send`가 받은 JSON 원문 응답.
 
         Returns:
             dict: 응답 body (pageNo, totalCount, numOfRows, items 포함). 없으면 빈 dict.
+
+        Raises:
+            RuntimeError: header의 resultCode가 00이 아닌 경우.
         """
-        return self._parse_json(raw).get("body", {})
+        data = self._parse_json(raw)
+        header = data.get("header", {})
+        self._raise_for_result_code(header.get("resultCode"), header.get("resultMsg"))
+        return data.get("body", {})

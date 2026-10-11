@@ -41,3 +41,22 @@ class DataGoKrClient(BaseClient[RequestT, ResponseT]):
             return self._get(path, params={"serviceKey": self._service_key, **params})
         except httpx.HTTPStatusError as e:
             raise self._mask_url(e) from None
+
+    @staticmethod
+    def _raise_for_result_code(result_code: str | None, result_message: str | None) -> None:
+        """응답 header의 결과코드가 정상(00)이 아니면 예외를 올린다.
+
+        data.go.kr은 요청 오류(예: numOfRows 초과)도 HTTP 200에 담아 빈 목록과 함께 돌려줌.
+        그대로 넘기면 "0건"과 구분할 수 없으므로 수신 실패로 올림.
+
+        Args:
+            result_code: header의 resultCode. 없으면 None.
+            result_message: header의 resultMsg. 없으면 None.
+
+        Raises:
+            RuntimeError: 결과코드가 00이 아니거나 header가 없는 경우.
+        """
+        if result_code == "00":
+            return
+        message = " ".join((result_message or "").split())    # 메시지 안 줄바꿈 정리
+        raise RuntimeError(f"공공데이터포털 API 오류: resultCode={result_code} — {message}")
