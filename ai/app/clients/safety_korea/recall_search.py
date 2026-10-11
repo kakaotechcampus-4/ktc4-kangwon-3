@@ -48,5 +48,5 @@ class RecallSearchClient(SafetyKoreaBaseClient[RecallSearchRequest, RecallSearch
         """
         raw_items = self._parse_result_data(raw) or []
         return RecallSearchResponse(
-            items=[RecallItem(**item) for item in raw_items],
+            items=[RecallItem(**self._clean_values(item)) for item in raw_items],
         )

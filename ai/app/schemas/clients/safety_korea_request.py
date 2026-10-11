@@ -56,17 +56,17 @@ class CertDetailRequest(BaseModel):
     """KC인증정보 상세 조회 요청.
 
     Args:
-        cert_num: KC 인증번호.
+        certification_number: KC 인증번호.
     """
 
-    cert_num: str
+    certification_number: str
 
 
 class RecallDetailRequest(BaseModel):
     """국내리콜 상세 조회 요청.
 
     Args:
-        recall_uid: 리콜 아이디.
+        recall_id: 리콜 아이디.
     """
 
-    recall_uid: str
+    recall_id: str
