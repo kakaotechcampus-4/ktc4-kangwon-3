@@ -32,6 +32,7 @@ class RadioBaseClient(BaseClient[RadioAuthRequest, ResponseT]):
     def __init__(self):
         super().__init__(
             base_url="https://emsit.go.kr/openapi/service/AuthenticationInfoService",
+            # User-Agent 없으면 AWS(EC2)에서 400 "Request Blocked" HTML로 차단됨 (로컬 국내 IP는 통과)
             headers={"User-Agent": _BROWSER_UA},
         )
 
