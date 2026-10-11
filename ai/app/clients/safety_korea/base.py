@@ -10,6 +10,9 @@ from ...utils.date_range import is_date_prefix_within_years
 # 리콜은 공표일 기준 최근 5년만 수집
 RECALL_COLLECTION_YEARS = 5
 
+# 정상 결과코드: 2000 성공, 2004 데이터 없음
+_OK_RESULT_CODES = ("2000", "2004")
+
 
 class SafetyKoreaBaseClient(BaseClient[RequestT, ResponseT]):
     """국가기술표준원 제품안전정보센터(SafetyKorea) 클라이언트 공통 베이스.
@@ -74,15 +77,26 @@ class SafetyKoreaBaseClient(BaseClient[RequestT, ResponseT]):
             )
 
     def _parse_result_data(self, raw: httpx.Response) -> Any:
-        """원문 응답에서 resultData를 꺼낸다.
+        """원문 응답의 결과코드를 확인하고 resultData를 꺼낸다.
+
+        명세상 Invalid IP(4001)·Invalid Parameter(4005)·서버 오류(5000)도 HTTP 200 본문으로 올 수 있음.
+        그대로 넘기면 "0건"과 구분할 수 없으므로 성공(2000)·데이터 없음(2004) 외에는 수신 실패로 올림.
 
         Args:
             raw: `_send`가 받은 JSON 원문 응답.
 
         Returns:
             Any: resultData 값. 목록 조회는 list, 상세 조회는 dict. 없으면 None.
+
+        Raises:
+            RuntimeError: resultCode가 2000·2004가 아니거나 없는 경우.
         """
-        return self._parse_json(raw).get("resultData")
+        data = self._parse_json(raw)
+        # 명세 예시에 문자열·숫자가 섞여 있어 문자열로 맞춰 비교
+        result_code = str(data.get("resultCode"))
+        if result_code not in _OK_RESULT_CODES:
+            raise RuntimeError(f"SafetyKorea API 오류: resultCode={result_code} — {data.get('resultMsg')}")
+        return data.get("resultData")
 
     @classmethod
     def _clean_values(cls, value: Any) -> Any:
