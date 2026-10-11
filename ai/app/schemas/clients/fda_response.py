@@ -1,6 +1,6 @@
 """식약처 외부 API 응답 모델."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # -- 의료기기 품목정보 --
@@ -81,14 +81,14 @@ class CosmeticsRegulationItem(BaseModel):
     Attributes:
         ingredient_name: 원료 표준명.
         ingredient_english_name: 원료 영문명.
-        prohibited_countries: 사용 금지 국가.
-        restricted_countries: 사용 한도(제한) 국가.
+        prohibited_countries: 사용 금지 국가 목록 (예: ["EU", "중국", "한국"]). 없으면 빈 목록.
+        restricted_countries: 사용 한도(제한) 국가 목록. 없으면 빈 목록.
     """
 
     ingredient_name: str | None = None
     ingredient_english_name: str | None = None
-    prohibited_countries: str | None = None
-    restricted_countries: str | None = None
+    prohibited_countries: list[str] = Field(default_factory=list)
+    restricted_countries: list[str] = Field(default_factory=list)
 
 
 class CosmeticsRegulationResponse(BaseModel):

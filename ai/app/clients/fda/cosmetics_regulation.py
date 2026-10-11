@@ -44,6 +44,20 @@ class CosmeticsRegulationClient(FdaBaseClient[CosmeticsRegulationResponse]):
         return CosmeticsRegulationItem(
             ingredient_name=item.get("INGR_STD_NAME"),                  # 원료 표준명
             ingredient_english_name=item.get("INGR_ENG_NAME"),          # 원료 영문명
-            prohibited_countries=item.get("PROH_NATIONAL"),             # 사용 금지 국가
-            restricted_countries=item.get("LIMIT_NATIONAL"),            # 사용 한도 국가
+            prohibited_countries=self._split_countries(item.get("PROH_NATIONAL")),     # 사용 금지 국가
+            restricted_countries=self._split_countries(item.get("LIMIT_NATIONAL")),    # 사용 한도 국가
         )
+
+    @staticmethod
+    def _split_countries(text: str | None) -> list[str]:
+        """쉼표로 이어진 국가 문자열을 목록으로 나눈다.
+
+        Args:
+            text: 원문 국가 문자열 (예: "EU,대만,아세안"). 해당 국가가 없으면 null로 옴.
+
+        Returns:
+            list[str]: 국가 목록. 없으면 빈 목록.
+        """
+        if not text:
+            return []
+        return [country.strip() for country in text.split(",") if country.strip()]
