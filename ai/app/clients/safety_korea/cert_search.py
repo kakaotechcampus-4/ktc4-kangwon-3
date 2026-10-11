@@ -51,5 +51,5 @@ class CertSearchClient(SafetyKoreaBaseClient[CertSearchRequest, CertSearchRespon
             condition_value = raw.request.url.params.get("conditionValue")
             raw_items = [item for item in raw_items if item.get("certNum") == condition_value]
         return CertSearchResponse(
-            items=[CertItem(**item) for item in raw_items],
+            items=[CertItem(**self._clean_values(item)) for item in raw_items],
         )

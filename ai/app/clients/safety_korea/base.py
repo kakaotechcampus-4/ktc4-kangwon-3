@@ -83,3 +83,24 @@ class SafetyKoreaBaseClient(BaseClient[RequestT, ResponseT]):
             Any: resultData 값. 목록 조회는 list, 상세 조회는 dict. 없으면 None.
         """
         return self._parse_json(raw).get("resultData")
+
+    @classmethod
+    def _clean_values(cls, value: Any) -> Any:
+        """원문 값의 앞뒤 공백을 지우고 정보 없음 표시("-", 빈 문자열)를 None으로 바꾼다.
+
+        국외리콜은 값 끝에 줄바꿈·특수 공백(\\xa0)이 붙고, 값이 없으면 "-"로 옴. 중첩된 dict·list도 처리.
+
+        Args:
+            value: resultData 항목 또는 그 안의 값.
+
+        Returns:
+            Any: 정리된 값. 구조(dict·list)는 그대로 유지.
+        """
+        if isinstance(value, dict):
+            return {key: cls._clean_values(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [cls._clean_values(item) for item in value]
+        if isinstance(value, str):
+            text = value.strip()
+            return None if text in ("", "-") else text
+        return value

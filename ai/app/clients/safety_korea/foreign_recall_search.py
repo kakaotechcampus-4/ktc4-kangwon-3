@@ -48,5 +48,5 @@ class ForeignRecallSearchClient(SafetyKoreaBaseClient[ForeignRecallSearchRequest
         """
         raw_items = self._parse_result_data(raw) or []
         return ForeignRecallSearchResponse(
-            items=[ForeignRecallItem(**item) for item in raw_items],
+            items=[ForeignRecallItem(**self._clean_values(item)) for item in raw_items],
         )

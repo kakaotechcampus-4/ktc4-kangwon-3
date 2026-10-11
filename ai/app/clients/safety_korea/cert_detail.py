@@ -30,7 +30,7 @@ class CertDetailClient(SafetyKoreaBaseClient[CertDetailRequest, CertItem]):
             httpx.HTTPStatusError: 그 밖의 3xx/4xx/5xx 응답 시.
         """
         return self._get_with_auth(self._ENDPOINT, params={
-            "certNum": request.cert_num,                 # KC 인증번호
+            "certNum": request.certification_number,     # KC 인증번호
         })
 
     def _parse(self, raw: httpx.Response) -> CertItem:
@@ -42,4 +42,4 @@ class CertDetailClient(SafetyKoreaBaseClient[CertDetailRequest, CertItem]):
         Returns:
             CertItem: 인증정보 상세.
         """
-        return CertItem(**(self._parse_result_data(raw) or {}))
+        return CertItem(**self._clean_values(self._parse_result_data(raw) or {}))

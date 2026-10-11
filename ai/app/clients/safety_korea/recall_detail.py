@@ -30,7 +30,7 @@ class RecallDetailClient(SafetyKoreaBaseClient[RecallDetailRequest, RecallItem])
             httpx.HTTPStatusError: 그 밖의 3xx/4xx/5xx 응답 시.
         """
         return self._get_with_auth(self._ENDPOINT, params={
-            "recallUid": request.recall_uid,             # 리콜 아이디
+            "recallUid": request.recall_id,              # 리콜 아이디
         })
 
     def _parse(self, raw: httpx.Response) -> RecallItem:
@@ -42,7 +42,7 @@ class RecallDetailClient(SafetyKoreaBaseClient[RecallDetailRequest, RecallItem])
         Returns:
             RecallItem: 리콜정보 상세 (첨부파일 포함).
         """
-        data = self._parse_result_data(raw) or {}
+        data = self._clean_values(self._parse_result_data(raw) or {})
         if "recallFiles" in data and data["recallFiles"]:
             data["recallFiles"] = [
                 RecallFile(**f) for f in data["recallFiles"]
