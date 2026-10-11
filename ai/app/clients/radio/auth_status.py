@@ -29,6 +29,6 @@ class RadioAuthStatusClient(RadioBaseClient[AuthStatusResponse]):
         root = self._parse_xml(raw)
         return AuthStatusResponse(
             result_code=self._text(root, "resultCode") or "",
-            result_msg=self._text(root, "resultMsg") or "",
-            auth_yn=self._text(root, "authYn"),
+            result_message=self._text(root, "resultMsg") or "",
+            auth_status=self._text(root, "authYn"),
         )

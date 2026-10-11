@@ -47,7 +47,7 @@ class RadioBaseClient(BaseClient[RadioAuthRequest, ResponseT]):
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
         """
         return self._get(self._ENDPOINT, params={
-            "mtlCefNo": request.mtl_cef_no,             # 적합성평가 인증번호
+            "mtlCefNo": request.certification_number,   # 적합성평가 인증번호
         })
 
     @staticmethod
