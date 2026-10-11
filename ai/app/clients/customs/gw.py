@@ -6,12 +6,11 @@
     빈 목록은 통관 단계 확인이 없다는 뜻일 뿐 국내 판매 규제가 없다는 뜻은 아님.
 """
 
-from urllib.parse import unquote
 from xml.etree.ElementTree import Element
 
 import httpx
 
-from ..base import BaseClient
+from ..data_go_kr import DataGoKrClient
 from ...schemas.clients.customs_request import CustomsGwConfirmationRequest
 from ...schemas.clients.customs_response import (
     CustomsGwConfirmation,
@@ -19,21 +18,14 @@ from ...schemas.clients.customs_response import (
 )
 
 
-class CustomsGwClient(BaseClient[CustomsGwConfirmationRequest, CustomsGwConfirmationResponse]):
+class CustomsGwClient(DataGoKrClient[CustomsGwConfirmationRequest, CustomsGwConfirmationResponse]):
     """세관장확인대상물품 GW 클라이언트.
 
     방식 : GET/XML
-    서비스 키 : data.go.kr serviceKey 필요.
-    비고
-        serviceKey는 URL 인코딩된 상태 그대로 전달.
-        내부에서 디코딩 후 httpx params로 넘겨 이중 인코딩 방지.
+    서비스 키 : data.go.kr serviceKey 필요 (처리는 DataGoKrClient).
     """
 
     _ENDPOINT = "/1220000/retrieveCcctLworCd/getRetrieveCcctLworCd"
-
-    def __init__(self, service_key: str):
-        super().__init__(base_url="https://apis.data.go.kr")
-        self._service_key = unquote(service_key)
 
     def _send(self, request: CustomsGwConfirmationRequest) -> httpx.Response:
         """HS 코드로 세관장확인대상물품 조회를 요청한다.
@@ -47,14 +39,10 @@ class CustomsGwClient(BaseClient[CustomsGwConfirmationRequest, CustomsGwConfirma
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우. 메시지의 서비스 키는 마스킹됨.
         """
-        try:
-            return self._get(self._ENDPOINT, params={
-                "serviceKey": self._service_key,            # 서비스 키
-                "hsSgn": request.hs_code,                   # HS 품목코드 (10자리, 하이픈 없음)
-                "imexTpcd": request.import_export,          # 수입/수출 구분
-            })
-        except httpx.HTTPStatusError as e:
-            raise self._mask_url(e) from None
+        return self._get_with_service_key(self._ENDPOINT, params={
+            "hsSgn": request.hs_code,                   # HS 품목코드 (10자리, 하이픈 없음)
+            "imexTpcd": request.import_export,          # 수입/수출 구분
+        })
 
     def _parse(self, raw: httpx.Response) -> CustomsGwConfirmationResponse:
         """세관장확인대상물품 XML 원문을 응답 스키마로 변환한다.
