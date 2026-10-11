@@ -16,8 +16,8 @@ ResponseT = TypeVar("ResponseT")
 class BaseClient(ABC, Generic[RequestT, ResponseT]):
     """외부 공공 API 호출에 필요한 공통 기능을 제공하는 베이스 클라이언트.
 
-    하위 클라이언트는 `fetch_raw`(요청 → 원문)와 `_parse`(원문 → 응답 스키마)를 구현한다.
-    호출하는 쪽은 스키마가 필요하면 `fetch`, 원문이 필요하면 `fetch_raw`를 쓴다.
+    하위 클라이언트는 `_send`(요청 방법)와 `_parse`(원문 → 응답 스키마 변환 방법)를 구현한다.
+    호출하는 쪽은 원문이 필요하면 `fetch_raw`, 스키마가 필요하면 `fetch_parsed`를 쓴다.
 
     Args:
         base_url: API 도메인 주소. 서브클래스에서 지정한다.
@@ -37,9 +37,8 @@ class BaseClient(ABC, Generic[RequestT, ResponseT]):
             headers=headers or {},
         )
 
-    # -- 인터페이스 --
+    # -- 조회 --
 
-    @abstractmethod
     def fetch_raw(self, request: RequestT) -> httpx.Response:
         """요청을 보내고 파싱 전 원문 응답을 반환한다.
 
@@ -49,19 +48,9 @@ class BaseClient(ABC, Generic[RequestT, ResponseT]):
         Returns:
             httpx.Response: 파싱 전 원문 응답.
         """
+        return self._send(request)
 
-    @abstractmethod
-    def _parse(self, raw: httpx.Response) -> ResponseT:
-        """원문 응답을 응답 스키마로 변환한다.
-
-        Args:
-            raw: `fetch_raw`가 받은 원문 응답.
-
-        Returns:
-            ResponseT: 응답 스키마.
-        """
-
-    def fetch(self, request: RequestT) -> ResponseT:
+    def fetch_parsed(self, request: RequestT) -> ResponseT:
         """요청을 보내고 응답 스키마로 변환해 반환한다.
 
         Args:
@@ -70,7 +59,31 @@ class BaseClient(ABC, Generic[RequestT, ResponseT]):
         Returns:
             ResponseT: 응답 스키마.
         """
-        return self._parse(self.fetch_raw(request))
+        return self._parse(self._send(request))
+
+    # -- 인터페이스 (하위 클라이언트 구현) --
+
+    @abstractmethod
+    def _send(self, request: RequestT) -> httpx.Response:
+        """이 API에 요청을 보내고 원문 응답을 반환한다.
+
+        Args:
+            request: 조회 요청 파라미터.
+
+        Returns:
+            httpx.Response: 원문 응답.
+        """
+
+    @abstractmethod
+    def _parse(self, raw: httpx.Response) -> ResponseT:
+        """이 API의 원문 응답을 응답 스키마로 변환한다.
+
+        Args:
+            raw: `_send`가 받은 원문 응답.
+
+        Returns:
+            ResponseT: 응답 스키마.
+        """
 
     # -- 요청 --
 
