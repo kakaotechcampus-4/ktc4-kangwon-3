@@ -29,13 +29,13 @@ class RadioAuthInfoClient(RadioBaseClient[AuthInfoResponse]):
         root = self._parse_xml(raw)
         return AuthInfoResponse(
             result_code=self._text(root, "resultCode") or "",
-            result_msg=self._text(root, "resultMsg") or "",
-            bsm_nm=self._text(root, "bsmNm"),
-            mtl_nm=self._text(root, "mtlNm"),
-            matl_bsc_mdl_nm=self._text(root, "matlBscMdlNm"),
-            mtl_cef_no=self._text(root, "mtlCefNo"),
-            matl_mfr_nm=self._text(root, "matlMfrNm"),
-            dtl_inf_cd_nm=self._text(root, "dtlInfCdNm"),
-            cva_pcs_ymd=self._text(root, "cvaPcsYmd"),
-            matl_etc_mtr=self._text(root, "matlEtcMtr"),
+            result_message=self._text(root, "resultMsg") or "",
+            applicant_name=self._text(root, "bsmNm"),
+            equipment_name=self._text(root, "mtlNm"),
+            model_name=self._text(root, "matlBscMdlNm"),
+            certification_number=self._text(root, "mtlCefNo"),
+            manufacturer_name=self._text(root, "matlMfrNm"),
+            manufacture_country=self._text(root, "dtlInfCdNm"),
+            certified_date=self._text(root, "cvaPcsYmd"),
+            remarks=self._text(root, "matlEtcMtr"),
         )

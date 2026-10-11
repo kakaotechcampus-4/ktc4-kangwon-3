@@ -8,27 +8,27 @@ class AuthInfoResponse(BaseModel):
 
     Attributes:
         result_code: 결과코드. 0000=정상, 0001=없음, 0098=파라미터 오류.
-        result_msg: 결과 메시지.
-        bsm_nm: 신청자명.
-        mtl_nm: 기자재명.
-        matl_bsc_mdl_nm: 기본모델명.
-        mtl_cef_no: 인증번호.
-        matl_mfr_nm: 제조자명.
-        dtl_inf_cd_nm: 제조국.
-        cva_pcs_ymd: 인증일자.
-        matl_etc_mtr: 비고.
+        result_message: 결과 메시지.
+        applicant_name: 신청자(인증받은 업체)명.
+        equipment_name: 기자재명.
+        model_name: 기본모델명.
+        certification_number: 인증번호.
+        manufacturer_name: 제조자명.
+        manufacture_country: 제조국.
+        certified_date: 인증일자 (YYYY-MM-DD).
+        remarks: 비고.
     """
 
     result_code: str
-    result_msg: str
-    bsm_nm: str | None = None
-    mtl_nm: str | None = None
-    matl_bsc_mdl_nm: str | None = None
-    mtl_cef_no: str | None = None
-    matl_mfr_nm: str | None = None
-    dtl_inf_cd_nm: str | None = None
-    cva_pcs_ymd: str | None = None
-    matl_etc_mtr: str | None = None
+    result_message: str
+    applicant_name: str | None = None
+    equipment_name: str | None = None
+    model_name: str | None = None
+    certification_number: str | None = None
+    manufacturer_name: str | None = None
+    manufacture_country: str | None = None
+    certified_date: str | None = None
+    remarks: str | None = None
 
 
 class AuthStatusResponse(BaseModel):
@@ -36,10 +36,10 @@ class AuthStatusResponse(BaseModel):
 
     Attributes:
         result_code: 결과코드. 0000=정상, 0001=없음.
-        result_msg: 결과 메시지.
-        auth_yn: 유효 여부. Y=유효, N=무효 또는 없음.
+        result_message: 결과 메시지.
+        auth_status: 유효 여부. Y=유효, N=무효 또는 없음.
     """
 
     result_code: str
-    result_msg: str
-    auth_yn: str | None = None
+    result_message: str
+    auth_status: str | None = None
