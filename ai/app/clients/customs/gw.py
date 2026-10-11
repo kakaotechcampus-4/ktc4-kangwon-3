@@ -52,8 +52,12 @@ class CustomsGwClient(DataGoKrClient[CustomsGwConfirmationRequest, CustomsGwConf
 
         Returns:
             CustomsGwConfirmationResponse: 확인대상물품 조회 결과.
+
+        Raises:
+            RuntimeError: header의 resultCode가 00이 아닌 경우.
         """
         root = self._parse_xml(raw)
+        self._raise_for_result_code(root.findtext("header/resultCode"), root.findtext("header/resultMsg"))
         return CustomsGwConfirmationResponse(
             items=self._parse_items(root),
         )
