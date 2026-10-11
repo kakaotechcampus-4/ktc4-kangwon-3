@@ -8,11 +8,12 @@ class FdaPaginationRequest(BaseModel):
 
     Args:
         page: 페이지 번호. 기본 1.
-        num_of_rows: 페이지당 건수. 기본 10.
+        num_of_rows: 페이지당 건수. 기본 10, 최대 500.
+            500을 넘으면 API가 HTTP 200에 resultCode 11과 빈 목록을 돌려주므로 요청 전에 거부.
     """
 
     page: int = Field(default=1, ge=1)
-    num_of_rows: int = Field(default=10, ge=1, le=100)
+    num_of_rows: int = Field(default=10, ge=1, le=500)
 
 
 class MedicalDeviceRequest(FdaPaginationRequest):
