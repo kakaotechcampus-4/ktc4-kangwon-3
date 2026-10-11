@@ -2,18 +2,21 @@
 
 import re
 
+import httpx
+
 from ..base import BaseClient
 from ...schemas.clients.customs_request import CLIPSearchRequest
 from ...schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 
 
-class CLIPClient(BaseClient):
+class CLIPClient(BaseClient[CLIPSearchRequest, CLIPSearchResponse]):
     """CLIP 국내 품목분류 결정사례 클라이언트.
 
     방식 : POST/form
     서비스 키 : 불필요
     비고
         X-Requested-With 헤더 필수.
+        응답 본문은 JSON이지만 Content-Type은 text/html로 옴.
         응답에 <em> 태그가 섞여 오고 HS 코드에 점·하이픈이 포함됨 (예: 8414.59-9000).
     """
 
@@ -26,8 +29,8 @@ class CLIPClient(BaseClient):
             headers={"X-Requested-With": "XMLHttpRequest"},
         )
 
-    def search(self, request: CLIPSearchRequest) -> CLIPSearchResponse:
-        """품목분류 결정사례를 검색한다.
+    def _send(self, request: CLIPSearchRequest) -> httpx.Response:
+        """품목분류 결정사례 검색을 요청한다.
 
         페이지 번호는 `pageIndex`, 페이지당 건수는 `pageUnit`만 인식.
 
@@ -35,29 +38,43 @@ class CLIPClient(BaseClient):
             request: CLIP 검색 요청 파라미터.
 
         Returns:
-            CLIPSearchResponse: 검색 결과.
+            httpx.Response: JSON 원문 응답.
 
         Raises:
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
         """
-        response = self._client.post(self._ENDPOINT, data={
+        return self._post(self._ENDPOINT, data={
             "prlstClsfCaseTpcd": "01",                  # 01 = 국내 사례. 빠지면 400(Bad Request) 반환
             "srchYn": "Y",                              # 검색 실행 플래그
             "srwr": request.query,                      # 검색어
             "pageIndex": str(request.page),             # 페이지 번호
             "pageUnit": str(request.page_size),         # 페이지당 건수
         })
-        response.raise_for_status()
-        body = response.json()
+
+    def _parse(self, raw: httpx.Response) -> CLIPSearchResponse:
+        """품목분류 결정사례 JSON 원문을 응답 스키마로 변환한다.
+
+        페이지 정보는 서버가 실제 적용한 값(paginationInfo)을 사용.
+
+        Args:
+            raw: `_send`가 받은 JSON 원문 응답.
+
+        Returns:
+            CLIPSearchResponse: 검색 결과.
+        """
+        body = self._parse_json(raw)
         uls = body.get("uls_dmst", {})
+        pagination = body.get("paginationInfo", {})
+        page = int(pagination.get("currentPageNo", 1))
+        page_size = int(pagination.get("recordCountPerPage", 0))
         total_count = int(uls.get("thisTotalCount", 0))
         items = [self._parse_item(item) for item in uls.get("itemList", [])]
 
         return CLIPSearchResponse(
-            page=request.page,
+            page=page,
             total_count=total_count,
             # 빈 페이지면 끝으로 판단
-            has_next=bool(items) and request.page * request.page_size < total_count,
+            has_next=bool(items) and page * page_size < total_count,
             items=items,
         )
 
