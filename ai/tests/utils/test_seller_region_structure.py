@@ -14,7 +14,7 @@ import pytest
 from app.utils.seller_region import extract_seller_region
 
 SKELETON_DIR = Path(__file__).parents[1] / "fixtures" / "seller_region"
-TITLE = "판매자 상품 제목 자리표시 " + "가" * 80
+TITLE = "판매자 상품 제목 자리표시 (Temu는 구역에서 가장 긴 줄을 제목으로 찾으므로 이 줄을 일부러 길게 둔다)"
 EXPECTED = json.loads((SKELETON_DIR / "expected.json").read_text(encoding="utf-8"))
 
 

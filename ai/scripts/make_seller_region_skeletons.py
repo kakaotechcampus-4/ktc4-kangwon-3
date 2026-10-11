@@ -22,7 +22,7 @@ from app.utils.seller_region import extract_seller_region  # noqa: E402
 
 RAW_DIR = AI_ROOT / "tests" / "fixtures" / "_raw"
 OUT_DIR = AI_ROOT / "tests" / "fixtures" / "seller_region"
-TITLE = "판매자 상품 제목 자리표시 " + "가" * 80
+TITLE = "판매자 상품 제목 자리표시 (Temu는 구역에서 가장 긴 줄을 제목으로 찾으므로 이 줄을 일부러 길게 둔다)"
 BODY = "본문"
 
 # 정제 코드가 보는 화면 표지. 상품 내용이 아니라 쇼핑몰 화면 글자만 둔다.
