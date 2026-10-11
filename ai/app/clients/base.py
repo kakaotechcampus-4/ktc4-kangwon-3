@@ -1,15 +1,23 @@
 """외부 API 클라이언트 공통 베이스."""
 
 import re
+from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
 from xml.etree.ElementTree import Element, fromstring
 
 import httpx
 
 _SENSITIVE_PARAM_RE = re.compile(r"(serviceKey=)[^&]+", re.IGNORECASE)
 
+RequestT = TypeVar("RequestT")
+ResponseT = TypeVar("ResponseT")
 
-class BaseClient:
+
+class BaseClient(ABC, Generic[RequestT, ResponseT]):
     """외부 공공 API 호출에 필요한 공통 기능을 제공하는 베이스 클라이언트.
+
+    하위 클라이언트는 `fetch_raw`(요청 → 원문)와 `_parse`(원문 → 응답 스키마)를 구현한다.
+    호출하는 쪽은 스키마가 필요하면 `fetch`, 원문이 필요하면 `fetch_raw`를 쓴다.
 
     Args:
         base_url: API 도메인 주소. 서브클래스에서 지정한다.
@@ -28,6 +36,41 @@ class BaseClient:
             timeout=timeout,
             headers=headers or {},
         )
+
+    # -- 인터페이스 --
+
+    @abstractmethod
+    def fetch_raw(self, request: RequestT) -> httpx.Response:
+        """요청을 보내고 파싱 전 원문 응답을 반환한다.
+
+        Args:
+            request: 조회 요청 파라미터.
+
+        Returns:
+            httpx.Response: 파싱 전 원문 응답.
+        """
+
+    @abstractmethod
+    def _parse(self, raw: httpx.Response) -> ResponseT:
+        """원문 응답을 응답 스키마로 변환한다.
+
+        Args:
+            raw: `fetch_raw`가 받은 원문 응답.
+
+        Returns:
+            ResponseT: 응답 스키마.
+        """
+
+    def fetch(self, request: RequestT) -> ResponseT:
+        """요청을 보내고 응답 스키마로 변환해 반환한다.
+
+        Args:
+            request: 조회 요청 파라미터.
+
+        Returns:
+            ResponseT: 응답 스키마.
+        """
+        return self._parse(self.fetch_raw(request))
 
     # -- 요청 --
 
