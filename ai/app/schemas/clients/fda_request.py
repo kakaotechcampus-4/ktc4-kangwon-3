@@ -19,5 +19,5 @@ class MedicalDeviceRequest(FdaPaginationRequest):
     """의료기기 품목정보 조회 요청."""
 
 
-class CosmeticsReglRequest(FdaPaginationRequest):
+class CosmeticsRegulationRequest(FdaPaginationRequest):
     """화장품 규제정보 조회 요청."""

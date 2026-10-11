@@ -8,26 +8,42 @@
 import httpx
 
 from .base import FdaBaseClient
-from ...schemas.clients.fda_response import CosmeticsReglItem, CosmeticsReglResponse
+from ...schemas.clients.fda_response import CosmeticsRegulationItem, CosmeticsRegulationResponse
 
 
-class CosmeticsRegulationClient(FdaBaseClient[CosmeticsReglResponse]):
+class CosmeticsRegulationClient(FdaBaseClient[CosmeticsRegulationResponse]):
     """화장품 규제원료 조회 클라이언트."""
 
     _ENDPOINT = "/1471000/CsmtcsReglMaterialInfoService/getCsmtcsReglMaterialInfoService"
 
-    def _parse(self, raw: httpx.Response) -> CosmeticsReglResponse:
+    def _parse(self, raw: httpx.Response) -> CosmeticsRegulationResponse:
         """화장품 규제원료 JSON 원문을 응답 스키마로 변환한다.
 
         Args:
             raw: `_send`가 받은 JSON 원문 응답.
 
         Returns:
-            CosmeticsReglResponse: 규제 성분 목록.
+            CosmeticsRegulationResponse: 규제 성분 목록.
         """
         body = self._parse_body(raw)
         raw_items = body.get("items", [])
-        return CosmeticsReglResponse(
+        return CosmeticsRegulationResponse(
             total_count=body.get("totalCount", 0),
-            items=[CosmeticsReglItem(**{k.lower(): v for k, v in item.items()}) for item in raw_items],
+            items=[self._parse_item(item) for item in raw_items],
+        )
+
+    def _parse_item(self, item: dict) -> CosmeticsRegulationItem:
+        """화장품 규제원료 원문 항목 하나를 스키마로 변환한다.
+
+        Args:
+            item: 원문 items 항목.
+
+        Returns:
+            CosmeticsRegulationItem: 풀어 쓴 필드 이름으로 옮긴 항목.
+        """
+        return CosmeticsRegulationItem(
+            ingredient_name=item.get("INGR_STD_NAME"),                  # 원료 표준명
+            ingredient_english_name=item.get("INGR_ENG_NAME"),          # 원료 영문명
+            prohibited_countries=item.get("PROH_NATIONAL"),             # 사용 금지 국가
+            restricted_countries=item.get("LIMIT_NATIONAL"),            # 사용 한도 국가
         )
