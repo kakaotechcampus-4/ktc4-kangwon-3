@@ -1,4 +1,10 @@
-"""관세청 세관장확인대상물품 GW 클라이언트."""
+"""관세청 세관장확인대상물품 GW 클라이언트.
+
+역할
+    HS 코드로 수입 통관 시 세관장확인(관세법 제226조)이 필요한 법령 요건을 조회.
+    법령마다 요건확인기관·제출 서류·적용 시작일이 오고, 같은 법령이 확인기관 수만큼 반복됨.
+    빈 목록은 통관 단계 확인이 없다는 뜻일 뿐 국내 판매 규제가 없다는 뜻은 아님.
+"""
 
 from urllib.parse import unquote
 from xml.etree.ElementTree import Element
@@ -13,7 +19,7 @@ from ...schemas.clients.customs_response import (
 )
 
 
-class CustomsGwClient(BaseClient):
+class CustomsGwClient(BaseClient[CustomsGwConfirmationRequest, CustomsGwConfirmationResponse]):
     """세관장확인대상물품 GW 클라이언트.
 
     방식 : GET/XML
@@ -29,27 +35,37 @@ class CustomsGwClient(BaseClient):
         super().__init__(base_url="https://apis.data.go.kr")
         self._service_key = unquote(service_key)
 
-    def get_confirmation(self, request: CustomsGwConfirmationRequest) -> CustomsGwConfirmationResponse:
-        """HS 코드에 해당하는 세관장확인대상물품 정보를 조회한다.
+    def _send(self, request: CustomsGwConfirmationRequest) -> httpx.Response:
+        """HS 코드로 세관장확인대상물품 조회를 요청한다.
 
         Args:
             request: 세관장확인대상물품 조회 요청 파라미터.
 
         Returns:
-            CustomsGwConfirmationResponse: 확인대상물품 조회 결과.
+            httpx.Response: XML 원문 응답.
 
         Raises:
-            httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
+            httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우. 메시지의 서비스 키는 마스킹됨.
         """
         try:
-            response = self._get(self._ENDPOINT, params={
+            return self._get(self._ENDPOINT, params={
                 "serviceKey": self._service_key,            # 서비스 키
                 "hsSgn": request.hs_code,                   # HS 품목코드 (10자리, 하이픈 없음)
                 "imexTpcd": request.import_export,          # 수입/수출 구분
             })
         except httpx.HTTPStatusError as e:
             raise self._mask_url(e) from None
-        root = self._parse_xml(response)
+
+    def _parse(self, raw: httpx.Response) -> CustomsGwConfirmationResponse:
+        """세관장확인대상물품 XML 원문을 응답 스키마로 변환한다.
+
+        Args:
+            raw: `_send`가 받은 XML 원문 응답.
+
+        Returns:
+            CustomsGwConfirmationResponse: 확인대상물품 조회 결과.
+        """
+        root = self._parse_xml(raw)
         return CustomsGwConfirmationResponse(
             items=self._parse_items(root),
         )
