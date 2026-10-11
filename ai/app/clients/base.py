@@ -104,12 +104,13 @@ class BaseClient(ABC, Generic[RequestT, ResponseT]):
         response.raise_for_status()
         return response
 
-    def _post(self, path: str, json: dict | None = None) -> httpx.Response:
+    def _post(self, path: str, json: dict | None = None, data: dict | None = None) -> httpx.Response:
         """POST 요청을 보내고 응답을 반환한다.
 
         Args:
             path: base_url 뒤에 붙는 요청 경로.
             json: JSON 요청 본문.
+            data: form 요청 본문 (application/x-www-form-urlencoded).
 
         Returns:
             httpx.Response: HTTP 응답 객체.
@@ -117,7 +118,7 @@ class BaseClient(ABC, Generic[RequestT, ResponseT]):
         Raises:
             httpx.HTTPStatusError: 4xx/5xx 응답 시.
         """
-        response = self._client.post(path, json=json)
+        response = self._client.post(path, json=json, data=data)
         response.raise_for_status()
         return response
 
