@@ -1,5 +1,6 @@
 """국립전파연구원 적합성평가 클라이언트 공통 베이스."""
 
+import re
 from typing import ClassVar
 from xml.etree.ElementTree import Element
 
@@ -37,6 +38,9 @@ class RadioBaseClient(BaseClient[RadioAuthRequest, ResponseT]):
     def _send(self, request: RadioAuthRequest) -> httpx.Response:
         """인증번호로 조회를 요청한다.
 
+        공백이 섞이면 실제 번호도 0001(없음)로 오므로 공백은 모두 제거.
+        대소문자는 구분되고 공식 번호에도 소문자가 있어 바꾸지 않음 (예: R-C-es5-ESP32C3WROOM02).
+
         Args:
             request: 인증번호 조회 요청.
 
@@ -47,7 +51,7 @@ class RadioBaseClient(BaseClient[RadioAuthRequest, ResponseT]):
             httpx.HTTPStatusError: API 응답이 4xx/5xx인 경우.
         """
         return self._get(self._ENDPOINT, params={
-            "mtlCefNo": request.certification_number,   # 적합성평가 인증번호
+            "mtlCefNo": re.sub(r"\s", "", request.certification_number),   # 적합성평가 인증번호
         })
 
     @staticmethod
