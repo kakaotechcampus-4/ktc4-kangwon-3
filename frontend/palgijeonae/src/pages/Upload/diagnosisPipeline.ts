@@ -6,7 +6,7 @@ import {
     requestPresignedUrls,
 } from "@/api/diagnosis";
 
-import type { DiagnosisProductPayload, Product } from "./types.ts";
+import { type DiagnosisProductPayload, type Product, SourceType } from "./types.ts";
 
 interface ProductImageKeys {
     productImageKey?: string
@@ -16,7 +16,7 @@ interface ProductImageKeys {
 // 대표 이미지(있다면 항상 0번)와 상세 이미지들을 한 배치로 요청하고, 응답을 요청과 같은 순서로 매칭한다.
 export const uploadProductImages = async (product: Product): Promise<ProductImageKeys> => {
     const mainFile = product.productImageFile;
-    const detailFiles = product.type === "text/image" ? product.images ?? [] : [];
+    const detailFiles = product.type === SourceType.TEXT_IMAGE ? product.images ?? [] : [];
     // mainFile(썸네일)이 있다면 썸네일이 0번, 없다면 바로 상세 페이지 이미지가 0번
     const files = mainFile ? [mainFile, ...detailFiles] : detailFiles;
 
@@ -53,9 +53,9 @@ export const uploadProductImages = async (product: Product): Promise<ProductImag
 export const buildDiagnosisPayload = (product: Product, keys: ProductImageKeys): DiagnosisProductPayload => {
     const base = { productName: product.title, productImageKey: keys.productImageKey };
 
-    return product.type === "url"
-        ? { ...base, sourceType: "URL", sourceUrl: product.link }
-        : { ...base, sourceType: "TEXT_IMAGE", sourceText: product.content, imageKeys: keys.imageKeys };
+    return product.type === SourceType.URL
+        ? { ...base, sourceType: SourceType.URL, sourceUrl: product.link }
+        : { ...base, sourceType: SourceType.TEXT_IMAGE, sourceText: product.content, imageKeys: keys.imageKeys };
 };
 
 // 상품 배열 전체를 업로드 → 페이로드 조립 → 한 번의 진단 요청으로 제출하는 전체 파이프라인
