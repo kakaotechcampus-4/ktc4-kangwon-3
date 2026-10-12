@@ -135,3 +135,41 @@ def test_같은_줄에_나란히_붙은_같은_번호는_한_번만_센다():
     content = (_FIXTURES / "전기용품및생활용품안전관리운용요령_별표0003-02" / "content.txt").read_text(encoding="utf-8")
 
     assert source_labels(content) == {"①": 1, "②": 1}
+
+
+_NESTED = """\
+┌─┬─┬─┐
+│대분류 │중분류 │소분류 │부호 │
+├─┼─┼─┤
+│가. 정보기기 │1) 컴퓨터류 │① 노트북 │A1 │
+│ │ ├─┤
+│ │ │② 모니터 │A2 │
+├─┼─┼─┤
+│나. 오디오 │2) 스피커 │ │B1 │
+└─┴─┴─┘"""
+
+
+def _nested_item(path: list[str], label: str, name: str) -> AnnexItem:
+    return AnnexItem(category_path=path, item_label=label, item_name=name, conditions=[], exclusions=[],
+                     inclusions=[], attributes=[], source_text=f"{label} {name}")
+
+
+def test_아래_단계가_있는_번호는_분류로_옮겨도_누락이_아니다():
+    output = AnnexParseOutput(scheme="대분류", skipped=[], notes=[], items=[
+        _nested_item(["가. 정보기기", "1) 컴퓨터류"], "①", "노트북"),
+        _nested_item(["가. 정보기기", "1) 컴퓨터류"], "②", "모니터"),
+        _nested_item(["나. 오디오"], "2)", "스피커"),
+    ])
+
+    assert check_annex(_NESTED, output) == []
+
+
+def test_분류의_번호로_원문보다_많은_번호를_가리지는_않는다():
+    output = AnnexParseOutput(scheme="대분류", skipped=[], notes=[], items=[
+        _nested_item(["가. 정보기기", "1) 컴퓨터류"], "①", "노트북"),
+        _nested_item(["가. 정보기기", "1) 컴퓨터류"], "①", "노트북"),
+        _nested_item(["나. 오디오"], "2)", "스피커"),
+    ])
+
+    assert "번호 누락: {'②': 1}" in check_annex(_NESTED, output)
+    assert "원문보다 많은 번호: {'①': 1}" in check_annex(_NESTED, output)

@@ -1,7 +1,7 @@
 """별표 파싱 결과를 원문과 대조. 모델 없이 도는 순수 함수만 둠.
 
 - 문구 대조: 품목명·분류·비고·source_text가 원문에 그대로 있는지
-- 번호 대조: 원문 칸 머리의 품목 번호가 items·skipped에 빠짐없이 있는지
+- 번호 대조: 원문 칸 머리의 품목 번호가 items·skipped(또는 분류)에 빠짐없이 있는지
 """
 
 import re
@@ -35,6 +35,10 @@ def _haystacks(content: str) -> list[str]:
         for index, cell in enumerate(_CELL_SPLIT_RE.split(line)):
             columns.setdefault(index, []).append(cell)
     return [normalize(content), *(normalize("".join(cells)) for cells in columns.values())]
+
+
+# 괄호 문구. 안쪽 괄호 한 단계까지 (예: "(일정한구역(건물등)내에서만…경우)")
+_PAREN_RE = re.compile(r"\([^()]*\)")
 
 
 def _pattern(needle: str) -> re.Pattern:
@@ -79,6 +83,16 @@ def output_labels(output: AnnexParseOutput) -> Counter:
     return Counter(label for label in map(_label, labels) if label)
 
 
+def category_labels(output: AnnexParseOutput) -> Counter:
+    """category_path에 들어간 번호 개수. 같은 분류는 한 번만 셈.
+
+    아래 단계가 있는 번호(예: 소분류 ①이 있는 "1) 정보기기류")는 행이 아니라 분류가 됨.
+    """
+    prefixes = {tuple(item.category_path[:depth]) for item in output.items
+                for depth in range(1, len(item.category_path) + 1)}
+    return Counter(label for label in (_label(prefix[-1]) for prefix in prefixes) if label)
+
+
 def check_annex(content: str, output: AnnexParseOutput) -> list[str]:
     """파싱 결과를 원문과 대조해 실패 사유를 돌려준다. 빈 목록이면 통과.
 
@@ -92,10 +106,12 @@ def check_annex(content: str, output: AnnexParseOutput) -> list[str]:
         list[str]: 실패 사유. 원문에 없는 문구, 빠지거나 남는 번호, 중복 행.
     """
     haystacks = _haystacks(content)
+    # 분류 이름은 괄호 문구를 conditions 등으로 옮기고 남은 글자라 괄호를 뺀 원문과도 대조
+    category_haystacks = [*haystacks, *(_PAREN_RE.sub("", _PAREN_RE.sub("", haystack)) for haystack in haystacks)]
     reasons: list[str] = []
 
-    def check(where: str, text: str) -> None:
-        if not contains(haystacks, text):
+    def check(where: str, text: str, targets: list[str] = haystacks) -> None:
+        if not contains(targets, text):
             reasons.append(f"{where}: 원문에 없는 문구 {text!r}")
 
     check("scheme", output.scheme)
@@ -108,16 +124,26 @@ def check_annex(content: str, output: AnnexParseOutput) -> list[str]:
         seen.add(key)
         check(where, item.item_name)
         check(where, item.source_text)
-        for text in (*item.category_path, *item.conditions, *item.exclusions, *item.inclusions):
+        for text in item.category_path:
+            check(where, text, category_haystacks)
+        for text in (*item.conditions, *item.exclusions, *item.inclusions):
             check(where, text)
     for index, row in enumerate(output.skipped):
         check(f"skipped[{index}] {row.item_label or ''}".strip(), row.reason)
     for index, note in enumerate(output.notes):
         check(f"notes[{index}]", note)
 
-    expected, actual = source_labels(content), output_labels(output)
-    if missing := expected - actual:
+    if missing := missing_labels(content, output):
         reasons.append(f"번호 누락: {dict(missing)}")
-    if extra := actual - expected:
+    if extra := output_labels(output) - source_labels(content):
         reasons.append(f"원문보다 많은 번호: {dict(extra)}")
     return reasons
+
+
+def missing_labels(content: str, output: AnnexParseOutput) -> Counter:
+    """원문 번호 중 items·skipped·분류 어디에도 없는 번호. 조각 단위 재호출 판단에도 씀.
+
+    분류로 옮긴 번호는 누락을 채우는 데만 씀. 품목·세부품목 칸에 같은 번호가 나란히 있는 표에서
+    분류의 번호까지 세면 원문보다 많다고 잘못 판정하기 때문.
+    """
+    return source_labels(content) - output_labels(output) - category_labels(output)
