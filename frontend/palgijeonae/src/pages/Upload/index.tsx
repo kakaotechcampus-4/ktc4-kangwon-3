@@ -15,14 +15,14 @@ import { type Product, SourceType } from "./types.ts";
 import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [
-    { key: SourceType.URL, label: "URL" },
-    { key: SourceType.TEXT_IMAGE, label: "텍스트 / 이미지" },
+    { key: SourceType.Url, label: "URL" },
+    { key: SourceType.TextImage, label: "텍스트 / 이미지" },
 ] as const;
 
 type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 
 function UploadPage() {
-    const [inputType, setInputType] = useState<InputType>(SourceType.URL);
+    const [inputType, setInputType] = useState<InputType>(SourceType.Url);
     const [products, setProducts] = useState<Product[]>([]);
     const navigate = useNavigate();
 

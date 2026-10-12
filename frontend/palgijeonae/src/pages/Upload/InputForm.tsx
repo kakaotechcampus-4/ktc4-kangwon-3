@@ -16,11 +16,11 @@ interface InputFormProps {
 
 // 입력 방식별 안내 문구
 const HELP_CONTENT: Record<InputFormProps["type"], { text: string; tooltip: string }> = {
-    [SourceType.URL]: {
+    [SourceType.Url]: {
         text: "상세정보가 포함된 판매할 제품의 링크를 첨부하세요.",
         tooltip: "일부 링크는 AI가 접근하기 어려울 수 있습니다. 실패 시 텍스트 / 이미지 입력을 사용해주세요.",
     },
-    [SourceType.TEXT_IMAGE]: {
+    [SourceType.TextImage]: {
         text: "상세페이지를 텍스트나 이미지로 입력하세요. 둘 다 입력할 수도 있습니다.",
         tooltip: "분석을 위해 필요한 정보가 상세페이지에 충분히 포함되어 있는지 확인하세요.",
     },
@@ -44,7 +44,7 @@ function InputForm({ type, onAdd }: InputFormProps) {
             title: productName.trim(),
             productImageFile: image ?? undefined,
             // TODO: type이 3개 이상으로 늘어나면 Record<타입, () => Partial<Product>> 룩업으로 교체한다.
-            ...(type === SourceType.URL
+            ...(type === SourceType.Url
                 ? { link: link.trim() }
                 : { content: productContent.trim(), images: productImages }),
         };
@@ -74,7 +74,7 @@ function InputForm({ type, onAdd }: InputFormProps) {
                 onChange={setProductName}
                 maxLength={MAX_PRODUCT_NAME_LENGTH}
             />
-            {type === SourceType.TEXT_IMAGE && (
+            {type === SourceType.TextImage && (
                 <>
                     <FormField
                         id="product-content"
@@ -106,7 +106,7 @@ function InputForm({ type, onAdd }: InputFormProps) {
                     />
                 </>
             )}
-            {type === SourceType.URL && (
+            {type === SourceType.Url && (
                 <>
                     <FormField
                         id="product-link"
