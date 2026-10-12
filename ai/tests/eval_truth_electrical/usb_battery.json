@@ -1,5 +1,5 @@
 {
- "description": "USB·배터리 소형 제품과 실제 추출 결과 평가셋(PR #290 리뷰 반영). holdout.json이 교류 220V 가전 위주라 실제 입력에 많은 USB·배터리 제품을 따로 모았다. 추출 결과 사례는 tests/fixtures 축약본을 추출 에이전트(gpt-4.1-mini)로 한 번 돌린 결과를 고정했다. 이 결과를 보고 코드·프롬프트를 고치지 않는다. 고치면 새 셋을 만든다.",
+ "description": "USB·배터리 소형 제품과 실제 추출 결과 평가셋(PR #290 리뷰 반영). holdout.json이 교류 220V 가전 위주라 실제 입력에 많은 USB·배터리 제품을 따로 모았다. 추출 결과 사례는 tests/fixtures 축약본을 추출 에이전트(gpt-4.1-mini)로 한 번 돌린 결과를 고정했다. 이 결과를 보고 코드·프롬프트를 고치지 않는다. 고치면 새 셋을 만든다. 개발 샘플(demo-phone-charger)과 겹치는 휴대폰 충전기 사례는 뺐다.",
  "reviewed_by": "미검토 (Claude가 운용요령 별표 1~3 원문 행·비고를 보고 정한 예상 답. 사람 검토 필요)",
  "law_versions": "운용요령 일련번호 2100000285148(2026-09-11 시행), 시행규칙 MST 273575(2026-08-27 시행)",
  "scoring": "holdout.json과 같다. expected_rows 중 하나를 고르면 정답, acceptable_rows는 오답으로 세지 않는다. expected_rows가 비어 있으면 본체 행을 고르지 않는 것(정보 부족 또는 acceptable 행)이 정답.",
@@ -413,23 +413,6 @@
    "acceptable_rows": [
     "conf-10-12"
    ]
-  },
-  {
-   "source": "작성 (USB·배터리 소형 제품)",
-   "memo": "직류전원장치·휴대전화 전지 충전기 행. 입력 교류·출력 직류가 함께 적힌다.",
-   "product": {
-    "product_id": "u-phone-charger",
-    "product_name": "고속 충전기 어댑터",
-    "category": "휴대폰 액세서리",
-    "listing_text": [
-     "휴대폰 충전기 어댑터, 입력 AC 100-240V 50/60Hz, 출력 DC 5V 3A"
-    ],
-    "electrical_powered": true
-   },
-   "expected_rows": [
-    "cert-10-01"
-   ],
-   "acceptable_rows": []
   },
   {
    "source": "작성 (USB·배터리 소형 제품)",
