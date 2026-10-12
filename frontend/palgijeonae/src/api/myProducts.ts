@@ -10,12 +10,7 @@ interface GetMyProductsParams {
     sortType: "LATEST" | "OLDEST";
 }
 
-interface GetMyProductResult {
-    items: MyProductItem[];
-    pageInfo: PageInfo;
-}
-
-export async function getMyProducts(params: GetMyProductsParams): Promise<GetMyProductResult> {
+export async function getMyProducts(params: GetMyProductsParams) {
     const response = await apiClient.get("/api/v1/products", {
         params: {
             resultStatus: params.resultStatus,

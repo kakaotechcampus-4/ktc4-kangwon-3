@@ -19,4 +19,8 @@ export interface AnswerSubmission {
 }
 
 /** 제품별 답변 완료 상태 */
-export type ProductStatus = "complete" | "partial" | "empty";
+export enum ProductStatus {
+    Complete = "complete",
+    Partial = "partial",
+    Empty = "empty",
+}

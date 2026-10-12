@@ -1,5 +1,9 @@
 """개발용 더미 FinalAssessment 팩토리. 파이프라인 연결 후 제거한다."""
 
+import time
+
+from ..observability.context import ExecutionContext, PipelineStage
+from ..schemas.agent import ExtractionInput
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import (
     AdvertisingAssessment,
@@ -22,6 +26,7 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus,
 )
+from ..sessions.executor import ProgressReporter
 
 
 def build_dummy_assessment(product_id: str) -> FinalAssessment:
@@ -264,3 +269,36 @@ def build_dummy_assessment(product_id: str) -> FinalAssessment:
             checked_finding_ids=[f.finding_id for f in all_findings],
         ),
     )
+
+
+# 더미 진단 단계별 지연. BE가 진행 이벤트 순서 확인용
+DUMMY_STAGE_SECONDS = 1.0
+DUMMY_STAGES = (
+    PipelineStage.EXTRACTION,
+    PipelineStage.SELECTION,
+    PipelineStage.TOOL_EXECUTION,
+    PipelineStage.AGGREGATION,
+    PipelineStage.VERIFICATION,
+    PipelineStage.FINALIZATION,
+)
+
+
+def run_dummy_diagnosis(
+    item: ExtractionInput, context: ExecutionContext, progress: ProgressReporter,
+) -> FinalAssessment:
+    """파이프라인 러너 연결 전까지 세션 실행기에 넣는 더미 진단 함수.
+
+    단계 진행만 흉내 내고 고정 결과 반환. LLM·외부 API 호출 없음.
+
+    Args:
+        item: 상품 입력. product_id만 사용.
+        context: 실행 컨텍스트. 사용하지 않음.
+        progress: 단계 진행 알림.
+
+    Returns:
+        RC 보트 기반 더미 FinalAssessment.
+    """
+    for stage in DUMMY_STAGES:
+        progress.stage(stage)
+        time.sleep(DUMMY_STAGE_SECONDS)
+    return build_dummy_assessment(item.product_id)

@@ -61,12 +61,14 @@ def _git(*args: str) -> str | None:
     return done.stdout.strip() if done.returncode == 0 else None
 
 
-def run_metadata(*, runs: int, model: str) -> dict:
+def run_metadata(*, runs: int, model: str, prompt_path: Path | None = None) -> dict:
     """이번 측정이 "무엇으로" 나온 값인지 기록한다.
 
     프롬프트가 바뀌면 이전 수치와 비교하면 안 된다. 사람이 버전을 적는 방식은
     까먹지만 파일 지문은 틀리지 않으므로 해시를 남긴다.
+    prompt_path를 주면 그 프롬프트의 지문을 남긴다(선택 평가). 기본은 추출 프롬프트다.
     """
+    target = prompt_path or EXTRACTION_PROMPT_PATH
     # 범위를 ai/ 로 제한한다. 제한하지 않으면 다른 팀의 커밋 안 된 파일까지 잡혀서
     # 늘 "수정 있음"이 뜨고, 결국 경고를 무시하게 된다.
     dirty = _git("status", "--porcelain", "--", ".")
@@ -76,8 +78,8 @@ def run_metadata(*, runs: int, model: str) -> dict:
         # 커밋 해시만으로는 부족하다. 커밋하지 않은 수정이 있으면 그 해시의 코드가 아니다.
         "git_dirty": None if dirty is None else bool(dirty),
         "model": model,
-        "prompt_path": EXTRACTION_PROMPT_PATH.relative_to(_AI_ROOT).as_posix(),
-        "prompt_sha256": prompt_fingerprint(),
+        "prompt_path": target.relative_to(_AI_ROOT).as_posix(),
+        "prompt_sha256": prompt_fingerprint(target),
         "runs": runs,
     }
 
