@@ -35,6 +35,8 @@ class ElectricalSelection(StrictModel):
 
     item_id: str = Field(min_length=1)
     rationale: str = Field(min_length=1)
+    # rationale을 쓴 뒤 내리는 결론. false면 코드가 버린다(선택과 이유가 어긋나는 경우 방어).
+    applies: bool
     fact_fields: list[ElectricalField] = Field(min_length=1)
     needed_fields: list[ElectricalField] = Field(default_factory=list)
 
