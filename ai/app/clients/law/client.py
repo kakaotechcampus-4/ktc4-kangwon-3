@@ -4,9 +4,9 @@ from xml.etree.ElementTree import Element, ParseError
 
 import httpx
 
-from .base import BaseClient
-from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest, LicbylTextRequest
-from ..schemas.clients.law_response import (
+from ..base import BaseClient
+from ...schemas.clients.law_request import LawSearchRequest, LawTextRequest, LicbylTextRequest
+from ...schemas.clients.law_response import (
     AdmrulSearchItem,
     AdmrulSearchResponse,
     LawAnnex,

@@ -7,7 +7,8 @@ from xml.etree.ElementTree import Element, fromstring
 
 import httpx
 
-_SENSITIVE_PARAM_RE = re.compile(r"(serviceKey=)[^&]+", re.IGNORECASE)
+# data.go.kr serviceKey, 법제처 OC
+_SENSITIVE_PARAM_RE = re.compile(r"([?&](?:serviceKey|OC)=)[^&\s'\"]+", re.IGNORECASE)
 
 RequestT = TypeVar("RequestT")
 ResponseT = TypeVar("ResponseT")
