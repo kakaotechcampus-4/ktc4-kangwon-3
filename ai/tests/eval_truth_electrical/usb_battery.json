@@ -1,0 +1,574 @@
+{
+ "description": "USB·배터리 소형 제품과 실제 추출 결과 평가셋(PR #290 리뷰 반영). holdout.json이 교류 220V 가전 위주라 실제 입력에 많은 USB·배터리 제품을 따로 모았다. 추출 결과 사례는 tests/fixtures 축약본을 추출 에이전트(gpt-4.1-mini)로 한 번 돌린 결과를 고정했다. 이 결과를 보고 코드·프롬프트를 고치지 않는다. 고치면 새 셋을 만든다.",
+ "reviewed_by": "미검토 (Claude가 운용요령 별표 1~3 원문 행·비고를 보고 정한 예상 답. 사람 검토 필요)",
+ "law_versions": "운용요령 일련번호 2100000285148(2026-09-11 시행), 시행규칙 MST 273575(2026-08-27 시행)",
+ "scoring": "holdout.json과 같다. expected_rows 중 하나를 고르면 정답, acceptable_rows는 오답으로 세지 않는다. expected_rows가 비어 있으면 본체 행을 고르지 않는 것(정보 부족 또는 acceptable 행)이 정답.",
+ "cases": [
+  {
+   "source": "추출 결과 (tests/fixtures/kc_certified_fan.txt)",
+   "memo": "USB 충전 휴대용 선풍기. 전압 표기는 없지만 USB 전원이라 저전압일 가능성이 높아 본체(팬) 행은 정답에 넣지 않았다. 내장 전지 행은 허용.",
+   "product": {
+    "product_name": "핸디선풍기 KC인증 USB선풍기 탁상겸용 충전선풍기",
+    "electrical_powered": true,
+    "battery_included": true,
+    "battery_is_the_product": false,
+    "heating": false,
+    "food_contact": false,
+    "medical_claim": false,
+    "cosmetic_claim": false,
+    "weapon_like": false,
+    "plant_material": false,
+    "listing_text": [
+     "핸디선풍기 KC인증 USB선풍기 탁상겸용 충전선풍기",
+     "인증정보: KC 방송통신기자재등 적합성평가: R-R-PO7-FX-028; KC 안전확인 (전기용품): XU101030-17003A",
+     "제어 방법:",
+     "터치",
+     "선풍기 디자인:",
+     "휴대용 선풍기",
+     "포함된 구성품:",
+     "여러 구성 요소",
+     "재료",
+     "플라스틱",
+     "특수 기능",
+     "휴대용",
+     "배터리 용량(mAh)",
+     "1200마"
+    ],
+    "attributes": [
+     {
+      "name": "인증정보",
+      "value": "KC 방송통신기자재등 적합성평가: R-R-PO7-FX-028; KC 안전확인 (전기용품): XU101030-17003A",
+      "source_text": "인증정보: KC 방송통신기자재등 적합성평가: R-R-PO7-FX-028; KC 안전확인 (전기용품): XU101030-17003A"
+     },
+     {
+      "name": "제어 방법",
+      "value": "터치",
+      "source_text": "제어 방법:\n터치"
+     },
+     {
+      "name": "선풍기 디자인",
+      "value": "휴대용 선풍기",
+      "source_text": "선풍기 디자인:\n휴대용 선풍기"
+     },
+     {
+      "name": "포함된 구성품",
+      "value": "여러 구성 요소",
+      "source_text": "포함된 구성품:\n여러 구성 요소"
+     },
+     {
+      "name": "재료",
+      "value": "플라스틱",
+      "source_text": "재료\n플라스틱"
+     },
+     {
+      "name": "특수 기능",
+      "value": "휴대용",
+      "source_text": "특수 기능\n휴대용"
+     },
+     {
+      "name": "배터리 용량(mAh)",
+      "value": "1200마",
+      "source_text": "배터리 용량(mAh)\n1200마"
+     },
+     {
+      "name": "KC 인증번호",
+      "value": "XU101030-17003A",
+      "source_text": "28; KC 안전확인 (전기용품): XU101030-17003A\n제어 방법:\n터치\n선풍기 디자인:"
+     },
+     {
+      "name": "전파 인증번호",
+      "value": "R-R-PO7-FX-028",
+      "source_text": "KC 방송통신기자재등 적합성평가: R-R-PO7-FX-028; KC 안전확인 (전기용품): XU"
+     },
+     {
+      "name": "인증정보",
+      "value": "KC",
+      "source_text": "핸디선풍기 KC인증 USB선풍기 탁상겸용 충전선풍기"
+     }
+    ],
+    "conflicts": [],
+    "product_id": "x-kc_certified_fan"
+   },
+   "expected_rows": [],
+   "acceptable_rows": [
+    "cert-07-15",
+    "conf-10-12"
+   ]
+  },
+  {
+   "source": "추출 결과 (tests/fixtures/ali_sample.txt)",
+   "memo": "제품 종류가 없는 USB 충전 리튬 배터리 제품. 본체 행을 고르면 안 된다.",
+   "product": {
+    "electrical_powered": true,
+    "battery_included": true,
+    "battery_is_the_product": false,
+    "listing_text": [
+     "전력 공급 방식 USB 충전(내장 배터리)",
+     "배터리 속성 충전식 배터리",
+     "리튬 배터리",
+     "인증정보: CE-RoHS; CE-EMC(Electric)"
+    ],
+    "attributes": [
+     {
+      "name": "전력 공급 방식",
+      "value": "USB 충전(내장 배터리)",
+      "source_text": "전력 공급 방식 USB 충전(내장 배터리)"
+     },
+     {
+      "name": "배터리 속성",
+      "value": "충전식 배터리",
+      "source_text": "배터리 속성 충전식 배터리"
+     },
+     {
+      "name": "배터리 종류",
+      "value": "리튬 배터리",
+      "source_text": "리튬 배터리"
+     },
+     {
+      "name": "인증정보",
+      "value": "CE-RoHS; CE-EMC(Electric)",
+      "source_text": "인증정보: CE-RoHS; CE-EMC(Electric)"
+     }
+    ],
+    "conflicts": [],
+    "product_id": "x-ali_sample"
+   },
+   "expected_rows": [],
+   "acceptable_rows": [
+    "conf-10-12"
+   ]
+  },
+  {
+   "source": "추출 결과 (tests/fixtures/power_bank.txt)",
+   "memo": "배터리 미포함 MagSafe 케이스.",
+   "product": {
+    "product_name": "MagSafe 1460mAh 케이스",
+    "battery_included": false,
+    "listing_text": [
+     "MagSafe 1460mAh 케이스",
+     "배터리 속성",
+     "배터리 미포함",
+     "본체재질 TPU(열가소성 폴리우레탄)",
+     "전자 부품/마더보드 포함",
+     "전자 부품 또는 마더보드 미포함"
+    ],
+    "attributes": [
+     {
+      "name": "배터리 속성",
+      "value": "배터리 미포함",
+      "source_text": "배터리 미포함."
+     },
+     {
+      "name": "본체재질",
+      "value": "TPU(열가소성 폴리우레탄)",
+      "source_text": "본체재질 TPU(열가소성 폴리우레탄)"
+     },
+     {
+      "name": "전자 부품/마더보드 포함",
+      "value": "전자 부품 또는 마더보드 미포함",
+      "source_text": "전자 부품/마더보드 포함, 전자 부품 또는 마더보드 미포함"
+     },
+     {
+      "name": "배터리 용량",
+      "value": "1460mAh",
+      "source_text": "MagSafe 1460mAh 케이스\n배터리 속성\n배터리 미포함"
+     }
+    ],
+    "conflicts": [
+     "전자 부품/마더보드 포함과 전자 부품 또는 마더보드 미포함이 상충됨",
+     "배터리 용량 표기(1460mAh)가 있으나 같은 상세페이지에 '배터리 미포함'이라는 문구도 있어 모순 가능성이 있습니다. 확인이 필요합니다."
+    ],
+    "product_id": "x-power_bank"
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "추출 결과 (tests/fixtures/wireless_charging_pad.txt)",
+   "memo": "USB 전원, 작동 전압 36V 이하. 전기충전기 행은 교류 30V 초과에 한정.",
+   "product": {
+    "electrical_powered": true,
+    "listing_text": [
+     "전원 모드 USB",
+     "작동 전압 ≤36V",
+     "커넥터 유형",
+     "인증정보: CE-RED(Electric); CE-RoHS; CE-EMC(Electric)"
+    ],
+    "attributes": [
+     {
+      "name": "전원 모드",
+      "value": "USB",
+      "source_text": "전원 모드 USB"
+     },
+     {
+      "name": "작동 전압",
+      "value": "≤36V",
+      "source_text": "작동 전압 ≤36V"
+     },
+     {
+      "name": "인증정보",
+      "value": "CE-RED(Electric); CE-RoHS; CE-EMC(Electric)",
+      "source_text": "인증정보: CE-RED(Electric); CE-RoHS; CE-EMC(Electric)"
+     },
+     {
+      "name": "정격전압",
+      "value": "≤36V",
+      "source_text": "전원 모드\nUSB\n작동 전압\n≤36V\n커넥터 유형\n인증정보: CE-RED"
+     }
+    ],
+    "conflicts": [],
+    "product_id": "x-wireless_charging_pad"
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "추출 결과 (tests/fixtures/toy_weapon_shaped.txt)",
+   "memo": "저전압(36V 이하) 장난감. 제품 종류 불명.",
+   "product": {
+    "target_age": "어린이용",
+    "plant_material": false,
+    "for_children": true,
+    "listing_text": [
+     "저전압(36V 이하) 어린이용",
+     "본체재질 플라스틱",
+     "장난감 총알을 가지고 다닐지 여부 미포함됨",
+     "브랜드 UNILABO",
+     "인증정보: CE-Toy; CE-RoHS; CE-EMC(Electric); CPC"
+    ],
+    "attributes": [
+     {
+      "name": "전압",
+      "value": "36V 이하",
+      "source_text": "저전압(36V 이하)"
+     },
+     {
+      "name": "본체재질",
+      "value": "플라스틱",
+      "source_text": "본체재질 플라스틱"
+     },
+     {
+      "name": "장난감 총알 포함 여부",
+      "value": "미포함됨",
+      "source_text": "장난감 총알을 가지고 다닐지 여부 미포함됨"
+     },
+     {
+      "name": "브랜드",
+      "value": "UNILABO",
+      "source_text": "브랜드 UNILABO"
+     },
+     {
+      "name": "인증정보",
+      "value": "CE-Toy; CE-RoHS; CE-EMC(Electric); CPC",
+      "source_text": "인증정보: CE-Toy; CE-RoHS; CE-EMC(Electric); CPC"
+     },
+     {
+      "name": "정격전압",
+      "value": "36V 이하",
+      "source_text": "저전압(36V 이하) 어린이용\n본체재질\n플라스틱\n장난감"
+     }
+    ],
+    "conflicts": [],
+    "product_id": "x-toy_weapon_shaped"
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "추출 결과 (tests/fixtures/heating_device_no_claim.txt)",
+   "memo": "폴리에스테르 재질뿐. 전기 조건 없음.",
+   "product": {
+    "plant_material": false,
+    "listing_text": [],
+    "attributes": [
+     {
+      "name": "재료",
+      "value": "폴리에스테르",
+      "source_text": "재료 폴리에스테르"
+     },
+     {
+      "name": "브랜드",
+      "value": "WORLD-BIO",
+      "source_text": "브랜드 WORLD-BIO"
+     },
+     {
+      "name": "상품 ID",
+      "value": "32MK16X0GV",
+      "source_text": "상품 ID 32MK16X0GV"
+     }
+    ],
+    "conflicts": [],
+    "product_id": "x-heating_device_no_claim"
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "추출 결과 (tests/fixtures/plant_material_basket.txt)",
+   "memo": "대나무 바구니. 비전기.",
+   "product": {
+    "plant_material": true,
+    "listing_text": [],
+    "attributes": [
+     {
+      "name": "소재",
+      "value": "대나무",
+      "source_text": "소재\n대나무"
+     },
+     {
+      "name": "브랜드",
+      "value": "XILETU",
+      "source_text": "브랜드\nXILETU"
+     }
+    ],
+    "conflicts": [],
+    "product_id": "x-plant_material_basket"
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "추출 결과 (tests/fixtures/wireless_shield_rfid.txt)",
+   "memo": "나일론 지갑. 비전기.",
+   "product": {
+    "listing_text": [],
+    "attributes": [
+     {
+      "name": "소재",
+      "value": "나일론",
+      "source_text": "소재\n나일론\n라이닝 재료\n폴리에스테르\n스타일\n우아한"
+     },
+     {
+      "name": "라이닝 재료",
+      "value": "폴리에스테르",
+      "source_text": "소재\n나일론\n라이닝 재료\n폴리에스테르\n스타일\n우아한"
+     },
+     {
+      "name": "스타일",
+      "value": "우아한",
+      "source_text": "소재\n나일론\n라이닝 재료\n폴리에스테르\n스타일\n우아한"
+     }
+    ],
+    "conflicts": [],
+    "product_id": "x-wireless_shield_rfid"
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "직류전원 찜질기·방석 행은 직류 42V 이하를 포함한다(비고).",
+   "product": {
+    "product_id": "u-usb-heat-cushion",
+    "product_name": "USB 온열방석",
+    "category": "생활가전",
+    "listing_text": [
+     "USB 전원 온열방석, DC 5V 2A, USB 케이블을 연결하면 발열, 배터리 없음"
+    ],
+    "electrical_powered": true,
+    "heating": true,
+    "battery_included": false
+   },
+   "expected_rows": [
+    "sdoc-07-16"
+   ],
+   "acceptable_rows": []
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "충전지만으로 동작하는 구조라 본체는 공통 비고 2에 따라 제외. 전지 행 허용.",
+   "product": {
+    "product_id": "u-hand-warmer",
+    "product_name": "충전식 손난로",
+    "category": "생활가전",
+    "listing_text": [
+     "충전식 손난로 보조배터리 겸용, 내장 리튬이온 배터리 5000mAh, USB-C 충전 입력 5V"
+    ],
+    "electrical_powered": true,
+    "heating": true,
+    "battery_included": true
+   },
+   "expected_rows": [],
+   "acceptable_rows": [
+    "conf-10-12",
+    "sdoc-07-16"
+   ]
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "직류 전격살충기는 전지 전용 구조도 공급자적합성확인 대상에 포함(행 비고·공통 비고 단서).",
+   "product": {
+    "product_id": "u-mosquito-racket",
+    "product_name": "충전식 전기모기채",
+    "category": "생활용품",
+    "listing_text": [
+     "충전식 전기모기채, 내장 충전지 3.7V, USB 충전, 충전 중에는 사용 불가"
+    ],
+    "electrical_powered": true,
+    "battery_included": true
+   },
+   "expected_rows": [
+    "conf-07-31"
+   ],
+   "acceptable_rows": [
+    "conf-10-12"
+   ]
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "직류전원장치·휴대전화 전지 충전기 행. 입력 교류·출력 직류가 함께 적힌다.",
+   "product": {
+    "product_id": "u-phone-charger",
+    "product_name": "고속 충전기 어댑터",
+    "category": "휴대폰 액세서리",
+    "listing_text": [
+     "휴대폰 충전기 어댑터, 입력 AC 100-240V 50/60Hz, 출력 DC 5V 3A"
+    ],
+    "electrical_powered": true
+   },
+   "expected_rows": [
+    "cert-10-01"
+   ],
+   "acceptable_rows": []
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "직류전원장치 행.",
+   "product": {
+    "product_id": "u-laptop-adapter",
+    "product_name": "노트북 어댑터 65W",
+    "category": "컴퓨터 액세서리",
+    "listing_text": [
+     "노트북 어댑터 65W, 입력 AC 100-240V, 출력 DC 20V 3.25A"
+    ],
+    "electrical_powered": true
+   },
+   "expected_rows": [
+    "cert-10-01"
+   ],
+   "acceptable_rows": []
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "충전지 단품. 전지 행은 저전압을 포함한다(비고).",
+   "product": {
+    "product_id": "u-18650",
+    "product_name": "18650 충전지 2개입",
+    "category": "배터리",
+    "listing_text": [
+     "18650 리튬이온 충전지 2개입, 공칭 3.7V 2600mAh"
+    ],
+    "battery_included": true
+   },
+   "expected_rows": [
+    "conf-10-12"
+   ],
+   "acceptable_rows": [
+    "cert-10-02"
+   ]
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "가습기 행에 저전압 포함 비고가 없어 직류 5V 제품은 제외.",
+   "product": {
+    "product_id": "u-usb-humidifier",
+    "product_name": "USB 미니 가습기",
+    "category": "생활가전",
+    "listing_text": [
+     "USB 미니 가습기, DC 5V, 소비전력 2W, 배터리 없음 USB 연결 전용"
+    ],
+    "electrical_powered": true,
+    "battery_included": false
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "충전지 전용 구조이고 직류 저전압. 구강청결기 행은 저전압 포함 비고가 없다.",
+   "product": {
+    "product_id": "u-toothbrush",
+    "product_name": "충전식 음파 전동칫솔",
+    "category": "생활가전",
+    "listing_text": [
+     "충전식 음파 전동칫솔, USB 충전, 내장 배터리 3.7V, 완충 후 30일 사용"
+    ],
+    "electrical_powered": true,
+    "battery_included": true
+   },
+   "expected_rows": [],
+   "acceptable_rows": [
+    "conf-10-12"
+   ]
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "건전지 전용. 전기용품 품목표 대상 아님.",
+   "product": {
+    "product_id": "u-wireless-mouse",
+    "product_name": "무선 마우스",
+    "category": "컴퓨터 주변기기",
+    "listing_text": [
+     "무선 마우스 2.4GHz, AA 건전지 1개 사용(미포함)"
+    ],
+    "electrical_powered": true,
+    "battery_included": false
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "조명기구 행에 저전압 포함 비고가 없어 직류 5V 제품은 제외.",
+   "product": {
+    "product_id": "u-mood-lamp",
+    "product_name": "USB LED 무드등",
+    "category": "조명",
+    "listing_text": [
+     "USB LED 무드등, DC 5V 입력, 밝기 3단 조절"
+    ],
+    "electrical_powered": true,
+    "battery_included": false
+   },
+   "expected_rows": [],
+   "acceptable_rows": []
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "'충전식 휴대전등'이 품목에 있지만 USB(직류 5V) 충전·충전지 전용이라 제외 쪽. 해석이 갈려 허용 행으로 둔다.",
+   "product": {
+    "product_id": "u-flashlight",
+    "product_name": "충전식 LED 손전등",
+    "category": "조명",
+    "listing_text": [
+     "충전식 LED 손전등, 18650 충전지 내장, USB-C 충전 5V"
+    ],
+    "electrical_powered": true,
+    "battery_included": true
+   },
+   "expected_rows": [],
+   "acceptable_rows": [
+    "conf-11-03",
+    "conf-10-12"
+   ]
+  },
+  {
+   "source": "작성 (USB·배터리 소형 제품)",
+   "memo": "충전지 전용·직류 저전압. 이·미용기기 행은 저전압 포함 비고가 없다.",
+   "product": {
+    "product_id": "u-shaver",
+    "product_name": "충전식 전기면도기",
+    "category": "이미용가전",
+    "listing_text": [
+     "충전식 전기면도기, USB-C 충전 5V, 완충 후 60분 사용"
+    ],
+    "electrical_powered": true,
+    "battery_included": true
+   },
+   "expected_rows": [],
+   "acceptable_rows": [
+    "conf-10-12"
+   ]
+  }
+ ]
+}
