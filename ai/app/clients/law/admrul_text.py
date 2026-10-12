@@ -3,7 +3,7 @@
 역할
     행정규칙일련번호로 고시·훈령·예규 본문(조문내용과 별표)을 조회.
     법령과 달리 조문이 구조화되지 않은 <조문내용> 문자열로만 옴.
-    조문형 고시는 문자열에서 조문번호·제목과 소속 편·장·절·관을 뽑아 법령 조문과 같은 모양으로 맞춤.
+    조문형 고시는 문자열에서 조문번호·제목, 항·호·목, 소속 편·장·절·관을 뽑아 법령 조문과 같은 모양으로 맞춤.
 """
 
 import re
@@ -12,10 +12,21 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .text_base import LawTextBaseClient
-from ...schemas.clients.law_response import AdmrulTextResponse, LawArticle, LawAttachment
+from ...schemas.clients.law_response import (
+    AdmrulTextResponse,
+    LawArticle,
+    LawAttachment,
+    LawItem,
+    LawParagraph,
+    LawSubItem,
+)
 
 # 조문 머리 (예: "제1조(목적) …", "제6조의2(전문위원회 검토) …")
 _ARTICLE_HEAD_RE = re.compile(r"^제\s*(\d+)\s*조(?:\s*의\s*(\d+))?\s*(?:\(([^)]*)\))?")
+# 조문 안 줄 머리: 항 "①", 호 "1." "1의2.", 목 "가."
+_PARAGRAPH_RE = re.compile(r"^([①-⑳㉑-㉟])")
+_ITEM_RE = re.compile(r"^(\d+(?:의\d+)?\.)")
+_SUB_ITEM_RE = re.compile(r"^([가-힣]\.)")
 
 
 class AdmrulTextClient(LawTextBaseClient[AdmrulTextResponse]):
@@ -84,15 +95,66 @@ class AdmrulTextClient(LawTextBaseClient[AdmrulTextResponse]):
                 continue
             match = _ARTICLE_HEAD_RE.match(content.strip())
             # 조문 머리가 없는 줄은 내용 보존을 위해 번호 없는 조문으로 남김
+            if match is None:
+                articles.append(LawArticle(article_content=content, headings=list(headings.values())))
+                continue
+            lead, paragraphs = self._split_article(content.strip(), match.end())
             articles.append(LawArticle(
-                article_number=match.group(1) if match else None,
-                article_branch_number=match.group(2) if match else None,
-                article_is_exist="조문" if match else None,
-                article_title=match.group(3) if match else None,
-                article_content=content,
+                article_number=match.group(1),
+                article_branch_number=match.group(2),
+                article_is_exist="조문",
+                article_title=match.group(3),
+                article_content=lead,
+                paragraphs=paragraphs,
                 headings=list(headings.values()),
             ))
         return articles
+
+    @staticmethod
+    def _split_article(content: str, head_end: int) -> tuple[str, list[LawParagraph]]:
+        """조문 문자열을 앞문장과 항·호·목으로 나눈다. 법령 조문(<조문내용>·<항>)과 같은 모양.
+
+        줄 머리로 구분: 항 "①", 호 "1."·"1의2.", 목 "가.". 머리가 없는 줄은 바로 앞 요소에 이어 붙임.
+        항 없이 호만 있으면 번호 없는 항 하나 아래에 호를 담음 (법령 원문과 같은 처리).
+
+        Args:
+            content: 조문 문자열 (예: "제3조(요건신청 방법) ① …\\n  ② …").
+            head_end: 조문 머리("제3조(요건신청 방법)")가 끝나는 위치.
+
+        Returns:
+            tuple[str, list[LawParagraph]]: (앞문장, 항 목록). 항·호가 없으면 (조문 전체, []).
+        """
+        first, _, rest = content.partition("\n")
+        lead_parts = [first[:head_end].strip()]
+        lines = [first[head_end:]] + rest.split("\n")
+        paragraphs: list[LawParagraph] = []
+        item: LawItem | None = None
+        sub_item: LawSubItem | None = None
+
+        def append(target, text: str) -> None:
+            target.content = f"{target.content}\n{text}" if target.content else text
+
+        for raw_line in lines:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if match := _PARAGRAPH_RE.match(line):
+                paragraphs.append(LawParagraph(number=match.group(1), content=line))
+                item = sub_item = None
+            elif match := _ITEM_RE.match(line):
+                if not paragraphs:
+                    paragraphs.append(LawParagraph())
+                item = LawItem(number=match.group(1), content=line)
+                paragraphs[-1].items.append(item)
+                sub_item = None
+            elif item is not None and (match := _SUB_ITEM_RE.match(line)):
+                sub_item = LawSubItem(number=match.group(1), content=line)
+                item.sub_items.append(sub_item)
+            elif sub_item or item or paragraphs:
+                append(sub_item or item or paragraphs[-1], line)
+            else:
+                lead_parts.append(line)
+        return " ".join(part for part in lead_parts if part), paragraphs
 
     def _parse_attachments(self, el: Element | None) -> list[LawAttachment]:
         """첨부파일 목록을 파싱한다. 같은 문서의 다른 형식은 하나로 묶고 링크 하나만 남김.
