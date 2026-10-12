@@ -1,0 +1,29 @@
+{
+  "source": {
+    "document_name": "전기용품 및 생활용품 안전관리 운용요령",
+    "document_kind": "admrul",
+    "version_key": "2100000285148",
+    "law_type": "고시",
+    "enforce_date": "20260911",
+    "annex_number": "0001",
+    "annex_branch_number": "00",
+    "annex_title": "안전인증대상전기용품 세부품목(제3조 관련)",
+    "file_url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=169584897"
+  },
+  "file_type": "pdf",
+  "features": {
+    "chars": 25181,
+    "tokens": 6704,
+    "lines": 331,
+    "tables": 1,
+    "max_columns": 3,
+    "border_style": "heavy(┏━┃)",
+    "has_check_matrix": false,
+    "has_note": true,
+    "has_deleted_rows": true,
+    "broken_chars": 9,
+    "sections_outside_table": 0,
+    "needs_split": false
+  },
+  "collected_at": "2026-10-12T06:15:23+00:00"
+}

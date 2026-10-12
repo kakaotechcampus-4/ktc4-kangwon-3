@@ -1,0 +1,29 @@
+{
+  "source": {
+    "document_name": "방송통신기자재등의 적합성평가에 관한 고시",
+    "document_kind": "admrul",
+    "version_key": "2100000282888",
+    "law_type": "고시",
+    "enforce_date": "20260724",
+    "annex_number": "0001",
+    "annex_branch_number": "00",
+    "annex_title": "적합성평가 대상기자재(제3조 관련)",
+    "file_url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=167408619"
+  },
+  "file_type": "pdf",
+  "features": {
+    "chars": 219828,
+    "tokens": 66097,
+    "lines": 1989,
+    "tables": 12,
+    "max_columns": 5,
+    "border_style": "light(┌─│)",
+    "has_check_matrix": true,
+    "has_note": true,
+    "has_deleted_rows": false,
+    "broken_chars": 76,
+    "sections_outside_table": 11,
+    "needs_split": true
+  },
+  "collected_at": "2026-10-12T06:15:23+00:00"
+}
