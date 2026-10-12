@@ -111,7 +111,8 @@ class AnnexParseRecord(StrictModel):
 
     Attributes:
         source: 별표 출처.
-        output: 에이전트 출력. 검증 실패면 None (원문 조각으로 대체).
+        output: 에이전트 출력. 검증에 실패해도 남김(어느 행이 틀렸는지 확인용).
+            적재는 verified일 때만 쓰고, 아니면 원문 조각으로 대체. 출력이 없으면 None.
         verified: 검증 통과 여부.
         failure_reasons: 검증 실패 이유 (원문에 없는 source_text, 누락된 번호 등).
     """
