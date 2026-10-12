@@ -1,15 +1,18 @@
 """SelectionAgent 동작 검증. 실제 OpenAI 호출 없이 모델을 스텁으로 대체한다."""
 
+import contextlib
 import json
 import logging
 from types import SimpleNamespace
 
 import pytest
+from openai.lib._parsing._completions import type_to_response_format_param
 
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName
 from app import usage
+from app.agents.base import AgentError, MissingParsedOutput
 from app.agents.selection import SelectionAgent, SelectionFailedError
 
 
@@ -66,7 +69,7 @@ class _StubChatModel:
         self.received_messages: list | None = None
 
     def with_structured_output(self, schema: type, include_raw: bool = False) -> "_StubChatModel":
-        assert schema is ToolSelectionResponse
+        assert schema == type_to_response_format_param(ToolSelectionResponse)["json_schema"]
         assert include_raw is True
         return self
 
@@ -144,6 +147,7 @@ def test_모델_호출이_실패하면_SelectionFailedError로_감싸진다():
 
     assert isinstance(exc_info.value.__cause__, RuntimeError)
     assert "rate limit exceeded" in str(exc_info.value.__cause__)
+    assert str(exc_info.value) == "심사 도메인 선택에 실패했습니다: rate limit exceeded"
 
 
 def test_모델_응답이_스키마와_안_맞으면_SelectionFailedError를_낸다():
@@ -154,12 +158,29 @@ def test_모델_응답이_스키마와_안_맞으면_SelectionFailedError를_낸
         agent.select(_make_product())
 
     assert isinstance(exc_info.value.__cause__, ValueError)
+    assert str(exc_info.value) == "모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: field required"
+
+
+def test_파싱_결과가_비면_기존_문구를_유지하고_MissingParsedOutput을_원인으로_연결한다():
+    agent = SelectionAgent(model=_StubChatModel(None))
+
+    with pytest.raises(SelectionFailedError) as exc_info:
+        agent.select(_make_product())
+
+    assert str(exc_info.value) == "모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: None"
+    assert isinstance(exc_info.value.__cause__, MissingParsedOutput)
+
+
+def test_선택_예외는_AgentError_계열이다():
+    assert issubclass(SelectionFailedError, AgentError)
+    assert issubclass(SelectionFailedError, RuntimeError)
 
 
 def test_토큰_사용량과_캐시_적용량이_로그에_남는다(caplog):
     agent = SelectionAgent(model=_StubChatModel(_make_all_selected_response()))
 
-    with caplog.at_level(logging.INFO, logger="app.agents.selection"):
+    # 콘솔 토큰 로그는 BaseAgent 공통 출력
+    with caplog.at_level(logging.INFO, logger="app.agents.base"):
         agent.select(_make_product())
 
     assert "input=3000" in caplog.text
@@ -175,11 +196,12 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             calls.append((schema, include_raw))
             return self
 
-    monkeypatch.setattr("app.agents.selection.build_chat_model", lambda: _FakeModel())
+    # 모델 생성은 BaseAgent 공통 경로
+    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
 
     SelectionAgent()
 
-    assert calls == [(ToolSelectionResponse, True)]
+    assert calls == [(type_to_response_format_param(ToolSelectionResponse)["json_schema"], True)]
 
 
 def test_ToolSelectionResponse는_6개_미만이면_거부한다():
@@ -270,3 +292,20 @@ def test_파싱_결과만_없으면_MissingParsedOutput으로_남는다():
         agent.select(_make_product())
 
     assert _usage_rows()[0]["error_type"] == "MissingParsedOutput"
+
+
+def test_요청_본문이_이관_전_방식과_같다(fake_gateway):
+    # 기준: 이관 전 코드처럼 ToolSelectionResponse 클래스를 그대로 넘긴 요청 (SDK 버전이 바뀌어도 같은 비교)
+    product = _make_product(product_name="USB 선풍기", electrical_powered=True)
+    actual: list[dict] = []
+    agent = SelectionAgent(fake_gateway("{}", "stop", actual))
+    expected: list[dict] = []
+    reference = fake_gateway("{}", "stop", expected).with_structured_output(ToolSelectionResponse, include_raw=True)
+
+    # 응답 "{}"는 스키마와 맞지 않아 양쪽 모두 실패하지만 요청 본문은 이미 기록됨
+    with contextlib.suppress(Exception):
+        reference.invoke(agent._build_messages(product))
+    with pytest.raises(SelectionFailedError):
+        agent.select(product)
+
+    assert actual == expected

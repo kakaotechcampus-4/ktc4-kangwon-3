@@ -5,25 +5,19 @@
 """
 
 import json
-import logging
-from functools import lru_cache
-from pathlib import Path
-from time import perf_counter
-from typing import Any, Protocol
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from ..config import build_chat_model
+from ..prompts import PromptName, get_prompt
 from ..schemas.agent import ToolSelectionResponse
 from ..schemas.product import Product
-from ..usage import CallUsage, from_response, record
+from .base import AgentError, BaseAgent, MissingParsedOutput, ModelFailurePhase
 
-_PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "selection.md"
+# 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
+_PROMPT_PATH = get_prompt(PromptName.SELECTION).path
 
-logger = logging.getLogger(__name__)
 
-
-class SelectionFailedError(RuntimeError):
+class SelectionFailedError(AgentError):
     """LLM 호출 또는 구조화 출력 파싱 실패 시 발생하는 예외.
 
     호출부(파이프라인)가 langchain·openai SDK의 세부 예외를 알 필요 없이
@@ -31,51 +25,17 @@ class SelectionFailedError(RuntimeError):
     """
 
 
-class _StructuredSelector(Protocol):
-    """``with_structured_output(include_raw=True)`` 반환 객체의 최소 인터페이스."""
+class SelectionAgent(BaseAgent[ToolSelectionResponse]):
+    """상품 정보를 보고 필요한 심사 도메인을 선택한다. 툴 실행은 파이프라인의 몫이다.
 
-    def invoke(self, messages: list) -> dict[str, Any]: ...
-
-
-class _ModelLike(Protocol):
-    """SelectionAgent 생성자가 받는 모델의 최소 인터페이스.
-
-    ``BaseChatModel``과 테스트 스텁 모두 이 구조를 만족한다.
+    생성자는 BaseAgent 그대로. 모델 미주입 시 build_chat_model()로 생성하고,
+    평가 호출은 usage_agent("selection-eval" 등)로 운영 비용과 나눠 집계함.
     """
 
-    def with_structured_output(
-        self, schema: type, *, include_raw: bool = ...
-    ) -> _StructuredSelector: ...
-
-
-@lru_cache(maxsize=1)
-def _load_system_prompt() -> str:
-    return _PROMPT_PATH.read_text(encoding="utf-8")
-
-
-class SelectionAgent:
-    """상품 정보를 보고 필요한 심사 도메인을 선택한다. 툴 실행은 파이프라인의 몫이다."""
-
-    def __init__(
-        self,
-        model: _ModelLike | None = None,
-        *,
-        configured_model: str | None = None,
-        usage_agent: str = "selection",
-    ) -> None:
-        """선택 에이전트를 초기화한다.
-
-        Args:
-            model: 구조화 출력을 지원하는 LLM. None이면 build_chat_model()로 생성한다.
-            configured_model: 비용 계산에 쓸 모델 이름. None이면 model의 model_name을 쓴다.
-            usage_agent: 공용 사용량 로그에 남길 에이전트 이름 (평가 호출은 "selection-eval" 등으로 구분).
-        """
-        chat_model = model or build_chat_model()
-        self._configured_model = configured_model or getattr(chat_model, "model_name", None)
-        self._usage_agent = usage_agent
-        self._structured_model = chat_model.with_structured_output(
-            ToolSelectionResponse, include_raw=True
-        )
+    component_name = "selection"
+    prompt_name = PromptName.SELECTION
+    output_schema = ToolSelectionResponse
+    error_class = SelectionFailedError
 
     def select(self, product: Product) -> ToolSelectionResponse:
         """추출된 상품 정보를 받아 6개 심사 도메인의 선택 여부를 판단한다.
@@ -89,80 +49,28 @@ class SelectionAgent:
         Raises:
             SelectionFailedError: LLM 호출 실패 또는 응답이 스키마와 맞지 않을 때.
         """
-        # 시스템 프롬프트와 Product JSON을 LLM 메시지 리스트로 조립한다. 
+        # 시스템 프롬프트와 Product JSON을 LLM 메시지 리스트로 조립한다.
         messages = self._build_messages(product)
-        started_at = perf_counter()
 
-        try:
-            # 조합한 메시지 리스트를 LLM에 보내고, 구조화된 응답과 원본 메시지를 받는다.
-            result = self._structured_model.invoke(messages)
+        # 호출·파싱 실패 기록과 SelectionFailedError 변환, 사용량·콘솔 로그는 BaseAgent가 맡음
+        return self._invoke(messages, subject_id=product.product_id)
 
-        except Exception as exc:
-            # 사용량 없음, 실패 횟수 집계용
-            self._record_usage(None, product, started_at, error=type(exc).__name__)
-
-            # LLM 호출 실패 시 SelectionFailedError로 감싸서 호출부에 전달한다.
-            raise SelectionFailedError(f"심사 도메인 선택에 실패했습니다: {exc}") from exc
-
-        usage = from_response(result.get("raw"))
-
-        # 구조화 출력 파싱 중 발생한 예외. 정상 파싱이면 None.
-        parsing_error = result.get("parsing_error")
-
-        # 파싱된 ToolSelectionResponse 객체. 파싱 실패 시 None.
-        selection = result.get("parsed")
-
-        # 파싱 에러가 존재하거나 파싱 결과가 None인 경우
-        if parsing_error is not None or selection is None:
-
-            # 파싱 실패여도 토큰은 이미 사용됨
-            self._record_usage(
-                usage, product, started_at,
-                error=type(parsing_error).__name__ if parsing_error else "MissingParsedOutput",
-            )
-
-            # 스키마 불일치로 간주하고 원인 예외를 체이닝하여 raise한다.
-            raise SelectionFailedError(
-                f"모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: {parsing_error}"
-            ) from parsing_error
-
-        # 공용 사용량 로그 기록 (#221)
-        self._record_usage(usage, product, started_at)
-
-        # LLM 응답의 토큰 사용량을 INFO 레벨로 기록한다.
-        _log_token_usage(result.get("raw"))
-
-        # 선택 결과를 반환한다.
-        return selection
-
-    def _record_usage(
-        self,
-        usage: CallUsage | None,
-        product: Product,
-        started_at: float,
-        *,
-        error: str | None = None,
-    ) -> None:
-        """호출 1건을 공용 사용량 로그에 남긴다.
+    def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
+        """기존 선택 실패 문구를 돌려준다. parsed 누락은 기존처럼 원인 자리에 None 표기.
 
         Args:
-            usage: 원본 응답에서 뽑은 토큰 사용량. 호출 자체가 실패했으면 None.
-            product: 선택 대상 상품 (product_id를 기록).
-            started_at: 호출 시작 시각 (perf_counter 값).
-            error: 실패 시 예외 타입 이름. 성공이면 None.
-        """
-        record(
-            self._usage_agent,
-            usage,
-            configured_model=self._configured_model,
-            subject_id=product.product_id,
-            ok=error is None,
-            elapsed_ms=round((perf_counter() - started_at) * 1000),
-            error_type=error,
-        )
+            phase: 실패 단계.
+            cause: 원인 예외.
 
-    @staticmethod
-    def _build_messages(product: Product) -> list[SystemMessage | HumanMessage]:
+        Returns:
+            str: 예외 메시지.
+        """
+        if phase is ModelFailurePhase.CALL:
+            return f"심사 도메인 선택에 실패했습니다: {cause}"
+        detail = None if isinstance(cause, MissingParsedOutput) else cause
+        return f"모델 응답이 ToolSelectionResponse 스키마와 맞지 않습니다: {detail}"
+
+    def _build_messages(self, product: Product) -> list[SystemMessage | HumanMessage]:
         """시스템 프롬프트와 Product JSON을 LLM 메시지 리스트로 조립한다.
 
         Args:
@@ -174,43 +82,4 @@ class SelectionAgent:
         # 추출 에이전트에게 받은 데이터를 JSON으로 직렬화한다.
         payload = product.model_dump(mode="json")
 
-        # 시스템 프롬프트를 읽어오고 직렬화한 Product JSON과 함께 LLM 메시지 리스트를 반환한다.
-        return [
-            SystemMessage(content=_load_system_prompt()),
-            HumanMessage(content=json.dumps(payload, ensure_ascii=False)),
-        ]
-
-
-def _log_token_usage(raw_message: Any) -> None:
-    """LLM 응답의 토큰 사용량을 INFO 레벨로 기록한다.
-
-    Args:
-        raw_message: ``with_structured_output(include_raw=True)``가 돌려주는 원본 AIMessage.
-            usage_metadata가 없으면 아무것도 기록하지 않는다.
-    """
-
-    # raw_message에서 usage_metadata를 가져온다. 없으면 None.
-    usage = getattr(raw_message, "usage_metadata", None)
-
-    # usage_metadata가 없으면 아무것도 기록하지 않고 반환한다.
-    if not usage:
-        return
-
-    # usage_metadata가 있으면 input_token_details를 가져온다. 없으면 빈 dict.
-    input_details = usage.get("input_token_details") or {}
-
-    # LLM 응답의 토큰 사용량을 INFO 레벨로 기록한다.
-    logger.info(
-        "선택 토큰 사용량 input=%s (cache_read=%s) output=%s total=%s",
-        usage.get("input_tokens"),
-        input_details.get("cache_read"),
-        usage.get("output_tokens"),
-        usage.get("total_tokens"),
-    )
-
-    # raw_message에서 response_metadata를 가져온다. 없으면 빈 dict.
-    response_metadata = getattr(raw_message, "response_metadata", None) or {}
-
-    # response_metadata에 token_usage가 있으면 DEBUG 레벨로 기록한다.
-    if response_metadata.get("token_usage"):
-        logger.debug("게이트웨이 원본 usage: %s", response_metadata["token_usage"])
+        return self._messages(json.dumps(payload, ensure_ascii=False))
