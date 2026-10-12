@@ -18,6 +18,7 @@ class LawSearchItem(BaseModel):
     enforce_date: str | None = None
     revision_type: str | None = None
     department: str | None = None
+    history_status: str | None = None       # 현행연혁코드: 현행, 연혁, 시행예정
 
 
 class LawSearchResponse(BaseModel):
@@ -46,6 +47,7 @@ class AdmrulSearchItem(BaseModel):
     enforce_date: str | None = None
     revision_type: str | None = None
     rule_id: str | None = None
+    history_status: str | None = None       # 현행연혁구분: 현행, 연혁 (시행 예정판도 연혁으로 옴)
 
 
 class AdmrulSearchResponse(BaseModel):
@@ -77,6 +79,8 @@ class LicbylSearchItem(BaseModel):
     promulgate_number: str | None = None
     revision_type: str | None = None
     law_type: str | None = None
+    file_url: str | None = None             # 별표 파일 링크 하나 (파싱 쉬운 형식 우선)
+    file_type: str | None = None            # file_url의 형식 (pdf, hwp 등)
 
 
 class LicbylSearchResponse(BaseModel):

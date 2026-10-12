@@ -56,4 +56,5 @@ class LawSearchClient(LawSearchBaseClient[LawSearchResponse]):
             enforce_date=self._text(el, "시행일자"),
             revision_type=self._text(el, "제개정구분명"),
             department=self._text(el, "소관부처명"),
+            history_status=self._text(el, "현행연혁코드"),
         )
