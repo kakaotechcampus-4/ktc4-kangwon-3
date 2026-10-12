@@ -34,8 +34,6 @@ class LawTextClient(LawTextBaseClient):
         """
         root = self._parse_text_root(raw)
         info = root.find(self._BASIC_INFO_TAG)
-        # <조문> > <조문단위> 구조
-        articles_el = root.find("조문")
         return LawTextResponse(
             mst=raw.request.url.params.get(self._ID_PARAM),     # 기본정보에 없어 요청값 사용
             name=self._text(info, "법령명_한글"),
@@ -46,15 +44,42 @@ class LawTextClient(LawTextBaseClient):
             revision_type=self._text(info, "제개정구분"),
             enforce_date=self._text(info, "시행일자"),
             department=self._text(info, "소관부처"),
-            articles=[self._parse_article(el) for el in articles_el.iter("조문단위")] if articles_el is not None else [],
+            articles=self._parse_articles(root),
             annexes=self._parse_annexes(root),
         )
 
-    def _parse_article(self, el: Element) -> LawArticle:
+    def _parse_articles(self, root: Element) -> list[LawArticle]:
+        """조문 목록을 파싱하고 각 조문에 소속 편·장·절·관을 붙인다.
+
+        <조문> > <조문단위> 중 조문여부가 "전문"인 행은 구획 제목이라 조문 목록에서 빼고 headings로만 남김.
+
+        Args:
+            root: 본문 XML 루트 엘리먼트.
+
+        Returns:
+            list[LawArticle]: 조문 목록. 조문이 없으면 빈 목록.
+        """
+        articles_el = root.find("조문")
+        if articles_el is None:
+            return []
+        articles: list[LawArticle] = []
+        headings: dict[str, str] = {}
+        for el in articles_el.iter("조문단위"):
+            if self._text(el, "조문여부") == "전문":
+                updated = self._next_headings(headings, self._text(el, "조문내용") or "")
+                if updated is not None:
+                    headings = updated
+                    continue
+                # 구획 제목 모양이 아닌 전문 행은 내용 보존을 위해 조문으로 남김
+            articles.append(self._parse_article(el, list(headings.values())))
+        return articles
+
+    def _parse_article(self, el: Element, headings: list[str]) -> LawArticle:
         """법령본문 조문 하나를 파싱한다.
 
         Args:
             el: <조문단위> 엘리먼트.
+            headings: 소속 편·장·절·관 제목 (상위부터).
 
         Returns:
             LawArticle: 파싱된 조문. 항·호·목 포함.
@@ -68,6 +93,7 @@ class LawTextClient(LawTextBaseClient):
             paragraphs=[self._parse_paragraph(paragraph) for paragraph in el.findall("항")],
             enforce_date=self._text(el, "조문시행일자"),
             reference=self._text(el, "조문참고자료"),
+            headings=headings,
         )
 
     def _parse_paragraph(self, el: Element) -> LawParagraph:
