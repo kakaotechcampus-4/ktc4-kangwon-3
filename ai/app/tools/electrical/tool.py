@@ -15,8 +15,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ..base import RegulatoryTool
 from .evidence import EvidenceSection, EvidenceUnavailable, compact, purchase_agent_status
 from .rules import (
-    BATTERY_SEARCH_TERMS, ESS_WORDS, PURCHASE_SUMMARY, battery_only_state, excluded_by_low_voltage,
-    is_battery_or_supply, is_ess_component, item_name, low_voltage, mentions_battery, normal_text, sale_actions,
+    BATTERY_SEARCH_TERMS, ESS_WORDS, POWER_FIELDS, PURCHASE_SUMMARY, battery_only_state, excluded_by_low_voltage,
+    is_battery_or_supply, is_ess_component, item_name, low_voltage, mentions_battery, normal_text,
+    power_conflicts, sale_actions,
 )
 from .search import ElectricalItemSearch, default_item_search
 from ...config import build_chat_model
@@ -114,7 +115,11 @@ class ElectricalTool(RegulatoryTool):
         for fact in facts:
             by_field.setdefault(fact.field, []).append(fact)
         # 같은 값의 중복은 허용하지만 서로 다른 값을 임의로 선택하지 않는다.
-        conflicted = [field for field, values in by_field.items() if len({normal_text(f.value) for f in values}) > 1]
+        # 전원·전압은 글자가 아니라 뜻으로 비교한다(USB/DC, "0~5V"/"5V"는 같은 조건이다).
+        conflicted = [field for field, values in by_field.items()
+                      if field not in POWER_FIELDS and len({normal_text(f.value) for f in values}) > 1]
+        conflicted += power_conflicts(by_field)
+        query["conflicted"] = conflicted
         missing = [field for field in (*_REQUIRED_FIELDS, *_ASKED_FIELDS) if field not in by_field]
         missing.extend(conflicted)
         assumptions = ["전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."]
@@ -144,7 +149,7 @@ class ElectricalTool(RegulatoryTool):
         query["candidate_items"] = [block.block_id for block in candidates.blocks]
 
         # ③ 명확한 조건은 코드가 판정한다: 운용요령 제3조 저전압 제외
-        low, current = low_voltage(by_field) if not ({"power_source", "rated_voltage"} & set(conflicted)) else (None, None)
+        low, current = low_voltage(by_field) if not (set(POWER_FIELDS) & set(conflicted)) else (None, None)
         query["low_voltage"] = low
         # 전기저장장치(ESS) 구성품 행은 전지라는 단어 때문에 소비자용 배터리에 자주 잘못 붙는다(반복 실측).
         # 상품 원문에 전기저장장치 용도가 없으면 후보에서 뺀다.
@@ -313,7 +318,10 @@ class ElectricalTool(RegulatoryTool):
             tool_name=self.tool_name, selected=True, selection_reason=decision.reason,
             status=ToolStatus.SUCCESS, result=detail, findings=findings,
             required_actions=list(dict.fromkeys(actions or [])),
-            missing_information=[_QUESTIONS.get(field, f"{_FIELDS[field]} 정보가 필요합니다.") for field in missing],
+            missing_information=[f"{_FIELDS[field]} 정보가 서로 달라 확인이 필요합니다."
+                                 if field in query.get("conflicted", ())
+                                 else _QUESTIONS.get(field, f"{_FIELDS[field]} 정보가 필요합니다.")
+                                 for field in missing],
             # 버린 수·조회 후보·저전압 판정. 흔들림 측정과 운영 디버깅에 쓴다.
             query=query,
         )

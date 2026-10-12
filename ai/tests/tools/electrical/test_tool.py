@@ -197,13 +197,53 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다(problem
     assert search.calls == 0
 
 
-def test_서로_다른_전압은_하나를_고르지_않고_저전압도_판정하지_않는다():
+def test_저전압_기준_양쪽에_걸친_전압은_충돌로_묻고_저전압을_판정하지_않는다():
+    product, facts = product_and_facts()
+    product.listing_text.append("정격 24V")
+    facts.facts.append(ElectricalFact(field="rated_voltage", value="24V", evidence_id="listing-1", quote="정격 24V"))
+    result, _, _ = run(product, facts, review(select()))
+    assert "정격 전압 정보가 서로 달라 확인이 필요합니다." in result.missing_information
+    assert "정격 전압 정보가 필요합니다." not in result.missing_information
+    assert result.query["conflicted"] == ["rated_voltage"]
+    assert result.query["low_voltage"] is None
+
+
+def test_전압_표기가_달라도_저전압_판정이_같으면_충돌이_아니다():
     product, facts = product_and_facts()
     product.listing_text.append("정격 110V")
     facts.facts.append(ElectricalFact(field="rated_voltage", value="110V", evidence_id="listing-1", quote="정격 110V"))
     result, _, _ = run(product, facts, review(select()))
-    assert "정격 전압 정보가 필요합니다." in result.missing_information
+    assert result.query["conflicted"] == []
+    assert result.query["low_voltage"] is False
+    assert result.missing_information == []
+
+
+@pytest.mark.parametrize("text,values", [
+    # LED 스탠드: 전원 USB/DC, 전압 0~5V/5V (리뷰 사례)
+    ("USB 전원 LED 스탠드, DC 0~5V 밝기 조절, 정격 5V",
+     (("product_type", "LED 스탠드"), ("power_source", "USB"), ("power_source", "DC"),
+      ("rated_voltage", "0~5V"), ("rated_voltage", "5V"))),
+    # 보조배터리: 출력 DC와 USB-C 입력 (리뷰 사례)
+    ("보조배터리 출력 DC 5V, USB-C 입력 5V",
+     (("product_type", "보조배터리"), ("power_source", "DC"), ("power_source", "USB-C 입력"),
+      ("rated_voltage", "5V"))),
+])
+def test_같은_뜻의_전원_표기는_충돌이_아니라_저전압으로_판정한다(text, values):
+    product, facts = product_and_facts(text, values)
+    result, _, _ = run(product, facts, review())
+    assert result.query["conflicted"] == []
+    assert result.query["low_voltage"] is True
+    assert not any("전원 방식" in q or "정격 전압" in q for q in result.missing_information)
+
+
+def test_교류와_직류가_함께_적히면_충돌로_묻는다():
+    product, facts = product_and_facts("전기포트 어댑터 입력 AC 220V, 본체 DC 12V",
+                                       (("product_type", "전기포트"), ("power_source", "AC 220V"),
+                                        ("power_source", "DC 12V")))
+    result, _, _ = run(product, facts, review())
+    assert result.query["conflicted"] == ["power_source"]
     assert result.query["low_voltage"] is None
+    assert "전원 방식 정보가 서로 달라 확인이 필요합니다." in result.missing_information
 
 
 # -- 선택 검증 --
@@ -265,6 +305,10 @@ def test_전기_조건이_있으면_맞는_품목이_없어도_빠진_전압을_
     ((("power_source", "USB"), ("rated_voltage", "5V")), (True, "DC")),
     ((("rated_voltage", "220V"),), (None, None)),          # 교류·직류 불명
     ((("power_source", "AC"),), (None, "AC")),              # 전압 없음
+    ((("power_source", "USB"), ("rated_voltage", "0~5V"), ("rated_voltage", "5V")), (True, "DC")),  # 범위 표기
+    ((("rated_voltage", "AC 100-240V"),), (False, "AC")),   # 프리볼트 범위는 최댓값
+    ((("power_source", "AC 220V"), ("power_source", "DC 12V")), (None, None)),  # 교류·직류 혼재
+    ((("power_source", "AC"), ("rated_voltage", "24V"), ("rated_voltage", "220V")), (None, "AC")),  # 기준 양쪽
 ])
 def test_저전압은_명시된_전류_종류와_전압으로만_판정한다(values, expected):
     by_field = {}

@@ -21,22 +21,59 @@ def normal_text(text: str) -> str:
     return "".join(text.translate(_BOX_DRAWING).split())
 
 
+POWER_FIELDS = ("power_source", "rated_voltage")
+
+
+def _current_of(text: str) -> str | None:
+    """값 하나의 전류 종류. USB는 직류로 본다. 둘 다 적혀 있거나 없으면 None."""
+    upper = text.upper()
+    is_ac = "AC" in upper or "교류" in upper
+    is_dc = "DC" in upper or "직류" in upper or "USB" in upper
+    return "AC" if is_ac and not is_dc else "DC" if is_dc and not is_ac else None
+
+
+def _power_profile(facts: dict[str, list[ElectricalFact]]) -> tuple[set[str], list[float]]:
+    texts = [fact.value for field in POWER_FIELDS for fact in facts.get(field, [])]
+    currents = {current for text in texts if (current := _current_of(text))}
+    # "0~5V", "100-240V"처럼 범위로 적힌 값은 V가 붙은 끝값(최댓값)만 잡힌다.
+    volts = [float(match) for text in texts for match in _VOLTAGE_RE.findall(text)]
+    return currents, volts
+
+
+def _low_sides(current: str, volts: list[float]) -> set[bool]:
+    limit = 30 if current == "AC" else 42
+    return {volt <= limit for volt in volts}
+
+
 def low_voltage(facts: dict[str, list[ElectricalFact]]) -> tuple[bool | None, str | None]:
     """운용요령 제3조의 저전압(교류 30V·직류 42V 이하) 여부를 명시된 값으로만 판정한다.
 
+    표기가 달라도 뜻이 같으면 함께 본다(USB와 DC, "0~5V"와 "5V", 입력 5V와 출력 5V).
+    적힌 전압이 모두 기준 이하면 저전압, 모두 초과면 저전압 아님이다.
+
     Returns:
-        (저전압 여부, "AC"/"DC"). 전류 종류나 전압이 없거나 값이 여러 개면 (None, …).
+        (저전압 여부, "AC"/"DC"). 전류 종류가 섞이거나 없거나, 전압이 기준 양쪽에 걸치면 (None, …).
     """
-    texts = [fact.value for field in ("power_source", "rated_voltage") for fact in facts.get(field, [])]
-    joined = " ".join(texts).upper()
-    is_ac = "AC" in joined or "교류" in joined
-    is_dc = "DC" in joined or "직류" in joined or "USB" in joined
-    current = "AC" if is_ac and not is_dc else "DC" if is_dc and not is_ac else None
-    volts = {float(match) for text in texts for match in _VOLTAGE_RE.findall(text)}
-    if current is None or len(volts) != 1:
+    currents, volts = _power_profile(facts)
+    current = next(iter(currents)) if len(currents) == 1 else None
+    if current is None or not volts:
         return None, current
-    limit = 30 if current == "AC" else 42
-    return next(iter(volts)) <= limit, current
+    sides = _low_sides(current, volts)
+    return (sides.pop() if len(sides) == 1 else None), current
+
+
+def power_conflicts(facts: dict[str, list[ElectricalFact]]) -> list[str]:
+    """전원·전압 값이 실제로 어긋나는 조건. 표기만 다르고 저전압 판정이 같으면 충돌이 아니다.
+
+    교류와 직류가 함께 적힌 경우(예: 어댑터 입력 AC 220V와 본체 DC 12V)도 여기서는 충돌로 둔다.
+    본체·부품 조건을 나눠 받지 않는 현재 구조의 한계다.
+    """
+    currents, volts = _power_profile(facts)
+    if len(currents) > 1:
+        return ["power_source"]
+    if len(currents) == 1 and len(_low_sides(next(iter(currents)), volts)) > 1:
+        return ["rated_voltage"]
+    return []
 
 
 def excluded_by_low_voltage(block: AnnexBlock, low: bool | None, current: str | None) -> bool:
