@@ -3,14 +3,19 @@
 역할
     행정규칙일련번호로 고시·훈령·예규 본문(조문내용과 별표)을 조회.
     법령과 달리 조문이 구조화되지 않은 <조문내용> 문자열로만 옴.
+    조문형 고시는 문자열에서 조문번호·제목과 소속 편·장·절·관을 뽑아 법령 조문과 같은 모양으로 맞춤.
 """
 
+import re
 from xml.etree.ElementTree import Element
 
 import httpx
 
 from .text_base import LawTextBaseClient
 from ...schemas.clients.law_response import AdmrulTextResponse, LawArticle, LawAttachment
+
+# 조문 머리 (예: "제1조(목적) …", "제6조의2(전문위원회 검토) …")
+_ARTICLE_HEAD_RE = re.compile(r"^제\s*(\d+)\s*조(?:\s*의\s*(\d+))?\s*(?:\(([^)]*)\))?")
 
 
 class AdmrulTextClient(LawTextBaseClient[AdmrulTextResponse]):
@@ -34,6 +39,7 @@ class AdmrulTextClient(LawTextBaseClient[AdmrulTextResponse]):
         """
         root = self._parse_text_root(raw)
         info = root.find(self._BASIC_INFO_TAG)
+        is_article_format = self._yes_no(self._text(info, "조문형식여부"))
         return AdmrulTextResponse(
             serial_number=self._text(info, "행정규칙일련번호"),
             name=self._text(info, "행정규칙명"),
@@ -45,12 +51,48 @@ class AdmrulTextClient(LawTextBaseClient[AdmrulTextResponse]):
             enforce_date=self._text(info, "시행일자"),
             department=self._text(info, "소관부처명"),
             is_current=self._yes_no(self._text(info, "현행여부")),
-            is_article_format=self._yes_no(self._text(info, "조문형식여부")),
-            # <조문내용> 태그가 루트 바로 아래 나열되는 구조
-            articles=[LawArticle(article_content=el.text) for el in root.findall("조문내용") if el.text],
+            is_article_format=is_article_format,
+            articles=self._parse_articles(root, is_article_format),
             annexes=self._parse_annexes(root),
             attachments=self._parse_attachments(root.find("첨부파일")),
         )
+
+    def _parse_articles(self, root: Element, is_article_format: bool | None) -> list[LawArticle]:
+        """<조문내용> 문자열 목록을 조문으로 파싱한다.
+
+        <조문내용> 태그가 루트 바로 아래 나열되는 구조.
+        조문형이면 구획 제목 줄("제1장 …")은 빼고 이후 조문의 headings로 붙이며, 조문 머리에서 번호·제목을 뽑음.
+        비조문형(본문 한 덩어리)이면 문자열을 그대로 조문 하나씩으로 담음.
+
+        Args:
+            root: 본문 XML 루트 엘리먼트.
+            is_article_format: 조문형식여부.
+
+        Returns:
+            list[LawArticle]: 조문 목록. 없으면 빈 목록.
+        """
+        contents = [el.text for el in root.findall("조문내용") if el.text and el.text.strip()]
+        if not is_article_format:
+            return [LawArticle(article_content=content) for content in contents]
+
+        articles: list[LawArticle] = []
+        headings: dict[str, str] = {}
+        for content in contents:
+            updated = self._next_headings(headings, content)
+            if updated is not None:
+                headings = updated
+                continue
+            match = _ARTICLE_HEAD_RE.match(content.strip())
+            # 조문 머리가 없는 줄은 내용 보존을 위해 번호 없는 조문으로 남김
+            articles.append(LawArticle(
+                article_number=match.group(1) if match else None,
+                article_branch_number=match.group(2) if match else None,
+                article_is_exist="조문" if match else None,
+                article_title=match.group(3) if match else None,
+                article_content=content,
+                headings=list(headings.values()),
+            ))
+        return articles
 
     def _parse_attachments(self, el: Element | None) -> list[LawAttachment]:
         """첨부파일 목록을 파싱한다. 같은 문서의 다른 형식은 하나로 묶고 링크 하나만 남김.
