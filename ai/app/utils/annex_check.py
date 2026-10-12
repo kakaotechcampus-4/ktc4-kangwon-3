@@ -61,9 +61,16 @@ def _label(text: str) -> str | None:
 
 
 def source_labels(content: str) -> Counter:
-    """원문 칸 머리의 품목 번호 개수."""
-    labels = (_label(cell) for line in content.splitlines() for cell in _CELL_SPLIT_RE.split(line))
-    return Counter(label for label in labels if label)
+    """원문 칸 머리의 품목 번호 개수.
+
+    같은 줄의 같은 번호는 한 번만 셈. 품목·세부품목 칸에 같은 번호가 나란히 붙은 표가 있음
+    (예: 운용요령 별표 3의2 "① 재사용전지모듈 │① 재사용전지모듈").
+    """
+    counts: Counter = Counter()
+    for line in content.splitlines():
+        labels = {_label(cell) for cell in _CELL_SPLIT_RE.split(line)}
+        counts.update(label for label in labels if label)
+    return counts
 
 
 def output_labels(output: AnnexParseOutput) -> Counter:

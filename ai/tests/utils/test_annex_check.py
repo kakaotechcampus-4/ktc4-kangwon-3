@@ -128,3 +128,10 @@ def test_전파_고시_별표1은_범위_안내를_빼고_번호를_센다():
 
     assert sum(labels.values()) == 311
     assert "?" not in labels
+
+
+def test_같은_줄에_나란히_붙은_같은_번호는_한_번만_센다():
+    # 운용요령 별표 3의2: 품목·세부품목 칸에 같은 번호가 나란히 있음
+    content = (_FIXTURES / "전기용품및생활용품안전관리운용요령_별표0003-02" / "content.txt").read_text(encoding="utf-8")
+
+    assert source_labels(content) == {"①": 1, "②": 1}
