@@ -13,7 +13,7 @@ from .text_base import LawTextBaseClient
 from ...schemas.clients.law_response import LawArticle, LawItem, LawParagraph, LawSubItem, LawTextResponse
 
 
-class LawTextClient(LawTextBaseClient):
+class LawTextClient(LawTextBaseClient[LawTextResponse]):
     """법령 본문(target=law) 클라이언트."""
 
     _TARGET = "law"

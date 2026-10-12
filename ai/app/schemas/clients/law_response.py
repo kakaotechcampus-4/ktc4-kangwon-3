@@ -167,13 +167,13 @@ class LawTextResponse(BaseModel):
     법령ID를 MST 자리에 넣는 등 번호가 틀려도 법제처는 다른 법의 정상 본문을 돌려주기 때문이다.
 
     Attributes:
-        mst: 법령일련번호 (요청한 버전 키). 임베딩 갱신·삭제 시 버전 구분용. admrul은 None.
-        name: 법령명 (admrul은 행정규칙명).
-        document_id: 법령ID (admrul은 행정규칙ID). 검색 결과의 law_id / rule_id와 대조한다.
-        law_type: 법종구분 (법률, 대통령령, ○○부령 등). 상위법·하위법 구분용. admrul은 None.
-        promulgate_date: 공포일자 (YYYYMMDD). admrul은 None.
-        promulgate_number: 공포번호. admrul은 None.
-        revision_type: 제개정구분 (제정, 일부개정, 타법개정 등). admrul은 None.
+        mst: 법령일련번호 (요청한 버전 키). 임베딩 갱신·삭제 시 버전 구분용.
+        name: 법령명.
+        document_id: 법령ID. 검색 결과의 law_id와 대조한다.
+        law_type: 법종구분 (법률, 대통령령, ○○부령 등). 상위법·하위법 구분용.
+        promulgate_date: 공포일자 (YYYYMMDD).
+        promulgate_number: 공포번호.
+        revision_type: 제개정구분 (제정, 일부개정, 타법개정 등).
         enforce_date: 시행일자 (YYYYMMDD).
         department: 소관부처명.
         articles: 조문 목록.
@@ -191,3 +191,57 @@ class LawTextResponse(BaseModel):
     department: str | None = None
     articles: list[LawArticle]
     annexes: list[LawAnnex] = []
+
+
+# -- 행정규칙 본문 --
+
+class LawAttachment(BaseModel):
+    """행정규칙 첨부파일 단건. 같은 문서가 형식만 달리 여러 개 오면 하나로 묶은 결과.
+
+    Attributes:
+        name: 첨부파일명 (확장자 제외).
+        file_url: 첨부파일 링크 하나. PDF → XLSX → HWPX → HWP → 이미지 → ZIP 순으로 있는 것.
+        file_type: file_url의 형식 (pdf, xlsx, hwpx, hwp, zip 등).
+    """
+
+    name: str
+    file_url: str
+    file_type: str | None = None
+
+
+class AdmrulTextResponse(BaseModel):
+    """행정규칙 본문 조회 응답.
+
+    기본정보(name, document_id 등)는 요청한 문서를 받았는지 검색 결과와 대조하는 데 쓴다.
+
+    Attributes:
+        serial_number: 행정규칙일련번호 (버전 키). 임베딩 갱신·삭제 시 버전 구분용.
+        name: 행정규칙명.
+        document_id: 행정규칙ID. 검색 결과의 rule_id와 대조한다.
+        rule_type: 행정규칙종류 (고시, 훈령, 예규 등).
+        issue_date: 발령일자 (YYYYMMDD).
+        issue_number: 발령번호.
+        revision_type: 제개정구분명 (제정, 일부개정, 전부개정 등).
+        enforce_date: 시행일자 (YYYYMMDD).
+        department: 소관부처명.
+        is_current: 현행 여부. 시행 예정판은 False.
+        is_article_format: 조문형 여부. False면 본문 전체가 조문 하나로 옴.
+        articles: 조문 목록.
+        annexes: 별표 목록. 별표가 없는 문서는 빈 목록.
+        attachments: 첨부파일 목록. 본문이 첨부파일에만 있는 고시도 있음.
+    """
+
+    serial_number: str | None = None
+    name: str | None = None
+    document_id: str | None = None
+    rule_type: str | None = None
+    issue_date: str | None = None
+    issue_number: str | None = None
+    revision_type: str | None = None
+    enforce_date: str | None = None
+    department: str | None = None
+    is_current: bool | None = None
+    is_article_format: bool | None = None
+    articles: list[LawArticle]
+    annexes: list[LawAnnex] = []
+    attachments: list[LawAttachment] = []
