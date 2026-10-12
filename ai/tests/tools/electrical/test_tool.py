@@ -98,7 +98,7 @@ def test_상품별_동의어_사전_없이_조회어가_없으면_정답_행을_
 
 def select(item_id=KETTLE_ROW, **changes):
     values = dict(item_id=item_id, rationale="물을 끓이는 교류 가전으로 전기주전자에 해당할 가능성이 있습니다.",
-                  fact_fields=["product_type"])
+                  applies=True, fact_fields=["product_type"])
     values.update(changes)
     return ElectricalSelection(**values)
 
@@ -356,6 +356,15 @@ def test_구매대행_특례_품목이면_구매대행과_사입의_할_일을_�
 ])
 def test_판매_안내의_목적격_조사는_받침에_따라_정한다(word, particle):
     assert object_particle(word) == particle
+
+
+def test_이유에서_해당하지_않는다고_결론_낸_선택은_후보로_내지_않는다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review(
+        select(), select("cert-07-10", rationale="전기포트는 전기충전기로 보기 어렵습니다.", applies=False)))
+    assert result.query["selected_items"] == [KETTLE_ROW]
+    assert result.query["not_applicable"] == 1
+    assert len(result.findings) == 1
 
 
 def test_안전인증_안내는_을_조사로_쓴다():

@@ -97,7 +97,7 @@ class ElectricalTool(RegulatoryTool):
         snippets = {f"listing-{i}": text for i, text in enumerate(product.listing_text) if text.strip()}
         snippets.update({f"attribute-{i}": attr.source_text for i, attr in enumerate(product.attributes)
                          if attr.source_text and attr.source_text.strip()})
-        query: dict[str, Any] = {"dropped_facts": 0, "dropped_candidates": 0}
+        query: dict[str, Any] = {"dropped_facts": 0, "dropped_candidates": 0, "not_applicable": 0}
         if not snippets:
             return self._assemble(decision, [], [], [*_REQUIRED_FIELDS, *_ASKED_FIELDS],
                                   ["입력에 인용 가능한 상품 설명이 없습니다."], query)
@@ -195,6 +195,10 @@ class ElectricalTool(RegulatoryTool):
         query["purchase_agent"] = {}
         battery_hint = battery_only is None and mentions_battery(by_field, product)
         for selection in review.selections:
+            # 모델이 이유에서 해당하지 않는다고 결론 낸 선택은 후보로 내지 않는다.
+            if not selection.applies:
+                query["not_applicable"] += 1
+                continue
             block = blocks.get(selection.item_id)
             # 확인되지 않은 조건을 근거로 든 부분은 무시하고, 확인된 조건이 하나도 없을 때만 선택을 버린다.
             used_fields = [field for field in dict.fromkeys(selection.fact_fields) if field in by_field]
