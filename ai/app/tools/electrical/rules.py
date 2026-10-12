@@ -89,12 +89,21 @@ PURCHASE_SUMMARY = {
 }
 
 
+def object_particle(word: str) -> str:
+    """목적격 조사. 마지막 글자에 받침이 있으면 "을", 없으면 "를"."""
+    last = word.rstrip()[-1:]
+    if not ("가" <= last <= "힣"):
+        return "를"
+    return "을" if (ord(last) - ord("가")) % 28 else "를"
+
+
 def sale_actions(block: AnnexBlock, status: str, listed_as: str) -> list[str]:
     """후보 품목 기준으로 판매 전에 해야 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다."""
     scheme = block.scheme.value
     label = f"[{item_name(block)} · {scheme} 후보]"
     kc = "KC 안전인증" if scheme == "안전인증" else "KC 안전확인 신고" if scheme == "안전확인" else "공급자적합성확인"
-    import_action = f"{label} 사입·수입 판매: 판매 전 {kc}를 받은 제품인지 공급사 인증·신고 번호로 확인해야 합니다."
+    kc_obj = kc + object_particle(kc)
+    import_action = f"{label} 사입·수입 판매: 판매 전 {kc_obj} 받은 제품인지 공급사 인증·신고 번호로 확인해야 합니다."
     if status == "listed":
         return [
             f"{label} 구매대행: 이 품목으로 분류되면 구매대행 특례(시행규칙 별표 13) 대상이라 KC 표시 없이 "
@@ -105,23 +114,21 @@ def sale_actions(block: AnnexBlock, status: str, listed_as: str) -> list[str]:
         return [
             f"{label} 구매대행: 이 품목으로 분류되고 특례 목록의 제외 조건('{listed_as}')에 해당하지 않으면 "
             "구매대행 특례를 적용할 수 있습니다. 제외 조건에 해당하면 구매대행도 "
-            f"{kc}를 받은 제품만 판매할 수 있습니다. 제외 조건 해당 여부를 먼저 확인해야 합니다.",
+            f"{kc_obj} 받은 제품만 판매할 수 있습니다. 제외 조건 해당 여부를 먼저 확인해야 합니다.",
             import_action,
         ]
     if status == "unmatched":
         return [
             f"{label} 구매대행: 특례 목록(시행규칙 별표 13)에서 이 품목명을 찾지 못했습니다. 특례 해당 여부를 "
-            f"확인하기 전까지는 {kc}를 받은 제품만 판매하는 것이 안전합니다.",
+            f"확인하기 전까지는 {kc_obj} 받은 제품만 판매하는 것이 안전합니다.",
             import_action,
         ]
     if status == "similar_clause":
         return [f"{label} 구매대행 특례의 '그 밖에 유사한 기기' 해당 여부는 확인이 필요합니다. "
-                f"사입·수입 판매는 {kc}를 받은 제품인지 확인해야 합니다."]
+                f"사입·수입 판매는 {kc_obj} 받은 제품인지 확인해야 합니다."]
     if block.scheme.value == "공급자적합성확인":
         return [f"{label} 사입·수입 판매 시 공급자적합성확인과 KC 표시가 필요합니다. 구매대행 시 의무는 확인이 필요합니다."]
     return [f"{label} 판매 전 {kc} 여부를 확인해야 합니다."]
-
-
 
 
 def item_name(block: AnnexBlock) -> str:
