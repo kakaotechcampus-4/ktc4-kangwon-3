@@ -10,7 +10,7 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.electrical import ElectricalTool, ElectricalToolError
-from app.tools.electrical.rules import low_voltage, normal_text
+from app.tools.electrical.rules import low_voltage, normal_text, object_particle
 from app.tools.electrical.evidence import CachedEvidenceSource, EvidenceUnavailable, LawApiEvidenceSource
 from app.tools.electrical.search import DatabaseItemSearch, LawApiItemSearch
 
@@ -349,6 +349,20 @@ def test_구매대행_특례_품목이면_구매대행과_사입의_할_일을_�
     assert any(action.startswith("[전기액체 가열기기 · 안전인증 후보] 구매대행:") for action in result.required_actions)
     assert any("사입·수입 판매" in action for action in result.required_actions)
     assert any((source.article or "").startswith("별표 13") for source in result.findings[0].legal_sources)
+
+
+@pytest.mark.parametrize(("word", "particle"), [
+    ("KC 안전인증", "을"), ("공급자적합성확인", "을"), ("KC 안전확인 신고", "를"), ("KC", "를"),
+])
+def test_판매_안내의_목적격_조사는_받침에_따라_정한다(word, particle):
+    assert object_particle(word) == particle
+
+
+def test_안전인증_안내는_을_조사로_쓴다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review(select()))
+    assert any("KC 안전인증을 받은" in action for action in result.required_actions)
+    assert not any("안전인증를" in action for action in result.required_actions)
 
 
 def test_특례_목록에서_이름을_못_찾으면_특례_없음으로_확정하지_않는다():
