@@ -55,4 +55,5 @@ class AdmrulSearchClient(LawSearchBaseClient[AdmrulSearchResponse]):
             enforce_date=self._text(el, "시행일자"),
             revision_type=self._text(el, "제개정구분명"),
             rule_id=self._text(el, "행정규칙ID"),
+            history_status=self._text(el, "현행연혁구분"),
         )

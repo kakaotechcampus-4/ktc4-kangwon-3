@@ -6,6 +6,11 @@ import httpx
 
 from ..base import BaseClient, RequestT, ResponseT
 
+_BASE_URL = "https://www.law.go.kr"
+
+# 별표·첨부 파일 형식 우선순위 (파싱 쉬운 순). 목록에 없는 형식은 맨 뒤
+_FILE_TYPE_PRIORITY = ("pdf", "xlsx", "hwpx", "hwp", "gif", "png", "jpg", "jpeg", "zip")
+
 
 class LawGoKrClient(BaseClient[RequestT, ResponseT]):
     """법제처 국가법령정보 공동활용 API 공통 베이스.
@@ -28,7 +33,7 @@ class LawGoKrClient(BaseClient[RequestT, ResponseT]):
         if not oc or not oc.strip():
             raise ValueError("법제처 OC 값이 비어 있음 (LAW_GO_KR_OC)")
         super().__init__(
-            base_url="https://www.law.go.kr",
+            base_url=_BASE_URL,
             # 법령본문 응답이 커서 timeout을 넉넉하게 설정 (전파법 기준 ~200KB)
             timeout=30.0,
         )
@@ -85,3 +90,41 @@ class LawGoKrClient(BaseClient[RequestT, ResponseT]):
         """
         child = element.find(tag)
         return child.text if child is not None else None
+
+    @staticmethod
+    def _file_type(filename: str | None) -> str | None:
+        """파일명에서 형식(확장자)을 꺼낸다.
+
+        Args:
+            filename: 파일명 (예: law0120572025100100156KC_000100F.pdf).
+
+        Returns:
+            str | None: 소문자 확장자 (예: pdf). 파일명이 없거나 확장자가 없으면 None.
+        """
+        if not filename or "." not in filename.strip():
+            return None
+        return filename.strip().rsplit(".", 1)[1].lower()
+
+    @staticmethod
+    def _pick_file(candidates: list[tuple[str | None, str | None]]) -> tuple[str | None, str | None]:
+        """같은 내용의 파일 링크 여러 개 중 파싱하기 쉬운 형식 하나를 고른다.
+
+        우선순위는 PDF → XLSX → HWPX → HWP → 이미지 → ZIP. 경로만 온 링크는 완전한 주소로 바꿈.
+
+        Args:
+            candidates: (링크, 형식) 목록. 링크가 비어 있는 항목은 건너뜀.
+
+        Returns:
+            tuple[str | None, str | None]: (완전한 링크, 형식). 링크가 하나도 없으면 (None, None).
+        """
+        available = [(link.strip(), file_type) for link, file_type in candidates if link and link.strip()]
+        if not available:
+            return None, None
+
+        def rank(item: tuple[str, str | None]) -> int:
+            file_type = item[1]
+            return _FILE_TYPE_PRIORITY.index(file_type) if file_type in _FILE_TYPE_PRIORITY else len(_FILE_TYPE_PRIORITY)
+
+        link, file_type = min(available, key=rank)
+        # 별표 링크는 경로만 옴 (예: /LSW/flDownload.do?flSeq=…)
+        return (f"{_BASE_URL}{link}" if link.startswith("/") else link), file_type

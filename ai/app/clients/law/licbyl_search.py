@@ -45,6 +45,11 @@ class LicbylSearchClient(LawSearchBaseClient[LicbylSearchResponse]):
         Returns:
             LicbylSearchItem: 파싱된 검색 결과.
         """
+        # 검색 응답엔 파일명이 없어 형식을 태그로 정함 (서식파일링크는 본문의 별표HWP파일명과 같은 HWP)
+        file_url, file_type = self._pick_file([
+            (self._text(el, "별표서식PDF파일링크"), "pdf"),
+            (self._text(el, "별표서식파일링크"), "hwp"),
+        ])
         return LicbylSearchItem(
             serial_number=self._text(el, "별표일련번호"),
             related_law_mst=self._text(el, "관련법령일련번호"),
@@ -58,4 +63,6 @@ class LicbylSearchClient(LawSearchBaseClient[LicbylSearchResponse]):
             promulgate_number=self._text(el, "공포번호"),
             revision_type=self._text(el, "제개정구분명"),
             law_type=self._text(el, "법령종류"),
+            file_url=file_url,
+            file_type=file_type,
         )
