@@ -59,6 +59,11 @@ _FULL_BORDER = frozenset("├┝┞┟┠┡┢╞╟╠")
 _HEADER_BORDER = frozenset("┝┡┢╞")
 # 대분류 제목 (예: "1. 해상업무용 무선설비의 기기")
 _HEADING_RE = re.compile(r"^\d+\.\s")
+# 칸 나눔 세로선, 품목 단위 가로선이 시작하는 교차 문자
+_VERTICAL = frozenset("│┃┆┇┊┋║")
+_INNER_JUNCTION = frozenset("├┝┞┟┠┡┢╞╟╠┼┽┾┿")
+# 품목 단위로 나뉜 조각의 context에 붙는 줄. 앞 조각에서 이어지는 분류 칸 글자
+CARRY_PREFIX = "이어지는 분류 칸: "
 
 
 @dataclass(frozen=True)
@@ -67,7 +72,7 @@ class AnnexChunk:
 
     Attributes:
         content: 이 조각의 원문.
-        context: 조각 앞에서 이어지는 별표 제목·대분류·표 머리글. 조각이 아니면 빈 문자열.
+        context: 조각 앞에서 이어지는 별표 제목·대분류·표 머리글·이어지는 분류 칸. 조각이 아니면 빈 문자열.
     """
 
     content: str
@@ -110,25 +115,62 @@ def _exceeds(lines: list[str], limit: _Limit) -> bool:
     return _size(lines) > limit.chars or _rows(lines) > limit.rows
 
 
-def _pack(groups: list[list[str]], limit: _Limit) -> list[list[str]]:
-    """줄 묶음을 순서대로 한도 안에 채운다. 한 묶음이 한도보다 크면 그대로 한 조각."""
-    packs: list[list[str]] = []
+def _pack(segments: list[tuple[list[str], str]], limit: _Limit) -> list[tuple[list[str], str]]:
+    """(줄 묶음, 이어지는 분류)를 순서대로 한도 안에 채운다. 한 묶음이 한도보다 크면 그대로 한 조각.
+
+    Returns:
+        list[tuple[list[str], str]]: (조각 줄, 조각 첫 묶음의 이어지는 분류).
+    """
+    packs: list[tuple[list[str], str]] = []
     current: list[str] = []
-    for group in groups:
-        if current and _exceeds([*current, *group], limit):
-            packs.append(current)
+    carry = ""
+    for lines, segment_carry in segments:
+        if current and _exceeds([*current, *lines], limit):
+            packs.append((current, carry))
             current = []
-        current = [*current, *group]
+        if not current:
+            carry = segment_carry
+        current = [*current, *lines]
     if current:
-        packs.append(current)
+        packs.append((current, carry))
     return packs
 
 
+def _is_inner_border(line: str) -> bool:
+    """첫 칸은 이어지고 둘째 칸부터 끊기는 가로선 (예: "┃ ├─┼─┨"). 품목 단위 경계."""
+    rest = line[1:].lstrip()
+    return line[0] in _VERTICAL and bool(rest) and rest[0] in _INNER_JUNCTION and _is_border(line)
+
+
+def _first_column(lines: list[str]) -> str:
+    """묶음의 첫 칸 글자를 위에서부터 잇는다. 합친 칸은 글자가 가운데 줄에 있어 묶음 전체에서 모음.
+
+    품목마다 분류 글자를 다시 적은 표가 있어 같은 글자는 한 번만 넣음.
+    """
+    cells = (re.split(f"[{''.join(_VERTICAL)}]", line) for line in lines if not _is_border(line))
+    parts = (cell[1].strip() for cell in cells if len(cell) > 2)
+    return " ".join(dict.fromkeys(part for part in parts if part))
+
+
+def _segments(group: list[str], limit: _Limit) -> list[tuple[list[str], str]]:
+    """한도를 넘는 분류 묶음을 품목 단위 가로선에서 더 나눈다. 뒤 묶음은 첫 칸(분류) 글자를 넘겨받음."""
+    if not _exceeds(group, limit):
+        return [(group, "")]
+    parts: list[list[str]] = [[]]
+    for line in group:
+        if _is_inner_border(line) and parts[-1]:
+            parts.append([])
+        parts[-1].append(line)
+    carry = _first_column(group)
+    return [(part, "" if index == 0 else carry) for index, part in enumerate(parts)]
+
+
 def _split_unit(unit: list[str], limit: _Limit) -> list[tuple[list[str], list[str]]]:
-    """큰 단위를 합친 칸이 모두 끝나는 가로선에서 나눈다.
+    """큰 단위를 합친 칸이 모두 끝나는 가로선에서 나눈다. 그래도 큰 분류 묶음은 품목 단위로 나눔.
 
     Returns:
-        list[tuple[list[str], list[str]]]: (조각 줄, 대분류·표 머리글 줄). 첫 조각은 머리글을 본문에 포함.
+        list[tuple[list[str], list[str]]]: (조각 줄, context 줄). 첫 조각은 머리글을 본문에 포함.
+            품목 단위로 나뉜 뒤 조각의 context에는 이어지는 분류 줄이 붙음.
     """
     top = next(index for index, line in enumerate(unit) if line[0] in _TABLE_TOP)
     header_end = next((index for index, line in enumerate(unit) if index > top and line[0] in _HEADER_BORDER),
@@ -140,8 +182,17 @@ def _split_unit(unit: list[str], limit: _Limit) -> list[tuple[list[str], list[st
         if line[0] in _FULL_BORDER or not groups:
             groups.append([])
         groups[-1].append(line)
-    packs = _pack(groups, _Limit(chars=limit.chars - _size(header), rows=limit.rows))
-    return [([*header, *packs[0]], [])] + [(pack, header) for pack in packs[1:]]
+    body_limit = _Limit(chars=limit.chars - _size(header), rows=limit.rows)
+    segments = [segment for group in groups for segment in _segments(group, body_limit)]
+    packs = _pack(segments, body_limit)
+
+    def context(carry: str) -> list[str]:
+        return [*header, f"{CARRY_PREFIX}{carry}"] if carry else header
+
+    first, first_carry = packs[0]
+    return [([*header, *first], context(first_carry)[len(header):])] + [
+        (pack, context(carry)) for pack, carry in packs[1:]
+    ]
 
 
 def split_annex(
@@ -155,7 +206,9 @@ def split_annex(
     대분류 제목과 그 표를 한 단위로 묶어 순서대로 채우고, 한 단위가 크면 표 안에서
     합친 칸이 모두 끝나는 가로선(첫 칸부터 이어지는 선)에서 나눔. 그 자리에서는 앞 행의
     분류가 이어지지 않아, 뒤 조각에는 별표 제목·대분류·표 머리글만 context로 붙임.
-    그 가로선 사이 한 묶음이 한도보다 크면 나누지 않고 한 조각으로 둠.
+    그 가로선 사이 한 분류 묶음이 한도보다 크면 품목 단위 가로선(첫 칸은 이어지는 선)에서 더 나누고,
+    뒤 조각 context에 그 묶음의 첫 칸 글자를 "이어지는 분류 칸" 줄로 붙임.
+    품목 단위로도 나눌 수 없으면 한 조각으로 둠.
 
     Args:
         content: compact_annex로 다듬은 별표.

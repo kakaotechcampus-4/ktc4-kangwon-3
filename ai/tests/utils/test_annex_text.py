@@ -116,3 +116,38 @@ def test_전파_고시_별표1은_조각으로_나뉘고_뒤_조각은_별표_�
     assert middle
     assert all("11. 전자파장해를 주거나 전자파로부터 영향을 받는 기기" in chunk.context for chunk in middle)
     assert all(chunk.context.splitlines()[-1].startswith("┝") for chunk in middle)
+
+
+_MERGED = """\
+[별표 2]
+세부품목
+┏━┯━┯━┓
+┃분류 │품목 │세부품목 ┃
+┠─┼─┼─┨
+┃ │가. 전열기 │① 전기다리미 ┃
+┃ │ │② 전기장판 ┃
+┃ ├─┼─┨
+┃7. 전기기기 │나. 조리기 │① 전기밥솥 ┃
+┃ │ │② 전기오븐 ┃
+┃ ├─┼─┨
+┃7. 전기기기 │다. 냉방기 │① 선풍기 ┃
+┗━┷━┷━┛"""
+
+
+def test_큰_분류_묶음은_품목_가로선에서_나누고_분류_칸_글자를_넘긴다():
+    chunks = split_annex(_MERGED, max_chars=10_000, max_rows=2)
+
+    assert [chunk.content.splitlines()[0] for chunk in chunks] == ["[별표 2]", "┃ ├─┼─┨", "┃ ├─┼─┨"]
+    # 분류 글자는 가운데 줄에 있고, 품목마다 다시 적혀도 한 번만 넘김
+    assert chunks[1].context.splitlines()[-1] == "이어지는 분류 칸: 7. 전기기기"
+    assert chunks[1].context.splitlines()[-2] == "┠─┼─┼─┨"
+    assert chunks[2].context == chunks[1].context
+    assert _joined(chunks) == _MERGED
+
+
+@pytest.mark.parametrize("name", ["전기용품및생활용품안전관리운용요령_별표0001-00", "전기용품및생활용품안전관리운용요령_별표0002-00"])
+def test_운용요령_별표의_큰_분류도_행_수_한도_안으로_나뉜다(name):
+    chunks = split_annex(compact_annex((_FIXTURES / name / "content.txt").read_text(encoding="utf-8")))
+
+    assert all(sum(source_labels(chunk.content).values()) <= MAX_CHUNK_ROWS for chunk in chunks)
+    assert any(chunk.context.endswith("이어지는 분류 칸: 7. 전기기기") for chunk in chunks)
