@@ -76,13 +76,29 @@ class LawTextBaseClient(LawGoKrClient[LawTextRequest, LawTextResponse]):
         Returns:
             list[LawAnnex]: 별표 목록. 없으면 빈 목록.
         """
-        return [
-            LawAnnex(
-                annex_number=self._text(el, "별표번호"),
-                annex_branch_number=self._text(el, "별표가지번호"),
-                annex_type=self._text(el, "별표구분"),
-                annex_title=self._text(el, "별표제목"),
-                annex_content=self._text(el, "별표내용"),
-            )
-            for el in root.iter("별표단위")
-        ]
+        return [self._parse_annex(el) for el in root.iter("별표단위")]
+
+    def _parse_annex(self, el: Element) -> LawAnnex:
+        """별표 하나를 파싱한다. 파일 링크는 파싱 쉬운 형식 하나만 담음.
+
+        Args:
+            el: <별표단위> 엘리먼트.
+
+        Returns:
+            LawAnnex: 파싱된 별표.
+        """
+        # 형식은 링크와 짝인 파일명 확장자로 정함 (파일명이 없으면 태그 이름 기준)
+        file_url, file_type = self._pick_file([
+            (self._text(el, "별표서식PDF파일링크"), self._file_type(self._text(el, "별표PDF파일명")) or "pdf"),
+            (self._text(el, "별표서식파일링크"), self._file_type(self._text(el, "별표HWP파일명")) or "hwp"),
+            (self._text(el, "별표서식이미지파일링크"), self._file_type(self._text(el, "별표이미지파일명"))),
+        ])
+        return LawAnnex(
+            annex_number=self._text(el, "별표번호"),
+            annex_branch_number=self._text(el, "별표가지번호"),
+            annex_type=self._text(el, "별표구분"),
+            annex_title=self._text(el, "별표제목"),
+            annex_content=self._text(el, "별표내용"),
+            file_url=file_url,
+            file_type=file_type,
+        )
