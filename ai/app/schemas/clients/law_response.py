@@ -135,6 +135,7 @@ class LawArticle(BaseModel):
     paragraphs: list[LawParagraph] = []
     enforce_date: str | None = None
     reference: str | None = None
+    headings: list[str] = []                # 소속 편·장·절·관 제목 (위 단계부터, 예: ["제1장 총칙", "제1절 통칙"])
 
 
 class LawAnnex(BaseModel):

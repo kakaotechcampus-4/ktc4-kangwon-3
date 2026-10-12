@@ -1,5 +1,6 @@
 """법제처 본문 조회(lawService.do) 클라이언트 공통 베이스."""
 
+import re
 from typing import ClassVar
 from xml.etree.ElementTree import Element
 
@@ -8,6 +9,13 @@ import httpx
 from .base import LawGoKrClient
 from ...schemas.clients.law_request import LawTextRequest
 from ...schemas.clients.law_response import LawAnnex, LawTextResponse
+
+# 조문 위 구획 단계 (상위부터)
+_HEADING_LEVELS = ("편", "장", "절", "관")
+# 구획 제목 (예: "제1장 총칙", "제2장의2 …")
+_HEADING_RE = re.compile(r"^제\s*\d+(?:\s*의\s*\d+)?\s*([편장절관])(?:\s*의\s*\d+)?")
+# 제목 뒤 개정 표시 (예: "<개정 2010.12.30>")
+_AMENDMENT_NOTE_RE = re.compile(r"\s*<[^>]*>")
 
 
 class LawTextBaseClient(LawGoKrClient[LawTextRequest, LawTextResponse]):
@@ -64,6 +72,27 @@ class LawTextBaseClient(LawGoKrClient[LawTextRequest, LawTextResponse]):
                 f"응답 {len(raw.content):,}B, 루트 {root.tag}: {notice})"
             )
         return root
+
+    @staticmethod
+    def _next_headings(current: dict[str, str], text: str) -> dict[str, str] | None:
+        """구획 제목 줄을 읽어 현재 소속 편·장·절·관을 갱신한다.
+
+        상위 단계가 바뀌면 그 아래 단계는 비움 (예: 새 장이 나오면 절·관 초기화).
+
+        Args:
+            current: 지금까지의 소속 {단계: 제목}.
+            text: 구획 제목 줄 (예: "제1장 총칙 <개정 2010.12.30>").
+
+        Returns:
+            dict[str, str] | None: 갱신된 소속 {단계: 제목}. 구획 제목이 아니면 None.
+        """
+        match = _HEADING_RE.match(text.strip())
+        if match is None:
+            return None
+        depth = _HEADING_LEVELS.index(match.group(1))
+        title = " ".join(_AMENDMENT_NOTE_RE.sub("", text).split())    # 개정 표시·줄바꿈 정리
+        kept = {level: value for level, value in current.items() if _HEADING_LEVELS.index(level) < depth}
+        return kept | {match.group(1): title}
 
     def _parse_annexes(self, root: Element) -> list[LawAnnex]:
         """본문의 별표 목록을 파싱한다.
