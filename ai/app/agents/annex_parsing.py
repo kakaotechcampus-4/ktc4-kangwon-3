@@ -1,14 +1,14 @@
 """별표 파싱 에이전트. 법령·행정규칙 별표 원문을 품목 행 레코드로 옮김.
 
 진단 파이프라인이 아니라 적재 단계에서 법령 버전마다 한 번 실행.
-흐름: 원문 다듬기 → 조각 나누기 → 조각별 모델 호출 → 병합 → 원문 대조.
+흐름: 원문 다듬기 → 조각 나누기 → 조각별 모델 호출(번호가 빠지면 한 번 재호출) → 병합 → 원문 대조.
 """
 
 import json
 
 from ..prompts import PromptName
 from ..schemas.agents.annex import AnnexParseOutput, AnnexParseRecord, AnnexSource
-from ..utils.annex_check import check_annex
+from ..utils.annex_check import check_annex, missing_labels
 from ..utils.annex_text import AnnexChunk, compact_annex, split_annex
 from .base import AgentError, BaseAgent, MissingParsedOutput, ModelFailurePhase
 
@@ -49,16 +49,33 @@ class AnnexParsingAgent(BaseAgent[AnnexParseOutput]):
         outputs: list[AnnexParseOutput] = []
         for chunk in split_annex(compact_annex(content)):
             partial = _merge(outputs) if outputs else None
-            outputs.append(self._invoke(self._build_messages(source, chunk), subject_id=subject_id,
-                                        partial_result=partial))
+            outputs.append(self._parse_chunk(source, chunk, subject_id=subject_id, partial=partial))
         output = _merge(outputs)
         # 원문 대조는 다듬기 전 원문 전체로
         reasons = check_annex(content, output)
         return AnnexParseRecord(source=source, output=output, verified=not reasons, failure_reasons=reasons)
 
-    def _build_messages(self, source: AnnexSource, chunk: AnnexChunk) -> list:
-        """출처·조각 원문·이어지는 문맥을 JSON 하나로 넣는다."""
-        payload = {"source": source.model_dump(mode="json"), "content": chunk.content, "context": chunk.context}
+    def _parse_chunk(self, source: AnnexSource, chunk: AnnexChunk, *, subject_id: str,
+                     partial: AnnexParseOutput | None) -> AnnexParseOutput:
+        """조각 하나를 파싱한다. 원문 번호가 빠지면 빠진 번호를 알려 주고 한 번만 다시 호출.
+
+        긴 조각에서 행 몇 개만 빠뜨려도 별표 전체가 대조 실패가 되어, 그 조각만 다시 부름.
+        다시 부른 결과가 덜 빠뜨렸을 때만 바꿈.
+        """
+        output = self._invoke(self._build_messages(source, chunk), subject_id=subject_id, partial_result=partial)
+        missing = missing_labels(chunk.content, output)
+        if not missing:
+            return output
+        retried = self._invoke(self._build_messages(source, chunk, missing=sorted(missing.elements())),
+                               subject_id=subject_id, partial_result=partial)
+        if missing_labels(chunk.content, retried).total() < missing.total():
+            return retried
+        return output
+
+    def _build_messages(self, source: AnnexSource, chunk: AnnexChunk, *, missing: list[str] | None = None) -> list:
+        """출처·조각 원문·이어지는 문맥·앞선 결과에서 빠진 번호를 JSON 하나로 넣는다."""
+        payload = {"source": source.model_dump(mode="json"), "content": chunk.content, "context": chunk.context,
+                   "missing_labels": missing or []}
         return self._messages(json.dumps(payload, ensure_ascii=False))
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:

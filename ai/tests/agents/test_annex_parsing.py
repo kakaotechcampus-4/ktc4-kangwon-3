@@ -11,6 +11,7 @@ from app import usage
 from app.agents.annex_parsing import AnnexParsingAgent, AnnexParsingError
 from app.agents.base import AgentError
 from app.schemas.agents.annex import AnnexParseOutput, AnnexSource
+from app.utils.annex_check import source_labels
 from app.utils.annex_text import compact_annex, split_annex
 
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "annex"
@@ -103,6 +104,7 @@ def test_다듬은_조각과_출처를_JSON으로_넣고_strict_구조화_출력
         "source": source.model_dump(mode="json"),
         "content": compact_annex(content),
         "context": "",
+        "missing_labels": [],
     }
     assert model.structured_kwargs == {"include_raw": True, "method": "json_schema", "strict": True}
 
@@ -126,12 +128,16 @@ def test_큰_별표는_조각마다_호출하고_순서대로_병합한다():
         _EMPTY_OUTPUT.model_copy(update={"scheme": f"구분{index}", "notes": ["공통 비고", f"비고{index}"]})
         for index in range(len(chunks))
     ]
-    model = _StubChatModel(*outputs)
+    # 빈 출력이라 번호가 있는 조각은 한 번씩 다시 부름. 다시 불러도 같은 출력
+    rows = [sum(source_labels(chunk.content).values()) for chunk in chunks]
+    model = _StubChatModel(*(output for output, count in zip(outputs, rows) for _ in range(2 if count else 1)))
 
     record = AnnexParsingAgent(model=model).parse(source, content)
 
-    assert [_payload(messages)["content"] for messages in model.received] == [chunk.content for chunk in chunks]
-    assert [_payload(messages)["context"] for messages in model.received] == [chunk.context for chunk in chunks]
+    first_calls = [_payload(messages) for messages in model.received if not _payload(messages)["missing_labels"]]
+    assert [payload["content"] for payload in first_calls] == [chunk.content for chunk in chunks]
+    assert [payload["context"] for payload in first_calls] == [chunk.context for chunk in chunks]
+    assert len(model.received) == len(chunks) + sum(1 for count in rows if count)
     assert record.output.scheme == "구분0"
     assert record.output.notes == ["공통 비고", *(f"비고{index}" for index in range(len(chunks)))]
     assert record.verified is False  # 빈 출력이라 번호 누락
@@ -140,7 +146,8 @@ def test_큰_별표는_조각마다_호출하고_순서대로_병합한다():
 def test_조각_호출이_실패하면_앞_조각까지_병합한_결과를_예외에_담는다():
     source, content = _load(_RADIO_DIR)
     first = _EMPTY_OUTPUT.model_copy(update={"notes": ["첫 조각"]})
-    model = _StubChatModel(first, RuntimeError("rate limit exceeded"))
+    # 첫 조각은 번호가 빠져 한 번 다시 부르고, 둘째 조각 호출에서 실패
+    model = _StubChatModel(first, first, RuntimeError("rate limit exceeded"))
 
     with pytest.raises(AnnexParsingError, match="별표 파싱 모델 호출에 실패했습니다") as caught:
         AnnexParsingAgent(model=model).parse(source, content)
@@ -173,3 +180,28 @@ def test_호출마다_별표_단위_대상_ID로_사용량을_남긴다(monkeypa
     assert [(row["agent"], row["subject_id"], row["ok"]) for row in recorded] == [
         ("annex-parsing-eval", "2100000285148:별표0003-02", True),
     ]
+
+
+def test_조각에서_번호가_빠지면_빠진_번호를_알려_주고_한_번_다시_부른다():
+    source, content = _load(_SMALL_DIR)
+    partial = _SMALL_OUTPUT.model_copy(update={"items": _SMALL_OUTPUT.items[:1]})
+    model = _StubChatModel(partial, _SMALL_OUTPUT)
+
+    record = AnnexParsingAgent(model=model).parse(source, content)
+
+    assert [_payload(messages)["missing_labels"] for messages in model.received] == [[], ["②"]]
+    assert record.verified is True
+    assert record.output == _SMALL_OUTPUT
+
+
+def test_다시_부른_결과가_더_빠뜨리면_처음_결과를_쓴다():
+    source, content = _load(_SMALL_DIR)
+    partial = _SMALL_OUTPUT.model_copy(update={"items": _SMALL_OUTPUT.items[:1]})
+    worse = _SMALL_OUTPUT.model_copy(update={"items": []})
+    model = _StubChatModel(partial, worse)
+
+    record = AnnexParsingAgent(model=model).parse(source, content)
+
+    assert len(model.received) == 2
+    assert record.output == partial
+    assert record.failure_reasons == ["번호 누락: {'②': 1}"]
