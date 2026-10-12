@@ -166,16 +166,26 @@ class LawTextResponse(BaseModel):
     법령ID를 MST 자리에 넣는 등 번호가 틀려도 법제처는 다른 법의 정상 본문을 돌려주기 때문이다.
 
     Attributes:
+        mst: 법령일련번호 (요청한 버전 키). 임베딩 갱신·삭제 시 버전 구분용. admrul은 None.
         name: 법령명 (admrul은 행정규칙명).
         document_id: 법령ID (admrul은 행정규칙ID). 검색 결과의 law_id / rule_id와 대조한다.
+        law_type: 법종구분 (법률, 대통령령, ○○부령 등). 상위법·하위법 구분용. admrul은 None.
+        promulgate_date: 공포일자 (YYYYMMDD). admrul은 None.
+        promulgate_number: 공포번호. admrul은 None.
+        revision_type: 제개정구분 (제정, 일부개정, 타법개정 등). admrul은 None.
         enforce_date: 시행일자 (YYYYMMDD).
         department: 소관부처명.
         articles: 조문 목록.
         annexes: 별표 목록. 별표가 없는 문서는 빈 목록.
     """
 
+    mst: str | None = None
     name: str | None = None
     document_id: str | None = None
+    law_type: str | None = None
+    promulgate_date: str | None = None
+    promulgate_number: str | None = None
+    revision_type: str | None = None
     enforce_date: str | None = None
     department: str | None = None
     articles: list[LawArticle]

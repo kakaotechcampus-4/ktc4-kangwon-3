@@ -37,8 +37,13 @@ class LawTextClient(LawTextBaseClient):
         # <조문> > <조문단위> 구조
         articles_el = root.find("조문")
         return LawTextResponse(
+            mst=raw.request.url.params.get(self._ID_PARAM),     # 기본정보에 없어 요청값 사용
             name=self._text(info, "법령명_한글"),
             document_id=self._text(info, "법령ID"),
+            law_type=self._text(info, "법종구분"),
+            promulgate_date=self._text(info, "공포일자"),
+            promulgate_number=self._text(info, "공포번호"),
+            revision_type=self._text(info, "제개정구분"),
             enforce_date=self._text(info, "시행일자"),
             department=self._text(info, "소관부처"),
             articles=[self._parse_article(el) for el in articles_el.iter("조문단위")] if articles_el is not None else [],
