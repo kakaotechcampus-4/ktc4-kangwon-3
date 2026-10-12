@@ -7,8 +7,9 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .base import LawGoKrClient
+from ..base import ResponseT
 from ...schemas.clients.law_request import LawTextRequest
-from ...schemas.clients.law_response import LawAnnex, LawTextResponse
+from ...schemas.clients.law_response import LawAnnex
 
 # 조문 위 구획 단계 (상위부터)
 _HEADING_LEVELS = ("편", "장", "절", "관")
@@ -18,7 +19,7 @@ _HEADING_RE = re.compile(r"^제\s*\d+(?:\s*의\s*\d+)?\s*([편장절관])(?:\s*�
 _AMENDMENT_NOTE_RE = re.compile(r"\s*<[^>]*>")
 
 
-class LawTextBaseClient(LawGoKrClient[LawTextRequest, LawTextResponse]):
+class LawTextBaseClient(LawGoKrClient[LawTextRequest, ResponseT]):
     """법제처 본문 조회(lawService.do) 공통 베이스.
 
     법령·행정규칙 본문이 같은 요청 형식(target·일련번호)과 별표 구조를 씀.
