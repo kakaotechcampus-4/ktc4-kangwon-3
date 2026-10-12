@@ -1,6 +1,6 @@
 export interface Product {
     id: string
-    type: "url" | "text/image"
+    type: SourceType
     title: string
     // 대표 이미지 원본 File. 미리보기 blob URL은 AddedProduct가 이 File로부터 직접 만들고 관리한다.
     productImageFile?: File
@@ -10,7 +10,10 @@ export interface Product {
     images?: File[]
 }
 
-export type SourceType = "URL" | "TEXT_IMAGE";
+export enum SourceType {
+    URL = "URL",
+    TEXT_IMAGE = "TEXT_IMAGE"
+}
 
 // 진단 요청을 위한 product item.
 export interface DiagnosisProductPayload {

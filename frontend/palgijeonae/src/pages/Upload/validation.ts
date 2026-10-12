@@ -9,7 +9,7 @@ import {
     MAX_PRODUCT_NAME_CODE_UNIT_LENGTH,
     MAX_PRODUCT_NAME_LENGTH,
 } from "./constraints.ts";
-import type { Product } from "./types.ts";
+import { type Product, SourceType } from "./types.ts";
 
 // 상품 추가 / 제출 직전에 사용하는 상품 공용 검증.
 export const isAllowedImageType = (file: File): boolean => ALLOWED_IMAGE_MIME_TYPES.includes(file.type);
@@ -47,7 +47,7 @@ export const validateProduct = (product: Product): string | null => {
         }
     }
 
-    if (product.type === "url") {
+    if (product.type === SourceType.URL) {
         return product.link?.trim() ? null : "상세페이지 링크를 입력해주세요.";
     }
 

@@ -11,18 +11,18 @@ import { cn } from "@/lib/cn";
 import AddedProductList from "./AddedProductList.tsx";
 import { submitDiagnosis } from "./diagnosisPipeline.ts";
 import InputForm from "./InputForm.tsx";
-import type { Product } from "./types.ts";
+import { type Product, SourceType } from "./types.ts";
 import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [
-    { key: "url", label: "URL" },
-    { key: "text/image", label: "텍스트 / 이미지" },
+    { key: SourceType.URL, label: "URL" },
+    { key: SourceType.TEXT_IMAGE, label: "텍스트 / 이미지" },
 ] as const;
 
 type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 
 function UploadPage() {
-    const [inputType, setInputType] = useState<InputType>("url");
+    const [inputType, setInputType] = useState<InputType>(SourceType.URL);
     const [products, setProducts] = useState<Product[]>([]);
     const navigate = useNavigate();
 
