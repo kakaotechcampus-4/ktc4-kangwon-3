@@ -3,9 +3,11 @@
     python -m app.eval.annex_runner                                   # 픽스처 전부, .env 모델
     python -m app.eval.annex_runner --fixture 전기용품및생활용품안전관리운용요령_별표0004-00
     python -m app.eval.annex_runner --model openai/gpt-6-luna#low       # 모델 이름#추론 강도
+    python -m app.eval.annex_runner --dir <별표 스냅샷 폴더>                # 픽스처 밖 별표 (하위 폴더까지)
     python -m app.eval.annex_runner --rescore logs/eval/annex-20261012-120000.json
 
 픽스처는 tests/fixtures/annex/, 정답셋은 tests/eval_truth_annex/ (정답이 없으면 원문 대조만).
+--dir은 content.txt·meta.json이 있는 폴더를 하위까지 찾음 (픽스처와 같은 구성).
 서비스 설정의 허용 모델(ALLOWED_MODELS)은 바꾸지 않음. 다른 모델은 이 스크립트에서만 만듦.
 비용이 듦. 별표 하나가 조각 여러 개면 조각마다 호출.
 """
@@ -88,11 +90,17 @@ class _UsageCapture:
         agent_base.record = self._original
 
 
-def run_fixture(agent: AnnexParsingAgent, name: str, model: str) -> dict:
-    """픽스처 하나를 파싱한다. 실패해도 기록을 남기고 다음으로 넘어감."""
-    meta = json.loads((FIXTURE_DIR / name / "meta.json").read_text(encoding="utf-8"))
+def find_annexes(root: Path) -> dict[str, Path]:
+    """root 아래 content.txt가 있는 폴더를 이름순으로 찾는다. 키는 폴더 이름(정답셋 파일 이름과 같음)."""
+    return {path.parent.name: path.parent for path in sorted(root.rglob("content.txt"))}
+
+
+def run_fixture(agent: AnnexParsingAgent, directory: Path, model: str) -> dict:
+    """별표 폴더 하나를 파싱한다. 실패해도 기록을 남기고 다음으로 넘어감."""
+    name = directory.name
+    meta = json.loads((directory / "meta.json").read_text(encoding="utf-8"))
     source = AnnexSource.model_validate(meta["source"])
-    content = (FIXTURE_DIR / name / "content.txt").read_text(encoding="utf-8")
+    content = (directory / "content.txt").read_text(encoding="utf-8")
     chunks = len(split_annex(compact_annex(content)))
     started = perf_counter()
     record = error = None
@@ -164,17 +172,19 @@ def rescore(path: Path) -> int:
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="별표 파싱 에이전트 평가")
-    parser.add_argument("--fixture", action="append", default=[], help="픽스처 디렉터리 이름 (여러 번 가능)")
+    parser.add_argument("--fixture", action="append", default=[], help="별표 폴더 이름 (여러 번 가능)")
+    parser.add_argument("--dir", type=Path, action="append", default=[], help="별표 폴더를 찾을 곳 (여러 번 가능). 없으면 픽스처")
     parser.add_argument("--model", help="모델 이름[#추론강도]. 없으면 .env 모델")
     parser.add_argument("--rescore", type=Path, help="저장된 결과를 재채점만 한다")
     args = parser.parse_args()
     if args.rescore:
         return rescore(args.rescore)
 
-    names = args.fixture or sorted(path.name for path in FIXTURE_DIR.iterdir() if path.is_dir())
-    missing = [name for name in names if not (FIXTURE_DIR / name / "content.txt").exists()]
-    if missing:
-        parser.error(f"픽스처가 없습니다: {', '.join(missing)}")
+    annexes = {name: path for root in (args.dir or [FIXTURE_DIR]) for name, path in find_annexes(root).items()}
+    names = args.fixture or list(annexes)
+    missing = [name for name in names if name not in annexes]
+    if missing or not names:
+        parser.error(f"별표 폴더가 없습니다: {', '.join(missing) or args.dir}")
 
     model_name, model = build_model(args.model)
     # 평가 비용이 운영 비용과 섞이지 않게 사용량 이름을 나눔
@@ -185,7 +195,7 @@ def main() -> int:
     results = []
     for name in names:
         print(f"  {name}", file=sys.stderr, flush=True)
-        results.append(run_fixture(agent, name, model_name))
+        results.append(run_fixture(agent, annexes[name], model_name))
 
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     out = RESULT_DIR / f"annex-{time.strftime('%Y%m%d-%H%M%S')}.json"
