@@ -146,6 +146,8 @@ class LawAnnex(BaseModel):
         annex_type: 별표구분. "별표"(품목표·기준표)와 "서식"(신청서 등)을 구분한다.
         annex_title: 별표제목.
         annex_content: 별표내용 원문.
+        file_url: 별표 파일 링크 하나. PDF → HWP → 이미지 순으로 있는 것.
+        file_type: file_url의 형식 (pdf, hwp, hwpx, gif 등).
     """
 
     annex_number: str | None = None
@@ -153,6 +155,8 @@ class LawAnnex(BaseModel):
     annex_type: str | None = None
     annex_title: str | None = None
     annex_content: str | None = None
+    file_url: str | None = None
+    file_type: str | None = None
 
 
 class LawTextResponse(BaseModel):
