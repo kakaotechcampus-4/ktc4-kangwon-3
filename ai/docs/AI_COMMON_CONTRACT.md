@@ -786,7 +786,6 @@ class ProductProgressEvent(ProductEventBase):
     stage: PublicPipelineStage
     stage_status: Literal["started", "completed", "skipped"]
     tool_name: ToolName | None = None
-    retry_round: int = Field(default=0, ge=0, strict=True)
 
     @model_validator(mode="after")
     def validate_tool_stage(self):
