@@ -15,6 +15,8 @@ class SessionStatus(StrEnum):
 
     AWAITING_INPUT: 사용자 답변 대기. 세션을 끊지 않고 답변 후 이어서 진단 (#263).
     COMPLETED: 실행 종료. termination_reason은 #171 §7.1.1 종료 사유 중 하나.
+        검증 완료를 뜻하지 않음. REVISION_REQUIRED·RETRY_LIMIT_EXCEEDED 등으로 끝나 result.verification_status가
+        INCOMPLETE여도 COMPLETED. 검증 결과는 result.verification_status와 termination_reason으로 확인.
     FAILED: 미처리 예외. 종료 사유로 바꾸지 않고 error_code로 기록 (#171 §7.1.1).
     """
 
