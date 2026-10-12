@@ -7,7 +7,7 @@ import MyProductList from "./MyProductList.tsx";
 import NotificationSettings from "./NotificationSettings.tsx";
 import ProductFilterBar from "./ProductFilterBar.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
-import type { ProductFilter } from "./types.ts";
+import { type ProductFilter, ResultStatus } from "./types.ts";
 import { useMyProducts } from "./useMyProducts.ts";
 
 function MyPage() {
@@ -41,7 +41,7 @@ function MyPage() {
                 title="어린이제품 안전 특별법 시행규칙 별표2가 개정되었습니다. 완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다."
                 description="사입으로 등록한 상품 1개는 재확인이 필요합니다. 구매대행 상품은 이 조문의 적용을 받지 않아 영향이 없습니다."
                 onCheckClick={() => {
-                    handleFilterChange("RECHECK_REQUIRED");
+                    handleFilterChange(ResultStatus.RecheckRequired);
                     productListRef.current?.scrollIntoView({ behavior: "smooth" });
                 }}
             />
