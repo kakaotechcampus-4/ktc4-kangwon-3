@@ -2,7 +2,6 @@
 
 from .admrul_search import AdmrulSearchClient
 from .admrul_text import AdmrulTextClient
-from .client import LawClient
 from .eflaw_search import EflawSearchClient
 from .law_search import LawSearchClient
 from .law_text import LawTextClient
@@ -12,7 +11,6 @@ __all__ = [
     "AdmrulSearchClient",
     "AdmrulTextClient",
     "EflawSearchClient",
-    "LawClient",
     "LawSearchClient",
     "LawTextClient",
     "LicbylSearchClient",
