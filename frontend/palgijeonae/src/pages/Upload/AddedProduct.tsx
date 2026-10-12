@@ -46,10 +46,10 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                     className="w-20 h-20 object-cover rounded-lg border border-neutral-border" />
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-2 items-center">
-                        <img src={type === SourceType.URL ? urlIcon : imageIcon}
-                            alt={type === SourceType.URL ? "URL 아이콘" : "이미지 아이콘"}
+                        <img src={type === SourceType.Url ? urlIcon : imageIcon}
+                            alt={type === SourceType.Url ? "URL 아이콘" : "이미지 아이콘"}
                             className="w-5 h-5" />
-                        <p className="text-base text-neutral-border font-bold">{type === SourceType.URL ? "URL" : "이미지 / 텍스트"}</p>
+                        <p className="text-base text-neutral-border font-bold">{type === SourceType.Url ? "URL" : "이미지 / 텍스트"}</p>
                     </div>
                     <h3 className="text-xl font-bold text-neutral-dark">{title}</h3>
                 </div>
@@ -75,7 +75,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
             </div>
             {expanded && (
                 <div className="flex w-full flex-col gap-3 border-t border-neutral-border pt-3">
-                    {type === SourceType.URL ? (
+                    {type === SourceType.Url ? (
                         <div className="flex flex-col gap-1">
                             <p className="text-lg font-bold text-black">링크</p>
                             <p className="text-sm text-neutral-text break-all">{link}</p>

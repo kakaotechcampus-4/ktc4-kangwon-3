@@ -11,8 +11,8 @@ export interface Product {
 }
 
 export enum SourceType {
-    URL = "URL",
-    TEXT_IMAGE = "TEXT_IMAGE"
+    Url = "URL",
+    TextImage = "TEXT_IMAGE"
 }
 
 // 진단 요청을 위한 product item.
