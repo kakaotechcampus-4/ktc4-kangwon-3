@@ -12,7 +12,8 @@
 | `app/eval/electrical_runner.py` | 실제 실행·모델 비교·평가 채점·재채점 (`python -m app.eval.electrical_runner`) |
 | `tests/tools/electrical/` | 단위 테스트(`test_tool.py`, `test_evidence.py`)와 법제처 Fake(`conftest.py`) |
 | `tests/fixtures/electrical_law/` | 실제 법제처 응답 원문 |
-| `tests/eval_truth_electrical/holdout.json` | 홀드아웃 평가셋 |
+| `tests/eval_truth_electrical/holdout.json` | 홀드아웃 평가셋 (교류 가전 위주) |
+| `tests/eval_truth_electrical/usb_battery.json` | USB·배터리 소형 제품과 실제 추출 결과 평가셋 |
 
 `app.tools.registry`는 그대로 `from .electrical import ElectricalTool`로 가져온다.
 
@@ -35,7 +36,7 @@ Product (추출 에이전트 결과)
 
 | 규칙 | 근거 | 동작 |
 |---|---|---|
-| 저전압 제외 | 운용요령 제3조 ③ + 행 비고 "…포함한다" | 교류 30V·직류 42V 이하가 명시되면, 저전압 포함 비고가 없는 행은 고를 수 없다 |
+| 저전압 제외 | 운용요령 제3조 ③ + 행 비고 "…포함한다" | 교류 30V·직류 42V 이하가 명시되면, 저전압 포함 비고가 없는 행은 고를 수 없다. 적힌 전압이 모두 기준 이하면 저전압, 모두 초과면 저전압 아님, 기준 양쪽에 걸치면 판정 보류 |
 | 전지 전용 구조 제외 | 운용요령 별표 1~3 끝 공통 비고 | `battery_only=예`(원문 근거)면 본체 행을 빼고 전지·충전기·전원장치·전격살충기 행만 남긴다. 전지 사용이 보이는데 불명이면 본체 후보에 제외 가능성을 붙이고 질문한다 |
 | 구매대행 특례 대조 | 법 제35조, 시행규칙 제56조·별표 13 | 선택된 행의 품목명이 별표 13 목록에 있는지 대조해 `required_actions`로 구매대행/사입별 할 일을 낸다 |
 
@@ -46,6 +47,20 @@ Product (추출 에이전트 결과)
 | 전기저장장치 구성품 | 소비자용 배터리에 반복해서 잘못 붙음(실측) | 상품 원문에 전기저장장치·ESS 용도가 없으면 분류 "전기저장장치구성품" 행을 후보에서 뺀다. 원문에 용도가 빠진 실제 ESS 부품은 놓칠 수 있다 |
 
 표 끝 공통 비고(전지 전용 구조, 차량 등 전용구조 제외)는 선택 단계 LLM 입력에도 함께 넣는다.
+
+**전원·전압 값 비교** (`rules.power_conflicts`)
+
+전원 방식·정격 전압은 글자가 아니라 뜻으로 비교한다. 표기만 다르고 저전압 판정이 같으면 충돌이 아니다.
+
+| 원문 값 | 처리 |
+|---|---|
+| `USB`와 `DC`, `USB-C 입력`과 `DC` | 둘 다 직류. 충돌 아님 |
+| `0~5V`와 `5V`, `AC 100-240V` | 범위는 V가 붙은 끝값(최댓값)으로 본다. 충돌 아님 |
+| `220V`와 `110V` (교류) | 둘 다 기준 초과라 판정이 같다. 충돌 아님 |
+| `AC 220V`와 `DC 12V` | 교류·직류 혼재. 충돌(판정 보류) |
+| `24V`와 `220V` (교류) | 기준 양쪽에 걸침. 충돌(판정 보류) |
+
+값이 없으면 "~ 정보가 필요합니다", 충돌이면 "~ 정보가 서로 달라 확인이 필요합니다"로 질문을 나눈다. 다른 조건은 글자가 다르면 충돌이다.
 
 ### 구매대행 특례 상태 (`query.purchase_agent`)
 
@@ -97,7 +112,8 @@ Product (추출 에이전트 결과)
 - 선택된 행: `POSSIBLY_REQUIRED`, subject `"{제도}대상 후보 — {품목}"`. 근거는 그 행 원문(분류·품목·세부품목·비고)이고, 저전압이면 운용요령 제3조도 붙인다.
 - 조건 부족·빈 후보·맞는 행 없음: `INSUFFICIENT_INFORMATION`. 비대상으로 해석하지 않는다.
 - 모델 출력 중 대조되지 않는 항목은 **그 항목만 버리고** 계속한다(원문에 없는 조건, 후보에 없는 행, 미확인 조건 참조, 저전압 제외 행, 중복 선택). 버린 수는 `query`와 `assumptions`에 남는다.
-- `query`: `dropped_facts`, `dropped_candidates`, `candidate_items`, `filtered_items`, `selected_items`, `low_voltage`, `battery_only`, `battery_only_excluded`, `purchase_agent`, `documents`.
+- 품목 선택마다 모델이 이유를 쓴 뒤 `applies`(해당 가능성 있음/없음)를 함께 낸다. `false`면 이유와 선택이 어긋난 것이므로 코드가 버린다(`query.not_applicable`).
+- `query`: `dropped_facts`, `dropped_candidates`, `not_applicable`, `conflicted`, `candidate_items`, `filtered_items`, `selected_items`, `low_voltage`, `battery_only`, `battery_only_excluded`, `purchase_agent`, `documents`.
 - `required_actions`: 선택된 후보 품목 기준의 구매대행·사입별 할 일(위 표).
 - `ElectricalAssessment.legal_sources`는 비운다. 긴 근거는 findings에만 둔다(Verification 입력 중복 방지). `safety_management_required`는 확정이 아니므로 `None`이다.
 - 모델 호출·구조화 출력 실패, 법령 조회 오류는 `ElectricalToolError`로 전파한다(원인은 예외 체인).
@@ -110,7 +126,7 @@ Product (추출 에이전트 결과)
 - 비고의 제도 변경("이 경우 공급자적합성확인대상으로 한다", 6행)과 정격·용도 조건의 코드 판정.
 - 공급자적합성확인대상의 구매대행 의무, 병행수입·수입 중고 특례, 안전성검사대상전기용품.
 - 별표 13 대조는 품목명 일치다. 표현이 다르면 `unmatched`(확인 필요)로 나온다. 사람이 검토한 대응 규칙을 만들어야 "특례 없음"을 확정할 수 있다.
-- 상품 본체와 동봉 부속품(어댑터·전지)의 조건을 구분하지 않는다. 저전압 판정은 상품 전체의 전원·전압 값을 한데 모아 모든 후보 행에 적용하므로, 본체 DC 5V와 어댑터 AC 220V처럼 부품마다 다른 값은 모순(판정 보류)으로 처리된다. 부속품별 판단에는 조건에 대상(본체/어댑터/전지) 구분이 필요하다.
+- 상품 본체와 동봉 부속품(어댑터·전지)의 조건을 구분하지 않는다. 저전압 판정은 상품 전체의 전원·전압 값을 한데 모아 모든 후보 행에 적용한다. 같은 뜻의 표기(USB/DC, 입력·출력 모두 5V)는 충돌로 보지 않지만, 본체 DC 12V와 어댑터 AC 220V처럼 교류·직류가 섞이면 여전히 충돌(판정 보류)이다. 부속품별 판단에는 조건에 대상(본체/어댑터/전지)이나 입력/출력 구분이 필요하다.
 - ToolExecutor 연결은 agent-pipeline 머지 후 진행한다.
 
 ## 검증
@@ -124,7 +140,10 @@ Product (추출 에이전트 결과)
 
 ## 평가셋
 
-- `tests/eval_truth_electrical/holdout.json`: 개발 샘플과 겹치지 않는 18개 상품과 예상 행(운용요령 별표 원문 기준, 사람 검토 전).
+- `tests/eval_truth_electrical/holdout.json`: 개발 샘플과 겹치지 않는 18개 상품과 예상 행(운용요령 별표 원문 기준, 사람 검토 전). 교류 220V 가전 위주다.
+- `tests/eval_truth_electrical/usb_battery.json`: 실제 입력에 많은 USB·배터리 소형 제품 12개와, `tests/fixtures` 축약본을 추출 에이전트(gpt-4.1-mini)로 한 번 돌려 고정한 실제 추출 결과 8개(사람 검토 전).
+  - 2026-10-12 결과(3회): luna(none) 정답 행 선택 12/15·조회 recall 15/15, mini 6/15·9/15. 정답 행이 없는 사례(본체 행을 고르면 안 됨)는 두 모델 모두 45/45.
+  - 노트북 어댑터의 예상 행(직류전원장치)은 검토가 필요하다. 모델이 고른 "컴퓨터용 전원공급장치"(안전확인)도 맞을 수 있다.
 - **이 셋을 보고 코드·프롬프트를 고치지 않는다.** 고치면 새 셋을 만든다.
 - 프롬프트에는 상품 예시를 넣지 않는다(형식 규칙만 말로 설명).
 - 실행: `python -m app.eval.electrical_runner --eval tests/eval_truth_electrical/holdout.json --runs 3`
