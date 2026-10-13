@@ -208,3 +208,16 @@ def test_원문에서_깨진_번호는_원본_파일에서_읽은_원문자_번�
     ])
 
     assert check_annex(content, output) == []
+
+
+def test_추가_칸_값의_번호는_누락을_채운다():
+    # 어린이제품 시행규칙 별표 3: 적용 안전기준 칸에 번호 목록
+    content = "┃가. 어린이용 가죽제품 │1) 어린이제품 공통안전기준 ┃\n┃ │2) 어린이용 가죽제품 안전기준 ┃"
+    output = AnnexParseOutput(scheme="어린이용 가죽제품", skipped=[], notes=[], items=[AnnexItem(
+        category_path=[], item_label="가.", item_name="어린이용 가죽제품", conditions=[], exclusions=[],
+        inclusions=[], source_text="가. 어린이용 가죽제품",
+        attributes=[AnnexAttribute(name="적용 안전기준",
+                                   values=["1) 어린이제품 공통안전기준", "2) 어린이용 가죽제품 안전기준"])],
+    )])
+
+    assert check_annex(content, output) == []
