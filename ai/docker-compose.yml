@@ -73,8 +73,7 @@ volumes:
 networks:
   ai-net:
     name: ai-net
-  # BE app(blue/green)과 AI만 잇는 전용 네트워크. be_appnet과 달리 BE db/redis에는 닿지 않는다.
-  # BE·AI 배포 순서와 무관하도록 양쪽 워크플로가 없으면 만든다. 로컬은 처음 한 번 `docker network create be-ai-net`.
+  # BE-AI 요청 전용 네트워크
   be-ai-net:
     name: be-ai-net
     external: true
