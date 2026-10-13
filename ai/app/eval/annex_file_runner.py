@@ -3,11 +3,12 @@
     python -m app.eval.annex_file_runner                     # 대상 별표 전부
     python -m app.eval.annex_file_runner --only 운용요령      # 덤프 이름에 들어간 글자로 고르기
 
-법령·행정규칙 검색 → 현행 본문 조회 → 별표 파일 받기 → 표 모양별 규칙 → API 별표내용과 원문 대조.
+법령·행정규칙 검색 → 현행 본문 조회 → 별표 파일 받기 → 표 모양별 규칙 → API 별표내용과 원문 대조
+→ 원본 파일과 거꾸로 대조하는 점검 (빠진 줄·번호 줄, 안 붙은 비고).
 정답셋(tests/eval_truth_annex/)이 있는 별표는 채점까지 함. LLM을 부르지 않아 비용이 없음 (법제처 호출만).
 덤프는 data/annex_file_parser/<문서명>_별표<번호>-<가지>/ (커밋 안 함)
     original.<hwp|hwpx>: 받은 원본 파일 / content.txt: API 별표내용
-    parsed.json: AnnexParseRecord / meta.json: 출처·파일·고른 규칙·파싱 시간
+    parsed.json: AnnexParseRecord / meta.json: 출처·파일·고른 규칙·파싱 시간·점검 결과
 """
 
 import argparse
@@ -26,6 +27,7 @@ from ..schemas.clients.law_request import AnnexFileRequest, LawSearchRequest, La
 from ..schemas.clients.law_response import LawAnnex
 from ..utils.annex_check import check_annex
 from ..utils.annex_file import parse_annex, read_annex_file
+from .annex_file_audit import audit_annex
 from .annex_scoring import ANNEX_TRUTH_DIR, AnnexScore, load_annex_truth, score_annex
 
 _AI_ROOT = Path(__file__).resolve().parents[2]
@@ -108,7 +110,7 @@ def run_annex(annex: LawAnnex, common: dict, files: AnnexFileClient, out_dir: Pa
     directory = out_dir / name
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "content.txt").write_text(annex.annex_content or "", encoding="utf-8")
-    result = {"name": name, "rule": None, "error": None, "parse_ms": None, "file_name": None}
+    result = {"name": name, "rule": None, "error": None, "parse_ms": None, "file_name": None, "audit": {}}
     output = None
     reasons: list[str] = []
     try:
@@ -118,9 +120,11 @@ def run_annex(annex: LawAnnex, common: dict, files: AnnexFileClient, out_dir: Pa
         result["file_name"] = file.file_name
         (directory / f"original.{file.file_type}").write_bytes(file.content)
         started = perf_counter()
-        result["rule"], output = parse_annex(read_annex_file(file.content, file.file_type))
+        blocks = read_annex_file(file.content, file.file_type)
+        result["rule"], output = parse_annex(blocks)
         result["parse_ms"] = round((perf_counter() - started) * 1000, 1)
         reasons = check_annex(annex.annex_content or "", output)
+        result["audit"] = {kind: found for kind, found in audit_annex(blocks, output).items() if found}
     except (ValueError, RuntimeError) as error:
         result["error"] = f"{type(error).__name__}: {error}"
     record = AnnexParseRecord(source=source, output=output, verified=output is not None and not reasons,
@@ -158,14 +162,18 @@ def report(results: list[dict], seconds: float) -> None:
               f"비고 {result['notes']:2} · 파싱 {result['parse_ms'] or 0:6.1f}ms  {result['name']}")
         for reason in result["failure_reasons"][:5]:
             print(f"      - {reason}")
+        for kind, found in result["audit"].items():
+            print(f"      ! {kind} {len(found)}건: {found[0]}")
         if score := result["score"]:
             print(f"      정답 {score['matched_rows']}/{score['expected_rows']} · 누락 {len(score['missing'])} · "
                   f"초과 {len(score['extra'])} · 분류 오류 {len(score['category_errors'])} · "
                   f"칸 오류 {len(score['field_errors'])} · 규제 구분 {score['scheme_ok']} · "
                   f"뺀 행 {score['skipped_ok']} · 비고 {score['notes_ok']}")
     verified = sum(result["verified"] for result in results)
+    audited = sum(not result["audit"] for result in results)
     parse_ms = sum(result["parse_ms"] or 0 for result in results)
-    print(f"\n대조 통과 {verified}/{len(results)} · 파싱 합계 {parse_ms:.0f}ms · 전체(받기 포함) {seconds:.1f}s")
+    print(f"\n대조 통과 {verified}/{len(results)} · 점검 이상 없음 {audited}/{len(results)} · "
+          f"파싱 합계 {parse_ms:.0f}ms · 전체(받기 포함) {seconds:.1f}s")
 
 
 def main() -> int:
@@ -203,7 +211,7 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     report(results, seconds)
-    return 0 if results and all(result["verified"] for result in results) else 1
+    return 0 if results and all(result["verified"] and not result["audit"] for result in results) else 1
 
 
 if __name__ == "__main__":
