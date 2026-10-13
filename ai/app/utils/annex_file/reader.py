@@ -37,8 +37,8 @@ _CHAR_CONTROLS = {9: " ", 10: "\n", 24: "-", 30: " ", 31: " "}
 
 _HWPX_NS = {"hp": "http://www.hancom.co.kr/hwpml/2011/paragraph"}
 _HWPX_SECTION_RE = re.compile(r"Contents/section(\d+)\.xml")
-# 기호 글꼴 사적 영역 문자 → 보통 글자 ("전기\uf09e전동" → "전기·전동", API 별표내용에서는 ?로 깨짐)
-_PRIVATE_CHARS = str.maketrans({"\uf09e": "·"})
+# 기호 글꼴 사적 영역 가운뎃점 → 보통 가운뎃점 ("전기\uf09e전동" → "전기·전동", API 별표내용에서는 ?로 깨짐)
+_PRIVATE_CHARS = str.maketrans({"\uf09e": "·", "\uf0a0": "·"})
 
 
 def read_annex_file(content: bytes, file_type: str) -> list[Block]:

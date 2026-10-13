@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.utils.annex_file.text import (EXAMPLE_ATTRIBUTE, classify_phrases, find_title, join_lines, note_entries,
+from app.utils.annex_file.text import (EXAMPLE_ATTRIBUTE, Phrases, classify_phrases, find_title, join_lines, note_entries,
                                        scheme_from_title, split_examples, split_qualifier)
 
 
@@ -97,3 +97,20 @@ def test_번호_뒤_공백이_없어도_번호를_떼고_소수는_둔다():
 def test_한함으로_끝나는_괄호도_한정_문구로_뗀다():
     assert split_qualifier("시험용 의료기기 등(식품의약품안전처장이 정하는 품목에 한함)") == (
         "시험용 의료기기 등", ["식품의약품안전처장이 정하는 품목에 한함"], [], [])
+
+
+def test_같은_문구는_한_번만_붙인다():
+    phrases = Phrases(exclusions=["다음의 어느 하나에 해당하는 기자재는 제외한다."])
+    phrases.extend([], ["다음의 어느 하나에 해당하는 기자재는 제외한다.", "카메라 렌즈"], [])
+
+    assert phrases.exclusions == ["다음의 어느 하나에 해당하는 기자재는 제외한다.", "카메라 렌즈"]
+
+
+def test_문구_머리의_참고_기호는_뺀다():
+    assert split_qualifier("나트륨램프 (※ 컬러램프 포함)") == ("나트륨램프", [], [], ["컬러램프 포함"])
+
+
+def test_이어진_끝_괄호가_모두_한정_포함이면_모두_뗀다():
+    assert split_qualifier("할로겐전구 (250 W 이하인 것에 한정한다) (※ 컬러램프 포함)") == (
+        "할로겐전구", ["250 W 이하인 것에 한정한다"], [], ["컬러램프 포함"])
+    assert split_qualifier("가(假) 속눈썹(인조 속눈썹)") == ("가(假) 속눈썹(인조 속눈썹)", [], [], [])
