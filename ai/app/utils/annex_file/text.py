@@ -16,7 +16,8 @@ _SPACES_RE = re.compile(r"\s+")
 _MIDDLE_DOTS = "·ㆍ․"
 # "비고:", "비고 :", "비고)", 겹쳐 쓴 "비고) 비고)", 머리만 있는 "비고" 문단
 _NOTE_RE = re.compile(r"^(비고\s*[:)]\s*)+|^비고\s*$")
-_NUMBERED_RE = re.compile(r"^\d+\.\s+")
+# "1. …", "1.「전파법」…" (공백 없음). "1.5kW"는 번호 아님
+_NUMBERED_RE = re.compile(r"^\d+\.(?!\d)\s*")
 _SENTENCE_END_RE = re.compile(r"(?<=다\.)\s+")
 # "…에 한정하며, …는 제외한다."처럼 한 문장에 이어진 문구의 경계
 _CLAUSE_END_RE = re.compile(r"(?<=며),\s*")
@@ -176,7 +177,7 @@ def split_qualifier(text: str) -> tuple[str, list[str], list[str], list[str]]:
     return parsed[0], *classify_phrases(parsed[1])
 
 
-def _split_top_level(text: str) -> list[str]:
+def split_listed(text: str) -> list[str]:
     """괄호 밖 쉼표에서만 나눈다. 앞 "- "와 끝 " 등"은 뺌. "형광등"처럼 붙어 쓴 등은 이름이라 둠."""
     parts, depth, current = [], 0, ""
     for char in text:
@@ -205,7 +206,7 @@ def split_examples(name: str) -> tuple[str, list[AnnexAttribute]]:
     if parsed is None:
         return name, []
     head, inner = parsed
-    examples = _split_top_level(inner)
+    examples = split_listed(inner)
     if not head or len(examples) < _MIN_LISTED or _SENTENCE_RE.search(inner):
         return name, []
     return head, [AnnexAttribute(name=EXAMPLE_ATTRIBUTE, values=examples)]
