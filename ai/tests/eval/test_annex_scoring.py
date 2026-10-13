@@ -1,24 +1,21 @@
 """별표 파싱 정답셋과 채점을 확인한다."""
 
-from pathlib import Path
-
 import pytest
 
 from app.eval.annex_scoring import ANNEX_TRUTH_DIR, load_annex_truth, score_annex
 from app.schemas.annex import AnnexAttribute, AnnexSkippedRow
-from app.utils.annex_check import check_annex
 
-_FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "annex"
 _TRUTHS = sorted(ANNEX_TRUTH_DIR.glob("*.json"))
 _NOTICE_6 = ANNEX_TRUTH_DIR / "전기용품및생활용품안전관리운용요령_별표0006-00.json"
 
 
 @pytest.mark.parametrize("path", _TRUTHS, ids=lambda path: path.stem)
-def test_정답셋은_원문_대조를_통과한다(path):
+def test_정답셋은_별표_이름으로_읽히고_행이_있다(path):
+    # 원문 대조는 평가 러너가 법제처에서 받은 별표로 함
     fixture, truth = load_annex_truth(path)
 
     assert fixture == path.stem
-    assert check_annex((_FIXTURES / fixture / "content.txt").read_text(encoding="utf-8"), truth) == []
+    assert truth.items
 
 
 def test_정답과_같은_출력은_모든_행이_맞는다():
