@@ -85,7 +85,7 @@ def uncovered_lines(blocks: list[Block], output: AnnexParseOutput) -> list[str]:
             continue
         body = re.sub(r"^\s*(비\s*고\s*[:)]\s*)+", "", _BULLET_RE.sub("", stripped))
         body = _LABEL_RE.sub(r"\2", body)
-        pieces = [_plain(piece).removesuffix("등") for piece in re.split(r"[,:]|[.。]\s|\(|\)", body)]
+        pieces = [_plain(piece).removesuffix("등") for piece in re.split(r"[,:/]|[.。]\s|\(|\)", body)]
         pieces = [piece for piece in pieces if len(piece) >= _MIN_PIECE] or [piece for piece in pieces if len(piece) >= 2]
         if pieces and all(piece in hay for piece in pieces):
             continue

@@ -28,6 +28,8 @@ _INCLUSION_RE = re.compile(r"포함(한다|하며|함|된다)?\.?$")
 _QUALIFIER_RE = re.compile(r"(한정|제외|포함|해당)(한다|하며|함|된다|되며)|(한정|제외|포함|해당)$|에\s*한(함|한다|하며)")
 # "(전동식 커튼, 셔터, … 를 말한다)"처럼 문장으로 끝나는 괄호는 나열이 아닌 풀이
 _SENTENCE_RE = re.compile(r"다\.?$")
+# "(화재, 가스, 침입, 장치고장 등의 통보를 위한 장치 등)"처럼 "등의"로 이어지는 괄호는 나열이 아닌 풀이
+_DESCRIPTIVE_RE = re.compile(r"등의\s")
 _BRACKETS = {")": "(", "]": "["}
 _AMENDMENT_RE = re.compile(r"\(\s*신\s*설\s*\)")
 _DELETED_RE = re.compile(r"^<?삭\s*제")
@@ -185,12 +187,16 @@ def split_qualifier(text: str) -> tuple[str, list[str], list[str], list[str]]:
 
 
 def split_listed(text: str) -> list[str]:
-    """괄호 밖 쉼표에서만 나눈다. 앞 "- "와 끝 " 등"은 뺌. "형광등"처럼 붙어 쓴 등은 이름이라 둠."""
+    """괄호 밖 쉼표에서만 나눈다. 앞 "- "와 끝 " 등"은 뺌. "형광등"처럼 붙어 쓴 등은 이름이라 둠.
+
+    숫자 사이 쉼표("2,048kbps")는 자릿수 구분이라 나누지 않음.
+    """
     parts, depth, current = [], 0, ""
-    for char in text:
+    for index, char in enumerate(text):
         depth += char == "("
         depth -= char == ")"
-        if char == "," and depth == 0:
+        thousands = 0 < index < len(text) - 1 and text[index - 1].isdigit() and text[index + 1].isdigit()
+        if char == "," and depth == 0 and not thousands:
             parts.append(current)
             current = ""
         else:
@@ -214,7 +220,7 @@ def split_examples(name: str) -> tuple[str, list[AnnexAttribute]]:
         return name, []
     head, inner = parsed
     examples = split_listed(inner)
-    if not head or len(examples) < _MIN_LISTED or _SENTENCE_RE.search(inner):
+    if not head or len(examples) < _MIN_LISTED or _SENTENCE_RE.search(inner) or _DESCRIPTIVE_RE.search(inner):
         return name, []
     return head, [AnnexAttribute(name=EXAMPLE_ATTRIBUTE, values=examples)]
 
