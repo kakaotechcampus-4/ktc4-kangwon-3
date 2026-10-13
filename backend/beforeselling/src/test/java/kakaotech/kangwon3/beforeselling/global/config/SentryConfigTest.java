@@ -5,9 +5,13 @@ import io.sentry.SentryEvent;
 import io.sentry.SentryOptions;
 import io.sentry.exception.ExceptionMechanismException;
 import io.sentry.protocol.Mechanism;
+import io.sentry.protocol.Request;
+import io.sentry.protocol.SentryTransaction;
+import io.sentry.protocol.TransactionInfo;
 import jakarta.validation.ConstraintViolationException;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.security.filter.InternalTokenFilter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -22,6 +26,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -31,7 +37,11 @@ import static org.springframework.http.HttpMethod.GET;
 
 class SentryConfigTest {
 
+    private static final String INTERNAL_TOKEN = "internal-token-value";
+
     private final SentryOptions.BeforeSendCallback callback = new SentryConfig().sentryBeforeSendCallback();
+    private final SentryOptions.BeforeSendTransactionCallback transactionCallback =
+            new SentryConfig().sentryBeforeSendTransactionCallback();
 
     static Stream<Arguments> clientErrors() {
         return Stream.of(
@@ -97,5 +107,75 @@ class SentryConfigTest {
 
         // when & then
         assertThat(callback.execute(event, new Hint())).isSameAs(event);
+    }
+
+    @Test
+    @DisplayName("전송하는 이벤트에서 내부 토큰 헤더만 제거하고 다른 헤더는 남긴다.")
+    void execute_whenInternalTokenHeader_thenRemoveOnlyToken() {
+        // given
+        SentryEvent event = new SentryEvent(new IllegalStateException("boom"));
+        event.setRequest(requestWithHeaders(Map.of(
+                InternalTokenFilter.HEADER_NAME, INTERNAL_TOKEN,
+                "Content-Type", "application/json")));
+
+        // when
+        SentryEvent result = callback.execute(event, new Hint());
+
+        // then
+        assertThat(result.getRequest().getHeaders())
+                .doesNotContainKey(InternalTokenFilter.HEADER_NAME)
+                .doesNotContainValue(INTERNAL_TOKEN)
+                .containsEntry("Content-Type", "application/json");
+    }
+
+    @Test
+    @DisplayName("헤더 이름의 대소문자가 달라도 내부 토큰 헤더를 제거한다.")
+    void execute_whenLowerCaseInternalTokenHeader_thenRemoveToken() {
+        // given: HTTP 헤더 이름은 대소문자를 구분하지 않아 소문자로 수집될 수 있다.
+        SentryEvent event = new SentryEvent(new IllegalStateException("boom"));
+        event.setRequest(requestWithHeaders(Map.of("x-internal-token", INTERNAL_TOKEN)));
+
+        // when
+        SentryEvent result = callback.execute(event, new Hint());
+
+        // then
+        assertThat(result.getRequest().getHeaders()).doesNotContainValue(INTERNAL_TOKEN);
+    }
+
+    @Test
+    @DisplayName("요청 정보가 없는 이벤트도 그대로 전송한다.")
+    void execute_whenNoRequest_thenKeepEvent() {
+        // given
+        SentryEvent event = new SentryEvent(new IllegalStateException("boom"));
+
+        // when & then
+        assertThat(callback.execute(event, new Hint())).isSameAs(event);
+    }
+
+    @Test
+    @DisplayName("트랜잭션(트레이스)에서도 내부 토큰 헤더를 제거한다.")
+    void executeTransaction_whenInternalTokenHeader_thenRemoveToken() {
+        // given
+        SentryTransaction transaction = new SentryTransaction(
+                "POST /internal/v1/ai/products/{productId}/events", 0.0, null,
+                List.of(), Map.of(), new TransactionInfo("route"));
+        transaction.setRequest(requestWithHeaders(Map.of(
+                InternalTokenFilter.HEADER_NAME, INTERNAL_TOKEN,
+                "Content-Type", "application/json")));
+
+        // when
+        SentryTransaction result = transactionCallback.execute(transaction, new Hint());
+
+        // then
+        assertThat(result.getRequest().getHeaders())
+                .doesNotContainKey(InternalTokenFilter.HEADER_NAME)
+                .doesNotContainValue(INTERNAL_TOKEN)
+                .containsEntry("Content-Type", "application/json");
+    }
+
+    private Request requestWithHeaders(Map<String, String> headers) {
+        Request request = new Request();
+        request.setHeaders(headers);
+        return request;
     }
 }
