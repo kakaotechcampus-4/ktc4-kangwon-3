@@ -272,10 +272,16 @@
     ],
     "skipped": [
       {
+        "category_path": [
+          "2. 생활"
+        ],
         "item_label": "라.",
         "reason": "삭제"
       },
       {
+        "category_path": [
+          "4. 섬유"
+        ],
         "item_label": null,
         "reason": "대상 없음"
       }

@@ -71,7 +71,8 @@ def test_법률_분류의_괄호_문구는_아래_행들에_붙인다():
 def test_삭제는_뺀_행으로_표_뒤_문단은_비고로_둔다():
     output = parse_requirement_tables(_BLOCKS)
 
-    assert [(row.item_label, row.reason) for row in output.skipped] == [("(2)", "(삭제)"), ("(가)", "< 삭 제 >")]
+    assert [(row.category_path, row.item_label, row.reason) for row in output.skipped] == [
+        ([], "(2)", "(삭제)"), (["(18)「야생생물 보호 및 관리에 관한 법률」해당 물품"], "(가)", "< 삭 제 >")]
     assert output.notes == ["(1) HSK 10단위로 연계되지 아니하는 물품의 수입요건"]
 
 

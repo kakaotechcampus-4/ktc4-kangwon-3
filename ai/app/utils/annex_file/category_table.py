@@ -106,13 +106,14 @@ def _category_step(cell: Cell) -> tuple[str, Phrases]:
 def _add_product(drafts: list[_Draft], skipped: list[AnnexSkippedRow], category: Cell, product: Cell) -> None:
     """세부품목 없이 품목 칸이 행 하나인 경우. 삭제·대상 없음은 뺀 행으로."""
     text = join_lines(product.text)
+    category_name, phrases = _category_step(category)
     if is_no_target(text):
-        skipped.append(AnnexSkippedRow(item_label=None, reason=text))
+        skipped.append(AnnexSkippedRow(category_path=[category_name], item_label=None, reason=text))
         return
     if deleted := _DELETED_LABEL_RE.match(text):
-        skipped.append(AnnexSkippedRow(item_label=deleted.group(1), reason=deleted.group(2)))
+        skipped.append(AnnexSkippedRow(category_path=[category_name], item_label=deleted.group(1),
+                                       reason=deleted.group(2)))
         return
-    category_name, phrases = _category_step(category)
     label_match = _ITEM_LABEL_RE.match(text)
     label, rest = label_match.groups() if label_match else (None, text)
     name, *own = split_qualifier(rest)
@@ -151,7 +152,7 @@ def _add_details(drafts: list[_Draft], skipped: list[AnnexSkippedRow], category:
         label_match = _CIRCLED_RE.match(line)
         label, rest = label_match.groups() if label_match else (None, line)
         if is_deleted(rest):
-            skipped.append(AnnexSkippedRow(item_label=label, reason=rest))
+            skipped.append(AnnexSkippedRow(category_path=list(path), item_label=label, reason=rest))
             continue
         name, *own = split_qualifier(rest)
         name, attributes = split_examples(name)

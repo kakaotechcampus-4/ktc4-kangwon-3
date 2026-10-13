@@ -76,8 +76,11 @@ def test_세부품목_없이_두_칸에_걸친_품목은_품목이_행이다():
 def test_삭제와_대상_없음은_뺀_행으로_표_전체_비고는_notes로_둔다():
     output = parse_category_table(_BLOCKS)
 
-    assert [(row.item_label, row.reason) for row in output.skipped] == [
-        ("②", "삭제<2023. 3. 20.>"), ("가.", "삭제<2026.4.1>"), (None, "대상 없음")]
+    assert [(row.category_path, row.item_label, row.reason) for row in output.skipped] == [
+        (["1. 전선 및 전원코드", "전선, 케이블 및 코드류"], "②", "삭제<2023. 3. 20.>"),
+        (["7. 전기기기"], "가.", "삭제<2026.4.1>"),
+        (["9. 오디오·비디오"], None, "대상 없음"),
+    ]
     assert output.notes == ["1차 전지(건전지)만을 전원으로 사용하는 구조의 것은 제외한다."]
 
 

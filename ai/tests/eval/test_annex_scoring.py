@@ -48,7 +48,7 @@ def test_빠진_행_남는_행_분류_오류_문구_오류를_나눠_센다():
     extra = items[0].model_copy(update={"item_label": "③", "item_name": "없는 품목"})
     actual = truth.model_copy(update={
         "items": [*items[:-1], extra],
-        "skipped": [AnnexSkippedRow(item_label="라.", reason="삭제")],
+        "skipped": [AnnexSkippedRow(category_path=["2. 생활"], item_label="라.", reason="삭제")],
         "notes": ["없는 비고"],
     })
 

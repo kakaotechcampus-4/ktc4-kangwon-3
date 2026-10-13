@@ -54,10 +54,13 @@ class AnnexSkippedRow(StrictModel):
     """일부러 뺀 행. 누락과 구분하기 위해 남김.
 
     Attributes:
+        category_path: 뺀 행이 속한 분류 계층, 상위부터. 어느 분류가 "대상 없음"인지 남기기 위함
+            (예: ["1. 안전인증대상전기용품", "다. 전원용 커패시터 및 전원필터"]).
         item_label: 원문 번호. 없으면 None.
-        reason: 뺀 이유 (예: "삭제 <2023. 3. 20.>").
+        reason: 뺀 이유 (예: "삭제 <2023. 3. 20.>", "대상 없음").
     """
 
+    category_path: list[str]
     item_label: str | None
     reason: str
 
