@@ -245,3 +245,19 @@ class AdmrulTextResponse(BaseModel):
     articles: list[LawArticle]
     annexes: list[LawAnnex] = []
     attachments: list[LawAttachment] = []
+
+
+# -- 별표·첨부 원본 파일 --
+
+class AnnexFileResponse(BaseModel):
+    """별표·첨부 원본 파일.
+
+    Attributes:
+        file_name: 응답의 Content-Disposition 파일명 (예: "[별표 1] 안전인증대상전기용품 세부품목(…).hwp").
+        file_type: 파일명 확장자 소문자 (hwp, hwpx, pdf 등). 확장자가 없으면 None.
+        content: 파일 바이트.
+    """
+
+    file_name: str
+    file_type: str | None
+    content: bytes
