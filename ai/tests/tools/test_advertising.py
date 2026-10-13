@@ -16,6 +16,7 @@ from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Product
 from app.schemas.schemas import Determination, LegalSource, RiskLevel, ToolName, ToolStatus
 from app.tools import advertising
+from app.schemas.advertising import AdvertisingReview
 from app.tools.advertising import AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool
 
 LAW_DIR = Path(__file__).parents[1] / "fixtures" / "advertising_law"
@@ -40,7 +41,7 @@ class _StubModel:
         if self._error is not None:
             raise self._error
         raw = AIMessage(
-            content=json.dumps({"claims": self._claims}, ensure_ascii=False),
+            content=json.dumps({"line_checks": [], "claims": self._claims}, ensure_ascii=False),
             usage_metadata={"input_tokens": 10, "output_tokens": 5, "total_tokens": 15},
             response_metadata={"model_name": self.model_name},
         )
@@ -199,3 +200,10 @@ def _all_sources() -> list[LegalSource]:
 def test_근거_인용은_법제처_원문에_그대로_있다(source: LegalSource):
     assert source.is_mock is False
     assert re.sub(r"\s+", "", source.quoted_text) in _law_text()
+
+
+def test_모델은_줄별_검토를_주장_목록보다_먼저_쓴다():
+    # 줄마다 후보를 먼저 쓰게 하자 평가셋 맞힘이 26에서 53/54로 올랐다(mini, 3회). 순서가 바뀌면 효과가 사라진다.
+    properties = list(AdvertisingReview.model_json_schema()["properties"])
+
+    assert properties == ["line_checks", "claims"]

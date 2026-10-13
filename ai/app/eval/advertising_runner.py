@@ -58,6 +58,8 @@ def run_case(tool: AdvertisingTool, product_id: str, lines: list[str], runs: int
             "detected": [phrase.model_dump(mode="json", include={"text", "risk_type", "risk_level"})
                          for phrase in result.result.detected_phrases],
             "dropped_quotes": result.query.get("dropped_quotes", []),
+            # 틀린 이유를 보려고 모델의 줄별 검토도 남긴다.
+            "line_checks": (result.raw_response or {}).get("line_checks", []),
             "elapsed_s": round(time.perf_counter() - started, 1),
         })
     return outputs
