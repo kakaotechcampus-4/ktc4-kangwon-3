@@ -11,6 +11,7 @@ import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
@@ -57,7 +58,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DiagnosesController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
-@EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
+@EnableConfigurationProperties({AppProperties.class, JwtProperties.class, InternalApiProperties.class})
 class DiagnosesControllerTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
