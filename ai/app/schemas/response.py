@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import Field
 
-from .base import StrictModel
+from .base import ApiModel, StrictModel
 from .schemas import FinalAssessment
 
 
@@ -35,6 +35,34 @@ class DiagnoseResponse(ApiResponse):
     """진단 파이프라인 응답. data에 FinalAssessment가 담긴다."""
 
     data: FinalAssessment | None = None
+
+
+class DiagnosisAccepted(ApiModel):
+    """진단 접수 결과. 이후 결과는 상품별 콜백으로 전달.
+
+    Attributes:
+        diagnosis_id: BE 진단서 ID.
+        accepted_product_ids: 접수된 상품 ID 목록 (세션 ID).
+    """
+
+    diagnosis_id: str
+    accepted_product_ids: list[str]
+
+
+class DiagnosisAcceptedResponse(ApiResponse):
+    """진단 접수 응답 (202). data에 DiagnosisAccepted가 담긴다."""
+
+    data: DiagnosisAccepted | None = None
+
+
+class DiagnosisConflict(ApiModel):
+    """이미 진행 중인 상품이 섞여 접수를 거절한 경우의 상세 (409).
+
+    Attributes:
+        conflict_product_ids: 진행 중인 상품 ID 목록.
+    """
+
+    conflict_product_ids: list[str]
 
 
 def ok(data: Any = None, message: str = "요청이 성공적으로 처리되었습니다.") -> ApiResponse:

@@ -1,9 +1,13 @@
 """VerificationAgent 동작 검증. 실제 ML API 호출 없이 모델을 스텁으로 대체한다."""
 
+import contextlib
 import json
 
 import pytest
+from openai.lib._parsing._completions import type_to_response_format_param
+from langchain_core.messages import AIMessage
 
+from app.agents.base import AgentError, MissingParsedOutput
 from app.agents.verification import (
     VerificationAgent,
     VerificationError,
@@ -90,6 +94,11 @@ def _unselect_tool(draft: DraftAssessment, name: ToolName) -> None:
     tool_record.result = None
     tool_record.findings = []
 
+    # 미선택으로 변경한 Tool에서 만들어진 종합 finding도 함께 제거한다.
+    draft.findings = [
+        finding for finding in draft.findings if finding.tool_name is not name
+    ]
+
 
 def _review(**overrides) -> _Review:
     """strict 모드라 모든 필드가 required이므로 기본값을 여기서 채운다."""
@@ -103,24 +112,37 @@ def _review(**overrides) -> _Review:
     return _Review(**values)
 
 
-class _StubModel:
-    """with_structured_output(...).invoke(...) 인터페이스만 흉내 낸 테스트 전용 스텁."""
+_FAKE_USAGE = {
+    "input_tokens": 2000,
+    "output_tokens": 300,
+    "total_tokens": 2300,
+    "input_token_details": {"cache_read": 1200},
+}
 
-    def __init__(self, review: _Review) -> None:
+
+class _StubModel:
+    """with_structured_output(..., include_raw=True).invoke(...) 인터페이스만 흉내 낸 테스트 전용 스텁."""
+
+    def __init__(self, review: _Review | None, parsing_error: Exception | None = None) -> None:
         self._review = review
+        self._parsing_error = parsing_error
         self.structured_kwargs: dict | None = None
         self.received_messages: list | None = None
         self.received_config: dict | None = None
 
     def with_structured_output(self, schema: type, **kwargs):
-        assert schema is _Review
+        assert schema == type_to_response_format_param(_Review)["json_schema"]
         self.structured_kwargs = kwargs
         return self
 
-    def invoke(self, messages: list, config: dict | None = None) -> _Review:
+    def invoke(self, messages: list, config: dict | None = None) -> dict:
         self.received_messages = messages
         self.received_config = config
-        return self._review
+        return {
+            "raw": AIMessage(content="", usage_metadata=_FAKE_USAGE),
+            "parsed": self._review,
+            "parsing_error": self._parsing_error,
+        }
 
 
 class _RaisingModel:
@@ -194,6 +216,7 @@ def test_선택된_툴이_실패_상태면_재실행을_요구한다():
 
     assert any(issue.issue_type is VerificationIssueType.TOOL_FAILURE for issue in result.issues)
     assert ToolName.ELECTRICAL in result.additional_tools_required
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_성공한_툴에_상세_결과나_finding이_없으면_재실행을_요구한다():
@@ -201,6 +224,7 @@ def test_성공한_툴에_상세_결과나_finding이_없으면_재실행을_요
     tool_record = _tool_record(draft, ToolName.ELECTRICAL)
     tool_record.result = None
     tool_record.findings = []
+    draft.findings = []
 
     result = VerificationAgent().verify_rules(draft)
 
@@ -210,6 +234,7 @@ def test_성공한_툴에_상세_결과나_finding이_없으면_재실행을_요
         for issue in result.issues
     )
     assert ToolName.ELECTRICAL in result.additional_tools_required
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_툴과_상세_결과_kind가_다르면_지적한다():
@@ -245,7 +270,7 @@ def test_상품의_명시적_신호에_필요한_툴이_없으면_지적한다(
 
     result = VerificationAgent().verify_rules(draft)
 
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
     assert expected_tool in result.additional_tools_required
     issue = next(
         issue
@@ -333,7 +358,7 @@ def test_확정적_판단에_근거가_아예_없으면_critical로_지적한다
 
     result = VerificationAgent().verify_rules(draft)
 
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
     issue = next(i for i in result.issues if i.issue_type.value == "missing_evidence")
     assert issue.severity == "critical"
     assert "인용문과 출처가 없습니다" in issue.description
@@ -458,7 +483,7 @@ def test_확정적_판단의_인용문과_URL_중_하나라도_없으면_근거_
         if issue.issue_type is VerificationIssueType.MISSING_EVIDENCE
     )
     assert issue.severity == "critical"
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_모델_없이_verify를_부르면_규칙_결과를_보존하고_실패한다():
@@ -477,7 +502,16 @@ def test_strict_json_schema로_구조화_출력을_요구한다():
 
     VerificationAgent(model=stub)
 
-    assert stub.structured_kwargs == {"method": "json_schema", "strict": True}
+    # strict json_schema는 유지하고, 사용량 수집용 include_raw가 추가됨 (#171 §4.2)
+    assert stub.structured_kwargs == {"include_raw": True, "method": "json_schema", "strict": True}
+
+
+def test_모델을_주입하지_않으면_자동으로_만들지_않는다(monkeypatch):
+    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: pytest.fail("모델을 만들면 안 됨"))
+
+    agent = VerificationAgent()
+
+    assert agent.verify_rules(_draft()).status is VerificationStatus.APPROVED
 
 
 def test_문제가_없으면_approved를_돌려준다():
@@ -501,14 +535,13 @@ def test_모델_지적과_규칙_지적이_함께_병합된다():
             )
         ],
     )
-    # 규칙 쪽에서도 critical 지적이 나오는 초안을 쓴다.
+    # 규칙 검사에서 누락된 RADIO Tool 재실행 요청이 추가된다.
     draft = _draft(Product(product_id="p1", wireless_comm=True))
 
     result = VerificationAgent(model=_StubModel(review)).verify(draft)
 
     assert len(result.issues) == 2
-    # 규칙이 찾은 critical은 모델이 지울 수 없다.
-    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 def test_규칙과_모델의_동일한_지적은_한_번만_남긴다():
     description = (
@@ -588,13 +621,13 @@ def test_trace에_DraftAssessment부터_VerificationResult까지_변환을_남�
     assert "VerificationResult" in trace[-1].detail
 
 
-def test_추가_툴_요청이_있으면_코드가_revision_required로_정한다():
+def test_추가_툴_요청이_있으면_tools_required로_정한다():
     review = _review(additional_tools_required=[ToolName.RADIO])
 
     result = VerificationAgent(model=_StubModel(review)).verify(_draft())
 
-    assert result.status is VerificationStatus.REVISION_REQUIRED
     assert "추가 검토 도구: radio_compliance" in result.review_summary
+    assert result.status is VerificationStatus.TOOLS_REQUIRED
 
 
 def test_필수_질문이_있으면_user_input_required가_된다():
@@ -688,50 +721,66 @@ def test_겹치는_질문은_required가_강한_쪽을_남긴다():
     assert merged.question_id == existing.question_id  # 기존 식별자 보존
     assert result.status is VerificationStatus.USER_INPUT_REQUIRED
 
-def test_모델_호출에_사용량_콜백을_전달하고_성공을_기록한다(monkeypatch):
+def _capture_usage(monkeypatch) -> list[dict]:
+    """공용 사용량 로그로 나가는 인자를 가로챈다. 기록은 BaseAgent 공통 경로."""
+    captured: list[dict] = []
+    monkeypatch.setattr(
+        "app.agents.base.record",
+        lambda agent, call_usage, **kwargs: captured.append({"agent": agent, "usage": call_usage, **kwargs}),
+    )
+    return captured
+
+
+def test_원본_응답의_사용량으로_성공을_한_번_기록한다(monkeypatch):
+    # include_raw 원본 응답에서 사용량을 읽으므로 콜백을 넘기지 않음 (#171 §4.4)
     stub = _StubModel(_review())
-    captured: dict = {}
-    usage = object()
-
-    monkeypatch.setattr("app.agents.verification.from_handler", lambda handler: usage)
-
-    def capture(agent, call_usage, **kwargs):
-        captured.update(agent=agent, usage=call_usage, **kwargs)
-
-    monkeypatch.setattr("app.agents.verification.record", capture)
+    captured = _capture_usage(monkeypatch)
 
     VerificationAgent(
         model=stub,
         configured_model="openai/gpt-4.1-mini",
     ).verify(_draft())
 
-    assert len(stub.received_config["callbacks"]) == 1
-    assert captured["agent"] == "verification"
-    assert captured["usage"] is usage
-    assert captured["configured_model"] == "openai/gpt-4.1-mini"
-    assert captured["subject_id"] == "p1"
-    assert captured["elapsed_ms"] >= 0
-    assert "ok" not in captured  # 성공은 record()의 기본값을 쓴다.
+    assert stub.received_config is None
+    assert len(captured) == 1
+    entry = captured[0]
+    assert entry["agent"] == "verification"
+    assert (entry["usage"].input_tokens, entry["usage"].cached_tokens, entry["usage"].output_tokens) == (2000, 1200, 300)
+    assert entry["configured_model"] == "openai/gpt-4.1-mini"
+    assert entry["subject_id"] == "p1"
+    assert entry["elapsed_ms"] >= 0
+    assert entry["ok"] is True
 
 
 def test_모델_호출_실패도_오류_타입과_함께_기록한다(monkeypatch):
-    captured: dict = {}
-
-    monkeypatch.setattr("app.agents.verification.from_handler", lambda handler: None)
-
-    def capture(agent, call_usage, **kwargs):
-        captured.update(agent=agent, usage=call_usage, **kwargs)
-
-    monkeypatch.setattr("app.agents.verification.record", capture)
+    captured = _capture_usage(monkeypatch)
 
     with pytest.raises(VerificationError):
         VerificationAgent(model=_RaisingModel()).verify(_draft())
 
-    assert captured["agent"] == "verification"
-    assert captured["usage"] is None
-    assert captured["ok"] is False
-    assert captured["error_type"] == "RuntimeError"
-    assert captured["elapsed_ms"] >= 0
+    assert len(captured) == 1
+    entry = captured[0]
+    assert entry["agent"] == "verification"
+    assert entry["usage"] is None
+    assert entry["ok"] is False
+    assert entry["error_type"] == "RuntimeError"
+    assert entry["elapsed_ms"] >= 0
+
+
+def test_usage_agent로_평가_호출을_구분해_남긴다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+
+    VerificationAgent(model=_StubModel(_review()), usage_agent="verification-eval").verify(_draft())
+
+    assert captured[0]["agent"] == "verification-eval"
+
+
+def test_규칙_검사만_하면_사용량을_기록하지_않는다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+
+    VerificationAgent(model=_StubModel(_review())).verify_rules(_draft())
+
+    assert captured == []
 
 
 # ---------- 실패 처리 ----------
@@ -785,6 +834,52 @@ def test_모델_호출_실패는_원인을_보존한_채_감싸진다():
     assert isinstance(exc_info.value.__cause__, RuntimeError)
     assert "rate limit exceeded" in str(exc_info.value.__cause__)
     assert exc_info.value.partial_result is not None
+    assert str(exc_info.value) == "모델 검토 호출에 실패했습니다: RuntimeError: rate limit exceeded"
+
+
+def test_모델_호출_실패는_실패_trace를_한_번_남긴다():
+    trace: list[TraceEvent] = []
+
+    with pytest.raises(VerificationError):
+        VerificationAgent(model=_RaisingModel()).verify(_draft(), trace=trace)
+
+    failed = [event for event in trace if event.action == "model_review_failed"]
+    assert len(failed) == 1
+    assert failed[0].detail == "_Review 생성 실패: RuntimeError"
+    assert trace[-1].action == "model_review_failed"
+
+
+def test_파싱_오류는_기존_문구로_감싸고_규칙_결과와_trace를_남긴다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+    trace: list[TraceEvent] = []
+    cause = ValueError("스키마 불일치")
+
+    with pytest.raises(VerificationError) as exc_info:
+        VerificationAgent(model=_StubModel(None, parsing_error=cause)).verify(_draft(), trace=trace)
+
+    assert exc_info.value.__cause__ is cause
+    assert str(exc_info.value) == "모델 검토 호출에 실패했습니다: ValueError: 스키마 불일치"
+    assert exc_info.value.partial_result is not None
+    assert trace[-1].detail == "_Review 생성 실패: ValueError"
+    # 파싱에 실패해도 이미 쓴 토큰은 기록
+    assert (captured[0]["ok"], captured[0]["error_type"], captured[0]["usage"].input_tokens) == (False, "ValueError", 2000)
+
+
+def test_파싱_결과가_비면_MissingParsedOutput을_원인으로_연결한다(monkeypatch):
+    captured = _capture_usage(monkeypatch)
+    trace: list[TraceEvent] = []
+
+    with pytest.raises(VerificationError) as exc_info:
+        VerificationAgent(model=_StubModel(None)).verify(_draft(), trace=trace)
+
+    assert isinstance(exc_info.value.__cause__, MissingParsedOutput)
+    assert trace[-1].detail == "_Review 생성 실패: MissingParsedOutput"
+    assert captured[0]["error_type"] == "MissingParsedOutput"
+
+
+def test_검증_예외는_AgentError_계열이다():
+    assert issubclass(VerificationError, AgentError)
+    assert issubclass(VerificationError, RuntimeError)
 
 
 # ---------- 모델 입력 ----------
@@ -827,3 +922,79 @@ def test_출력_스키마를_프롬프트에_중복으로_붙이지_않는다():
     assert "앞 단계의 도메인 판단을 반복하지 않는다" in system_prompt
     assert "다시 `missing_evidence`로 지적하지 않는다" in system_prompt
     assert "$defs" not in system_prompt  # JSON Schema 본문은 없다
+
+
+def test_요청_본문이_이관_전_방식과_같다(fake_gateway):
+    # 기준: 이관 전 코드처럼 _Review 클래스를 strict json_schema로 넘긴 요청 (SDK 버전이 바뀌어도 같은 비교)
+    draft = _draft()
+    actual: list[dict] = []
+    agent = VerificationAgent(fake_gateway("{}", "stop", actual))
+    expected: list[dict] = []
+    reference = fake_gateway("{}", "stop", expected).with_structured_output(
+        _Review, method="json_schema", strict=True,
+    )
+
+    # 응답 "{}"는 스키마와 맞지 않아 양쪽 모두 실패하지만 요청 본문은 이미 기록됨
+    with contextlib.suppress(Exception):
+        reference.invoke(agent._build_messages(draft))
+    with pytest.raises(VerificationError):
+        agent.verify(draft)
+
+    assert actual == expected
+
+
+def test_critical_수정과_추가_툴이_겹치면_revision_required가_된다():
+    review = _review(
+        issues=[
+            _Issue(
+                severity="critical",
+                issue_type="unsupported_claim",
+                description="인용문이 결론을 뒷받침하지 않습니다.",
+                related_finding_ids=["f1"],
+                recommended_action=None,
+            )
+        ],
+        additional_tools_required=[ToolName.RADIO],
+    )
+
+    result = VerificationAgent(model=_StubModel(review)).verify(_draft())
+
+    assert result.status is VerificationStatus.REVISION_REQUIRED
+    assert ToolName.RADIO in result.additional_tools_required
+
+
+@pytest.mark.parametrize(
+    "tool_name",
+    list(ToolName),
+    ids=lambda tool_name: tool_name.value,
+)
+def test_선택된_툴의_실행_기록이_누락되면_revision_required가_된다(
+    tool_name: ToolName,
+):
+    draft = _draft()
+
+    # 기본 픽스처의 ELECTRICAL 실행 결과와 종합 finding을 제거해
+    # 모든 Tool이 미선택된 일관된 상태로 만든다.
+    _unselect_tool(draft, ToolName.ELECTRICAL)
+
+    # 검사할 Tool을 선택 목록에는 남기고 실행 기록만 제거한다.
+    draft.selected_tools = [tool_name]
+    draft.tool_results = [
+        result
+        for result in draft.tool_results
+        if result.tool_name is not tool_name
+    ]
+
+    result = VerificationAgent().verify_rules(draft)
+
+    issue = next(
+        issue
+        for issue in result.issues
+        if issue.issue_type is VerificationIssueType.MISSING_TOOL
+        and issue.description.startswith(f"{tool_name}:")
+        and "실행 기록이 없습니다" in issue.description
+    )
+
+    assert issue.severity == "critical"
+    assert tool_name in result.additional_tools_required
+    assert result.status is VerificationStatus.REVISION_REQUIRED

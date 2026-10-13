@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-import type { ProductStatus } from "./types";
+import { ProductStatus } from "./types";
 
 // 상품별 질문 진행 상태를 나타내는 점 스타일
 const dotVariants = cva("size-2 rounded-full", {
@@ -17,9 +17,9 @@ const dotVariants = cva("size-2 rounded-full", {
 const segmentVariants = cva("h-1.5 w-5 rounded-full", {
     variants: {
         state: {
-            complete: "bg-status-success",
-            partial: "bg-primary/35",
-            empty: "bg-neutral-200",
+            [ProductStatus.Complete]: "bg-status-success",
+            [ProductStatus.Partial]: "bg-primary/35",
+            [ProductStatus.Empty]: "bg-neutral-200",
         },
     },
 });
@@ -36,7 +36,7 @@ function ProgressSummary({ currentAnswered, productStatuses }: ProgressSummaryPr
     const isCurrentComplete = totalCount > 0 && answeredCount === totalCount;
 
     // 전체 제품에 대한 답변 완료 여부
-    const completedProductCount = productStatuses.filter((status) => status === "complete").length;
+    const completedProductCount = productStatuses.filter((status) => status === ProductStatus.Complete).length;
     const totalProductCount = productStatuses.length;
     const isAllComplete = totalProductCount > 0 && completedProductCount === totalProductCount;
 

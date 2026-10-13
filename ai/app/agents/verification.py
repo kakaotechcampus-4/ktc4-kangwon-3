@@ -6,13 +6,9 @@
 
 import json
 from dataclasses import dataclass, field
-from functools import lru_cache
-from pathlib import Path
-from time import perf_counter
-from typing import Literal, Protocol
+from typing import Literal
 
-from langchain_core.callbacks import UsageMetadataCallbackHandler
-
+from ..prompts import PromptName
 from ..schemas.base import StrictModel, utc_now
 from ..schemas.schemas import (
     Determination,
@@ -27,9 +23,7 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus as Status,
 )
-from ..usage import from_handler, record
-
-_PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / "verification.md"
+from .base import AgentError, BaseAgent, ModelFailurePhase
 
 # 상세 결과의 kind와 툴 종류의 대응. 판별 유니온이 둘의 일치까지 검사하지는 않는다.
 _RESULT_KINDS = {
@@ -45,6 +39,15 @@ _RESULT_KINDS = {
 _DEFINITIVE = frozenset(
     {Determination.REQUIRED, Determination.NOT_REQUIRED, Determination.NOT_APPLICABLE}
 )
+
+# 추가 Tool 실행으로 보완할 수 있는 검증 이슈이다.
+_TOOL_RECOVERABLE_ISSUES = frozenset(
+    {
+        IssueType.TOOL_FAILURE,
+        IssueType.MISSING_EVIDENCE,
+    }
+)
+
 
 _Severity = Literal["critical", "warning", "info"]
 
@@ -77,28 +80,13 @@ class _RuleCheckContext:
             self.additional_tools.append(tool)
 
 
-@lru_cache(maxsize=1)
-def _load_system_prompt() -> str:
-    """고정 시스템 프롬프트를 프로세스에서 한 번만 읽는다."""
-    return _PROMPT_PATH.read_text(encoding="utf-8")
-
-
-class VerificationError(RuntimeError):
+class VerificationError(AgentError):
     """모델 검증을 완료하지 못했다.
 
-    ``partial_result``에는 모델 호출 전 완료한 규칙 검사 결과를 보존할 수 있다.
+    ``partial_result``에는 모델 호출 전 완료한 규칙 검사 결과(VerificationResult)를 보존할 수 있다.
     파이프라인은 이를 ``FinalVerificationStatus.INCOMPLETE`` 결과에 포함하고,
     정상 검증 완료로 취급하지 않아야 한다.
     """
-
-    def __init__(
-        self,
-        message: str,
-        *,
-        partial_result: VerificationResult | None = None,
-    ) -> None:
-        super().__init__(message)
-        self.partial_result = partial_result
 
 
 # 모델이 채우는 필드만 담는다. issue_id·question_id·verified_at은 서버가 만든다.
@@ -126,40 +114,21 @@ class _Review(StrictModel):
     checked_finding_ids: list[str]
 
 
-class _StructuredModel(Protocol):
-    """``model.with_structured_output(...)``이 돌려주는 결과물의 최소 인터페이스."""
+class VerificationAgent(BaseAgent[_Review]):
+    """종합된 심사 결과의 근거·누락·모순을 검증한다.
 
-    def invoke(self, messages: list, config: dict | None = None) -> _Review: ...
-
-
-class _ModelLike(Protocol):
-    """VerificationAgent가 실제로 쓰는 메서드만 좁혀 놓은 타입.
-
-    ``BaseChatModel``이 이 구조를 만족하므로 실제 모델도 그대로 넘길 수 있고,
-    테스트에서는 이를 상속하지 않는 가벼운 스텁도 그대로 넘길 수 있다.
+    생성자는 BaseAgent 그대로. model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있음.
+    model 없이도 verify_rules()는 동작하고, verify()는 명시적으로 실패함 (모델 자동 생성 안 함).
     """
 
-    def with_structured_output(self, schema: type[_Review], **kwargs) -> _StructuredModel: ...
-
-
-class VerificationAgent:
-    """종합된 심사 결과의 근거·누락·모순을 검증한다."""
-
-    def __init__(
-        self,
-        model: _ModelLike | None = None,
-        *,
-        configured_model: str | None = None,
-    ) -> None:
-        # model을 주입하면 테스트에서 실제 API 호출 없이 검증할 수 있다.
-        # model 없이도 verify_rules()는 동작하고, verify()는 명시적으로 실패한다.
-        self._configured_model = configured_model or getattr(model, "model_name", None)
-        self._structured = (
-            None
-            if model is None
-            # 프록시가 strict json_schema를 지원하므로 함수호출 방식 대신 스키마를 강제한다.
-            else model.with_structured_output(_Review, method="json_schema", strict=True)
-        )
+    component_name = "verification"
+    prompt_name = PromptName.VERIFICATION
+    output_schema = _Review
+    error_class = VerificationError
+    # 프록시가 strict json_schema를 지원하므로 함수호출 방식 대신 스키마를 강제함
+    structured_output_options = {"method": "json_schema", "strict": True}
+    # 규칙 전용 실행(verify_rules)은 모델이 필요 없어 자동 생성하지 않음. 모델은 from_env()로
+    creates_default_model = False
 
     @classmethod
     def from_env(cls) -> "VerificationAgent":
@@ -167,6 +136,57 @@ class VerificationAgent:
 
         settings = load_settings()
         return cls(build_chat_model(settings), configured_model=settings.model)
+
+    def _review_with_trace(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        subject_id: str,
+        rules: VerificationResult,
+        trace: list[TraceEvent] | None,
+    ) -> _Review:
+        """모델 검토를 호출하고, 실패하면 기존 Trace를 남긴 뒤 같은 예외를 다시 던진다 (#171 §4.2).
+
+        Args:
+            messages: 모델에 보낼 메시지.
+            subject_id: 사용량 기록 대상 상품 ID.
+            rules: 규칙 검사 결과. 실패 시 VerificationError.partial_result로 보존.
+            trace: 실행 이력. None이면 기록하지 않음.
+
+        Returns:
+            _Review: 모델 검토 결과.
+
+        Raises:
+            VerificationError: 모델 호출 또는 파싱 실패. 원인은 ``__cause__``에 보존.
+        """
+        try:
+            return self._invoke(messages, subject_id=subject_id, partial_result=rules)
+        except VerificationError as exc:
+            cause = exc.__cause__
+            self._append_trace(
+                trace,
+                action="model_review_failed",
+                status="failed",
+                detail=f"_Review 생성 실패: {type(cause).__name__}",
+            )
+            # 새 예외로 감싸지 않아 원본 원인이 __cause__에 그대로 남음
+            raise
+
+    def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
+        """기존 검토 호출 실패 문구를 돌려준다.
+
+        include_raw 이전에는 파싱 실패도 invoke 예외로 와서 같은 문구였음. 호출·파싱 구분은
+        사용량 기록의 error_type과 ``__cause__``로 확인.
+        응답 본문이 메시지에 섞일 수 있어 이 메시지를 그대로 외부에 공유하지 않음.
+
+        Args:
+            phase: 실패 단계.
+            cause: 원인 예외.
+
+        Returns:
+            str: 예외 메시지.
+        """
+        return f"모델 검토 호출에 실패했습니다: {type(cause).__name__}: {cause}"
 
     def verify(
         self,
@@ -208,42 +228,11 @@ class VerificationAgent:
             status="started",
             detail="DraftAssessment를 GPT 구조화 출력 _Review로 검토합니다.",
         )
-        usage_handler = UsageMetadataCallbackHandler()
-        started_at = perf_counter()
-        try:
-            review = self._structured.invoke(
-                self._build_messages(draft),
-                config={"callbacks": [usage_handler]},
-            )
-        except Exception as exc:
-            record(
-                "verification",
-                from_handler(usage_handler),
-                configured_model=self._configured_model,
-                subject_id=draft.product.product_id,
-                ok=False,
-                elapsed_ms=round((perf_counter() - started_at) * 1000),
-                error_type=type(exc).__name__,
-            )
-            self._append_trace(
-                trace,
-                action="model_review_failed",
-                status="failed",
-                detail=f"_Review 생성 실패: {type(exc).__name__}",
-            )
-            # 원인은 __cause__에 그대로 남는다. 응답 본문이 메시지에 섞일 수 있으므로
-            # 이 로그를 그대로 외부에 공유하지 않는다.
-            raise VerificationError(
-                f"모델 검토 호출에 실패했습니다: {type(exc).__name__}: {exc}",
-                partial_result=rules,
-            ) from exc
-
-        record(
-            "verification",
-            from_handler(usage_handler),
-            configured_model=self._configured_model,
+        review = self._review_with_trace(
+            self._build_messages(draft),
             subject_id=draft.product.product_id,
-            elapsed_ms=round((perf_counter() - started_at) * 1000),
+            rules=rules,
+            trace=trace,
         )
 
         self._append_trace(
@@ -543,8 +532,7 @@ class VerificationAgent:
                         severity="warning",
                     )
 
-    @staticmethod
-    def _build_messages(draft: DraftAssessment) -> list[dict[str, str]]:
+    def _build_messages(self, draft: DraftAssessment) -> list[dict[str, str]]:
         payload = draft.model_dump(mode="json")
         # 조회 파라미터와 원시 응답에는 키·토큰·개인정보가 섞일 수 있어 모델에 보내지 않는다.
         # tool_results[].findings는 최상위 findings와 항상 같아야 한다는 규칙을 verify_rules()가 이미 검사하므로, 모델에는 최상위 목록 한 벌만 보내 입력 토큰을 줄인다.
@@ -554,7 +542,7 @@ class VerificationAgent:
         # 출력 JSON Schema는 with_structured_output이 API에 직접 전달한다.
         # 프롬프트에 다시 붙이면 토큰만 늘고 두 스키마가 어긋날 수 있어 넣지 않는다.
         return [
-            {"role": "system", "content": _load_system_prompt()},
+            {"role": "system", "content": self.prompt.text},
             {"role": "user", "content": json.dumps({"draft": payload}, ensure_ascii=False)},
         ]
 
@@ -640,18 +628,31 @@ class VerificationAgent:
 
     @staticmethod
     def _status(result: VerificationResult) -> Status:
-        """심각도가 높고 더 구체적인 상태를 먼저 고른다.
+        """검증 결과에서 가장 우선하는 후속 상태를 고른다.
 
-        critical은 초안 자체가 틀렸다는 뜻이라 사용자에게 묻기 전에 먼저 바로잡아야 한다.
-        추가 툴 요청보다 필수 질문을 앞에 두는 이유는, 둘 다 해당할 때 status만 보고
-        분기하는 쪽에 "사람만 풀 수 있는 막힘"이라는 더 구체적인 정보를 남기기 위해서다.
+        Tool 재실행으로 해결할 수 없는 critical 이슈는 초안 수정을 우선한다.
+        필수 질문은 사람이 제공해야 하는 정보이므로 Tool 재실행보다 앞선다.
         """
-        if any(i.severity == "critical" for i in result.issues):
+
+        blocking_critical = any(
+            issue.severity == "critical"
+            and issue.issue_type not in _TOOL_RECOVERABLE_ISSUES
+            for issue in result.issues
+        )
+        if blocking_critical:
             return Status.REVISION_REQUIRED
-        if any(q.required for q in result.follow_up_questions):
+
+        if any(question.required for question in result.follow_up_questions):
             return Status.USER_INPUT_REQUIRED
+
         if result.additional_tools_required:
+            return Status.TOOLS_REQUIRED
+
+        # 복구 가능한 critical이라도 실행할 Tool이 지정되지 않았다면 자동 복구가 불가능.
+        if any(issue.severity == "critical" for issue in result.issues):
             return Status.REVISION_REQUIRED
+
         if result.issues or result.follow_up_questions:
             return Status.APPROVED_WITH_WARNINGS
+
         return Status.APPROVED
