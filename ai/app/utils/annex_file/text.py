@@ -5,6 +5,7 @@
 """
 
 import re
+from dataclasses import dataclass, field
 
 from ...schemas.annex import AnnexAttribute
 
@@ -13,7 +14,8 @@ EXAMPLE_ATTRIBUTE = "예시 품목"
 _SPACES_RE = re.compile(r"\s+")
 # 줄 끝이 가운뎃점이면 다음 줄과 띄우지 않음 ("정보․통신․" + "사무기기")
 _MIDDLE_DOTS = "·ㆍ․"
-_NOTE_RE = re.compile(r"^비고\s*:\s*")
+# "비고:", "비고 :", "비고)", 겹쳐 쓴 "비고) 비고)", 머리만 있는 "비고" 문단
+_NOTE_RE = re.compile(r"^(비고\s*[:)]\s*)+|^비고\s*$")
 _NUMBERED_RE = re.compile(r"^\d+\.\s+")
 _SENTENCE_END_RE = re.compile(r"(?<=다\.)\s+")
 # "…에 한정하며, …는 제외한다."처럼 한 문장에 이어진 문구의 경계
@@ -28,10 +30,40 @@ _BRACKETS = {")": "(", "]": "["}
 _AMENDMENT_RE = re.compile(r"\(\s*신\s*설\s*\)")
 _DELETED_RE = re.compile(r"^<?삭\s*제")
 _TITLE_RELATED_RE = re.compile(r"\s*\([^()]*관련\)\s*$")
-_TITLE_TABLE_RE = re.compile(r"\s*(의\s*)?세부\s*품목$")
+# 제목 끝 표 이름: "(의) 세부품목", "의 종류 및 적용 안전기준"
+_TITLE_TABLE_RE = re.compile(r"\s*(의\s*)?(세부\s*품목|종류\s*및\s*적용\s*안전기준)$")
 _ANNEX_HEADING_RE = re.compile(r"^(■.*)?[\[【]별표")
 # 괄호 안 항목이 이 수 이상이어야 나열로 봄. "(시스템 포함)" 같은 풀이 괄호는 그대로
 _MIN_LISTED = 3
+
+
+@dataclass
+class Phrases:
+    """한 행에 붙는 한정·제외·포함 문구 묶음.
+
+    Attributes:
+        conditions: 한정 문구.
+        exclusions: 제외 문구.
+        inclusions: 포함 문구.
+    """
+
+    conditions: list[str] = field(default_factory=list)
+    exclusions: list[str] = field(default_factory=list)
+    inclusions: list[str] = field(default_factory=list)
+
+    def extend(self, conditions: list[str], exclusions: list[str], inclusions: list[str]) -> None:
+        """문구를 뒤에 붙인다."""
+        self.conditions.extend(conditions)
+        self.exclusions.extend(exclusions)
+        self.inclusions.extend(inclusions)
+
+    def merged(self, *others: "Phrases | None") -> "Phrases":
+        """이 묶음 뒤에 다른 묶음들을 이어 붙인 새 묶음."""
+        result = Phrases(list(self.conditions), list(self.exclusions), list(self.inclusions))
+        for other in others:
+            if other is not None:
+                result.extend(other.conditions, other.exclusions, other.inclusions)
+        return result
 
 
 def join_lines(text: str) -> str:
@@ -72,7 +104,10 @@ def note_entries(text: str) -> list[str]:
         list[str]: 비고 항목 목록.
     """
     entries: list[str] = []
-    for line in _NOTE_RE.sub("", text.strip()).splitlines():
+    lines = text.strip().splitlines()
+    if lines:
+        lines[0] = _NOTE_RE.sub("", lines[0])
+    for line in lines:
         line = line.strip()
         if not line:
             continue
