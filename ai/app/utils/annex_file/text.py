@@ -54,10 +54,10 @@ class Phrases:
     inclusions: list[str] = field(default_factory=list)
 
     def extend(self, conditions: list[str], exclusions: list[str], inclusions: list[str]) -> None:
-        """문구를 뒤에 붙인다."""
-        self.conditions.extend(conditions)
-        self.exclusions.extend(exclusions)
-        self.inclusions.extend(inclusions)
+        """문구를 뒤에 붙인다. 이미 있는 문구는 다시 넣지 않음 (상·하위 묶음 조항 머리가 같은 경우 등)."""
+        for target, phrases in ((self.conditions, conditions), (self.exclusions, exclusions),
+                                (self.inclusions, inclusions)):
+            target.extend(phrase for phrase in dict.fromkeys(phrases) if phrase not in target)
 
     def merged(self, *others: "Phrases | None") -> "Phrases":
         """이 묶음 뒤에 다른 묶음들을 이어 붙인 새 묶음."""
@@ -137,7 +137,7 @@ def classify_phrases(text: str) -> tuple[list[str], list[str], list[str]]:
     for entry in note_entries(text):
         for sentence in _SENTENCE_END_RE.split(entry):
             for clause in _CLAUSE_END_RE.split(sentence):
-                clause = clause.strip()
+                clause = clause.strip().lstrip("※").strip()
                 if not clause:
                     continue
                 if _EXCLUSION_RE.search(clause):
@@ -165,6 +165,8 @@ def _trailing_bracket(text: str) -> tuple[str, str] | None:
 def split_qualifier(text: str) -> tuple[str, list[str], list[str], list[str]]:
     """이름 끝 괄호의 한정·제외·포함 문구를 떼어 낸다. 그 밖의 괄호("(착용형)")는 이름에 둠.
 
+    끝 괄호가 여럿 이어지면("할로겐전구 (250 W 이하인 것에 한정한다) (※ 컬러램프 포함)") 한정·제외·포함인 동안 계속 뗌.
+
     Args:
         text: 번호를 뺀 품목·분류 이름 (예: "절연전선(공칭단면적이 95mm2 이하인 것에 한정한다)").
 
@@ -172,10 +174,14 @@ def split_qualifier(text: str) -> tuple[str, list[str], list[str], list[str]]:
         tuple[str, list[str], list[str], list[str]]: (이름, 한정, 제외, 포함).
     """
     text = _SPACES_RE.sub(" ", _AMENDMENT_RE.sub("", text)).strip()
-    parsed = _trailing_bracket(text)
-    if parsed is None or not parsed[0] or not _QUALIFIER_RE.search(parsed[1]):
-        return text, [], [], []
-    return parsed[0], *classify_phrases(parsed[1])
+    inners: list[str] = []
+    while (parsed := _trailing_bracket(text)) and parsed[0] and _QUALIFIER_RE.search(parsed[1]):
+        text = parsed[0]
+        inners.insert(0, parsed[1])
+    phrases = Phrases()
+    for inner in inners:
+        phrases.extend(*classify_phrases(inner))
+    return text, phrases.conditions, phrases.exclusions, phrases.inclusions
 
 
 def split_listed(text: str) -> list[str]:

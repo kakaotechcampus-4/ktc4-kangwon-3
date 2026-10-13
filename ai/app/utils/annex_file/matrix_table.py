@@ -87,6 +87,8 @@ def parse_matrix_tables(blocks: list[Block]) -> AnnexParseOutput:
         _parse_table(block, section, drafts, skipped, notes, group_phrases)
 
     items = [draft.item.model_copy(update=_phrase_fields(draft, group_phrases)) for draft in drafts]
+    # 같은 비고가 표마다 되풀이됨 (전자파흡수율 기준 안내 등)
+    notes = list(dict.fromkeys(notes))
     return AnnexParseOutput(scheme=scheme_from_title(titles[0]), items=items, skipped=skipped, notes=notes)
 
 
@@ -335,7 +337,7 @@ def _note_entries(text: str) -> list[str]:
     lines = text.strip().splitlines()
     if lines and _NOTE_HEAD_RE.match(lines[0].strip()):
         lines = lines[1:]
-    return note_entries("\n".join(lines))
+    return [_BULLET_RE.sub("", entry) for entry in note_entries("\n".join(lines))]
 
 
 def _phrase_fields(draft: _Draft, group_phrases: dict[int, Phrases]) -> dict[str, list[str]]:
