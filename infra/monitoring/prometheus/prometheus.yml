@@ -11,10 +11,15 @@ scrape_configs:
     static_configs:
       - targets: ["mon-cadvisor:8080"]
 
+  # Blue-Green 두 컨테이너가 같은 alias(be-server)를 쓴다. static으로 두면 전환 중 두 JVM이 한 시계열에 섞여
+  # 가짜 counter reset이 생기므로, 떠 있는 컨테이너를 DNS로 찾아 각각 별도 instance로 수집한다.
   - job_name: be-app
     metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: ["be-server:8081"]
+    dns_sd_configs:
+      - names: ["be-server"]
+        type: A
+        port: 8081
+        refresh_interval: 15s
 
   - job_name: node
     static_configs:
