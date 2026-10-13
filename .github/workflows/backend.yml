@@ -124,6 +124,7 @@ jobs:
             aws s3 cp s3://${{ env.S3_BUCKET }}/blue-green-${{ github.sha }}.sh ${{ env.APP_DIR }}/release/blue-green.sh
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
             cd ${{ env.APP_DIR }}/release
+            docker network inspect be-ai-net >/dev/null 2>&1 || docker network create be-ai-net
             bash blue-green.sh deploy ${{ github.sha }}
             docker ps -a --filter name=be-server --format '{{.Names}} {{.Image}} {{.Status}}'
             docker image prune -a -f
