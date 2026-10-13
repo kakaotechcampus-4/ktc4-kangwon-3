@@ -144,3 +144,20 @@ def test_번호_칸_안의_정의와_대표_품목은_설명_칸으로_읽고_�
     assert _attributes(first)[:2] == [("정의", ["중앙처리장치를 가진 전자 컴퓨터"]), ("대표 품목", ["데스크톱", "노트북"])]
     assert (second.item_name, second.conditions) == ("전기분무기", ["교류전원 사용기기에 한함"])
     assert [(row.item_label, row.reason) for row in output.skipped] == [("27)", "(삭 제)")]
+
+
+def test_품목_칸_아래_단서_칸은_그_품목_행에_붙인다():
+    # 고시 별표 1 표 11 "8) 전열기구류" 아래 "o 다음에 해당하는 기자재는 … 제외한다." 모양
+    table = Table((
+        _cell(0, 0, "대상기자재", col_span=3), _cell(0, 3, "적합\n등록"), _cell(0, 4, "기기\n부호"),
+        _cell(1, 0, "나.생활가전기기류", row_span=2),
+        _cell(1, 1, "8) 전열기구류", row_span=2), _cell(1, 2, "o (정의) 난방을 하는 기기"),
+        _cell(1, 3, "○"), _cell(1, 4, "HEA11"),
+        _cell(2, 2, "o 다음에 해당하는 기자재는 적합성평가 대상에서 제외한다.\n- 단순 열선으로만 구성되어 있는 전기가열기기",
+              col_span=3),
+    ))
+
+    item = parse_matrix_tables(["적합성평가 대상기자재", table]).items[0]
+
+    assert (item.item_name, item.exclusions) == ("전열기구류", [
+        "다음에 해당하는 기자재는 적합성평가 대상에서 제외한다.", "단순 열선으로만 구성되어 있는 전기가열기기"])
