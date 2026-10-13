@@ -27,9 +27,19 @@ class AdvertisingClaim(StrictModel):
     reason: str = Field(min_length=1)
 
 
+class LineCheck(StrictModel):
+    """listing_text 한 줄을 본 기록."""
+
+    line_number: int = Field(description="listing_text에서 몇 번째 줄인지(1부터)")
+    candidates: list[str] = Field(description="이 줄에서 네 유형에 해당할 수 있는 구절. 원문 그대로")
+    decision: str = Field(description="각 후보를 찾는 것으로 둘지 '찾지 않는 것'으로 뺄지와 이유를 짧게")
+
+
 # 독스트링은 JSON 스키마 description으로 모델에 그대로 간다. "없으면 빈 목록"이라고 쓰면 빈 목록을
 # 더 자주 냈다(얼굴 롤러 2회 모두 0개 → 중립 문장으로 바꾸자 2회 모두 3개). 빈 목록 허용은 프롬프트에만 둔다.
 class AdvertisingReview(StrictModel):
     """판매자 문구에서 찾은 실증 필요 주장 목록."""
 
+    # claims보다 먼저 줄마다 판단을 쓰게 한다. Tool은 쓰지 않고 raw_response에만 남는다.
+    line_checks: list[LineCheck]
     claims: list[AdvertisingClaim]
