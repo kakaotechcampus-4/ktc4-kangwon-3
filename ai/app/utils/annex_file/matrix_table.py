@@ -359,7 +359,13 @@ def _add_clause(cell: Cell, left: list[Cell], path: list[str], skipped: list[Ann
         skipped.append(AnnexSkippedRow(category_path=path, item_label=label, reason=lines[0]))
     head = _BULLET_RE.sub("", lines[0]).lstrip("※ ").strip()
     conditions, exclusions, inclusions = classify_phrases(head)
-    listed = [_BULLET_RE.sub("", line) for line in lines[1:]]
+    # 나열 항목은 "o"·"-" 줄마다 하나. 표시 없는 줄("(다만, … 대상임)")은 앞 항목의 단서라 이어 붙임
+    listed: list[str] = []
+    for line in lines[1:]:
+        if _BULLET_RE.match(line) or not listed:
+            listed.append(_BULLET_RE.sub("", line))
+        else:
+            listed[-1] = f"{listed[-1]} {line}"
     # 조항 아래 나열은 조항과 같은 종류 문구
     if exclusions:
         exclusions += listed
