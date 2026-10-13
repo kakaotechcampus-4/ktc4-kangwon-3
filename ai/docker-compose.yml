@@ -18,7 +18,7 @@ services:
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL}
 
       # BE URL 환경변수
-      BE_BASE_URL: ${BE_BASE_URL:-http://host.docker.internal:8080}
+      BE_BASE_URL: ${BE_BASE_URL:-http://be-server:8080}
       
       # AI DB URL 환경변수
       DATABASE_URL: ${DATABASE_URL}
@@ -38,7 +38,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks: [ai-net]
+    networks: [ai-net, be-ai-net]
 
   ai-db:
     image: pgvector/pgvector:pg16
@@ -73,3 +73,8 @@ volumes:
 networks:
   ai-net:
     name: ai-net
+  # BE app(blue/green)과 AI만 잇는 전용 네트워크. be_appnet과 달리 BE db/redis에는 닿지 않는다.
+  # BE·AI 배포 순서와 무관하도록 양쪽 워크플로가 없으면 만든다. 로컬은 처음 한 번 `docker network create be-ai-net`.
+  be-ai-net:
+    name: be-ai-net
+    external: true
