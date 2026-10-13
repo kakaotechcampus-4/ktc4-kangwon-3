@@ -93,6 +93,16 @@ def output_labels(output: AnnexParseOutput) -> Counter:
     return Counter(label for label in map(_label, labels) if label)
 
 
+def attribute_labels(output: AnnexParseOutput) -> Counter:
+    """추가 칸 값 머리의 번호 개수.
+
+    어린이제품 별표의 적용 안전기준처럼 번호 붙은 목록이 품목이 아닌 칸에 있음.
+    병합 칸 값은 여러 행에 되풀이되므로 누락을 채우는 데만 씀.
+    """
+    values = (value for item in output.items for attribute in item.attributes for value in attribute.values)
+    return Counter(label for label in map(_label, values) if label)
+
+
 def category_labels(output: AnnexParseOutput) -> Counter:
     """category_path에 들어간 번호 개수. 같은 분류는 한 번만 셈.
 
@@ -180,6 +190,6 @@ def missing_labels(content: str, output: AnnexParseOutput) -> Counter:
     """원문 번호 중 items·skipped·분류 어디에도 없는 번호. 조각 단위 재호출 판단에도 씀.
 
     분류로 옮긴 번호는 누락을 채우는 데만 씀. 품목·세부품목 칸에 같은 번호가 나란히 있는 표에서
-    분류의 번호까지 세면 원문보다 많다고 잘못 판정하기 때문.
+    분류의 번호까지 세면 원문보다 많다고 잘못 판정하기 때문. 추가 칸 값의 번호도 같음.
     """
-    return source_labels(content) - output_labels(output) - category_labels(output)
+    return source_labels(content) - output_labels(output) - category_labels(output) - attribute_labels(output)
