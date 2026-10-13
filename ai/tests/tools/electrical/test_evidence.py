@@ -9,7 +9,7 @@ import pytest
 from app.schemas.clients.law_response import AdmrulSearchResponse
 from app.tools.electrical.evidence import (
     NOTICE_ID, NOTICE_NAME, CachedEvidenceSource, DatabaseEvidenceSource, EvidenceUnavailable,
-    LawApiEvidenceSource, LawLookupError, Scheme, article_text, compact, purchase_agent_status, select_version,
+    LawApiClients, LawApiEvidenceSource, LawLookupError, Scheme, article_text, compact, purchase_agent_status, select_version,
 )
 
 AS_OF = date(2026, 10, 7)
@@ -146,7 +146,7 @@ def test_필요한_별표가_없으면_근거로_쓰지_않는다(fake_law):
 # -- 조회 실패 분류 --
 
 def test_법제처_응답_오류는_전용_예외로_바꾼다(fake_law):
-    # LawClient는 API 오류 응답·XML 아님을 RuntimeError로 던진다.
+    # 법제처 클라이언트는 API 오류 응답·XML 아님을 RuntimeError로 던진다.
     fake_law.error = RuntimeError("법제처 API 오류: OC=secret")
     with pytest.raises(LawLookupError) as caught:
         LawApiEvidenceSource(fake_law).load(AS_OF)
@@ -205,6 +205,38 @@ def test_항_아래_호가_중첩된_조문_응답도_전문을_모은다():
     article = SimpleNamespace(article_number="3", article_branch_number=None, article_content="제3조(범위)",
                               paragraphs=[paragraph])
     assert article_text(SimpleNamespace(articles=[article]), 3) == "제3조(범위) ① 항 1. 호 가. 목"
+
+
+def test_행정규칙_본문이_항_호로_나뉘어_와도_고시_제3조_저전압_문구를_모은다(electrical_evidence):
+    # #293 이후 행정규칙 본문(AdmrulTextClient)은 조문을 항·호로 나눠 준다. 픽스처는 그 응답 그대로다.
+    text = compact(electrical_evidence.notice_scope.text)
+    assert text.startswith("제3조(안전관리대상제품의세부품목)")
+    assert all(token in text for token in ("30V이하", "42V이하", "제외", "비고"))
+
+
+class _Client:
+    def __init__(self, name, calls):
+        self.name, self.calls = name, calls
+
+    def fetch_parsed(self, request):
+        self.calls.append((self.name, request))
+        return self.name
+
+    def close(self):
+        self.calls.append((self.name, "close"))
+
+
+def test_법제처_클라이언트_묶음은_조회마다_해당_클라이언트를_부르고_모두_닫는다():
+    calls = []
+    clients = LawApiClients(*(_Client(name, calls) for name in ("law_search", "law_text", "admrul_search", "admrul_text")))
+    assert clients.search_law("q1") == "law_search"
+    assert clients.get_law_text("q2") == "law_text"
+    assert clients.search_admrul("q3") == "admrul_search"
+    assert clients.get_admrul_text("q4") == "admrul_text"
+    clients.close()
+    assert calls[:4] == [("law_search", "q1"), ("law_text", "q2"), ("admrul_search", "q3"), ("admrul_text", "q4")]
+    assert sorted(name for name, what in calls[4:] if what == "close") == [
+        "admrul_search", "admrul_text", "law_search", "law_text"]
 
 
 # -- 구매대행 특례 (시행규칙 별표 13) --

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from app.schemas.clients.law_response import (
-    AdmrulSearchResponse, LawAnnex, LawArticle, LawSearchResponse, LawTextResponse,
+    AdmrulSearchResponse, AdmrulTextResponse, LawAnnex, LawArticle, LawSearchResponse, LawTextResponse,
 )
 from app.tools.electrical.evidence import (
     NOTICE_ID, NOTICE_NAME, RULE_ID, RULE_NAME, LawApiEvidenceSource,
@@ -31,7 +31,7 @@ def _articles(name: str) -> list[LawArticle]:
 
 
 class FakeLaw:
-    """LawClient와 같은 메서드를 가진 Fake. 호출 기록과 오류 주입을 지원한다.
+    """LawApiClients와 같은 메서드를 가진 Fake. 호출 기록과 오류 주입을 지원한다.
 
     검색 결과에는 실제처럼 2026-11-01 시행 예정 고시가 첫 행에 있다(검색 순서에 의존하는 구현을 잡는다).
     """
@@ -59,8 +59,9 @@ class FakeLaw:
             for number, title in _ANNEX_TITLES.items()
         ]
         self.notice_bodies = {
-            serial: LawTextResponse(name=NOTICE_NAME, document_id=NOTICE_ID, enforce_date=day,
-                                    articles=_articles("notice_article_3.json"), annexes=annexes)
+            serial: AdmrulTextResponse(serial_number=serial, name=NOTICE_NAME, document_id=NOTICE_ID,
+                                       enforce_date=day, is_article_format=True,
+                                       articles=_articles("notice_article_3.json"), annexes=annexes)
             for serial, day in ((NOTICE_SERIAL, "20260911"), (NEXT_NOTICE_SERIAL, "20261101"))
         }
 

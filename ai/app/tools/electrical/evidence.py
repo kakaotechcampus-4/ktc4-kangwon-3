@@ -22,7 +22,10 @@ from xml.etree.ElementTree import ParseError
 from pydantic import ValidationError
 
 from ...schemas.clients.law_request import LawSearchRequest, LawTextRequest
-from ...schemas.clients.law_response import AdmrulSearchResponse, LawSearchResponse, LawTextResponse
+from ...clients.law import AdmrulSearchClient, AdmrulTextClient, LawSearchClient, LawTextClient
+from ...schemas.clients.law_response import (
+    AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
+)
 
 RULE_NAME = "전기용품 및 생활용품 안전관리법 시행규칙"
 RULE_ID = "008044"
@@ -64,18 +67,52 @@ class EvidenceUnavailable(RuntimeError):
 class LawLookupError(RuntimeError):
     """법제처가 유효한 응답을 주지 않았다(API 오류 응답·XML 아님·기본정보 없음·응답 형식 불일치).
 
-    LawClient는 이런 경우 RuntimeError를 던진다. Client 호출 지점에서만 이 예외로 바꿔,
+    법제처 클라이언트는 이런 경우 RuntimeError를 던진다. Client 호출 지점에서만 이 예외로 바꿔,
     Tool 내부의 버그(RuntimeError 계열)가 API 실패로 분류되지 않게 한다.
     """
 
 
 class LawLookup(Protocol):
-    """근거 조회에 필요한 LawClient 메서드만 선언한다. 테스트에서는 Fake로 바꾼다."""
+    """근거 조회에 필요한 법제처 조회 4가지만 선언한다. 운영은 LawApiClients, 테스트는 Fake를 쓴다."""
 
     def search_law(self, request: LawSearchRequest) -> LawSearchResponse: ...
     def get_law_text(self, request: LawTextRequest) -> LawTextResponse: ...
     def search_admrul(self, request: LawSearchRequest) -> AdmrulSearchResponse: ...
-    def get_admrul_text(self, request: LawTextRequest) -> LawTextResponse: ...
+    def get_admrul_text(self, request: LawTextRequest) -> AdmrulTextResponse: ...
+
+
+class LawApiClients:
+    """조회별로 나뉜 법제처 클라이언트(#293) 4개를 LawLookup 모양으로 묶는다. 다 쓰면 close()로 닫는다.
+
+    Args:
+        law_search, law_text, admrul_search, admrul_text: 각 조회 클라이언트(fetch_parsed·close를 가진 객체).
+    """
+
+    def __init__(self, law_search, law_text, admrul_search, admrul_text):
+        self._law_search = law_search
+        self._law_text = law_text
+        self._admrul_search = admrul_search
+        self._admrul_text = admrul_text
+
+    @classmethod
+    def from_oc(cls, oc: str) -> "LawApiClients":
+        return cls(LawSearchClient(oc), LawTextClient(oc), AdmrulSearchClient(oc), AdmrulTextClient(oc))
+
+    def search_law(self, request: LawSearchRequest) -> LawSearchResponse:
+        return self._law_search.fetch_parsed(request)
+
+    def get_law_text(self, request: LawTextRequest) -> LawTextResponse:
+        return self._law_text.fetch_parsed(request)
+
+    def search_admrul(self, request: LawSearchRequest) -> AdmrulSearchResponse:
+        return self._admrul_search.fetch_parsed(request)
+
+    def get_admrul_text(self, request: LawTextRequest) -> AdmrulTextResponse:
+        return self._admrul_text.fetch_parsed(request)
+
+    def close(self) -> None:
+        for client in (self._law_search, self._law_text, self._admrul_search, self._admrul_text):
+            client.close()
 
 
 @dataclass(frozen=True)
@@ -431,17 +468,17 @@ def select_version(result, *, name: str, identifier: str, id_field: str, name_fi
     return selected
 
 
-def _check_body(body: LawTextResponse, selected, *, name: str, identifier: str) -> None:
+def _check_body(body: LawTextResponse | AdmrulTextResponse, selected, *, name: str, identifier: str) -> None:
     if body.document_id != identifier or compact(body.name or "") != compact(name):
         raise EvidenceUnavailable("검색 문서와 본문 식별 정보가 다릅니다.")
     if body.enforce_date != selected.enforce_date:
         raise EvidenceUnavailable("검색 버전과 본문 시행일이 다릅니다.")
 
 
-def article_text(body: LawTextResponse, number: int) -> str:
+def article_text(body: LawTextResponse | AdmrulTextResponse, number: int) -> str:
     """조문 하나의 전문을 원문 순서로 모은다.
 
-    항 아래 호·목이 중첩된 응답(PR #248 이후)과 평평한 목록 응답(이전) 모두 처리한다.
+    항 아래 호·목이 중첩된 응답(PR #248 이후, 행정규칙은 #293 이후)과 평평한 목록 응답(이전) 모두 처리한다.
 
     Raises:
         EvidenceUnavailable: 조문을 유일하게 찾지 못한 경우.
@@ -571,7 +608,7 @@ class LawApiEvidenceSource:
     """법제처 API로 시행규칙·운용요령을 조회한다. 실행마다 4회 요청하므로 CachedEvidenceSource로 감싼다.
 
     Args:
-        law_client: LawClient 또는 같은 메서드를 가진 객체. 생성·close는 호출자가 맡는다.
+        law_client: LawApiClients 또는 같은 메서드를 가진 객체. 생성·close는 호출자가 맡는다.
     """
 
     def __init__(self, law_client: LawLookup):
@@ -662,7 +699,7 @@ class DatabaseEvidenceSource:
 
     - 행정규칙(운용요령) 메타 테이블: 문서 ID, 일련번호, 시행일, 현행 여부
     - 별표 테이블: 문서 버전 FK, 별표번호·가지번호·구분·제목, 본문 원문
-    - 위 테이블을 채우는 적재 작업(LawClient.get_admrul_text 결과 저장)
+    - 위 테이블을 채우는 적재 작업(AdmrulTextClient 조회 결과 저장)
 
     구현 후에는 같은 ElectricalEvidence를 만들어 돌려주면 ElectricalTool을 바꾸지 않고 교체할 수 있다.
     파싱은 parse_annex, 버전 선택은 select_version을 그대로 쓴다.
