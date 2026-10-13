@@ -123,3 +123,24 @@ def test_분류_칸의_설명_줄은_분류_이름에서_뺀다():
 def test_행렬_표가_아니면_오류를_낸다():
     with pytest.raises(ValueError):
         parse_matrix_tables(["제목", Table((_cell(0, 0, "분류"), _cell(0, 1, "품목")))])
+
+
+def test_번호_칸_안의_정의와_대표_품목은_설명_칸으로_읽고_삭제_행은_뺀다():
+    # 고시 별표 1 표 11 "① 컴퓨터 및 컴퓨터 시스템 ⏎ o (정의) …", 표 7 "27) (삭 제)" 모양
+    table = Table((
+        _cell(0, 0, "대상기자재", col_span=2), _cell(0, 2, "적합\n등록"), _cell(0, 3, "기기\n부호"),
+        _cell(1, 0, "1) 정보기기류", row_span=3),
+        _cell(1, 1, "① 컴퓨터 및 컴퓨터 시스템\no (정의) 중앙처리장치를 가진 전자 컴퓨터\n"
+                    "o 대표적인 품목은 다음과 같다.\n- 데스크톱, 노트북"),
+        _cell(1, 2, "○"), _cell(1, 3, "ITE11"),
+        _cell(2, 1, "② 전기분무기(교류전원 사용기기에 한함)"), _cell(2, 2, "○"), _cell(2, 3, "ITE12"),
+        _cell(3, 1, "27) (삭 제)"), _cell(3, 2, ""), _cell(3, 3, ""),
+    ))
+
+    output = parse_matrix_tables(["적합성평가 대상기자재", table])
+
+    first, second = output.items
+    assert (first.item_label, first.item_name) == ("①", "컴퓨터 및 컴퓨터 시스템")
+    assert _attributes(first)[:2] == [("정의", ["중앙처리장치를 가진 전자 컴퓨터"]), ("대표 품목", ["데스크톱", "노트북"])]
+    assert (second.item_name, second.conditions) == ("전기분무기", ["교류전원 사용기기에 한함"])
+    assert [(row.item_label, row.reason) for row in output.skipped] == [("27)", "(삭 제)")]

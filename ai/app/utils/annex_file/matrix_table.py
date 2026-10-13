@@ -13,7 +13,8 @@ from dataclasses import dataclass
 
 from ...schemas.annex import AnnexAttribute, AnnexItem, AnnexParseOutput, AnnexSkippedRow
 from .grid import Block, Cell, Table
-from .text import Phrases, classify_phrases, join_lines, note_entries, scheme_from_title, split_listed
+from .text import (Phrases, classify_phrases, join_lines, note_entries, scheme_from_title, split_examples,
+                   split_listed, split_qualifier)
 
 MARK = "○"
 DEFINITION_ATTRIBUTE = "정의"
@@ -28,6 +29,8 @@ _BULLET_RE = re.compile(r"^[o\-]\s+")
 # "- 저장장치 : 하드디스크드라이브(HDD), …"처럼 소제목별로 묶인 대표 품목
 _EXAMPLE_GROUP_RE = re.compile(r"^-\s*([^:,]+?)\s*:\s*(.+)$")
 _NOTE_HEAD_RE = re.compile(r"^※?\s*비\s*고\s*[:)]?\s*$")
+# "(삭 제)", "<삭제>"
+_DELETED_RE = re.compile(r"^[(<\s]*삭\s*제[)>\s]*$")
 
 
 @dataclass(frozen=True)
@@ -172,6 +175,9 @@ def _parse_table(table: Table, section: str | None, drafts: list[_Draft], skippe
             label, name, phrases, own = _parse_item_cell(last.text)
             attributes = [*own, *attributes]
             source_text = last.text.splitlines()[0].strip()
+        if _DELETED_RE.match(name):
+            skipped.append(AnnexSkippedRow(item_label=label, reason=name))
+            continue
         path += [_category_name(cell.text) for cell in path_cells]
         item = AnnexItem(category_path=path, item_label=label, item_name=name, conditions=[], exclusions=[],
                          inclusions=[], attributes=attributes, source_text=source_text)
@@ -202,26 +208,44 @@ def _category_name(text: str) -> str:
 
 
 def _parse_item_cell(text: str) -> tuple[str | None, str, Phrases, list[AnnexAttribute]]:
-    """품목 칸을 (번호, 이름, 문구, 설명 칸)으로 나눈다. ": 설명" 줄은 정의 칸, "※" 줄은 문구."""
-    name_lines: list[str] = []
+    """품목 칸을 (번호, 이름, 문구, 설명 칸)으로 나눈다.
+
+    이름 뒤 ": 설명" 줄은 정의 칸, "※" 줄은 문구. 번호 칸 안에 "o (정의) …", "o 대표적인 품목 …"이
+    같이 있으면(고시 별표 1 표 11의 ① 컴퓨터 및 컴퓨터 시스템 등) 그 줄부터 설명 칸으로 읽음.
+    이름 끝 괄호의 한정·제외·포함 문구와 품목 나열은 떼어 냄.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    start = next((index for index, line in enumerate(lines) if _starts_detail(line)), len(lines))
     definitions: list[str] = []
     phrases = Phrases()
-    for line in (line.strip() for line in text.splitlines()):
-        if not line:
-            continue
+    attributes: list[AnnexAttribute] = []
+    for index in range(start, len(lines)):
+        line = lines[index]
         if line.startswith(":"):
             definitions.append(line.lstrip(": ").strip())
         elif line.startswith("※"):
             phrases.extend(*classify_phrases(line.lstrip("※ ").strip()))
-        elif definitions:
+        elif definitions and not _starts_detail(line):
             definitions[-1] = f"{definitions[-1]} {line}"
         else:
-            name_lines.append(line)
-    full = join_lines("\n".join(name_lines))
+            description, description_phrases = _parse_description("\n".join(lines[index:]))
+            attributes += description
+            phrases = phrases.merged(description_phrases)
+            break
+    full = join_lines("\n".join(lines[:start]))
     match = _LABEL_RE.match(full)
     label, name = match.groups() if match else (None, full)
-    attributes = [AnnexAttribute(name=DEFINITION_ATTRIBUTE, values=definitions)] if definitions else []
-    return label, name, phrases, attributes
+    name, *own = split_qualifier(name)
+    name, examples = split_examples(name)
+    phrases = Phrases(*own).merged(phrases)
+    if definitions:
+        attributes.insert(0, AnnexAttribute(name=DEFINITION_ATTRIBUTE, values=definitions))
+    return label, name, phrases, _merge_attributes([*attributes, *examples])
+
+
+def _starts_detail(line: str) -> bool:
+    """이름 뒤 설명 줄의 시작인지 (": …", "※ …", "o …", "- …")."""
+    return line.startswith((":", "※")) or bool(_DEFINITION_RE.match(line) or _BULLET_RE.match(line))
 
 
 def _parse_description(text: str) -> tuple[list[AnnexAttribute], Phrases]:
@@ -291,7 +315,7 @@ def _add_clause(cell: Cell, left: list[Cell], skipped: list[AnnexSkippedRow], no
     if match:
         label, lines[0] = match.groups()
         skipped.append(AnnexSkippedRow(item_label=label, reason=lines[0]))
-    head = _BULLET_RE.sub("", lines[0])
+    head = _BULLET_RE.sub("", lines[0]).lstrip("※ ").strip()
     conditions, exclusions, inclusions = classify_phrases(head)
     listed = [_BULLET_RE.sub("", line) for line in lines[1:]]
     # 조항 아래 나열은 조항과 같은 종류 문구
