@@ -196,3 +196,15 @@ def test_표시_기호만_있는_추가_칸_값은_실패_사유로_남긴다():
     output = _matrix_output(AnnexAttribute(name="무선", values=["○"]))
 
     assert check_annex(_MATRIX, output) == ["items[0] 1) 무선기기: 무선 값이 표시 기호뿐 '○'"]
+
+
+def test_원문에서_깨진_번호는_원본_파일에서_읽은_원문자_번호와_짝짓는다():
+    # API 별표내용은 ⑯·➄ 등을 ?로 깨뜨림. 원본 파일에서 읽으면 제대로 나옴
+    content = "┃1. 전기기기 │⑮ 빙삭기 ┃\n┃ │? 전기고기갈개 ┃\n┃ │? 저속전동이륜차 ┃"
+    output = AnnexParseOutput(scheme="전기기기", skipped=[], notes=[], items=[
+        _nested_item(["1. 전기기기"], "⑮", "빙삭기"),
+        _nested_item(["1. 전기기기"], "⑯", "전기고기갈개"),
+        _nested_item(["1. 전기기기"], "➄", "저속전동이륜차"),
+    ])
+
+    assert check_annex(content, output) == []

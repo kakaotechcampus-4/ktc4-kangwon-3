@@ -16,10 +16,10 @@ _BOX_DRAWING = {code: None for code in range(0x2500, 0x2580)}
 _HORIZONTAL = "─━┄┅┈┉╌╍═"
 _CELL_SPLIT_RE = re.compile("[" + "".join(chr(code) for code in range(0x2500, 0x2580)
                                           if chr(code) not in _HORIZONTAL) + "]")
-# 칸 머리 번호: ①~⑳, 깨진 원문자(뒤에 공백이 오는 ?), 1)
+# 칸 머리 번호: ①~⑳(원본 파일에 섞여 쓰인 ➀~➉ 포함), 깨진 원문자(뒤에 공백이 오는 ?), 1)
 # "?단말장치"처럼 공백 없이 글자가 이어지는 ?는 번호가 아니라 깨진 특수문자
 # "12)~16) : 주방가전"은 범위 안내라 제외
-_CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
+_CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳➀➁➂➃➄➅➆➇➈➉"
 _LABEL_RE = re.compile(rf"^\?*\s*([{_CIRCLED}])|^(\?)(?=\s|$)|^(\d+\))(?!\s*~)")
 
 
@@ -153,11 +153,27 @@ def check_annex(content: str, output: AnnexParseOutput) -> list[str]:
     for index, note in enumerate(output.notes):
         check(f"notes[{index}]", note)
 
-    if missing := missing_labels(content, output):
+    missing = missing_labels(content, output)
+    extra = output_labels(output) - source_labels(content)
+    _pair_broken_labels(missing, extra)
+    if missing:
         reasons.append(f"번호 누락: {dict(missing)}")
-    if extra := output_labels(output) - source_labels(content):
+    if extra:
         reasons.append(f"원문보다 많은 번호: {dict(extra)}")
     return reasons
+
+
+def _pair_broken_labels(missing: Counter, extra: Counter) -> None:
+    """원문에서 ?로 깨진 번호를 출력의 남는 원문자 번호와 짝지어 양쪽에서 지운다.
+
+    원본 파일(HWP)에서 읽으면 API 별표내용에서 ?로 깨진 원문자(⑯ 등)가 제대로 나옴.
+    """
+    for label in [label for label in extra if label in _CIRCLED]:
+        paired = min(missing["?"], extra[label])
+        missing["?"] -= paired
+        extra[label] -= paired
+    missing += Counter()
+    extra += Counter()
 
 
 def missing_labels(content: str, output: AnnexParseOutput) -> Counter:
