@@ -75,10 +75,10 @@ def test_행정규칙_검색은_현행_여부를_담는다(wire):
 
 @pytest.mark.parametrize(("links", "expected"), [
     ("<별표서식파일링크>/LSW/flDownload.do?flSeq=1</별표서식파일링크><별표서식PDF파일링크>/LSW/flDownload.do?flSeq=2</별표서식PDF파일링크>",
-     ("https://www.law.go.kr/LSW/flDownload.do?flSeq=2", "pdf")),
-    ("<별표서식파일링크>/LSW/flDownload.do?flSeq=1</별표서식파일링크>", ("https://www.law.go.kr/LSW/flDownload.do?flSeq=1", "hwp")),
+     ("https://www.law.go.kr/LSW/flDownload.do?flSeq=1", "hwp")),
+    ("<별표서식PDF파일링크>/LSW/flDownload.do?flSeq=2</별표서식PDF파일링크>", ("https://www.law.go.kr/LSW/flDownload.do?flSeq=2", "pdf")),
 ])
-def test_별표서식_검색은_PDF를_우선해_파일_링크_하나를_담는다(wire, links, expected):
+def test_별표서식_검색은_HWP를_우선해_파일_링크_하나를_담는다(wire, links, expected):
     client = LicbylSearchClient(oc="my-oc")
     wire(client, _xml(
         "<licBylSearch><totalCnt>1</totalCnt><licbyl><별표명>승계통보서</별표명><별표번호>004700</별표번호>"

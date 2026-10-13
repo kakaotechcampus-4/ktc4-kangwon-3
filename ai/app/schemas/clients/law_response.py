@@ -147,7 +147,7 @@ class LawAnnex(BaseModel):
         annex_type: 별표구분. "별표"(품목표·기준표)와 "서식"(신청서 등)을 구분한다.
         annex_title: 별표제목.
         annex_content: 별표내용 원문.
-        file_url: 별표 파일 링크 하나. PDF → HWP → 이미지 순으로 있는 것.
+        file_url: 별표 파일 링크 하나. HWPX → HWP → PDF → 이미지 순으로 있는 것.
         file_type: file_url의 형식 (pdf, hwp, hwpx, gif 등).
     """
 
@@ -200,7 +200,7 @@ class LawAttachment(BaseModel):
 
     Attributes:
         name: 첨부파일명 (확장자 제외).
-        file_url: 첨부파일 링크 하나. PDF → XLSX → HWPX → HWP → 이미지 → ZIP 순으로 있는 것.
+        file_url: 첨부파일 링크 하나. HWPX → HWP → XLSX → PDF → 이미지 → ZIP 순으로 있는 것.
         file_type: file_url의 형식 (pdf, xlsx, hwpx, hwp, zip 등).
     """
 
