@@ -37,6 +37,8 @@ _CHAR_CONTROLS = {9: " ", 10: "\n", 24: "-", 30: " ", 31: " "}
 
 _HWPX_NS = {"hp": "http://www.hancom.co.kr/hwpml/2011/paragraph"}
 _HWPX_SECTION_RE = re.compile(r"Contents/section(\d+)\.xml")
+# 기호 글꼴 사적 영역 문자 → 보통 글자 ("전기\uf09e전동" → "전기·전동", API 별표내용에서는 ?로 깨짐)
+_PRIVATE_CHARS = str.maketrans({"\uf09e": "·"})
 
 
 def read_annex_file(content: bytes, file_type: str) -> list[Block]:
@@ -105,7 +107,7 @@ def _decode_hwp_paragraph(data: bytes) -> str:
             continue
         units.append(code)
         index += 1
-    return struct.pack(f"<{len(units)}H", *units).decode("utf-16-le", errors="replace")
+    return struct.pack(f"<{len(units)}H", *units).decode("utf-16-le", errors="replace").translate(_PRIVATE_CHARS)
 
 
 def _hwp_table(records: list[tuple[int, int, bytes]], start: int) -> tuple[Table, int]:
@@ -204,4 +206,4 @@ def _hwpx_text(paragraph: ElementTree.Element) -> str:
             name = child.tag.rsplit("}", 1)[-1]
             parts.append({"tab": " ", "lineBreak": "\n"}.get(name, ""))
             parts.append(child.tail or "")
-    return "".join(parts).strip()
+    return "".join(parts).translate(_PRIVATE_CHARS).strip()
