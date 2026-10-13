@@ -13,6 +13,9 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.ErrorResponse;
+import io.sentry.SentryBaseEvent;
+import io.sentry.protocol.Request;
+import kakaotech.kangwon3.beforeselling.global.security.filter.InternalTokenFilter;
 
 @Configuration
 public class SentryConfig {
@@ -23,7 +26,20 @@ public class SentryConfig {
     public SentryOptions.BeforeSendCallback sentryBeforeSendCallback() {
         return (event, _) -> {
             HttpStatusCode status = resolveStatus(event.getThrowable());
-            return status != null && status.is4xxClientError() ? null : event;
+            if (status != null && status.is4xxClientError()) {
+                return null;
+            }
+            removeInternalToken(event);
+            return event;
+        };
+    }
+
+    // 트레이스(traces-sample-rate)에도 요청 헤더가 실리므로 같은 헤더를 지운다.
+    @Bean
+    public SentryOptions.BeforeSendTransactionCallback sentryBeforeSendTransactionCallback() {
+        return (transaction, _) -> {
+            removeInternalToken(transaction);
+            return transaction;
         };
     }
 
@@ -42,5 +58,14 @@ public class SentryConfig {
             case PessimisticLockingFailureException _ -> CommonResponseCode.LOCK_CONFLICT.getStatus();
             case null, default -> null;
         };
+    }
+
+    // send-default-pii로 요청 헤더가 전송되는데, Sentry 기본 마스킹은 X-Internal-Token을 모름
+    private static void removeInternalToken(SentryBaseEvent event) {
+        Request request = event.getRequest();
+        if (request == null || request.getHeaders() == null) {
+            return;
+        }
+        request.getHeaders().keySet().removeIf(InternalTokenFilter.HEADER_NAME::equalsIgnoreCase);
     }
 }

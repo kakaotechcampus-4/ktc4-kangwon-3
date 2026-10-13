@@ -1,7 +1,9 @@
 package kakaotech.kangwon3.beforeselling.global.config;
 
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
+import kakaotech.kangwon3.beforeselling.global.security.filter.InternalTokenFilter;
 import kakaotech.kangwon3.beforeselling.global.security.filter.JwtAuthenticationFilter;
 import kakaotech.kangwon3.beforeselling.global.security.filter.JwtExceptionFilter;
 import kakaotech.kangwon3.beforeselling.global.security.filter.OAuth2RedirectUriCaptureFilter;
@@ -16,6 +18,7 @@ import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -62,6 +65,9 @@ public class SecurityConfig {
             "/actuator/prometheus",
     };
 
+    /** AI 서버 콜백 등 서버 간 호출 전용 경로. 사용자 체인과 분리한다. */
+    private static final String INTERNAL_API_PATTERN = "/internal/**";
+
     private final AppProperties appProperties;
     private final JwtProvider jwtProvider;
     private final ApiResponseWriter apiResponseWriter;
@@ -71,6 +77,30 @@ public class SecurityConfig {
     private final RedisOAuth2AuthorizationRequestRepository authorizationRequestRepository;
     private final OAuth2AuthorizedClientRepository authorizedClientRepository;
     private final OAuth2RedirectCookieProvider oAuth2RedirectCookieProvider;
+    private final InternalApiProperties internalApiProperties;
+
+    // 서버 간 호출 전용 체인. 사용자 JWT·OAuth2·CORS를 거치지 않고 내부 토큰으로만 인증한다.
+    // 기존 체인보다 먼저 매칭되어야 하므로 @Order(1).
+    @Bean
+    @Order(1)
+    public SecurityFilterChain internalApiSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher(INTERNAL_API_PATTERN)
+                .csrf(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable)
+                .requestCache(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().hasRole("INTERNAL"))
+                .addFilterBefore(new InternalTokenFilter(internalApiProperties.token()),
+                        UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(new CustomAuthenticationEntryPoint(apiResponseWriter))
+                        .accessDeniedHandler(new CustomAccessDeniedHandler(apiResponseWriter)));
+
+        return http.build();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
