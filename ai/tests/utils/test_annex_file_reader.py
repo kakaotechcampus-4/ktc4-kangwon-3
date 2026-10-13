@@ -142,3 +142,8 @@ def test_HWPX에서_문단과_병합_칸이_있는_표를_읽는다():
 def test_지원하지_않거나_깨진_파일은_오류를_낸다(content, file_type):
     with pytest.raises(ValueError):
         read_annex_file(content, file_type)
+
+
+def test_기호_글꼴_사적_영역_가운뎃점을_보통_가운뎃점으로_바꾼다():
+    assert _decode_hwp_paragraph(_chars("전기전동 공구류") + _units(13)) == "전기·전동 공구류"
+    assert read_annex_file(_hwpx(_p("입출력장치")), "hwpx") == ["입·출력장치"]
