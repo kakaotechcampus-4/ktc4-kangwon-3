@@ -183,7 +183,8 @@ def _parse_table(table: Table, section: str | None, drafts: list[_Draft], skippe
         path += [_category_name(cell.text) for cell in path_cells]
         item = AnnexItem(category_path=path, item_label=label, item_name=name, conditions=[], exclusions=[],
                          inclusions=[], attributes=attributes, source_text=source_text)
-        drafts.append(_Draft(groups=tuple(id(cell) for cell in path_cells), item=item, phrases=phrases))
+        # 묶음 조항은 분류 칸뿐 아니라 품목 칸 자신 아래에도 옴 (8) 전열기구류 아래 "o 다음에 해당하는 …제외한다.")
+        drafts.append(_Draft(groups=tuple(id(cell) for cell in item_cells), item=item, phrases=phrases))
 
 
 def _distinct(cells) -> list[Cell]:
