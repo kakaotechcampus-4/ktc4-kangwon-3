@@ -78,7 +78,7 @@ def _add_row(target: Cell, requirement: Cell | None, law: str | None, items: lis
 
     if law_match := _LAW_RE.match(lines[0]):
         if _DELETED_RE.match(law_match.group(2)):
-            skipped.append(AnnexSkippedRow(item_label=law_match.group(1), reason=law_match.group(2)))
+            skipped.append(AnnexSkippedRow(category_path=[], item_label=law_match.group(1), reason=law_match.group(2)))
             return None
         law, lines = lines[0], lines[1:]
         if not lines:
@@ -89,7 +89,8 @@ def _add_row(target: Cell, requirement: Cell | None, law: str | None, items: lis
     sub = _SUB_RE.match(text)
     label, rest = sub.groups() if sub else (None, text)
     if _DELETED_RE.match(rest):
-        skipped.append(AnnexSkippedRow(item_label=label, reason=rest))
+        skipped.append(AnnexSkippedRow(category_path=[split_qualifier(law)[0]] if law else [], item_label=label,
+                                       reason=rest))
         return law
     items.append(_item([law] if law else [], label, rest, values, text))
     return law

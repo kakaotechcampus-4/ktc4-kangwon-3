@@ -176,14 +176,11 @@ def _item_lines(text: str) -> list[str]:
 
 def _add_line(drafts: list[_Draft], skipped: list[AnnexSkippedRow], line: str, path: list[str],
               category_phrases: Phrases, attributes: list[AnnexAttribute], group: Cell | None) -> None:
-    if is_no_target(line):
-        skipped.append(AnnexSkippedRow(item_label=None, reason=line))
+    if is_no_target(line) or (is_deleted(line) and not _DELETED_LABEL_RE.match(line)):
+        skipped.append(AnnexSkippedRow(category_path=list(path), item_label=None, reason=line))
         return
     if deleted := _DELETED_LABEL_RE.match(line):
-        skipped.append(AnnexSkippedRow(item_label=deleted.group(1), reason=deleted.group(2)))
-        return
-    if is_deleted(line):
-        skipped.append(AnnexSkippedRow(item_label=None, reason=line))
+        skipped.append(AnnexSkippedRow(category_path=list(path), item_label=deleted.group(1), reason=deleted.group(2)))
         return
     label_match = _LABEL_RE.match(line)
     label, rest = label_match.groups() if label_match else (None, line)

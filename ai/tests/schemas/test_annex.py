@@ -24,7 +24,7 @@ def test_표_전체_비고와_포함_문구를_담는다():
     output = AnnexParseOutput.model_validate({
         "scheme": "안전인증대상전기용품",
         "items": [_item()],
-        "skipped": [{"item_label": "②", "reason": "삭제 <2023. 3. 20.>"}],
+        "skipped": [{"category_path": ["2. 전기기기용스위치", "가. 스위치"], "item_label": "②", "reason": "삭제 <2023. 3. 20.>"}],
         "notes": ["1차 전지(건전지) 및 2차 전지(충전지)만을 전원으로 사용하는 구조의 것은 안전인증대상전기용품에서 제외한다."],
     })
 

@@ -18,6 +18,7 @@ from .text import (Phrases, classify_phrases, join_lines, note_entries, scheme_f
 
 MARK = "○"
 DEFINITION_ATTRIBUTE = "정의"
+CATEGORY_DEFINITION_ATTRIBUTE = "분류 정의"
 EXAMPLE_ATTRIBUTE = "대표 품목"
 
 _LABEL_RE = re.compile(r"^([①-⑳]|\d+\)|[가-힣]\)|[가-힣]\.)\s*(.+)$", re.DOTALL)
@@ -28,6 +29,10 @@ _EXAMPLES_HEAD_RE = re.compile(r"^o\s*대표적인\s*품목")
 _BULLET_RE = re.compile(r"^[o\-]\s+")
 # "- 저장장치 : 하드디스크드라이브(HDD), …"처럼 소제목별로 묶인 대표 품목
 _EXAMPLE_GROUP_RE = re.compile(r"^-\s*([^:,]+?)\s*:\s*(.+)$")
+# 분류 설명 중 적용 범위 문구 ("…제품에 한함", "…기자재에 한정", "…모듈도 포함")
+_SCOPE_END_RE = re.compile(r"(한정|한함|한한다|제외|포함)(한다|함|하며|된다)?\.?$")
+# "※ 4)~11) : 계절가전"처럼 하위 번호 범위에 붙인 꼬리표
+_RANGE_TAG_RE = re.compile(r"\d+\)\s*~\s*\d+\)\s*:")
 _NOTE_HEAD_RE = re.compile(r"^※?\s*비\s*고\s*[:)]?\s*$")
 # "(삭 제)", "<삭제>"
 _DELETED_RE = re.compile(r"^[(<\s]*삭\s*제[)>\s]*$")
@@ -154,7 +159,8 @@ def _parse_table(table: Table, section: str | None, drafts: list[_Draft], skippe
         if any(col in range(last.col, last.col + last.col_span) for col in mark_cols):
             # ○ 열을 가로지르는 칸: 왼쪽 분류 묶음 전체에 걸리는 조항
             if last.row == index:
-                _add_clause(last, item_cells[:-1], skipped, notes, group_phrases)
+                clause_path = [*([section] if section else []), *(_category_name(cell.text) for cell in item_cells[:-1])]
+                _add_clause(last, item_cells[:-1], clause_path, skipped, notes, group_phrases)
             continue
         attributes = _row_attributes(row, columns)
         path = [section] if section else []
@@ -177,10 +183,16 @@ def _parse_table(table: Table, section: str | None, drafts: list[_Draft], skippe
             label, name, phrases, own = _parse_item_cell(last.text)
             attributes = [*own, *attributes]
             source_text = last.text.splitlines()[0].strip()
-        if _DELETED_RE.match(name):
-            skipped.append(AnnexSkippedRow(item_label=label, reason=name))
-            continue
         path += [_category_name(cell.text) for cell in path_cells]
+        for cell in path_cells:
+            definitions, scope = _category_detail(cell.text)
+            if definitions:
+                attributes.append(AnnexAttribute(name=f"{CATEGORY_DEFINITION_ATTRIBUTE} - {_category_name(cell.text)}",
+                                                 values=definitions))
+            phrases = phrases.merged(scope)
+        if _DELETED_RE.match(name):
+            skipped.append(AnnexSkippedRow(category_path=path, item_label=label, reason=name))
+            continue
         item = AnnexItem(category_path=path, item_label=label, item_name=name, conditions=[], exclusions=[],
                          inclusions=[], attributes=attributes, source_text=source_text)
         # 묶음 조항은 분류 칸뿐 아니라 품목 칸 자신 아래에도 옴 (8) 전열기구류 아래 "o 다음에 해당하는 …제외한다.")
@@ -208,6 +220,33 @@ def _category_name(text: str) -> str:
             break
         lines.append(line)
     return join_lines("\n".join(lines))
+
+
+def _category_detail(text: str) -> tuple[list[str], Phrases]:
+    """분류 칸 이름 뒤 설명 줄을 (분류 정의, 문구)로 나눈다.
+
+    ": …" 줄은 분류 정의. 다만 적용 범위로 끝나면("…제품에 한함") 문구로 넣음 (대상 판단에 쓰이는 조건이라).
+    "※ …" 줄은 문구, 하위 번호 범위 꼬리표("※ 4)~11) : 계절가전")는 분류 정의. 표시 없는 줄은 앞 줄에 이어 붙임.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    start = next((index for index, line in enumerate(lines) if line.startswith((":", "※"))), len(lines))
+    entries: list[str] = []
+    for line in lines[start:]:
+        if line.startswith((":", "※")) or not entries:
+            entries.append(line)
+        elif _RANGE_TAG_RE.match(line):
+            entries.append(f"※ {line}")
+        else:
+            entries[-1] = f"{entries[-1]} {line}"
+    definitions: list[str] = []
+    phrases = Phrases()
+    for entry in entries:
+        body = entry.lstrip(":※ ").strip()
+        if entry.startswith(":") and not _SCOPE_END_RE.search(body) or _RANGE_TAG_RE.match(body):
+            definitions.append(body)
+        else:
+            phrases.extend(*classify_phrases(body))
+    return definitions, phrases
 
 
 def _parse_item_cell(text: str) -> tuple[str | None, str, Phrases, list[AnnexAttribute]]:
@@ -310,14 +349,14 @@ def _row_attributes(row: list[Cell | None], columns: _Columns) -> list[AnnexAttr
     return attributes
 
 
-def _add_clause(cell: Cell, left: list[Cell], skipped: list[AnnexSkippedRow], notes: list[str],
+def _add_clause(cell: Cell, left: list[Cell], path: list[str], skipped: list[AnnexSkippedRow], notes: list[str],
                 group_phrases: dict[int, Phrases]) -> None:
     """묶음 조항 칸. 번호가 있으면 뺀 행으로 남기고, 조항 문구는 왼쪽 분류 묶음의 문구로 붙임."""
     lines = [line.strip() for line in cell.text.splitlines() if line.strip()]
     match = _LABEL_RE.match(lines[0])
     if match:
         label, lines[0] = match.groups()
-        skipped.append(AnnexSkippedRow(item_label=label, reason=lines[0]))
+        skipped.append(AnnexSkippedRow(category_path=path, item_label=label, reason=lines[0]))
     head = _BULLET_RE.sub("", lines[0]).lstrip("※ ").strip()
     conditions, exclusions, inclusions = classify_phrases(head)
     listed = [_BULLET_RE.sub("", line) for line in lines[1:]]

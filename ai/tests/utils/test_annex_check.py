@@ -44,7 +44,7 @@ def _output(**fields) -> AnnexParseOutput:
             _item("①", "절연전선", "① 절연전선(공칭단면적이 95mm2 이하인 것에 한정한다)"),
             _item("?", "코드세트", "? 코드세트"),
         ],
-        "skipped": [AnnexSkippedRow(item_label="②", reason="삭제<2023. 3. 20.>")],
+        "skipped": [AnnexSkippedRow(category_path=["1. 전선 및 전원코드"], item_label="②", reason="삭제<2023. 3. 20.>")],
         "notes": ["1차 전지(건전지) 및 2차 전지(충전지)만을 전원으로 사용하는 구조의 것은 제외한다."],
     }
     return AnnexParseOutput.model_validate({**values, **fields})
@@ -95,7 +95,7 @@ def test_바꿔_쓴_문구를_실패_사유로_남긴다():
 
 
 def test_빠진_번호와_남는_번호를_실패_사유로_남긴다():
-    output = _output(skipped=[AnnexSkippedRow(item_label="③", reason="삭제<2023. 3. 20.>")])
+    output = _output(skipped=[AnnexSkippedRow(category_path=["1. 전선 및 전원코드"], item_label="③", reason="삭제<2023. 3. 20.>")])
 
     assert check_annex(_TABLE, output) == ["번호 누락: {'②': 1}", "원문보다 많은 번호: {'③': 1}"]
 

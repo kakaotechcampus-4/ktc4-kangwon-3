@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..schemas.annex import AnnexItem, AnnexParseOutput
+from ..schemas.annex import AnnexItem, AnnexParseOutput, AnnexSkippedRow
 from ..utils.annex_check import normalize
 
 ANNEX_TRUTH_DIR = Path(__file__).resolve().parents[2] / "tests" / "eval_truth_annex"
@@ -66,6 +66,10 @@ def _texts(values: list[str]) -> Counter:
     return Counter(normalize(value) for value in values)
 
 
+def _skipped_key(row: AnnexSkippedRow) -> tuple:
+    return tuple(map(normalize, row.category_path)), normalize(row.item_label or ""), normalize(row.reason)
+
+
 def _fields(item: AnnexItem) -> tuple:
     return (
         _texts(item.conditions),
@@ -100,7 +104,6 @@ def score_annex(expected: AnnexParseOutput, actual: AnnexParseOutput) -> AnnexSc
             score.field_errors.append(_describe(item))
     score.extra = [_describe(item) for item in remaining]
     score.scheme_ok = normalize(expected.scheme) == normalize(actual.scheme)
-    score.skipped_ok = (Counter((normalize(row.item_label or ""), normalize(row.reason)) for row in expected.skipped)
-                        == Counter((normalize(row.item_label or ""), normalize(row.reason)) for row in actual.skipped))
+    score.skipped_ok = Counter(map(_skipped_key, expected.skipped)) == Counter(map(_skipped_key, actual.skipped))
     score.notes_ok = _texts(expected.notes) == _texts(actual.notes)
     return score

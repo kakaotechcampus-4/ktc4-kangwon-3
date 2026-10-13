@@ -153,10 +153,16 @@
     ],
     "skipped": [
       {
+        "category_path": [
+          "4. 섬유"
+        ],
         "item_label": null,
         "reason": "대상없음"
       },
       {
+        "category_path": [
+          "5. 건축"
+        ],
         "item_label": null,
         "reason": "대상없음"
       }

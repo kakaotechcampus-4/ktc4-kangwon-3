@@ -159,7 +159,10 @@ def check_annex(content: str, output: AnnexParseOutput) -> list[str]:
                         or contains(category_haystacks, _PAREN_RE.sub("", normalize(value)))):
                     reasons.append(f"{where}: 원문에 없는 {attribute.name} 값 {value!r}")
     for index, row in enumerate(output.skipped):
-        check(f"skipped[{index}] {row.item_label or ''}".strip(), row.reason)
+        where = f"skipped[{index}] {row.item_label or ''}".strip()
+        check(where, row.reason)
+        for text in row.category_path:
+            check(where, text, category_haystacks)
     for index, note in enumerate(output.notes):
         check(f"notes[{index}]", note)
 
