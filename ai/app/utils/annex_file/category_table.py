@@ -7,11 +7,11 @@
 """
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from ...schemas.annex import AnnexAttribute, AnnexItem, AnnexParseOutput, AnnexSkippedRow
 from .grid import Block, Cell, Table
-from .text import (classify_phrases, find_title, is_deleted, is_no_target, is_note, join_lines, note_entries,
+from .text import (Phrases, classify_phrases, find_title, is_deleted, is_no_target, is_note, join_lines, note_entries,
                    scheme_from_title, split_examples, split_qualifier)
 
 HEADER = ("분류", "품목", "세부품목")
@@ -24,18 +24,6 @@ _DELETED_LABEL_RE = re.compile(r"^([가-힣]\.?)\s*(<?삭\s*제.*)$")
 
 
 @dataclass
-class _Phrases:
-    conditions: list[str] = field(default_factory=list)
-    exclusions: list[str] = field(default_factory=list)
-    inclusions: list[str] = field(default_factory=list)
-
-    def extend(self, conditions: list[str], exclusions: list[str], inclusions: list[str]) -> None:
-        self.conditions.extend(conditions)
-        self.exclusions.extend(exclusions)
-        self.inclusions.extend(inclusions)
-
-
-@dataclass
 class _Draft:
     """비고를 붙이기 전 품목 행. 비고는 표 아래쪽에 있어 표를 다 읽은 뒤 붙임."""
 
@@ -43,7 +31,7 @@ class _Draft:
     category_path: list[str]
     item_label: str | None
     item_name: str
-    phrases: _Phrases
+    phrases: Phrases
     attributes: list[AnnexAttribute]
     source_text: str
 
@@ -77,7 +65,7 @@ def parse_category_table(blocks: list[Block]) -> AnnexParseOutput:
     drafts: list[_Draft] = []
     skipped: list[AnnexSkippedRow] = []
     notes: list[str] = []
-    group_phrases: dict[int, _Phrases] = {}
+    group_phrases: dict[int, Phrases] = {}
     seen: set[int] = set()
 
     for category, product, detail in tables[0].grid()[1:]:
@@ -86,13 +74,13 @@ def parse_category_table(blocks: list[Block]) -> AnnexParseOutput:
             continue
         if product is detail:
             if is_note(product.text):
-                group_phrases.setdefault(id(category), _Phrases()).extend(*classify_phrases(product.text))
+                group_phrases.setdefault(id(category), Phrases()).extend(*classify_phrases(product.text))
             elif id(product) not in seen:
                 _add_product(drafts, skipped, category, product)
             seen.add(id(product))
             continue
         if detail is not None and is_note(detail.text):
-            group_phrases.setdefault(id(product), _Phrases()).extend(*classify_phrases(detail.text))
+            group_phrases.setdefault(id(product), Phrases()).extend(*classify_phrases(detail.text))
             continue
         detail_text = detail.text.strip() if detail else ""
         if id(product) in seen:
@@ -108,9 +96,9 @@ def parse_category_table(blocks: list[Block]) -> AnnexParseOutput:
     return AnnexParseOutput(scheme=scheme_from_title(title), items=items, skipped=skipped, notes=notes)
 
 
-def _category_step(cell: Cell) -> tuple[str, _Phrases]:
+def _category_step(cell: Cell) -> tuple[str, Phrases]:
     name, *phrases = split_qualifier(join_lines(cell.text))
-    step = _Phrases()
+    step = Phrases()
     step.extend(*phrases)
     return name, step
 
@@ -148,7 +136,7 @@ def _add_details(drafts: list[_Draft], skipped: list[AnnexSkippedRow], category:
     if "".join(product.text.split()) != "".join(detail.text.split()):
         path.append(product_name)
     else:
-        product_phrases = _Phrases()
+        product_phrases = Phrases()
 
     lines: list[str] = []
     for line in (line.strip() for line in detail.text.splitlines()):
@@ -167,7 +155,7 @@ def _add_details(drafts: list[_Draft], skipped: list[AnnexSkippedRow], category:
             continue
         name, *own = split_qualifier(rest)
         name, attributes = split_examples(name)
-        phrases = _Phrases()
+        phrases = Phrases()
         for step in (category_phrases, product_phrases):
             phrases.extend(step.conditions, step.exclusions, step.inclusions)
         phrases.extend(*own)
@@ -179,9 +167,9 @@ def _continues(previous: str, line: str) -> bool:
     return not previous.endswith((")", "]")) or line.startswith(("(", "["))
 
 
-def _finish(draft: _Draft, group_phrases: dict[int, _Phrases]) -> AnnexItem:
+def _finish(draft: _Draft, group_phrases: dict[int, Phrases]) -> AnnexItem:
     """묶음 비고(분류·품목 칸 단위)를 붙여 품목 행을 만든다."""
-    phrases = _Phrases()
+    phrases = Phrases()
     phrases.extend(draft.phrases.conditions, draft.phrases.exclusions, draft.phrases.inclusions)
     for group in draft.groups:
         if group_note := group_phrases.get(id(group)):
