@@ -19,6 +19,7 @@ from .text import (Phrases, classify_phrases, join_lines, note_entries, scheme_f
 MARK = "○"
 DEFINITION_ATTRIBUTE = "정의"
 CATEGORY_DEFINITION_ATTRIBUTE = "분류 정의"
+TAG_ATTRIBUTE = "구분"
 EXAMPLE_ATTRIBUTE = "대표 품목"
 
 _LABEL_RE = re.compile(r"^([①-⑳]|\d+\)|[가-힣]\)|[가-힣]\.)\s*(.+)$", re.DOTALL)
@@ -33,6 +34,8 @@ _EXAMPLE_GROUP_RE = re.compile(r"^-\s*([^:,]+?)\s*:\s*(.+)$")
 _SCOPE_END_RE = re.compile(r"(한정|한함|한한다|제외|포함)(한다|함|하며|된다)?\.?$")
 # "※ 4)~11) : 계절가전"처럼 하위 번호 범위에 붙인 꼬리표
 _RANGE_TAG_RE = re.compile(r"\d+\)\s*~\s*\d+\)\s*:")
+# "※ …" 줄이 문장인지. 문장이 아니면 "※ 난방가전", "※ 공기청정기/ 가습기/제습기" 같은 하위 구분 꼬리표
+_REMARK_SENTENCE_RE = re.compile(r"(다|함|음|임)\.?$|(적용|제외|포함)\.?$")
 _NOTE_HEAD_RE = re.compile(r"^※?\s*비\s*고\s*[:)]?\s*$")
 # "(삭 제)", "<삭제>"
 _DELETED_RE = re.compile(r"^[(<\s]*삭\s*제[)>\s]*$")
@@ -242,7 +245,8 @@ def _category_detail(text: str) -> tuple[list[str], Phrases]:
     phrases = Phrases()
     for entry in entries:
         body = entry.lstrip(":※ ").strip()
-        if entry.startswith(":") and not _SCOPE_END_RE.search(body) or _RANGE_TAG_RE.match(body):
+        if (entry.startswith(":") and not _SCOPE_END_RE.search(body) or _RANGE_TAG_RE.match(body)
+                or entry.startswith("※") and not _REMARK_SENTENCE_RE.search(body)):
             definitions.append(body)
         else:
             phrases.extend(*classify_phrases(body))
@@ -259,12 +263,15 @@ def _parse_item_cell(text: str) -> tuple[str | None, str, Phrases, list[AnnexAtt
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     start = next((index for index, line in enumerate(lines) if _starts_detail(line)), len(lines))
     definitions: list[str] = []
+    tags: list[str] = []
     phrases = Phrases()
     attributes: list[AnnexAttribute] = []
     for index in range(start, len(lines)):
         line = lines[index]
         if line.startswith(":"):
             definitions.append(line.lstrip(": ").strip())
+        elif line.startswith("※") and not _REMARK_SENTENCE_RE.search(line.lstrip("※ ").strip()):
+            tags.extend(part.strip() for part in line.lstrip("※ ").split("/") if part.strip())
         elif line.startswith("※"):
             phrases.extend(*classify_phrases(line.lstrip("※ ").strip()))
         elif definitions and not _starts_detail(line):
@@ -282,6 +289,8 @@ def _parse_item_cell(text: str) -> tuple[str | None, str, Phrases, list[AnnexAtt
     phrases = Phrases(*own).merged(phrases)
     if definitions:
         attributes.insert(0, AnnexAttribute(name=DEFINITION_ATTRIBUTE, values=definitions))
+    if tags:
+        attributes.append(AnnexAttribute(name=TAG_ATTRIBUTE, values=tags))
     return label, name, phrases, _merge_attributes([*attributes, *examples])
 
 
@@ -359,11 +368,16 @@ def _add_clause(cell: Cell, left: list[Cell], path: list[str], skipped: list[Ann
         skipped.append(AnnexSkippedRow(category_path=path, item_label=label, reason=lines[0]))
     head = _BULLET_RE.sub("", lines[0]).lstrip("※ ").strip()
     conditions, exclusions, inclusions = classify_phrases(head)
-    # 나열 항목은 "o"·"-" 줄마다 하나. 표시 없는 줄("(다만, … 대상임)")은 앞 항목의 단서라 이어 붙임
+    # 나열 항목은 "o"·"-" 줄마다 하나. 표시 없는 줄("(다만, … 대상임)")은 앞 항목의 단서라 이어 붙임.
+    # "o … 다음에 해당하는 기기" 아래 "-" 줄은 그 항목의 하위 나열이라 " - "로 이어 붙임 (따로 두면 조건 없이 제외로 읽힘)
     listed: list[str] = []
+    parent_open = False
     for line in lines[1:]:
-        if _BULLET_RE.match(line) or not listed:
+        if line.startswith("-") and parent_open:
+            listed[-1] = f"{listed[-1]} - {_BULLET_RE.sub('', line)}"
+        elif _BULLET_RE.match(line) or not listed:
             listed.append(_BULLET_RE.sub("", line))
+            parent_open = line.startswith("o")
         else:
             listed[-1] = f"{listed[-1]} {line}"
     # 조항 아래 나열은 조항과 같은 종류 문구

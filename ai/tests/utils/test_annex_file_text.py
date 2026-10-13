@@ -3,7 +3,7 @@
 import pytest
 
 from app.utils.annex_file.text import (EXAMPLE_ATTRIBUTE, Phrases, classify_phrases, find_title, join_lines, note_entries,
-                                       scheme_from_title, split_examples, split_qualifier)
+                                       scheme_from_title, split_examples, split_listed, split_qualifier)
 
 
 def test_칸_안_여러_줄을_잇고_병합_칸에_되풀이된_줄은_한_번만_둔다():
@@ -114,3 +114,11 @@ def test_이어진_끝_괄호가_모두_한정_포함이면_모두_뗀다():
     assert split_qualifier("할로겐전구 (250 W 이하인 것에 한정한다) (※ 컬러램프 포함)") == (
         "할로겐전구", ["250 W 이하인 것에 한정한다"], [], ["컬러램프 포함"])
     assert split_qualifier("가(假) 속눈썹(인조 속눈썹)") == ("가(假) 속눈썹(인조 속눈썹)", [], [], [])
+
+
+def test_숫자_자릿수_쉼표와_등의로_이어지는_풀이_괄호는_나열로_나누지_않는다():
+    assert split_listed("2,048kbps, 44,736kbps, 155,520kbps") == ["2,048kbps", "44,736kbps", "155,520kbps"]
+    name = "원거리(WAN) 전송장치 (64kbps이하· 2,048kbps· 44,736kbps 회선에 접속 되는 장치)"
+    assert split_examples(name) == (name, [])
+    name = "비상통보기기 (화재, 가스, 침입, 장치고장 등의 통보를 위한 장치 등)"
+    assert split_examples(name) == (name, [])
