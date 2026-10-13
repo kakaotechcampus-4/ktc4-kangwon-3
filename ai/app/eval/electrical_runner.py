@@ -36,14 +36,13 @@ from time import perf_counter
 from dotenv import load_dotenv
 
 from .. import usage as usage_module
-from ..clients.law import LawClient
 from ..config import ENV_FILE, MAX_RETRIES, TIMEOUT_SECONDS
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import ToolName, ToolResult
 from ..tools.electrical import ElectricalTool
 from ..tools.electrical import tool as electrical_module
-from ..tools.electrical.evidence import CachedEvidenceSource, LawApiEvidenceSource
+from ..tools.electrical.evidence import CachedEvidenceSource, LawApiClients, LawApiEvidenceSource
 from ..tools.electrical.search import LawApiItemSearch
 
 # include_raw 응답을 직렬화할 때 LangChain 내부에서 나는 경고. 결과와 무관하고 출력만 가린다.
@@ -390,7 +389,7 @@ def main() -> int:
     specs = args.model or [_env("OPENAI_MODEL")]
     decision = ToolSelectionItem(tool_name=ToolName.ELECTRICAL, selected=True, reason="단독 실행 확인")
     results: dict[str, list[dict]] = {}
-    law_client = LawClient(oc=_env("LAW_GO_KR_OC"))
+    law_client = LawApiClients.from_oc(_env("LAW_GO_KR_OC"))
     try:
         # 서버에서처럼 품목표는 한 번 받아 캐시한다. 최초 로드 시간은 따로 보여 주고 상품별 시간에서 뺀다.
         item_search = LawApiItemSearch(CachedEvidenceSource(LawApiEvidenceSource(law_client)))

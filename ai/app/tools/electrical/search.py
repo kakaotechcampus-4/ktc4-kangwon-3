@@ -24,6 +24,7 @@ from .evidence import (
     ElectricalEvidence,
     ElectricalEvidenceSource,
     EvidenceSection,
+    LawApiClients,
     LawApiEvidenceSource,
     Scheme,
     compact,
@@ -124,17 +125,16 @@ class LawApiItemSearch:
 
 
 class _OnDemandLawSource:
-    """조회할 때만 LawClient를 열고 닫는다. 캐시와 함께 써서 하루에 한 번만 연다."""
+    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 하루에 한 번만 연다."""
 
     def load(self, as_of: date) -> ElectricalEvidence:
-        from ...clients.law import LawClient
         from ...config import get_settings
 
-        client = LawClient(oc=get_settings().law_oc)
+        clients = LawApiClients.from_oc(get_settings().law_oc)
         try:
-            return LawApiEvidenceSource(client).load(as_of)
+            return LawApiEvidenceSource(clients).load(as_of)
         finally:
-            client.close()
+            clients.close()
 
 
 _default_lock = threading.Lock()
