@@ -96,6 +96,14 @@ def child_state(text: str) -> bool | None:
     return None
 
 
+def age_text(value: str, quote: str) -> str:
+    """연령 판정에 쓸 글. 인용에 사용 금지 문구가 있으면 값만 잘라 읽지 않고 인용 전체를 읽는다.
+
+    모델이 "만 14세 미만 사용 금지"에서 값을 "만 14세 미만"까지만 내면 금지 문구가 빠져 어린이 포함으로 뒤집힌다.
+    """
+    return quote if _PROHIBITION_RE.search(quote) and not _PROHIBITION_RE.search(value) else value
+
+
 def age_value_bounded(value: str, quote: str) -> bool:
     """연령 값이 인용 안에서 숫자 중간부터 잘린 값이 아닌지("13세 이상"의 "3세" 방지)."""
     value, quote = "".join(value.split()), "".join(quote.split())
