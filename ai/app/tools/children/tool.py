@@ -210,9 +210,10 @@ class ChildrenTool(RegulatoryTool):
                     continue
                 selected.append(item.item_id)
                 missing.extend(field for field in selection.needed_fields if field not in by_field)
+                action = sale_action(item.scheme, item.name)
                 findings.append(self._candidate(item, selection.rationale, used, by_field, definitions, state,
-                                                assumptions, candidates))
-                actions.append(sale_action(item.scheme, item.name))
+                                                assumptions, candidates, action))
+                actions.append(action)
         query["selected_items"] = selected
         if query["dropped_candidates"]:
             assumptions.append(f"후보 행과 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
@@ -221,18 +222,20 @@ class ChildrenTool(RegulatoryTool):
             common = candidates.common_standard
             if state is True and not query["dropped_candidates"]:
                 query["fallback"] = common.item_id
+                action = sale_action(common.scheme, "공통안전기준 적용 품목")
                 findings.append(self._finding(
                     subject="공급자적합성확인대상 어린이제품 후보 — 개별 안전기준이 없는 품목",
                     summary=("안전인증·안전확인 품목에 맞는 것을 찾지 못했습니다. 만 13세 이하 대상 어린이제품이면 "
-                             "공급자적합성확인대상이고 어린이제품 공통안전기준이 적용될 가능성이 있습니다."),
+                             "공급자적합성확인대상이고 어린이제품 공통안전기준이 적용될 가능성이 있습니다. 확정이 아닙니다."),
                     rationale="법 제2조 제12호는 안전인증·안전확인대상이 아닌 어린이제품을 공급자적합성확인대상으로 정합니다.",
                     determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                     facts=facts, assumptions=[*assumptions, "품목 선택에서 맞는 행을 찾지 못한 결과입니다."],
                     sources=[definitions.law.source(f"{_LAW_REF} 제1호", definitions.children_product),
                              definitions.law.source(f"{_LAW_REF} 제12호", definitions.supplier_product),
                              _rule_source(candidates, common)],
+                    requirements=[action],
                 ))
-                actions.append(sale_action(common.scheme, "공통안전기준 적용 품목"))
+                actions.append(action)
             elif query["dropped_candidates"]:
                 assumptions.append("품목 선택 결과를 원문·후보와 대조하지 못해 품목을 정하지 않았습니다. "
                                    "안전인증·안전확인 품목일 수 있어 공급자적합성확인으로 낮춰 안내하지 않았습니다.")
@@ -251,30 +254,32 @@ class ChildrenTool(RegulatoryTool):
 
     def _candidate(self, item: ChildrenItem, rationale: str, used: list[str], by_field: dict,
                    definitions: Definitions, state: bool | None, assumptions: list[str],
-                   candidates: ChildrenCandidates) -> RegulatoryFinding:
+                   candidates: ChildrenCandidates, action: str) -> RegulatoryFinding:
         sources = [_rule_source(candidates, item)]
         if item.scopes:
             sources.append(_notice_source(candidates, item))
         notes = ["모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."]
+        summary = (f"이 품목으로 분류되면 {item.scheme.value}대상 어린이제품일 가능성이 있습니다(확정 아님). "
+                   f"적용 안전기준: {', '.join(item.standards)}.")
         if state is True:
             sources.append(definitions.law.source(f"{_LAW_REF} 제1호", definitions.children_product))
         elif state is None:
-            notes.append("사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다.")
+            summary += " 사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다."
         return RegulatoryFinding(
             tool_name=self.tool_name, subject=f"{item.scheme.value}대상 어린이제품 후보 — {item.name}",
             determination=Determination.POSSIBLY_REQUIRED, risk_level=RiskLevel.MEDIUM,
-            summary=f"{item.scheme.value}대상 어린이제품일 가능성이 있습니다. 적용 안전기준: {', '.join(item.standards)}.",
-            rationale=rationale, legal_sources=sources,
+            summary=summary, rationale=rationale, legal_sources=sources, requirements=[action],
             product_facts_used=[f"{_FIELDS[field]}: {fact.value} (근거: {fact.quote})"
                                 for field in used for fact in by_field[field]],
             assumptions=[*assumptions, *notes],
         )
 
     def _finding(self, *, subject: str, summary: str, rationale: str, determination: Determination,
-                 risk: RiskLevel, facts: list, assumptions: list[str], sources: list[LegalSource]) -> RegulatoryFinding:
+                 risk: RiskLevel, facts: list, assumptions: list[str], sources: list[LegalSource],
+                 requirements: list[str] | None = None) -> RegulatoryFinding:
         return RegulatoryFinding(
             tool_name=self.tool_name, subject=subject, determination=determination, risk_level=risk,
-            summary=summary, rationale=rationale, legal_sources=sources,
+            summary=summary, rationale=rationale, legal_sources=sources, requirements=list(requirements or []),
             product_facts_used=[f"{_FIELDS[fact.field]}: {fact.value} (근거: {fact.quote})" for fact in facts],
             assumptions=list(assumptions),
         )
