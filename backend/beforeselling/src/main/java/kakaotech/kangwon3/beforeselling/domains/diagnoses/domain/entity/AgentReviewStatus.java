@@ -4,4 +4,5 @@ public enum AgentReviewStatus {
     COMPLETED,
     SKIPPED,
     FAILED,
+    INCOMPLETE,
 }
