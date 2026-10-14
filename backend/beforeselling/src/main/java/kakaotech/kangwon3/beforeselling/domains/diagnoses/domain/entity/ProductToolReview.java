@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-// 진단 결과의 분야별 카드. 진행 중 카드(AgentReview)와 달리 결과 콜백으로 한 번에 채워진다.
+// 진단 결과의 분야별 카드. 결과 콜백으로 한 번에 채워진다.
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

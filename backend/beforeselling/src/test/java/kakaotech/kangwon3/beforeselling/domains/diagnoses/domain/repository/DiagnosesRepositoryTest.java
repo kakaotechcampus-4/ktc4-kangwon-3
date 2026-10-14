@@ -1,9 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
 import jakarta.persistence.EntityManager;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentReview;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentReviewStatus;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
@@ -193,14 +190,12 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
-    @DisplayName("상품의 에이전트 카드와 질문은 상품과 함께 저장되고, 질문은 질문 순서대로 조회된다.")
-    void save_thenPersistAgentReviewsAndQuestionsInOrder() {
+    @DisplayName("상품의 질문은 상품과 함께 저장되고, 질문 순서대로 조회된다.")
+    void save_thenPersistQuestionsInOrder() {
         // given: 질문을 순서와 반대로 추가한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
-        product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
-        product.recordAgentReview(AgentType.FOOD_DRUG, AgentReviewStatus.SKIPPED, "식품 접촉 항목이 없습니다.");
         product.askQuestions(List.of(
                 new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null),
                 new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
@@ -212,43 +207,17 @@ class DiagnosesRepositoryTest {
         Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
 
         // then
-        assertThat(saved.getAgentReviews())
-                .extracting(AgentReview::getAgentType)
-                .containsExactlyInAnyOrder(AgentType.INTAKE, AgentType.FOOD_DRUG);
         assertThat(saved.getQuestions())
                 .extracting(ProductQuestion::getQuestionKey)
                 .containsExactly("sales_type", "target_age");
     }
 
     @Test
-    @DisplayName("저장된 카드와 같은 에이전트의 카드를 다시 기록하면 행이 늘지 않고 내용만 바뀐다.")
-    void recordAgentReview_afterReload_thenUpdateWithoutNewRow() {
+    @DisplayName("진단서를 삭제하면 상품의 질문도 함께 제거되고 다른 진단서의 것은 남는다.")
+    void delete_thenDeleteOnlyItsQuestions() {
         // given
-        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
-        Product product = createProduct("대나무 헬리콥터", null);
-        product.recordAgentReview(AgentType.CUSTOMS, AgentReviewStatus.FAILED, "조회에 실패했습니다.");
-        diagnoses.addProducts(List.of(product));
-        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
-        flushAndClear();
-
-        // when
-        diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst()
-                .recordAgentReview(AgentType.CUSTOMS, AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다.");
-        flushAndClear();
-
-        // then
-        assertThat(countAgentReviews()).isEqualTo(1);
-        assertThat(entityManager.createQuery("select r from AgentReview r", AgentReview.class).getSingleResult())
-                .extracting(AgentReview::getStatus, AgentReview::getDescription)
-                .containsExactly(AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다.");
-    }
-
-    @Test
-    @DisplayName("진단서를 삭제하면 상품의 카드와 질문도 함께 제거되고 다른 진단서의 것은 남는다.")
-    void delete_thenDeleteOnlyItsAgentReviewsAndQuestions() {
-        // given
-        UUID targetId = diagnosesRepository.save(createDiagnosesWithReviewAndQuestion()).getId();
-        UUID otherId = diagnosesRepository.save(createDiagnosesWithReviewAndQuestion()).getId();
+        UUID targetId = diagnosesRepository.save(createDiagnosesWithQuestion()).getId();
+        UUID otherId = diagnosesRepository.save(createDiagnosesWithQuestion()).getId();
         flushAndClear();
 
         // when
@@ -256,23 +225,20 @@ class DiagnosesRepositoryTest {
         flushAndClear();
 
         // then
-        assertThat(countAgentReviews()).isEqualTo(1);
         assertThat(countQuestions()).isEqualTo(1);
         assertThat(diagnosesRepository.findById(otherId)).isPresent();
     }
 
     @Test
-    @DisplayName("진단서에서 상품을 제거하면 그 상품의 카드와 질문도 함께 제거된다.")
-    void removeProduct_thenDeleteItsAgentReviewsAndQuestions() {
+    @DisplayName("진단서에서 상품을 제거하면 그 상품의 질문도 함께 제거된다.")
+    void removeProduct_thenDeleteItsQuestions() {
         // given: 상품 2개 중 하나만 제거한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product target = createProduct("상품 A", null);
         target.startDiagnosis();
-        target.recordAgentReview(AgentType.CHILDREN, AgentReviewStatus.COMPLETED, "완구에 해당합니다.");
         target.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         Product remaining = createProduct("상품 B", null);
         remaining.startDiagnosis();
-        remaining.recordAgentReview(AgentType.CHILDREN, AgentReviewStatus.SKIPPED, "어린이제품이 아닙니다.");
         remaining.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         diagnoses.addProducts(List.of(target, remaining));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
@@ -285,15 +251,13 @@ class DiagnosesRepositoryTest {
 
         // then
         assertThat(countProducts()).isEqualTo(1);
-        assertThat(countAgentReviews()).isEqualTo(1);
         assertThat(countQuestions()).isEqualTo(1);
     }
 
-    private Diagnoses createDiagnosesWithReviewAndQuestion() {
+    private Diagnoses createDiagnosesWithQuestion() {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
-        product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
         product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
         return diagnoses;
@@ -325,10 +289,6 @@ class DiagnosesRepositoryTest {
 
     private long countImages() {
         return entityManager.createQuery("select count(i) from ProductImage i", Long.class).getSingleResult();
-    }
-
-    private long countAgentReviews() {
-        return entityManager.createQuery("select count(r) from AgentReview r", Long.class).getSingleResult();
     }
 
     private long countQuestions() {

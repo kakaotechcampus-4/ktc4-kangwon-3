@@ -152,53 +152,6 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("처음 받은 에이전트 카드는 새로 추가된다.")
-    void recordAgentReview_whenNew_thenAdd() {
-        // given
-        Product product = createInProgressProduct();
-
-        // when
-        product.recordAgentReview(AgentType.CUSTOMS, AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다.");
-
-        // then
-        assertThat(product.getAgentReviews())
-                .extracting(AgentReview::getAgentType, AgentReview::getStatus, AgentReview::getDescription)
-                .containsExactly(tuple(AgentType.CUSTOMS, AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다."));
-    }
-
-    @Test
-    @DisplayName("같은 에이전트의 카드를 다시 받으면 새로 추가하지 않고 덮어쓴다.")
-    void recordAgentReview_whenSameAgentType_thenOverwrite() {
-        // given: 콜백이 중복으로 오거나 재진단에서 같은 카드가 다시 온 경우
-        Product product = createInProgressProduct();
-        product.recordAgentReview(AgentType.FOOD_DRUG, AgentReviewStatus.SKIPPED, "식품 접촉 항목이 없습니다.");
-
-        // when
-        product.recordAgentReview(AgentType.FOOD_DRUG, AgentReviewStatus.COMPLETED, "식품용 기구에 해당합니다.");
-
-        // then
-        assertThat(product.getAgentReviews())
-                .extracting(AgentReview::getAgentType, AgentReview::getStatus, AgentReview::getDescription)
-                .containsExactly(tuple(AgentType.FOOD_DRUG, AgentReviewStatus.COMPLETED, "식품용 기구에 해당합니다."));
-    }
-
-    @Test
-    @DisplayName("서로 다른 에이전트의 카드는 각각 추가된다.")
-    void recordAgentReview_whenDifferentAgentType_thenAddEach() {
-        // given
-        Product product = createInProgressProduct();
-
-        // when
-        product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
-        product.recordAgentReview(AgentType.RADIO, AgentReviewStatus.SKIPPED, "무선 기능이 없습니다.");
-
-        // then
-        assertThat(product.getAgentReviews())
-                .extracting(AgentReview::getAgentType)
-                .containsExactly(AgentType.INTAKE, AgentType.RADIO);
-    }
-
-    @Test
     @DisplayName("진행 중인 상품이 질문을 받으면 답변 없는 질문이 추가되고 답변 대기 상태가 된다.")
     void askQuestions_whenInProgress_thenAddQuestionsAndAwaitInput() {
         // given
