@@ -207,3 +207,40 @@ def test_모델은_줄별_검토를_주장_목록보다_먼저_쓴다():
     properties = list(AdvertisingReview.model_json_schema()["properties"])
 
     assert properties == ["line_checks", "claims"]
+
+
+@pytest.mark.parametrize(("line", "quotes"), [
+    ("접이식 캠핑 의자 KC인증 완료", ["KC인증"]),
+    ("kc 안전확인 받은 제품", ["kc 안전확인"]),
+    ("인증: KC 방송통신기자재 적합성평가 R-R-ABC-1234", ["KC 방송통신"]),
+    ("KC 인증정보: 확인되지 않음", []),        # AliExpress 사양 칸 이름
+    ("KCAL 저칼로리 간식", []),
+])
+def test_국내_인증_표기만_찾는다(line, quotes):
+    assert [claim.quote for claim in advertising.find_kc_claims([line])] == quotes
+
+
+def test_모델이_놓친_KC_표기도_인증_확인_안내와_함께_돌려준다():
+    result = _run(_StubModel([]), "접이식 캠핑 의자 KC인증 완료")
+
+    phrase = result.result.detected_phrases[0]
+    assert (phrase.text, phrase.risk_type) == ("KC인증", "safety_certification")
+    assert "인증번호와 인증서로 확인" in result.required_actions[0]
+    assert result.query["kc_claims_added"] == 1
+
+
+def test_모델이_이미_인용한_KC_표기는_한_번만_남긴다():
+    model = _StubModel([_claim("KC인증 완료", "safety_certification")])
+
+    result = _run(model, "접이식 캠핑 의자 KC인증 완료")
+
+    assert [phrase.text for phrase in result.result.detected_phrases] == ["KC인증 완료"]
+    assert result.query["kc_claims_added"] == 0
+
+
+def test_인증이_아닌_안전_주장은_실증자료_안내를_받는다():
+    model = _StubModel([_claim("어린이에게 무해한 소재", "safety_certification")])
+
+    result = _run(model, "어린이에게 무해한 소재")
+
+    assert "실증자료" in result.required_actions[0]
