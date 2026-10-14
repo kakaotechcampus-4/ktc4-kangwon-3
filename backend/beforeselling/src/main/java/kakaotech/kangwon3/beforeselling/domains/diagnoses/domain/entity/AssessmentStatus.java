@@ -1,7 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity;
 
-public enum AgentReviewStatus {
+// AI 진단 결과의 완료 여부
+public enum AssessmentStatus {
     COMPLETED,
-    SKIPPED,
-    FAILED,
+    INCOMPLETE,
 }
