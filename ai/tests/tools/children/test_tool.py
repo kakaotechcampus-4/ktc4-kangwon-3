@@ -142,6 +142,20 @@ def test_맞는_품목을_고르면_후보와_근거_원문과_판매_전_할_�
     assert result.query["selected_items"] == [TOY_ROW]
 
 
+def test_조건과_확정_아님을_요약에_쓰고_할_일을_판단에도_연결한다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review(select()))
+    finding = result.findings[0]
+    assert finding.summary.startswith("이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님).")
+    assert finding.requirements == result.required_actions
+
+
+def test_연령을_모르면_요약에_연령_조건을_쓴다():
+    product, facts = product_and_facts("블록 장난감 세트", (("product_type", "블록 장난감"),))
+    result, _, _ = run(product, facts, review(select()))
+    assert "만 13세 이하 대상일 때 적용됩니다" in result.findings[0].summary
+
+
 def test_맞는_품목이_없어도_어린이제품이면_공급자적합성확인_후보를_낸다():
     product, facts = product_and_facts("어린이 원목 옷걸이, 만 3세 이상",
                                        (("product_type", "어린이 원목 옷걸이"), ("target_age", "만 3세 이상")),
