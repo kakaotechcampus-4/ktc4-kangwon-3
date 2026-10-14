@@ -6,6 +6,7 @@
 표지를 바꾸거나 자르는 규칙을 고치면 여기서 실패한다.
 """
 
+import importlib.util
 import json
 from pathlib import Path
 
@@ -33,3 +34,29 @@ def test_실제_페이지_구조에서_정제_결과가_그대로다(name: str):
     assert region.trimmed is expected["trimmed"]
     assert (region.title == TITLE) is expected["title"]
     assert region.text.splitlines() == expected["kept"]
+
+
+def _skeleton_script():
+    path = Path(__file__).parents[2] / "scripts" / "make_seller_region_skeletons.py"
+    spec = importlib.util.spec_from_file_location("make_seller_region_skeletons", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_표지_목록에_있는_줄에서_잘리면_경계_문제가_없다(aliexpress_page):
+    region = extract_seller_region(aliexpress_page)
+
+    assert region.trimmed
+    assert _skeleton_script().unknown_boundaries(aliexpress_page, region.text) == []
+
+
+def test_표지_목록에_없는_줄에서_잘리면_경계_줄을_돌려준다(aliexpress_page):
+    # 정제 코드에 "제품 설명" 표지를 추가하고 스크립트 목록에는 넣지 않은 경우를 흉내 낸다.
+    region = extract_seller_region(aliexpress_page)
+    lines = region.text.splitlines()
+    cut = lines[: lines.index("제품 설명")]
+
+    problems = _skeleton_script().unknown_boundaries(aliexpress_page, "\n".join(cut))
+
+    assert problems == ["끝 경계 '제품 설명'"]
