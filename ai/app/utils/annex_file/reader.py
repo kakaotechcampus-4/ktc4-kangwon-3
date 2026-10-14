@@ -62,11 +62,12 @@ def read_annex_file(content: bytes, file_type: str) -> list[Block]:
 
 
 def _read_hwp(content: bytes) -> list[Block]:
-    # 라이브러리가 파일 경로만 받아 임시 파일로 넘김
-    with tempfile.NamedTemporaryFile(suffix=".hwp") as file:
-        file.write(content)
-        file.flush()
-        with HWP5Reader(file.name) as reader:
+    # 라이브러리가 파일 경로만 받아 임시 파일로 넘김. Windows는 연 채로 다시 열 수 없어 임시 폴더에 쓰고 닫은 뒤 읽음
+    with tempfile.TemporaryDirectory() as folder:
+        path = f"{folder}/annex.hwp"
+        with open(path, "wb") as file:
+            file.write(content)
+        with HWP5Reader(path) as reader:
             if not reader.is_valid():
                 raise ValueError("HWP 파일이 아니거나 깨졌습니다.")
             if reader.is_encrypted():
