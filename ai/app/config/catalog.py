@@ -100,7 +100,7 @@ class ClaudeModel(ChatModel):
     2026-10-14 실호출 (claude-haiku-4-5·sonnet-4-5):
         - temperature: 게이트웨이 오류 500/502 ("AsyncMessages.stream() got an unexpected keyword argument 'temperature'")
         - reasoning_effort: 구조화 출력이 도구 강제 호출로 바뀌어 거부됨 ("Thinking may not be enabled when tool_choice forces tool use")
-        - 옵션 없이 부르면 json_schema 구조화 출력 동작. 스키마가 도구 정의로 들어가 입력 토큰이 늘어남, 캐시 토큰 보고 없음
+        - 옵션 없이 부르면 json_schema 구조화 출력 동작. 스키마가 도구 정의로 들어가 입력 토큰이 늘어남, 캐시는 공통 필드(cached_prompt_tokens·cache_write_tokens)로 보고됨
     게이트웨이가 고쳐지면 이 규칙을 풀면 됨.
     """
 
