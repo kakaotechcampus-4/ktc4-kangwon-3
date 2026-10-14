@@ -24,9 +24,6 @@ import java.util.UUID;
 )
 public class Product extends BaseEntity {
 
-    // 질문을 받을 수 있는 마지막 회차. 질문은 첫 진단(0)에서 한 번만 받고, 재질문은 하지 않는다.
-    public static final int MAX_QUESTION_ROUND = 0;
-
     @Id
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "product_id")
@@ -64,10 +61,6 @@ public class Product extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "result_status")
     private ResultStatus resultStatus;
-
-    // 0: 첫 진단, 1: 질문 답변 후 재진단(반드시 결과로 끝난다).
-    @Column(name = "diagnosis_round", nullable = false, columnDefinition = "integer default 0")
-    private int diagnosisRound;
 
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
@@ -144,20 +137,12 @@ public class Product extends BaseEntity {
         transition(ProcessingStatus.PENDING, ProcessingStatus.IN_PROGRESS);
     }
 
-    public void awaitInput() {
-        if (diagnosisRound > MAX_QUESTION_ROUND) {
-            throw new BaseException(CommonResponseCode.CONFLICT);
-        }
-        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
-    }
-
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
-        diagnosisRound++;
     }
 
-    // 질문은 첫 진단에서 한 번만 받고, 받으면 사용자 답변을 기다리는 상태가 된다.
-    // 두 번째 호출은 상태(AWAITING_INPUT) 또는 회차 제한 때문에 awaitInput()에서 CONFLICT로 막힌다.
+    // 질문을 받으면 사용자 답변을 기다리는 상태가 된다. 질문 횟수(최대 2회)는 AI가 제한한다.
+    // 답변 대기 중에 다시 질문이 오면 상태 전이(IN_PROGRESS → AWAITING_INPUT)에서 CONFLICT로 막힌다.
     public void askQuestions(List<QuestionContent> contents) {
         // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
         if (contents.isEmpty()) {
@@ -167,8 +152,8 @@ public class Product extends BaseEntity {
         if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
-
-        awaitInput();
+        
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
         contents.forEach(content -> questions.add(new ProductQuestion(this, content.questionKey(),
                 content.questionOrder(), content.questionText(), content.helpText())));
     }
