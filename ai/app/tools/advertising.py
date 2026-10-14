@@ -108,6 +108,12 @@ MEDICINAL_EFFECT_SOURCE = _source(
 # 의약품 효능처럼 읽히는 낱말. 소비자 안전 지침 Ⅴ 1 가가 "부당한 표시·광고가 된다"로 단정하는 유형이라 위험도를 높인다.
 _MEDICINAL_WORDS = ("치료", "예방", "완치", "질병", "질환")
 
+# 국내 인증(KC) 표기. 실제 인증 여부는 상품 글만으로 알 수 없어 모델 판단과 관계없이 코드가 찾아 확인을 안내한다.
+# "KC 인증정보"는 AliExpress 사양 칸 이름이라 뺀다(값이 "확인되지 않음"인 경우가 있다).
+_KC_MARK = re.compile(r"(?<![A-Za-z])KC\s*(?:인증(?!정보)|마크|안전인증|안전확인|공급자적합성|방송통신|적합성평가|certifi\w*)",
+                      re.IGNORECASE)
+_KC_REASON = "국내 인증(KC) 표기다. 실제로 인증을 받은 제품인지 상품 글만으로는 확인할 수 없다."
+
 _TYPE_LABELS = {
     AdvertisingRiskType.BODY_EFFECT: "인체 효능·효과",
     AdvertisingRiskType.SAFETY_CERTIFICATION: "안전·인증",
@@ -158,6 +164,22 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip().casefold()
 
 
+def find_kc_claims(lines: list[str]) -> list[AdvertisingClaim]:
+    """국내 인증(KC) 표기를 찾는다. 같은 표기는 한 번만 돌려준다."""
+    found: dict[str, AdvertisingClaim] = {}
+    for line in lines:
+        for match in _KC_MARK.finditer(line):
+            quote = match.group(0)
+            found.setdefault(_normalize(quote), AdvertisingClaim(
+                quote=quote, risk_type=AdvertisingRiskType.SAFETY_CERTIFICATION, reason=_KC_REASON))
+    return list(found.values())
+
+
+def _is_certification(claim: AdvertisingClaim) -> bool:
+    return claim.risk_type is AdvertisingRiskType.SAFETY_CERTIFICATION and (
+        "인증" in claim.quote or _KC_MARK.search(claim.quote) is not None)
+
+
 def _risk_level(claim: AdvertisingClaim) -> RiskLevel:
     if claim.risk_type is AdvertisingRiskType.BODY_EFFECT and any(word in claim.quote for word in _MEDICINAL_WORDS):
         return RiskLevel.HIGH
@@ -172,6 +194,9 @@ def _sources_for(claim: AdvertisingClaim, risk_level: RiskLevel) -> list[LegalSo
 
 
 def _action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
+    if _is_certification(claim):
+        return (f"'{claim.quote}' 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
+                "확인되지 않으면 표기를 빼세요.")
     if risk_level is RiskLevel.HIGH:
         return (f"'{claim.quote}'는 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
                 "남기려면 객관적 근거 자료를 먼저 확인하세요.")
@@ -218,7 +243,14 @@ class AdvertisingTool(RegulatoryTool):
         reviewer = self._reviewer or AdvertisingReviewer(self._model)
         review = reviewer.review(product, lines)
         kept, dropped = self._verify_quotes(review.claims, lines)
-        return self._assemble(decision, lines, kept, dropped, review, reviewer.prompt.sha256)
+        # 모델이 놓쳐도 KC 표기는 빠지지 않게 더한다. 모델 인용과 겹치면 모델 쪽을 남긴다.
+        kc_added = [
+            claim for claim in find_kc_claims(lines)
+            if not any(_normalize(claim.quote) in _normalize(k.quote) or _normalize(k.quote) in _normalize(claim.quote)
+                       for k in kept)
+        ]
+        return self._assemble(decision, lines, kept + kc_added, dropped, review, reviewer.prompt.sha256,
+                              kc_added=len(kc_added))
 
     @staticmethod
     def _verify_quotes(
@@ -248,6 +280,7 @@ class AdvertisingTool(RegulatoryTool):
         dropped: list[str],
         review: AdvertisingReview,
         prompt_sha256: str,
+        kc_added: int = 0,
     ) -> ToolResult:
         phrases: list[AdvertisingPhrase] = []
         findings: list[RegulatoryFinding] = []
@@ -277,7 +310,8 @@ class AdvertisingTool(RegulatoryTool):
             status=ToolStatus.SUCCESS,
             selected=True,
             selection_reason=decision.reason,
-            query={"listing_lines": len(lines), "prompt_sha256": prompt_sha256, "dropped_quotes": dropped},
+            query={"listing_lines": len(lines), "prompt_sha256": prompt_sha256, "dropped_quotes": dropped,
+                   "kc_claims_added": kc_added},
             result=AdvertisingAssessment(reviewed_phrases=lines, detected_phrases=phrases, overall_risk=overall,
                                          legal_sources=sources),
             findings=findings,
