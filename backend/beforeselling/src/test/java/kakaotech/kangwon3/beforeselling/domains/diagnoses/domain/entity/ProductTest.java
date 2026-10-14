@@ -6,12 +6,15 @@ import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,6 +24,19 @@ class ProductTest {
 
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
+    private static final String ERROR_CODE = "AI_PIPELINE_ERROR";
+    private static final String ERROR_MESSAGE = "진단 중 오류가 발생했습니다.";
+
+    static Stream<Arguments> blankErrors() {
+        return Stream.of(
+                Arguments.of(null, ERROR_MESSAGE),
+                Arguments.of("", ERROR_MESSAGE),
+                Arguments.of(" ", ERROR_MESSAGE),
+                Arguments.of(ERROR_CODE, null),
+                Arguments.of(ERROR_CODE, ""),
+                Arguments.of(ERROR_CODE, " ")
+        );
+    }
 
     @Test
     @DisplayName("생성된 상품은 대기 상태다.")
@@ -283,10 +299,47 @@ class ProductTest {
         Product product = createInProgressProduct();
 
         // when
-        product.fail();
+        product.fail(PipelineStage.TOOL_EXECUTION, ERROR_CODE, ERROR_MESSAGE, true);
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(product)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsExactly(PipelineStage.TOOL_EXECUTION, ERROR_CODE, ERROR_MESSAGE, true);
+    }
+
+    @Test
+    @DisplayName("BE가 직접 실패 처리하면 실패 단계와 재시도 여부 없이 실패 정보가 저장된다.")
+    void fail_whenNoStageAndRetryable_thenFailedWithNulls() {
+        // given: 멈춘 진단 정리 스케줄러처럼 AI 이벤트 없이 실패 처리하는 경우
+        Product product = createInProgressProduct();
+
+        // when
+        product.fail(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(product)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsExactly(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+    }
+
+    @ParameterizedTest(name = "code=[{0}], message=[{1}]")
+    @MethodSource("blankErrors")
+    @DisplayName("오류 코드나 메시지가 비어 있으면 BAD_REQUEST 예외가 발생하고 상태와 실패 정보가 바뀌지 않는다.")
+    void fail_whenBlankError_thenThrowBadRequest(String errorCode, String errorMessage) {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertBadRequest(() -> product.fail(PipelineStage.EXTRACTION, errorCode, errorMessage, false));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsOnlyNulls();
     }
 
     @Test
@@ -296,19 +349,24 @@ class ProductTest {
         Product product = createAwaitingInputProduct();
 
         // when & then
-        assertConflict(product::fail);
+        assertConflict(() -> product.fail(null, ERROR_CODE, ERROR_MESSAGE, null));
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(product.getErrorCode()).isNull();
     }
 
     @Test
-    @DisplayName("이미 실패한 상품을 다시 실패 처리하면 CONFLICT 예외가 발생한다.")
+    @DisplayName("이미 실패한 상품을 다시 실패 처리하면 CONFLICT 예외가 발생하고 처음 실패 정보가 유지된다.")
     void fail_whenFailed_thenThrowConflict() {
         // given
         Product product = createInProgressProduct();
-        product.fail();
+        product.fail(PipelineStage.TOOL_EXECUTION, ERROR_CODE, ERROR_MESSAGE, true);
 
         // when & then
-        assertConflict(product::fail);
+        assertConflict(() -> product.fail(null, "AI_TIMEOUT", "시간이 초과되었습니다.", false));
+        assertThat(product)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsExactly(PipelineStage.TOOL_EXECUTION, ERROR_CODE, ERROR_MESSAGE, true);
     }
 
     @Test
