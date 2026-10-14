@@ -13,7 +13,8 @@ from datetime import date
 from enum import StrEnum
 
 from ..common.law import (
-    DocRef, EvidenceUnavailable, LawLookup, annex_text, compact, load_admrul, load_law, normalize_text,
+    DocRef, EvidenceUnavailable, LawLookup, annex_text, compact, join_wrapped, load_admrul, load_law,
+    normalize_text,
 )
 from ..common.ranking import _bigrams
 
@@ -150,10 +151,10 @@ def parse_rule_annex(text: str, scheme: Scheme) -> list[ChildrenItem]:
         if not name or _DELETED_RE.match(name):
             continue
         number = int(row["label"]) if row["label"].isdigit() else _KOREAN_LABELS.index(row["label"]) + 1
+        standards = tuple(normalize_text(standard) for standard in row["standards"])
         items.append(ChildrenItem(
-            item_id=f"{prefix}-{number:02d}", scheme=scheme, name=name,
-            standards=tuple(normalize_text(standard) for standard in row["standards"]),
-            row_text=normalize_text(" ".join(row["lines"])),
+            item_id=f"{prefix}-{number:02d}", scheme=scheme, name=name, standards=standards,
+            row_text=f"{row['label']}. {name} — 적용 안전기준: {', '.join(standards)}",
         ))
     if not items:
         raise EvidenceUnavailable(f"시행규칙 별표 {SCHEME_ANNEXES[scheme][0]}에서 품목을 찾지 못했습니다.")
@@ -180,7 +181,7 @@ def parse_scope_annex(text: str) -> list[tuple[str, str]]:
             continue
         width = max(len(cells) for cells in block)
         name = "".join(cells[-2] for cells in block if len(cells) == width)
-        scope = normalize_text(" ".join(cells[-1] for cells in block))
+        scope = join_wrapped([cells[-1] for cells in block])
         if not compact(name) or compact(name) == "품목" or not scope:
             continue
         result.append((normalize_text(name), scope))
@@ -232,7 +233,8 @@ def link_scopes(items: list[ChildrenItem], scopes: list[tuple[str, str]]) -> tup
 
 
 def common_standard_item(text: str) -> ChildrenItem:
-    match = _COMMON_STANDARD_RE.search(normalize_text(text))
+    lines = [cells[0] for line in text.splitlines() if (cells := _cells(line)) is not None and len(cells) == 1]
+    match = _COMMON_STANDARD_RE.search(join_wrapped(lines))
     if match is None:
         raise EvidenceUnavailable("시행규칙 별표 3에서 개별 안전기준이 없는 품목의 기준을 찾지 못했습니다.")
     sentence = match.group(0)

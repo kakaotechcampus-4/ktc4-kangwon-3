@@ -51,6 +51,25 @@ def normalize_text(text: str) -> str:
     return " ".join((text or "").translate(_BOX_DRAWING).split())
 
 
+_WORD_END = set(".,)」』]:;·의로와과는은을를에게서며고된한및도면다요")
+
+
+def join_wrapped(fragments: list[str]) -> str:
+    """칸 폭 때문에 여러 줄로 나뉜 칸 글자를 잇는다.
+
+    줄 끝이 문장부호나 흔한 조사·어미로 끝나면 띄어 쓰고, 아니면 단어 중간에서 끊긴 것으로 보고 붙인다
+    ("인라인스" + "케이트" → "인라인스케이트", "유아용의" + "의류" → "유아용의 의류"). 표 줄 끝 여백으로는 구분되지 않는다.
+    """
+    text = ""
+    for fragment in (normalize_text(part) for part in fragments):
+        if not fragment:
+            continue
+        if text and (text[-1] in _WORD_END or not ("가" <= text[-1] <= "힣") or not ("가" <= fragment[0] <= "힣")):
+            text += " "
+        text += fragment
+    return text
+
+
 class LawLookup(Protocol):
     """근거 조회에 필요한 법제처 조회 4가지. 운영은 LawApiClients, 테스트는 Fake를 쓴다."""
 
