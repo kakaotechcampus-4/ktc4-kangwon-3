@@ -1,13 +1,17 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
 import jakarta.persistence.EntityManager;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductProgress;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductQuestion;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.CryptoProperties;
 import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
@@ -239,8 +243,35 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
-    @DisplayName("진단서를 삭제하면 상품의 질문도 함께 제거되고 다른 진단서의 것은 남는다.")
-    void delete_thenDeleteOnlyItsQuestions() {
+    @DisplayName("상품의 진행 상태는 툴이 없는 단계와 툴별 단계가 함께 저장되고 조회된다.")
+    void save_thenPersistProgresses() {
+        // given
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        Product product = createProduct("대나무 헬리콥터", null);
+        product.startDiagnosis();
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
+        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
+        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, AgentType.RADIO);
+        diagnoses.addProducts(List.of(product));
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        flushAndClear();
+
+        // when
+        Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
+
+        // then
+        assertThat(saved.getProgresses())
+                .extracting(ProductProgress::getRunId, ProductProgress::getSequence, ProductProgress::getStage,
+                        ProductProgress::getStageStatus, ProductProgress::getToolName)
+                .containsExactlyInAnyOrder(
+                        tuple("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null),
+                        tuple("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS),
+                        tuple("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, AgentType.RADIO));
+    }
+
+    @Test
+    @DisplayName("진단서를 삭제하면 상품의 질문과 진행 상태도 함께 제거되고 다른 진단서의 것은 남는다.")
+    void delete_thenDeleteOnlyItsQuestionsAndProgresses() {
         // given
         UUID targetId = diagnosesRepository.save(createDiagnosesWithQuestion()).getId();
         UUID otherId = diagnosesRepository.save(createDiagnosesWithQuestion()).getId();
@@ -252,6 +283,7 @@ class DiagnosesRepositoryTest {
 
         // then
         assertThat(countQuestions()).isEqualTo(1);
+        assertThat(countProgresses()).isEqualTo(1);
         assertThat(diagnosesRepository.findById(otherId)).isPresent();
     }
 
@@ -284,6 +316,7 @@ class DiagnosesRepositoryTest {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
         product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
         return diagnoses;
@@ -315,6 +348,10 @@ class DiagnosesRepositoryTest {
 
     private long countImages() {
         return entityManager.createQuery("select count(i) from ProductImage i", Long.class).getSingleResult();
+    }
+
+    private long countProgresses() {
+        return entityManager.createQuery("select count(p) from ProductProgress p", Long.class).getSingleResult();
     }
 
     private long countQuestions() {
