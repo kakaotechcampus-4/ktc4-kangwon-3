@@ -5,6 +5,11 @@ import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -73,6 +78,90 @@ class ProductTest {
         // when & then
         assertConflict(product::resume);
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("재진단해도 resume 요청에 보낼 이전 실행의 runId는 그대로 남는다.")
+    void resume_thenKeepPreviousRunId() {
+        // given
+        Product product = createInProgressProduct();
+        product.assignRun("run-1");
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+
+        // when
+        product.resume();
+
+        // then
+        assertThat(product.getRunId()).isEqualTo("run-1");
+    }
+
+    @Test
+    @DisplayName("진행 중인 상품이 실행 식별자를 받으면 현재 실행으로 저장된다.")
+    void assignRun_whenInProgress_thenAssign() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.assignRun("run-1");
+
+        // then
+        assertThat(product.getRunId()).isEqualTo("run-1");
+        assertThat(product.isCurrentRun("run-1")).isTrue();
+    }
+
+    @Test
+    @DisplayName("재진단으로 새 실행 식별자를 받으면 교체되고, 이전 실행은 현재 실행이 아니게 된다.")
+    void assignRun_whenResumed_thenReplace() {
+        // given
+        Product product = createInProgressProduct();
+        product.assignRun("run-1");
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+        product.resume();
+
+        // when
+        product.assignRun("run-2");
+
+        // then
+        assertThat(product.isCurrentRun("run-2")).isTrue();
+        assertThat(product.isCurrentRun("run-1")).isFalse();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = ProcessingStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "IN_PROGRESS")
+    @DisplayName("진행 중이 아닌 상품이 실행 식별자를 받으면 CONFLICT 예외가 발생하고 기존 값이 유지된다.")
+    void assignRun_whenNotInProgress_thenThrowConflict(ProcessingStatus status) {
+        // given
+        Product product = createInProgressProduct();
+        product.assignRun("run-1");
+        ReflectionTestUtils.setField(product, "processingStatus", status);
+
+        // when & then
+        assertConflict(() -> product.assignRun("run-2"));
+        assertThat(product.getRunId()).isEqualTo("run-1");
+    }
+
+    @ParameterizedTest(name = "[{0}]")
+    @NullSource
+    @ValueSource(strings = {"", " "})
+    @DisplayName("비어 있는 실행 식별자를 받으면 BAD_REQUEST 예외가 발생하고 저장되지 않는다.")
+    void assignRun_whenBlank_thenThrowBadRequest(String runId) {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertBadRequest(() -> product.assignRun(runId));
+        assertThat(product.getRunId()).isNull();
+    }
+
+    @Test
+    @DisplayName("실행 식별자를 받기 전에는 어떤 실행도 현재 실행이 아니다.")
+    void isCurrentRun_whenNotAssigned_thenFalse() {
+        // given: 202를 저장하기 전에 콜백이 먼저 도착한 경우
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertThat(product.isCurrentRun("run-1")).isFalse();
+        assertThat(product.isCurrentRun(null)).isFalse();
     }
 
     @Test
