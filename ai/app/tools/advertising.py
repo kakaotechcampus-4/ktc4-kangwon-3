@@ -285,7 +285,6 @@ class AdvertisingTool(RegulatoryTool):
         phrases: list[AdvertisingPhrase] = []
         findings: list[RegulatoryFinding] = []
         actions: list[str] = []
-        questions: list[str] = []
         sources: list[LegalSource] = []
         for claim in claims:
             level = _risk_level(claim)
@@ -301,7 +300,6 @@ class AdvertisingTool(RegulatoryTool):
                 assumptions=["판매자가 이 주장의 실증자료를 갖고 있는지는 확인하지 않았습니다."],
             ))
             actions.append(action)
-            questions.append(f"'{claim.quote}' 주장을 뒷받침하는 시험·조사 자료가 있나요?")
             sources.extend(source for source in claim_sources if source not in sources)
 
         overall = max((phrase.risk_level for phrase in phrases), key=_RISK_ORDER.index, default=RiskLevel.LOW)
@@ -316,7 +314,7 @@ class AdvertisingTool(RegulatoryTool):
                                          legal_sources=sources),
             findings=findings,
             required_actions=actions,
-            missing_information=questions,
+            # 실증자료가 있는지는 물어도 판단이 바뀌지 않아 질문으로 내지 않는다. 할 일(required_actions)로만 안내한다(#310).
             raw_response=review.model_dump(mode="json"),
         )
 
