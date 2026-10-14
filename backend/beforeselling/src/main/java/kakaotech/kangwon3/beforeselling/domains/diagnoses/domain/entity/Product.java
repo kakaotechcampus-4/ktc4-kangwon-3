@@ -84,6 +84,11 @@ public class Product extends BaseEntity {
     @BatchSize(size = 100)
     private List<ProductQuestion> questions = new ArrayList<>();
 
+    // 진행 콜백의 단계·툴별 최신 상태. 진행 화면에서 읽는다.
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    private List<ProductProgress> progresses = new ArrayList<>();
+
     // 이하 진단 결과. 분야별 카드는 결과 콜백으로만 채운다(진행 콜백에는 카드 내용이 없다).
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @BatchSize(size = 100)
@@ -157,6 +162,29 @@ public class Product extends BaseEntity {
 
     public boolean isCurrentRun(String runId) {
         return this.runId != null && this.runId.equals(runId);
+    }
+
+    // 같은 실행에서 이미 반영한 것보다 앞선 이벤트(재시도로 늦게 온 것, 중복)는 무시한다.
+    public void recordProgress(String runId, int sequence, PipelineStage stage,
+                               StageStatus stageStatus, AgentType toolName) {
+        if (toolName != null && stage != PipelineStage.TOOL_EXECUTION) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        if (processingStatus != ProcessingStatus.IN_PROGRESS) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
+        progresses.stream()
+                .filter(progress -> progress.isFor(stage, toolName))
+                .findFirst()
+                .ifPresentOrElse(
+                        progress -> {
+                            if (!progress.isNewerOrSame(runId, sequence)) {
+                                progress.update(runId, sequence, stageStatus);
+                            }
+                        },
+                        () -> progresses.add(new ProductProgress(this, runId, sequence, stage, stageStatus, toolName))
+                );
     }
 
     // 질문을 받으면 사용자 답변을 기다리는 상태가 된다. 질문 횟수(최대 2회)는 AI가 제한하고,
