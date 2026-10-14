@@ -29,6 +29,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 배포 스크립트 검사
+        run: |
+          shellcheck deploy/blue-green.sh deploy/test/blue-green.test.sh
+          bash deploy/test/blue-green.test.sh
+
+      - name: 운영 compose 병합 검사
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q
+
       - name: JDK 25 설치
         uses: actions/setup-java@v4
         with:
@@ -59,6 +67,10 @@ jobs:
     needs: build-and-test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # job 레벨이라 PR CI는 막지 않는다. 서버에서의 겹침(SSM 타임아웃 후에도 도는 스크립트, 수동 rollback)은 flock이 막는다.
+    concurrency:
+      group: be-deploy
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
@@ -89,20 +101,37 @@ jobs:
             "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
           aws s3 cp backend/beforeselling/docker-compose.prod.yml \
             "s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml"
+          aws s3 cp backend/beforeselling/deploy/blue-green.sh \
+            "s3://${S3_BUCKET}/blue-green-${GITHUB_SHA}.sh"
 
+      # Blue-Green 전환은 blue-green.sh가 한다 (backend/beforeselling/deploy/README.md).
+      # release 디렉터리 교체까지 같은 락 안에서 해야 진행 중인 배포/롤백의 파일을 덮어쓰지 않는다.
       - name: 배포 실행
         uses: ./.github/actions/ssm-run
         with:
           instance-id: ${{ vars.INSTANCE_ID }}
           label: be deploy
+          max-attempts: "90"
           commands: |
+            exec 9>/var/lock/be-deploy.lock
+            flock -w 600 9
+            export BE_DEPLOY_LOCK_HELD=1
             aws s3 cp s3://${{ env.S3_BUCKET }}/app-image-${{ github.sha }}.tar.gz /tmp/app-image.tar.gz
             gunzip -c /tmp/app-image.tar.gz | docker load
             rm -rf ${{ env.APP_DIR }}/release && mkdir -p ${{ env.APP_DIR }}/release
             aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.yml
             aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-prod-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.prod.yml
+            aws s3 cp s3://${{ env.S3_BUCKET }}/blue-green-${{ github.sha }}.sh ${{ env.APP_DIR }}/release/blue-green.sh
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
             cd ${{ env.APP_DIR }}/release
-            IMAGE_TAG=${{ github.sha }} docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 180 || { docker compose -f docker-compose.yml -f docker-compose.prod.yml ps; docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail 100 app; exit 1; }
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+            docker network inspect be-ai-net >/dev/null 2>&1 || docker network create be-ai-net
+            bash blue-green.sh deploy ${{ github.sha }}
+            docker ps -a --filter name=be-server --format '{{.Names}} {{.Image}} {{.Status}}'
             docker image prune -a -f
+
+      # 전환 후 외부 경로(Cloudflare → nginx → 새 색)까지 확인한다. 실패하면 README의 rollback 절차를 따른다.
+      - name: 서비스 확인
+        run: |
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 10 https://palgijeone.com/v3/api-docs)
+          echo "api : ${CODE}"
+          [ "$CODE" = "200" ] || { echo "::error::배포 후 백엔드 응답 이상 (${CODE}) - 필요하면 blue-green.sh rollback"; exit 1; }

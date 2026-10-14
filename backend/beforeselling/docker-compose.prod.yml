@@ -3,3 +3,33 @@ services:
     ports: !reset []
   redis:
     ports: !reset []
+
+  # 단일 app은 base 파일만 쓸 때(로컬)용, 운영에서는 blue/green 배포 방식으로 수행.
+  app:
+    profiles: ["local"]
+
+  app-blue:
+    extends: { file: docker-compose.yml, service: app }
+    container_name: be-server-blue
+    ports: !override ["8080:8080"]
+    networks:
+      appnet:
+        aliases: [be-server]
+      be-ai-net:
+        aliases: [be-server]
+
+  app-green:
+    extends: { file: docker-compose.yml, service: app }
+    container_name: be-server-green
+    ports: !override ["8082:8080"]
+    networks:
+      appnet:
+        aliases: [be-server]
+      be-ai-net:
+        aliases: [be-server]
+
+# AI 서버가 BE 내부 API(/internal/**)를 호출하는 전용 네트워크
+networks:
+  be-ai-net:
+    name: be-ai-net
+    external: true
