@@ -230,6 +230,26 @@ def test_사용_금지_연령은_반대로_읽어_성인용이면_어린이제�
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
 
 
+def test_추출_단계가_어린이_대상이라_했는데_표시_연령이_미포함이면_단정하지_않고_묻는다():
+    product, facts = product_and_facts("코딩 로봇 키트, 14세 이상", (("product_type", "코딩 로봇 키트"), ("target_age", "14세 이상")))
+    product.for_children = True
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["age_state"] is None
+    assert "target_age" in result.query["conflicted"]
+    assert "사용 대상 연령 정보가 서로 달라 확인이 필요합니다." in result.missing_information
+    assert not any("아닐 가능성" in finding.summary for finding in result.findings)
+
+
+def test_모델이_연령을_인용하지_못해도_추출_단계_연령이_원문에_있으면_쓴다():
+    product, facts = product_and_facts("블록 장난감 세트, 사용연령 만 3세 이상", (("product_type", "블록 장난감"),))
+    product.target_age = "만 3세 이상"
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["age_source"] == "product.target_age"
+    assert result.query["age_state"] is True
+    assert result.result.target_age_raw == "만 3세 이상"
+    assert not any("사용 대상 연령" in question for question in result.missing_information)
+
+
 def test_연령_표기끼리_어긋나면_서로_다르다고_묻는다():
     text = "블록 장난감, 만 3세 이상, 14세 이상 권장"
     product, facts = product_and_facts(text, (("product_type", "블록 장난감"), ("target_age", "만 3세 이상"),
