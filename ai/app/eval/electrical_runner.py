@@ -37,7 +37,7 @@ from dotenv import load_dotenv
 
 from .. import usage as usage_module
 from ..config import ENV_FILE, MAX_RETRIES, MODEL_PROFILES, TIMEOUT_SECONDS, TOOL_PROFILES
-from ..config.settings import profile_env
+from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_overrides
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import ToolName, ToolResult
@@ -141,14 +141,18 @@ def build_model(spec: str, *, default_temperature: bool = False):
 
 
 def default_spec(default_temperature: list[str]) -> str:
-    """--model이 없을 때 전기 Tool 프로필(TOOL_ELECTRICAL_SAFETY_MODEL_PROFILE 또는 기본값)을 '이름[#추론강도]'로.
+    """--model이 없을 때 전기 Tool 프로필(MODEL_PROFILE_OVERRIDES의 tool.electrical_safety 또는 기본값)을 '이름[#추론강도]'로.
 
     프로필에 temperature가 없으면(추론 모델) default_temperature에 모델 이름을 넣어 temperature를 보내지 않게 함.
     """
-    env_name = profile_env("tool", ToolName.ELECTRICAL)
-    name = os.environ.get(env_name, "").strip() or TOOL_PROFILES[ToolName.ELECTRICAL]
+    try:
+        overrides = parse_profile_overrides(os.environ.get(OVERRIDES_ENV, ""))
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from None
+    name = overrides.get(("tool", ToolName.ELECTRICAL), TOOL_PROFILES[ToolName.ELECTRICAL])
     if name not in MODEL_PROFILES:
-        raise SystemExit(f"{env_name}={name!r}는 없는 프로필입니다 (허용: {', '.join(MODEL_PROFILES)}).")
+        raise SystemExit(f"{OVERRIDES_ENV}의 tool.{ToolName.ELECTRICAL}={name!r}는 없는 프로필입니다 "
+                         f"(허용: {', '.join(MODEL_PROFILES)}).")
     profile = MODEL_PROFILES[name]
     if profile.temperature is None:
         default_temperature.append(profile.model.id)

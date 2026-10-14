@@ -23,6 +23,8 @@ _VALID_ENV = {
     "DATA_GO_KR_KEY": "test-data-key",
     "KEY_SAFETYKOREA": "test-safety-key",
     "LAW_GO_KR_OC": "test-oc",
+    # 셸에 남은 덮어쓰기 값이 테스트에 섞이지 않게 기본은 지움
+    "MODEL_PROFILE_OVERRIDES": None,
 }
 
 
@@ -245,11 +247,14 @@ def test_에이전트마다_기본_프로필을_쓴다(monkeypatch):
     assert config.agent_profile("selection", settings).name == config.AGENT_PROFILES["selection"]
 
 
-def test_환경변수로_에이전트_프로필을_바꾼다(monkeypatch):
-    _env(monkeypatch, AGENT_EXTRACTION_MODEL_PROFILE=" luna-low ")
+def test_덮어쓰기에_적은_에이전트만_프로필이_바뀐다(monkeypatch):
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES=" agent.extraction = luna-low ")
+    settings = config.load_settings()
 
-    profile = config.agent_profile("extraction", config.load_settings())
+    profile = config.agent_profile("extraction", settings)
 
+    # 적지 않은 에이전트는 코드 기본값
+    assert config.agent_profile("selection", settings).name == config.AGENT_PROFILES["selection"]
     assert profile.name == "luna-low"
     assert profile.model.id == "openai/gpt-6-luna"
     # 추론 모델은 temperature를 보내지 않음
@@ -258,9 +263,9 @@ def test_환경변수로_에이전트_프로필을_바꾼다(monkeypatch):
 
 
 def test_없는_프로필_이름은_기본값으로_넘기지_않고_거부한다(monkeypatch):
-    _env(monkeypatch, AGENT_SELECTION_MODEL_PROFILE="gpt-5")
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES="agent.selection=gpt-5")
 
-    with pytest.raises(config.ConfigError, match="AGENT_SELECTION_MODEL_PROFILE='gpt-5'"):
+    with pytest.raises(config.ConfigError, match="agent.selection='gpt-5'"):
         config.load_settings()
 
 
@@ -269,9 +274,9 @@ def test_프로필이_정해지지_않은_에이전트는_거부한다():
         config.agent_profile("unknown", _settings())
 
 
-def test_Tool은_에이전트와_다른_표와_환경변수로_프로필을_고른다(monkeypatch):
+def test_Tool은_에이전트와_다른_표에서_프로필을_고른다(monkeypatch):
     # 에이전트와 Tool 이름이 겹쳐도 서로의 프로필을 바꾸지 않음
-    _env(monkeypatch, TOOL_ELECTRICAL_SAFETY_MODEL_PROFILE="luna-low")
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES="tool.electrical_safety=luna-low")
     settings = config.load_settings()
 
     assert config.tool_profile("electrical_safety", settings).name == "luna-low"
@@ -281,9 +286,31 @@ def test_Tool은_에이전트와_다른_표와_환경변수로_프로필을_고�
 
 
 def test_없는_Tool_프로필_이름도_기동을_막는다(monkeypatch):
-    _env(monkeypatch, TOOL_ELECTRICAL_SAFETY_MODEL_PROFILE="gpt-5")
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES="tool.electrical_safety=gpt-5")
 
-    with pytest.raises(config.ConfigError, match="TOOL_ELECTRICAL_SAFETY_MODEL_PROFILE='gpt-5'"):
+    with pytest.raises(config.ConfigError, match="tool.electrical_safety='gpt-5'"):
+        config.load_settings()
+
+
+def test_덮어쓰기는_쉼표로_여러_대상을_받는다():
+    overrides = config.settings.parse_profile_overrides(
+        "agent.extraction=luna-low, tool.electrical_safety=luna-medium,")
+
+    assert overrides == {("agent", "extraction"): "luna-low", ("tool", "electrical_safety"): "luna-medium"}
+    assert config.settings.parse_profile_overrides("") == {}
+
+
+@pytest.mark.parametrize(("raw", "message"), [
+    ("extraction=luna-low", "형식"),          # 종류 없음
+    ("agent.extraction", "형식"),             # 프로필 없음
+    ("model.extraction=luna-low", "형식"),    # 없는 종류
+    ("agent.extracton=luna-low", "extracton"),  # 표에 없는 이름 (오타)
+    ("tool.extraction=luna-low", "extraction"),  # 에이전트 이름을 Tool로
+])
+def test_덮어쓰기_오타는_조용히_무시하지_않고_기동을_막는다(monkeypatch, raw, message):
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES=raw)
+
+    with pytest.raises(config.ConfigError, match=message):
         config.load_settings()
 
 
