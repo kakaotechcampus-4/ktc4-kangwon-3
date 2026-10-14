@@ -57,6 +57,19 @@ public class Product extends BaseEntity {
     @Column(name = "run_id")
     private String runId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "failed_stage")
+    private PipelineStage failedStage;
+
+    @Column(name = "error_code", length = 50)
+    private String errorCode;
+
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+
+    @Column(name = "error_retryable")
+    private Boolean errorRetryable;
+
     // 결과를 받기 전에는 null
     @Enumerated(EnumType.STRING)
     @Column(name = "assessment_status")
@@ -205,8 +218,17 @@ public class Product extends BaseEntity {
                 content.questionKey(), content.questionOrder(), content.questionText(), content.helpText())));
     }
 
-    public void fail() {
+    // 진단을 실패로 끝내고 실패 정보를 남긴다.
+    public void fail(PipelineStage failedStage, String errorCode, String errorMessage, Boolean errorRetryable) {
+        if (errorCode == null || errorCode.isBlank() || errorMessage == null || errorMessage.isBlank()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+
         transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.FAILED);
+        this.failedStage = failedStage;
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+        this.errorRetryable = errorRetryable;
     }
 
     private void transition(ProcessingStatus from, ProcessingStatus to) {
