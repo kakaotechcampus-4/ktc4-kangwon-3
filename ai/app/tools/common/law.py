@@ -245,6 +245,29 @@ def article_text(body, number: int) -> str:
     return normalize_text(" ".join(parts))
 
 
+def law_paragraph(body, article: int, paragraph: str, *, branch: int = 0) -> str:
+    """조문의 항 하나(호·목 포함) 원문. 예: 제58조의2 제1항 → law_paragraph(body, 58, "①", branch=2).
+
+    Raises:
+        EvidenceUnavailable: 조문이나 항을 유일하게 찾지 못한 경우.
+    """
+    wanted = (None, "", "0", "00") if branch == 0 else (str(branch), f"{branch:02d}", f"{branch:04d}")
+    articles = [candidate for candidate in body.articles
+                if str(candidate.article_number or "").lstrip("0") == str(article)
+                and candidate.article_branch_number in wanted and candidate.paragraphs]
+    label = f"제{article}조" + (f"의{branch}" if branch else "")
+    if len(articles) != 1:
+        raise EvidenceUnavailable(f"{label}를 유일하게 식별하지 못했습니다.")
+    matches = [node for node in articles[0].paragraphs if (node.number or "").strip() == paragraph]
+    if len(matches) != 1:
+        raise EvidenceUnavailable(f"{label} {paragraph}항을 찾지 못했습니다.")
+    parts = [matches[0].content or ""]
+    for item in matches[0].items or []:
+        parts.append(item.content or "")
+        parts.extend(sub.content or "" for sub in item.sub_items or [])
+    return normalize_text(" ".join(parts))
+
+
 def annex_text(body, number: int, *, branch: int = 0, title: str | None = None) -> str:
     """별표 하나의 원문(표 테두리 포함)을 꺼낸다. 표 파싱은 호출자가 한다.
 
