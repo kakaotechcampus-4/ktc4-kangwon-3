@@ -56,6 +56,11 @@ public class Product extends BaseEntity {
     @Column(name = "processing_status", nullable = false)
     private ProcessingStatus processingStatus;
 
+    // 결과를 받기 전에는 null
+    @Enumerated(EnumType.STRING)
+    @Column(name = "assessment_status")
+    private AssessmentStatus assessmentStatus;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "result_status")
     private ResultStatus resultStatus;
@@ -85,6 +90,25 @@ public class Product extends BaseEntity {
     @OrderBy("questionOrder ASC")
     @BatchSize(size = 100)
     private List<ProductQuestion> questions = new ArrayList<>();
+
+    // 이하 진단 결과. 위 카드·질문과 같은 이유로 fetch join하지 않는다.
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    private List<ProductToolReview> toolReviews = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_required_action", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "action_order")
+    @Column(name = "action_text", nullable = false, columnDefinition = "TEXT")
+    @BatchSize(size = 100)
+    private List<String> requiredActions = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_notice", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "notice_order")
+    @Column(name = "notice_text", nullable = false, columnDefinition = "TEXT")
+    @BatchSize(size = 100)
+    private List<String> notices = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
     private Product(String productName, String productImageKey,
