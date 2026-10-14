@@ -105,13 +105,14 @@ def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="표시·광고 Tool 평가")
     parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--truth", type=Path, default=TRUTH_PATH, help="평가셋 파일. 기본 dev.json")
     parser.add_argument("--only", action="append", default=[], help="이 product_id만 실행(여러 번 줄 수 있음)")
     parser.add_argument("--rescore", type=Path, help="저장한 결과를 현재 평가셋으로 다시 채점")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--model", help="이름[#추론강도]. 없으면 .env 모델. 예: openai/gpt-6-luna#low")
     args = parser.parse_args()
 
-    truth, inputs = load_eval_set(TRUTH_PATH, _AI_ROOT)
+    truth, inputs = load_eval_set(args.truth, _AI_ROOT)
     if args.rescore:
         saved = json.loads(args.rescore.read_text(encoding="utf-8"))
         print(describe_metadata(saved["meta"]))
@@ -128,6 +129,7 @@ def main() -> int:
     meta = run_metadata(runs=args.runs, model=args.model or reviewer._configured_model or "알 수 없음",
                         prompt_path=get_prompt(PromptName.ADVERTISING).path)
     meta["inputs_sha256_12"] = truth["inputs_sha256_12"]
+    meta["truth"] = args.truth.name
     print(describe_metadata(meta))
 
     results = {product_id: run_case(tool, product_id, inputs[product_id], args.runs) for product_id in targets}
