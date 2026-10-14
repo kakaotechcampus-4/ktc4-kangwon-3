@@ -200,7 +200,7 @@ public class Product extends BaseEntity {
                 );
     }
 
-    // 질문을 받으면 사용자 답변을 기다리는 상태가 된다. 질문 횟수(최대 2회)는 AI가 제한하고,
+    // 질문을 받으면 사용자 답변을 기다리는 상태가 된다.
     // BE는 AI가 보낸 회차를 그대로 저장한다.
     // 답변 대기 중에 다시 질문이 오면 상태 전이(IN_PROGRESS → AWAITING_INPUT)에서 CONFLICT로 막힌다.
     public void askQuestions(int questionRound, List<QuestionContent> contents) {
