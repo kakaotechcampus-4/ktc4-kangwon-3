@@ -113,7 +113,9 @@ def test_찾은_문구는_확정이_아니라_실증_필요로_돌려준다():
     assert phrase.evidence_required is True and phrase.risk_type == "ranking_absolute"
     assert finding.determination is Determination.POSSIBLY_REQUIRED
     assert advertising.SUBSTANTIATION_TARGETS[advertising.AdvertisingRiskType.RANKING_ABSOLUTE] in finding.legal_sources
-    assert result.missing_information == ["'국내 판매 1위' 주장을 뒷받침하는 시험·조사 자료가 있나요?"]
+    # 실증자료 유무는 답을 받아도 판단이 바뀌지 않아 질문하지 않고 할 일로만 안내한다(#310).
+    assert result.missing_information == []
+    assert "실증자료" in result.required_actions[0]
 
 
 def test_근거_조문은_중복_없이_모은다():
