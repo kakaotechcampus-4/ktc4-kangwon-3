@@ -1,6 +1,6 @@
 """어린이제품 안전관리 근거: 법 제2조(정의), 시행규칙 별표 1~3(제도별 품목), 운용요령 별표 3~5(적용범위).
 
-법제처 별표는 글자로 그린 표라 칸 구조가 불안정하다. 적재 단계 파싱 에이전트가 DB에 행을 넣으면
+법제처 별표는 글자로 그린 표라 칸 구조가 불안정하다. 별표 규칙 파서(#307) 결과가 DB에 적재되면
 그 경로(search.DatabaseItemSearch)로 바꾸고, 그 전까지 이 모듈이 법제처 응답을 직접 읽는다.
 - 시행규칙 별표 1~3: 2칸 표(품목 | 적용 안전기준)라 코드로 행을 나눈다.
 - 운용요령 별표 3~5: 적용범위가 긴 설명문이라 칸을 더 나누지 않고 품목 단위 원문 덩어리로 붙인다.
@@ -16,7 +16,7 @@ from ..common.law import (
     DocRef, EvidenceUnavailable, LawLookup, annex_text, compact, join_wrapped, load_admrul, load_law,
     normalize_text,
 )
-from ..common.ranking import _bigrams
+from ..common.ranking import bigrams
 
 LAW_NAME = "어린이제품 안전 특별법"
 LAW_ID = "012070"
@@ -189,7 +189,7 @@ def parse_scope_annex(text: str) -> list[tuple[str, str]]:
 
 
 def _similarity(left: str, right: str) -> float:
-    a, b = set(_bigrams(left)), set(_bigrams(right))
+    a, b = set(bigrams(left)), set(bigrams(right))
     return len(a & b) / len(a | b) if a and b else 0.0
 
 
