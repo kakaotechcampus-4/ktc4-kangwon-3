@@ -291,6 +291,7 @@ class ElectricalTool(RegulatoryTool):
         finally:
             record("electrical-facts" if schema is ElectricalFacts else "electrical-review", from_response(raw),
                    configured_model=self._configured_model or getattr(model, "model_name", None),
+                   reasoning_effort=getattr(model, "reasoning_effort", None),
                    subject_id=product.product_id, ok=error is None,
                    elapsed_ms=round((perf_counter() - started) * 1000), error_type=error)
 

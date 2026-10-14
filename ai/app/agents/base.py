@@ -113,6 +113,8 @@ class BaseAgent(Generic[OutputT]):
         if model is None and self.creates_default_model:
             model = build_agent_model(self.component_name)
         self._configured_model = configured_model or getattr(model, "model_name", None)
+        # 프로필의 추론 강도. 사용량 기록용, 스텁·주입 모델은 None
+        self._reasoning_effort = getattr(model, "reasoning_effort", None)
         self._usage_agent = usage_agent or self.component_name
         # include_raw: 원본 응답에서 토큰 사용량과 본문을 읽음. 본문 검증은 _parse_output이 직접
         # 스키마는 Pydantic 클래스가 아닌 dict로 넘김. 클래스를 넘기면 SDK가 스트림 도중 파싱하다
@@ -268,6 +270,7 @@ class BaseAgent(Generic[OutputT]):
             self._usage_agent,
             usage,
             configured_model=self._configured_model,
+            reasoning_effort=self._reasoning_effort,
             subject_id=subject_id,
             ok=error_type is None,
             elapsed_ms=round((perf_counter() - started_at) * 1000),
