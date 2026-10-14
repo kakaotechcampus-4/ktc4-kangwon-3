@@ -87,7 +87,7 @@ class GeminiModel(ChatModel):
     """Google Gemini 모델. temperature·추론 강도 둘 다 받음.
 
     2026-10-14 실호출 (gemini-2.5-flash·pro): json_schema strict 구조화 출력, temperature=0, reasoning_effort="low" 동작.
-    캐시 적중 토큰은 보고되지 않음.
+    캐시 적중은 들쭉날쭉하게 보고됨 (같은 요청 3회 중 1회). 사용량은 LangChain usage_metadata가 비어 게이트웨이 token_usage로 읽음.
     """
 
     vendor: ClassVar[str] = "google"
