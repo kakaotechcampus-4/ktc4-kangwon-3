@@ -181,3 +181,33 @@ def test_호출과_집계에_캐시_적중률을_남긴다(tmp_path, monkeypatch
     assert (totals["cache_hit_rate"], totals["cache_write"], totals["reasoning"]) == (0.375, 800, 4)
     assert totals["by_agent"]["extraction"]["cache_hit_rate"] == 0.375
     assert totals["by_agent"]["selection"]["cache_hit_rate"] is None
+
+
+def test_LangChain이_사용량을_놓쳐도_게이트웨이_최종_사용량으로_남긴다():
+    # Gemini는 조각마다 누적 사용량을 보내 usage_metadata가 None이 됨 (2026-10-14 실호출)
+    raw = SimpleNamespace(
+        usage_metadata=None,
+        response_metadata={"model_name": "gemini-2.5-flash", "token_usage": {
+            "prompt_tokens": 1963, "completion_tokens": 1773, "prompt_tokens_details": None,
+            "completion_tokens_details": {"reasoning_tokens": 902}, "cached_prompt_tokens": 0, "cache_write_tokens": 0}},
+    )
+
+    call = usage.from_response(raw)
+
+    assert (call.input_tokens, call.output_tokens, call.reasoning_tokens, call.cached_tokens) == (1963, 1773, 902, 0)
+
+
+def test_게이트웨이_최종_사용량을_LangChain_값보다_먼저_쓴다():
+    # OpenAI 형식 상세(prompt_tokens_details)가 있으면 그 값을 씀
+    raw = SimpleNamespace(
+        usage_metadata={"input_tokens": 1, "output_tokens": 1},
+        response_metadata={"token_usage": {
+            "prompt_tokens": 4285, "completion_tokens": 53,
+            "prompt_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 3425},
+            "completion_tokens_details": {"reasoning_tokens": 36}}},
+    )
+
+    call = usage.from_response(raw)
+
+    assert (call.input_tokens, call.cache_write_tokens, call.reasoning_tokens) == (4285, 3425, 36)
+

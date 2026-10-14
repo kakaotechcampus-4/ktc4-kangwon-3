@@ -79,19 +79,29 @@ def from_handler(handler) -> CallUsage | None:
 def from_response(raw) -> CallUsage | None:
     """구조화 출력의 원본 응답(AIMessage)에서 사용량을 뽑는다.
 
-    ``include_raw=True``로 받은 응답에는 usage_metadata가 이미 붙어 있다.
-    콜백 핸들러를 따로 달면 같은 값을 두 군데서 읽게 되므로 그대로 쓴다.
-    사용량이 없으면(테스트 스텁 등) None을 돌려준다.
-
-    캐시 토큰은 LangChain 표준 위치(OpenAI 형식)에 없으면 게이트웨이 원본 사용량의 공통 필드에서 읽음.
-    Claude는 캐시 적중을 공통 필드(cached_prompt_tokens·cache_write_tokens)로만 보내 LangChain이 놓침.
+    게이트웨이 최종 사용량(response_metadata["token_usage"])이 있으면 그걸 먼저 씀. 세 회사 공통 형식이라
+    LangChain이 놓치는 값까지 들어 있음 (2026-10-14 실호출).
+        - Gemini: 조각마다 누적 사용량을 보내 usage_metadata가 None이 됨
+        - Claude: 캐시를 공통 필드(cached_prompt_tokens·cache_write_tokens)로만 보내 캐시가 0으로 잡힘
+    없으면 usage_metadata(include_raw=True 응답에 붙음)를 씀. 둘 다 없으면(테스트 스텁 등) None을 돌려준다.
     """
+    metadata = getattr(raw, "response_metadata", None) or {}
+    gateway = metadata.get("token_usage") or {}
     usage = getattr(raw, "usage_metadata", None) or {}
+    # 입력·출력이 다 있는 최종 사용량일 때만 (일부만 있는 값은 LangChain 값으로)
+    if gateway.get("prompt_tokens") is not None and gateway.get("completion_tokens") is not None:
+        prompt_details = gateway.get("prompt_tokens_details") or {}
+        return CallUsage(
+            reported_model=metadata.get("model_name") or "",
+            input_tokens=gateway.get("prompt_tokens") or 0,
+            cached_tokens=prompt_details.get("cached_tokens") or gateway.get("cached_prompt_tokens") or 0,
+            output_tokens=gateway.get("completion_tokens") or 0,
+            reasoning_tokens=(gateway.get("completion_tokens_details") or {}).get("reasoning_tokens") or 0,
+            cache_write_tokens=prompt_details.get("cache_write_tokens") or gateway.get("cache_write_tokens") or 0,
+        )
     if not usage:
         return None
     details = usage.get("input_token_details") or {}
-    metadata = getattr(raw, "response_metadata", None) or {}
-    gateway = metadata.get("token_usage") or {}
     return CallUsage(
         reported_model=metadata.get("model_name") or "",
         input_tokens=usage.get("input_tokens", 0) or 0,
