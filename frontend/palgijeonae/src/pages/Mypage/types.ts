@@ -1,8 +1,4 @@
-/** 상품 등록 방식. URL 입력 / 텍스트·이미지 입력 */
-export enum SourceType {
-    Url = "URL",
-    TextImage = "TEXT_IMAGE",
-}
+import { SourceType } from "@/api/types.ts"
 
 /** 진단 처리 상태 
  * - Pending: 진단 대기 중

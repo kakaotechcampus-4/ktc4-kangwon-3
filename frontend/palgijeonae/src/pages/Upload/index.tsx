@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/client";
+import { SourceType } from "@/api/types.ts"
 import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
@@ -11,7 +12,7 @@ import { cn } from "@/lib/cn";
 import AddedProductList from "./AddedProductList.tsx";
 import { submitDiagnosis } from "./diagnosisPipeline.ts";
 import InputForm from "./InputForm.tsx";
-import { type Product, SourceType } from "./types.ts";
+import type { Product } from "./types.ts";
 import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [

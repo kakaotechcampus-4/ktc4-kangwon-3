@@ -1,3 +1,4 @@
+import { SourceType } from "@/api/types.ts"
 import { countGraphemes } from "@/lib/text";
 
 import {
@@ -9,7 +10,7 @@ import {
     MAX_PRODUCT_NAME_CODE_UNIT_LENGTH,
     MAX_PRODUCT_NAME_LENGTH,
 } from "./constraints.ts";
-import { type Product, SourceType } from "./types.ts";
+import type { Product } from "./types.ts";
 
 // 상품 추가 / 제출 직전에 사용하는 상품 공용 검증.
 export const isAllowedImageType = (file: File): boolean => ALLOWED_IMAGE_MIME_TYPES.includes(file.type);

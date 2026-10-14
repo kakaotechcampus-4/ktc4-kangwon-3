@@ -1,3 +1,5 @@
+import { SourceType } from "@/api/types.ts"
+
 export interface Product {
     id: string
     type: SourceType
@@ -8,11 +10,6 @@ export interface Product {
     content?: string
     // 상세페이지 이미지 원본 File들. 위와 같은 이유로 들고 있는다.
     images?: File[]
-}
-
-export enum SourceType {
-    Url = "URL",
-    TextImage = "TEXT_IMAGE"
 }
 
 // 진단 요청을 위한 product item.
