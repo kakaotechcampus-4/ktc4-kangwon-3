@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import java.util.UUID;
 
 @DataJpaTest
@@ -196,7 +197,7 @@ class DiagnosesRepositoryTest {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
-        product.askQuestions(List.of(
+        product.askQuestions(1, List.of(
                 new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null),
                 new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
@@ -210,6 +211,31 @@ class DiagnosesRepositoryTest {
         assertThat(saved.getQuestions())
                 .extracting(ProductQuestion::getQuestionKey)
                 .containsExactly("sales_type", "target_age");
+    }
+
+    @Test
+    @DisplayName("2회차에 1회차와 같은 키로 질문해도 저장되고, 질문은 회차·순서대로 조회된다.")
+    void save_whenSameKeyInNextRound_thenPersistBothInRoundOrder() {
+        // given: 1회차 답이 불분명해 2회차에 같은 항목을 다시 묻는 경우
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        Product product = createProduct("대나무 헬리콥터", null);
+        product.startDiagnosis();
+        product.askQuestions(1, List.of(
+                new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null),
+                new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null)));
+        product.resume();
+        product.askQuestions(2, List.of(new QuestionContent("sales_type", 1, "주로 어느 쪽으로 파나요?", null)));
+        diagnoses.addProducts(List.of(product));
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        flushAndClear();
+
+        // when
+        Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
+
+        // then
+        assertThat(saved.getQuestions())
+                .extracting(ProductQuestion::getQuestionRound, ProductQuestion::getQuestionKey)
+                .containsExactly(tuple(1, "sales_type"), tuple(1, "target_age"), tuple(2, "sales_type"));
     }
 
     @Test
@@ -236,10 +262,10 @@ class DiagnosesRepositoryTest {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product target = createProduct("상품 A", null);
         target.startDiagnosis();
-        target.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
+        target.askQuestions(1, List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         Product remaining = createProduct("상품 B", null);
         remaining.startDiagnosis();
-        remaining.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
+        remaining.askQuestions(1, List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         diagnoses.addProducts(List.of(target, remaining));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
@@ -258,7 +284,7 @@ class DiagnosesRepositoryTest {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
-        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
         return diagnoses;
     }

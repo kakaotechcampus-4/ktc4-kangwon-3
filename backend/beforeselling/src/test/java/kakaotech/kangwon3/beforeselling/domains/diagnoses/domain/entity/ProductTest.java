@@ -117,7 +117,7 @@ class ProductTest {
         Product product = createInProgressProduct();
 
         // when
-        product.askQuestions(List.of(
+        product.askQuestions(1, List.of(
                 new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null),
                 new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?",
                         "상세페이지에 연령이 함께 적혀 있으면 확인이 필요합니다.")));
@@ -125,8 +125,9 @@ class ProductTest {
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
         assertThat(product.getQuestions())
-                .extracting(ProductQuestion::getQuestionKey, ProductQuestion::getQuestionOrder, ProductQuestion::isAnswered)
-                .containsExactly(tuple("sales_type", 1, false), tuple("target_age", 2, false));
+                .extracting(ProductQuestion::getQuestionRound, ProductQuestion::getQuestionKey,
+                        ProductQuestion::getQuestionOrder, ProductQuestion::isAnswered)
+                .containsExactly(tuple(1, "sales_type", 1, false), tuple(1, "target_age", 2, false));
         assertThat(product.getQuestions()).allSatisfy(question -> assertThat(question.getProduct()).isSameAs(product));
     }
 
@@ -137,7 +138,7 @@ class ProductTest {
         Product product = createProduct();
 
         // when & then
-        assertConflict(() -> product.askQuestions(
+        assertConflict(() -> product.askQuestions(1,
                 List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null))));
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
         assertThat(product.getQuestions()).isEmpty();
@@ -150,7 +151,7 @@ class ProductTest {
         Product product = createAwaitingInputProduct();
 
         // when & then
-        assertConflict(() -> product.askQuestions(
+        assertConflict(() -> product.askQuestions(1,
                 List.of(new QuestionContent("target_age", 1, "대상 연령은?", null))));
         assertThat(product.getQuestions()).hasSize(1);
     }
@@ -163,13 +164,13 @@ class ProductTest {
         product.resume();
 
         // when
-        product.askQuestions(List.of(new QuestionContent("target_age", 1, "대상 연령은?", null)));
+        product.askQuestions(2, List.of(new QuestionContent("target_age", 1, "대상 연령은?", null)));
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
         assertThat(product.getQuestions())
-                .extracting(ProductQuestion::getQuestionKey)
-                .containsExactly("sales_type", "target_age");
+                .extracting(ProductQuestion::getQuestionRound, ProductQuestion::getQuestionKey)
+                .containsExactly(tuple(1, "sales_type"), tuple(2, "target_age"));
     }
 
     @Test
@@ -179,7 +180,7 @@ class ProductTest {
         Product product = createInProgressProduct();
 
         // when & then
-        assertBadRequest(() -> product.askQuestions(List.of()));
+        assertBadRequest(() -> product.askQuestions(1, List.of()));
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
 
@@ -190,7 +191,7 @@ class ProductTest {
         Product product = createInProgressProduct();
 
         // when & then
-        assertBadRequest(() -> product.askQuestions(List.of(
+        assertBadRequest(() -> product.askQuestions(1, List.of(
                 new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null),
                 new QuestionContent("sales_type", 2, "사입해서 파나요?", null))));
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
@@ -209,7 +210,7 @@ class ProductTest {
 
     private Product createAwaitingInputProduct() {
         Product product = createInProgressProduct();
-        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
         return product;
     }
 
