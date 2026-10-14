@@ -30,21 +30,35 @@ class ConfigError(RuntimeError):
     """AI 서버 설정이 없거나 허용 범위를 벗어났다."""
 
 
-# 프로필 표 종류. 종류마다 표와 환경변수 접두어가 따로
+# 프로필 표 종류. 덮어쓰기 값의 "종류.이름" 앞부분
 PROFILE_TABLES = {"agent": AGENT_PROFILES, "tool": TOOL_PROFILES}
 
-
-def profile_env(kind: str, name: str) -> str:
-    """프로필을 바꾸는 환경변수 이름 (agent, extraction → AGENT_EXTRACTION_MODEL_PROFILE)."""
-    return f"{kind.upper()}_{name.upper()}_MODEL_PROFILE"
+# (선택) 코드 기본값 대신 쓸 프로필. 벤치마크·긴급 전환용, 평소엔 비워 둠
+OVERRIDES_ENV = "MODEL_PROFILE_OVERRIDES"
 
 
-def _read_profiles(kind: str) -> dict[str, str]:
-    """종류 하나의 이름 → 프로필 이름. 환경변수가 비면 표의 기본값."""
-    return {
-        name: os.environ.get(profile_env(kind, name), "").strip() or default
-        for name, default in PROFILE_TABLES[kind].items()
-    }
+def parse_profile_overrides(raw: str) -> dict[tuple[str, str], str]:
+    """덮어쓰기 값을 읽는다. 적은 대상만 바뀌고 나머지는 코드 기본값.
+
+    Args:
+        raw: "agent.extraction=luna-low,tool.electrical_safety=luna-low" 형식. 비면 덮어쓰기 없음.
+
+    Returns:
+        dict[tuple[str, str], str]: (종류, 이름) → 프로필 이름.
+
+    Raises:
+        ConfigError: 형식이 틀렸거나 프로필 표에 없는 대상인 경우 (오타가 조용히 무시되지 않게).
+    """
+    overrides: dict[tuple[str, str], str] = {}
+    for item in filter(None, (part.strip() for part in raw.split(","))):
+        target, _, profile = item.partition("=")
+        kind, _, name = target.strip().partition(".")
+        if not profile.strip() or kind not in PROFILE_TABLES or not name:
+            raise ConfigError(f"{OVERRIDES_ENV} 형식은 '종류.이름=프로필'입니다 (종류: agent·tool): {item!r}")
+        if name not in PROFILE_TABLES[kind]:
+            raise ConfigError(f"{OVERRIDES_ENV}: 프로필 표에 없는 {kind}입니다: {name!r}")
+        overrides[(kind, name)] = profile.strip()
+    return overrides
 
 
 @dataclass(frozen=True)
@@ -106,14 +120,14 @@ class Settings:
         
         # 모르는 프로필 이름은 기본 프로필로 넘기지 않고 기동 실패
         unknown = [
-            f"{profile_env(kind, name)}={profile!r}"
+            f"{kind}.{name}={profile!r}"
             for kind, profiles in (("agent", self.agent_profiles), ("tool", self.tool_profiles))
             for name, profile in profiles.items()
             if profile not in MODEL_PROFILES
         ]
         if unknown:
             wrong = ", ".join(unknown)
-            raise ConfigError(f"없는 모델 프로필입니다: {wrong} (허용: {', '.join(MODEL_PROFILES)})")
+            raise ConfigError(f"없는 모델 프로필입니다: {OVERRIDES_ENV}의 {wrong} (허용: {', '.join(MODEL_PROFILES)})")
 
 
 def load_settings() -> Settings:
@@ -148,13 +162,15 @@ def load_settings() -> Settings:
             f"{ENV_FILE}에 설정하세요 (.env.example 참고)."
         )
 
+    # 에이전트·Tool별 프로필. 덮어쓰기에 적은 대상만 기본값 대신 씀
+    overrides = parse_profile_overrides(os.environ.get(OVERRIDES_ENV, ""))
+
     # Settings 객체를 생성하고 반환
     return Settings(
         **values,
         database_url=os.environ.get("DATABASE_URL", "").strip(),
-        # 에이전트·Tool별 프로필. 환경변수가 있으면 기본값 대신 씀
-        agent_profiles=_read_profiles("agent"),
-        tool_profiles=_read_profiles("tool"),
+        agent_profiles={name: overrides.get(("agent", name), default) for name, default in AGENT_PROFILES.items()},
+        tool_profiles={name: overrides.get(("tool", name), default) for name, default in TOOL_PROFILES.items()},
     )
 
 

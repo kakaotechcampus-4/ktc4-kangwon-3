@@ -13,7 +13,7 @@ MAX_RETRIES = 1
 
 
 def agent_profile(name: str, settings: Settings | None = None) -> ModelProfile:
-    """에이전트가 쓸 모델 프로필 (AGENT_PROFILES 기본값 또는 AGENT_{이름}_MODEL_PROFILE).
+    """에이전트가 쓸 모델 프로필 (AGENT_PROFILES 기본값 또는 MODEL_PROFILE_OVERRIDES의 agent.이름).
 
     Args:
         name: 에이전트 이름 (BaseAgent.component_name. 예: "extraction").
@@ -30,7 +30,7 @@ def agent_profile(name: str, settings: Settings | None = None) -> ModelProfile:
 
 
 def tool_profile(name: str, settings: Settings | None = None) -> ModelProfile:
-    """Tool이 쓸 모델 프로필 (TOOL_PROFILES 기본값 또는 TOOL_{이름}_MODEL_PROFILE).
+    """Tool이 쓸 모델 프로필 (TOOL_PROFILES 기본값 또는 MODEL_PROFILE_OVERRIDES의 tool.이름).
 
     Args:
         name: Tool 이름 (ToolName 값. 예: "electrical_safety").
