@@ -52,7 +52,7 @@ public class ProductToolReview extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private AgentReviewStatus status;
+    private ToolReviewStatus status;
 
     @Column(name = "message", columnDefinition = "TEXT")
     private String message;
@@ -62,7 +62,7 @@ public class ProductToolReview extends BaseEntity {
     @BatchSize(size = 100)
     private List<ProductFinding> findings = new ArrayList<>();
 
-    ProductToolReview(Product product, AgentType agentType, AgentReviewStatus status, String message) {
+    ProductToolReview(Product product, AgentType agentType, ToolReviewStatus status, String message) {
         this.product = product;
         this.agentType = agentType;
         this.status = status;
