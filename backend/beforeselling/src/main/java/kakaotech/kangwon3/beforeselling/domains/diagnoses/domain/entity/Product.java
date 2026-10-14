@@ -76,7 +76,7 @@ public class Product extends BaseEntity {
 
     // 질문과 결과 컬렉션은 fetch join하지 않는다. List 컬렉션을 둘 이상 함께 fetch join하면 MultipleBagFetchException 발생
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("questionOrder ASC")
+    @OrderBy("questionRound ASC, questionOrder ASC")
     @BatchSize(size = 100)
     private List<ProductQuestion> questions = new ArrayList<>();
 
@@ -141,9 +141,10 @@ public class Product extends BaseEntity {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
     }
 
-    // 질문을 받으면 사용자 답변을 기다리는 상태가 된다. 질문 횟수(최대 2회)는 AI가 제한한다.
+    // 질문을 받으면 사용자 답변을 기다리는 상태가 된다. 질문 횟수(최대 2회)는 AI가 제한하고,
+    // BE는 AI가 보낸 회차를 그대로 저장한다.
     // 답변 대기 중에 다시 질문이 오면 상태 전이(IN_PROGRESS → AWAITING_INPUT)에서 CONFLICT로 막힌다.
-    public void askQuestions(List<QuestionContent> contents) {
+    public void askQuestions(int questionRound, List<QuestionContent> contents) {
         // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
         if (contents.isEmpty()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
@@ -154,8 +155,8 @@ public class Product extends BaseEntity {
         }
         
         transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
-        contents.forEach(content -> questions.add(new ProductQuestion(this, content.questionKey(),
-                content.questionOrder(), content.questionText(), content.helpText())));
+        contents.forEach(content -> questions.add(new ProductQuestion(this, questionRound,
+                content.questionKey(), content.questionOrder(), content.questionText(), content.helpText())));
     }
 
     public void fail() {
