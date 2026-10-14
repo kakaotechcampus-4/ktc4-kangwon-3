@@ -14,7 +14,7 @@ from openai import ContentFilterFinishReasonError, LengthFinishReasonError
 from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
-from ..config import build_chat_model
+from ..config import build_agent_model
 from ..prompts import PromptName, PromptSnapshot, get_prompt
 from ..usage import CallUsage, from_response, record
 
@@ -88,7 +88,7 @@ class BaseAgent(Generic[OutputT]):
     error_class: ClassVar[type[AgentError]]
     # 문서 §4.2 확장. strict 등 에이전트별 기존 구조화 출력 설정 유지용
     structured_output_options: ClassVar[dict[str, Any]] = {}
-    # 문서 §4.2 확장. 모델 미주입 시 build_chat_model()로 생성할지. 검증은 규칙 전용 실행 때문에 False
+    # 문서 §4.2 확장. 모델 미주입 시 build_agent_model()로 생성할지. 검증은 규칙 전용 실행 때문에 False
     creates_default_model: ClassVar[bool] = True
 
     def __init__(
@@ -102,16 +102,16 @@ class BaseAgent(Generic[OutputT]):
 
         Args:
             model: 구조화 출력을 지원하는 모델. None이면 ``creates_default_model``에 따라
-                ``build_chat_model()``로 만들거나, 모델 없이 둠 (검증 규칙 전용 실행).
+                ``build_agent_model(component_name)``으로 만들거나, 모델 없이 둠 (검증 규칙 전용 실행).
             configured_model: 비용 계산에 쓸 모델 이름. None이면 model의 model_name.
             usage_agent: 사용량 기록 이름. None이면 component_name.
 
         Raises:
             ConfigError: 모델을 만들어야 하는데 설정이 없거나 잘못된 경우.
         """
-        # 모델 생성은 config.build_chat_model() 한 곳에서. base_url·허용 모델·타임아웃 설정이 흩어지지 않게 함
+        # 모델 생성은 config 한 곳에서. component_name으로 AGENT_PROFILES의 프로필을 고름
         if model is None and self.creates_default_model:
-            model = build_chat_model()
+            model = build_agent_model(self.component_name)
         self._configured_model = configured_model or getattr(model, "model_name", None)
         self._usage_agent = usage_agent or self.component_name
         # include_raw: 원본 응답에서 토큰 사용량과 본문을 읽음. 본문 검증은 _parse_output이 직접

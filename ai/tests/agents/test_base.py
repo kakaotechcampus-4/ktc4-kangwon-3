@@ -184,17 +184,20 @@ def test_usage_agent를_넘기면_그_이름으로_기록한다(records):
     assert (records[0]["agent"], records[0]["configured_model"]) == ("fake-eval", "custom")
 
 
-def test_모델을_주입하지_않으면_공통_설정의_build_chat_model로_만든다(monkeypatch):
+def test_모델을_주입하지_않으면_공통_설정의_build_agent_model로_만든다(monkeypatch):
     model = _StubModel()
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: model)
+    names: list[str] = []
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: names.append(name) or model)
 
     _FakeAgent()
 
+    # component_name으로 AGENT_PROFILES의 프로필을 고름
+    assert names == [_FakeAgent.component_name]
     assert model.structured_calls == [(_ANSWER_FORMAT, {"include_raw": True})]
 
 
 def test_자동_생성을_끈_에이전트는_모델_없이_만들고_호출은_막는다(monkeypatch):
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: pytest.fail("모델을 만들면 안 됨"))
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("모델을 만들면 안 됨"))
     agent = _RulesOnlyFakeAgent()
 
     with pytest.raises(RuntimeError, match="모델 없이"):

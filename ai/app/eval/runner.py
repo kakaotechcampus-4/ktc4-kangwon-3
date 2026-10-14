@@ -24,7 +24,7 @@ from pathlib import Path
 # 적으면 한쪽만 옮겨졌을 때 "다른 프롬프트로 잰 결과"를 같은 것으로 착각하게 된다.
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
-from ..config import load_settings
+from ..config import agent_profile
 from ..schemas.agent import ExtractionInput
 from .grading import Grade, Stability
 from .scoring import FixtureReport, load_truth, score
@@ -218,7 +218,7 @@ def main() -> int:
     # 평가로 쓴 비용이 운영 비용과 섞이면 어느 쪽이 얼마인지 볼 수 없다.
     agent = ExtractionAgent(usage_agent="extraction-eval")
     # ExtractionAgent()가 설정을 이미 검증했으므로 여기서 다시 읽어도 실패하지 않는다.
-    meta = run_metadata(runs=args.runs, model=load_settings().model)
+    meta = run_metadata(runs=args.runs, model=agent_profile("extraction").model.id)
     print(f"측정 조건: {describe_metadata(meta)}", file=sys.stderr)
     if meta["git_dirty"]:
         print("  커밋하지 않은 수정이 있습니다. 기록된 커밋만으로는 재현되지 않습니다.",

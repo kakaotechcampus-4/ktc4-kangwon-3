@@ -9,7 +9,6 @@ def _settings(database_url: str) -> config.Settings:
     return config.Settings(
         api_key="test-key",
         base_url="https://mlapi.run/example/v1",
-        model="openai/gpt-4.1-mini",
         embedding_model="openai/text-embedding-3-small",
         data_go_kr_key="test-data-key",
         safetykorea_key="test-safety-key",
