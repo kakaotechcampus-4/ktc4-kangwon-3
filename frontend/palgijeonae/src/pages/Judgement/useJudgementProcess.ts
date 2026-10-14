@@ -1,15 +1,7 @@
 import { useEffect, useState } from "react";
 
-import type { ProcessType } from "./Process";
 import { isActiveStatus, isTerminalStatus } from "./processStatus";
-
-export interface Agent {
-    id: string
-    title: string
-    job: string
-    detail: string
-    status: ProcessType
-}
+import { type Agent, ProcessType } from "./types";
 
 // 에이전트 목록 + 공개된(이미 확정된) 개수를 제품 단위로 묶은 상태.
 interface ProductState {
@@ -27,10 +19,10 @@ interface JudgementState {
 
 // TODO: 백엔드(SSE) 연동 전 임시 목업. 연동 시 이 배열과 초기 에이전트 목록 로직을 교체한다.
 const MOCK_INITIAL_AGENTS: Agent[] = [
-    { id: "agent-1", title: "접수관", job: "상세페이지 인식", detail: "에이전트를 부를 지 결정중", status: "call" },
-    { id: "agent-2", title: "통관사", job: "관세청 확인", detail: "에이전트를 부를 지 결정중", status: "call" },
-    { id: "agent-3", title: "제품 안전 전문가", job: "해당되는 법률", detail: "에이전트를 부를 지 결정중", status: "call" },
-    { id: "agent-4", title: "식약 전문가", job: "식품/성분 규제", detail: "에이전트를 부를 지 결정중", status: "call" },
+    { id: "agent-1", title: "접수관", job: "상세페이지 인식", detail: "에이전트를 부를 지 결정중", status: ProcessType.Call },
+    { id: "agent-2", title: "통관사", job: "관세청 확인", detail: "에이전트를 부를 지 결정중", status: ProcessType.Call },
+    { id: "agent-3", title: "제품 안전 전문가", job: "해당되는 법률", detail: "에이전트를 부를 지 결정중", status: ProcessType.Call },
+    { id: "agent-4", title: "식약 전문가", job: "식품/성분 규제", detail: "에이전트를 부를 지 결정중", status: ProcessType.Call },
 ];
 
 // TODO: 실제로는 업로드 단계에서 넘어온 상품명을 써야 한다. 아직 페이지 간 데이터 전달이 연동되지 않아 임시로 고정.
@@ -40,22 +32,22 @@ const MOCK_PRODUCT_NAMES = ["제품 1", "제품 2", "제품 3"];
 // SSE onmessage에서 updateAgent를 호출한다.
 const DEMO_SEQUENCE: Record<string, { status: ProcessType; detail: string }[]> = {
     "agent-1": [
-        { status: "call", detail: "에이전트를 부를 지 결정중" },
-        { status: "act", detail: "에이전트 일하는 중" },
-        { status: "end", detail: "에이전트 호출 완료" },
+        { status: ProcessType.Call, detail: "에이전트를 부를 지 결정중" },
+        { status: ProcessType.Act, detail: "에이전트 일하는 중" },
+        { status: ProcessType.End, detail: "에이전트 호출 완료" },
     ],
     "agent-2": [
-        { status: "call", detail: "에이전트를 부를 지 결정중" },
-        { status: "fail", detail: "에이전트 호출 실패" },
+        { status: ProcessType.Call, detail: "에이전트를 부를 지 결정중" },
+        { status: ProcessType.Fail, detail: "에이전트 호출 실패" },
     ],
     "agent-3": [
-        { status: "call", detail: "에이전트를 부를 지 결정중" },
-        { status: "skip", detail: "에이전트 호출 불필요" },
+        { status: ProcessType.Call, detail: "에이전트를 부를 지 결정중" },
+        { status: ProcessType.Skip, detail: "에이전트 호출 불필요" },
     ],
     "agent-4": [
-        { status: "call", detail: "에이전트를 부를 지 결정중" },
-        { status: "act", detail: "에이전트 일하는 중" },
-        { status: "end", detail: "에이전트 호출 완료" },
+        { status: ProcessType.Call, detail: "에이전트를 부를 지 결정중" },
+        { status: ProcessType.Act, detail: "에이전트 일하는 중" },
+        { status: ProcessType.End, detail: "에이전트 호출 완료" },
     ],
 };
 
@@ -172,6 +164,6 @@ export function useJudgementProcess() {
         allProductsDone,
         selectProduct: (index: number) => setState((prev) => ({ ...prev, selectedProduct: index })),
         correctAgent: (agentId: string) =>
-            setState((prev) => updateAgent(prev, selectedProduct, agentId, { status: "act" })),
+            setState((prev) => updateAgent(prev, selectedProduct, agentId, { status: ProcessType.Act })),
     };
 }

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getMyProducts } from "@/api/myProducts.ts";
+import { getMyProducts, SortType } from "@/api/myProducts.ts";
 
 import { PAGE_SIZE } from "./constraints.ts";
 import type { ProductFilter } from "./types.ts";
@@ -14,7 +14,7 @@ export function useMyProducts(filter: ProductFilter, searchTerm: string, page: n
             keyword: searchTerm,
             page,
             size: PAGE_SIZE,
-            sortType: "LATEST",
+            sortType: SortType.Latest,
         }),
     });
 }
