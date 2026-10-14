@@ -215,6 +215,21 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다(problem
     assert search.calls == [[]]
 
 
+def test_숫자_중간에서_잘린_연령_값은_버린다():
+    product, facts = product_and_facts("블록 장난감, 13세 이상", (("product_type", "블록 장난감"), ("target_age", "3세")))
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["dropped_facts"] == 1
+    assert result.query["age_state"] is None
+
+
+def test_사용_금지_연령은_반대로_읽어_성인용이면_어린이제품_후보를_내지_않는다():
+    text = "레이저 포인터, 만 14세 미만 사용 금지"
+    product, facts = product_and_facts(text, (("product_type", "레이저 포인터"), ("target_age", "만 14세 미만 사용 금지")))
+    result, _, _ = run(product, facts, review())
+    assert result.query["age_state"] is False
+    assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
+
+
 def test_연령_표기끼리_어긋나면_서로_다르다고_묻는다():
     text = "블록 장난감, 만 3세 이상, 14세 이상 권장"
     product, facts = product_and_facts(text, (("product_type", "블록 장난감"), ("target_age", "만 3세 이상"),

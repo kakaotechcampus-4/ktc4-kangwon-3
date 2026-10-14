@@ -19,7 +19,7 @@ from ..common.agent import ToolModelError, ToolStep
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable, compact
 from .evidence import SCHEME_ANNEXES, ChildrenItem, Definitions
-from .rules import EXCLUDED_KINDS, combined_child_state, sale_action
+from .rules import EXCLUDED_KINDS, age_value_bounded, combined_child_state, sale_action
 from .search import ChildrenCandidates, ChildrenItemSearch, default_item_search
 
 _FIELDS = {
@@ -112,7 +112,8 @@ class ChildrenTool(RegulatoryTool):
                                     "excluded_kinds": list(EXCLUDED_KINDS)}, subject_id=product.product_id)
         facts = [fact for fact in extracted.facts
                  if quote_matches(fact, snippets, value_in_quote=fact.field != "excluded_kind")
-                 and (fact.field != "excluded_kind" or fact.value.strip() in EXCLUDED_KINDS)]
+                 and (fact.field != "excluded_kind" or fact.value.strip() in EXCLUDED_KINDS)
+                 and (fact.field != "target_age" or age_value_bounded(fact.value, fact.quote))]
         query["dropped_facts"] = len(extracted.facts) - len(facts)
         by_field = group_facts(facts)
         terms = [term for term in extracted.search_terms if term.strip()][:_SEARCH_TERMS_LIMIT]
