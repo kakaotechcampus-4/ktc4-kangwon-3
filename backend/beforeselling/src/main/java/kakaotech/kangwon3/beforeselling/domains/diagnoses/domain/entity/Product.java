@@ -24,9 +24,6 @@ import java.util.UUID;
 )
 public class Product extends BaseEntity {
 
-    // 질문을 받을 수 있는 마지막 회차. 질문은 첫 진단(0)에서 한 번만 받고, 재질문은 하지 않는다.
-    public static final int MAX_QUESTION_ROUND = 0;
-
     @Id
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
     @Column(name = "product_id")
@@ -56,6 +53,23 @@ public class Product extends BaseEntity {
     @Column(name = "processing_status", nullable = false)
     private ProcessingStatus processingStatus;
 
+    // AI 실행 식별자. 진단 요청·재실행 요청의 202 응답으로 받는다. 받기 전에는 null
+    @Column(name = "run_id")
+    private String runId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "failed_stage")
+    private PipelineStage failedStage;
+
+    @Column(name = "error_code", length = 50)
+    private String errorCode;
+
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+
+    @Column(name = "error_retryable")
+    private Boolean errorRetryable;
+
     // 결과를 받기 전에는 null
     @Enumerated(EnumType.STRING)
     @Column(name = "assessment_status")
@@ -64,10 +78,6 @@ public class Product extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "result_status")
     private ResultStatus resultStatus;
-
-    // 0: 첫 진단, 1: 질문 답변 후 재진단(반드시 결과로 끝난다).
-    @Column(name = "diagnosis_round", nullable = false, columnDefinition = "integer default 0")
-    private int diagnosisRound;
 
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
@@ -83,9 +93,14 @@ public class Product extends BaseEntity {
 
     // 질문과 결과 컬렉션은 fetch join하지 않는다. List 컬렉션을 둘 이상 함께 fetch join하면 MultipleBagFetchException 발생
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("questionOrder ASC")
+    @OrderBy("questionRound ASC, questionOrder ASC")
     @BatchSize(size = 100)
     private List<ProductQuestion> questions = new ArrayList<>();
+
+    // 진행 콜백의 단계·툴별 최신 상태. 진행 화면에서 읽는다.
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    private List<ProductProgress> progresses = new ArrayList<>();
 
     // 이하 진단 결과. 분야별 카드는 결과 콜백으로만 채운다(진행 콜백에는 카드 내용이 없다).
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -144,21 +159,51 @@ public class Product extends BaseEntity {
         transition(ProcessingStatus.PENDING, ProcessingStatus.IN_PROGRESS);
     }
 
-    public void awaitInput() {
-        if (diagnosisRound > MAX_QUESTION_ROUND) {
-            throw new BaseException(CommonResponseCode.CONFLICT);
-        }
-        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
-    }
-
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
-        diagnosisRound++;
+    }
+    
+    public void assignRun(String runId) {
+        if (runId == null || runId.isBlank()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        if (processingStatus != ProcessingStatus.IN_PROGRESS) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        this.runId = runId;
     }
 
-    // 질문은 첫 진단에서 한 번만 받고, 받으면 사용자 답변을 기다리는 상태가 된다.
-    // 두 번째 호출은 상태(AWAITING_INPUT) 또는 회차 제한 때문에 awaitInput()에서 CONFLICT로 막힌다.
-    public void askQuestions(List<QuestionContent> contents) {
+    public boolean isCurrentRun(String runId) {
+        return this.runId != null && this.runId.equals(runId);
+    }
+
+    // 같은 실행에서 이미 반영한 것보다 앞선 이벤트(재시도로 늦게 온 것, 중복)는 무시한다.
+    public void recordProgress(String runId, int sequence, PipelineStage stage,
+                               StageStatus stageStatus, AgentType toolName) {
+        if (toolName != null && stage != PipelineStage.TOOL_EXECUTION) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        if (processingStatus != ProcessingStatus.IN_PROGRESS) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
+        progresses.stream()
+                .filter(progress -> progress.isFor(stage, toolName))
+                .findFirst()
+                .ifPresentOrElse(
+                        progress -> {
+                            if (!progress.isNewerOrSame(runId, sequence)) {
+                                progress.update(runId, sequence, stageStatus);
+                            }
+                        },
+                        () -> progresses.add(new ProductProgress(this, runId, sequence, stage, stageStatus, toolName))
+                );
+    }
+
+    // 질문을 받으면 사용자 답변을 기다리는 상태가 된다.
+    // BE는 AI가 보낸 회차를 그대로 저장한다.
+    // 답변 대기 중에 다시 질문이 오면 상태 전이(IN_PROGRESS → AWAITING_INPUT)에서 CONFLICT로 막힌다.
+    public void askQuestions(int questionRound, List<QuestionContent> contents) {
         // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
         if (contents.isEmpty()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
@@ -167,14 +212,23 @@ public class Product extends BaseEntity {
         if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
-
-        awaitInput();
-        contents.forEach(content -> questions.add(new ProductQuestion(this, content.questionKey(),
-                content.questionOrder(), content.questionText(), content.helpText())));
+        
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
+        contents.forEach(content -> questions.add(new ProductQuestion(this, questionRound,
+                content.questionKey(), content.questionOrder(), content.questionText(), content.helpText())));
     }
 
-    public void fail() {
+    // 진단을 실패로 끝내고 실패 정보를 남긴다.
+    public void fail(PipelineStage failedStage, String errorCode, String errorMessage, Boolean errorRetryable) {
+        if (errorCode == null || errorCode.isBlank() || errorMessage == null || errorMessage.isBlank()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+
         transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.FAILED);
+        this.failedStage = failedStage;
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+        this.errorRetryable = errorRetryable;
     }
 
     private void transition(ProcessingStatus from, ProcessingStatus to) {
