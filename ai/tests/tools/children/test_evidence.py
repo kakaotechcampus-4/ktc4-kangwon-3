@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from app.tools.children.evidence import Scheme, load_children_evidence, parse_scope_annex
-from app.tools.common.law import EvidenceUnavailable, LawLookupError, compact
+from app.tools.common.law import EvidenceUnavailable, LawLookupError, compact, join_wrapped
 
 from .conftest import AS_OF, RULE_MST
 
@@ -37,6 +37,32 @@ def test_운용요령_적용범위를_이름이_달라도_같은_제도의_품�
     assert _item(children_evidence, "cert-02").scope_names == ("어린이용놀이기구",)
     assert _item(children_evidence, "conf-03").scope_names == ("보호장구", "안전모")
     assert "36 개월 미만" in " ".join(_item(children_evidence, "conf-01").scopes)
+
+
+def test_근거_인용문은_칸이_섞이지_않게_품목명과_적용_안전기준으로_만든다(children_evidence):
+    assert _item(children_evidence, "conf-03").row_text == (
+        "3. 어린이용 스포츠 보호용품(보호 장구 및 안전모) — 적용 안전기준: "
+        "어린이제품 공통안전기준, 어린이용 스포츠보호용품 안전기준")
+    assert _item(children_evidence, "sdoc-03").row_text.startswith("다. 어린이용 안경테(선글라스를 포함한다) — ")
+    assert children_evidence.common_standard.row_text == (
+        "2. 개별 안전기준이 없는 공급자적합성확인대상어린이제품은 어린이제품 공통안전기준을 적용한다.")
+
+
+def test_적용범위_원문에서_줄바꿈으로_끊긴_단어를_잇는다(children_evidence):
+    scope = " ".join(_item(children_evidence, "conf-03").scopes)
+    assert "인라인스케이트" in scope and "놀이시설" in scope and "명확히 규정한다" in scope
+    assert "유아용의 의류" in " ".join(_item(children_evidence, "conf-01").scopes)
+
+
+@pytest.mark.parametrize("fragments,expected", [
+    (["보호대란, 인라인스", "케이트, 롤러"], "보호대란, 인라인스케이트, 롤러"),
+    (["영·유아용의", "의류 및"], "영·유아용의 의류 및"),
+    (["규정한다.", "보호대란"], "규정한다. 보호대란"),
+    (["36", "개월"], "36 개월"),
+    (["", "본문"], "본문"),
+])
+def test_칸_줄바꿈_잇기(fragments, expected):
+    assert join_wrapped(fragments) == expected
 
 
 def test_운용요령보다_나중에_생긴_품목은_적용범위_없이_남는다(children_evidence):
@@ -88,7 +114,7 @@ def test_법제처_응답_오류는_전용_예외로_바꾸고_HTTP_오류는_�
 def test_가로선_사이_한_덩어리를_품목과_적용범위로_나눈다():
     text = "\n".join([
         "┌──┬──┐", "│품목│적용범위│", "├──┼──┤",
-        "│갑  │첫 줄 │", "│제품│둘째 줄│", "├──┼──┤",
+        "│갑  │첫 줄이다.│", "│제품│둘째 줄│", "├──┼──┤",
         "│스│보호│보호 설명│", "│포├──┼──┤", "│츠│모자│모자 설명│", "└──┴──┘",
     ])
-    assert parse_scope_annex(text) == [("갑제품", "첫 줄 둘째 줄"), ("보호", "보호 설명"), ("모자", "모자 설명")]
+    assert parse_scope_annex(text) == [("갑제품", "첫 줄이다. 둘째 줄"), ("보호", "보호 설명"), ("모자", "모자 설명")]
