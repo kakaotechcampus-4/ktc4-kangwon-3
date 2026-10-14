@@ -40,7 +40,7 @@ public class ProductQuestion extends BaseEntity {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    // AI가 보낸 질문 회차(1부터, 최대 2)
+    // AI가 보낸 질문 회차
     @Column(name = "question_round", nullable = false, columnDefinition = "integer default 1")
     private int questionRound;
 
