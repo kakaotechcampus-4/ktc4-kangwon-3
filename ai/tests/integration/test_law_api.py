@@ -2,17 +2,22 @@
 
 import pytest
 
-from app.clients.law import LawClient
-from app.schemas.clients.law_request import LawTextRequest
+from app.clients.law import LawSearchClient, LawTextClient
+from app.schemas.clients.law_request import LawSearchRequest, LawTextRequest
 
 pytestmark = pytest.mark.external_api
 
-# 전기용품 및 생활용품 안전관리법 시행규칙 (품목표 별표 3·4 포함)
-ELECTRICAL_RULE_MST = "273575"
+ELECTRICAL_RULE = "전기용품 및 생활용품 안전관리법 시행규칙"
 
 
-def test_법령_본문을_조문과_별표까지_받는다(law_oc):
-    result = LawClient(oc=law_oc).get_law_text(LawTextRequest(mst=ELECTRICAL_RULE_MST))
+def test_현행_법령을_검색해_본문을_조문과_별표까지_받는다(law_oc):
+    search = LawSearchClient(oc=law_oc).fetch_parsed(LawSearchRequest(query=ELECTRICAL_RULE))
+    current = next(item for item in search.items if item.law_name == ELECTRICAL_RULE and item.history_status == "현행")
 
-    assert result.articles
-    assert any(annex.annex_title and "안전인증대상제품" in annex.annex_title for annex in result.annexes)
+    result = LawTextClient(oc=law_oc).fetch_parsed(LawTextRequest(mst=current.mst))
+
+    assert result.mst == current.mst
+    assert result.articles and all(article.headings for article in result.articles)
+    # 품목표(안전인증대상제품)는 조문이 아니라 별표에 있음
+    annex = next(a for a in result.annexes if a.annex_title and "안전인증대상제품" in a.annex_title)
+    assert annex.file_type == "pdf"

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/client";
+import { SourceType } from "@/api/types.ts"
 import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
@@ -15,14 +16,14 @@ import type { Product } from "./types.ts";
 import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [
-    { key: "url", label: "URL" },
-    { key: "text/image", label: "텍스트 / 이미지" },
+    { key: SourceType.Url, label: "URL" },
+    { key: SourceType.TextImage, label: "텍스트 / 이미지" },
 ] as const;
 
 type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 
 function UploadPage() {
-    const [inputType, setInputType] = useState<InputType>("url");
+    const [inputType, setInputType] = useState<InputType>(SourceType.Url);
     const [products, setProducts] = useState<Product[]>([]);
     const navigate = useNavigate();
 

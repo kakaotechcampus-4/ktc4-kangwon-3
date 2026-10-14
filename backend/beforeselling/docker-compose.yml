@@ -60,6 +60,7 @@ services:
     container_name: be-server
     restart: unless-stopped
     mem_limit: 1500m
+    stop_grace_period: 70s
     depends_on:
       db:
         condition: service_healthy
@@ -83,6 +84,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_EXPIRATION: ${JWT_ACCESS_TOKEN_EXPIRATION:-30m}
       JWT_REFRESH_TOKEN_EXPIRATION: ${JWT_REFRESH_TOKEN_EXPIRATION:-14d}
+
+      # 내부 API (AI 서버 콜백 인증)
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
 
       # 소셜 로그인
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}

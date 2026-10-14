@@ -1,3 +1,4 @@
+import { SourceType } from "@/api/types.ts"
 import { countGraphemes } from "@/lib/text";
 
 import {
@@ -47,7 +48,7 @@ export const validateProduct = (product: Product): string | null => {
         }
     }
 
-    if (product.type === "url") {
+    if (product.type === SourceType.Url) {
         return product.link?.trim() ? null : "상세페이지 링크를 입력해주세요.";
     }
 

@@ -56,6 +56,11 @@ public class Product extends BaseEntity {
     @Column(name = "processing_status", nullable = false)
     private ProcessingStatus processingStatus;
 
+    // 결과를 받기 전에는 null
+    @Enumerated(EnumType.STRING)
+    @Column(name = "assessment_status")
+    private AssessmentStatus assessmentStatus;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "result_status")
     private ResultStatus resultStatus;
@@ -76,15 +81,30 @@ public class Product extends BaseEntity {
     @BatchSize(size = 100)
     private List<ProductImage> images = new ArrayList<>();
 
-    // 카드와 질문은 fetch join하지 않는다. List 컬렉션을 둘 이상 함께 fetch join하면 MultipleBagFetchException 발생
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @BatchSize(size = 100)
-    private List<AgentReview> agentReviews = new ArrayList<>();
-
+    // 질문과 결과 컬렉션은 fetch join하지 않는다. List 컬렉션을 둘 이상 함께 fetch join하면 MultipleBagFetchException 발생
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("questionOrder ASC")
     @BatchSize(size = 100)
     private List<ProductQuestion> questions = new ArrayList<>();
+
+    // 이하 진단 결과. 분야별 카드는 결과 콜백으로만 채운다(진행 콜백에는 카드 내용이 없다).
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    private List<ProductToolReview> toolReviews = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_required_action", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "action_order")
+    @Column(name = "action_text", nullable = false, columnDefinition = "TEXT")
+    @BatchSize(size = 100)
+    private List<String> requiredActions = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_notice", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "notice_order")
+    @Column(name = "notice_text", nullable = false, columnDefinition = "TEXT")
+    @BatchSize(size = 100)
+    private List<String> notices = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
     private Product(String productName, String productImageKey,
@@ -134,18 +154,6 @@ public class Product extends BaseEntity {
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
         diagnosisRound++;
-    }
-
-    // 같은 에이전트의 카드가 이미 있으면 덮어쓴다(재진단 갱신, 콜백 중복 수신).
-    // 동시에 들어온 콜백끼리 경쟁하지 않도록, 호출하는 쪽에서 진단서를 비관적 락으로 잡은 뒤 호출한다.
-    public void recordAgentReview(AgentType agentType, AgentReviewStatus status, String description) {
-        agentReviews.stream()
-                .filter(review -> review.getAgentType() == agentType)
-                .findFirst()
-                .ifPresentOrElse(
-                        review -> review.update(status, description),
-                        () -> agentReviews.add(new AgentReview(this, agentType, status, description))
-                );
     }
 
     // 질문은 첫 진단에서 한 번만 받고, 받으면 사용자 답변을 기다리는 상태가 된다.

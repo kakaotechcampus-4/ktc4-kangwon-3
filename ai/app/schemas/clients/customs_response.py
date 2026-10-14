@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class CLIPCase(BaseModel):
     """CLIP 품목분류 결정사례 단건."""
 
-    hs_code: str
+    hs_codes: list[str]
     product_name: str
     description: str
     decision_reason: str
@@ -38,7 +38,7 @@ class CustomsGwConfirmation(BaseModel):
     law_name: str | None = None
     req_agency_code: str | None = None
     req_agency_name: str | None = None
-    confirm_agency_name: str | None = None
+    req_document_name: str | None = None
     apply_start_date: str | None = None
 
 
