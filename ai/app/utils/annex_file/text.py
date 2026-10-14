@@ -20,7 +20,9 @@ _NOTE_RE = re.compile(r"^(비고\s*[:)]\s*)+|^비고\s*$")
 _NUMBERED_RE = re.compile(r"^\d+\.(?!\d)\s*")
 _SENTENCE_END_RE = re.compile(r"(?<=다\.)\s+")
 # "…에 한정하며, …는 제외한다."처럼 한 문장에 이어진 문구의 경계
-_CLAUSE_END_RE = re.compile(r"(?<=며),\s*")
+_CLAUSE_END_RE = re.compile(r"(?<=며),(?!\s*이 경우)\s*")
+# "이 경우 …으로 한다"는 앞 구절을 받으므로 떼지 않고, 앞 구절로 한정·제외·포함을 정함
+_FOLLOW_UP_RE = re.compile(r"(?<=며),\s*이 경우.*$")
 _EXCLUSION_RE = re.compile(r"제외(한다|하며|함|된다)?\.?$")
 _INCLUSION_RE = re.compile(r"포함(한다|하며|함|된다)?\.?$")
 # 품목 이름 끝 괄호가 한정·제외·포함 문구인지. "(…에 한정하며, … 본다)"처럼 중간에 있어도 됨.
@@ -142,9 +144,10 @@ def classify_phrases(text: str) -> tuple[list[str], list[str], list[str]]:
                 clause = clause.strip().lstrip("※").strip()
                 if not clause:
                     continue
-                if _EXCLUSION_RE.search(clause):
+                head = _FOLLOW_UP_RE.sub("", clause)
+                if _EXCLUSION_RE.search(head):
                     exclusions.append(clause)
-                elif _INCLUSION_RE.search(clause):
+                elif _INCLUSION_RE.search(head):
                     inclusions.append(clause)
                 else:
                     conditions.append(clause)
