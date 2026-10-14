@@ -1,52 +1,12 @@
-"""채팅 모델 카탈로그와 모델 프로필 (#279).
+"""모델 프로필. 에이전트가 고르는 호출 조건(모델 + temperature 또는 추론 강도) (#279).
 
-두 층으로 나눔.
-    - ChatModel: 게이트웨이 카탈로그의 모델 1개. 단가·추론 모델 여부를 가짐
-    - ModelProfile: 에이전트가 고르는 호출 조건(모델 + temperature 또는 추론 강도)
-
-추가 방법
-    - 새 모델: ChatModel 상수 하나 + CHAT_MODELS에 넣기
-    - 새 조합: MODEL_PROFILES에 ModelProfile 한 줄
+새 조합은 MODEL_PROFILES에 ModelProfile 한 줄.
 잘못된 조합(추론 모델에 temperature, 지원하지 않는 추론 강도)은 import 시점에 실패함.
 """
 
 from dataclasses import asdict, dataclass
 
-
-@dataclass(frozen=True)
-class Price:
-    """1M 토큰당 KRW. 캐시 입력은 입력 토큰 중 캐시 적중분.
-
-    Attributes:
-        input: 입력 단가.
-        cached_input: 캐시 입력 단가.
-        output: 출력 단가.
-    """
-
-    input: float
-    cached_input: float
-    output: float
-
-
-@dataclass(frozen=True)
-class ChatModel:
-    """게이트웨이 카탈로그의 채팅 모델 1개.
-
-    Attributes:
-        id: 카탈로그 등록명 ("openai/" 접두어 포함).
-        price: 1M 토큰당 KRW. 모르면 None (비용 계산 안 함).
-        price_source: 단가 출처·확인일.
-        reasoning_efforts: 받는 추론 강도. 비면 일반 모델, 있으면 추론 모델(temperature 기본값만 받음).
-    """
-
-    id: str
-    price: Price | None
-    price_source: str = ""
-    reasoning_efforts: tuple[str, ...] = ()
-
-    @property
-    def is_reasoning(self) -> bool:
-        return bool(self.reasoning_efforts)
+from .catalog import GPT_6_LUNA, GPT_41_MINI, ChatModel
 
 
 @dataclass(frozen=True)
@@ -92,23 +52,6 @@ class ModelProfile:
             "price_source": self.model.price_source or None,
         }
 
-
-# 엘리스 단가 = OpenAI 달러 단가 × 약 1,522.5원 (mini: $0.40 / $0.10 / $1.60, 캐시 입력은 입력의 25%)
-GPT_41_MINI = ChatModel(
-    "openai/gpt-4.1-mini",
-    Price(input=609.0, cached_input=152.0, output=2436.0),
-    price_source="엘리스 ML API 모델 라이브러리 2026-09-07",
-)
-# 단가는 추론 강도와 무관하게 모델당 하나 (추론 토큰은 출력 토큰으로 과금)
-# 캐시 입력은 라이브러리에 표시 없음. OpenAI 최신 계열 비율(입력의 10%)로 추정
-GPT_6_LUNA = ChatModel(
-    "openai/gpt-6-luna",
-    Price(input=152.0, cached_input=15.2, output=761.0),
-    price_source="엘리스 ML API 모델 라이브러리 2026-10-14 (캐시 입력은 입력의 10%로 추정)",
-    reasoning_efforts=("none", "low", "medium", "high", "xhigh"),
-)
-
-CHAT_MODELS = {model.id: model for model in (GPT_41_MINI, GPT_6_LUNA)}
 
 # 팀 공용 크레딧으로 의도하지 않은 모델을 호출하지 않도록 여기 있는 프로필만 허용
 MODEL_PROFILES = {profile.name: profile for profile in (

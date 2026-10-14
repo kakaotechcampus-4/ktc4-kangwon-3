@@ -3,7 +3,7 @@
 import pytest
 
 from app import usage
-from app.model_profiles import AGENT_PROFILES, CHAT_MODELS, MODEL_PROFILES, ChatModel, ModelProfile, Price
+from app.config import AGENT_PROFILES, CHAT_MODELS, MODEL_PROFILES, ChatModel, ModelProfile, Price
 
 _REASONING = ChatModel("openai/reasoning", None, reasoning_efforts=("low", "medium"))
 

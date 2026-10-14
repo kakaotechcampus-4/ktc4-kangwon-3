@@ -1,6 +1,5 @@
-"""AI 서버 설정(ML API · DB · 외부 API 키)을 한곳에서 관리한다.
+"""환경변수·ai/.env를 읽어 검증한 AI 서버 설정 (ML API · DB · 외부 API 키).
 
-각 에이전트는 직접 ``ChatOpenAI``를 만들지 않고 ``build_chat_model``을 사용한다.
 API 키는 저장소에 커밋하지 않고 ``ai/.env`` 또는 환경변수로 주입한다.
 """
 
@@ -8,34 +7,14 @@ import os
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
-from .model_profiles import AGENT_PROFILES, CHAT_MODELS, MODEL_PROFILES, ModelProfile
-
-if TYPE_CHECKING:
-    from langchain_core.language_models.chat_models import BaseChatModel
-
+from .catalog import CHAT_MODELS
+from .profiles import AGENT_PROFILES, MODEL_PROFILES
 
 # 실행 위치와 관계없이 이 프로젝트의 ai/.env만 읽는다.
-ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-
-TIMEOUT_SECONDS = 45.0
-MAX_RETRIES = 1
-
-# 진단 세션 (#264). 종료된 세션 보관 시간, 답변 대기 세션은 삭제하지 않음
-SESSION_RETENTION_SECONDS = 3600
-# 동시 실행 상한. 넘는 세션은 대기
-# 추출→선택 10개 동시 실측: 메모리 +58MB, 게이트웨이 거절·지연 없음. 외부 API 제한은 툴·클라이언트에서 따로
-MAX_RUNNING_SESSIONS = 10
-# 대기 + 실행 중 세션 상한. 넘으면 접수 거절
-# t3.medium, AI 컨테이너 1GB 기준 최악 약 360MB (대기 세션당 약 5MB 추정)
-MAX_INFLIGHT_SESSIONS = 50
-# 접수부터 결과까지 최대 시간. 넘으면 시간 초과 실패
-SESSION_MAX_DURATION_SECONDS = 600
-# 시간 초과·보관 시간 정리 주기
-SESSION_SWEEP_SECONDS = 30
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 # 서버 기동을 위한 필수 환경변수 목록
 REQUIRED_ENV = {
@@ -173,25 +152,6 @@ def load_settings() -> Settings:
     )
 
 
-def agent_profile(agent: str, settings: Settings | None = None) -> ModelProfile:
-    """에이전트가 쓸 모델 프로필을 돌려준다.
-
-    Args:
-        agent: 에이전트 이름 (AGENT_PROFILES의 키. 예: "extraction").
-        settings: 설정. None이면 load_settings()로 읽음.
-
-    Returns:
-        ModelProfile: 기본값 또는 {에이전트}_MODEL_PROFILE로 고른 프로필.
-
-    Raises:
-        ConfigError: AGENT_PROFILES에 없는 에이전트인 경우.
-    """
-    resolved = settings or load_settings()
-    if agent not in resolved.agent_profiles:
-        raise ConfigError(f"모델 프로필이 정해지지 않은 에이전트입니다: {agent!r}")
-    return MODEL_PROFILES[resolved.agent_profiles[agent]]
-
-
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """프로세스 전체가 공유하는 설정을 돌려준다.
@@ -206,30 +166,3 @@ def get_settings() -> Settings:
         ConfigError: 필수 환경변수가 없거나 값이 형식·허용 범위를 벗어난 경우.
     """
     return load_settings()
-
-
-def build_chat_model(
-    settings: Settings | None = None,
-    *,
-    temperature: float = 0,
-) -> "BaseChatModel":
-    """공통 설정으로 LangChain ``ChatOpenAI`` 모델을 만든다."""
-
-    # 설정 검사만 하는 코드가 SDK 없이도 import되도록 지연 import한다.
-    from langchain_openai import ChatOpenAI
-
-    resolved = settings or load_settings()
-    return ChatOpenAI(
-        model=resolved.model,
-        base_url=resolved.base_url,
-        api_key=resolved.api_key,
-        temperature=temperature,
-        timeout=TIMEOUT_SECONDS,
-        max_retries=MAX_RETRIES,
-        # ML API 게이트웨이는 스트리밍이 아닌 응답을 출력 2,000토큰에서 끊는다. 판매자 설명이 긴
-        # 페이지는 추출 출력이 이를 넘어 JSON이 잘리고 파싱에 실패한다. 게이트웨이 안내대로 스트리밍으로
-        # 받으면 이 한도에 걸리지 않는다(헤어드라이어 페이지 추출 출력 2,364토큰으로 확인).
-        streaming=True,
-        # 스트리밍에서도 응답에 토큰 사용량을 받아 usage.record()가 비용을 남길 수 있게 한다.
-        stream_usage=True,
-    )
