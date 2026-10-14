@@ -291,7 +291,9 @@ def test_대조되지_않는_선택은_버리고_비대상으로_바꾸지_않�
     result, _, _ = run(product, facts, review(bad))
     assert result.query["dropped_candidates"] == 1
     assert result.query["selected_items"] == []
-    assert result.query["fallback"] == "sdoc-common"
+    assert "fallback" not in result.query
+    assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
+    assert any("낮춰 안내하지 않았습니다" in note for note in result.findings[0].assumptions)
 
 
 def test_이유에서_해당하지_않는다고_결론_낸_선택은_후보로_내지_않는다():
@@ -300,6 +302,24 @@ def test_이유에서_해당하지_않는다고_결론_낸_선택은_후보로_�
         select(), select(STROLLER_ROW, rationale="유모차로 보기 어렵습니다.", applies=False)))
     assert result.query["selected_items"] == [TOY_ROW]
     assert result.query["not_applicable"] == 1
+
+
+def test_해당_안_함_선택이_앞에_많아도_유효한_선택을_자르지_않는다():
+    product, facts = product_and_facts()
+    not_applicable = [select(item_id, applies=False) for item_id in ("conf-13", "conf-01", "conf-02")]
+    result, _, _ = run(product, facts, review(*not_applicable, select()))
+    assert result.query["selected_items"] == [TOY_ROW]
+    assert result.query["not_applicable"] == 3
+
+
+def test_유효한_선택은_최대_3개까지만_남긴다():
+    product, facts = product_and_facts(search_terms=("어린이용 자전거", "어린이용 킥보드", "어린이용 롤러스케이트"))
+    _, _, probe = run(product, facts, review())
+    candidate_ids = [item.item_id for item in Search().search(probe.calls[0], top_k=6).items][:4]
+    assert len(candidate_ids) == 4
+    result, _, _ = run(product, facts, review(*(select(item_id) for item_id in candidate_ids)))
+    assert result.query["selected_items"] == candidate_ids[:3]
+    assert result.query["over_limit"] == 1
 
 
 def test_같은_행을_두_번_고르면_하나만_남긴다():

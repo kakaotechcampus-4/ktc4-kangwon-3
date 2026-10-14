@@ -196,7 +196,7 @@ class ChildrenTool(RegulatoryTool):
                 "candidates": [item.as_candidate() for item in candidates.items],
             }, subject_id=product.product_id)
             items = {item.item_id: item for item in candidates.items}
-            for selection in review.selections[:_SELECTIONS_LIMIT]:
+            for selection in review.selections:
                 if not selection.applies:
                     query["not_applicable"] += 1
                     continue
@@ -204,6 +204,9 @@ class ChildrenTool(RegulatoryTool):
                 used = [field for field in dict.fromkeys(selection.fact_fields) if field in by_field]
                 if item is None or item.item_id in selected or not used:
                     query["dropped_candidates"] += 1
+                    continue
+                if len(selected) >= _SELECTIONS_LIMIT:
+                    query["over_limit"] = query.get("over_limit", 0) + 1
                     continue
                 selected.append(item.item_id)
                 missing.extend(field for field in selection.needed_fields if field not in by_field)
@@ -216,7 +219,7 @@ class ChildrenTool(RegulatoryTool):
 
         if not findings:
             common = candidates.common_standard
-            if state is True:
+            if state is True and not query["dropped_candidates"]:
                 query["fallback"] = common.item_id
                 findings.append(self._finding(
                     subject="공급자적합성확인대상 어린이제품 후보 — 개별 안전기준이 없는 품목",
@@ -230,6 +233,9 @@ class ChildrenTool(RegulatoryTool):
                              _rule_source(candidates, common)],
                 ))
                 actions.append(sale_action(common.scheme, "공통안전기준 적용 품목"))
+            elif query["dropped_candidates"]:
+                assumptions.append("품목 선택 결과를 원문·후보와 대조하지 못해 품목을 정하지 않았습니다. "
+                                   "안전인증·안전확인 품목일 수 있어 공급자적합성확인으로 낮춰 안내하지 않았습니다.")
             else:
                 assumptions.append("후보 품목 중 맞는 것을 고르지 못했습니다. 비대상 판단이 아닙니다. "
                                    "만 13세 이하 대상이면 최소한 공급자적합성확인대상입니다(법 제2조 제12호).")
