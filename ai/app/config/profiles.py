@@ -1,7 +1,7 @@
 """모델 프로필. 에이전트가 고르는 호출 조건(모델 + temperature 또는 추론 강도) (#279).
 
 새 조합은 MODEL_PROFILES에 ModelProfile 한 줄.
-잘못된 조합(추론 모델에 temperature, 지원하지 않는 추론 강도)은 import 시점에 실패함.
+모델이 받지 않는 옵션 조합(회사별 규칙은 catalog.py)은 import 시점에 실패함.
 """
 
 from dataclasses import asdict, dataclass
@@ -16,12 +16,12 @@ class ModelProfile:
     Attributes:
         name: 프로필 이름 (AGENT_PROFILES·{에이전트}_MODEL_PROFILE 값).
         model: 호출할 모델.
-        temperature: 샘플링 온도. 추론 모델은 None만.
-        reasoning_effort: 추론 강도. 추론 모델만.
+        temperature: 샘플링 온도.
+        reasoning_effort: 추론 강도.
         note: 이 조합을 둔 이유 (실측 결과 등).
 
     Raises:
-        ValueError: 추론 모델에 temperature를 주거나, 모델이 받지 않는 추론 강도를 준 경우.
+        ValueError: 모델이 받지 않는 temperature·추론 강도를 준 경우 (ChatModel.option_errors).
     """
 
     name: str
@@ -31,11 +31,9 @@ class ModelProfile:
     note: str = ""
 
     def __post_init__(self) -> None:
-        # 추론 모델은 temperature=0을 거부함
-        if self.model.is_reasoning and self.temperature is not None:
-            raise ValueError(f"{self.name}: 추론 모델 {self.model.id}에는 temperature를 줄 수 없습니다.")
-        if self.reasoning_effort is not None and self.reasoning_effort not in self.model.reasoning_efforts:
-            raise ValueError(f"{self.name}: {self.model.id}가 받지 않는 추론 강도입니다: {self.reasoning_effort!r}")
+        errors = self.model.option_errors(self.temperature, self.reasoning_effort)
+        if errors:
+            raise ValueError(f"{self.name}: {' / '.join(errors)}")
 
     def metadata(self) -> dict:
         """러너 메타·사용량 기록에 남길 프로필 정보.
