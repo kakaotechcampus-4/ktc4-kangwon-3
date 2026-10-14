@@ -34,19 +34,38 @@ def agent_profile(agent: str, settings: Settings | None = None) -> ModelProfile:
 def build_chat_model(
     settings: Settings | None = None,
     *,
-    temperature: float = 0,
+    profile: ModelProfile | None = None,
 ) -> "BaseChatModel":
-    """공통 설정으로 LangChain ``ChatOpenAI`` 모델을 만든다."""
+    """공통 설정과 모델 프로필로 LangChain ``ChatOpenAI`` 모델을 만든다.
+
+    세 회사 모델 모두 게이트웨이의 OpenAI 호환 엔드포인트로 부르므로 ChatOpenAI 하나로 만듦.
+    프로필에서 None인 옵션(temperature·reasoning_effort)은 보내지 않음.
+
+    Args:
+        settings: 설정. None이면 load_settings()로 읽음.
+        profile: 모델 프로필. None이면 OPENAI_MODEL을 temperature 0으로 부름 (에이전트 연결 전까지).
+
+    Returns:
+        BaseChatModel: 스트리밍으로 부르는 채팅 모델.
+    """
 
     # 설정 검사만 하는 코드가 SDK 없이도 import되도록 지연 import한다.
     from langchain_openai import ChatOpenAI
 
     resolved = settings or load_settings()
+    if profile is None:
+        model_id, options = resolved.model, {"temperature": 0}
+    else:
+        model_id, options = profile.model.id, {
+            name: value
+            for name, value in (("temperature", profile.temperature), ("reasoning_effort", profile.reasoning_effort))
+            if value is not None
+        }
     return ChatOpenAI(
-        model=resolved.model,
+        model=model_id,
         base_url=resolved.base_url,
         api_key=resolved.api_key,
-        temperature=temperature,
+        **options,
         timeout=TIMEOUT_SECONDS,
         max_retries=MAX_RETRIES,
         # ML API 게이트웨이는 스트리밍이 아닌 응답을 출력 2,000토큰에서 끊는다. 판매자 설명이 긴

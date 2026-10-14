@@ -225,6 +225,30 @@ def test_build_chat_model이_설정값을_chatopenai에_전달한다(monkeypatch
     }
 
 
+@pytest.mark.parametrize(("profile_name", "model", "options"), [
+    ("mini", "openai/gpt-4.1-mini", {"temperature": 0}),
+    # 추론 모델은 temperature를 보내지 않고 추론 강도만
+    ("luna-low", "openai/gpt-6-luna", {"reasoning_effort": "low"}),
+])
+def test_build_chat_model은_프로필에_있는_옵션만_보낸다(monkeypatch, profile_name, model, options):
+    captured = {}
+    monkeypatch.setattr(langchain_openai, "ChatOpenAI", lambda **kwargs: captured.update(kwargs))
+    settings = _settings()
+
+    config.build_chat_model(settings, profile=config.MODEL_PROFILES[profile_name])
+
+    assert captured == {
+        "model": model,
+        "base_url": settings.base_url,
+        "api_key": settings.api_key,
+        **options,
+        "timeout": config.TIMEOUT_SECONDS,
+        "max_retries": config.MAX_RETRIES,
+        "streaming": True,
+        "stream_usage": True,
+    }
+
+
 def test_get_settings는_한_번_읽은_설정을_계속_재사용한다(monkeypatch):
     _env(monkeypatch)
     first = config.get_settings()
