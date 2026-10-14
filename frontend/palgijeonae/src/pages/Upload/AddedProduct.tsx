@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { SourceType } from "@/api/types.ts"
 import deleteIcon from "@/assets/delete-gray.svg"
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
 import imageIcon from "@/assets/upload-img_txt.svg"
@@ -9,7 +10,6 @@ import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import { cn } from "@/lib/cn";
 
 import AttachedImageList from "./form/AttachedImageList.tsx"
-import { SourceType } from "./types.ts";
 
 interface AddedProductProps {
     type: SourceType;

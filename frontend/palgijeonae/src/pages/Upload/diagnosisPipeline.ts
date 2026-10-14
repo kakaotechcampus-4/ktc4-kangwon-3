@@ -5,8 +5,9 @@ import {
     putToS3,
     requestPresignedUrls,
 } from "@/api/diagnosis";
+import { SourceType } from "@/api/types.ts"
 
-import { type DiagnosisProductPayload, type Product, SourceType } from "./types.ts";
+import type { DiagnosisProductPayload, Product } from "./types.ts";
 
 interface ProductImageKeys {
     productImageKey?: string

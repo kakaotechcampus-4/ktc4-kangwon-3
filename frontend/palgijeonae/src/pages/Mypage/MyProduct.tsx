@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
 
+import { SourceType } from "@/api/types.ts"
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
 import imageIcon from "@/assets/upload-img_txt.svg"
 import urlIcon from "@/assets/upload-url.svg"
 import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
 
-import { type MyProductItem, ProcessingStatusType, ResultStatus, SourceType } from "./types.ts";
+import { type MyProductItem, ProcessingStatusType, ResultStatus } from "./types.ts";
 
 type MyProductProps = MyProductItem;
 
