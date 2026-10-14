@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductProgress;
@@ -267,6 +268,29 @@ class DiagnosesRepositoryTest {
                         tuple("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null),
                         tuple("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS),
                         tuple("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, AgentType.RADIO));
+    }
+
+    @Test
+    @DisplayName("실패한 상품의 실패 단계·오류 코드·메시지·재시도 여부가 저장되고 조회된다.")
+    void save_whenFailed_thenPersistFailureInfo() {
+        // given
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        Product product = createProduct("대나무 헬리콥터", null);
+        product.startDiagnosis();
+        product.fail(PipelineStage.TOOL_EXECUTION, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", true);
+        diagnoses.addProducts(List.of(product));
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        flushAndClear();
+
+        // when
+        Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
+
+        // then
+        assertThat(saved.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(saved)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsExactly(PipelineStage.TOOL_EXECUTION, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", true);
     }
 
     @Test
