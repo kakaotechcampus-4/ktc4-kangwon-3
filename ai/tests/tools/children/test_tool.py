@@ -250,6 +250,28 @@ def test_모델이_연령을_인용하지_못해도_추출_단계_연령이_원�
     assert not any("사용 대상 연령" in question for question in result.missing_information)
 
 
+def test_재질이나_제품_종류가_여러_개여도_충돌로_묻지_않고_모두_조회에_쓴다():
+    text = "원목 블록 장난감 겸 쌓기 놀이 블록, 소재 원목·수성 페인트, 만 3세 이상"
+    product, facts = product_and_facts(text, (
+        ("product_type", "원목 블록 장난감"), ("product_type", "쌓기 놀이 블록"),
+        ("material", "원목"), ("material", "수성 페인트"), ("target_age", "만 3세 이상")))
+    result, _, search = run(product, facts, review(select()))
+    assert result.query["conflicted"] == []
+    assert not any("서로 달라" in question for question in result.missing_information)
+    assert {"원목 블록 장난감", "쌓기 놀이 블록"} <= set(search.calls[0])
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+
+
+def test_연령과_무관한_상품_모순은_조회를_막지_않고_가정으로만_남긴다():
+    product, facts = product_and_facts()
+    product.conflicts = ["배터리 용량 표기가 서로 다릅니다."]
+    result, _, search = run(product, facts, review(select()))
+    assert search.calls[0] != []
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+    assert "제품 종류 정보가 필요합니다." not in result.missing_information
+    assert any("배터리 용량 표기" in note for note in result.findings[0].assumptions)
+
+
 def test_연령_표기끼리_어긋나면_서로_다르다고_묻는다():
     text = "블록 장난감, 만 3세 이상, 14세 이상 권장"
     product, facts = product_and_facts(text, (("product_type", "블록 장난감"), ("target_age", "만 3세 이상"),

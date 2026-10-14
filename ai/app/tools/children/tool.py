@@ -141,17 +141,15 @@ class ChildrenTool(RegulatoryTool):
         if age_conflict:
             query["conflicted"].append("target_age")
             missing.append("target_age")
-        conflicted = [field for field, values in by_field.items()
-                      if field not in ("target_age", "excluded_kind")
-                      and len({compact(fact.value) for fact in values}) > 1]
-        query["conflicted"].extend(conflicted)
-        missing.extend(conflicted)
-        if product.conflicts or query["conflicted"]:
-            assumptions.append("상품 정보에 모순이 있어 적용 조건을 확정하지 않았습니다.")
+        if query["conflicted"]:
+            assumptions.append("사용 대상 연령 정보가 서로 달라 어린이제품 해당 여부를 정하지 않았습니다.")
+        if product.conflicts:
+            assumptions.append("추출 단계가 상품 정보의 모순을 표시했습니다: " + "; ".join(product.conflicts)
+                               + ". 연령·제품 종류와 관련된 모순이면 결과가 달라질 수 있습니다.")
 
         try:
             skip_items = (any(field not in by_field for field in _REQUIRED_FIELDS) or state is False
-                          or "excluded_kind" in by_field or bool(product.conflicts))
+                          or "excluded_kind" in by_field)
             candidates = search.search([] if skip_items else self._terms(terms, by_field, product),
                                        top_k=self._top_k)
         except EvidenceUnavailable:
@@ -186,9 +184,7 @@ class ChildrenTool(RegulatoryTool):
                 sources=[definitions.law.source(f"{_LAW_REF} 제1호", definitions.children_product)],
             )], missing, assumptions, query)
 
-        if any(field not in by_field for field in _REQUIRED_FIELDS) or product.conflicts:
-            if product.conflicts:
-                missing.append("product_type")
+        if any(field not in by_field for field in _REQUIRED_FIELDS):
             return self._assemble(decision, facts, [], missing, assumptions, query)
 
         query["candidate_items"] = [item.item_id for item in candidates.items]
