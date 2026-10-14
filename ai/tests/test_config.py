@@ -245,3 +245,36 @@ def test_get_settings는_검증에_실패한_결과를_캐시하지_않는다(mo
     monkeypatch.setenv("KEY_SAFETYKOREA", "fixed-key")
 
     assert config.get_settings().safetykorea_key == "fixed-key"
+
+
+def test_에이전트마다_기본_프로필을_쓴다(monkeypatch):
+    _env(monkeypatch)
+    settings = config.load_settings()
+
+    assert config.agent_profile("extraction", settings) is config.MODEL_PROFILES["mini"]
+    assert config.agent_profile("selection", settings).name == config.AGENT_PROFILES["selection"]
+
+
+def test_환경변수로_에이전트_프로필을_바꾼다(monkeypatch):
+    _env(monkeypatch, EXTRACTION_MODEL_PROFILE=" luna-low ")
+
+    profile = config.agent_profile("extraction", config.load_settings())
+
+    assert profile.name == "luna-low"
+    assert profile.model.id == "openai/gpt-6-luna"
+    # 추론 모델은 temperature를 보내지 않음
+    assert profile.temperature is None
+    assert profile.reasoning_effort == "low"
+
+
+def test_없는_프로필_이름은_기본값으로_넘기지_않고_거부한다(monkeypatch):
+    _env(monkeypatch, SELECTION_MODEL_PROFILE="gpt-5")
+
+    with pytest.raises(config.ConfigError, match="SELECTION_MODEL_PROFILE='gpt-5'"):
+        config.load_settings()
+
+
+def test_프로필이_정해지지_않은_에이전트는_거부한다():
+    with pytest.raises(config.ConfigError, match="unknown"):
+        config.agent_profile("unknown", _settings())
+

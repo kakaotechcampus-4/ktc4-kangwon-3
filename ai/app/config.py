@@ -12,16 +12,14 @@ from typing import TYPE_CHECKING
 
 from dotenv import load_dotenv
 
+from .model_profiles import AGENT_PROFILES, CHAT_MODELS, MODEL_PROFILES, ModelProfile
+
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
 
 
 # 실행 위치와 관계없이 이 프로젝트의 ai/.env만 읽는다.
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
-
-# 팀 공용 크레딧으로 의도하지 않은 모델을 호출하지 않도록 제한한다.
-# 기본값이 아니라 허용 목록이다. 실제 사용할 모델은 OPENAI_MODEL로 지정한다.
-ALLOWED_MODELS = frozenset({"openai/gpt-4.1-mini"})
 
 TIMEOUT_SECONDS = 45.0
 MAX_RETRIES = 1
@@ -55,6 +53,11 @@ class ConfigError(RuntimeError):
     """AI 서버 설정이 없거나 허용 범위를 벗어났다."""
 
 
+def _profile_env(agent: str) -> str:
+    """에이전트 프로필을 바꾸는 환경변수 이름 (extraction → EXTRACTION_MODEL_PROFILE)."""
+    return f"{agent.upper()}_MODEL_PROFILE"
+
+
 @dataclass(frozen=True)
 class Settings:
     """AI 서버 설정. 키·접속 정보는 repr에 노출하지 않는다.
@@ -62,13 +65,14 @@ class Settings:
     Attributes:
         api_key: ML API 키 (OPENAI_API_KEY).
         base_url: ML API 주소 (OPENAI_BASE_URL).
-        model: 채팅 모델 이름 (OPENAI_MODEL). ALLOWED_MODELS 안에서만 허용한다.
+        model: 채팅 모델 이름 (OPENAI_MODEL). CHAT_MODELS 안에서만 허용한다.
         embedding_model: 임베딩 모델 이름 (OPENAI_EMBEDDING_MODEL).
         data_go_kr_key: 공공데이터포털 서비스 키 (DATA_GO_KR_KEY). 관세청 세관장확인·식약처가 사용.
         safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA).
         law_oc: 법제처 OC 값 (LAW_GO_KR_OC).
         database_url: AI 전용 PostgreSQL 접속 문자열 (DATABASE_URL).
             개발 단계에서는 DB 없이도 서버를 띄울 수 있게 선택으로 둔다. 비어 있으면 DB 기능을 쓰지 않는다.
+        agent_profiles: 에이전트 이름 → MODEL_PROFILES 프로필 이름. 기본은 AGENT_PROFILES.
 
     Raises:
         ConfigError: 필수 설정이 비어 있거나 형식·허용 범위를 벗어난 경우.
@@ -82,6 +86,7 @@ class Settings:
     safetykorea_key: str = field(repr=False)
     law_oc: str = field(repr=False)
     database_url: str = field(repr=False)
+    agent_profiles: dict[str, str] = field(default_factory=lambda: dict(AGENT_PROFILES))
 
     def __post_init__(self) -> None:
 
@@ -110,10 +115,16 @@ class Settings:
             # 접속 문자열에는 DB 비밀번호가 들어 있어 실제 값은 출력하지 않음.
             raise ConfigError("DATABASE_URL은 postgresql로 시작하는 접속 문자열이어야 합니다.")
         
-        # 모델 이름이 허용되지 않은 경우
-        if self.model not in ALLOWED_MODELS:
-            allowed = ", ".join(sorted(ALLOWED_MODELS))
+        # 모델 이름이 프로필에 없는 경우
+        if self.model not in CHAT_MODELS:
+            allowed = ", ".join(sorted(CHAT_MODELS))
             raise ConfigError(f"허용되지 않은 모델입니다: {self.model!r} (허용: {allowed})")
+
+        # 모르는 프로필 이름은 기본 프로필로 넘기지 않고 기동 실패
+        unknown = {agent: name for agent, name in self.agent_profiles.items() if name not in MODEL_PROFILES}
+        if unknown:
+            wrong = ", ".join(f"{_profile_env(agent)}={name!r}" for agent, name in unknown.items())
+            raise ConfigError(f"없는 모델 프로필입니다: {wrong} (허용: {', '.join(MODEL_PROFILES)})")
 
 
 def load_settings() -> Settings:
@@ -148,11 +159,37 @@ def load_settings() -> Settings:
             f"{ENV_FILE}에 설정하세요 (.env.example 참고)."
         )
 
+    # 에이전트별 프로필. 환경변수가 있으면 기본값 대신 씀
+    agent_profiles = {
+        agent: os.environ.get(_profile_env(agent), "").strip() or default
+        for agent, default in AGENT_PROFILES.items()
+    }
+
     # Settings 객체를 생성하고 반환
     return Settings(
         **values,
         database_url=os.environ.get("DATABASE_URL", "").strip(),
+        agent_profiles=agent_profiles,
     )
+
+
+def agent_profile(agent: str, settings: Settings | None = None) -> ModelProfile:
+    """에이전트가 쓸 모델 프로필을 돌려준다.
+
+    Args:
+        agent: 에이전트 이름 (AGENT_PROFILES의 키. 예: "extraction").
+        settings: 설정. None이면 load_settings()로 읽음.
+
+    Returns:
+        ModelProfile: 기본값 또는 {에이전트}_MODEL_PROFILE로 고른 프로필.
+
+    Raises:
+        ConfigError: AGENT_PROFILES에 없는 에이전트인 경우.
+    """
+    resolved = settings or load_settings()
+    if agent not in resolved.agent_profiles:
+        raise ConfigError(f"모델 프로필이 정해지지 않은 에이전트입니다: {agent!r}")
+    return MODEL_PROFILES[resolved.agent_profiles[agent]]
 
 
 @lru_cache(maxsize=1)

@@ -16,7 +16,7 @@
                        예: LUNA_BASE_URL=https://mlapi.run/<엔드포인트>/v1 → --model openai/gpt-6-luna@LUNA
   - 추론 모델은 temperature=0을 거부한다 → --default-temperature openai/gpt-6-luna
   - 추론 강도: "이름@접두어#low" (luna: none/low/medium/high/xhigh). 같은 모델을 강도별로 나란히 비교할 수 있다.
-서비스 설정의 허용 모델(ALLOWED_MODELS)은 바꾸지 않는다. 이 스크립트에서만 모델을 직접 만든다.
+서비스 설정의 모델 프로필(MODEL_PROFILES)은 바꾸지 않는다. 이 스크립트에서만 모델을 직접 만든다.
 
 --price 이름=입력,캐시입력,출력 (1M 토큰당 원). usage.PRICING_KRW에 없는 모델의 비용 추정에 쓴다.
 
