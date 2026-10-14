@@ -202,6 +202,14 @@ def test_제외_물품으로_표시되면_다른_법_영역으로_안내한다()
     assert result.query["excluded_kind"] == ["식품용 기구"]
 
 
+def test_제외_물품_값의_가운뎃점_차이는_같은_이름으로_본다():
+    text = "이유식 보관 용기, 식품 용기ㆍ포장"
+    product, facts = product_and_facts(text, (("product_type", "이유식 보관 용기"),))
+    facts.facts.append(ChildrenFact(field="excluded_kind", value="식품 용기ㆍ포장", evidence_id="listing-0", quote=text))
+    result, _, _ = run(product, facts, review())
+    assert result.query["excluded_kind"] == ["식품 용기·포장"]
+
+
 def test_정해진_이름이_아닌_제외_물품_값은_버린다():
     product, facts = product_and_facts()
     facts.facts.append(ChildrenFact(field="excluded_kind", value="장난감", evidence_id="listing-0",

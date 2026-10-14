@@ -2,7 +2,7 @@
 
 - ChildrenItemSearch: Tool이 쓰는 조회 인터페이스.
 - LawApiItemSearch: 지금 쓰는 경로. 법제처 응답을 직접 읽어 품목 행을 만들고 기준일별로 캐시한다.
-- DatabaseItemSearch: 적재 단계 파싱 에이전트가 품목표를 DB에 넣으면 쓸 경로(스텁).
+- DatabaseItemSearch: 별표 규칙 파서(#307) 결과를 DB에 적재하면 쓸 경로(스텁).
 """
 
 import threading
@@ -91,15 +91,18 @@ def default_item_search() -> LawApiItemSearch:
 
 
 class DatabaseItemSearch:
-    """품목 행을 DB에서 조회하는 경로. 테이블이 없어 자리만 둔다.
+    """품목 행을 DB에서 조회하는 경로. 적재 테이블이 없어 자리만 둔다.
 
-    필요한 것(칸 정의: 클로드 md파일 "어린이·전파 품목표 칸 정의"):
-    - 표 A 시행규칙 품목: 제도, 번호, 품목명, 적용 안전기준, 삭제 여부, 행 원문, 법령 버전
-    - 표 B 운용요령 적용범위: 제도, 품목명(운용요령 표기), 연결 품목 행 ID, 하위 범위, 적용범위 원문,
-      연령 조건 원문·숫자, 제외 조건 원문, 법령 버전
-    - 법 제2조 제1호·제12호 원문, 시행규칙 별표 3의 2.(공통안전기준) 원문
-    - 적재 작업: 법제처 조회 → 파싱 에이전트 → 검증 → 임베딩 → 저장
-    구현하면 같은 ChildrenCandidates를 돌려주므로 ChildrenTool은 바꾸지 않는다.
+    자료 출처는 별표 규칙 파서(#307)의 AnnexParseRecord(app/schemas/annex.py)다.
+    - 시행규칙 별표 1~3: AnnexItem 하나가 품목 행 하나.
+      item_label → 번호, item_name → 품목명, category_path → 제도,
+      attributes["적용 안전기준"] → standards, source_text → 근거 원문, skipped → 삭제된 품목.
+      별표 3의 "2. 개별 안전기준이 없는 …"(공통안전기준) 문장은 notes에서 찾는다.
+    - 운용요령 별표 3~5(적용범위)는 #307 대상에 없다. 적재 대상에 추가하거나 법제처 경로를 함께 쓴다.
+    - 법 제2조 제1호·제12호는 법령 조문 테이블(LawArticleRepository)에서 읽는다.
+    - 벡터 조회는 app.utils.embedding을 쓴다. Tool은 동기라 비동기 embed_text를 그대로 부를 수 없다.
+    LawApiItemSearch의 표 읽기는 DB 적재 전까지 쓰는 임시 경로다. 구현하면 같은 ChildrenCandidates를
+    돌려주므로 ChildrenTool은 바꾸지 않는다.
 
     Args:
         session_factory: app.database.get_session_factory()가 돌려주는 세션 팩토리.

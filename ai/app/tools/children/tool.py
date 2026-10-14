@@ -33,6 +33,7 @@ _REQUIRED_FIELDS = ("product_type",)
 _SEARCH_TERMS_LIMIT = 3
 _SELECTIONS_LIMIT = 3
 _LAW_REF = "제2조"
+_DOTS = str.maketrans("", "", "·ㆍ?・")
 
 
 class ChildrenToolError(ToolModelError):
@@ -112,7 +113,7 @@ class ChildrenTool(RegulatoryTool):
                                     "excluded_kinds": list(EXCLUDED_KINDS)}, subject_id=product.product_id)
         facts = [fact for fact in extracted.facts
                  if quote_matches(fact, snippets, value_in_quote=fact.field != "excluded_kind")
-                 and (fact.field != "excluded_kind" or fact.value.strip() in EXCLUDED_KINDS)
+                 and (fact.field != "excluded_kind" or _excluded_kind(fact.value) is not None)
                  and (fact.field != "target_age" or age_value_bounded(fact.value, fact.quote))]
         query["dropped_facts"] = len(extracted.facts) - len(facts)
         by_field = group_facts(facts)
@@ -162,7 +163,7 @@ class ChildrenTool(RegulatoryTool):
 
         excluded = by_field.get("excluded_kind", [])
         if excluded:
-            kinds = list(dict.fromkeys(fact.value.strip() for fact in excluded))
+            kinds = list(dict.fromkeys(_excluded_kind(fact.value) for fact in excluded))
             query["excluded_kind"] = kinds
             return self._assemble(decision, facts, [self._finding(
                 subject="어린이제품 해당 여부 — 제외 물품 가능성",
@@ -319,6 +320,12 @@ class ChildrenTool(RegulatoryTool):
                                  for field in missing],
             query=query,
         )
+
+
+def _excluded_kind(value: str) -> str | None:
+    """제외 물품 값을 정해진 이름으로 맞춘다. 공백·가운뎃점(·, ㆍ, ?) 차이는 무시한다."""
+    key = compact(value).translate(_DOTS)
+    return next((kind for kind in EXCLUDED_KINDS if compact(kind).translate(_DOTS) == key), None)
 
 
 def _hints(product: Product) -> dict[str, Any]:
