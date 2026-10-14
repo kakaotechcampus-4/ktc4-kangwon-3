@@ -164,6 +164,6 @@ export function useJudgementProcess() {
         allProductsDone,
         selectProduct: (index: number) => setState((prev) => ({ ...prev, selectedProduct: index })),
         correctAgent: (agentId: string) =>
-            setState((prev) => updateAgent(prev, selectedProduct, agentId, { status: ProcessType.End })),
+            setState((prev) => updateAgent(prev, selectedProduct, agentId, { status: ProcessType.Act })),
     };
 }
