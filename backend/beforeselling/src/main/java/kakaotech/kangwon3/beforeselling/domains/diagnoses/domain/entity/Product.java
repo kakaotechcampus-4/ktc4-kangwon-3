@@ -53,6 +53,10 @@ public class Product extends BaseEntity {
     @Column(name = "processing_status", nullable = false)
     private ProcessingStatus processingStatus;
 
+    // AI 실행 식별자. 진단 요청·재실행 요청의 202 응답으로 받는다. 받기 전에는 null
+    @Column(name = "run_id")
+    private String runId;
+
     // 결과를 받기 전에는 null
     @Enumerated(EnumType.STRING)
     @Column(name = "assessment_status")
@@ -139,6 +143,20 @@ public class Product extends BaseEntity {
 
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
+    }
+    
+    public void assignRun(String runId) {
+        if (runId == null || runId.isBlank()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        if (processingStatus != ProcessingStatus.IN_PROGRESS) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        this.runId = runId;
+    }
+
+    public boolean isCurrentRun(String runId) {
+        return this.runId != null && this.runId.equals(runId);
     }
 
     // 질문을 받으면 사용자 답변을 기다리는 상태가 된다. 질문 횟수(최대 2회)는 AI가 제한하고,
