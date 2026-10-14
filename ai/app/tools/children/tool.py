@@ -19,7 +19,7 @@ from ..common.agent import ToolModelError, ToolStep
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable, compact
 from .evidence import SCHEME_ANNEXES, ChildrenItem, Definitions
-from .rules import EXCLUDED_KINDS, age_value_bounded, combined_child_state, sale_action
+from .rules import EXCLUDED_KINDS, age_text, age_value_bounded, combined_child_state, sale_action
 from .search import ChildrenCandidates, ChildrenItemSearch, default_item_search
 
 _FIELDS = {
@@ -123,7 +123,7 @@ class ChildrenTool(RegulatoryTool):
         assumptions = ["전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."]
         if query["dropped_facts"]:
             assumptions.append(f"원문과 대조되지 않은 상품 조건 {query['dropped_facts']}개를 제외했습니다.")
-        ages = [fact.value for fact in by_field.get("target_age", [])]
+        ages = [age_text(fact.value, fact.quote) for fact in by_field.get("target_age", [])]
         if not ages and product.target_age and any(
                 compact(product.target_age) in compact(text) for text in snippets.values()):
             ages = [product.target_age]

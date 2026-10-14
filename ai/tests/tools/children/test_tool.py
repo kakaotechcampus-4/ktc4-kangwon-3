@@ -252,6 +252,14 @@ def test_사용_금지_연령은_반대로_읽어_성인용이면_어린이제�
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
 
 
+def test_연령_값에서_금지_문구가_잘려도_인용의_금지_문구로_읽는다():
+    text = "그린 레이저 포인터, 만 14세 미만 사용 금지"
+    product, facts = product_and_facts(text, (("product_type", "레이저 포인터"), ("target_age", "만 14세 미만")))
+    result, _, _ = run(product, facts, review())
+    assert result.query["age_state"] is False
+    assert "fallback" not in result.query
+
+
 def test_추출_단계가_어린이_대상이라_했는데_표시_연령이_미포함이면_단정하지_않고_묻는다():
     product, facts = product_and_facts("코딩 로봇 키트, 14세 이상", (("product_type", "코딩 로봇 키트"), ("target_age", "14세 이상")))
     product.for_children = True
