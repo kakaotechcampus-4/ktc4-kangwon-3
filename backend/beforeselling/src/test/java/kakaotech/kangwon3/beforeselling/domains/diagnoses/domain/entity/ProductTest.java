@@ -18,14 +18,13 @@ class ProductTest {
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
 
     @Test
-    @DisplayName("생성된 상품은 대기 상태이고 진단 회차는 0이다.")
-    void pending_thenPendingWithRoundZero() {
+    @DisplayName("생성된 상품은 대기 상태다.")
+    void pending_thenPending() {
         // when
         Product product = createProduct();
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
-        assertThat(product.getDiagnosisRound()).isZero();
     }
 
     @Test
@@ -53,66 +52,27 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("진행 중인 상품이 질문을 받으면 답변 대기 상태가 된다.")
-    void awaitInput_whenInProgress_thenAwaitingInput() {
+    @DisplayName("답변 대기 중인 상품을 재진단하면 진행 중 상태가 된다.")
+    void resume_whenAwaitingInput_thenInProgress() {
         // given
-        Product product = createInProgressProduct();
-
-        // when
-        product.awaitInput();
-
-        // then
-        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
-    }
-
-    @Test
-    @DisplayName("진행 중이 아닌 상품이 질문을 받으면 CONFLICT 예외가 발생한다.")
-    void awaitInput_whenPending_thenThrowConflict() {
-        // given
-        Product product = createProduct();
-
-        // when & then
-        assertConflict(product::awaitInput);
-        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
-    }
-
-    @Test
-    @DisplayName("답변 후 재진단(회차 1) 중인 상품이 다시 질문을 받으면 CONFLICT 예외가 발생한다.")
-    void awaitInput_whenRoundExceeded_thenThrowConflict() {
-        // given: 질문은 첫 진단(회차 0)에서만 받는다.
-        Product product = createInProgressProduct();
-        product.awaitInput();
-        product.resume();
-
-        // when & then
-        assertConflict(product::awaitInput);
-        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
-    }
-
-    @Test
-    @DisplayName("답변 대기 중인 상품을 재진단하면 진행 중 상태가 되고 회차가 1 증가한다.")
-    void resume_whenAwaitingInput_thenInProgressAndNextRound() {
-        // given
-        Product product = createInProgressProduct();
-        product.awaitInput();
+        Product product = createAwaitingInputProduct();
 
         // when
         product.resume();
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
-        assertThat(product.getDiagnosisRound()).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("답변 대기 중이 아닌 상품을 재진단하면 CONFLICT 예외가 발생하고 회차는 그대로다.")
+    @DisplayName("답변 대기 중이 아닌 상품을 재진단하면 CONFLICT 예외가 발생한다.")
     void resume_whenInProgress_thenThrowConflict() {
         // given
         Product product = createInProgressProduct();
 
         // when & then
         assertConflict(product::resume);
-        assertThat(product.getDiagnosisRound()).isZero();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
 
     @Test
@@ -132,8 +92,7 @@ class ProductTest {
     @DisplayName("답변 대기 중인 상품은 실패 처리할 수 없다.")
     void fail_whenAwaitingInput_thenThrowConflict() {
         // given: 답변 대기는 사용자를 기다리는 정상 상태다.
-        Product product = createInProgressProduct();
-        product.awaitInput();
+        Product product = createAwaitingInputProduct();
 
         // when & then
         assertConflict(product::fail);
@@ -172,11 +131,23 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("이미 질문을 받은 상품이 다시 질문을 받으면 CONFLICT 예외가 발생하고 질문이 늘지 않는다.")
-    void askQuestions_whenAlreadyAsked_thenThrowConflict() {
+    @DisplayName("진행 중이 아닌 상품이 질문을 받으면 CONFLICT 예외가 발생하고 질문이 추가되지 않는다.")
+    void askQuestions_whenPending_thenThrowConflict() {
         // given
-        Product product = createInProgressProduct();
-        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+        Product product = createProduct();
+
+        // when & then
+        assertConflict(() -> product.askQuestions(
+                List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null))));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
+        assertThat(product.getQuestions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("답변 대기 중인 상품이 다시 질문을 받으면 CONFLICT 예외가 발생하고 질문이 늘지 않는다.")
+    void askQuestions_whenAwaitingInput_thenThrowConflict() {
+        // given
+        Product product = createAwaitingInputProduct();
 
         // when & then
         assertConflict(() -> product.askQuestions(
@@ -185,18 +156,20 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("답변 후 재진단 중인 상품이 질문을 받으면 CONFLICT 예외가 발생한다.")
-    void askQuestions_whenResumed_thenThrowConflict() {
-        // given: 질문은 첫 진단(회차 0)에서만 받는다.
-        Product product = createInProgressProduct();
-        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+    @DisplayName("답변 후 재진단 중인 상품은 다시 질문을 받을 수 있다.")
+    void askQuestions_whenResumed_thenAddQuestionsAndAwaitInput() {
+        // given: 질문 횟수(최대 2회)는 AI가 제한하므로 BE는 상태만 확인한다.
+        Product product = createAwaitingInputProduct();
         product.resume();
 
-        // when & then
-        assertConflict(() -> product.askQuestions(
-                List.of(new QuestionContent("target_age", 1, "대상 연령은?", null))));
-        assertThat(product.getQuestions()).hasSize(1);
-        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        // when
+        product.askQuestions(List.of(new QuestionContent("target_age", 1, "대상 연령은?", null)));
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(product.getQuestions())
+                .extracting(ProductQuestion::getQuestionKey)
+                .containsExactly("sales_type", "target_age");
     }
 
     @Test
@@ -231,6 +204,12 @@ class ProductTest {
     private Product createInProgressProduct() {
         Product product = createProduct();
         product.startDiagnosis();
+        return product;
+    }
+
+    private Product createAwaitingInputProduct() {
+        Product product = createInProgressProduct();
+        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
         return product;
     }
 
