@@ -122,9 +122,21 @@ class ChildrenTool(RegulatoryTool):
         assumptions = ["전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."]
         if query["dropped_facts"]:
             assumptions.append(f"원문과 대조되지 않은 상품 조건 {query['dropped_facts']}개를 제외했습니다.")
-        missing = [field for field in ("product_type", "target_age") if field not in by_field]
+        ages = [fact.value for fact in by_field.get("target_age", [])]
+        if not ages and product.target_age and any(
+                compact(product.target_age) in compact(text) for text in snippets.values()):
+            ages = [product.target_age]
+            query["age_source"] = "product.target_age"
+        missing = [field for field in ("product_type",) if field not in by_field]
+        if not ages:
+            missing.append("target_age")
 
-        state, age_conflict = combined_child_state([fact.value for fact in by_field.get("target_age", [])])
+        query["age_texts"] = ages
+        state, age_conflict = combined_child_state(ages)
+        if state is False and product.for_children is True:
+            state, age_conflict = None, True
+            assumptions.append("추출 단계는 만 13세 이하 대상으로 보았으나 표시 연령은 이를 포함하지 않아 "
+                               "어린이제품 해당 여부를 정하지 않았습니다.")
         query["age_state"] = state
         if age_conflict:
             query["conflicted"].append("target_age")
@@ -277,7 +289,7 @@ class ChildrenTool(RegulatoryTool):
                 determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,
                 facts=facts, assumptions=assumptions, sources=[],
             )]
-        ages = [fact.value for fact in facts if fact.field == "target_age"]
+        ages = query.get("age_texts") or [fact.value for fact in facts if fact.field == "target_age"]
         types = [fact.value for fact in facts if fact.field == "product_type"]
         schemes = list(dict.fromkeys(
             finding.subject.split("대상", 1)[0] for finding in findings
