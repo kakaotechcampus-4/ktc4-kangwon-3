@@ -243,7 +243,8 @@ def test_성공하면_수집한_사용량으로_콘솔_로그를_남긴다(recor
     with caplog.at_level(logging.DEBUG, logger="app.agents.base"):
         _FakeAgent(model)._invoke([], subject_id="p-1")
 
-    assert "fake 토큰 사용량 input=100 (cache_read=40) output=20 total=120" in caplog.text
+    assert ("fake 토큰 사용량 input=100 (cache_read=40, cache_write=0, 적중률 40.0%) output=20 (reasoning=0) total=120"
+            in caplog.text)
     assert "게이트웨이 원본 usage" in caplog.text
 
 

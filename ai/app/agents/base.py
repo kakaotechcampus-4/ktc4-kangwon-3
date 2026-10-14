@@ -289,12 +289,16 @@ class BaseAgent(Generic[OutputT]):
         if usage is None:
             return
         try:
+            hit_rate = "-" if usage.cache_hit_rate is None else f"{usage.cache_hit_rate:.1%}"
             logger.info(
-                "%s 토큰 사용량 input=%s (cache_read=%s) output=%s total=%s",
+                "%s 토큰 사용량 input=%s (cache_read=%s, cache_write=%s, 적중률 %s) output=%s (reasoning=%s) total=%s",
                 self.component_name,
                 usage.input_tokens,
                 usage.cached_tokens,
+                usage.cache_write_tokens,
+                hit_rate,
                 usage.output_tokens,
+                usage.reasoning_tokens,
                 usage.total_tokens,
             )
             # 게이트웨이 원본 필드명이 OpenAI와 다를 수 있어 디버그로 남김
