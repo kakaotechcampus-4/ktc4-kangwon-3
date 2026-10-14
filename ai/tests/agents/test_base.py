@@ -207,6 +207,28 @@ def test_모델을_주입하지_않으면_공통_설정의_build_agent_model로_
     assert model.structured_calls == [(_ANSWER_FORMAT, {"include_raw": True})]
 
 
+def test_Tool_안_에이전트는_Tool_프로필로_모델을_만든다(monkeypatch):
+    # 표시·광고 Tool처럼 Tool 안에서 BaseAgent를 쓰면 AGENT_PROFILES가 아닌 TOOL_PROFILES에서 고름
+    model = _StubModel()
+    names: list[str] = []
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("에이전트 표를 쓰면 안 됨"))
+    monkeypatch.setattr("app.agents.base.build_tool_model", lambda name: names.append(name) or model)
+
+    class _ToolReviewer(_FakeAgent):
+        model_profile = ("tool", "labeling_advertising_detection")
+
+    _ToolReviewer()
+
+    assert names == ["labeling_advertising_detection"]
+
+
+def test_Tool_표에_있는_이름은_ToolName_값이다():
+    from app.config import TOOL_PROFILES
+    from app.schemas.schemas import ToolName
+
+    assert set(TOOL_PROFILES) <= {tool.value for tool in ToolName}
+
+
 def test_자동_생성을_끈_에이전트는_모델_없이_만들고_호출은_막는다(monkeypatch):
     monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("모델을 만들면 안 됨"))
     agent = _RulesOnlyFakeAgent()

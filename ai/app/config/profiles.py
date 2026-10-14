@@ -68,6 +68,8 @@ AGENT_PROFILES = {
 
 # Tool별 기본 프로필. 키는 ToolName 값. 에이전트와 이름이 겹쳐도 따로 고르도록 표를 나눔
 # TOOL_{이름}_MODEL_PROFILE 환경변수로 바꿀 수 있음 (예: TOOL_ELECTRICAL_SAFETY_MODEL_PROFILE=luna-low)
+# Tool 안에서 BaseAgent를 쓰면 model_profile = ("tool", ToolName 값)으로 이 표를 씀
 TOOL_PROFILES = {
     "electrical_safety": "mini",
+    "labeling_advertising_detection": "mini",
 }
