@@ -507,7 +507,7 @@ def test_strict_json_schema로_구조화_출력을_요구한다():
 
 
 def test_모델을_주입하지_않으면_자동으로_만들지_않는다(monkeypatch):
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: pytest.fail("모델을 만들면 안 됨"))
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("모델을 만들면 안 됨"))
 
     agent = VerificationAgent()
 

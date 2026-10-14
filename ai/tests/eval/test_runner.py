@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.config import MODEL_PROFILES
 from app.eval.runner import (
     EXTRACTION_PROMPT_PATH,
     RawFixtureMissing,
@@ -141,7 +142,7 @@ def test_실제로_저장되는_파일에_meta가_들어간다(tmp_path, monkeyp
     monkeypatch.setattr(runner, "RAW_DIR", raw_dir)
     monkeypatch.setattr(runner, "RESULT_DIR", tmp_path / "out")
     monkeypatch.setattr(runner, "ExtractionAgent", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(runner, "load_settings", lambda: SimpleNamespace(model="openai/gpt-4.1-mini"))
+    monkeypatch.setattr(runner, "agent_profile", lambda name: MODEL_PROFILES["mini"])
     monkeypatch.setattr(runner, "run_fixture", lambda *a, **k: [{"product_id": "x"}])
     # 채점은 이 테스트의 관심사가 아니다.
     monkeypatch.setattr(runner, "score", lambda *a, **k: None)
@@ -171,7 +172,7 @@ def test_평가_러너는_평가용_이름으로_에이전트를_만든다(tmp_p
     monkeypatch.setattr(runner, "RESULT_DIR", tmp_path / "out")
     monkeypatch.setattr(runner, "ExtractionAgent",
                         lambda **kwargs: created.append(kwargs) or SimpleNamespace(**kwargs))
-    monkeypatch.setattr(runner, "load_settings", lambda: SimpleNamespace(model="openai/gpt-4.1-mini"))
+    monkeypatch.setattr(runner, "agent_profile", lambda name: MODEL_PROFILES["mini"])
     monkeypatch.setattr(runner, "run_fixture", lambda *a, **k: [{"product_id": "x"}])
     monkeypatch.setattr(runner, "score", lambda *a, **k: None)
     monkeypatch.setattr(runner, "print_report", lambda *a, **k: None)

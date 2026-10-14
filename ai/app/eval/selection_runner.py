@@ -22,7 +22,7 @@ from pathlib import Path
 
 from ..agents.selection import _PROMPT_PATH as SELECTION_PROMPT_PATH
 from ..agents.selection import SelectionAgent, SelectionFailedError
-from ..config import load_settings
+from ..config import agent_profile
 from ..schemas.product import Product
 from .grading import Grade, Stability
 from .runner import RESULT_DIR, TRUTH_DIR, describe_metadata, prompt_fingerprint, run_metadata
@@ -206,7 +206,7 @@ def main() -> int:
 
     # 평가로 쓴 비용이 운영 비용과 섞이면 어느 쪽이 얼마인지 볼 수 없다.
     agent = SelectionAgent(usage_agent="selection-eval")
-    meta = run_metadata(runs=args.runs, model=load_settings().model, prompt_path=SELECTION_PROMPT_PATH)
+    meta = run_metadata(runs=args.runs, model=agent_profile("selection").model.id, prompt_path=SELECTION_PROMPT_PATH)
     # 어떤 추출 결과로 잰 선택인지 함께 남긴다. 추출이 바뀌면 모드 B 수치가 달라진다.
     meta["extraction_logs"] = [p.as_posix() for p in args.extraction_log]
     meta["extraction_prompt_sha256"] = extraction_prompt

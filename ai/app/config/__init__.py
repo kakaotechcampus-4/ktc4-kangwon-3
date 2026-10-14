@@ -8,8 +8,9 @@
 """
 
 from .catalog import CHAT_MODELS, ChatModel, Price
-from .chat import MAX_RETRIES, TIMEOUT_SECONDS, agent_profile, build_chat_model
-from .profiles import AGENT_PROFILES, MODEL_PROFILES, ModelProfile
+from .chat import (MAX_RETRIES, TIMEOUT_SECONDS, agent_profile, build_agent_model, build_chat_model, build_tool_model,
+                   tool_profile)
+from .profiles import AGENT_PROFILES, MODEL_PROFILES, TOOL_PROFILES, ModelProfile
 from .session import (MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS,
                       SESSION_RETENTION_SECONDS, SESSION_SWEEP_SECONDS)
 from .settings import ENV_FILE, REQUIRED_ENV, ConfigError, Settings, get_settings, load_settings
@@ -17,6 +18,6 @@ from .settings import ENV_FILE, REQUIRED_ENV, ConfigError, Settings, get_setting
 __all__ = [
     "AGENT_PROFILES", "CHAT_MODELS", "ENV_FILE", "MAX_INFLIGHT_SESSIONS", "MAX_RETRIES", "MAX_RUNNING_SESSIONS",
     "MODEL_PROFILES", "REQUIRED_ENV", "SESSION_MAX_DURATION_SECONDS", "SESSION_RETENTION_SECONDS",
-    "SESSION_SWEEP_SECONDS", "TIMEOUT_SECONDS", "ChatModel", "ConfigError", "ModelProfile", "Price", "Settings",
-    "agent_profile", "build_chat_model", "get_settings", "load_settings",
+    "SESSION_SWEEP_SECONDS", "TIMEOUT_SECONDS", "TOOL_PROFILES", "ChatModel", "ConfigError", "ModelProfile", "Price", "Settings",
+    "agent_profile", "build_agent_model", "build_chat_model", "build_tool_model", "get_settings", "load_settings", "tool_profile",
 ]

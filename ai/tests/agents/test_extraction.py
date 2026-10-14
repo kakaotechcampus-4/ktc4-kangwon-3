@@ -154,8 +154,8 @@ def test_모델_호출이_실패하면_ExtractionFailedError로_감싸진다():
     assert str(exc_info.value) == "상품 정보 추출에 실패했습니다: rate limit exceeded"
 
 
-def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_쓴다(monkeypatch):
-    # 에이전트가 ChatOpenAI를 직접 만들지 않고 config.build_chat_model()에 위임하는지 확인.
+def test_모델을_주입하지_않으면_공통_설정의_build_agent_model을_쓴다(monkeypatch):
+    # 에이전트가 ChatOpenAI를 직접 만들지 않고 config.build_agent_model()에 위임하는지 확인.
     calls: list = []
 
     class _FakeModel:
@@ -164,7 +164,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             return self
 
     # 모델 생성은 BaseAgent 공통 경로
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: _FakeModel())
 
     ExtractionAgent()
 

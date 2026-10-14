@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.config import MODEL_PROFILES
 from app.eval import selection_runner
 from app.eval.runner import prompt_fingerprint, run_metadata
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
@@ -75,7 +76,7 @@ def test_같은_추출_결과로_B는_그대로_A는_정답_boolean으로_선택
     log = _write_log(tmp_path / "extraction.json", {"power_bank": [{"wireless_charging": False}]})
     agents: list[_FakeAgent] = []
     monkeypatch.setattr(selection_runner, "SelectionAgent", lambda **kw: agents.append(_FakeAgent(**kw)) or agents[-1])
-    monkeypatch.setattr(selection_runner, "load_settings", lambda: SimpleNamespace(model="openai/gpt-4.1-mini"))
+    monkeypatch.setattr(selection_runner, "agent_profile", lambda name: MODEL_PROFILES["mini"])
     monkeypatch.setattr(selection_runner, "RESULT_DIR", tmp_path / "out")
     monkeypatch.setattr(sys, "argv", ["selection_runner", "--extraction-log", str(log), "--fixture", "power_bank"])
 
