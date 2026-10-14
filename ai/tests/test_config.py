@@ -35,7 +35,7 @@ def _settings(**overrides) -> config.Settings:
 
 def _env(monkeypatch, **overrides):
     """실제 ai/.env를 읽지 않고, 필수 환경변수가 모두 있는 환경을 만든다. 값이 None이면 지운다."""
-    monkeypatch.setattr(config, "load_dotenv", lambda **kwargs: False)
+    monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
     for name, value in {**_VALID_ENV, **overrides}.items():
         if value is None:
             monkeypatch.delenv(name, raising=False)
@@ -55,7 +55,7 @@ def test_api_key가_없으면_설정_로딩에_실패한다(monkeypatch):
     """환경과 .env 어디에도 API 키가 없으면 호출 전에 실패한다."""
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr(config, "load_dotenv", lambda **kwargs: False)
+    monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
 
     with pytest.raises(config.ConfigError, match="OPENAI_API_KEY"):
         config.load_settings()
@@ -67,7 +67,7 @@ def test_허용되지_않은_모델은_거부한다():
 
 
 def test_base_url이_없으면_설정_로딩에_실패한다(monkeypatch):
-    monkeypatch.setattr(config, "load_dotenv", lambda **kwargs: False)
+    monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
 

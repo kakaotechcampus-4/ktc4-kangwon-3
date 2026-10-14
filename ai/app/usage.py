@@ -14,12 +14,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .model_profiles import CHAT_MODELS
+from .config.catalog import CHAT_MODELS
 
 # 테스트에서 monkeypatch로 바꿔 쓰므로 모듈 전역으로 둔다.
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
 
-# 카테캠 엘리스 ML API Serverless 단가(1M 토큰당 KRW). 단가·출처는 model_profiles.CHAT_MODELS에서 관리
+# 카테캠 엘리스 ML API Serverless 단가(1M 토큰당 KRW). 단가·출처는 config/catalog.py에서 관리
 PRICING_KRW = {model_id: asdict(model.price) for model_id, model in CHAT_MODELS.items() if model.price}
 
 
