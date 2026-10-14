@@ -4,7 +4,7 @@
 판단 보류(`acceptable`)를 짧은 인용으로 적은 정답이다. 문구마다 근거(실증 고시·지정고시·심사지침 항목)를 남겼다.
 
 입력 listing_text는 판매자 문장 원문이라 저장소에 올리지 않는다(`tests/fixtures/README.md`).
-`tests/fixtures/_raw/advertising_dev_inputs.json`으로 로컬에 두고 `_raw`와 같이 노션 zip으로 받는다.
+`tests/fixtures/_raw/advertising_dev_inputs.json`으로 로컬에 두고, 노션 원문 페이지의 `advertising_inputs.zip`으로 받는다.
 `dev.json`의 `inputs_sha256_12`(줄바꿈을 LF로 맞춘 SHA-256 앞 12자)와 다르면 러너가 실행하지 않는다.
 
 ```bash
