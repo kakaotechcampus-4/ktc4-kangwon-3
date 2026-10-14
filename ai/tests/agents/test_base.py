@@ -184,6 +184,17 @@ def test_usage_agent를_넘기면_그_이름으로_기록한다(records):
     assert (records[0]["agent"], records[0]["configured_model"]) == ("fake-eval", "custom")
 
 
+def test_모델의_추론_강도를_사용량_기록에_남긴다(records):
+    model = _StubModel({"raw": _raw(), "parsed": _Answer(value="ok"), "parsing_error": None})
+    model.reasoning_effort = "low"
+
+    _FakeAgent(model)._invoke([], subject_id="p-1")
+    _FakeAgent(_StubModel({"raw": _raw(), "parsed": _Answer(value="ok"), "parsing_error": None}))._invoke(
+        [], subject_id="p-2")
+
+    assert [record["reasoning_effort"] for record in records] == ["low", None]
+
+
 def test_모델을_주입하지_않으면_공통_설정의_build_agent_model로_만든다(monkeypatch):
     model = _StubModel()
     names: list[str] = []
