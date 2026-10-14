@@ -165,6 +165,118 @@ class ProductTest {
     }
 
     @Test
+    @DisplayName("처음 받은 단계의 진행 상태는 새로 추가된다.")
+    void recordProgress_whenNew_thenAdd() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, null);
+
+        // then
+        assertThat(product.getProgresses())
+                .extracting(ProductProgress::getRunId, ProductProgress::getSequence, ProductProgress::getStage,
+                        ProductProgress::getStageStatus, ProductProgress::getToolName)
+                .containsExactly(tuple("run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, null));
+        assertThat(product.getProgresses()).allSatisfy(progress -> assertThat(progress.getProduct()).isSameAs(product));
+    }
+
+    @Test
+    @DisplayName("같은 실행에서 더 뒤의 이벤트가 오면 같은 단계의 행을 갱신한다.")
+    void recordProgress_whenNewerSequence_thenUpdate() {
+        // given
+        Product product = createInProgressProduct();
+        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
+
+        // when
+        product.recordProgress("run-1", 5, PipelineStage.TOOL_EXECUTION, StageStatus.COMPLETED, AgentType.CUSTOMS);
+
+        // then
+        assertThat(product.getProgresses())
+                .extracting(ProductProgress::getSequence, ProductProgress::getStageStatus)
+                .containsExactly(tuple(5, StageStatus.COMPLETED));
+    }
+
+    @ParameterizedTest(name = "sequence {0}")
+    @ValueSource(ints = {3, 5})
+    @DisplayName("같은 실행에서 이미 반영한 것보다 앞서거나 같은 이벤트는 무시한다.")
+    void recordProgress_whenOlderOrSameSequence_thenIgnore(int sequence) {
+        // given: 재시도로 늦게 도착했거나 중복으로 온 이벤트
+        Product product = createInProgressProduct();
+        product.recordProgress("run-1", 5, PipelineStage.TOOL_EXECUTION, StageStatus.COMPLETED, AgentType.CUSTOMS);
+
+        // when
+        product.recordProgress("run-1", sequence, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
+
+        // then
+        assertThat(product.getProgresses())
+                .extracting(ProductProgress::getSequence, ProductProgress::getStageStatus)
+                .containsExactly(tuple(5, StageStatus.COMPLETED));
+    }
+
+    @Test
+    @DisplayName("새 실행의 이벤트는 sequence가 작아도 이전 실행의 행을 덮어쓴다.")
+    void recordProgress_whenNewRun_thenOverwrite() {
+        // given: 실행이 바뀌면 sequence가 1부터 다시 시작한다.
+        Product product = createInProgressProduct();
+        product.recordProgress("run-1", 9, PipelineStage.VERIFICATION, StageStatus.COMPLETED, null);
+
+        // when
+        product.recordProgress("run-2", 1, PipelineStage.VERIFICATION, StageStatus.STARTED, null);
+
+        // then
+        assertThat(product.getProgresses())
+                .extracting(ProductProgress::getRunId, ProductProgress::getSequence, ProductProgress::getStageStatus)
+                .containsExactly(tuple("run-2", 1, StageStatus.STARTED));
+    }
+
+    @Test
+    @DisplayName("같은 툴 실행 단계라도 툴이 다르면 행이 따로 생기고, 툴이 없는 단계와도 구분된다.")
+    void recordProgress_whenDifferentTools_thenAddEach() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.recordProgress("run-1", 1, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, null);
+        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
+        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, AgentType.RADIO);
+
+        // then
+        assertThat(product.getProgresses())
+                .extracting(ProductProgress::getToolName, ProductProgress::getStageStatus)
+                .containsExactly(
+                        tuple(null, StageStatus.STARTED),
+                        tuple(AgentType.CUSTOMS, StageStatus.STARTED),
+                        tuple(AgentType.RADIO, StageStatus.SKIPPED));
+    }
+
+    @Test
+    @DisplayName("툴 실행 단계가 아닌데 툴 이름이 오면 BAD_REQUEST 예외가 발생하고 저장되지 않는다.")
+    void recordProgress_whenToolNameOutsideToolStage_thenThrowBadRequest() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertBadRequest(() -> product.recordProgress(
+                "run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, AgentType.CUSTOMS));
+        assertThat(product.getProgresses()).isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = ProcessingStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "IN_PROGRESS")
+    @DisplayName("진행 중이 아닌 상품에 진행 상태를 기록하면 CONFLICT 예외가 발생하고 저장되지 않는다.")
+    void recordProgress_whenNotInProgress_thenThrowConflict(ProcessingStatus status) {
+        // given: 실행이 끝난 뒤 재시도로 늦게 도착한 진행 이벤트
+        Product product = createProduct();
+        ReflectionTestUtils.setField(product, "processingStatus", status);
+
+        // when & then
+        assertConflict(() -> product.recordProgress(
+                "run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, null));
+        assertThat(product.getProgresses()).isEmpty();
+    }
+
+    @Test
     @DisplayName("진행 중인 상품을 실패 처리하면 실패 상태가 된다.")
     void fail_whenInProgress_thenFailed() {
         // given
