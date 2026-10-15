@@ -7,7 +7,6 @@ from app.schemas.callback import (
     ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,
     PublicErrorDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto, PublicToolReviewDto,
 )
-from app.schemas.schemas import ToolName
 
 _BASE = {"event_id": "e-1", "diagnosis_id": "d-1", "product_id": "p-1", "run_id": "run-1", "sequence": 1}
 
@@ -23,12 +22,12 @@ def _question(key: str = "battery_only", order: int = 1) -> PublicQuestionDto:
 
 def test_이벤트는_camelCase로_나가고_eventType이_붙는다():
     event = ProductProgressEvent(**_BASE, stage=PublicPipelineStage.TOOL_EXECUTION, stage_status="started",
-                                 tool_name=ToolName.ELECTRICAL)
+                                 tool_name="ELECTRICAL")
 
     assert event.model_dump(mode="json", by_alias=True) == {
         "eventId": "e-1", "diagnosisId": "d-1", "productId": "p-1", "runId": "run-1", "sequence": 1,
         "eventType": "product_progress", "stage": "tool_execution", "stageStatus": "started",
-        "toolName": "electrical_safety",
+        "toolName": "ELECTRICAL",
     }
 
 
@@ -49,7 +48,7 @@ def test_eventType으로_4종을_구분해_읽는다(event):
 def test_toolName은_Tool_실행_단계에서만_받는다():
     with pytest.raises(ValidationError, match="Tool 실행 단계"):
         ProductProgressEvent(**_BASE, stage=PublicPipelineStage.SELECTION, stage_status="started",
-                             tool_name=ToolName.ELECTRICAL)
+                             tool_name="ELECTRICAL")
 
 
 @pytest.mark.parametrize("sequence", [0, "1"])
@@ -89,7 +88,7 @@ def test_미완료_결과는_안내가_필요하고_재확인_필요로만_낸�
 
 
 def test_같은_분야_카드는_한_번만():
-    review = PublicToolReviewDto(agent_type="ELECTRICAL", status="COMPLETED")
+    review = PublicToolReviewDto(tool_name="ELECTRICAL", status="COMPLETED")
 
     with pytest.raises(ValidationError, match="중복"):
         _assessment(tool_reviews=[review, review])
@@ -97,9 +96,26 @@ def test_같은_분야_카드는_한_번만():
 
 def test_분야_카드_상태는_BE_값만():
     with pytest.raises(ValidationError):
-        PublicToolReviewDto(agent_type="ELECTRICAL", status="reviewed")
+        PublicToolReviewDto(tool_name="ELECTRICAL", status="reviewed")
 
 
 def test_정의하지_않은_필드는_받지_않는다():
     with pytest.raises(ValidationError):
         ProductResultEvent(**_BASE, assessment=_assessment(), status="finished")
+
+
+@pytest.mark.parametrize("value", ["electrical_safety", "INTAKE", "electrical"])
+def test_분야_이름은_BE_ToolName_값만(value):
+    # 내부 ToolName 값("electrical_safety")은 BE enum에 없어 받지 못함 (#310 2026-10-15)
+    with pytest.raises(ValidationError):
+        ProductProgressEvent(**_BASE, stage=PublicPipelineStage.TOOL_EXECUTION, stage_status="started", tool_name=value)
+    with pytest.raises(ValidationError):
+        PublicToolReviewDto(tool_name=value, status="COMPLETED")
+
+
+def test_분야_카드는_tool_name으로_나간다():
+    review = PublicToolReviewDto(tool_name="CHILDREN", status="INCOMPLETE")
+
+    assert review.model_dump(mode="json", by_alias=True) == {
+        "toolName": "CHILDREN", "status": "INCOMPLETE", "message": None, "findings": []}
+

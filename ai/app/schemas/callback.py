@@ -10,7 +10,11 @@ from typing import Annotated, Literal
 from pydantic import Field, model_validator
 
 from .base import ApiModel
-from .schemas import Determination, RiskLevel, ToolName
+from .schemas import Determination, RiskLevel
+
+
+# BE에 공개하는 분야 이름. BE ToolName과 같은 값 (#310 2026-10-15 추가). 진행 콜백·분야 카드가 같이 씀
+PublicToolName = Literal["CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD"]
 
 
 class PublicPipelineStage(StrEnum):
@@ -48,7 +52,7 @@ class ProductProgressEvent(ProductEventBase):
     event_type: Literal["product_progress"] = "product_progress"
     stage: PublicPipelineStage
     stage_status: Literal["started", "completed", "skipped"]
-    tool_name: ToolName | None = None
+    tool_name: PublicToolName | None = None
 
     @model_validator(mode="after")
     def validate_tool_stage(self):
@@ -101,9 +105,9 @@ class PublicFindingDto(ApiModel):
 
 
 class PublicToolReviewDto(ApiModel):
-    """분야 카드. agent_type·status는 BE AgentType·AgentReviewStatus 값."""
+    """분야 카드. tool_name·status는 BE ToolName·ToolReviewStatus 값."""
 
-    agent_type: Literal["CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD"]
+    tool_name: PublicToolName
     status: Literal["COMPLETED", "SKIPPED", "INCOMPLETE"]
     message: str | None = None
     findings: list[PublicFindingDto] = Field(default_factory=list)
@@ -129,7 +133,7 @@ class PublicAssessmentDto(ApiModel):
             raise ValueError("미완료 결과에는 공개 안내가 필요합니다.")
         if self.status == "incomplete" and self.result_status != "RECHECK_REQUIRED":
             raise ValueError("미완료 결과는 재확인 필요로만 냅니다.")
-        names = [review.agent_type for review in self.tool_reviews]
+        names = [review.tool_name for review in self.tool_reviews]
         if len(names) != len(set(names)):
             raise ValueError("같은 분야의 검토 카드를 중복 전달하지 않습니다.")
         return self
