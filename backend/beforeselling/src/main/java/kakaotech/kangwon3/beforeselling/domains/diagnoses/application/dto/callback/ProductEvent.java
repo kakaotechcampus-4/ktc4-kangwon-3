@@ -10,8 +10,9 @@ import java.util.UUID;
 @JsonSubTypes({
         @JsonSubTypes.Type(value = ProductProgressEvent.class, name = "product_progress"),
         @JsonSubTypes.Type(value = ProductAwaitingInputEvent.class, name = "product_awaiting_input"),
+        @JsonSubTypes.Type(value = ProductFailedEvent.class, name = "product_failed"),
 })
-public sealed interface ProductEvent permits ProductProgressEvent, ProductAwaitingInputEvent {
+public sealed interface ProductEvent permits ProductProgressEvent, ProductAwaitingInputEvent, ProductFailedEvent {
     String eventId();
 
     UUID diagnosisId();
