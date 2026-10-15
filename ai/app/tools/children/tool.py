@@ -18,7 +18,7 @@ from ..base import RegulatoryTool
 from ..common.agent import ToolModelError, ToolStep
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable, compact
-from .evidence import SCHEME_ANNEXES, ChildrenItem, Definitions
+from .evidence import SCHEME_ANNEXES, SHORT_SCOPE_LIMIT, ChildrenItem, Definitions
 from .rules import EXCLUDED_KINDS, age_text, age_value_bounded, combined_child_state, sale_action
 from .search import ChildrenCandidates, ChildrenItemSearch, default_item_search
 
@@ -188,15 +188,21 @@ class ChildrenTool(RegulatoryTool):
         if any(field not in by_field for field in _REQUIRED_FIELDS):
             return self._assemble(decision, facts, [], missing, assumptions, query)
 
-        query["candidate_items"] = [item.item_id for item in candidates.items]
+        # 조회 상위 품목에 안전인증·안전확인 품목 전체를 더한다. 맞는 품목이 없을 때 공급자적합성확인으로 낮춰 안내하므로,
+        # 두 제도의 품목이 조회 순위에서 빠져 모델이 못 본 채로 낮춰지는 일이 없게 한다.
+        # 순위 밖 품목은 적용범위를 짧게 넣는다(전문을 모두 넣으면 입력이 약 4배로 늘었다, 실측).
+        ranked = set(candidates.items)
+        review_items = list(dict.fromkeys([*candidates.items, *candidates.designated]))
+        query["candidate_items"] = [item.item_id for item in review_items]
         findings, actions, selected = [], [], []
-        if candidates.items:
+        if review_items:
             review = review_step.run({
                 "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
                 "age_state": state,
-                "candidates": [item.as_candidate() for item in candidates.items],
+                "candidates": [item.as_candidate() if item in ranked else item.as_candidate(SHORT_SCOPE_LIMIT)
+                               for item in review_items],
             }, subject_id=product.product_id)
-            items = {item.item_id: item for item in candidates.items}
+            items = {item.item_id: item for item in review_items}
             for selection in review.selections:
                 if not selection.applies:
                     query["not_applicable"] += 1

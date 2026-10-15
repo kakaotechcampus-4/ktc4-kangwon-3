@@ -67,3 +67,20 @@ def test_판매_안내는_조건부이고_구매대행과_사입을_나누지_�
     action = sale_action(Scheme.CONFIRMATION, "완구")
     assert action.startswith("[완구 · 안전확인 후보] 이 품목으로 분류되면")
     assert "KC 안전확인 신고" in action and "구매대행·사입 모두" in action
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("36M+", AgeRange(36, None)),
+    ("6-36M", AgeRange(6, 36)),
+    ("3-12years", AgeRange(36, 155)),
+    ("3 yrs", AgeRange(36, 47)),
+    ("24 months", AgeRange(24, 24)),
+    ("18 months and up", AgeRange(18, None)),
+    ("Ages 14+", AgeRange(168, None)),
+    ("Not for children under 3 years", AgeRange(36, None)),   # 금지 문구 + under → 그 연령 이상
+    ("for children under 3 years", AgeRange(None, 35)),
+    ("5M 케이블", None),                                        # 한 글자 M은 + 나 끝이 붙을 때만 개월
+    ("3M 테이프", None),
+])
+def test_해외_직구_영문_연령_표기를_읽는다(text, expected):
+    assert parse_age(text) == expected

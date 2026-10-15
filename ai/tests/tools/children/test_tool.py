@@ -106,6 +106,25 @@ def run(product, facts, chosen=None, search=None):
 
 
 
+def test_안전인증_안전확인_품목은_조회_순위와_상관없이_모두_모델에_준다():
+    product, facts = product_and_facts(search_terms=("완구",))
+    result, model, _ = run(product, facts, review(select()))
+    designated = [item.item_id for item in _EVIDENCE.items if item.scheme.value in ("안전인증", "안전확인")]
+    assert len(designated) == 21
+    assert set(designated) <= set(result.query["candidate_items"])
+    assert all(item_id in model.last_payload["ChildrenReview"] for item_id in designated)
+
+
+def test_조회에서_빠진_안전확인_품목도_골라지면_공급자적합성확인으로_낮추지_않는다():
+    # "유모차"를 조회어로 주지 않아도(순위 밖) 모델이 유모차 행을 고를 수 있어야 한다.
+    product, facts = product_and_facts("접이식 휴대용 유모차, 6~36개월", (("product_type", "휴대용 유모차"),
+                                                                     ("target_age", "6~36개월")), search_terms=("가방",))
+    result, _, _ = run(product, facts, review(select(STROLLER_ROW)))
+    assert result.query["selected_items"] == [STROLLER_ROW]
+    assert "fallback" not in result.query
+    assert result.findings[0].subject.startswith("안전확인대상 어린이제품 후보")
+
+
 def test_미선택이면_모델과_조회를_부르지_않는다():
     product, facts = product_and_facts()
     model, search = Model(facts), Search()

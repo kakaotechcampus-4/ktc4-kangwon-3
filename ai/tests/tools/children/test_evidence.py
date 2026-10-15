@@ -118,3 +118,30 @@ def test_가로선_사이_한_덩어리를_품목과_적용범위로_나눈다()
         "│스│보호│보호 설명│", "│포├──┼──┤", "│츠│모자│모자 설명│", "└──┴──┘",
     ])
     assert parse_scope_annex(text) == [("갑제품", "첫 줄이다. 둘째 줄"), ("보호", "보호 설명"), ("모자", "모자 설명")]
+
+
+def test_품목명의_포함_문구는_조회용_이름에서_뗀다(children_evidence):
+    glasses = next(item for item in children_evidence.items if item.item_id == "sdoc-03")
+    pack = next(item for item in children_evidence.items if item.item_id == "conf-15")
+    assert glasses.short_name == "어린이용 안경테" and glasses.includes == ("선글라스를 포함한다",)
+    assert pack.short_name == "어린이용 온열팩" and pack.includes == ("주머니난로 포함",)
+    assert "선글라스를 포함한다" in glasses.name  # 근거 원문·판단 제목은 원문 이름 그대로
+
+
+def test_품목명_목록에는_포함_문구가_없다(children_evidence):
+    from app.tools.children.search import LawApiItemSearch
+    names = LawApiItemSearch(lambda as_of: children_evidence).catalog()
+    assert "어린이용 안경테" in names and "어린이용 온열팩" in names
+    assert not any("포함" in name for name in names)
+
+
+def test_적용범위를_잇지_못하면_경고_로그를_남긴다(fake_law, caplog, monkeypatch):
+    from app.tools.children import evidence as module
+    original = module.parse_scope_annex
+    monkeypatch.setattr(module, "parse_scope_annex",
+                        lambda text: [*original(text), ("이름이 바뀐 새 품목", "법 개정으로 이름이 바뀐 적용범위")])
+    with caplog.at_level("WARNING", logger="app.tools.children.evidence"):
+        evidence = load_children_evidence(fake_law, AS_OF)
+    assert "이름이 바뀐 새 품목" in evidence.unlinked_scopes
+    assert any("잇지 못했습니다" in record.getMessage() and "이름이 바뀐 새 품목" in record.getMessage()
+               for record in caplog.records)
