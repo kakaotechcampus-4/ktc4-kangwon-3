@@ -1,6 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity;
 
-public enum AgentType {
+public enum ToolName {
     INTAKE,
     CUSTOMS,
     CHILDREN,

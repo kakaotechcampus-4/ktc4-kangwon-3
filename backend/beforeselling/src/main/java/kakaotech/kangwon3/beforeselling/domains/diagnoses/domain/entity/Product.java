@@ -179,7 +179,7 @@ public class Product extends BaseEntity {
 
     // 같은 실행에서 이미 반영한 것보다 앞선 이벤트(재시도로 늦게 온 것, 중복)는 무시한다.
     public void recordProgress(String runId, int sequence, PipelineStage stage,
-                               StageStatus stageStatus, AgentType toolName) {
+                               StageStatus stageStatus, ToolName toolName) {
         if (toolName != null && stage != PipelineStage.TOOL_EXECUTION) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
