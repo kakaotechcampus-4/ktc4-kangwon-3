@@ -2,11 +2,11 @@
 
 from ..sessions.executor import SessionExecutor
 from .events import AssessmentPresenter, EventBuilder
-from .outbox import CallbackOutbox, CallbackSender, CallbackTransportError
+from .outbox import CallbackOutbox, CallbackSender, CallbackTransportError, SendResult
 
 __all__ = [
     "AssessmentPresenter", "CallbackOutbox", "CallbackSender", "CallbackTransportError", "EventBuilder",
-    "connect_callbacks",
+    "SendResult", "connect_callbacks",
 ]
 
 
