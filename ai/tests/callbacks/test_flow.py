@@ -4,7 +4,7 @@ import threading
 
 import pytest
 
-from app.callbacks import CallbackOutbox, EventBuilder, connect_callbacks
+from app.callbacks import CallbackOutbox, EventBuilder, SendResult, connect_callbacks
 from app.routers import _dummy
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
@@ -26,10 +26,10 @@ class _Sender:
         self.events = []
         self._lock = threading.Lock()
 
-    def send(self, event) -> int:
+    def send(self, event) -> SendResult:
         with self._lock:
             self.events.append(event)
-        return 200
+        return SendResult(200)
 
 
 @pytest.fixture

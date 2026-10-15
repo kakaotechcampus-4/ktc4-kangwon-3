@@ -5,7 +5,7 @@ import threading
 
 import pytest
 
-from app.callbacks.outbox import CallbackOutbox, CallbackTransportError
+from app.callbacks.outbox import CallbackOutbox, CallbackTransportError, SendResult
 from app.schemas.callback import ProductProgressEvent, PublicPipelineStage
 
 
@@ -17,21 +17,24 @@ def _event(product_id: str = "p-1", sequence: int = 1) -> ProductProgressEvent:
 
 
 class _Sender:
-    """보낸 이벤트를 기록하고, event_id별로 정해 둔 응답을 차례로 돌려준다. 정하지 않으면 200."""
+    """보낸 이벤트를 기록하고, event_id별로 정해 둔 응답을 차례로 돌려준다. 정하지 않으면 200.
+
+    응답은 상태 코드, (상태 코드, BE 응답 코드), 예외 중 하나.
+    """
 
     def __init__(self, responses: dict[str, list] | None = None) -> None:
         self.responses = {key: list(value) for key, value in (responses or {}).items()}
         self.sent: list[str] = []
         self._lock = threading.Lock()
 
-    def send(self, event) -> int:
+    def send(self, event) -> SendResult:
         with self._lock:
             self.sent.append(event.event_id)
             queue = self.responses.get(event.event_id)
             response = queue.pop(0) if queue else 200
         if isinstance(response, Exception):
             raise response
-        return response
+        return SendResult(*response) if isinstance(response, tuple) else SendResult(response)
 
 
 def _outbox(sender, delays: list[float] | None = None, **options) -> CallbackOutbox:
@@ -88,6 +91,31 @@ def test_4xx는_재시도하지_않고_기록한다(status, caplog):
 
     assert sender.sent == ["p-1-1"]
     assert f"HTTP {status}" in caplog.text
+
+
+def test_BE가_다시_보내_달라고_한_409_COMMON_009는_재시도한다():
+    # 202 응답 저장 전에 콜백이 먼저 도착했거나 락 대기가 넘친 경우 (#329)
+    sender = _Sender({"p-1-1": [(409, "COMMON-009"), (409, "COMMON-009"), 200]})
+    delays: list[float] = []
+    outbox = _outbox(sender, delays)
+
+    outbox.put([_event()])
+    outbox.close(timeout=5)
+
+    assert sender.sent == ["p-1-1"] * 3
+    assert delays == [1.0, 2.0]
+
+
+def test_상태_전이_불가_409_COMMON_010은_재시도하지_않는다(caplog):
+    sender = _Sender({"p-1-1": [(409, "COMMON-010")]})
+
+    with caplog.at_level(logging.WARNING, logger="app.callbacks.outbox"):
+        outbox = _outbox(sender)
+        outbox.put([_event()])
+        outbox.close(timeout=5)
+
+    assert sender.sent == ["p-1-1"]
+    assert "HTTP 409 COMMON-010" in caplog.text
 
 
 def test_지터는_대기_시간을_절반부터_전체_사이로_흩뜨린다():

@@ -4,6 +4,7 @@
     - 같은 상품의 이벤트는 넣은 순서대로, 한 번에 한 스레드만 보냄
     - 한 상품이 재시도로 기다려도 다른 상품은 막히지 않음
     - 2xx 성공, 5xx·타임아웃·연결 실패는 지수 백오프 + 지터로 재시도, 나머지(400·401·409 등)는 재시도 없이 기록
+    - 409 중 BE가 다시 보내 달라고 한 코드(COMMON-009: 202 저장 전 도착·락 대기 초과)는 재시도 (#329)
 세션이 메모리에 있어 재시작 시 남은 이벤트도 같이 사라짐. 못 보낸 이벤트는 로그로만 남김.
 """
 
@@ -12,6 +13,7 @@ import random
 import threading
 from collections import deque
 from collections.abc import Callable
+from dataclasses import dataclass
 from queue import Queue
 from typing import Protocol
 
@@ -22,17 +24,32 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 5
 BASE_DELAY_SECONDS = 1.0
 MAX_DELAY_SECONDS = 30.0
+# 409라도 다시 보내면 되는 BE 응답 코드. COMMON-010(상태 전이 불가)은 재시도 안 함
+RETRYABLE_CONFLICT_CODES = frozenset({"COMMON-009"})
 
 
 class CallbackTransportError(RuntimeError):
     """응답을 받지 못한 전송 실패(타임아웃·연결 실패). 재시도 대상."""
 
 
+@dataclass(frozen=True)
+class SendResult:
+    """BE 응답 하나.
+
+    Attributes:
+        status: HTTP 상태 코드.
+        code: 응답 본문의 code (BE ApiResponse, 예: COMMON-009). 없으면 None.
+    """
+
+    status: int
+    code: str | None = None
+
+
 class CallbackSender(Protocol):
     """이벤트 하나를 BE로 보내는 쪽. 실제 HTTP 전송은 [콜백 2/5]."""
 
-    def send(self, event: PublicProductEvent) -> int:
-        """이벤트를 보내고 HTTP 상태 코드를 돌려준다.
+    def send(self, event: PublicProductEvent) -> SendResult:
+        """이벤트를 보내고 BE 응답(상태 코드·응답 코드)을 돌려준다.
 
         Raises:
             CallbackTransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우.
@@ -148,19 +165,19 @@ class CallbackOutbox:
                 _log_dropped(event, "종료로 재시도 중단")
                 return
             try:
-                status = self._sender.send(event)
+                result = self._sender.send(event)
             except CallbackTransportError as exc:
                 reason = f"전송 실패({type(exc).__name__})"
             except Exception:
                 logger.exception("콜백 전송 중 예상하지 못한 오류 (event_id=%s)", event.event_id)
                 return
             else:
-                if 200 <= status < 300:
+                if 200 <= result.status < 300:
                     return
-                if status < 500:
-                    _log_dropped(event, f"재시도 대상 아님(HTTP {status})")
+                reason = f"HTTP {result.status}" + (f" {result.code}" if result.code else "")
+                if not _retryable(result):
+                    _log_dropped(event, f"재시도 대상 아님({reason})")
                     return
-                reason = f"HTTP {status}"
             if attempt < self._max_retries:
                 logger.warning("콜백 재시도 예정 %d/%d: %s (event_id=%s, product_id=%s)",
                                attempt + 1, self._max_retries, reason, event.event_id, event.product_id)
@@ -170,6 +187,11 @@ class CallbackOutbox:
         """attempt번째 재시도 전 대기 시간. 상한 안에서 2배씩, 절반~전체 사이로 흩뜨림."""
         delay = min(self._max_delay, self._base_delay * 2 ** (attempt - 1))
         return delay * (0.5 + self._jitter() / 2)
+
+
+def _retryable(result: SendResult) -> bool:
+    """5xx, 또는 BE가 다시 보내 달라고 한 409."""
+    return result.status >= 500 or (result.status == 409 and result.code in RETRYABLE_CONFLICT_CODES)
 
 
 def _log_dropped(event: PublicProductEvent, reason: str) -> None:
