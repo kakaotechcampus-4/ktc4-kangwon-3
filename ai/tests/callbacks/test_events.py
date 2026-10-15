@@ -2,8 +2,6 @@
 
 from itertools import count
 
-import pytest
-
 from app.callbacks.events import EventBuilder
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
@@ -26,6 +24,9 @@ class _Presenter:
 
 class _BrokenPresenter(_Presenter):
     def assessment(self, result):
+        raise ValueError("변환 실패")
+
+    def questions(self, result):
         raise ValueError("변환 실패")
 
 
@@ -151,16 +152,33 @@ def test_진단서_없는_실행은_보내지_않는다():
     assert _builder().build(session) == []
 
 
-def test_변환이_실패하면_순서_번호를_쓰지_않는다():
+def test_진단서_변환이_실패하면_실패_이벤트로_끝낸다(caplog):
+    # 마지막 이벤트가 빠지면 BE에서 진행 중으로 남음
     store, context, _ = _running()
     builder = _builder(_BrokenPresenter())
     builder.build(store.update_stage(context, PipelineStage.EXTRACTION))
+
+    [event] = builder.build(store.finish(context, build_dummy_assessment("p-1")))
+
+    assert (event.event_type, event.sequence, event.stage) == ("product_failed", 2, "extraction")
+    assert (event.error.code, event.error.retryable) == ("AI_PIPELINE_ERROR", False)
+    assert "변환 실패" in caplog.text
+
+
+def test_질문_변환이_실패해도_실패_이벤트로_끝낸다():
+    store, context, _ = _running()
+
+    [event] = _builder(_BrokenPresenter()).build(store.finish(context, _awaiting("p-1")))
+
+    assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)
+
+
+def test_변환_실패로_끝난_실행의_늦은_변경은_이벤트를_만들지_않는다():
+    store, context, _ = _running()
+    builder = _builder(_BrokenPresenter())
     finished = store.finish(context, build_dummy_assessment("p-1"))
+    builder.build(finished)
 
-    with pytest.raises(ValueError, match="변환 실패"):
-        builder.build(finished)
-
-    # 변환기를 고쳐 다시 만들면 번호가 이어짐 (실패한 시도가 2번을 쓰지 않음)
+    # 같은 변경이 다시 와도 실패 이벤트는 한 번
     builder._presenter = _Presenter()
-    [event] = builder.build(finished)
-    assert event.sequence == 2
+    assert builder.build(finished) == []

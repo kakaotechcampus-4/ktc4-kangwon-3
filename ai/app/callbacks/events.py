@@ -5,8 +5,10 @@ SessionExecutor.subscribe()로 받은 세션마다 보낼 이벤트 목록을 �
     - 답변 대기 → 질문 이벤트, 완료 → 결과 이벤트, 실패·시간 초과 → 실패 이벤트
 질문·결과·실패는 그 실행(runId)의 마지막. 이후 같은 실행의 변경은 이벤트를 만들지 않음.
 진단서·질문 변환(result_status 결정, 질문 키)은 주입받은 AssessmentPresenter가 맡음.
+변환이 실패하면 실패 이벤트로 끝냄 (마지막 이벤트가 빠지면 BE에서 진행 중으로 남음).
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from threading import Lock
@@ -25,6 +27,10 @@ from ..schemas.session import DiagnosisSession, SessionStatus
 _PUBLIC_STAGES = {stage.value: stage for stage in PublicPipelineStage}
 _ERROR_MESSAGES = {code.value.code: code.value.message for code in AIResponseCode}
 _DEFAULT_ERROR_MESSAGE = AIResponseCode.PIPELINE_ERROR.value.message
+# 진단서·질문 변환 실패 표시
+_CONVERSION_FAILED = object()
+
+logger = logging.getLogger(__name__)
 
 
 class AssessmentPresenter(Protocol):
@@ -76,8 +82,13 @@ class EventBuilder:
         # 평가·테스트 실행은 BE 진단서가 없어 보내지 않음
         if context.diagnosis_id is None:
             return []
-        # 변환이 실패해도 순서 번호를 먼저 쓰지 않도록 내용부터 만듦
-        content = self._content(session)
+        # 잠금 밖에서 내용부터 만듦. 실패하면 실패 이벤트로 끝냄
+        try:
+            content = self._content(session)
+        except Exception:
+            logger.exception("콜백 진단서·질문 변환 실패 (product_id=%s, run_id=%s)",
+                             context.product_id, context.run_id)
+            content = _CONVERSION_FAILED
         with self._lock:
             if context.run_id in self._finished:
                 return []
@@ -86,6 +97,9 @@ class EventBuilder:
                 return self._progress(session, run)
             if isinstance(content, PublicAssessmentDto):
                 event = ProductResultEvent(**self._base(session, run), assessment=content)
+            elif content is _CONVERSION_FAILED:
+                # 세션은 완료·답변 대기라 오류 코드가 비어 있음. 실행기의 파이프라인 오류와 같게 재시도 불가
+                event = self._failed(session, run, code=AIResponseCode.PIPELINE_ERROR.value.code, retryable=False)
             elif content is not None:
                 question_round, questions = content
                 event = ProductAwaitingInputEvent(
@@ -124,13 +138,16 @@ class EventBuilder:
         run.stage = stage
         return events
 
-    def _failed(self, session: DiagnosisSession, run: _RunState) -> ProductFailedEvent:
-        code = session.error_code or AIResponseCode.PIPELINE_ERROR.value.code
+    def _failed(
+        self, session: DiagnosisSession, run: _RunState, *, code: str | None = None, retryable: bool | None = None,
+    ) -> ProductFailedEvent:
+        """실패 이벤트. code·retryable을 주지 않으면 세션 값, 세션에도 없으면 파이프라인 오류."""
+        code = code or session.error_code or AIResponseCode.PIPELINE_ERROR.value.code
         return ProductFailedEvent(
             **self._base(session, run),
             stage=_public_stage(session.stage),
             error=PublicErrorDto(code=code, message=_ERROR_MESSAGES.get(code, _DEFAULT_ERROR_MESSAGE),
-                                 retryable=session.retryable),
+                                 retryable=session.retryable if retryable is None else retryable),
         )
 
     def _base(self, session: DiagnosisSession, run: _RunState) -> dict:

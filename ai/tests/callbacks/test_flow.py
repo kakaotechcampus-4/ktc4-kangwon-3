@@ -92,3 +92,25 @@ def test_진단이_실패하면_실패_이벤트로_끝난다(monkeypatch, flow)
 
     [event] = sender.events
     assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)
+
+
+def test_진단서_변환이_실패하면_BE가_받는_마지막_이벤트는_실패다(monkeypatch):
+    # AI 세션은 완료인데 마지막 이벤트가 빠지면 BE에서 진행 중으로 남음 (#321 리뷰)
+    class _BrokenPresenter(_Presenter):
+        def assessment(self, result):
+            raise ValueError("미완료인데 안내가 없는 진단서")
+
+    monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
+    sender = _Sender()
+    executor = SessionExecutor(SessionStore(), _dummy.run_dummy_diagnosis)
+    outbox = CallbackOutbox(sender)
+    connect_callbacks(executor, EventBuilder(_BrokenPresenter()), outbox)
+
+    [session] = executor.submit("d-1", _inputs("p-1"))
+    executor.shutdown(wait=True)
+    outbox.close(timeout=5)
+
+    last = sender.events[-1]
+    assert executor.store.get("p-1").status.value == "completed"
+    assert (last.event_type, last.stage, last.error.retryable) == ("product_failed", "finalization", False)
+    assert [event.sequence for event in sender.events] == list(range(1, len(sender.events) + 1))
