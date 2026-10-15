@@ -9,8 +9,9 @@ import java.util.UUID;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "eventType")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = ProductProgressEvent.class, name = "product_progress"),
+        @JsonSubTypes.Type(value = ProductAwaitingInputEvent.class, name = "product_awaiting_input"),
 })
-public sealed interface ProductEvent permits ProductProgressEvent {
+public sealed interface ProductEvent permits ProductProgressEvent, ProductAwaitingInputEvent {
     String eventId();
 
     UUID diagnosisId();
