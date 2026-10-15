@@ -12,11 +12,16 @@ from .evidence import Scheme
 
 CHILD_LIMIT_MONTHS = 13 * 12 + 11
 
-_UNIT = r"(개월|세(?!트)|살)"
+# 해외 직구 상세페이지의 영문 표기도 읽는다: "36M+", "24 months", "3-12years", "3 yrs", "3Y+".
+_MONTH_UNITS = ("개월", "M", "mo", "mos", "month", "months")
+# 한 글자 M·Y는 "36M+", "6-36M"처럼 뒤에 +나 끝이 올 때만 단위로 본다("5M 케이블", "3M" 상표를 연령으로 읽지 않게).
+_UNIT = r"(개월|세(?!트)|살|(?i:months?|mos?|years?|yrs?)(?![A-Za-z])|[MY](?=\s*\+|\s*$|\s*[)\]]))"
 _RANGE_RE = re.compile(rf"(\d{{1,3}})\s*{_UNIT}?\s*(?:~|∼|-|–|부터)\s*(?:만\s*)?(\d{{1,3}})\s*{_UNIT}\s*(이하|미만|까지)?")
-_SINGLE_RE = re.compile(rf"(\d{{1,3}})\s*{_UNIT}\s*(이상|이하|미만|초과|부터|까지|\+)?")
+_SINGLE_RE = re.compile(rf"(\d{{1,3}})\s*{_UNIT}\s*(이상|이하|미만|초과|부터|까지|\+|(?i:and\s+up|and\s+older|or\s+older|&\s*up))?")
+# 영문 "under 3 years": 금지 문구와 함께면 그 연령 이상, 아니면 그 연령 미만.
+_UNDER_RE = re.compile(rf"(?i:under|below)\s*(\d{{1,3}})\s*{_UNIT}")
 _PLUS_RE = re.compile(r"(?<!\d)(\d{1,2})\s*\+")
-_PROHIBITION_RE = re.compile(r"금지|불가|사용할\s*수\s*없|사용하지\s*마|부적합")
+_PROHIBITION_RE = re.compile(r"금지|불가|사용할\s*수\s*없|사용하지\s*마|부적합|(?i:not\s+(?:for|suitable|intended)|do\s+not\s+use)")
 _ADULT_WORDS = ("성인", "어른")
 _CHILD_WORDS = ("영아", "유아", "아동", "어린이", "키즈", "유치원", "초등", "신생아", "아기")
 
@@ -31,24 +36,34 @@ class AgeRange:
     max_months: int | None
 
 
+def _is_month(unit: str | None) -> bool:
+    return unit is not None and (unit in _MONTH_UNITS or unit.lower() in _MONTH_UNITS)
+
+
 def _months(number: str, unit: str | None) -> int:
     value = int(number)
-    return value if unit == "개월" else value * 12
+    return value if _is_month(unit) else value * 12
 
 
 def parse_age(text: str) -> AgeRange | None:
     """연령 표기 하나를 개월 범위로 읽는다. 읽을 수 없으면 None.
 
-    "만 3세 이상", "36개월 미만", "3~7세", "6개월~3세", "14세 이상", "8+" 같은 표기를 읽는다.
+    "만 3세 이상", "36개월 미만", "3~7세", "6개월~3세", "14세 이상", "8+" 같은 표기와
+    "36M+", "24 months", "3-12years", "3 yrs" 같은 영문 표기를 읽는다.
     "N세 이하"는 만 N세까지(N세 11개월)를 포함한다(운용요령 완구 적용범위의 연령 해석과 같다).
     사용 금지 문구("N세 미만 사용 금지")는 반대로 "N세 이상"으로 읽고, 그 밖의 금지 문구는 읽지 않는다.
     """
     text = text.strip()
+    under = _UNDER_RE.search(text)
     if _PROHIBITION_RE.search(text):
         match = _SINGLE_RE.search(text)
         if match and match.group(3) == "미만":
             return AgeRange(_months(match.group(1), match.group(2)), None)
+        if under:
+            return AgeRange(_months(under.group(1), under.group(2)), None)
         return None
+    if under:
+        return AgeRange(None, _months(under.group(1), under.group(2)) - 1)
     match = _RANGE_RE.search(text)
     if match:
         low_number, low_unit, high_number, high_unit, high_op = match.groups()
@@ -56,22 +71,22 @@ def parse_age(text: str) -> AgeRange | None:
         high = _months(high_number, high_unit)
         if high_op == "미만":
             high -= 1
-        elif high_unit != "개월":
+        elif not _is_month(high_unit):
             high += 11
         return AgeRange(low, high)
     match = _SINGLE_RE.search(text)
     if match:
         number, unit, op = match.groups()
         months = _months(number, unit)
-        if op in ("이상", "부터", "+"):
-            return AgeRange(months, None)
+        if op in ("이상", "부터", "+") or (op and op[0].isascii() and op != "+"):
+            return AgeRange(months, None)  # 영문 "and up", "or older", "& up"도 이상이다
         if op == "초과":
-            return AgeRange(months + (1 if unit == "개월" else 12), None)
+            return AgeRange(months + (1 if _is_month(unit) else 12), None)
         if op == "미만":
             return AgeRange(None, months - 1)
         if op in ("이하", "까지"):
-            return AgeRange(None, months + (0 if unit == "개월" else 11))
-        return AgeRange(months, months + (0 if unit == "개월" else 11))
+            return AgeRange(None, months + (0 if _is_month(unit) else 11))
+        return AgeRange(months, months + (0 if _is_month(unit) else 11))
     match = _PLUS_RE.search(text)
     if match:
         return AgeRange(int(match.group(1)) * 12, None)

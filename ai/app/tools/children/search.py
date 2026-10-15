@@ -12,14 +12,18 @@ from typing import Protocol
 
 from ..common.law import CachedLoader, DocRef, LawApiClients
 from ..common.ranking import rank_rows
-from .evidence import ChildrenEvidence, ChildrenItem, Definitions, load_children_evidence
+from .evidence import ChildrenEvidence, ChildrenItem, Definitions, Scheme, load_children_evidence, without_includes
 
 KST = timezone(timedelta(hours=9))
 
 
 @dataclass(frozen=True)
 class ChildrenCandidates:
-    """조회 결과. items는 상품과 비슷한 품목 행(terms가 비면 빈 목록)."""
+    """조회 결과. items는 상품과 비슷한 품목 행(terms가 비면 빈 목록).
+
+    designated는 안전인증·안전확인 품목 전체다. 맞는 품목이 없을 때 공급자적합성확인으로 낮춰 안내하므로,
+    그 판단 전에 품목 선택 모델이 두 제도의 품목을 빠짐없이 보게 한다(조회 순위에서 빠져도 낮춰지지 않게).
+    """
 
     items: tuple[ChildrenItem, ...]
     common_standard: ChildrenItem
@@ -27,6 +31,7 @@ class ChildrenCandidates:
     rule: DocRef
     notice: DocRef
     documents: list[dict[str, str]] = field(default_factory=list)
+    designated: tuple[ChildrenItem, ...] = ()
 
 
 class ChildrenItemSearch(Protocol):
@@ -52,16 +57,19 @@ class LawApiItemSearch:
     def catalog(self) -> list[str]:
         """품목표의 품목명 목록(시행규칙 품목명과 운용요령 표기). 조건 추출 모델이 조회어를 고를 때 쓴다."""
         evidence = self.evidence()
-        return list(dict.fromkeys(name for item in evidence.items for name in (item.name, *item.scope_names)))
+        return list(dict.fromkeys(without_includes(name) for item in evidence.items
+                                  for name in (item.name, *item.scope_names)))
 
     def search(self, terms: list[str], *, top_k: int) -> ChildrenCandidates:
         evidence = self.evidence()
+        # 순위에는 포함 문구를 뗀 이름만 쓴다("포함한다" 같은 글자가 유사도에 섞이지 않게).
         items = rank_rows(
             evidence.items, terms, top_k=top_k, key=lambda item: item.item_id,
-            text=lambda item: " ".join((item.name, *item.scope_names)),
-            names=lambda item: [item.name, *item.scope_names],
+            text=lambda item: " ".join(without_includes(name) for name in (item.name, *item.scope_names)),
+            names=lambda item: [without_includes(name) for name in (item.name, *item.scope_names)],
         ) if terms else []
-        return ChildrenCandidates(items=tuple(items), common_standard=evidence.common_standard,
+        designated = tuple(item for item in evidence.items if item.scheme in (Scheme.CERTIFICATION, Scheme.CONFIRMATION))
+        return ChildrenCandidates(items=tuple(items), designated=designated, common_standard=evidence.common_standard,
                                   definitions=evidence.definitions, rule=evidence.rule, notice=evidence.notice,
                                   documents=evidence.documents())
 
