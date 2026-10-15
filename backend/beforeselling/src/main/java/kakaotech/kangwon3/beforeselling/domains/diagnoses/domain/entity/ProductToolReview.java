@@ -31,8 +31,8 @@ import java.util.UUID;
 @Table(
         name = "product_tool_review",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_product_tool_review_product_id_agent_type",
-                columnNames = {"product_id", "agent_type"}
+                name = "uk_product_tool_review_product_id_tool_name",
+                columnNames = {"product_id", "tool_name"}
         )
 )
 public class ProductToolReview extends BaseEntity {
@@ -47,8 +47,8 @@ public class ProductToolReview extends BaseEntity {
     private Product product;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "agent_type", nullable = false)
-    private AgentType agentType;
+    @Column(name = "tool_name", nullable = false)
+    private ToolName toolName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -62,9 +62,9 @@ public class ProductToolReview extends BaseEntity {
     @BatchSize(size = 100)
     private List<ProductFinding> findings = new ArrayList<>();
 
-    ProductToolReview(Product product, AgentType agentType, ToolReviewStatus status, String message) {
+    ProductToolReview(Product product, ToolName toolName, ToolReviewStatus status, String message) {
         this.product = product;
-        this.agentType = agentType;
+        this.toolName = toolName;
         this.status = status;
         this.message = message;
     }

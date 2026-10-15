@@ -48,7 +48,7 @@ class ProductResultMappingTest {
         ReflectionTestUtils.setField(product, "assessmentStatus", AssessmentStatus.COMPLETED);
         ReflectionTestUtils.setField(product, "resultStatus", ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED);
 
-        ProductToolReview children = new ProductToolReview(product, AgentType.CHILDREN, ToolReviewStatus.COMPLETED, null);
+        ProductToolReview children = new ProductToolReview(product, ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null);
         ProductFinding labeling = new ProductFinding(children, 1, "표시사항", Determination.POSSIBLY_REQUIRED,
                 RiskLevel.MEDIUM, "사용연령 표시를 확인해야 합니다.", "상세페이지에 사용연령 표기가 없습니다.");
         ProductFinding certification = new ProductFinding(children, 0, "안전확인 대상 여부", Determination.REQUIRED,
@@ -62,7 +62,7 @@ class ProductResultMappingTest {
         children.getFindings().add(certification);
 
         product.getToolReviews().add(children);
-        product.getToolReviews().add(new ProductToolReview(product, AgentType.FOOD_DRUG, ToolReviewStatus.SKIPPED,
+        product.getToolReviews().add(new ProductToolReview(product, ToolName.FOOD_DRUG, ToolReviewStatus.SKIPPED,
                 "식품 접촉 성분이 감지되지 않아 검토하지 않았습니다."));
         UUID diagnosesId = save(product);
         flushAndClear();
@@ -74,12 +74,12 @@ class ProductResultMappingTest {
         assertThat(saved.getAssessmentStatus()).isEqualTo(AssessmentStatus.COMPLETED);
         assertThat(saved.getResultStatus()).isEqualTo(ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED);
         assertThat(saved.getToolReviews())
-                .extracting(ProductToolReview::getAgentType, ProductToolReview::getStatus)
+                .extracting(ProductToolReview::getToolName, ProductToolReview::getStatus)
                 .containsExactlyInAnyOrder(
-                        tuple(AgentType.CHILDREN, ToolReviewStatus.COMPLETED),
-                        tuple(AgentType.FOOD_DRUG, ToolReviewStatus.SKIPPED));
+                        tuple(ToolName.CHILDREN, ToolReviewStatus.COMPLETED),
+                        tuple(ToolName.FOOD_DRUG, ToolReviewStatus.SKIPPED));
 
-        ProductToolReview savedChildren = findToolReview(saved, AgentType.CHILDREN);
+        ProductToolReview savedChildren = findToolReview(saved, ToolName.CHILDREN);
         assertThat(savedChildren.getFindings())
                 .extracting(ProductFinding::getSubject, ProductFinding::getDetermination, ProductFinding::getRiskLevel)
                 .containsExactly(
@@ -91,7 +91,7 @@ class ProductResultMappingTest {
                         tuple("어린이제품 안전 특별법 시행규칙", "별표 2"),
                         tuple("어린이제품 안전 특별법", "제17조"));
 
-        assertThat(findToolReview(saved, AgentType.FOOD_DRUG).getFindings()).isEmpty();
+        assertThat(findToolReview(saved, ToolName.FOOD_DRUG).getFindings()).isEmpty();
     }
 
     @Test
@@ -136,8 +136,8 @@ class ProductResultMappingTest {
     void save_withDuplicateAgentType_thenThrowConstraintViolation() {
         // given
         Product product = createProduct();
-        product.getToolReviews().add(new ProductToolReview(product, AgentType.CUSTOMS, ToolReviewStatus.COMPLETED, null));
-        product.getToolReviews().add(new ProductToolReview(product, AgentType.CUSTOMS, ToolReviewStatus.INCOMPLETE, null));
+        product.getToolReviews().add(new ProductToolReview(product, ToolName.CUSTOMS, ToolReviewStatus.COMPLETED, null));
+        product.getToolReviews().add(new ProductToolReview(product, ToolName.CUSTOMS, ToolReviewStatus.INCOMPLETE, null));
         save(product);
 
         // when & then
@@ -149,7 +149,7 @@ class ProductResultMappingTest {
     void delete_thenRemoveAllResultRows() {
         // given
         Product product = createProduct();
-        ProductToolReview review = new ProductToolReview(product, AgentType.CHILDREN, ToolReviewStatus.COMPLETED, null);
+        ProductToolReview review = new ProductToolReview(product, ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null);
         ProductFinding finding = new ProductFinding(review, 0, "안전확인 대상 여부", Determination.REQUIRED,
                 RiskLevel.HIGH, "안전확인이 필요합니다.", "완구에 해당합니다.");
         finding.getLegalSources().add(new FindingLegalSource(finding, 0, "국가법령정보센터",
@@ -187,9 +187,9 @@ class ProductResultMappingTest {
         return diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
     }
 
-    private ProductToolReview findToolReview(Product product, AgentType agentType) {
+    private ProductToolReview findToolReview(Product product, ToolName toolName) {
         return product.getToolReviews().stream()
-                .filter(review -> review.getAgentType() == agentType)
+                .filter(review -> review.getToolName() == toolName)
                 .findFirst()
                 .orElseThrow();
     }
