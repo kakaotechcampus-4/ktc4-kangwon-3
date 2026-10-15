@@ -9,25 +9,21 @@
 - DatabaseItemSearch: 품목표 행 테이블·임베딩 적재 후 벡터 조회로 바꿀 자리(스텁).
 """
 
-import math
-import re
 import threading
-from collections import Counter
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Protocol
 
+from ..common.law import CachedLoader
+from ..common.ranking import rank_rows
 from .evidence import (
     AnnexBlock,
-    CachedEvidenceSource,
     ElectricalEvidence,
     ElectricalEvidenceSource,
     EvidenceSection,
     LawApiClients,
     LawApiEvidenceSource,
     Scheme,
-    compact,
 )
 
 KST = timezone(timedelta(hours=9))
@@ -53,54 +49,25 @@ class ElectricalItemSearch(Protocol):
     def search(self, terms: list[str], *, top_k: int) -> ItemCandidates: ...
 
 
-def _bigrams(text: str) -> Counter:
-    chars = re.sub(r"[^0-9A-Za-z가-힣]", "", text)
-    return Counter(chars[i:i + 2] for i in range(len(chars) - 1)) if len(chars) > 1 else Counter([chars])
+def rank_blocks(blocks, terms: list[str], *, top_k: int) -> list[AnnexBlock]:
+    """품목·세부품목 이름과 상품 용어의 글자 2개 단위 유사도로 정렬한다(공용 rank_rows).
 
-
-def rank_blocks(blocks: Iterable[AnnexBlock], terms: list[str], *, top_k: int) -> list[AnnexBlock]:
-    """품목·세부품목 이름과 상품 용어의 글자 2개 단위 유사도로 정렬한다.
-
-    용어마다 따로 유사도를 재서 가장 높은 값을 쓴다(상품명·제품 종류·조회어를 이어 붙이면 서로 희석된다).
-    "전기"처럼 모든 품목에 나오는 글자는 가중치를 낮춘다(IDF). 세부품목 이름이 상품 용어에
-    그대로 들어 있으면 가산한다. 상품 용어별 동의어 사전은 두지 않는다. 제품 종류를 보통 명칭으로
-    바꾸는 일은 조건 추출 LLM의 search_terms가 맡는다. 임베딩 조회로 바꾸기 전까지의 단순 기준이며,
-    정답 품목이 상위에 드는지(recall)를 평가셋으로 따로 잰다.
+    세부품목 이름이 상품 용어에 그대로 들어 있으면 가산한다(세부품목이 없는 행은 품목 이름).
+    상품 용어별 동의어 사전은 두지 않는다. 제품 종류를 보통 명칭으로 바꾸는 일은 조건 추출 LLM의
+    search_terms가 맡는다. 정답 품목이 상위에 드는지(recall)는 평가셋으로 따로 잰다.
     """
-    blocks = list(blocks)
-    documents = [_bigrams(" ".join((*block.items, *block.sub_items))) for block in blocks]
-    frequency = Counter(gram for document in documents for gram in document)
-    idf = {gram: math.log((1 + len(blocks)) / (1 + count)) + 1 for gram, count in frequency.items()}
-    queries = [term for term in dict.fromkeys(t.strip() for t in terms if t and t.strip())]
-    query_compact = [compact(term) for term in queries]
-
-    def weight(vector: Counter) -> dict[str, float]:
-        return {gram: count * idf.get(gram, 0.0) for gram, count in vector.items()}
-
-    def norm(weights: dict[str, float]) -> float:
-        return math.sqrt(sum(value * value for value in weights.values())) or 1.0
-
-    query_weights = [weight(_bigrams(term)) for term in queries]
-    scored = []
-    for block, document in zip(blocks, documents):
-        weights = weight(document)
-        block_norm = norm(weights)
-        score = max((sum(q[gram] * weights.get(gram, 0.0) for gram in q) / (norm(q) * block_norm)
-                     for q in query_weights), default=0.0)
-        names = [compact(name) for name in block.sub_items] or [compact(name) for name in block.items]
-        if any(name and len(name) > 1 and any(name in term or term in name for term in query_compact if len(term) > 1)
-               for name in names):
-            score += 1.0
-        scored.append((score, block.block_id, block))
-    scored.sort(key=lambda row: (-row[0], row[1]))
-    return [block for score, _, block in scored[:top_k] if score > 0]
+    return rank_rows(
+        blocks, terms, top_k=top_k, key=lambda block: block.block_id,
+        text=lambda block: " ".join((*block.items, *block.sub_items)),
+        names=lambda block: list(block.sub_items) or list(block.items),
+    )
 
 
 class LawApiItemSearch:
     """법제처 API로 받은 품목표에서 찾는다. 근거는 기준일별로 캐시해 상품마다 다시 받지 않는다.
 
     Args:
-        source: 근거 조회 경로. 보통 CachedEvidenceSource(LawApiEvidenceSource(client)).
+        source: 근거 조회 경로(load(기준일)을 가진 객체). 보통 CachedLoader(LawApiEvidenceSource(client).load).
         as_of: 기준일. 없으면 실행 시점의 한국 날짜.
     """
 
@@ -124,17 +91,15 @@ class LawApiItemSearch:
         )
 
 
-class _OnDemandLawSource:
-    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 하루에 한 번만 연다."""
+def _load_on_demand(as_of: date) -> ElectricalEvidence:
+    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다."""
+    from ...config import get_settings
 
-    def load(self, as_of: date) -> ElectricalEvidence:
-        from ...config import get_settings
-
-        clients = LawApiClients.from_oc(get_settings().law_oc)
-        try:
-            return LawApiEvidenceSource(clients).load(as_of)
-        finally:
-            clients.close()
+    clients = LawApiClients.from_oc(get_settings().law_oc)
+    try:
+        return LawApiEvidenceSource(clients).load(as_of)
+    finally:
+        clients.close()
 
 
 _default_lock = threading.Lock()
@@ -146,7 +111,7 @@ def default_item_search() -> LawApiItemSearch:
     global _default_search
     with _default_lock:
         if _default_search is None:
-            _default_search = LawApiItemSearch(CachedEvidenceSource(_OnDemandLawSource()))
+            _default_search = LawApiItemSearch(CachedLoader(_load_on_demand))
         return _default_search
 
 

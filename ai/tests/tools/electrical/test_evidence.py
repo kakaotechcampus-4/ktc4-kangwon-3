@@ -8,7 +8,7 @@ import pytest
 
 from app.schemas.clients.law_response import AdmrulSearchResponse
 from app.tools.electrical.evidence import (
-    NOTICE_ID, NOTICE_NAME, CachedEvidenceSource, DatabaseEvidenceSource, EvidenceUnavailable,
+    NOTICE_ID, NOTICE_NAME, CachedLoader, DatabaseEvidenceSource, EvidenceUnavailable,
     LawApiClients, LawApiEvidenceSource, LawLookupError, Scheme, article_text, compact, purchase_agent_status, select_version,
 )
 
@@ -176,7 +176,7 @@ class _CountingSource:
 def test_같은_기준일은_한_번만_조회하고_유지시간이_지나면_다시_조회한다():
     now = [0.0]
     source = _CountingSource()
-    cached = CachedEvidenceSource(source, ttl_seconds=10, clock=lambda: now[0])
+    cached = CachedLoader(source.load, ttl_seconds=10, clock=lambda: now[0])
     first = cached.load(AS_OF)
     assert cached.load(AS_OF) is first and source.loads == 1
     now[0] = 11
@@ -188,7 +188,7 @@ def test_같은_기준일은_한_번만_조회하고_유지시간이_지나면_�
 
 def test_조회_실패는_캐시하지_않는다():
     source = _CountingSource(fail=True)
-    cached = CachedEvidenceSource(source)
+    cached = CachedLoader(source.load)
     for _ in range(2):
         with pytest.raises(EvidenceUnavailable):
             cached.load(AS_OF)

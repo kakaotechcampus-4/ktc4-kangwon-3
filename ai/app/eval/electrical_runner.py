@@ -36,13 +36,13 @@ from time import perf_counter
 from dotenv import load_dotenv
 
 from .. import usage as usage_module
+from ..agents import base as agent_base
 from ..config import ENV_FILE, MAX_RETRIES, TIMEOUT_SECONDS
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import ToolName, ToolResult
 from ..tools.electrical import ElectricalTool
-from ..tools.electrical import tool as electrical_module
-from ..tools.electrical.evidence import CachedEvidenceSource, LawApiClients, LawApiEvidenceSource
+from ..tools.electrical.evidence import CachedLoader, LawApiClients, LawApiEvidenceSource
 from ..tools.electrical.search import LawApiItemSearch
 
 # include_raw 응답을 직렬화할 때 LangChain 내부에서 나는 경고. 결과와 무관하고 출력만 가린다.
@@ -149,18 +149,21 @@ class UsageCapture:
         self.calls: list[dict] = []
         self.outputs: dict[str, dict] = {}
         self._tool = tool
-        self._original = electrical_module.record
+        self._steps = tool._get_steps()
+        self._original = agent_base.record
 
     def __enter__(self):
-        original_invoke = type(self._tool)._invoke
+        for step in self._steps:
+            original_run = step.run
 
-        def invoke(tool, model, schema, prompt_name, payload, product):
-            parsed = original_invoke(tool, model, schema, prompt_name, payload, product)
-            # 저장 키는 예전 원자료와 같게 "electrical_facts"·"electrical_review"로 둔다(--rescore 호환).
-            self.outputs[f"electrical_{Path(prompt_name).stem}"] = parsed.model_dump(mode="json")
-            return parsed
+            def run(payload, *, subject_id, _step=step, _original=original_run):
+                parsed = _original(payload, subject_id=subject_id)
+                # 저장 키는 예전 원자료와 같게 "electrical_facts"·"electrical_review"로 둔다(--rescore 호환).
+                self.outputs[_step.component_name.replace("-", "_")] = parsed.model_dump(mode="json")
+                return parsed
 
-        self._tool._invoke = invoke.__get__(self._tool)
+            step.run = run
+
         def capture(agent, usage, **kw):
             self.calls.append({
                 "agent": agent,
@@ -175,12 +178,14 @@ class UsageCapture:
             })
             self._original(agent, usage, **kw)
 
-        electrical_module.record = capture
+        # 모델 호출·사용량 기록은 공통 BaseAgent가 한다(app.agents.base.record).
+        agent_base.record = capture
         return self
 
     def __exit__(self, *exc):
-        electrical_module.record = self._original
-        del self._tool._invoke
+        agent_base.record = self._original
+        for step in self._steps:
+            del step.run
 
 
 def run_once(tool: ElectricalTool, product: Product, decision: ToolSelectionItem) -> dict:
@@ -392,7 +397,7 @@ def main() -> int:
     law_client = LawApiClients.from_oc(_env("LAW_GO_KR_OC"))
     try:
         # 서버에서처럼 품목표는 한 번 받아 캐시한다. 최초 로드 시간은 따로 보여 주고 상품별 시간에서 뺀다.
-        item_search = LawApiItemSearch(CachedEvidenceSource(LawApiEvidenceSource(law_client)))
+        item_search = LawApiItemSearch(CachedLoader(LawApiEvidenceSource(law_client).load))
         started = perf_counter()
         item_search.load()
         print(f"법령 품목표 로드(최초 1회, 이후 캐시): {round((perf_counter() - started) * 1000)}ms", flush=True)
