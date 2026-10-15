@@ -13,7 +13,8 @@ from .base import ApiModel
 from .schemas import Determination, RiskLevel
 
 
-# BE에 공개하는 분야 이름. BE ToolName과 같은 값 (#310 2026-10-15 추가). 진행 콜백·분야 카드가 같이 씀
+# BE에 공개하는 분야 이름 (#310 2026-10-15 추가). 진행 콜백·분야 카드가 같이 씀
+# BE AgentType과 같은 값 (#325에서 ToolName으로 이름 변경)
 PublicToolName = Literal["CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD"]
 
 
