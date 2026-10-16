@@ -21,6 +21,7 @@ import sys
 import time
 from pathlib import Path
 from urllib.parse import urlparse
+from uuid import uuid4
 
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
@@ -29,7 +30,7 @@ from ..config import agent_profile
 from ..pipeline.url_source import MAX_ALL_IMAGES, UrlSource, UrlSourceBuilder, client_for
 from ..schemas.agent import ExtractionInput
 from ..schemas.clients.marketplace_request import ProductPageRequest
-from ..usage import USAGE_LOG
+from .. import usage
 from .runner import _AI_ROOT, describe_metadata, run_metadata
 
 OUT_DIR = _AI_ROOT / "data" / "collect_probe"
@@ -56,8 +57,17 @@ def mode_input(source: UrlSource, mode: str, product_id: str) -> ExtractionInput
     return source.extraction_input.model_copy(update={"product_id": product_id, "image_urls": images})
 
 
-def usage_of(subject_id: str, log: Path = USAGE_LOG) -> dict:
-    """사용량 로그에서 이 대상의 호출을 합친다. 대상 ID는 실행마다 다르게 붙임."""
+def usage_of(subject_id: str, log: Path | None = None) -> dict:
+    """사용량 로그에서 이 대상의 호출을 합친다. 대상 ID는 실행마다 다르게 붙임.
+
+    Args:
+        subject_id: 사용량 기록 대상 ID.
+        log: 사용량 로그. None이면 지금 설정된 공용 로그 (테스트에서 바꾼 경로도 따름).
+
+    Returns:
+        dict: 호출 수·입력·출력 토큰·추정 비용 합.
+    """
+    log = log or usage.USAGE_LOG
     rows = []
     if log.exists():
         for line in log.read_text(encoding="utf-8").splitlines():
@@ -110,6 +120,8 @@ def run_product(
 ) -> Path:
     """상품 하나: 수집·분류 한 번, 방식마다 runs번 추출하고 저장한다. html을 주면 페이지를 받지 않음."""
     key = product_key(url)
+    # 사용량을 대상 ID로 모으므로 실행마다 다른 ID. 같은 상품을 다시 돌려도 앞 실행 비용이 섞이지 않음
+    prefix = f"collect:{key}:{uuid4().hex[:8]}"
     if html is None:
         client = client_for(url)
         try:
@@ -120,7 +132,7 @@ def run_product(
         raw_html = html.read_text(encoding="utf-8")
     started = time.monotonic()
     # 받은 HTML 하나로 저장·파싱을 같이 해 두 번 요청하지 않음
-    source = builder.build_from_html(url, raw_html, product_id=f"collect:{key}:triage")
+    source = builder.build_from_html(url, raw_html, product_id=f"{prefix}:triage")
     triage_seconds = round(time.monotonic() - started, 1)
 
     directory = out / source.page.site / key
@@ -133,13 +145,13 @@ def run_product(
         "selected": [image.url for image in source.selected],
     })
     meta = {"url": url, "input": str(html) if html else "live", "final_url": source.page.source_url,
-            "triage": {"seconds": triage_seconds, **usage_of(f"collect:{key}:triage")}, "modes": {}}
+            "triage": {"seconds": triage_seconds, **usage_of(f"{prefix}:triage")}, "modes": {}}
 
     for mode in MODES:
         for run in range(1, runs + 1):
             run_dir = directory / mode / f"run_{run}"
             run_dir.mkdir(parents=True, exist_ok=True)
-            subject = f"collect:{key}:{mode}:{run}"
+            subject = f"{prefix}:{mode}:{run}"
             extraction_input = mode_input(source, mode, subject)
             _dump(run_dir / "extraction_input.json", extraction_input.model_dump(mode="json"))
             started = time.monotonic()
