@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InjectMocks;
@@ -27,6 +29,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -447,6 +450,147 @@ class ProductServiceTest {
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
         assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("멈춘 상품 ID는 진행 중 상태와 기준 시각, 요청한 개수로 조회한다.")
+    void findStuckProductIds_thenQueryInProgressWithLimit() {
+        // given
+        LocalDateTime threshold = LocalDateTime.now();
+        given(productRepository.findIdsByStatusUpdatedBefore(
+                ProcessingStatus.IN_PROGRESS, threshold, PageRequest.of(0, 100)))
+                .willReturn(List.of(PRODUCT_ID));
+
+        // when & then
+        assertThat(productService.findStuckProductIds(threshold, 100)).containsExactly(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("기준 시각보다 오래 멈춘 진단은 BE 실패 코드로 실패 처리하고 진단서 상태를 다시 계산한다.")
+    void failStuckDiagnoses_whenStuck_thenFailAndRefreshDiagnoses() {
+        // given
+        LocalDateTime threshold = LocalDateTime.now();
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        ReflectionTestUtils.setField(product, "updatedAt", threshold.minusMinutes(1));
+        givenStuckLookup(diagnoses);
+
+        // when
+        boolean failed = productService.failStuckDiagnoses(PRODUCT_ID, threshold);
+
+        // then
+        assertThat(failed).isTrue();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(product)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsExactly(null, ProductService.STUCK_ERROR_CODE, ProductService.STUCK_ERROR_MESSAGE, null);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("다른 상품이 아직 진행 중이면 멈춘 상품을 실패 처리해도 진단서는 진행 중으로 남는다.")
+    void failStuckDiagnoses_withOtherProductInProgress_thenDiagnosesStillInProgress() {
+        // given
+        LocalDateTime threshold = LocalDateTime.now();
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        ReflectionTestUtils.setField(diagnoses.getProducts().getFirst(), "updatedAt", threshold.minusMinutes(1));
+        givenStuckLookup(diagnoses);
+
+        // when
+        productService.failStuckDiagnoses(PRODUCT_ID, threshold);
+
+        // then
+        assertThat(diagnoses.getProducts())
+                .extracting(Product::getProcessingStatus)
+                .containsExactly(ProcessingStatus.FAILED, ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = ProcessingStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "IN_PROGRESS")
+    @DisplayName("ID를 조회한 뒤 콜백 등으로 상태가 바뀐 상품은 건너뛰고 상태를 바꾸지 않는다.")
+    void failStuckDiagnoses_whenStatusChanged_thenSkip(ProcessingStatus status) {
+        // given
+        LocalDateTime threshold = LocalDateTime.now();
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        ReflectionTestUtils.setField(product, "updatedAt", threshold.minusMinutes(1));
+        ReflectionTestUtils.setField(product, "processingStatus", status);
+        givenStuckLookup(diagnoses);
+
+        // when
+        boolean failed = productService.failStuckDiagnoses(PRODUCT_ID, threshold);
+
+        // then
+        assertThat(failed).isFalse();
+        assertThat(product.getProcessingStatus()).isEqualTo(status);
+        assertThat(product.getErrorCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("ID를 조회한 뒤 상태가 다시 갱신돼 기준 시각보다 오래되지 않았으면 건너뛴다.")
+    void failStuckDiagnoses_whenUpdatedSinceThreshold_thenSkip() {
+        // given: 기준 시각과 같은 순간에 갱신된 경우도 아직 멈춘 것이 아니다.
+        LocalDateTime threshold = LocalDateTime.now();
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        ReflectionTestUtils.setField(product, "updatedAt", threshold);
+        givenStuckLookup(diagnoses);
+
+        // when
+        boolean failed = productService.failStuckDiagnoses(PRODUCT_ID, threshold);
+
+        // then
+        assertThat(failed).isFalse();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("ID를 조회한 뒤 상품이 삭제됐으면 진단서를 잠그지 않고 건너뛴다.")
+    void failStuckDiagnoses_whenProductDeleted_thenSkipWithoutLock() {
+        // given
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.empty());
+
+        // when
+        boolean failed = productService.failStuckDiagnoses(PRODUCT_ID, LocalDateTime.now());
+
+        // then
+        assertThat(failed).isFalse();
+        then(diagnosesRepository).should(never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    @DisplayName("락을 기다리는 동안 진단서가 삭제됐으면 건너뛴다.")
+    void failStuckDiagnoses_whenDiagnosesDeletedWhileWaitingForLock_thenSkip() {
+        // given
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.of(DIAGNOSES_ID));
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThat(productService.failStuckDiagnoses(PRODUCT_ID, LocalDateTime.now())).isFalse();
+    }
+
+    @Test
+    @DisplayName("락을 기다리는 동안 상품만 삭제됐으면 건너뛰고 남은 상품은 그대로 둔다.")
+    void failStuckDiagnoses_whenProductDeletedWhileWaitingForLock_thenSkip() {
+        // given
+        UUID deletedProductId = UUID.randomUUID();
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        given(productRepository.findDiagnosesIdById(deletedProductId)).willReturn(Optional.of(DIAGNOSES_ID));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        boolean failed = productService.failStuckDiagnoses(deletedProductId, LocalDateTime.now());
+
+        // then
+        assertThat(failed).isFalse();
+        assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    private void givenStuckLookup(Diagnoses diagnoses) {
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.of(DIAGNOSES_ID));
+        givenLockedDiagnosesById(diagnoses);
     }
 
     private void givenLockedDiagnosesById(Diagnoses diagnoses) {
