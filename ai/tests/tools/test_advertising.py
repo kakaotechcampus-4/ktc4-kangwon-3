@@ -11,10 +11,13 @@ from pathlib import Path
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.agents.verification import VerificationAgent
 from app.prompts import PromptName, get_prompt
 from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Product
-from app.schemas.schemas import Determination, LegalSource, RiskLevel, ToolName, ToolStatus
+from app.schemas.schemas import (
+    Determination, DraftAssessment, LegalSource, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
+)
 from app.tools import advertising
 from app.schemas.advertising import AdvertisingReview
 from app.tools.advertising import AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool
@@ -127,13 +130,37 @@ def test_근거_조문은_중복_없이_모은다():
     assert len(sources) == len({source.model_dump_json() for source in sources}) == 4
 
 
-def test_의심_문구가_없으면_검토한_문구를_남기고_위험도는_낮음이다():
+def test_의심_문구가_없으면_실증이_필요한_주장_없음_판단_하나를_남긴다():
     result = _run(_StubModel([]), "  접이식 캠핑 의자  ", "", "색상: 카키")
 
     assert result.result.reviewed_phrases == ["접이식 캠핑 의자", "색상: 카키"]
     assert result.result.detected_phrases == []
     assert result.result.overall_risk is RiskLevel.LOW
-    assert result.findings == [] and result.missing_information == []
+    [finding] = result.findings
+    assert (finding.determination, finding.risk_level) == (Determination.NOT_REQUIRED, RiskLevel.LOW)
+    assert finding.legal_sources == [advertising.LAW_ARTICLE_5]
+    assert result.required_actions == [] and result.missing_information == []
+
+
+def _verification_issues(result) -> tuple[list, list]:
+    skipped = [ToolResult(tool_name=name, selected=False, status=ToolStatus.SKIPPED, selection_reason="범위 밖")
+               for name in ToolName if name is not ToolName.LABEL_AD]
+    draft = DraftAssessment(product=_product("방수 원단"), selected_tools=[ToolName.LABEL_AD],
+                            tool_results=[result, *skipped], findings=result.findings,
+                            overall_status=OverallStatus.INSUFFICIENT_INFORMATION, summary="계약 확인")
+    verification = VerificationAgent().verify_rules(draft)
+    return verification.issues, verification.additional_tools_required
+
+
+@pytest.mark.parametrize(("claims", "lines"), [
+    ([_claim("방수 원단")], ["방수 원단"]),   # 문구 찾음
+    ([], ["색상: 카키"]),                    # 문구 없음
+    ([], [" "]),                            # 검토할 문구 없음
+], ids=["찾음", "없음", "문구_없음"])
+def test_결과는_검증_규칙을_통과하고_재실행을_요청받지_않는다(claims, lines):
+    result = _run(_StubModel(claims), *lines)
+
+    assert _verification_issues(result) == ([], [])
 
 
 def test_모델을_넣지_않으면_표시광고_Tool_프로필로_모델을_만든다(monkeypatch):
