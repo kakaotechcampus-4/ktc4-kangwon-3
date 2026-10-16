@@ -202,10 +202,10 @@ class ProductTest {
     void recordProgress_whenNewerSequence_thenUpdate() {
         // given
         Product product = createInProgressProduct();
-        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
+        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS);
 
         // when
-        product.recordProgress("run-1", 5, PipelineStage.TOOL_EXECUTION, StageStatus.COMPLETED, AgentType.CUSTOMS);
+        product.recordProgress("run-1", 5, PipelineStage.TOOL_EXECUTION, StageStatus.COMPLETED, ToolName.CUSTOMS);
 
         // then
         assertThat(product.getProgresses())
@@ -219,10 +219,10 @@ class ProductTest {
     void recordProgress_whenOlderOrSameSequence_thenIgnore(int sequence) {
         // given: 재시도로 늦게 도착했거나 중복으로 온 이벤트
         Product product = createInProgressProduct();
-        product.recordProgress("run-1", 5, PipelineStage.TOOL_EXECUTION, StageStatus.COMPLETED, AgentType.CUSTOMS);
+        product.recordProgress("run-1", 5, PipelineStage.TOOL_EXECUTION, StageStatus.COMPLETED, ToolName.CUSTOMS);
 
         // when
-        product.recordProgress("run-1", sequence, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
+        product.recordProgress("run-1", sequence, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS);
 
         // then
         assertThat(product.getProgresses())
@@ -254,16 +254,16 @@ class ProductTest {
 
         // when
         product.recordProgress("run-1", 1, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, null);
-        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
-        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, AgentType.RADIO);
+        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS);
+        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, ToolName.RADIO);
 
         // then
         assertThat(product.getProgresses())
                 .extracting(ProductProgress::getToolName, ProductProgress::getStageStatus)
                 .containsExactly(
                         tuple(null, StageStatus.STARTED),
-                        tuple(AgentType.CUSTOMS, StageStatus.STARTED),
-                        tuple(AgentType.RADIO, StageStatus.SKIPPED));
+                        tuple(ToolName.CUSTOMS, StageStatus.STARTED),
+                        tuple(ToolName.RADIO, StageStatus.SKIPPED));
     }
 
     @Test
@@ -274,7 +274,7 @@ class ProductTest {
 
         // when & then
         assertBadRequest(() -> product.recordProgress(
-                "run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, AgentType.CUSTOMS));
+                "run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, ToolName.CUSTOMS));
         assertThat(product.getProgresses()).isEmpty();
     }
 

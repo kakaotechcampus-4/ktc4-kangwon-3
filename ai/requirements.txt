@@ -20,6 +20,9 @@ pgvector==0.3.6
 # 외부 API 호출
 httpx==0.28.1
 
+# 별표 원본 파일(HWP·HWPX) 표 읽기. HWP5 레코드 해석의 비공개 함수를 써서 버전 고정
+hwp-hwpx-parser==1.0.0
+
 # 설정
 python-dotenv==1.2.3
 

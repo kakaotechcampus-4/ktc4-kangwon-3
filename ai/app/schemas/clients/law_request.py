@@ -37,3 +37,14 @@ class LicbylTextRequest(BaseModel):
     related_law_mst: str = Field(min_length=1)
     table_number: str = Field(pattern=r"^\d{6}$")
     table_type: str = Field(min_length=1)
+
+
+class AnnexFileRequest(BaseModel):
+    """별표·첨부 원본 파일 내려받기 요청. 본문 조회 응답의 file_url을 그대로 넣는다.
+
+    Args:
+        file_url: 법제처 파일 다운로드 링크 (예: "https://www.law.go.kr/LSW/flDownload.do?flSeq=169584877").
+            경로만 와도 됨 (예: "/LSW/flDownload.do?flSeq=169584877"). 다른 주소는 받지 않음.
+    """
+
+    file_url: str = Field(pattern=r"^(https?://(www\.)?law\.go\.kr)?/(LSW/)?flDownload\.do\?flSeq=\d+$")

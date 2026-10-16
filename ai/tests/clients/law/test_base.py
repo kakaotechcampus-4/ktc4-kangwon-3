@@ -64,15 +64,15 @@ def test_XML이_아닌_응답은_수신_실패로_올린다(wire):
 @pytest.mark.parametrize(
     ("candidates", "expected"),
     [
-        ([("/LSW/a?flSeq=1", "hwp"), ("/LSW/a?flSeq=2", "pdf")], ("https://www.law.go.kr/LSW/a?flSeq=2", "pdf")),
-        ([(None, "pdf"), ("/LSW/a?flSeq=1", "hwp")], ("https://www.law.go.kr/LSW/a?flSeq=1", "hwp")),
-        ([("http://law.go.kr/x?1", "zip"), ("http://law.go.kr/x?2", "hwpx"), ("http://law.go.kr/x?3", "xlsx")],
-         ("http://law.go.kr/x?3", "xlsx")),
+        ([("/LSW/a?flSeq=1", "pdf"), ("/LSW/a?flSeq=2", "hwp")], ("https://www.law.go.kr/LSW/a?flSeq=2", "hwp")),
+        ([(None, "hwp"), ("/LSW/a?flSeq=1", "pdf")], ("https://www.law.go.kr/LSW/a?flSeq=1", "pdf")),
+        ([("http://law.go.kr/x?1", "xlsx"), ("http://law.go.kr/x?2", "hwpx"), ("http://law.go.kr/x?3", "hwp")],
+         ("http://law.go.kr/x?2", "hwpx")),
         ([("", "pdf"), ("  ", "hwp")], (None, None)),
     ],
 )
 def test_파일_링크는_파싱_쉬운_형식_하나를_완전한_주소로_고른다(candidates, expected):
-    # 우선순위 PDF → XLSX → HWPX → HWP → 이미지 → ZIP
+    # 우선순위 HWPX → HWP → XLSX → PDF → 이미지 → ZIP
     assert LawGoKrClient._pick_file(candidates) == expected
 
 

@@ -28,7 +28,7 @@ class SelectionFailedError(AgentError):
 class SelectionAgent(BaseAgent[ToolSelectionResponse]):
     """상품 정보를 보고 필요한 심사 도메인을 선택한다. 툴 실행은 파이프라인의 몫이다.
 
-    생성자는 BaseAgent 그대로. 모델 미주입 시 build_chat_model()로 생성하고,
+    생성자는 BaseAgent 그대로. 모델 미주입 시 build_agent_model()로 생성하고,
     평가 호출은 usage_agent("selection-eval" 등)로 운영 비용과 나눠 집계함.
     """
 

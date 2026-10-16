@@ -6,7 +6,7 @@
 import logging
 from enum import StrEnum
 from time import perf_counter
-from typing import Any, ClassVar, Generic, NoReturn, Protocol, TypeVar
+from typing import Any, ClassVar, Generic, Literal, NoReturn, Protocol, TypeVar
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai.chat_models.base import OpenAIRefusalError
@@ -14,7 +14,7 @@ from openai import ContentFilterFinishReasonError, LengthFinishReasonError
 from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
-from ..config import build_chat_model
+from ..config import build_agent_model, build_tool_model
 from ..prompts import PromptName, PromptSnapshot, get_prompt
 from ..usage import CallUsage, from_response, record
 
@@ -88,8 +88,11 @@ class BaseAgent(Generic[OutputT]):
     error_class: ClassVar[type[AgentError]]
     # 문서 §4.2 확장. strict 등 에이전트별 기존 구조화 출력 설정 유지용
     structured_output_options: ClassVar[dict[str, Any]] = {}
-    # 문서 §4.2 확장. 모델 미주입 시 build_chat_model()로 생성할지. 검증은 규칙 전용 실행 때문에 False
+    # 문서 §4.2 확장. 모델 미주입 시 프로필로 생성할지. 검증은 규칙 전용 실행 때문에 False
     creates_default_model: ClassVar[bool] = True
+    # 모델 프로필 위치 (표 종류, 이름). None이면 ("agent", component_name)
+    # Tool 안에서 쓰는 에이전트는 ("tool", ToolName 값)으로 TOOL_PROFILES를 씀
+    model_profile: ClassVar[tuple[Literal["agent", "tool"], str] | None] = None
 
     def __init__(
         self,
@@ -102,17 +105,20 @@ class BaseAgent(Generic[OutputT]):
 
         Args:
             model: 구조화 출력을 지원하는 모델. None이면 ``creates_default_model``에 따라
-                ``build_chat_model()``로 만들거나, 모델 없이 둠 (검증 규칙 전용 실행).
+                ``model_profile``의 프로필로 만들거나, 모델 없이 둠 (검증 규칙 전용 실행).
             configured_model: 비용 계산에 쓸 모델 이름. None이면 model의 model_name.
             usage_agent: 사용량 기록 이름. None이면 component_name.
 
         Raises:
             ConfigError: 모델을 만들어야 하는데 설정이 없거나 잘못된 경우.
         """
-        # 모델 생성은 config.build_chat_model() 한 곳에서. base_url·허용 모델·타임아웃 설정이 흩어지지 않게 함
+        # 모델 생성은 config 한 곳에서. model_profile(기본 component_name)으로 프로필 표에서 고름
         if model is None and self.creates_default_model:
-            model = build_chat_model()
+            kind, name = self.model_profile or ("agent", self.component_name)
+            model = build_tool_model(name) if kind == "tool" else build_agent_model(name)
         self._configured_model = configured_model or getattr(model, "model_name", None)
+        # 프로필의 추론 강도. 사용량 기록용, 스텁·주입 모델은 None
+        self._reasoning_effort = getattr(model, "reasoning_effort", None)
         self._usage_agent = usage_agent or self.component_name
         # include_raw: 원본 응답에서 토큰 사용량과 본문을 읽음. 본문 검증은 _parse_output이 직접
         # 스키마는 Pydantic 클래스가 아닌 dict로 넘김. 클래스를 넘기면 SDK가 스트림 도중 파싱하다
@@ -268,6 +274,7 @@ class BaseAgent(Generic[OutputT]):
             self._usage_agent,
             usage,
             configured_model=self._configured_model,
+            reasoning_effort=self._reasoning_effort,
             subject_id=subject_id,
             ok=error_type is None,
             elapsed_ms=round((perf_counter() - started_at) * 1000),
@@ -282,12 +289,16 @@ class BaseAgent(Generic[OutputT]):
         if usage is None:
             return
         try:
+            hit_rate = "-" if usage.cache_hit_rate is None else f"{usage.cache_hit_rate:.1%}"
             logger.info(
-                "%s 토큰 사용량 input=%s (cache_read=%s) output=%s total=%s",
+                "%s 토큰 사용량 input=%s (cache_read=%s, cache_write=%s, 적중률 %s) output=%s (reasoning=%s) total=%s",
                 self.component_name,
                 usage.input_tokens,
                 usage.cached_tokens,
+                usage.cache_write_tokens,
+                hit_rate,
                 usage.output_tokens,
+                usage.reasoning_tokens,
                 usage.total_tokens,
             )
             # 게이트웨이 원본 필드명이 OpenAI와 다를 수 있어 디버그로 남김

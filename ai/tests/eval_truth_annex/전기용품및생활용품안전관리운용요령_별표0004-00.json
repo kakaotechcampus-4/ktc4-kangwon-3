@@ -1,0 +1,172 @@
+{
+  "fixture": "전기용품및생활용품안전관리운용요령_별표0004-00",
+  "output": {
+    "scheme": "안전인증대상생활용품",
+    "items": [
+      {
+        "category_path": [
+          "1. 화학",
+          "자동차용 재생타이어"
+        ],
+        "item_label": "①",
+        "item_name": "자동차용 재생타이어",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [
+          "트레드 고무를 포함한다"
+        ],
+        "attributes": [],
+        "source_text": "① 자동차용 재생타이어"
+      },
+      {
+        "category_path": [
+          "1. 화학",
+          "자동차용 재생타이어"
+        ],
+        "item_label": "②",
+        "item_name": "타이어 재생용 트레드고무",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [
+          "트레드 고무를 포함한다"
+        ],
+        "attributes": [],
+        "source_text": "② 타이어 재생용 트레드고무"
+      },
+      {
+        "category_path": [
+          "2. 생활용품",
+          "가. 가스라이터"
+        ],
+        "item_label": "①",
+        "item_name": "가스라이터",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 가스라이터"
+      },
+      {
+        "category_path": [
+          "2. 생활용품",
+          "나. 물놀이기구"
+        ],
+        "item_label": "①",
+        "item_name": "공기주입물놀이기구",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 공기주입물놀이기구"
+      },
+      {
+        "category_path": [
+          "2. 생활용품",
+          "나. 물놀이기구"
+        ],
+        "item_label": "②",
+        "item_name": "공기주입보우트",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "② 공기주입보우트"
+      },
+      {
+        "category_path": [
+          "2. 생활용품",
+          "나. 물놀이기구"
+        ],
+        "item_label": "③",
+        "item_name": "수영보조용품(착용형)",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "③ 수영보조용품(착용형)"
+      },
+      {
+        "category_path": [
+          "2. 생활용품",
+          "나. 물놀이기구"
+        ],
+        "item_label": "④",
+        "item_name": "수영보조용품(비착용형)",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "④ 수영보조용품(비착용형)"
+      },
+      {
+        "category_path": [
+          "2. 생활용품",
+          "다. 비비탄 총"
+        ],
+        "item_label": "①",
+        "item_name": "청소년용 비비탄 총",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 청소년용 비비탄 총"
+      },
+      {
+        "category_path": [
+          "2. 생활용품",
+          "다. 비비탄 총"
+        ],
+        "item_label": "②",
+        "item_name": "성인용 비비탄 총",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "② 성인용 비비탄 총"
+      },
+      {
+        "category_path": [
+          "3. 기계금속",
+          "가정용 압력냄비 및 압력솥"
+        ],
+        "item_label": "①",
+        "item_name": "가정용 압력냄비",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 가정용 압력냄비"
+      },
+      {
+        "category_path": [
+          "3. 기계금속",
+          "가정용 압력냄비 및 압력솥"
+        ],
+        "item_label": "②",
+        "item_name": "압력솥",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "② 압력솥"
+      }
+    ],
+    "skipped": [
+      {
+        "category_path": [
+          "4. 섬유"
+        ],
+        "item_label": null,
+        "reason": "대상없음"
+      },
+      {
+        "category_path": [
+          "5. 건축"
+        ],
+        "item_label": null,
+        "reason": "대상없음"
+      }
+    ],
+    "notes": []
+  }
+}
