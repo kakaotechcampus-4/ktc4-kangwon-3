@@ -27,7 +27,7 @@ def test_본문과_지문은_같은_스냅샷에서_나온다(name):
     snapshot = get_prompt(name)
 
     assert snapshot.name is name
-    assert snapshot.path.name == f"{name.value}.md"
+    assert snapshot.path.as_posix().endswith(f"/prompts/{name.value}.md")
     assert snapshot.text
     assert snapshot.sha256 == hashlib.sha256(snapshot.text.encode("utf-8")).hexdigest()
     assert len(snapshot.sha256) == 64
