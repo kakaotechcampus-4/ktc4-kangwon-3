@@ -28,6 +28,7 @@ class ProductPage(BaseModel):
         site: 판매 사이트 이름 (예: made_in_china).
         title: 상품명.
         text_blocks: 판매자 글 (상품명·사양표 줄·상세 설명 문단). 페이지 순서대로.
+        text_truncated: 판매자 글이 길이 상한을 넘어 뒤쪽을 잘랐는지.
         images: 상품 사진 모음과 상세 설명 이미지. 같은 사진은 하나만, 페이지 순서대로.
     """
 
@@ -35,4 +36,5 @@ class ProductPage(BaseModel):
     site: str
     title: str | None = None
     text_blocks: list[str] = Field(default_factory=list)
+    text_truncated: bool = False
     images: list[ProductPageImage] = Field(default_factory=list)
