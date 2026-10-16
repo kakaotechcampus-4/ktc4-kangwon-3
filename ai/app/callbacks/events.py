@@ -2,6 +2,7 @@
 
 SessionExecutor.subscribe()로 받은 세션마다 보낼 이벤트 목록을 만듦.
     - 단계 변경 → 진행 이벤트 (앞 단계 completed + 새 단계 started)
+    - Tool 진행(subscribe_tool) → toolName 붙은 진행 이벤트. Tool 실행 단계 안에서만
     - 답변 대기 → 질문 이벤트, 완료 → 결과 이벤트, 실패·시간 초과 → 실패 이벤트
 질문·결과·실패는 그 실행(runId)의 마지막. 이후 같은 실행의 변경은 이벤트를 만들지 않음.
 진단서·질문 변환(result_status 결정, 질문 키)은 주입받은 AssessmentPresenter가 맡음.
@@ -21,8 +22,9 @@ from ..schemas.callback import (
     ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,
     PublicErrorDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto,
 )
-from ..schemas.schemas import FinalAssessment
+from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession, SessionStatus
+from ..sessions.executor import ToolProgressStatus
 
 _PUBLIC_STAGES = {stage.value: stage for stage in PublicPipelineStage}
 _ERROR_MESSAGES = {code.value.code: code.value.message for code in AIResponseCode}
@@ -113,6 +115,35 @@ class EventBuilder:
             # 끝난 실행 ID만 남김 (실행당 문자열 하나)
             self._finished.add(context.run_id)
             return [event]
+
+    def build_tool(
+        self, session: DiagnosisSession, tool_name: ToolName, status: ToolProgressStatus,
+    ) -> list[PublicProductEvent]:
+        """Tool 진행 하나를 진행 이벤트로 바꾼다. 단계 이벤트와 번호를 이어 씀.
+
+        Args:
+            session: Tool 진행 시점의 세션.
+            tool_name: 내부 Tool 이름. BE에는 PublicToolName(멤버 이름, 예: ELECTRICAL)으로 보냄.
+            status: Tool 진행 상태.
+
+        Returns:
+            list[PublicProductEvent]: 보낼 이벤트 하나. 보낼 게 없으면 빈 목록
+                (진단서 없는 실행, 끝난 실행, Tool 실행 단계 시작 전).
+        """
+        context = session.context
+        if context.diagnosis_id is None:
+            return []
+        with self._lock:
+            if context.run_id in self._finished:
+                return []
+            run = self._runs.setdefault(context.run_id, _RunState())
+            # 단계 시작을 알리기 전의 Tool 진행은 버림. 단계 경로와 섞지 않음
+            if run.stage is not PublicPipelineStage.TOOL_EXECUTION:
+                logger.warning("Tool 실행 단계 시작 전 Tool 진행은 보내지 않음 (product_id=%s, run_id=%s, tool=%s)",
+                               context.product_id, context.run_id, tool_name)
+                return []
+            return [ProductProgressEvent(**self._base(session, run), stage=run.stage, stage_status=status,
+                                         tool_name=tool_name.name)]
 
     def _content(
         self, session: DiagnosisSession,

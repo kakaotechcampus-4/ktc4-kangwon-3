@@ -1,12 +1,15 @@
 """콜백 이벤트·공개 진단서 스키마의 camelCase 경계와 검증 규칙을 확인한다 (#310)."""
 
+from typing import get_args
+
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from app.schemas.callback import (
     ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,
-    PublicErrorDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto, PublicToolReviewDto,
+    PublicErrorDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto, PublicToolName, PublicToolReviewDto,
 )
+from app.schemas.schemas import ToolName
 
 _BASE = {"event_id": "e-1", "diagnosis_id": "d-1", "product_id": "p-1", "run_id": "run-1", "sequence": 1}
 
@@ -119,3 +122,8 @@ def test_분야_카드는_tool_name으로_나간다():
     assert review.model_dump(mode="json", by_alias=True) == {
         "toolName": "CHILDREN", "status": "INCOMPLETE", "message": None, "findings": []}
 
+
+
+def test_내부_Tool_이름의_멤버_이름이_공개_분야_이름과_같다():
+    # 진행 콜백은 ToolName.name을 그대로 보냄. 한쪽만 바뀌면 여기서 잡힘
+    assert {tool_name.name for tool_name in ToolName} == set(get_args(PublicToolName))

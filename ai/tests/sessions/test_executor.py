@@ -9,7 +9,7 @@ import pytest
 from app.observability.context import PipelineStage
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
-from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
+from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import SessionStatus
 from app.sessions.executor import QueueFullError, SessionExecutor
 from app.sessions.store import SessionConflictError, SessionStore
@@ -238,5 +238,67 @@ def test_구독자_오류는_실행을_멈추지_않는다(executors):
 
     executor.submit("d-1", _inputs("p-1"))
     job.release("p-1")
+
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+
+
+def test_Tool_진행은_세션을_바꾸지_않고_Tool_구독자에게만_알린다(executors):
+    def job(item, context, progress):
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+        progress.tool(ToolName.ELECTRICAL, "started")
+        progress.tool(ToolName.ELECTRICAL, "completed")
+        return build_dummy_assessment(item.product_id)
+
+    executor = _executor(executors, job)
+    sessions, tools = [], []
+    executor.subscribe(lambda s: sessions.append((s.status, s.stage)))
+    executor.subscribe_tool(lambda s, name, status: tools.append((s.stage, name, status)))
+
+    executor.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+
+    assert sessions == [
+        (SessionStatus.RUNNING, None),
+        (SessionStatus.RUNNING, PipelineStage.TOOL_EXECUTION),
+        (SessionStatus.COMPLETED, PipelineStage.TOOL_EXECUTION),
+    ]
+    assert tools == [
+        (PipelineStage.TOOL_EXECUTION, ToolName.ELECTRICAL, "started"),
+        (PipelineStage.TOOL_EXECUTION, ToolName.ELECTRICAL, "completed"),
+    ]
+
+
+def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(executors):
+    clock = _Clock()
+    gate, started = threading.Event(), threading.Event()
+
+    def job(item, context, progress):
+        started.set()
+        gate.wait(timeout=5)
+        progress.tool(ToolName.ELECTRICAL, "completed")
+        return build_dummy_assessment(item.product_id)
+
+    executor = _executor(executors, job, clock=clock, max_duration=timedelta(minutes=10))
+    tools = []
+    executor.subscribe_tool(lambda s, name, status: tools.append(name))
+    executor.submit("d-1", _inputs("p-1"))
+    started.wait(timeout=5)
+    clock.now = START + timedelta(minutes=10)
+    executor.expire_overdue()
+
+    gate.set()
+    _wait_until(lambda: executor._inflight == 0)
+    assert tools == []
+
+
+def test_Tool_구독자_오류는_실행을_멈추지_않는다(executors):
+    def job(item, context, progress):
+        progress.tool(ToolName.ELECTRICAL, "started")
+        return build_dummy_assessment(item.product_id)
+
+    executor = _executor(executors, job)
+    executor.subscribe_tool(lambda s, name, status: (_ for _ in ()).throw(RuntimeError("구독자 오류")))
+
+    executor.submit("d-1", _inputs("p-1"))
 
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
