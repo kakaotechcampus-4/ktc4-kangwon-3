@@ -18,12 +18,12 @@ class DiagnosesTest {
 
     @Test
     @DisplayName("진단을 시작하면 모든 상품과 진단서가 진행 중 상태가 된다.")
-    void startDiagnosis_thenAllProductsAndDiagnosesInProgress() {
+    void startDiagnoses_thenAllProductsAndDiagnosesInProgress() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
 
         // when
-        diagnoses.startDiagnosis();
+        diagnoses.startDiagnoses();
 
         // then
         assertThat(diagnoses.getProducts())
@@ -34,13 +34,13 @@ class DiagnosesTest {
 
     @Test
     @DisplayName("이미 진단을 시작한 진단서의 진단을 다시 시작하면 CONFLICT 예외가 발생한다.")
-    void startDiagnosis_whenAlreadyStarted_thenThrowConflict() {
+    void startDiagnoses_whenAlreadyStarted_thenThrowConflict() {
         // given
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
-        diagnoses.startDiagnosis();
+        diagnoses.startDiagnoses();
 
         // when & then
-        assertThatThrownBy(diagnoses::startDiagnosis)
+        assertThatThrownBy(diagnoses::startDiagnoses)
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.CONFLICT);

@@ -14,8 +14,9 @@ services:
       # 에이전트 환경변수
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL}
-      OPENAI_MODEL: ${OPENAI_MODEL}
       OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL}
+      # (선택) 코드 기본값 대신 쓸 모델 프로필. 비우면 코드 기본값
+      MODEL_PROFILE_OVERRIDES: ${MODEL_PROFILE_OVERRIDES:-}
 
       # BE URL 환경변수
       BE_BASE_URL: ${BE_BASE_URL:-http://be-server:8080}
