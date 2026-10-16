@@ -91,6 +91,9 @@ services:
       # AI 서버 (BE → AI 진단 요청)
       AI_BASE_URL: ${AI_BASE_URL:-http://ai-server:8000}
 
+      # 멈춘 진단 정리 기준 시간.
+      DIAGNOSES_STUCK_THRESHOLD: ${DIAGNOSES_STUCK_THRESHOLD:-15m}
+
       # 소셜 로그인
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}

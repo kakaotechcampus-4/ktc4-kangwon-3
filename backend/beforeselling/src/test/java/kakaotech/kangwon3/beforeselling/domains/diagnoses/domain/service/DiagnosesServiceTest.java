@@ -330,7 +330,7 @@ class DiagnosesServiceTest {
             ReflectionTestUtils.setField(product, "id", UUID.randomUUID());
             diagnoses.addProducts(List.of(product));
         }
-        diagnoses.startDiagnosis();
+        diagnoses.startDiagnoses();
         return diagnoses;
     }
 

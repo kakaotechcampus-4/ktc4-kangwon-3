@@ -132,10 +132,9 @@ class VerificationAgent(BaseAgent[_Review]):
 
     @classmethod
     def from_env(cls) -> "VerificationAgent":
-        from ..config import build_chat_model, load_settings
+        from ..config import build_agent_model
 
-        settings = load_settings()
-        return cls(build_chat_model(settings), configured_model=settings.model)
+        return cls(build_agent_model(cls.component_name))
 
     def _review_with_trace(
         self,

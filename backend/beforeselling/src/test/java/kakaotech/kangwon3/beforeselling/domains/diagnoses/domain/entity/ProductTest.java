@@ -50,12 +50,12 @@ class ProductTest {
 
     @Test
     @DisplayName("대기 중인 상품의 진단을 시작하면 진행 중 상태가 된다.")
-    void startDiagnosis_whenPending_thenInProgress() {
+    void startDiagnoses_whenPending_thenInProgress() {
         // given
         Product product = createProduct();
 
         // when
-        product.startDiagnosis();
+        product.startDiagnoses();
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
@@ -63,12 +63,12 @@ class ProductTest {
 
     @Test
     @DisplayName("이미 진단이 시작된 상품의 진단을 다시 시작하면 CONFLICT 예외가 발생한다.")
-    void startDiagnosis_whenInProgress_thenThrowConflict() {
+    void startDiagnoses_whenInProgress_thenThrowConflict() {
         // given
         Product product = createInProgressProduct();
 
         // when & then
-        assertConflict(product::startDiagnosis);
+        assertConflict(product::startDiagnoses);
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
 
@@ -310,20 +310,20 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("BE가 직접 실패 처리하면 실패 단계와 재시도 여부 없이 실패 정보가 저장된다.")
+    @DisplayName("실패 단계와 재시도 여부가 없어도 실패 정보가 저장된다.")
     void fail_whenNoStageAndRetryable_thenFailedWithNulls() {
-        // given: 멈춘 진단 정리 스케줄러처럼 AI 이벤트 없이 실패 처리하는 경우
+        // given: AI가 공개하지 않는 내부 단계에서 실패해 stage·retryable을 보내지 않은 경우
         Product product = createInProgressProduct();
 
         // when
-        product.fail(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+        product.fail(null, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", null);
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
         assertThat(product)
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
-                .containsExactly(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+                .containsExactly(null, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", null);
     }
 
     @ParameterizedTest(name = "code=[{0}], message=[{1}]")
@@ -592,7 +592,7 @@ class ProductTest {
 
     private Product createInProgressProduct() {
         Product product = createProduct();
-        product.startDiagnosis();
+        product.startDiagnoses();
         return product;
     }
 

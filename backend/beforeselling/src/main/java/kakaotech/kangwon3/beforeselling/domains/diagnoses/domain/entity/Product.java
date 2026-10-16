@@ -155,7 +155,7 @@ public class Product extends BaseEntity {
         this.sortOrder = sortOrder;
     }
 
-    public void startDiagnosis() {
+    public void startDiagnoses() {
         transition(ProcessingStatus.PENDING, ProcessingStatus.IN_PROGRESS);
     }
 

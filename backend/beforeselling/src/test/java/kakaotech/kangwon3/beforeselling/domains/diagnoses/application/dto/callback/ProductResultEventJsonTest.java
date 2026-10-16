@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("test")
 class ProductResultEventJsonTest {
 
-    private static final UUID DIAGNOSIS_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
+    private static final UUID DIAGNOSES_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
     private static final UUID PRODUCT_ID = UUID.fromString("01990000-0000-7000-8000-000000000002");
     private static final String COMMON_FIELDS = """
             "eventType": "product_result",
@@ -87,7 +87,7 @@ class ProductResultEventJsonTest {
         ProductEvent event = jsonMapper.readValue(json, ProductEvent.class);
 
         // then
-        assertThat(event).isEqualTo(new ProductResultEvent("event-1", DIAGNOSIS_ID, PRODUCT_ID, "run-1", 14,
+        assertThat(event).isEqualTo(new ProductResultEvent("event-1", DIAGNOSES_ID, PRODUCT_ID, "run-1", 14,
                 new PublicAssessmentDto(
                         AssessmentStatus.COMPLETED,
                         ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED,
@@ -264,7 +264,7 @@ class ProductResultEventJsonTest {
     }
 
     private ProductResultEvent resultEvent(PublicAssessmentDto assessment) {
-        return new ProductResultEvent("event-1", DIAGNOSIS_ID, PRODUCT_ID, "run-1", 1, assessment);
+        return new ProductResultEvent("event-1", DIAGNOSES_ID, PRODUCT_ID, "run-1", 1, assessment);
     }
 
     private PublicAssessmentDto assessment(List<PublicToolReviewDto> toolReviews) {

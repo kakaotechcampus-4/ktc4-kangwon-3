@@ -17,7 +17,7 @@ public sealed interface ProductEvent
         permits ProductProgressEvent, ProductAwaitingInputEvent, ProductFailedEvent, ProductResultEvent {
     String eventId();
 
-    UUID diagnosisId();
+    UUID diagnosesId();
 
     UUID productId();
 

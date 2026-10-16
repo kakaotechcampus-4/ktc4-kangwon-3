@@ -40,7 +40,7 @@ public class DiagnosesService {
         Diagnoses diagnoses = Diagnoses.pending(userId);
         diagnoses.addProducts(commands.stream().map(this::toProduct).toList());
         // AI는 접수(202) 직후부터 콜백을 보내므로, 커밋 시점에 이미 진단 중이어야 결과를 받을 수 있다.
-        diagnoses.startDiagnosis();
+        diagnoses.startDiagnoses();
 
         s3FileService.markConfirmed(collectImageKeys(diagnoses));
         Diagnoses saved = diagnosesRepository.save(diagnoses);

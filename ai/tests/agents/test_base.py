@@ -184,17 +184,53 @@ def test_usage_agent를_넘기면_그_이름으로_기록한다(records):
     assert (records[0]["agent"], records[0]["configured_model"]) == ("fake-eval", "custom")
 
 
-def test_모델을_주입하지_않으면_공통_설정의_build_chat_model로_만든다(monkeypatch):
+def test_모델의_추론_강도를_사용량_기록에_남긴다(records):
+    model = _StubModel({"raw": _raw(), "parsed": _Answer(value="ok"), "parsing_error": None})
+    model.reasoning_effort = "low"
+
+    _FakeAgent(model)._invoke([], subject_id="p-1")
+    _FakeAgent(_StubModel({"raw": _raw(), "parsed": _Answer(value="ok"), "parsing_error": None}))._invoke(
+        [], subject_id="p-2")
+
+    assert [record["reasoning_effort"] for record in records] == ["low", None]
+
+
+def test_모델을_주입하지_않으면_공통_설정의_build_agent_model로_만든다(monkeypatch):
     model = _StubModel()
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: model)
+    names: list[str] = []
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: names.append(name) or model)
 
     _FakeAgent()
 
+    # component_name으로 AGENT_PROFILES의 프로필을 고름
+    assert names == [_FakeAgent.component_name]
     assert model.structured_calls == [(_ANSWER_FORMAT, {"include_raw": True})]
 
 
+def test_Tool_안_에이전트는_Tool_프로필로_모델을_만든다(monkeypatch):
+    # 표시·광고 Tool처럼 Tool 안에서 BaseAgent를 쓰면 AGENT_PROFILES가 아닌 TOOL_PROFILES에서 고름
+    model = _StubModel()
+    names: list[str] = []
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("에이전트 표를 쓰면 안 됨"))
+    monkeypatch.setattr("app.agents.base.build_tool_model", lambda name: names.append(name) or model)
+
+    class _ToolReviewer(_FakeAgent):
+        model_profile = ("tool", "labeling_advertising_detection")
+
+    _ToolReviewer()
+
+    assert names == ["labeling_advertising_detection"]
+
+
+def test_Tool_표에_있는_이름은_ToolName_값이다():
+    from app.config import TOOL_PROFILES
+    from app.schemas.schemas import ToolName
+
+    assert set(TOOL_PROFILES) <= {tool.value for tool in ToolName}
+
+
 def test_자동_생성을_끈_에이전트는_모델_없이_만들고_호출은_막는다(monkeypatch):
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: pytest.fail("모델을 만들면 안 됨"))
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("모델을 만들면 안 됨"))
     agent = _RulesOnlyFakeAgent()
 
     with pytest.raises(RuntimeError, match="모델 없이"):
@@ -207,7 +243,8 @@ def test_성공하면_수집한_사용량으로_콘솔_로그를_남긴다(recor
     with caplog.at_level(logging.DEBUG, logger="app.agents.base"):
         _FakeAgent(model)._invoke([], subject_id="p-1")
 
-    assert "fake 토큰 사용량 input=100 (cache_read=40) output=20 total=120" in caplog.text
+    assert ("fake 토큰 사용량 input=100 (cache_read=40, cache_write=0, 적중률 40.0%) output=20 (reasoning=0) total=120"
+            in caplog.text)
     assert "게이트웨이 원본 usage" in caplog.text
 
 

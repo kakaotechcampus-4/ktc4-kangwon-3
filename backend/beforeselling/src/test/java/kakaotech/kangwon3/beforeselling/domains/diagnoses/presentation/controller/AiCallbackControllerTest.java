@@ -7,6 +7,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determin
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
+import kakaotech.kangwon3.beforeselling.global.config.ValidationConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
@@ -47,11 +48,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AiCallbackController.class)
 @ActiveProfiles("test")
-@Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
+@Import({SecurityConfig.class, ValidationConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class, InternalApiProperties.class})
 class AiCallbackControllerTest {
 
-    private static final UUID DIAGNOSIS_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
+    private static final UUID DIAGNOSES_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
     private static final UUID PRODUCT_ID = UUID.fromString("01990000-0000-7000-8000-000000000002");
     private static final String URL = "/internal/v1/ai/products/" + PRODUCT_ID;
     private static final String COMMON_FIELDS = """
@@ -144,7 +145,7 @@ class AiCallbackControllerTest {
 
         ProductResultEvent event = captor.getValue();
         assertThat(event.productId()).isEqualTo(PRODUCT_ID);
-        assertThat(event.diagnosisId()).isEqualTo(DIAGNOSIS_ID);
+        assertThat(event.diagnosesId()).isEqualTo(DIAGNOSES_ID);
         assertThat(event.runId()).isEqualTo("run-1");
         assertThat(event.assessment().status()).isEqualTo(AssessmentStatus.COMPLETED);
         assertThat(event.assessment().resultStatus()).isEqualTo(ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED);
@@ -183,6 +184,21 @@ class AiCallbackControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"))
                 .andExpect(jsonPath("$.details[0].field").value("assessment.summary"));
+
+        then(aiCallbackUseCase).should(never()).handleResult(any());
+    }
+
+    @Test
+    @DisplayName("진단서 ID가 없으면 AI가 보내는 JSON 키(diagnosisId)로 필드 위치를 응답한다.")
+    void receiveCallback_withoutDiagnosesId_thenBadRequestWithJsonFieldName() throws Exception {
+        // given
+        String json = RESULT_JSON.replace("\"diagnosisId\": \"01990000-0000-7000-8000-000000000001\"", "\"diagnosisId\": null");
+
+        // when & then
+        mockMvc.perform(callback(json))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].field").value("diagnosisId"));
 
         then(aiCallbackUseCase).should(never()).handleResult(any());
     }
