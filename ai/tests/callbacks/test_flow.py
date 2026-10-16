@@ -5,6 +5,7 @@ import threading
 import pytest
 
 from app.callbacks import CallbackOutbox, EventBuilder, SendResult, connect_callbacks
+from app.observability.context import PipelineStage
 from app.routers import _dummy
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
@@ -114,3 +115,47 @@ def test_진단서_변환이_실패하면_BE가_받는_마지막_이벤트는_�
     assert executor.store.get("p-1").status.value == "completed"
     assert (last.event_type, last.stage, last.error.retryable) == ("product_failed", "finalization", False)
     assert [event.sequence for event in sender.events] == list(range(1, len(sender.events) + 1))
+
+
+def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신함에는_번호_순서대로_들어간다():
+    # 번호 발급 뒤 발신함에 넣기 전에 다른 스레드가 끼어들면 뒤 번호가 먼저 들어감 (병렬 Tool·시간 초과 정리)
+    first_waiting, second_built = threading.Event(), threading.Event()
+
+    class _Builder(EventBuilder):
+        def build(self, session):
+            events = super().build(session)
+            if events and events[0].sequence == 2:
+                second_built.set()
+            return events
+
+    class _Outbox:
+        def __init__(self) -> None:
+            self.sequences = []
+
+        def put(self, events) -> None:
+            if events and events[0].sequence == 1:
+                first_waiting.set()
+                # 잠금이 없으면 이 사이에 다음 번호가 먼저 들어옴
+                second_built.wait(timeout=0.3)
+            self.sequences.extend(event.sequence for event in events)
+
+    class _Executor:
+        def subscribe(self, listener) -> None:
+            self.listener = listener
+
+    store, executor, outbox = SessionStore(), _Executor(), _Outbox()
+    connect_callbacks(executor, _Builder(_Presenter()), outbox)
+    context = store.accept("d-1", ["p-1"])[0].context
+    store.start(context)
+    extraction = store.update_stage(context, PipelineStage.EXTRACTION)
+    selection = store.update_stage(context, PipelineStage.SELECTION)
+
+    first = threading.Thread(target=executor.listener, args=(extraction,))
+    first.start()
+    first_waiting.wait(timeout=1)
+    second = threading.Thread(target=executor.listener, args=(selection,))
+    second.start()
+    first.join(timeout=2)
+    second.join(timeout=2)
+
+    assert outbox.sequences == [1, 2, 3]
