@@ -7,7 +7,8 @@ from pydantic import TypeAdapter, ValidationError
 
 from app.schemas.callback import (
     ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,
-    PublicErrorDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto, PublicToolName, PublicToolReviewDto,
+    PublicErrorDto, PublicFindingDto, PublicLegalSourceDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto,
+    PublicToolName, PublicToolReviewDto,
 )
 from app.schemas.schemas import ToolName
 
@@ -79,6 +80,22 @@ def test_질문은_2회차까지(question_round):
 def test_질문_키는_BE_칸_길이_50자까지():
     with pytest.raises(ValidationError):
         _question(key="k" * 51)
+
+
+@pytest.mark.parametrize(("build", "limit"), [
+    (lambda text: PublicFindingDto(subject=text, determination="required", risk_level="high", summary="요약",
+                                   rationale="근거"), 255),
+    (lambda text: PublicLegalSourceDto(source_name=text), 255),
+    (lambda text: PublicLegalSourceDto(source_name="법제처", law_name=text), 255),
+    (lambda text: PublicLegalSourceDto(source_name="법제처", article=text), 255),
+    (lambda text: PublicLegalSourceDto(source_name="법제처", effective_date=text), 50),
+    (lambda text: PublicErrorDto(code=text, message="오류"), 50),
+])
+def test_문자열은_BE_수신_DTO_길이까지만_받는다(build, limit):
+    # 넘으면 BE가 400으로 거절해 재시도 없이 버려짐 (#331)
+    build("가" * limit)
+    with pytest.raises(ValidationError):
+        build("가" * (limit + 1))
 
 
 def test_미완료_결과는_안내가_필요하고_재확인_필요로만_낸다():

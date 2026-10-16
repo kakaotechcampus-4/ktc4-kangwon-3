@@ -87,17 +87,18 @@ class ProductAwaitingInputEvent(ProductEventBase):
         return self
 
 
+# 최대 길이는 BE 수신 DTO(#331)·DB 칸 길이와 같음. 넘으면 BE가 400으로 거절해 결과가 사라짐
 class PublicLegalSourceDto(ApiModel):
-    source_name: str = Field(min_length=1)
-    law_name: str | None = None
-    article: str | None = None
+    source_name: str = Field(min_length=1, max_length=255)
+    law_name: str | None = Field(default=None, max_length=255)
+    article: str | None = Field(default=None, max_length=255)
     quoted_text: str | None = None
     source_url: str | None = None
-    effective_date: str | None = None
+    effective_date: str | None = Field(default=None, max_length=50)
 
 
 class PublicFindingDto(ApiModel):
-    subject: str = Field(min_length=1)
+    subject: str = Field(min_length=1, max_length=255)
     determination: Determination
     risk_level: RiskLevel
     summary: str = Field(min_length=1)
@@ -148,7 +149,7 @@ class ProductResultEvent(ProductEventBase):
 
 
 class PublicErrorDto(ApiModel):
-    code: str = Field(min_length=1)
+    code: str = Field(min_length=1, max_length=50)  # BE Product.error_code 칸 길이
     message: str = Field(min_length=1)
     retryable: bool | None = None
 
