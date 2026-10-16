@@ -51,10 +51,10 @@ public class ProductProgress extends BaseEntity {
     // TOOL_EXECUTION 단계에서만 값이 있다.
     @Enumerated(EnumType.STRING)
     @Column(name = "tool_name")
-    private AgentType toolName;
+    private ToolName toolName;
 
     ProductProgress(Product product, String runId, int sequence,
-                    PipelineStage stage, StageStatus stageStatus, AgentType toolName) {
+                    PipelineStage stage, StageStatus stageStatus, ToolName toolName) {
         this.product = product;
         this.runId = runId;
         this.sequence = sequence;
@@ -63,7 +63,7 @@ public class ProductProgress extends BaseEntity {
         this.toolName = toolName;
     }
 
-    boolean isFor(PipelineStage stage, AgentType toolName) {
+    boolean isFor(PipelineStage stage, ToolName toolName) {
         return this.stage == stage && this.toolName == toolName;
     }
 
