@@ -8,30 +8,37 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Protocol
+from typing import Literal, Protocol
 
 from ..config import MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS
 from ..errors import AIResponseCode
 from ..observability.context import ExecutionContext, PipelineStage
 from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
-from ..schemas.schemas import FinalAssessment
-from ..schemas.session import DiagnosisSession
+from ..schemas.schemas import FinalAssessment, ToolName
+from ..schemas.session import DiagnosisSession, SessionStatus
 from .store import SessionStore
 
 logger = logging.getLogger(__name__)
 
+# Tool 진행 상태. Tool 실행 오류도 completed (실패 여부는 분야 카드에서 표시)
+ToolProgressStatus = Literal["started", "completed", "skipped"]
+
 
 class ProgressReporter(Protocol):
-    """진단 함수가 단계가 바뀔 때 부르는 진행 알림."""
+    """진단 함수가 부르는 진행 알림. 단계 변경과 Tool 진행은 서로 다른 경로."""
 
     def stage(self, stage: PipelineStage) -> None: ...
+
+    def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None: ...
 
 
 # 상품 입력, 실행 컨텍스트, 진행 알림을 받아 최종 결과를 돌려주는 진단 함수
 DiagnosisJob = Callable[[ExtractionInput, ExecutionContext, ProgressReporter], FinalAssessment]
 # 세션 상태가 바뀔 때마다 호출. 이후 콜백 전송기 자리
 SessionListener = Callable[[DiagnosisSession], None]
+# Tool 진행마다 호출. 세션 상태는 바뀌지 않아 그 시점 세션을 같이 전달
+ToolListener = Callable[[DiagnosisSession, ToolName, ToolProgressStatus], None]
 
 
 class QueueFullError(RuntimeError):
@@ -47,6 +54,14 @@ class _Progress:
 
     def stage(self, stage: PipelineStage) -> None:
         self._executor._publish(self._executor.store.update_stage(self._context, stage))
+
+    def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None:
+        # 저장소는 바꾸지 않음. 시간 초과·재접수로 이 실행이 끝났으면 알리지 않음
+        session = self._executor.store.get(self._context.product_id)
+        if (session is None or session.context.run_id != self._context.run_id
+                or session.status is not SessionStatus.RUNNING):
+            return
+        self._executor._publish_tool(session, tool_name, status)
 
 
 class SessionExecutor:
@@ -79,6 +94,7 @@ class SessionExecutor:
         self._max_duration = max_duration
         self._clock = clock
         self._listeners: list[SessionListener] = []
+        self._tool_listeners: list[ToolListener] = []
         self._lock = Lock()
         self._inflight = 0
 
@@ -89,6 +105,14 @@ class SessionExecutor:
             listener: 바뀐 세션을 받는 함수.
         """
         self._listeners.append(listener)
+
+    def subscribe_tool(self, listener: ToolListener) -> None:
+        """Tool 진행(시작·완료·건너뜀)마다 부를 함수를 등록한다. 단계 변경과 따로 받음.
+
+        Args:
+            listener: (그 시점 세션, Tool 이름, 진행 상태)를 받는 함수.
+        """
+        self._tool_listeners.append(listener)
 
     def submit(self, diagnosis_id: str, inputs: list[ExtractionInput]) -> list[DiagnosisSession]:
         """상품들을 세션으로 접수하고 백그라운드 실행을 예약한다.
@@ -180,3 +204,12 @@ class SessionExecutor:
                 listener(session)
             except Exception:
                 logger.warning("세션 구독자 처리 실패 (product_id=%s)", session.context.product_id, exc_info=True)
+
+    def _publish_tool(self, session: DiagnosisSession, tool_name: ToolName, status: ToolProgressStatus) -> None:
+        """Tool 진행을 구독자에게 전달한다. 구독자 오류는 실행에 영향 없음."""
+        for listener in self._tool_listeners:
+            try:
+                listener(session, tool_name, status)
+            except Exception:
+                logger.warning("Tool 진행 구독자 처리 실패 (product_id=%s, tool=%s)",
+                               session.context.product_id, tool_name, exc_info=True)

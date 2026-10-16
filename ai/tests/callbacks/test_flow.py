@@ -9,6 +9,7 @@ from app.observability.context import PipelineStage
 from app.routers import _dummy
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
+from app.schemas.schemas import ToolName
 from app.sessions.executor import SessionExecutor
 from app.sessions.store import SessionStore
 
@@ -143,6 +144,9 @@ def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신�
         def subscribe(self, listener) -> None:
             self.listener = listener
 
+        def subscribe_tool(self, listener) -> None:
+            pass
+
     store, executor, outbox = SessionStore(), _Executor(), _Outbox()
     connect_callbacks(executor, _Builder(_Presenter()), outbox)
     context = store.accept("d-1", ["p-1"])[0].context
@@ -159,3 +163,40 @@ def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신�
     second.join(timeout=2)
 
     assert outbox.sequences == [1, 2, 3]
+
+
+def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나간다(monkeypatch, flow):
+    executor, outbox, sender = flow
+    tools = [ToolName.ELECTRICAL, ToolName.RADIO, ToolName.CHILDREN]
+
+    def _parallel_tools(item, context, progress):
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+
+        def run_tool(tool_name):
+            progress.tool(tool_name, "started")
+            progress.tool(tool_name, "completed")
+
+        threads = [threading.Thread(target=run_tool, args=(tool_name,)) for tool_name in tools]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        progress.stage(PipelineStage.AGGREGATION)
+        return _dummy.build_dummy_assessment(item.product_id)
+
+    monkeypatch.setattr(executor, "_job", _parallel_tools)
+    executor.submit("d-1", _inputs("p-1"))
+    executor.shutdown(wait=True)
+    assert outbox.close(timeout=5) == 0
+
+    events = sender.events
+    assert [event.sequence for event in events] == list(range(1, len(events) + 1))
+    tool_events = [(event.tool_name, event.stage_status) for event in events if getattr(event, "tool_name", None)]
+    for name in ("ELECTRICAL", "RADIO", "CHILDREN"):
+        assert tool_events.index((name, "started")) < tool_events.index((name, "completed"))
+    # Tool 진행은 Tool 실행 단계 시작과 완료 사이에만
+    stages = [(event.stage, event.stage_status, event.tool_name)
+              for event in events if event.event_type == "product_progress"]
+    assert stages[0] == ("tool_execution", "started", None)
+    assert stages[7] == ("tool_execution", "completed", None)
+    assert len(tool_events) == 6

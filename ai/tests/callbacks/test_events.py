@@ -6,7 +6,7 @@ from app.callbacks.events import EventBuilder
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
-from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
+from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession
 from app.sessions.store import SessionStore
 
@@ -182,3 +182,54 @@ def test_변환_실패로_끝난_실행의_늦은_변경은_이벤트를_만들�
     # 같은 변경이 다시 와도 실패 이벤트는 한 번
     builder._presenter = _Presenter()
     assert builder.build(finished) == []
+
+
+def test_Tool_진행은_단계_이벤트에_이어_번호를_매기고_공개_이름으로_보낸다():
+    store, context, _ = _running()
+    builder = _builder()
+
+    events = [*builder.build(store.update_stage(context, PipelineStage.SELECTION)),
+              *builder.build(tool_stage := store.update_stage(context, PipelineStage.TOOL_EXECUTION)),
+              *builder.build_tool(tool_stage, ToolName.ELECTRICAL, "started"),
+              *builder.build_tool(tool_stage, ToolName.ELECTRICAL, "completed"),
+              *builder.build_tool(tool_stage, ToolName.RADIO, "skipped"),
+              *builder.build(store.update_stage(context, PipelineStage.AGGREGATION))]
+
+    assert [(*row, getattr(event, "tool_name", None)) for row, event in zip(_summary(events), events)] == [
+        ("product_progress", 1, "selection", "started", None),
+        ("product_progress", 2, "selection", "completed", None),
+        ("product_progress", 3, "tool_execution", "started", None),
+        ("product_progress", 4, "tool_execution", "started", "ELECTRICAL"),
+        ("product_progress", 5, "tool_execution", "completed", "ELECTRICAL"),
+        ("product_progress", 6, "tool_execution", "skipped", "RADIO"),
+        ("product_progress", 7, "tool_execution", "completed", None),
+        ("product_progress", 8, "aggregation", "started", None),
+    ]
+
+
+def test_Tool_실행_단계_시작_전_Tool_진행은_보내지_않고_번호도_쓰지_않는다(caplog):
+    # 단계 경로와 Tool 경로를 섞지 않음. 빠진 단계 시작을 대신 만들지 않음
+    store, context, _ = _running()
+    builder = _builder()
+    selection = store.update_stage(context, PipelineStage.SELECTION)
+    builder.build(selection)
+
+    assert builder.build_tool(selection, ToolName.ELECTRICAL, "started") == []
+    assert "Tool 실행 단계 시작 전" in caplog.text
+    [next_event, _] = builder.build(store.update_stage(context, PipelineStage.TOOL_EXECUTION))
+    assert next_event.sequence == 2
+
+
+def test_끝난_실행과_진단서_없는_실행의_Tool_진행은_보내지_않는다():
+    store, context, _ = _running()
+    builder = _builder()
+    tool_stage = store.update_stage(context, PipelineStage.TOOL_EXECUTION)
+    builder.build(tool_stage)
+    builder.build(store.finish(context, build_dummy_assessment("p-1")))
+
+    assert builder.build_tool(tool_stage, ToolName.ELECTRICAL, "completed") == []
+
+    test_session = tool_stage.model_copy(update={
+        "context": context.model_copy(update={"diagnosis_id": None, "run_type": RunType.TEST}),
+    })
+    assert _builder().build_tool(test_session, ToolName.ELECTRICAL, "started") == []
