@@ -6,6 +6,7 @@ from ..errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
 from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, UrlDiagnoseRequest
 from ..schemas.response import (
+    AcceptedProduct,
     ApiResponse,
     DiagnoseResponse,
     DiagnosisAccepted,
@@ -77,7 +78,10 @@ async def diagnose_by_content(
         message="진단 요청이 접수되었습니다.",
         data=DiagnosisAccepted(
             diagnosis_id=req.diagnosis_id,
-            accepted_product_ids=[session.context.product_id for session in sessions],
+            products=[
+                AcceptedProduct(product_id=session.context.product_id, run_id=session.context.run_id)
+                for session in sessions
+            ],
         ),
     )
 

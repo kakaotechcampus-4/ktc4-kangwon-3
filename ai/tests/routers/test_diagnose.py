@@ -60,13 +60,17 @@ def test_상품별_세션을_만들고_202를_반환한다(client, executor):
     response = client.post(CONTENT, json=_payload("p-1", "p-2"))
 
     assert response.status_code == 202
+    sessions = [executor.store.get(pid) for pid in ("p-1", "p-2")]
+    # 상품별 runId는 그 세션의 실행 ID. 이 실행의 콜백에 같은 값이 실림 (#310)
     assert response.json() == {
         "code": "OK",
         "message": "진단 요청이 접수되었습니다.",
         "details": None,
-        "data": {"diagnosisId": "d-1", "acceptedProductIds": ["p-1", "p-2"]},
+        "data": {"diagnosisId": "d-1", "products": [
+            {"productId": s.context.product_id, "runId": s.context.run_id, "status": "accepted"} for s in sessions
+        ]},
     }
-    sessions = [executor.store.get(pid) for pid in ("p-1", "p-2")]
+    assert len({s.context.run_id for s in sessions}) == 2
     assert all(s.context.diagnosis_id == "d-1" for s in sessions)
     assert all(s.status in (SessionStatus.ACCEPTED, SessionStatus.RUNNING) for s in sessions)
 
