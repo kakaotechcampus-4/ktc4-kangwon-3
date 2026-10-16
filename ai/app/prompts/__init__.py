@@ -14,6 +14,8 @@ class PromptName(StrEnum):
     EXTRACTION = "extraction"
     SELECTION = "selection"
     VERIFICATION = "verification"
+    CHILDREN_FACTS = "children/facts"
+    CHILDREN_REVIEW = "children/review"
     IMAGE_TRIAGE = "image_triage"
 
 
@@ -44,7 +46,7 @@ def fingerprint(text: str) -> str:
     return sha256(normalize_newlines(text).encode("utf-8")).hexdigest()
 
 
-@lru_cache(maxsize=3)
+@lru_cache(maxsize=None)
 def get_prompt(name: PromptName) -> PromptSnapshot:
     """프롬프트를 읽어 스냅샷으로 돌려준다. 이름별로 한 번만 읽음.
 
@@ -57,7 +59,7 @@ def get_prompt(name: PromptName) -> PromptSnapshot:
     Raises:
         FileNotFoundError: 프롬프트 파일이 없는 경우. 실패는 캐시하지 않음.
     """
-    path = Path(__file__).with_name(f"{name.value}.md")
+    path = Path(__file__).parent / f"{name.value}.md"
     text = normalize_newlines(path.read_text(encoding="utf-8"))
     return PromptSnapshot(name=name, path=path, text=text, sha256=fingerprint(text))
 
