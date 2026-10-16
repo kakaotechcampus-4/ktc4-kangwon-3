@@ -128,8 +128,11 @@ def test_별표는_조문과_별개로_담고_별표와_서식을_구분한다(w
 @pytest.mark.parametrize(("links", "expected"), [
     ("<별표서식파일링크>/LSW/flDownload.do?flSeq=1</별표서식파일링크><별표HWP파일명>a.hwp</별표HWP파일명>"
      "<별표서식PDF파일링크>/LSW/flDownload.do?flSeq=2</별표서식PDF파일링크><별표PDF파일명>a.pdf</별표PDF파일명>",
+     ("https://www.law.go.kr/LSW/flDownload.do?flSeq=1", "hwp")),
+    # HWP가 없으면 PDF
+    ("<별표서식PDF파일링크>/LSW/flDownload.do?flSeq=2</별표서식PDF파일링크><별표PDF파일명>a.pdf</별표PDF파일명>",
      ("https://www.law.go.kr/LSW/flDownload.do?flSeq=2", "pdf")),
-    # PDF가 없으면 HWP, 형식은 짝인 파일명 확장자로
+    # 형식은 짝인 파일명 확장자로
     ("<별표서식파일링크>/LSW/flDownload.do?flSeq=1</별표서식파일링크><별표HWP파일명>a.hwpx</별표HWP파일명>",
      ("https://www.law.go.kr/LSW/flDownload.do?flSeq=1", "hwpx")),
     ("<별표서식이미지파일링크>/LSW/flDownload.do?flSeq=3</별표서식이미지파일링크><별표이미지파일명>p.gif</별표이미지파일명>",

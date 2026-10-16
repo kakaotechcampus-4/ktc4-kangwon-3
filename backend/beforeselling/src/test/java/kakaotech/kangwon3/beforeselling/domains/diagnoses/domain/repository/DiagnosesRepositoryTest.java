@@ -1,7 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
 import jakarta.persistence.EntityManager;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
@@ -23,13 +23,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -251,8 +247,8 @@ class DiagnosesRepositoryTest {
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
         product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
-        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS);
-        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, AgentType.RADIO);
+        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS);
+        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, ToolName.RADIO);
         diagnoses.addProducts(List.of(product));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
@@ -266,8 +262,8 @@ class DiagnosesRepositoryTest {
                         ProductProgress::getStageStatus, ProductProgress::getToolName)
                 .containsExactlyInAnyOrder(
                         tuple("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null),
-                        tuple("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, AgentType.CUSTOMS),
-                        tuple("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, AgentType.RADIO));
+                        tuple("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS),
+                        tuple("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, ToolName.RADIO));
     }
 
     @Test

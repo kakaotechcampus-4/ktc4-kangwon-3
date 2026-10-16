@@ -6,14 +6,17 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.config import MODEL_PROFILES
 from app.eval import selection_runner
 from app.eval.runner import prompt_fingerprint, run_metadata
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.schemas import ToolName
 
 
-def _write_log(path, results, fingerprint="aaa", model="openai/gpt-4.1-mini"):
+def _write_log(path, results, fingerprint="aaa", model="openai/gpt-4.1-mini", effort=None):
     meta = {"prompt_sha256": fingerprint, "model": model}
+    if effort:
+        meta["model_profile"] = {"reasoning_effort": effort}
     path.write_text(json.dumps({"meta": meta, "results": results}), encoding="utf-8")
     return path
 
@@ -45,8 +48,19 @@ def test_프롬프트가_같아도_추출_모델이_다른_기록은_섞지_않�
         selection_runner.load_extraction_outputs([first, second])
 
 
+def test_같은_모델도_추론_강도가_다른_기록은_섞지_않는다(tmp_path):
+    first = _write_log(tmp_path / "1.json", {"power_bank": [{}]}, model="openai/gpt-6-luna", effort="low")
+    second = _write_log(tmp_path / "2.json", {"power_bank": [{}]}, model="openai/gpt-6-luna", effort="medium")
+
+    with pytest.raises(ValueError, match="gpt-6-luna#low"):
+        selection_runner.load_extraction_outputs([first, second])
+    # 강도가 같으면 합치고 추출 모델에 강도를 붙여 남김
+    same = _write_log(tmp_path / "3.json", {"power_bank": [{}]}, model="openai/gpt-6-luna", effort="low")
+    assert selection_runner.load_extraction_outputs([first, same])[2] == "openai/gpt-6-luna#low"
+
+
 def test_선택_평가_기록에는_선택_프롬프트_지문이_남는다():
-    meta = run_metadata(runs=1, model="openai/gpt-4.1-mini", prompt_path=selection_runner.SELECTION_PROMPT_PATH)
+    meta = run_metadata(runs=1, profile=MODEL_PROFILES["mini"], prompt_path=selection_runner.SELECTION_PROMPT_PATH)
 
     assert meta["prompt_path"] == "app/prompts/selection.md"
     assert meta["prompt_sha256"] == prompt_fingerprint(selection_runner.SELECTION_PROMPT_PATH)
@@ -75,7 +89,7 @@ def test_같은_추출_결과로_B는_그대로_A는_정답_boolean으로_선택
     log = _write_log(tmp_path / "extraction.json", {"power_bank": [{"wireless_charging": False}]})
     agents: list[_FakeAgent] = []
     monkeypatch.setattr(selection_runner, "SelectionAgent", lambda **kw: agents.append(_FakeAgent(**kw)) or agents[-1])
-    monkeypatch.setattr(selection_runner, "load_settings", lambda: SimpleNamespace(model="openai/gpt-4.1-mini"))
+    monkeypatch.setattr(selection_runner, "agent_profile", lambda name: MODEL_PROFILES["mini"])
     monkeypatch.setattr(selection_runner, "RESULT_DIR", tmp_path / "out")
     monkeypatch.setattr(sys, "argv", ["selection_runner", "--extraction-log", str(log), "--fixture", "power_bank"])
 

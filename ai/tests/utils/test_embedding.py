@@ -11,7 +11,6 @@ from app.utils import embedding
 _SETTINGS = config.Settings(
     api_key="test-key",
     base_url="https://mlapi.run/example/v1",
-    model="openai/gpt-4.1-mini",
     embedding_model="openai/text-embedding-3-small",
     database_url="",
     data_go_kr_key="test-data-key",

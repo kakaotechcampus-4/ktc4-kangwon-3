@@ -1,6 +1,6 @@
 """AI 전용 PostgreSQL(pgvector) 엔진·세션 관리.
 
-설정 값(DATABASE_URL)은 config.py가 읽고 검증하고, 이 모듈은 그 값으로 DB 자원만 만든다.
+설정 값(DATABASE_URL)은 config/settings.py가 읽고 검증하고, 이 모듈은 그 값으로 DB 자원만 만든다.
 import만으로는 DB에 접근하지 않는다. 엔진은 처음 필요할 때 만들어 프로세스 전체가 공유한다.
 """
 
