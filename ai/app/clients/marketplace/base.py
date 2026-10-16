@@ -3,8 +3,11 @@
 안전 규칙은 하위 클라이언트가 빠뜨리지 않게 베이스에서 강제함.
     - 요청: 처음 주소와 리다이렉트마다 사이트 도메인(DOMAINS) 안인지 확인, 리다이렉트 횟수·응답 크기 상한
     - 이미지: 사이트 이미지 서버(IMAGE_DOMAINS)의 https 주소만. 페이지가 정한 아무 주소를 모델에 넘기지 않음
+    - 판매자 글: 보이지 않는 문자(폭 0·글자 방향 바꾸기·제어 문자) 제거, 줄 수·줄 길이·전체 길이 상한
+      판매자 글은 그대로 모델 입력이 되어, 숨긴 지시문·거대한 주입 문구·비용 폭탄을 줄임
 """
 
+import re
 from collections.abc import Callable, Iterable
 from typing import ClassVar, TypeVar
 
@@ -25,6 +28,12 @@ _BROWSER_UA = (
 MAX_REDIRECTS = 5
 # 상품 페이지 응답 크기 상한. Made-in-China 상세 페이지 약 260KB, 아마존 약 2.2MB (#322)
 MAX_PAGE_BYTES = 5 * 1024 * 1024
+# 판매자 글 상한. Made-in-China 상품 3개: 32~47줄, 가장 긴 줄 약 1,100자, 전체 1,500~3,300자
+MAX_TEXT_BLOCKS = 200
+MAX_BLOCK_CHARS = 2000
+MAX_TEXT_CHARS = 20000
+# 화면에 안 보이는 문자: C0·C1 제어 문자(줄바꿈·탭 제외), 폭 0 문자, 글자 방향 바꾸기, BOM
+_INVISIBLE_RE = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]")
 
 T = TypeVar("T")
 
@@ -126,10 +135,17 @@ class MarketplaceBaseClient(BaseClient[ProductPageRequest, ProductPage]):
             raw: 상품 페이지 HTML 응답.
 
         Returns:
-            ProductPage: 이미지 서버 밖 주소를 뺀 결과.
+            ProductPage: 이미지 서버 밖 주소를 빼고 판매자 글을 정리·상한 적용한 결과.
         """
         page = self._parse_page(raw)
-        return page.model_copy(update={"images": [image for image in page.images if self._allowed_image(image)]})
+        text_blocks, truncated = _limit_text(page.text_blocks)
+        title = _INVISIBLE_RE.sub("", page.title or "").strip()
+        return page.model_copy(update={
+            "title": title or None,
+            "text_blocks": text_blocks,
+            "text_truncated": truncated,
+            "images": [image for image in page.images if self._allowed_image(image)],
+        })
 
     def _parse_page(self, raw: httpx.Response) -> ProductPage:
         """상품 페이지 HTML을 판매자 글과 이미지로 바꾼다 (사이트별 구현).
@@ -191,3 +207,30 @@ class MarketplaceBaseClient(BaseClient[ProductPageRequest, ProductPage]):
                 seen.add(value)
                 unique.append(item)
         return unique
+
+
+def _limit_text(blocks: list[str]) -> tuple[list[str], bool]:
+    """보이지 않는 문자를 지우고 줄 수·줄 길이·전체 길이 상한까지만 남긴다. 페이지 앞쪽(상품명·사양)부터 남김.
+
+    Args:
+        blocks: 판매자 글.
+
+    Returns:
+        tuple[list[str], bool]: (정리한 글, 상한 때문에 잘랐는지).
+    """
+    limited: list[str] = []
+    total = 0
+    truncated = False
+    for block in blocks:
+        text = _INVISIBLE_RE.sub("", block).strip()
+        if not text:
+            continue
+        if len(limited) == MAX_TEXT_BLOCKS or total >= MAX_TEXT_CHARS:
+            truncated = True
+            break
+        room = min(MAX_BLOCK_CHARS, MAX_TEXT_CHARS - total)
+        if len(text) > room:
+            text, truncated = text[:room], True
+        limited.append(text)
+        total += len(text)
+    return limited, truncated
