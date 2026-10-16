@@ -16,10 +16,10 @@ public class AiCallbackUseCase {
     private final AiCallbackMapper aiCallbackMapper;
 
     public void handleResult(ProductResultEvent event) {
-        log.debug("AI 결과 콜백 수신. diagnosisId={}, productId={}, eventId={}, runId={}, sequence={}",
-                event.diagnosisId(), event.productId(), event.eventId(), event.runId(), event.sequence());
+        log.debug("AI 결과 콜백 수신. diagnosesId={}, productId={}, eventId={}, runId={}, sequence={}",
+                event.diagnosesId(), event.productId(), event.eventId(), event.runId(), event.sequence());
 
-        productService.completeDiagnosis(event.diagnosisId(), event.productId(), event.runId(),
+        productService.completeDiagnoses(event.diagnosesId(), event.productId(), event.runId(),
                 aiCallbackMapper.toContent(event.assessment()));
     }
 }
