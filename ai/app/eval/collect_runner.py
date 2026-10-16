@@ -26,7 +26,7 @@ from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..agents.image_triage import ImageTriageAgent
 from ..config import agent_profile
-from ..pipeline.url_source import UrlSource, UrlSourceBuilder, client_for
+from ..pipeline.url_source import MAX_ALL_IMAGES, UrlSource, UrlSourceBuilder, client_for
 from ..schemas.agent import ExtractionInput
 from ..schemas.clients.marketplace_request import ProductPageRequest
 from ..usage import USAGE_LOG
@@ -34,8 +34,6 @@ from .runner import _AI_ROOT, describe_metadata, run_metadata
 
 OUT_DIR = _AI_ROOT / "data" / "collect_probe"
 MODES = ("text", "all", "selected")
-# all 방식에 넣는 이미지 상한. 넘는 페이지는 앞에서부터
-MAX_ALL_IMAGES = 50
 # 상품 정보 중 방식별로 비교할 판단 칸. 목록·속성은 따로 봄
 _SKIP_FIELDS = {"product_id", "source_url", "listing_text", "attributes", "conflicts"}
 
@@ -231,7 +229,8 @@ def main() -> int:
         parser.error("--html은 --url과 같은 개수로, 같은 순서로 지정하세요.")
 
     # 평가 호출은 운영 사용량과 나눠 집계
-    builder = UrlSourceBuilder(ImageTriageAgent(usage_agent="image_triage-eval"))
+    # 세 방식을 모두 비교하려고 사이트 설정과 관계없이 분류까지 함
+    builder = UrlSourceBuilder(ImageTriageAgent(usage_agent="image_triage-eval"), images="selected")
     extractor = ExtractionAgent(usage_agent="extraction-eval")
     meta = run_metadata(runs=args.runs, profile=agent_profile("extraction"), prompt_path=EXTRACTION_PROMPT_PATH)
     print(describe_metadata(meta))
