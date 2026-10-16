@@ -14,6 +14,7 @@ class PromptName(StrEnum):
     EXTRACTION = "extraction"
     SELECTION = "selection"
     VERIFICATION = "verification"
+    IMAGE_TRIAGE = "image_triage"
 
 
 @dataclass(frozen=True)
