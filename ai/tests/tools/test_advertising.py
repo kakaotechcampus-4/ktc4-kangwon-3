@@ -136,6 +136,16 @@ def test_의심_문구가_없으면_검토한_문구를_남기고_위험도는_�
     assert result.findings == [] and result.missing_information == []
 
 
+def test_모델을_넣지_않으면_표시광고_Tool_프로필로_모델을_만든다(monkeypatch):
+    names: list[str] = []
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("에이전트 표를 쓰면 안 됨"))
+    monkeypatch.setattr("app.agents.base.build_tool_model", lambda name: names.append(name) or _StubModel([]))
+
+    AdvertisingReviewer()
+
+    assert names == [ToolName.LABEL_AD]
+
+
 def test_listing_text가_비면_모델을_부르지_않고_정보_부족으로_돌려준다():
     model = _StubModel(error=AssertionError("모델을 부르면 안 된다"))
 

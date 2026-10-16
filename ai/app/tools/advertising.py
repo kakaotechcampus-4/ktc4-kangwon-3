@@ -132,6 +132,8 @@ class AdvertisingReviewer(BaseAgent[AdvertisingReview]):
     """listing_text에서 실증이 필요한 주장을 인용하는 모델 호출부."""
 
     component_name = "advertising"
+    # Tool 안에서 쓰는 에이전트라 TOOL_PROFILES의 표시·광고 Tool 프로필로 모델을 고름
+    model_profile = ("tool", ToolName.LABEL_AD)
     prompt_name = PromptName.ADVERTISING
     output_schema = AdvertisingReview
     error_class = AdvertisingReviewError
@@ -210,7 +212,7 @@ class AdvertisingTool(RegulatoryTool):
         """모델은 실제로 문구를 검토할 때 만든다. listing_text가 없으면 모델을 만들거나 부르지 않는다.
 
         Args:
-            model: 구조화 출력을 지원하는 모델. None이면 build_chat_model()로 만든다.
+            model: 구조화 출력을 지원하는 모델. None이면 표시·광고 Tool 프로필(TOOL_PROFILES)로 만든다.
             reviewer: 테스트·평가용으로 직접 넣는 검토 에이전트. 주면 model은 쓰지 않는다.
         """
         self._model = model
