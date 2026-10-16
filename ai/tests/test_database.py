@@ -13,6 +13,8 @@ def _settings(database_url: str) -> config.Settings:
         data_go_kr_key="test-data-key",
         safetykorea_key="test-safety-key",
         law_oc="test-oc",
+        internal_api_token="test-internal-token-0123456789abcdef",
+        be_base_url="http://be-server:8080",
         database_url=database_url,
     )
 

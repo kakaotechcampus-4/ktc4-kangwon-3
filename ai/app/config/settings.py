@@ -23,7 +23,12 @@ REQUIRED_ENV = {
     "DATA_GO_KR_KEY": "data_go_kr_key",
     "KEY_SAFETYKOREA": "safetykorea_key",
     "LAW_GO_KR_OC": "law_oc",
+    "INTERNAL_API_TOKEN": "internal_api_token",
+    "BE_BASE_URL": "be_base_url",
 }
+
+# BE InternalApiProperties의 @Size(min = 32)와 같은 기준
+INTERNAL_API_TOKEN_MIN_LENGTH = 32
 
 
 class ConfigError(RuntimeError):
@@ -72,6 +77,8 @@ class Settings:
         data_go_kr_key: 공공데이터포털 서비스 키 (DATA_GO_KR_KEY). 관세청 세관장확인·식약처가 사용.
         safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA).
         law_oc: 법제처 OC 값 (LAW_GO_KR_OC).
+        internal_api_token: BE 내부 API 토큰 (INTERNAL_API_TOKEN). 콜백 X-Internal-Token 헤더 값, BE와 같은 값.
+        be_base_url: 콜백을 보낼 BE 주소 (BE_BASE_URL).
         database_url: AI 전용 PostgreSQL 접속 문자열 (DATABASE_URL).
             개발 단계에서는 DB 없이도 서버를 띄울 수 있게 선택으로 둔다. 비어 있으면 DB 기능을 쓰지 않는다.
         agent_profiles: 에이전트 이름 → 프로필 이름. 기본은 AGENT_PROFILES.
@@ -87,6 +94,8 @@ class Settings:
     data_go_kr_key: str = field(repr=False)
     safetykorea_key: str = field(repr=False)
     law_oc: str = field(repr=False)
+    internal_api_token: str = field(repr=False)
+    be_base_url: str
     database_url: str = field(repr=False)
     agent_profiles: dict[str, str] = field(default_factory=lambda: dict(AGENT_PROFILES))
     tool_profiles: dict[str, str] = field(default_factory=lambda: dict(TOOL_PROFILES))
@@ -112,7 +121,15 @@ class Settings:
         # 비어 있는 필수 설정이 있는 경우
         if empty:
             raise ConfigError(f"필수 설정이 비어 있습니다: {', '.join(empty)}")
-        
+
+        # 토큰이 BE 기준보다 짧은 경우. 값은 출력하지 않음
+        if len(self.internal_api_token.strip()) < INTERNAL_API_TOKEN_MIN_LENGTH:
+            raise ConfigError(f"INTERNAL_API_TOKEN은 {INTERNAL_API_TOKEN_MIN_LENGTH}자 이상이어야 합니다.")
+
+        # BE 주소가 http(s)://로 시작하지 않는 경우
+        if not self.be_base_url.startswith(("http://", "https://")):
+            raise ConfigError("BE_BASE_URL은 http:// 또는 https://로 시작해야 합니다.")
+
         # 비어 있는 것은 허용하지만(DB 미사용), 값을 넣었는데 형식이 틀린 경우
         if self.database_url and not self.database_url.startswith("postgresql"):
             # 접속 문자열에는 DB 비밀번호가 들어 있어 실제 값은 출력하지 않음.
