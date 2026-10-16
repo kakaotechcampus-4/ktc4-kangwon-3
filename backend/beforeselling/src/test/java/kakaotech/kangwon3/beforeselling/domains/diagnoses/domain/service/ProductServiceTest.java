@@ -484,7 +484,8 @@ class ProductServiceTest {
         assertThat(product)
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
-                .containsExactly(null, ProductService.STUCK_ERROR_CODE, ProductService.STUCK_ERROR_MESSAGE, null);
+                .containsExactly(null, ProductService.STUCK_ERROR_CODE, ProductService.STUCK_ERROR_MESSAGE,
+                        ProductService.STUCK_ERROR_RETRYABLE);
         assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
     }
 
