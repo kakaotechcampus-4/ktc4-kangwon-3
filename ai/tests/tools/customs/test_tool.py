@@ -421,3 +421,10 @@ def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어�
     product = Product(product_id="p1", listing_text=["주전자"], attributes=[Attribute(name="품목", value="전기포트")])
     assert _hints(product)["attributes"] == [{"name": "품목", "value": "전기포트"}]
     assert "listing_text" not in _hints(product)
+
+
+def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
+    names = []
+    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
+    CustomsTool()._get_steps()
+    assert names == [ToolName.CUSTOMS]
