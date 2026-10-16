@@ -23,7 +23,7 @@ def _source(image_count: int = 3) -> UrlSource:
               for n in range(image_count)]
     page = ProductPage(source_url=URL, site="made_in_china", title="보조배터리", text_blocks=["Capacity: 10000mAh"],
                        images=images)
-    return UrlSource(page=page, triage=ImageTriageResponse(items=[]), selected=images[:1],
+    return UrlSource(page=page, images="selected", triage=ImageTriageResponse(items=[]), selected=images[:1],
                      extraction_input=ExtractionInput(product_id="p", source_url=URL, text_blocks=page.text_blocks,
                                                       image_urls=[images[0].url]))
 
