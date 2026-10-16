@@ -133,3 +133,23 @@ def test_도메인_자체와_하위_도메인을_모두_받는다():
 
     for url in ("https://made-in-china.com/product/x.html", "https://www.made-in-china.com/product/x.html"):
         assert builder.build(url, product_id="p-1").page is page
+
+
+def test_저장한_HTML로도_같은_흐름으로_추출_입력을_만들고_페이지는_받지_않는다():
+    page = _page(_image("main", "gallery"), _image("spec"))
+
+    class _OfflineClient(_FakeClient):
+        def fetch_parsed(self, request):
+            pytest.fail("페이지를 받으면 안 됨")
+
+        def parse_html(self, url, html):
+            self.requested.append((url, html))
+            return self.page
+
+    client, triage = _OfflineClient(page), _FakeTriage(_triage("product", "specification"))
+    builder = UrlSourceBuilder(triage, clients={"made-in-china.com": lambda: client})
+
+    source = builder.build_from_html(URL, "<html>저장본</html>", product_id="p-1")
+
+    assert (client.requested, client.closed) == ([(URL, "<html>저장본</html>")], True)
+    assert source.extraction_input.image_urls == ["https://img/main.jpg", "https://img/spec.jpg"]

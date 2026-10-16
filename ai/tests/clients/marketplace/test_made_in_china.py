@@ -6,6 +6,7 @@
 import json
 
 import httpx
+import pytest
 
 from app.clients.marketplace import MadeInChinaClient
 from app.schemas.clients.marketplace_request import ProductPageRequest
@@ -107,3 +108,14 @@ def test_h1이_없으면_JSON_LD_상품명을_쓴다(wire):
 
     assert page.title == "JSON-LD 상품명"
     assert page.text_blocks[0] == "JSON-LD 상품명"
+
+
+def test_저장한_HTML도_받은_페이지와_같은_규칙으로_읽고_요청은_보내지_않는다(wire):
+    client = MadeInChinaClient()
+    sent = wire(client, lambda request: pytest.fail("요청을 보내면 안 됨"))
+    html = _page(rich=_RICH)
+
+    page = client.parse_html(URL, html)
+
+    assert sent == []
+    assert page == _parse(wire, html)

@@ -78,11 +78,40 @@ class UrlSourceBuilder:
             httpx.HTTPError: 페이지를 받지 못한 경우.
             ImageTriageFailedError: 이미지 분류 실패.
         """
-        client = self._client_for(url)
+        client = client_for(url, self._clients)
         try:
             page = client.fetch_parsed(ProductPageRequest(url=url))
         finally:
             client.close()
+        return self._from_page(page, product_id)
+
+    def build_from_html(self, url: str, html: str, *, product_id: str) -> UrlSource:
+        """저장해 둔 상품 페이지 HTML로 추출 입력을 만든다. 페이지 요청은 보내지 않음.
+
+        같은 입력으로 다시 재거나, 사이트가 응답하지 않을 때 실험·리뷰에서 재현할 때 씀.
+        이미지는 주소만 넘겨 분류·추출 때 모델 쪽이 받음.
+
+        Args:
+            url: 그 HTML을 받은 상품 페이지 주소. 사이트 고르기와 출처 표시에 씀.
+            html: 상품 페이지 HTML.
+            product_id: 추출 입력의 상품 ID. 분류 사용량 기록 대상 ID로도 씀.
+
+        Returns:
+            UrlSource: 수집·분류·고른 이미지·추출 입력.
+
+        Raises:
+            UnsupportedSiteError: 수집할 수 없는 사이트 주소인 경우.
+            ImageTriageFailedError: 이미지 분류 실패.
+        """
+        client = client_for(url, self._clients)
+        try:
+            page = client.parse_html(url, html)
+        finally:
+            client.close()
+        return self._from_page(page, product_id)
+
+    def _from_page(self, page: ProductPage, product_id: str) -> UrlSource:
+        """수집한 페이지의 이미지를 분류하고 골라 추출 입력을 만든다."""
         triage = self._triage_agent.classify([image.thumbnail_url for image in page.images], subject_id=product_id)
         selected = select_images(page, triage)
         return UrlSource(
@@ -97,13 +126,27 @@ class UrlSourceBuilder:
             ),
         )
 
-    def _client_for(self, url: str) -> MarketplaceBaseClient:
-        """주소의 도메인으로 클라이언트를 고른다."""
-        host = urlparse(url).hostname or ""
-        for domain, make_client in self._clients.items():
-            if host == domain or host.endswith(f".{domain}"):
-                return make_client()
-        raise UnsupportedSiteError(f"수집할 수 없는 판매 사이트입니다: {host or url}")
+
+def client_for(
+    url: str, clients: Mapping[str, Callable[[], MarketplaceBaseClient]] = CLIENTS,
+) -> MarketplaceBaseClient:
+    """주소의 도메인으로 클라이언트를 고른다. 판매자 하위 도메인도 같은 사이트로 봄.
+
+    Args:
+        url: 상품 페이지 주소.
+        clients: 도메인 → 클라이언트 생성 함수.
+
+    Returns:
+        MarketplaceBaseClient: 새 클라이언트. 다 쓰면 close().
+
+    Raises:
+        UnsupportedSiteError: 수집할 수 없는 사이트 주소인 경우.
+    """
+    host = urlparse(url).hostname or ""
+    for domain, make_client in clients.items():
+        if host == domain or host.endswith(f".{domain}"):
+            return make_client()
+    raise UnsupportedSiteError(f"수집할 수 없는 판매 사이트입니다: {host or url}")
 
 
 def select_images(page: ProductPage, triage: ImageTriageResponse) -> list[ProductPageImage]:

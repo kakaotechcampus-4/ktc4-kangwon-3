@@ -55,6 +55,20 @@ class MarketplaceBaseClient(BaseClient[ProductPageRequest, ProductPage]):
         response.raise_for_status()
         return response
 
+    def parse_html(self, url: str, html: str) -> ProductPage:
+        """저장해 둔 상품 페이지 HTML을 받은 페이지와 같은 규칙으로 읽는다. 요청은 보내지 않음.
+
+        같은 입력으로 다시 재거나, 사이트가 응답하지 않을 때 실험·리뷰에서 재현할 때 씀.
+
+        Args:
+            url: 그 HTML을 받은 상품 페이지 주소.
+            html: 상품 페이지 HTML.
+
+        Returns:
+            ProductPage: 상품명·판매자 글·이미지.
+        """
+        return self._parse(httpx.Response(200, text=html, request=httpx.Request("GET", url)))
+
     @staticmethod
     def _soup(response: httpx.Response) -> BeautifulSoup:
         """응답 HTML을 bs4 문서로 읽는다. 추가 의존성 없이 표준 html.parser 사용."""
