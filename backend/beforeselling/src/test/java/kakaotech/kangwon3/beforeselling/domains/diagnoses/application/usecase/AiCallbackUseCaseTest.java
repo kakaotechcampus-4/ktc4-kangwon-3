@@ -47,7 +47,7 @@ class AiCallbackUseCaseTest {
 
     @Test
     @DisplayName("결과 콜백을 받으면 본문의 진단서·상품 id, 실행 식별자, 결과 내용을 그대로 옮겨 반영을 요청한다.")
-    void handleResult_thenCompleteDiagnosisWithSameContent() {
+    void handleResult_thenCompleteDiagnosesWithSameContent() {
         // given
         ProductResultEvent event = resultEvent();
 
@@ -56,7 +56,7 @@ class AiCallbackUseCaseTest {
 
         // then
         ArgumentCaptor<AssessmentContent> captor = ArgumentCaptor.forClass(AssessmentContent.class);
-        then(productService).should().completeDiagnosis(eq(DIAGNOSIS_ID), eq(PRODUCT_ID), eq("run-1"), captor.capture());
+        then(productService).should().completeDiagnoses(eq(DIAGNOSIS_ID), eq(PRODUCT_ID), eq("run-1"), captor.capture());
 
         assertThat(captor.getValue()).isEqualTo(new AssessmentContent(
                 AssessmentStatus.COMPLETED,

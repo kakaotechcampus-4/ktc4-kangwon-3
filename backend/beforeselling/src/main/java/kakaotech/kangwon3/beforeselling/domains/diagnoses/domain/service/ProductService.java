@@ -89,7 +89,7 @@ public class ProductService {
      * 이미 반영된 결과(재전송)는 무시한다.
      */
     @Transactional
-    public void completeDiagnosis(UUID diagnosesId, UUID productId, String runId, AssessmentContent content) {
+    public void completeDiagnoses(UUID diagnosesId, UUID productId, String runId, AssessmentContent content) {
         // 같은 진단서의 다른 상품 콜백과 동시에 진단서 상태를 재계산하지 않도록 진단서를 잠근다.
         Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
