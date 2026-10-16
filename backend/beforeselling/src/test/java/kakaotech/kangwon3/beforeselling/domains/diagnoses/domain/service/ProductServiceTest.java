@@ -328,13 +328,13 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("현재 실행의 결과를 받으면 상품이 완료되고 진단서 상태가 다시 계산된다.")
-    void completeDiagnosis_thenCompleteProductAndRefreshDiagnoses() {
+    void completeDiagnoses_thenCompleteProductAndRefreshDiagnoses() {
         // given
         Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
         givenLockedDiagnosesById(diagnoses);
 
         // when
-        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("구매대행으로 판매할 수 있습니다."));
+        productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("구매대행으로 판매할 수 있습니다."));
 
         // then
         Product product = diagnoses.getProducts().getFirst();
@@ -345,13 +345,13 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("다른 상품이 아직 진행 중이면 결과를 반영해도 진단서는 진행 중으로 남는다.")
-    void completeDiagnosis_withOtherProductInProgress_thenDiagnosesStillInProgress() {
+    void completeDiagnoses_withOtherProductInProgress_thenDiagnosesStillInProgress() {
         // given
         Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
         givenLockedDiagnosesById(diagnoses);
 
         // when
-        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과"));
+        productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과"));
 
         // then
         assertThat(diagnoses.getProducts())
@@ -362,14 +362,14 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("runId 확인을 끈 동안에는 실행 식별자를 저장하지 않은 상품도 결과를 반영한다.")
-    void completeDiagnosis_whenRunNotAssigned_thenCompleteForNow() {
+    void completeDiagnoses_whenRunNotAssigned_thenCompleteForNow() {
         // given: assignRun 흐름이 아직 없어 runId가 비어 있는 상태. runId 확인을 다시 켜면 이 테스트는 지운다.
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
-        diagnoses.startDiagnosis();
+        diagnoses.startDiagnoses();
         givenLockedDiagnosesById(diagnoses);
 
         // when
-        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과"));
+        productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과"));
 
         // then
         assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
@@ -378,14 +378,14 @@ class ProductServiceTest {
     @Disabled("runId 저장(assignRun) 흐름 구현 전이라 ProductService의 runId 확인을 주석 처리함. 주석을 풀 때 함께 활성화")
     @Test
     @DisplayName("실행 식별자를 저장하기 전에 결과가 오면 다시 보내 달라는 LOCK_CONFLICT 예외가 발생하고 결과를 반영하지 않는다.")
-    void completeDiagnosis_whenRunNotAssigned_thenThrowLockConflict() {
+    void completeDiagnoses_whenRunNotAssigned_thenThrowLockConflict() {
         // given: AI의 202 응답을 저장하기 전에 결과 콜백이 먼저 도착한 경우
         Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
-        diagnoses.startDiagnosis();
+        diagnoses.startDiagnoses();
         givenLockedDiagnosesById(diagnoses);
 
         // when & then
-        assertThatThrownBy(() -> productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과")))
+        assertThatThrownBy(() -> productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과")))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.LOCK_CONFLICT);
@@ -395,13 +395,13 @@ class ProductServiceTest {
     @Disabled("runId 저장(assignRun) 흐름 구현 전이라 ProductService의 runId 확인을 주석 처리함. 주석을 풀 때 함께 활성화")
     @Test
     @DisplayName("이전 실행의 결과가 늦게 오면 예외 없이 무시하고 상품은 진행 중으로 남는다.")
-    void completeDiagnosis_withPreviousRun_thenIgnore() {
+    void completeDiagnoses_withPreviousRun_thenIgnore() {
         // given
         Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
         givenLockedDiagnosesById(diagnoses);
 
         // when
-        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, "previous-run", assessmentContent("지난 결과"));
+        productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, "previous-run", assessmentContent("지난 결과"));
 
         // then
         Product product = diagnoses.getProducts().getFirst();
@@ -411,14 +411,14 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("이미 결과가 반영된 상품에 결과가 다시 오면 예외 없이 무시하고 기존 결과를 유지한다.")
-    void completeDiagnosis_whenAlreadyCompleted_thenIgnore() {
+    void completeDiagnoses_whenAlreadyCompleted_thenIgnore() {
         // given: AI가 같은 결과를 재전송한 경우
         Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
         givenLockedDiagnosesById(diagnoses);
-        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("처음 받은 결과"));
+        productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("처음 받은 결과"));
 
         // when
-        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("다시 받은 결과"));
+        productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("다시 받은 결과"));
 
         // then
         assertThat(diagnoses.getProducts().getFirst().getSummary()).isEqualTo("처음 받은 결과");
@@ -426,12 +426,12 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("없는 진단서의 결과가 오면 NOT_FOUND 예외가 발생한다.")
-    void completeDiagnosis_whenDiagnosesNotFound_thenThrowNotFound() {
+    void completeDiagnoses_whenDiagnosesNotFound_thenThrowNotFound() {
         // given
         given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과")))
+        assertThatThrownBy(() -> productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과")))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
@@ -439,13 +439,13 @@ class ProductServiceTest {
 
     @Test
     @DisplayName("진단서에 속하지 않은 상품의 결과가 오면 NOT_FOUND 예외가 발생하고 아무것도 바뀌지 않는다.")
-    void completeDiagnosis_whenProductNotInDiagnoses_thenThrowNotFound() {
+    void completeDiagnoses_whenProductNotInDiagnoses_thenThrowNotFound() {
         // given
         Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
         givenLockedDiagnosesById(diagnoses);
 
         // when & then
-        assertThatThrownBy(() -> productService.completeDiagnosis(DIAGNOSES_ID, UUID.randomUUID(), RUN_ID, assessmentContent("결과")))
+        assertThatThrownBy(() -> productService.completeDiagnoses(DIAGNOSES_ID, UUID.randomUUID(), RUN_ID, assessmentContent("결과")))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
@@ -600,7 +600,7 @@ class ProductServiceTest {
     // 진단을 시작하고 AI의 202 응답으로 받은 실행 식별자까지 저장한 상태
     private Diagnoses createRunningDiagnoses(List<String> productNames) {
         Diagnoses diagnoses = createDiagnoses(productNames);
-        diagnoses.startDiagnosis();
+        diagnoses.startDiagnoses();
         diagnoses.getProducts().forEach(product -> product.assignRun(RUN_ID));
         return diagnoses;
     }

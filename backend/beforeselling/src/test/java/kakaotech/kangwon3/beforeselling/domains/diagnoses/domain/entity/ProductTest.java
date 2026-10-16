@@ -50,12 +50,12 @@ class ProductTest {
 
     @Test
     @DisplayName("대기 중인 상품의 진단을 시작하면 진행 중 상태가 된다.")
-    void startDiagnosis_whenPending_thenInProgress() {
+    void startDiagnoses_whenPending_thenInProgress() {
         // given
         Product product = createProduct();
 
         // when
-        product.startDiagnosis();
+        product.startDiagnoses();
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
@@ -63,12 +63,12 @@ class ProductTest {
 
     @Test
     @DisplayName("이미 진단이 시작된 상품의 진단을 다시 시작하면 CONFLICT 예외가 발생한다.")
-    void startDiagnosis_whenInProgress_thenThrowConflict() {
+    void startDiagnoses_whenInProgress_thenThrowConflict() {
         // given
         Product product = createInProgressProduct();
 
         // when & then
-        assertConflict(product::startDiagnosis);
+        assertConflict(product::startDiagnoses);
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
 
@@ -592,7 +592,7 @@ class ProductTest {
 
     private Product createInProgressProduct() {
         Product product = createProduct();
-        product.startDiagnosis();
+        product.startDiagnoses();
         return product;
     }
 
