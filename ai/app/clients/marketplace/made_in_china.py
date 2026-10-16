@@ -31,8 +31,10 @@ class MadeInChinaClient(MarketplaceBaseClient):
     """
 
     SITE = "made_in_china"
+    DOMAINS = ("made-in-china.com",)
+    IMAGE_DOMAINS = ("image.made-in-china.com",)
 
-    def _parse(self, raw: httpx.Response) -> ProductPage:
+    def _parse_page(self, raw: httpx.Response) -> ProductPage:
         """상품 페이지 HTML을 판매자 글과 이미지로 바꾼다.
 
         Args:

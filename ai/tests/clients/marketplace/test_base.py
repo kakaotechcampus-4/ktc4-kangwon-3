@@ -4,9 +4,10 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from app.clients.marketplace import MarketplaceBaseClient
+from app.clients.marketplace import BlockedUrlError, MarketplaceBaseClient, PageTooLargeError, matches_domain
+from app.clients.marketplace.base import MAX_REDIRECTS
 from app.schemas.clients.marketplace_request import ProductPageRequest
-from app.schemas.clients.marketplace_response import ProductPage
+from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
 
 URL = "https://yuntan.en.made-in-china.com/product/jZbflYzyZctU/China-Power-Bank.html"
 
@@ -15,8 +16,10 @@ class _TitleClient(MarketplaceBaseClient):
     """제목만 꺼내는 시험용 하위 클라이언트."""
 
     SITE = "test_site"
+    DOMAINS = ("made-in-china.com",)
+    IMAGE_DOMAINS = ("image.made-in-china.com",)
 
-    def _parse(self, raw):
+    def _parse_page(self, raw):
         soup = self._soup(raw)
         return ProductPage(source_url=str(raw.request.url), site=self.SITE, title=soup.title.get_text(strip=True))
 
@@ -67,3 +70,91 @@ def test_같은_키는_처음_것만_순서대로_남긴다():
     items = ["a-1", "b-1", "a-2", "c-1", "b-2"]
 
     assert MarketplaceBaseClient._unique(items, key=lambda item: item[0]) == ["a-1", "b-1", "c-1"]
+
+
+@pytest.mark.parametrize("target", [
+    "https://evil.example/phish",
+    "http://169.254.169.254/latest/meta-data/",  # AWS 메타데이터
+    "http://localhost:8000/internal",
+    "https://made-in-china.com.evil.example/x",  # 흉내 도메인
+    "file:///etc/passwd",
+])
+def test_사이트_도메인_밖으로_넘겨주면_그_주소로는_요청하지_않는다(wire, target):
+    client = _TitleClient()
+
+    def handler(request):
+        if str(request.url) == URL:
+            return httpx.Response(302, headers={"Location": target})
+        return pytest.fail(f"도메인 밖으로 요청함: {request.url}")
+
+    sent = wire(client, handler)
+
+    with pytest.raises(BlockedUrlError):
+        client.fetch_raw(ProductPageRequest(url=URL))
+    assert [str(request.url) for request in sent] == [URL]
+
+
+@pytest.mark.parametrize("url", [
+    "https://made-in-china.com@evil.example/product/x.html",  # 계정 칸으로 속인 주소
+    "http://169.254.169.254/latest/meta-data/",
+    "https://127.0.0.1/product/x.html",
+])
+def test_처음_주소가_사이트_도메인_밖이면_요청하지_않는다(wire, url):
+    client = _TitleClient()
+    sent = wire(client, lambda request: pytest.fail("요청하면 안 됨"))
+
+    with pytest.raises(BlockedUrlError):
+        client.fetch_raw(ProductPageRequest(url=url))
+    assert sent == []
+
+
+def test_리다이렉트는_정해진_횟수까지만_따라간다(wire):
+    client = _TitleClient()
+    sent = wire(client, lambda request: httpx.Response(302, headers={"Location": f"{request.url}x"}))
+
+    with pytest.raises(httpx.TooManyRedirects):
+        client.fetch_raw(ProductPageRequest(url=URL))
+    assert len(sent) == MAX_REDIRECTS + 1
+
+
+def test_응답이_크기_상한을_넘으면_읽다가_끊는다(wire, monkeypatch):
+    monkeypatch.setattr("app.clients.marketplace.base.MAX_PAGE_BYTES", 1000)
+    client = _TitleClient()
+    wire(client, lambda request: httpx.Response(200, text="<title>x</title>" + "a" * 2000))
+
+    with pytest.raises(PageTooLargeError):
+        client.fetch_raw(ProductPageRequest(url=URL))
+
+
+def test_이미지_서버의_https_주소가_아닌_이미지는_버린다(wire):
+    class _ImageClient(_TitleClient):
+        def _parse_page(self, raw):
+            urls = [
+                "https://image.made-in-china.com/2f0j00Ok/a.jpg",
+                "https://tracker.evil.example/pixel.jpg",  # 외부 추적·주입 이미지
+                "http://image.made-in-china.com/2f0j00Http/a.jpg",  # https 아님
+                "https://image.made-in-china.com.evil.example/a.jpg",
+                "https://[broken/a.jpg",  # 형식이 깨진 주소
+            ]
+            return ProductPage(source_url=str(raw.url), site=self.SITE, images=[
+                ProductPageImage(url=url, thumbnail_url=url, area="description") for url in urls])
+
+    client = _ImageClient()
+    wire(client, lambda request: httpx.Response(200, text="<html></html>"))
+
+    page = client.fetch_parsed(ProductPageRequest(url=URL))
+
+    assert [image.url for image in page.images] == ["https://image.made-in-china.com/2f0j00Ok/a.jpg"]
+
+
+def test_저장한_HTML도_사이트_도메인_밖_주소면_읽지_않는다():
+    with pytest.raises(BlockedUrlError):
+        _TitleClient().parse_html("https://evil.example/x.html", "<title>x</title>")
+
+
+@pytest.mark.parametrize(("host", "allowed"), [
+    ("made-in-china.com", True), ("yuntan.en.made-in-china.com", True), ("MADE-IN-CHINA.COM.", True),
+    ("made-in-china.com.evil.example", False), ("notmade-in-china.com", False), (None, False),
+])
+def test_도메인_자체와_하위_도메인만_허용한다(host, allowed):
+    assert matches_domain(host, ["made-in-china.com"]) is allowed
