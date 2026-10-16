@@ -192,6 +192,31 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
+    @DisplayName("소유자와 관계없이 진단서 id로 잠금 조회하면 진단서와 상품이 반환된다.")
+    void findByIdForUpdate_thenReturnDiagnosesWithProducts() {
+        // given: AI 콜백처럼 사용자 정보 없이 조회하는 경우
+        UUID diagnosesId = diagnosesRepository.save(createDiagnoses(OTHER_USER_ID, null)).getId();
+        flushAndClear();
+
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdForUpdate(diagnosesId);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getProducts()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("없는 진단서 id로 잠금 조회하면 빈 결과가 반환된다.")
+    void findByIdForUpdate_withUnknownId_thenReturnEmpty() {
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdForUpdate(UUID.randomUUID());
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     @DisplayName("상품의 질문은 상품과 함께 저장되고, 질문 순서대로 조회된다.")
     void save_thenPersistQuestionsInOrder() {
         // given: 질문을 순서와 반대로 추가한다.

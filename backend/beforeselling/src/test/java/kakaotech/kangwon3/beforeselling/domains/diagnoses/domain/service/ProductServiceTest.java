@@ -1,5 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
@@ -10,6 +12,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.Prod
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteRequestedEvent;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +49,7 @@ class ProductServiceTest {
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
+    private static final String RUN_ID = "run-1";
 
     @Mock
     private ProductRepository productRepository;
@@ -317,6 +321,149 @@ class ProductServiceTest {
         assertThat(diagnoses.getProducts()).hasSize(1);
         then(diagnosesRepository).should(never()).delete(any());
         then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("현재 실행의 결과를 받으면 상품이 완료되고 진단서 상태가 다시 계산된다.")
+    void completeDiagnosis_thenCompleteProductAndRefreshDiagnoses() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("구매대행으로 판매할 수 있습니다."));
+
+        // then
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+        assertThat(product.getSummary()).isEqualTo("구매대행으로 판매할 수 있습니다.");
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+    }
+
+    @Test
+    @DisplayName("다른 상품이 아직 진행 중이면 결과를 반영해도 진단서는 진행 중으로 남는다.")
+    void completeDiagnosis_withOtherProductInProgress_thenDiagnosesStillInProgress() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과"));
+
+        // then
+        assertThat(diagnoses.getProducts())
+                .extracting(Product::getProcessingStatus)
+                .containsExactly(ProcessingStatus.COMPLETED, ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("runId 확인을 끈 동안에는 실행 식별자를 저장하지 않은 상품도 결과를 반영한다.")
+    void completeDiagnosis_whenRunNotAssigned_thenCompleteForNow() {
+        // given: assignRun 흐름이 아직 없어 runId가 비어 있는 상태. runId 확인을 다시 켜면 이 테스트는 지운다.
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
+        diagnoses.startDiagnosis();
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과"));
+
+        // then
+        assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+    }
+
+    @Disabled("runId 저장(assignRun) 흐름 구현 전이라 ProductService의 runId 확인을 주석 처리함. 주석을 풀 때 함께 활성화")
+    @Test
+    @DisplayName("실행 식별자를 저장하기 전에 결과가 오면 다시 보내 달라는 LOCK_CONFLICT 예외가 발생하고 결과를 반영하지 않는다.")
+    void completeDiagnosis_whenRunNotAssigned_thenThrowLockConflict() {
+        // given: AI의 202 응답을 저장하기 전에 결과 콜백이 먼저 도착한 경우
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
+        diagnoses.startDiagnosis();
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertThatThrownBy(() -> productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과")))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.LOCK_CONFLICT);
+        assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Disabled("runId 저장(assignRun) 흐름 구현 전이라 ProductService의 runId 확인을 주석 처리함. 주석을 풀 때 함께 활성화")
+    @Test
+    @DisplayName("이전 실행의 결과가 늦게 오면 예외 없이 무시하고 상품은 진행 중으로 남는다.")
+    void completeDiagnosis_withPreviousRun_thenIgnore() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, "previous-run", assessmentContent("지난 결과"));
+
+        // then
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getSummary()).isNull();
+    }
+
+    @Test
+    @DisplayName("이미 결과가 반영된 상품에 결과가 다시 오면 예외 없이 무시하고 기존 결과를 유지한다.")
+    void completeDiagnosis_whenAlreadyCompleted_thenIgnore() {
+        // given: AI가 같은 결과를 재전송한 경우
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("처음 받은 결과"));
+
+        // when
+        productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("다시 받은 결과"));
+
+        // then
+        assertThat(diagnoses.getProducts().getFirst().getSummary()).isEqualTo("처음 받은 결과");
+    }
+
+    @Test
+    @DisplayName("없는 진단서의 결과가 오면 NOT_FOUND 예외가 발생한다.")
+    void completeDiagnosis_whenDiagnosesNotFound_thenThrowNotFound() {
+        // given
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> productService.completeDiagnosis(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, assessmentContent("결과")))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("진단서에 속하지 않은 상품의 결과가 오면 NOT_FOUND 예외가 발생하고 아무것도 바뀌지 않는다.")
+    void completeDiagnosis_whenProductNotInDiagnoses_thenThrowNotFound() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertThatThrownBy(() -> productService.completeDiagnosis(DIAGNOSES_ID, UUID.randomUUID(), RUN_ID, assessmentContent("결과")))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+        assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    private void givenLockedDiagnosesById(Diagnoses diagnoses) {
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+    }
+
+    // 진단을 시작하고 AI의 202 응답으로 받은 실행 식별자까지 저장한 상태
+    private Diagnoses createRunningDiagnoses(List<String> productNames) {
+        Diagnoses diagnoses = createDiagnoses(productNames);
+        diagnoses.startDiagnosis();
+        diagnoses.getProducts().forEach(product -> product.assignRun(RUN_ID));
+        return diagnoses;
+    }
+
+    private AssessmentContent assessmentContent(String summary) {
+        return new AssessmentContent(AssessmentStatus.COMPLETED, ResultStatus.PURCHASING_AGENT_ALLOWED,
+                summary, List.of(), List.of(), List.of());
     }
 
     private void givenLockedDiagnoses(Diagnoses diagnoses) {
