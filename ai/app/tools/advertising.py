@@ -5,7 +5,8 @@
 - 코드: 인용이 listing_text에 실제로 있는지 대조, 위험도, 근거 조문, 할 일, 질문.
 
 위반을 확정하지 않는다. 부당 여부는 소비자오인성·공정거래저해성으로 판단하고(지정고시 1),
-상품 글만으로는 판매자가 실증자료를 갖고 있는지 알 수 없어서 판단은 POSSIBLY_REQUIRED까지만 쓴다.
+상품 글만으로는 판매자가 실증자료를 갖고 있는지 알 수 없어서 찾은 주장은 POSSIBLY_REQUIRED까지만 쓴다.
+찾은 주장이 없으면 NOT_REQUIRED(실증이 필요한 주장 없음) 하나를 남긴다.
 근거 조문 원문은 tests/fixtures/advertising_law에 고정했고, 아래 인용 문구가 원문과 같은지 테스트가 확인한다.
 """
 
@@ -304,6 +305,11 @@ class AdvertisingTool(RegulatoryTool):
             actions.append(action)
             sources.extend(source for source in claim_sources if source not in sources)
 
+        if not findings:
+            # 판단이 비면 검증 규칙이 Tool 실패로 보고 재실행을 요청한다. 찾은 주장이 없다는 판단을 남긴다.
+            findings.append(self._no_claim_finding())
+            sources.append(LAW_ARTICLE_5)
+
         overall = max((phrase.risk_level for phrase in phrases), key=_RISK_ORDER.index, default=RiskLevel.LOW)
         return ToolResult(
             tool_name=self.tool_name,
@@ -318,6 +324,17 @@ class AdvertisingTool(RegulatoryTool):
             required_actions=actions,
             # 실증자료가 있는지는 물어도 판단이 바뀌지 않아 질문으로 내지 않는다. 할 일(required_actions)로만 안내한다(#310).
             raw_response=review.model_dump(mode="json"),
+        )
+
+    def _no_claim_finding(self) -> RegulatoryFinding:
+        """검토한 문구에서 실증이 필요한 주장을 찾지 못한 판단. 모델이 놓쳤을 수 있어 가정에 남긴다."""
+        return RegulatoryFinding(
+            tool_name=self.tool_name, subject="판매자 상품 문구",
+            determination=Determination.NOT_REQUIRED, risk_level=RiskLevel.LOW,
+            summary="검토한 판매자 문구에서 실증이 필요한 주장을 찾지 못했습니다.",
+            rationale="실증 운영 고시 Ⅲ 1~4(인체·안전·성능·순위)에 해당하는 사실 주장을 찾지 못했습니다.",
+            legal_sources=[LAW_ARTICLE_5],
+            assumptions=["추출 단계가 listing_text로 옮긴 판매자 문구만 검토했습니다. 놓친 주장이 있을 수 있습니다."],
         )
 
     def _no_listing_result(self, decision: ToolSelectionItem) -> ToolResult:
