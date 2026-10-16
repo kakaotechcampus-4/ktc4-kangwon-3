@@ -33,7 +33,7 @@ import java.util.UUID;
 public class ProductService {
 
     // BE가 직접 실패 처리할 때의 오류 코드
-    static final String STUCK_ERROR_CODE = "BE_DIAGNOSIS_TIMEOUT";
+    static final String STUCK_ERROR_CODE = "BE_DIAGNOSES_TIMEOUT";
     static final String STUCK_ERROR_MESSAGE = "진단 결과를 받지 못해 진단을 종료했습니다.";
 
     private final ProductRepository productRepository;

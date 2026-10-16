@@ -316,14 +316,14 @@ class ProductTest {
         Product product = createInProgressProduct();
 
         // when
-        product.fail(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+        product.fail(null, "BE_DIAGNOSES_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
         assertThat(product)
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
-                .containsExactly(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+                .containsExactly(null, "BE_DIAGNOSES_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
     }
 
     @ParameterizedTest(name = "code=[{0}], message=[{1}]")
