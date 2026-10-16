@@ -51,7 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class, InternalApiProperties.class})
 class AiCallbackControllerTest {
 
-    private static final UUID DIAGNOSIS_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
+    private static final UUID DIAGNOSES_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
     private static final UUID PRODUCT_ID = UUID.fromString("01990000-0000-7000-8000-000000000002");
     private static final String URL = "/internal/v1/ai/products/" + PRODUCT_ID;
     private static final String COMMON_FIELDS = """
@@ -144,7 +144,7 @@ class AiCallbackControllerTest {
 
         ProductResultEvent event = captor.getValue();
         assertThat(event.productId()).isEqualTo(PRODUCT_ID);
-        assertThat(event.diagnosisId()).isEqualTo(DIAGNOSIS_ID);
+        assertThat(event.diagnosesId()).isEqualTo(DIAGNOSES_ID);
         assertThat(event.runId()).isEqualTo("run-1");
         assertThat(event.assessment().status()).isEqualTo(AssessmentStatus.COMPLETED);
         assertThat(event.assessment().resultStatus()).isEqualTo(ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED);

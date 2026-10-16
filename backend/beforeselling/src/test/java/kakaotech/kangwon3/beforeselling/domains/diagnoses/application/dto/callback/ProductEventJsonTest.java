@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ActiveProfiles("test")
 class ProductEventJsonTest {
 
-    private static final UUID DIAGNOSIS_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
+    private static final UUID DIAGNOSES_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
     private static final UUID PRODUCT_ID = UUID.fromString("01990000-0000-7000-8000-000000000002");
     private static final String COMMON_FIELDS = """
             "eventId": "event-1",
@@ -56,7 +56,7 @@ class ProductEventJsonTest {
         ProductEvent event = jsonMapper.readValue(json, ProductEvent.class);
 
         // then
-        assertThat(event).isEqualTo(new ProductProgressEvent("event-1", DIAGNOSIS_ID, PRODUCT_ID, "run-1", 3,
+        assertThat(event).isEqualTo(new ProductProgressEvent("event-1", DIAGNOSES_ID, PRODUCT_ID, "run-1", 3,
                 PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS));
     }
 
@@ -94,7 +94,7 @@ class ProductEventJsonTest {
         ProductEvent event = jsonMapper.readValue(json, ProductEvent.class);
 
         // then
-        assertThat(event).isEqualTo(new ProductAwaitingInputEvent("event-1", DIAGNOSIS_ID, PRODUCT_ID, "run-1", 3, 2,
+        assertThat(event).isEqualTo(new ProductAwaitingInputEvent("event-1", DIAGNOSES_ID, PRODUCT_ID, "run-1", 3, 2,
                 List.of(new PublicQuestionDto("sales_type", 1, "구매대행으로 파나요?", "판매 방식"),
                         new PublicQuestionDto("target_age", 2, "대상 연령은?", null))));
     }
@@ -111,7 +111,7 @@ class ProductEventJsonTest {
         ProductEvent event = jsonMapper.readValue(json, ProductEvent.class);
 
         // then
-        assertThat(event).isEqualTo(new ProductFailedEvent("event-1", DIAGNOSIS_ID, PRODUCT_ID, "run-1", 3,
+        assertThat(event).isEqualTo(new ProductFailedEvent("event-1", DIAGNOSES_ID, PRODUCT_ID, "run-1", 3,
                 PipelineStage.VERIFICATION, new PublicErrorDto("AI_TIMEOUT", "시간이 초과되었습니다.", true)));
     }
 
@@ -202,7 +202,7 @@ class ProductEventJsonTest {
 
         // when & then
         assertThat(violatedPaths(event))
-                .containsExactlyInAnyOrder("eventId", "diagnosisId", "runId", "sequence", "stage");
+                .containsExactlyInAnyOrder("eventId", "diagnosesId", "runId", "sequence", "stage");
     }
 
     @ParameterizedTest(name = "questionRound={0}")
@@ -251,17 +251,17 @@ class ProductEventJsonTest {
     }
 
     private ProductProgressEvent progress(String eventId, int sequence, PipelineStage stage) {
-        return new ProductProgressEvent(eventId, DIAGNOSIS_ID, PRODUCT_ID, "run-1", sequence,
+        return new ProductProgressEvent(eventId, DIAGNOSES_ID, PRODUCT_ID, "run-1", sequence,
                 stage, StageStatus.STARTED, null);
     }
 
     private ProductAwaitingInputEvent awaitingInput(int questionRound, List<PublicQuestionDto> questions) {
-        return new ProductAwaitingInputEvent("event-1", DIAGNOSIS_ID, PRODUCT_ID, "run-1", 1,
+        return new ProductAwaitingInputEvent("event-1", DIAGNOSES_ID, PRODUCT_ID, "run-1", 1,
                 questionRound, questions);
     }
 
     private ProductFailedEvent failed(PublicErrorDto error) {
-        return new ProductFailedEvent("event-1", DIAGNOSIS_ID, PRODUCT_ID, "run-1", 1, null, error);
+        return new ProductFailedEvent("event-1", DIAGNOSES_ID, PRODUCT_ID, "run-1", 1, null, error);
     }
 
     private PublicQuestionDto question(String questionKey) {
