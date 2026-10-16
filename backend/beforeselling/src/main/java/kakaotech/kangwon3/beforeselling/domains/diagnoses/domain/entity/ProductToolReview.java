@@ -68,4 +68,12 @@ public class ProductToolReview extends BaseEntity {
         this.status = status;
         this.message = message;
     }
+
+    // 판단 항목은 받은 순서를 sortOrder로 고정한다.
+    static ProductToolReview of(Product product, AssessmentContent.ToolReviewContent content) {
+        ProductToolReview review = new ProductToolReview(product, content.toolName(), content.status(), content.message());
+        content.findings().forEach(finding ->
+                review.findings.add(ProductFinding.of(review, review.findings.size(), finding)));
+        return review;
+    }
 }
