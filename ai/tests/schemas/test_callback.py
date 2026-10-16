@@ -144,3 +144,23 @@ def test_분야_카드는_tool_name으로_나간다():
 def test_내부_Tool_이름의_멤버_이름이_공개_분야_이름과_같다():
     # 진행 콜백은 ToolName.name을 그대로 보냄. 한쪽만 바뀌면 여기서 잡힘
     assert {tool_name.name for tool_name in ToolName} == set(get_args(PublicToolName))
+
+
+@pytest.mark.parametrize("build", [
+    lambda blank: ProductProgressEvent(**{**_BASE, "run_id": blank}, stage="extraction", stage_status="started"),
+    lambda blank: _question(key=blank),
+    lambda blank: PublicQuestionDto(question_key="battery_only", question_order=1, question_text=blank),
+    lambda blank: PublicFindingDto(subject=blank, determination="required", risk_level="high", summary="요약",
+                                   rationale="근거"),
+    lambda blank: PublicFindingDto(subject="주제", determination="required", risk_level="high", summary=blank,
+                                   rationale="근거"),
+    lambda blank: PublicLegalSourceDto(source_name=blank),
+    lambda blank: _assessment(summary=blank),
+    lambda blank: _assessment(required_actions=["인증 받기", blank]),
+    lambda blank: _assessment(notices=[blank]),
+    lambda blank: PublicErrorDto(code="AI_TIMEOUT", message=blank),
+])
+def test_BE에서_NotBlank인_문자열은_공백만으로_보낼_수_없다(build):
+    # 공백뿐이면 BE가 400으로 거절해 재시도 없이 버려짐 (#331)
+    with pytest.raises(ValidationError):
+        build(" \t\n")
