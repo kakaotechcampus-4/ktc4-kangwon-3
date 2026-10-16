@@ -18,8 +18,8 @@ from ..base import RegulatoryTool
 from ..common.agent import ToolModelError, ToolStep
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable, compact
-from .evidence import SCHEME_ANNEXES, ChildrenItem, Definitions
-from .rules import EXCLUDED_KINDS, combined_child_state, sale_action
+from .evidence import SCHEME_ANNEXES, SHORT_SCOPE_LIMIT, ChildrenItem, Definitions
+from .rules import EXCLUDED_KINDS, age_text, age_value_bounded, combined_child_state, sale_action
 from .search import ChildrenCandidates, ChildrenItemSearch, default_item_search
 
 _FIELDS = {
@@ -33,6 +33,7 @@ _REQUIRED_FIELDS = ("product_type",)
 _SEARCH_TERMS_LIMIT = 3
 _SELECTIONS_LIMIT = 3
 _LAW_REF = "제2조"
+_DOTS = str.maketrans("", "", "·ㆍ?・")
 
 
 class ChildrenToolError(ToolModelError):
@@ -112,7 +113,8 @@ class ChildrenTool(RegulatoryTool):
                                     "excluded_kinds": list(EXCLUDED_KINDS)}, subject_id=product.product_id)
         facts = [fact for fact in extracted.facts
                  if quote_matches(fact, snippets, value_in_quote=fact.field != "excluded_kind")
-                 and (fact.field != "excluded_kind" or fact.value.strip() in EXCLUDED_KINDS)]
+                 and (fact.field != "excluded_kind" or _excluded_kind(fact.value) is not None)
+                 and (fact.field != "target_age" or age_value_bounded(fact.value, fact.quote))]
         query["dropped_facts"] = len(extracted.facts) - len(facts)
         by_field = group_facts(facts)
         terms = [term for term in extracted.search_terms if term.strip()][:_SEARCH_TERMS_LIMIT]
@@ -121,24 +123,34 @@ class ChildrenTool(RegulatoryTool):
         assumptions = ["전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."]
         if query["dropped_facts"]:
             assumptions.append(f"원문과 대조되지 않은 상품 조건 {query['dropped_facts']}개를 제외했습니다.")
-        missing = [field for field in ("product_type", "target_age") if field not in by_field]
+        ages = [age_text(fact.value, fact.quote) for fact in by_field.get("target_age", [])]
+        if not ages and product.target_age and any(
+                compact(product.target_age) in compact(text) for text in snippets.values()):
+            ages = [product.target_age]
+            query["age_source"] = "product.target_age"
+        missing = [field for field in ("product_type",) if field not in by_field]
+        if not ages:
+            missing.append("target_age")
 
-        state, age_conflict = combined_child_state([fact.value for fact in by_field.get("target_age", [])])
+        query["age_texts"] = ages
+        state, age_conflict = combined_child_state(ages)
+        if state is False and product.for_children is True:
+            state, age_conflict = None, True
+            assumptions.append("추출 단계는 만 13세 이하 대상으로 보았으나 표시 연령은 이를 포함하지 않아 "
+                               "어린이제품 해당 여부를 정하지 않았습니다.")
         query["age_state"] = state
         if age_conflict:
             query["conflicted"].append("target_age")
             missing.append("target_age")
-        conflicted = [field for field, values in by_field.items()
-                      if field not in ("target_age", "excluded_kind")
-                      and len({compact(fact.value) for fact in values}) > 1]
-        query["conflicted"].extend(conflicted)
-        missing.extend(conflicted)
-        if product.conflicts or query["conflicted"]:
-            assumptions.append("상품 정보에 모순이 있어 적용 조건을 확정하지 않았습니다.")
+        if query["conflicted"]:
+            assumptions.append("사용 대상 연령 정보가 서로 달라 어린이제품 해당 여부를 정하지 않았습니다.")
+        if product.conflicts:
+            assumptions.append("추출 단계가 상품 정보의 모순을 표시했습니다: " + "; ".join(product.conflicts)
+                               + ". 연령·제품 종류와 관련된 모순이면 결과가 달라질 수 있습니다.")
 
         try:
             skip_items = (any(field not in by_field for field in _REQUIRED_FIELDS) or state is False
-                          or "excluded_kind" in by_field or bool(product.conflicts))
+                          or "excluded_kind" in by_field)
             candidates = search.search([] if skip_items else self._terms(terms, by_field, product),
                                        top_k=self._top_k)
         except EvidenceUnavailable:
@@ -151,7 +163,7 @@ class ChildrenTool(RegulatoryTool):
 
         excluded = by_field.get("excluded_kind", [])
         if excluded:
-            kinds = list(dict.fromkeys(fact.value.strip() for fact in excluded))
+            kinds = list(dict.fromkeys(_excluded_kind(fact.value) for fact in excluded))
             query["excluded_kind"] = kinds
             return self._assemble(decision, facts, [self._finding(
                 subject="어린이제품 해당 여부 — 제외 물품 가능성",
@@ -173,21 +185,25 @@ class ChildrenTool(RegulatoryTool):
                 sources=[definitions.law.source(f"{_LAW_REF} 제1호", definitions.children_product)],
             )], missing, assumptions, query)
 
-        if any(field not in by_field for field in _REQUIRED_FIELDS) or product.conflicts:
-            if product.conflicts:
-                missing.append("product_type")
+        if any(field not in by_field for field in _REQUIRED_FIELDS):
             return self._assemble(decision, facts, [], missing, assumptions, query)
 
-        query["candidate_items"] = [item.item_id for item in candidates.items]
+        # 조회 상위 품목에 안전인증·안전확인 품목 전체를 더한다. 맞는 품목이 없을 때 공급자적합성확인으로 낮춰 안내하므로,
+        # 두 제도의 품목이 조회 순위에서 빠져 모델이 못 본 채로 낮춰지는 일이 없게 한다.
+        # 순위 밖 품목은 적용범위를 짧게 넣는다(전문을 모두 넣으면 입력이 약 4배로 늘었다, 실측).
+        ranked = set(candidates.items)
+        review_items = list(dict.fromkeys([*candidates.items, *candidates.designated]))
+        query["candidate_items"] = [item.item_id for item in review_items]
         findings, actions, selected = [], [], []
-        if candidates.items:
+        if review_items:
             review = review_step.run({
                 "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
                 "age_state": state,
-                "candidates": [item.as_candidate() for item in candidates.items],
+                "candidates": [item.as_candidate() if item in ranked else item.as_candidate(SHORT_SCOPE_LIMIT)
+                               for item in review_items],
             }, subject_id=product.product_id)
-            items = {item.item_id: item for item in candidates.items}
-            for selection in review.selections[:_SELECTIONS_LIMIT]:
+            items = {item.item_id: item for item in review_items}
+            for selection in review.selections:
                 if not selection.applies:
                     query["not_applicable"] += 1
                     continue
@@ -196,31 +212,40 @@ class ChildrenTool(RegulatoryTool):
                 if item is None or item.item_id in selected or not used:
                     query["dropped_candidates"] += 1
                     continue
+                if len(selected) >= _SELECTIONS_LIMIT:
+                    query["over_limit"] = query.get("over_limit", 0) + 1
+                    continue
                 selected.append(item.item_id)
                 missing.extend(field for field in selection.needed_fields if field not in by_field)
+                action = sale_action(item.scheme, item.name)
                 findings.append(self._candidate(item, selection.rationale, used, by_field, definitions, state,
-                                                assumptions, candidates))
-                actions.append(sale_action(item.scheme, item.name))
+                                                assumptions, candidates, action))
+                actions.append(action)
         query["selected_items"] = selected
         if query["dropped_candidates"]:
             assumptions.append(f"후보 행과 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
 
         if not findings:
             common = candidates.common_standard
-            if state is True:
+            if state is True and not query["dropped_candidates"]:
                 query["fallback"] = common.item_id
+                action = sale_action(common.scheme, "공통안전기준 적용 품목")
                 findings.append(self._finding(
                     subject="공급자적합성확인대상 어린이제품 후보 — 개별 안전기준이 없는 품목",
                     summary=("안전인증·안전확인 품목에 맞는 것을 찾지 못했습니다. 만 13세 이하 대상 어린이제품이면 "
-                             "공급자적합성확인대상이고 어린이제품 공통안전기준이 적용될 가능성이 있습니다."),
+                             "공급자적합성확인대상이고 어린이제품 공통안전기준이 적용될 가능성이 있습니다. 확정이 아닙니다."),
                     rationale="법 제2조 제12호는 안전인증·안전확인대상이 아닌 어린이제품을 공급자적합성확인대상으로 정합니다.",
                     determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                     facts=facts, assumptions=[*assumptions, "품목 선택에서 맞는 행을 찾지 못한 결과입니다."],
                     sources=[definitions.law.source(f"{_LAW_REF} 제1호", definitions.children_product),
                              definitions.law.source(f"{_LAW_REF} 제12호", definitions.supplier_product),
                              _rule_source(candidates, common)],
+                    requirements=[action],
                 ))
-                actions.append(sale_action(common.scheme, "공통안전기준 적용 품목"))
+                actions.append(action)
+            elif query["dropped_candidates"]:
+                assumptions.append("품목 선택 결과를 원문·후보와 대조하지 못해 품목을 정하지 않았습니다. "
+                                   "안전인증·안전확인 품목일 수 있어 공급자적합성확인으로 낮춰 안내하지 않았습니다.")
             else:
                 assumptions.append("후보 품목 중 맞는 것을 고르지 못했습니다. 비대상 판단이 아닙니다. "
                                    "만 13세 이하 대상이면 최소한 공급자적합성확인대상입니다(법 제2조 제12호).")
@@ -236,30 +261,32 @@ class ChildrenTool(RegulatoryTool):
 
     def _candidate(self, item: ChildrenItem, rationale: str, used: list[str], by_field: dict,
                    definitions: Definitions, state: bool | None, assumptions: list[str],
-                   candidates: ChildrenCandidates) -> RegulatoryFinding:
+                   candidates: ChildrenCandidates, action: str) -> RegulatoryFinding:
         sources = [_rule_source(candidates, item)]
         if item.scopes:
             sources.append(_notice_source(candidates, item))
         notes = ["모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."]
+        summary = (f"이 품목으로 분류되면 {item.scheme.value}대상 어린이제품일 가능성이 있습니다(확정 아님). "
+                   f"적용 안전기준: {', '.join(item.standards)}.")
         if state is True:
             sources.append(definitions.law.source(f"{_LAW_REF} 제1호", definitions.children_product))
         elif state is None:
-            notes.append("사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다.")
+            summary += " 사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다."
         return RegulatoryFinding(
             tool_name=self.tool_name, subject=f"{item.scheme.value}대상 어린이제품 후보 — {item.name}",
             determination=Determination.POSSIBLY_REQUIRED, risk_level=RiskLevel.MEDIUM,
-            summary=f"{item.scheme.value}대상 어린이제품일 가능성이 있습니다. 적용 안전기준: {', '.join(item.standards)}.",
-            rationale=rationale, legal_sources=sources,
+            summary=summary, rationale=rationale, legal_sources=sources, requirements=[action],
             product_facts_used=[f"{_FIELDS[field]}: {fact.value} (근거: {fact.quote})"
                                 for field in used for fact in by_field[field]],
             assumptions=[*assumptions, *notes],
         )
 
     def _finding(self, *, subject: str, summary: str, rationale: str, determination: Determination,
-                 risk: RiskLevel, facts: list, assumptions: list[str], sources: list[LegalSource]) -> RegulatoryFinding:
+                 risk: RiskLevel, facts: list, assumptions: list[str], sources: list[LegalSource],
+                 requirements: list[str] | None = None) -> RegulatoryFinding:
         return RegulatoryFinding(
             tool_name=self.tool_name, subject=subject, determination=determination, risk_level=risk,
-            summary=summary, rationale=rationale, legal_sources=sources,
+            summary=summary, rationale=rationale, legal_sources=sources, requirements=list(requirements or []),
             product_facts_used=[f"{_FIELDS[fact.field]}: {fact.value} (근거: {fact.quote})" for fact in facts],
             assumptions=list(assumptions),
         )
@@ -276,7 +303,7 @@ class ChildrenTool(RegulatoryTool):
                 determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,
                 facts=facts, assumptions=assumptions, sources=[],
             )]
-        ages = [fact.value for fact in facts if fact.field == "target_age"]
+        ages = query.get("age_texts") or [fact.value for fact in facts if fact.field == "target_age"]
         types = [fact.value for fact in facts if fact.field == "product_type"]
         schemes = list(dict.fromkeys(
             finding.subject.split("대상", 1)[0] for finding in findings
@@ -299,6 +326,12 @@ class ChildrenTool(RegulatoryTool):
                                  for field in missing],
             query=query,
         )
+
+
+def _excluded_kind(value: str) -> str | None:
+    """제외 물품 값을 정해진 이름으로 맞춘다. 공백·가운뎃점(·, ㆍ, ?) 차이는 무시한다."""
+    key = compact(value).translate(_DOTS)
+    return next((kind for kind in EXCLUDED_KINDS if compact(kind).translate(_DOTS) == key), None)
 
 
 def _hints(product: Product) -> dict[str, Any]:

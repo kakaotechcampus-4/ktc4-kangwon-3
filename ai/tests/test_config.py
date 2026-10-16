@@ -8,7 +8,6 @@ from app import config
 _VALID = {
     "api_key": "test-key",
     "base_url": "https://mlapi.run/example/v1",
-    "model": "openai/gpt-4.1-mini",
     "embedding_model": "openai/text-embedding-3-small",
     "database_url": "postgresql+psycopg://ai:ai@localhost:5433/ai",
     "data_go_kr_key": "test-data-key",
@@ -19,12 +18,13 @@ _VALID = {
 _VALID_ENV = {
     "OPENAI_API_KEY": "test-key",
     "OPENAI_BASE_URL": "https://mlapi.run/example/v1",
-    "OPENAI_MODEL": "openai/gpt-4.1-mini",
     "OPENAI_EMBEDDING_MODEL": "openai/text-embedding-3-small",
     "DATABASE_URL": "postgresql+psycopg://ai:ai@localhost:5433/ai",
     "DATA_GO_KR_KEY": "test-data-key",
     "KEY_SAFETYKOREA": "test-safety-key",
     "LAW_GO_KR_OC": "test-oc",
+    # 셸에 남은 덮어쓰기 값이 테스트에 섞이지 않게 기본은 지움
+    "MODEL_PROFILE_OVERRIDES": None,
 }
 
 
@@ -35,7 +35,7 @@ def _settings(**overrides) -> config.Settings:
 
 def _env(monkeypatch, **overrides):
     """실제 ai/.env를 읽지 않고, 필수 환경변수가 모두 있는 환경을 만든다. 값이 None이면 지운다."""
-    monkeypatch.setattr(config, "load_dotenv", lambda **kwargs: False)
+    monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
     for name, value in {**_VALID_ENV, **overrides}.items():
         if value is None:
             monkeypatch.delenv(name, raising=False)
@@ -55,19 +55,14 @@ def test_api_key가_없으면_설정_로딩에_실패한다(monkeypatch):
     """환경과 .env 어디에도 API 키가 없으면 호출 전에 실패한다."""
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr(config, "load_dotenv", lambda **kwargs: False)
+    monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
 
     with pytest.raises(config.ConfigError, match="OPENAI_API_KEY"):
         config.load_settings()
 
 
-def test_허용되지_않은_모델은_거부한다():
-    with pytest.raises(config.ConfigError, match="허용되지 않은 모델"):
-        _settings(model="openai/gpt-4.1")
-
-
 def test_base_url이_없으면_설정_로딩에_실패한다(monkeypatch):
-    monkeypatch.setattr(config, "load_dotenv", lambda **kwargs: False)
+    monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
 
@@ -118,13 +113,12 @@ def test_필수_환경변수가_모두_있으면_설정을_읽는다(monkeypatch
     assert settings.data_go_kr_key == "data-key-with-space"
     assert settings.safetykorea_key == _VALID_ENV["KEY_SAFETYKOREA"]
     assert settings.law_oc == _VALID_ENV["LAW_GO_KR_OC"]
-    assert settings.model == _VALID_ENV["OPENAI_MODEL"]
     assert settings.embedding_model == _VALID_ENV["OPENAI_EMBEDDING_MODEL"]
 
 
 @pytest.mark.parametrize(
     "missing",
-    ["OPENAI_MODEL", "OPENAI_EMBEDDING_MODEL", "DATA_GO_KR_KEY", "KEY_SAFETYKOREA", "LAW_GO_KR_OC"],
+    ["OPENAI_EMBEDDING_MODEL", "DATA_GO_KR_KEY", "KEY_SAFETYKOREA", "LAW_GO_KR_OC"],
 )
 def test_모델_이름과_외부_API_키가_없으면_설정_로딩에_실패한다(monkeypatch, missing):
     # 코드에 기본값이 없으므로 하나라도 빠지면 조용히 메워지지 않고 lifespan에서 기동이 실패해야 한다.
@@ -165,7 +159,7 @@ def test_빠진_필수_환경변수는_한_번에_모두_알려준다(monkeypatc
 
 
 @pytest.mark.parametrize(
-    "field_name", ["model", "embedding_model", "data_go_kr_key", "safetykorea_key", "law_oc"],
+    "field_name", ["embedding_model", "data_go_kr_key", "safetykorea_key", "law_oc"],
 )
 def test_Settings를_직접_만들어도_필수_값이_비면_거부한다(field_name):
     with pytest.raises(config.ConfigError, match="필수 설정이 비어 있습니다"):
@@ -198,25 +192,23 @@ def test_DB_접속_정보와_외부_API_키는_repr에_노출되지_않는다():
         assert secret not in representation
 
 
-def test_build_chat_model이_설정값을_chatopenai에_전달한다(monkeypatch):
+@pytest.mark.parametrize(("profile_name", "model", "options"), [
+    ("mini", "openai/gpt-4.1-mini", {"temperature": 0}),
+    # 추론 모델은 temperature를 보내지 않고 추론 강도만
+    ("luna-low", "openai/gpt-6-luna", {"reasoning_effort": "low"}),
+])
+def test_build_chat_model은_프로필에_있는_옵션만_보낸다(monkeypatch, profile_name, model, options):
     captured = {}
-    sentinel = object()
+    monkeypatch.setattr(langchain_openai, "ChatOpenAI", lambda **kwargs: captured.update(kwargs))
+    settings = _settings()
 
-    def fake_chat_openai(**kwargs):
-        captured.update(kwargs)
-        return sentinel
+    config.build_chat_model(config.MODEL_PROFILES[profile_name], settings)
 
-    monkeypatch.setattr(langchain_openai, "ChatOpenAI", fake_chat_openai)
-    settings = _settings(model="openai/gpt-4.1-mini")
-
-    result = config.build_chat_model(settings)
-
-    assert result is sentinel
     assert captured == {
-        "model": settings.model,
+        "model": model,
         "base_url": settings.base_url,
         "api_key": settings.api_key,
-        "temperature": 0,
+        **options,
         "timeout": config.TIMEOUT_SECONDS,
         "max_retries": config.MAX_RETRIES,
         # 게이트웨이의 비스트리밍 출력 한도(2,000토큰)를 피한다. 빠지면 긴 페이지 추출이 실패한다.
@@ -245,3 +237,96 @@ def test_get_settings는_검증에_실패한_결과를_캐시하지_않는다(mo
     monkeypatch.setenv("KEY_SAFETYKOREA", "fixed-key")
 
     assert config.get_settings().safetykorea_key == "fixed-key"
+
+
+def test_에이전트마다_기본_프로필을_쓴다(monkeypatch):
+    _env(monkeypatch)
+    settings = config.load_settings()
+
+    assert config.agent_profile("extraction", settings) is config.MODEL_PROFILES["mini"]
+    assert config.agent_profile("selection", settings).name == config.AGENT_PROFILES["selection"]
+
+
+def test_덮어쓰기에_적은_에이전트만_프로필이_바뀐다(monkeypatch):
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES=" agent.extraction = luna-low ")
+    settings = config.load_settings()
+
+    profile = config.agent_profile("extraction", settings)
+
+    # 적지 않은 에이전트는 코드 기본값
+    assert config.agent_profile("selection", settings).name == config.AGENT_PROFILES["selection"]
+    assert profile.name == "luna-low"
+    assert profile.model.id == "openai/gpt-6-luna"
+    # 추론 모델은 temperature를 보내지 않음
+    assert profile.temperature is None
+    assert profile.reasoning_effort == "low"
+
+
+def test_없는_프로필_이름은_기본값으로_넘기지_않고_거부한다(monkeypatch):
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES="agent.selection=gpt-5")
+
+    with pytest.raises(config.ConfigError, match="agent.selection='gpt-5'"):
+        config.load_settings()
+
+
+def test_프로필이_정해지지_않은_에이전트는_거부한다():
+    with pytest.raises(config.ConfigError, match="unknown"):
+        config.agent_profile("unknown", _settings())
+
+
+def test_Tool은_에이전트와_다른_표에서_프로필을_고른다(monkeypatch):
+    # 에이전트와 Tool 이름이 겹쳐도 서로의 프로필을 바꾸지 않음
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES="tool.electrical_safety=luna-low")
+    settings = config.load_settings()
+
+    assert config.tool_profile("electrical_safety", settings).name == "luna-low"
+    assert set(settings.agent_profiles.values()) == {"mini"}
+    with pytest.raises(config.ConfigError, match="Tool"):
+        config.tool_profile("extraction", settings)
+
+
+def test_없는_Tool_프로필_이름도_기동을_막는다(monkeypatch):
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES="tool.electrical_safety=gpt-5")
+
+    with pytest.raises(config.ConfigError, match="tool.electrical_safety='gpt-5'"):
+        config.load_settings()
+
+
+def test_덮어쓰기는_쉼표로_여러_대상을_받는다():
+    overrides = config.settings.parse_profile_overrides(
+        "agent.extraction=luna-low, tool.electrical_safety=luna-medium,")
+
+    assert overrides == {("agent", "extraction"): "luna-low", ("tool", "electrical_safety"): "luna-medium"}
+    assert config.settings.parse_profile_overrides("") == {}
+
+
+@pytest.mark.parametrize(("raw", "message"), [
+    ("extraction=luna-low", "형식"),          # 종류 없음
+    ("agent.extraction", "형식"),             # 프로필 없음
+    ("model.extraction=luna-low", "형식"),    # 없는 종류
+    ("agent.extracton=luna-low", "extracton"),  # 표에 없는 이름 (오타)
+    ("tool.extraction=luna-low", "extraction"),  # 에이전트 이름을 Tool로
+])
+def test_덮어쓰기_오타는_조용히_무시하지_않고_기동을_막는다(monkeypatch, raw, message):
+    _env(monkeypatch, MODEL_PROFILE_OVERRIDES=raw)
+
+    with pytest.raises(config.ConfigError, match=message):
+        config.load_settings()
+
+
+@pytest.mark.parametrize(("build", "pick", "name"), [
+    ("build_agent_model", "agent_profile", "selection"),
+    ("build_tool_model", "tool_profile", "electrical_safety"),
+])
+def test_에이전트_Tool_모델은_설정을_한_번_읽고_프로필로_만든다(monkeypatch, build, pick, name):
+    _env(monkeypatch)
+    reads = []
+    original = config.settings.load_settings
+    monkeypatch.setattr(config.chat, "load_settings", lambda: reads.append(1) or original())
+    captured = {}
+    monkeypatch.setattr(langchain_openai, "ChatOpenAI", lambda **kwargs: captured.update(kwargs))
+
+    getattr(config, build)(name)
+
+    assert len(reads) == 1
+    assert captured["model"] == getattr(config, pick)(name, original()).model.id

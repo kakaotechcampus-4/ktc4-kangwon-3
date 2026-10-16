@@ -20,7 +20,7 @@ from .rules import (
     power_conflicts, sale_actions,
 )
 from .search import ElectricalItemSearch, default_item_search
-from ...config import build_chat_model
+from ...config import build_tool_model
 from ...schemas.agent import ToolSelectionItem
 from ...schemas.base import StrictModel
 from ...schemas.electrical import ElectricalFact, ElectricalFacts, ElectricalReview
@@ -104,7 +104,7 @@ class ElectricalTool(RegulatoryTool):
                                   ["입력에 인용 가능한 상품 설명이 없습니다."], query)
 
         # ① 조건 추출
-        model = self._model if self._model is not None else build_chat_model()
+        model = self._model if self._model is not None else build_tool_model(self.tool_name)
         payload = {"hints": product.model_dump(mode="json"), "evidence": snippets}
         extracted: ElectricalFacts = self._invoke(model, ElectricalFacts, "electrical/facts.md", payload, product)
         # 원문과 대조되지 않는 조건은 그 항목만 버린다. 하나 때문에 전체를 실패시키면
@@ -291,6 +291,7 @@ class ElectricalTool(RegulatoryTool):
         finally:
             record("electrical-facts" if schema is ElectricalFacts else "electrical-review", from_response(raw),
                    configured_model=self._configured_model or getattr(model, "model_name", None),
+                   reasoning_effort=getattr(model, "reasoning_effort", None),
                    subject_id=product.product_id, ok=error is None,
                    elapsed_ms=round((perf_counter() - started) * 1000), error_type=error)
 

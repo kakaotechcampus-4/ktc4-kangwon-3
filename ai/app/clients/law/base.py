@@ -8,8 +8,9 @@ from ..base import BaseClient, RequestT, ResponseT
 
 _BASE_URL = "https://www.law.go.kr"
 
-# 별표·첨부 파일 형식 우선순위 (파싱 쉬운 순). 목록에 없는 형식은 맨 뒤
-_FILE_TYPE_PRIORITY = ("pdf", "xlsx", "hwpx", "hwp", "gif", "png", "jpg", "jpeg", "zip")
+# 별표·첨부 파일 형식 우선순위 (표 구조가 남는 순). 목록에 없는 형식은 맨 뒤
+# HWPX·HWP는 칸 주소·병합이 파일에 그대로 있어 표를 정확히 복원. PDF는 선·글자 위치로 추정
+_FILE_TYPE_PRIORITY = ("hwpx", "hwp", "xlsx", "pdf", "gif", "png", "jpg", "jpeg", "zip")
 
 
 class LawGoKrClient(BaseClient[RequestT, ResponseT]):
@@ -109,7 +110,7 @@ class LawGoKrClient(BaseClient[RequestT, ResponseT]):
     def _pick_file(candidates: list[tuple[str | None, str | None]]) -> tuple[str | None, str | None]:
         """같은 내용의 파일 링크 여러 개 중 파싱하기 쉬운 형식 하나를 고른다.
 
-        우선순위는 PDF → XLSX → HWPX → HWP → 이미지 → ZIP. 경로만 온 링크는 완전한 주소로 바꿈.
+        우선순위는 HWPX → HWP → XLSX → PDF → 이미지 → ZIP. 경로만 온 링크는 완전한 주소로 바꿈.
 
         Args:
             candidates: (링크, 형식) 목록. 링크가 비어 있는 항목은 건너뜀.

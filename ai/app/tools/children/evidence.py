@@ -1,21 +1,23 @@
 """어린이제품 안전관리 근거: 법 제2조(정의), 시행규칙 별표 1~3(제도별 품목), 운용요령 별표 3~5(적용범위).
 
-법제처 별표는 글자로 그린 표라 칸 구조가 불안정하다. 적재 단계 파싱 에이전트가 DB에 행을 넣으면
+법제처 별표는 글자로 그린 표라 칸 구조가 불안정하다. 별표 규칙 파서(#307) 결과가 DB에 적재되면
 그 경로(search.DatabaseItemSearch)로 바꾸고, 그 전까지 이 모듈이 법제처 응답을 직접 읽는다.
 - 시행규칙 별표 1~3: 2칸 표(품목 | 적용 안전기준)라 코드로 행을 나눈다.
 - 운용요령 별표 3~5: 적용범위가 긴 설명문이라 칸을 더 나누지 않고 품목 단위 원문 덩어리로 붙인다.
   연령·제외 조건은 품목 선택 단계 모델이 원문을 읽는다.
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
 from ..common.law import (
-    DocRef, EvidenceUnavailable, LawLookup, annex_text, compact, load_admrul, load_law, normalize_text,
+    DocRef, EvidenceUnavailable, LawLookup, annex_text, compact, join_wrapped, load_admrul, load_law,
+    normalize_text,
 )
-from ..common.ranking import _bigrams
+from ..common.ranking import bigrams
 
 LAW_NAME = "어린이제품 안전 특별법"
 LAW_ID = "012070"
@@ -31,6 +33,17 @@ _DELETED_RE = re.compile(r"^삭제\s*<")
 _COMMON_STANDARD_RE = re.compile(r"2\.\s*개별\s*안전기준이\s*없는.*?적용한다\.")
 _LINK_THRESHOLD = 0.4
 _SCOPE_LIMIT = 1500
+# 조회 순위 밖에서 함께 넘기는 안전인증·안전확인 품목의 적용범위 길이. 품목을 알아볼 만큼만 넣어 입력을 줄인다.
+SHORT_SCOPE_LIMIT = 300
+# 품목명에 붙은 포함 문구. 예: "어린이용 안경테(선글라스를 포함한다)", "어린이용 온열팩 (주머니난로 포함)".
+_INCLUDES_RE = re.compile(r"\s*\(([^()]*포함[^()]*)\)")
+
+logger = logging.getLogger(__name__)
+
+
+def without_includes(name: str) -> str:
+    """품목명에서 포함 문구를 뗀 이름. 조회어·순위에 "포함한다" 같은 글자가 섞이지 않게 한다."""
+    return _INCLUDES_RE.sub("", name).strip()
 
 
 class Scheme(StrEnum):
@@ -60,12 +73,22 @@ class ChildrenItem:
     scopes: tuple[str, ...] = ()
     scope_names: tuple[str, ...] = ()
 
-    def as_candidate(self) -> dict:
+    @property
+    def short_name(self) -> str:
+        """포함 문구를 뗀 품목명. 조회·순위·품목명 목록에 쓴다(근거 원문과 판단 제목은 name 그대로)."""
+        return without_includes(self.name)
+
+    @property
+    def includes(self) -> tuple[str, ...]:
+        """품목명에 붙은 포함 문구. 예: ("선글라스를 포함한다",)."""
+        return tuple(match.group(1).strip() for match in _INCLUDES_RE.finditer(self.name))
+
+    def as_candidate(self, scope_limit: int = _SCOPE_LIMIT) -> dict:
         """품목 선택 모델에 넘기는 모양. 적용범위는 길어서 잘라 넘긴다(근거는 코드가 원문을 붙인다)."""
         scope = " ".join(self.scopes)
         return {"item_id": self.item_id, "scheme": self.scheme.value, "item": self.name,
                 "standards": list(self.standards),
-                "scope": scope[:_SCOPE_LIMIT] + ("…" if len(scope) > _SCOPE_LIMIT else "")}
+                "scope": scope[:scope_limit] + ("…" if len(scope) > scope_limit else "")}
 
 
 @dataclass(frozen=True)
@@ -150,10 +173,10 @@ def parse_rule_annex(text: str, scheme: Scheme) -> list[ChildrenItem]:
         if not name or _DELETED_RE.match(name):
             continue
         number = int(row["label"]) if row["label"].isdigit() else _KOREAN_LABELS.index(row["label"]) + 1
+        standards = tuple(normalize_text(standard) for standard in row["standards"])
         items.append(ChildrenItem(
-            item_id=f"{prefix}-{number:02d}", scheme=scheme, name=name,
-            standards=tuple(normalize_text(standard) for standard in row["standards"]),
-            row_text=normalize_text(" ".join(row["lines"])),
+            item_id=f"{prefix}-{number:02d}", scheme=scheme, name=name, standards=standards,
+            row_text=f"{row['label']}. {name} — 적용 안전기준: {', '.join(standards)}",
         ))
     if not items:
         raise EvidenceUnavailable(f"시행규칙 별표 {SCHEME_ANNEXES[scheme][0]}에서 품목을 찾지 못했습니다.")
@@ -180,7 +203,7 @@ def parse_scope_annex(text: str) -> list[tuple[str, str]]:
             continue
         width = max(len(cells) for cells in block)
         name = "".join(cells[-2] for cells in block if len(cells) == width)
-        scope = normalize_text(" ".join(cells[-1] for cells in block))
+        scope = join_wrapped([cells[-1] for cells in block])
         if not compact(name) or compact(name) == "품목" or not scope:
             continue
         result.append((normalize_text(name), scope))
@@ -188,7 +211,7 @@ def parse_scope_annex(text: str) -> list[tuple[str, str]]:
 
 
 def _similarity(left: str, right: str) -> float:
-    a, b = set(_bigrams(left)), set(_bigrams(right))
+    a, b = set(bigrams(left)), set(bigrams(right))
     return len(a & b) / len(a | b) if a and b else 0.0
 
 
@@ -232,7 +255,8 @@ def link_scopes(items: list[ChildrenItem], scopes: list[tuple[str, str]]) -> tup
 
 
 def common_standard_item(text: str) -> ChildrenItem:
-    match = _COMMON_STANDARD_RE.search(normalize_text(text))
+    lines = [cells[0] for line in text.splitlines() if (cells := _cells(line)) is not None and len(cells) == 1]
+    match = _COMMON_STANDARD_RE.search(join_wrapped(lines))
     if match is None:
         raise EvidenceUnavailable("시행규칙 별표 3에서 개별 안전기준이 없는 품목의 기준을 찾지 못했습니다.")
     sentence = match.group(0)
@@ -262,5 +286,9 @@ def load_children_evidence(client: LawLookup, as_of: date) -> ChildrenEvidence:
         unlinked.extend(missing)
         if scheme is Scheme.SUPPLIER:
             common = common_standard_item(rule_text)
+    if unlinked:
+        # 법 개정으로 품목명이 바뀌면 적용범위가 조용히 빠질 수 있어 남긴다. 품목 행은 적용범위 없이 그대로 쓴다.
+        logger.warning("어린이제품 운용요령 적용범위 %d개를 시행규칙 품목에 잇지 못했습니다: %s",
+                       len(unlinked), ", ".join(unlinked))
     return ChildrenEvidence(as_of=as_of, definitions=definitions, rule=rule.ref, notice=notice.ref,
                             items=tuple(items), common_standard=common, unlinked_scopes=tuple(unlinked))

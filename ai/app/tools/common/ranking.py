@@ -11,7 +11,8 @@ from .law import compact
 _T = TypeVar("_T")
 
 
-def _bigrams(text: str) -> Counter:
+def bigrams(text: str) -> Counter:
+    """한글·영문·숫자만 남겨 글자 2개 단위로 센다."""
     chars = re.sub(r"[^0-9A-Za-z가-힣]", "", text)
     return Counter(chars[i:i + 2] for i in range(len(chars) - 1)) if len(chars) > 1 else Counter([chars])
 
@@ -33,7 +34,7 @@ def rank_rows(rows: Iterable[_T], terms: list[str], *, text: Callable[[_T], str]
         top_k: 돌려줄 최대 행 수. 점수가 0인 행은 빼는다.
     """
     rows = list(rows)
-    documents = [_bigrams(text(row)) for row in rows]
+    documents = [bigrams(text(row)) for row in rows]
     frequency = Counter(gram for document in documents for gram in document)
     idf = {gram: math.log((1 + len(rows)) / (1 + count)) + 1 for gram, count in frequency.items()}
     queries = list(dict.fromkeys(term.strip() for term in terms if term and term.strip()))
@@ -45,7 +46,7 @@ def rank_rows(rows: Iterable[_T], terms: list[str], *, text: Callable[[_T], str]
     def norm(weights: dict[str, float]) -> float:
         return math.sqrt(sum(value * value for value in weights.values())) or 1.0
 
-    query_weights = [weight(_bigrams(term)) for term in queries]
+    query_weights = [weight(bigrams(term)) for term in queries]
     scored = []
     for row, document in zip(rows, documents):
         weights = weight(document)

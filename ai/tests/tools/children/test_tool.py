@@ -106,6 +106,25 @@ def run(product, facts, chosen=None, search=None):
 
 
 
+def test_안전인증_안전확인_품목은_조회_순위와_상관없이_모두_모델에_준다():
+    product, facts = product_and_facts(search_terms=("완구",))
+    result, model, _ = run(product, facts, review(select()))
+    designated = [item.item_id for item in _EVIDENCE.items if item.scheme.value in ("안전인증", "안전확인")]
+    assert len(designated) == 21
+    assert set(designated) <= set(result.query["candidate_items"])
+    assert all(item_id in model.last_payload["ChildrenReview"] for item_id in designated)
+
+
+def test_조회에서_빠진_안전확인_품목도_골라지면_공급자적합성확인으로_낮추지_않는다():
+    # "유모차"를 조회어로 주지 않아도(순위 밖) 모델이 유모차 행을 고를 수 있어야 한다.
+    product, facts = product_and_facts("접이식 휴대용 유모차, 6~36개월", (("product_type", "휴대용 유모차"),
+                                                                     ("target_age", "6~36개월")), search_terms=("가방",))
+    result, _, _ = run(product, facts, review(select(STROLLER_ROW)))
+    assert result.query["selected_items"] == [STROLLER_ROW]
+    assert "fallback" not in result.query
+    assert result.findings[0].subject.startswith("안전확인대상 어린이제품 후보")
+
+
 def test_미선택이면_모델과_조회를_부르지_않는다():
     product, facts = product_and_facts()
     model, search = Model(facts), Search()
@@ -140,6 +159,20 @@ def test_맞는_품목을_고르면_후보와_근거_원문과_판매_전_할_�
     assert result.result.intended_for_children is True
     assert result.result.safety_management_required is None
     assert result.query["selected_items"] == [TOY_ROW]
+
+
+def test_조건과_확정_아님을_요약에_쓰고_할_일을_판단에도_연결한다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review(select()))
+    finding = result.findings[0]
+    assert finding.summary.startswith("이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님).")
+    assert finding.requirements == result.required_actions
+
+
+def test_연령을_모르면_요약에_연령_조건을_쓴다():
+    product, facts = product_and_facts("블록 장난감 세트", (("product_type", "블록 장난감"),))
+    result, _, _ = run(product, facts, review(select()))
+    assert "만 13세 이하 대상일 때 적용됩니다" in result.findings[0].summary
 
 
 def test_맞는_품목이_없어도_어린이제품이면_공급자적합성확인_후보를_낸다():
@@ -188,6 +221,14 @@ def test_제외_물품으로_표시되면_다른_법_영역으로_안내한다()
     assert result.query["excluded_kind"] == ["식품용 기구"]
 
 
+def test_제외_물품_값의_가운뎃점_차이는_같은_이름으로_본다():
+    text = "이유식 보관 용기, 식품 용기ㆍ포장"
+    product, facts = product_and_facts(text, (("product_type", "이유식 보관 용기"),))
+    facts.facts.append(ChildrenFact(field="excluded_kind", value="식품 용기ㆍ포장", evidence_id="listing-0", quote=text))
+    result, _, _ = run(product, facts, review())
+    assert result.query["excluded_kind"] == ["식품 용기·포장"]
+
+
 def test_정해진_이름이_아닌_제외_물품_값은_버린다():
     product, facts = product_and_facts()
     facts.facts.append(ChildrenFact(field="excluded_kind", value="장난감", evidence_id="listing-0",
@@ -215,6 +256,71 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다(problem
     assert search.calls == [[]]
 
 
+def test_숫자_중간에서_잘린_연령_값은_버린다():
+    product, facts = product_and_facts("블록 장난감, 13세 이상", (("product_type", "블록 장난감"), ("target_age", "3세")))
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["dropped_facts"] == 1
+    assert result.query["age_state"] is None
+
+
+def test_사용_금지_연령은_반대로_읽어_성인용이면_어린이제품_후보를_내지_않는다():
+    text = "레이저 포인터, 만 14세 미만 사용 금지"
+    product, facts = product_and_facts(text, (("product_type", "레이저 포인터"), ("target_age", "만 14세 미만 사용 금지")))
+    result, _, _ = run(product, facts, review())
+    assert result.query["age_state"] is False
+    assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
+
+
+def test_연령_값에서_금지_문구가_잘려도_인용의_금지_문구로_읽는다():
+    text = "그린 레이저 포인터, 만 14세 미만 사용 금지"
+    product, facts = product_and_facts(text, (("product_type", "레이저 포인터"), ("target_age", "만 14세 미만")))
+    result, _, _ = run(product, facts, review())
+    assert result.query["age_state"] is False
+    assert "fallback" not in result.query
+
+
+def test_추출_단계가_어린이_대상이라_했는데_표시_연령이_미포함이면_단정하지_않고_묻는다():
+    product, facts = product_and_facts("코딩 로봇 키트, 14세 이상", (("product_type", "코딩 로봇 키트"), ("target_age", "14세 이상")))
+    product.for_children = True
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["age_state"] is None
+    assert "target_age" in result.query["conflicted"]
+    assert "사용 대상 연령 정보가 서로 달라 확인이 필요합니다." in result.missing_information
+    assert not any("아닐 가능성" in finding.summary for finding in result.findings)
+
+
+def test_모델이_연령을_인용하지_못해도_추출_단계_연령이_원문에_있으면_쓴다():
+    product, facts = product_and_facts("블록 장난감 세트, 사용연령 만 3세 이상", (("product_type", "블록 장난감"),))
+    product.target_age = "만 3세 이상"
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["age_source"] == "product.target_age"
+    assert result.query["age_state"] is True
+    assert result.result.target_age_raw == "만 3세 이상"
+    assert not any("사용 대상 연령" in question for question in result.missing_information)
+
+
+def test_재질이나_제품_종류가_여러_개여도_충돌로_묻지_않고_모두_조회에_쓴다():
+    text = "원목 블록 장난감 겸 쌓기 놀이 블록, 소재 원목·수성 페인트, 만 3세 이상"
+    product, facts = product_and_facts(text, (
+        ("product_type", "원목 블록 장난감"), ("product_type", "쌓기 놀이 블록"),
+        ("material", "원목"), ("material", "수성 페인트"), ("target_age", "만 3세 이상")))
+    result, _, search = run(product, facts, review(select()))
+    assert result.query["conflicted"] == []
+    assert not any("서로 달라" in question for question in result.missing_information)
+    assert {"원목 블록 장난감", "쌓기 놀이 블록"} <= set(search.calls[0])
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+
+
+def test_연령과_무관한_상품_모순은_조회를_막지_않고_가정으로만_남긴다():
+    product, facts = product_and_facts()
+    product.conflicts = ["배터리 용량 표기가 서로 다릅니다."]
+    result, _, search = run(product, facts, review(select()))
+    assert search.calls[0] != []
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+    assert "제품 종류 정보가 필요합니다." not in result.missing_information
+    assert any("배터리 용량 표기" in note for note in result.findings[0].assumptions)
+
+
 def test_연령_표기끼리_어긋나면_서로_다르다고_묻는다():
     text = "블록 장난감, 만 3세 이상, 14세 이상 권장"
     product, facts = product_and_facts(text, (("product_type", "블록 장난감"), ("target_age", "만 3세 이상"),
@@ -234,7 +340,9 @@ def test_대조되지_않는_선택은_버리고_비대상으로_바꾸지_않�
     result, _, _ = run(product, facts, review(bad))
     assert result.query["dropped_candidates"] == 1
     assert result.query["selected_items"] == []
-    assert result.query["fallback"] == "sdoc-common"
+    assert "fallback" not in result.query
+    assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
+    assert any("낮춰 안내하지 않았습니다" in note for note in result.findings[0].assumptions)
 
 
 def test_이유에서_해당하지_않는다고_결론_낸_선택은_후보로_내지_않는다():
@@ -243,6 +351,24 @@ def test_이유에서_해당하지_않는다고_결론_낸_선택은_후보로_�
         select(), select(STROLLER_ROW, rationale="유모차로 보기 어렵습니다.", applies=False)))
     assert result.query["selected_items"] == [TOY_ROW]
     assert result.query["not_applicable"] == 1
+
+
+def test_해당_안_함_선택이_앞에_많아도_유효한_선택을_자르지_않는다():
+    product, facts = product_and_facts()
+    not_applicable = [select(item_id, applies=False) for item_id in ("conf-13", "conf-01", "conf-02")]
+    result, _, _ = run(product, facts, review(*not_applicable, select()))
+    assert result.query["selected_items"] == [TOY_ROW]
+    assert result.query["not_applicable"] == 3
+
+
+def test_유효한_선택은_최대_3개까지만_남긴다():
+    product, facts = product_and_facts(search_terms=("어린이용 자전거", "어린이용 킥보드", "어린이용 롤러스케이트"))
+    _, _, probe = run(product, facts, review())
+    candidate_ids = [item.item_id for item in Search().search(probe.calls[0], top_k=6).items][:4]
+    assert len(candidate_ids) == 4
+    result, _, _ = run(product, facts, review(*(select(item_id) for item_id in candidate_ids)))
+    assert result.query["selected_items"] == candidate_ids[:3]
+    assert result.query["over_limit"] == 1
 
 
 def test_같은_행을_두_번_고르면_하나만_남긴다():

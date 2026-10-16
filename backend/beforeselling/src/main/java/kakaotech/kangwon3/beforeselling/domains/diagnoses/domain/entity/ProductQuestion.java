@@ -23,9 +23,10 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "product_question",
+        // 회차가 다르면 같은 키로 다시 물을 수 있다.
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_product_question_product_id_question_key",
-                columnNames = {"product_id", "question_key"}
+                name = "uk_product_question_product_id_round_key",
+                columnNames = {"product_id", "question_round", "question_key"}
         )
 )
 public class ProductQuestion extends BaseEntity {
@@ -38,6 +39,10 @@ public class ProductQuestion extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
+
+    // AI가 보낸 질문 회차
+    @Column(name = "question_round", nullable = false, columnDefinition = "integer default 1")
+    private int questionRound;
 
     @Column(name = "question_key", nullable = false, length = 50)
     private String questionKey;
@@ -54,9 +59,10 @@ public class ProductQuestion extends BaseEntity {
     @Column(name = "answer_text", columnDefinition = "TEXT")
     private String answerText;
 
-    ProductQuestion(Product product, String questionKey, int questionOrder,
+    ProductQuestion(Product product, int questionRound, String questionKey, int questionOrder,
                     String questionText, String helpText) {
         this.product = product;
+        this.questionRound = questionRound;
         this.questionKey = questionKey;
         this.questionOrder = questionOrder;
         this.questionText = questionText;

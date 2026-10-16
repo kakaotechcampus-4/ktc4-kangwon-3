@@ -112,7 +112,7 @@ def test_첨부파일은_같은_문서의_형식을_묶어_파싱_쉬운_링크_
 
     assert [(a.name, a.file_type, a.file_url) for a in result.attachments] == [
         ("수입요건_260716", "xlsx", "http://law.go.kr/flDownload.do?flSeq=1"),
-        ("고시전문_최종", "pdf", "http://law.go.kr/flDownload.do?flSeq=3"),
+        ("고시전문_최종", "hwpx", "http://law.go.kr/flDownload.do?flSeq=2"),
     ]
 
 

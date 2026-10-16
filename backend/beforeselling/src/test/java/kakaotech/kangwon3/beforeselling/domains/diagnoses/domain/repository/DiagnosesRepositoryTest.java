@@ -1,16 +1,18 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
 import jakarta.persistence.EntityManager;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentReview;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentReviewStatus;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AgentType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductProgress;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductQuestion;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.CryptoProperties;
 import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
@@ -21,17 +23,14 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import java.util.UUID;
 
 @DataJpaTest
@@ -193,15 +192,38 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
-    @DisplayName("상품의 에이전트 카드와 질문은 상품과 함께 저장되고, 질문은 질문 순서대로 조회된다.")
-    void save_thenPersistAgentReviewsAndQuestionsInOrder() {
+    @DisplayName("소유자와 관계없이 진단서 id로 잠금 조회하면 진단서와 상품이 반환된다.")
+    void findByIdForUpdate_thenReturnDiagnosesWithProducts() {
+        // given: AI 콜백처럼 사용자 정보 없이 조회하는 경우
+        UUID diagnosesId = diagnosesRepository.save(createDiagnoses(OTHER_USER_ID, null)).getId();
+        flushAndClear();
+
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdForUpdate(diagnosesId);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getProducts()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("없는 진단서 id로 잠금 조회하면 빈 결과가 반환된다.")
+    void findByIdForUpdate_withUnknownId_thenReturnEmpty() {
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdForUpdate(UUID.randomUUID());
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상품의 질문은 상품과 함께 저장되고, 질문 순서대로 조회된다.")
+    void save_thenPersistQuestionsInOrder() {
         // given: 질문을 순서와 반대로 추가한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
-        product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
-        product.recordAgentReview(AgentType.FOOD_DRUG, AgentReviewStatus.SKIPPED, "식품 접촉 항목이 없습니다.");
-        product.askQuestions(List.of(
+        product.askQuestions(1, List.of(
                 new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null),
                 new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
@@ -212,43 +234,92 @@ class DiagnosesRepositoryTest {
         Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
 
         // then
-        assertThat(saved.getAgentReviews())
-                .extracting(AgentReview::getAgentType)
-                .containsExactlyInAnyOrder(AgentType.INTAKE, AgentType.FOOD_DRUG);
         assertThat(saved.getQuestions())
                 .extracting(ProductQuestion::getQuestionKey)
                 .containsExactly("sales_type", "target_age");
     }
 
     @Test
-    @DisplayName("저장된 카드와 같은 에이전트의 카드를 다시 기록하면 행이 늘지 않고 내용만 바뀐다.")
-    void recordAgentReview_afterReload_thenUpdateWithoutNewRow() {
-        // given
+    @DisplayName("2회차에 1회차와 같은 키로 질문해도 저장되고, 질문은 회차·순서대로 조회된다.")
+    void save_whenSameKeyInNextRound_thenPersistBothInRoundOrder() {
+        // given: 1회차 답이 불분명해 2회차에 같은 항목을 다시 묻는 경우
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
-        product.recordAgentReview(AgentType.CUSTOMS, AgentReviewStatus.FAILED, "조회에 실패했습니다.");
+        product.startDiagnosis();
+        product.askQuestions(1, List.of(
+                new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null),
+                new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null)));
+        product.resume();
+        product.askQuestions(2, List.of(new QuestionContent("sales_type", 1, "주로 어느 쪽으로 파나요?", null)));
         diagnoses.addProducts(List.of(product));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
 
         // when
-        diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst()
-                .recordAgentReview(AgentType.CUSTOMS, AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다.");
-        flushAndClear();
+        Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
 
         // then
-        assertThat(countAgentReviews()).isEqualTo(1);
-        assertThat(entityManager.createQuery("select r from AgentReview r", AgentReview.class).getSingleResult())
-                .extracting(AgentReview::getStatus, AgentReview::getDescription)
-                .containsExactly(AgentReviewStatus.COMPLETED, "세관장확인 요건이 없습니다.");
+        assertThat(saved.getQuestions())
+                .extracting(ProductQuestion::getQuestionRound, ProductQuestion::getQuestionKey)
+                .containsExactly(tuple(1, "sales_type"), tuple(1, "target_age"), tuple(2, "sales_type"));
     }
 
     @Test
-    @DisplayName("진단서를 삭제하면 상품의 카드와 질문도 함께 제거되고 다른 진단서의 것은 남는다.")
-    void delete_thenDeleteOnlyItsAgentReviewsAndQuestions() {
+    @DisplayName("상품의 진행 상태는 툴이 없는 단계와 툴별 단계가 함께 저장되고 조회된다.")
+    void save_thenPersistProgresses() {
         // given
-        UUID targetId = diagnosesRepository.save(createDiagnosesWithReviewAndQuestion()).getId();
-        UUID otherId = diagnosesRepository.save(createDiagnosesWithReviewAndQuestion()).getId();
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        Product product = createProduct("대나무 헬리콥터", null);
+        product.startDiagnosis();
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
+        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS);
+        product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, ToolName.RADIO);
+        diagnoses.addProducts(List.of(product));
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        flushAndClear();
+
+        // when
+        Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
+
+        // then
+        assertThat(saved.getProgresses())
+                .extracting(ProductProgress::getRunId, ProductProgress::getSequence, ProductProgress::getStage,
+                        ProductProgress::getStageStatus, ProductProgress::getToolName)
+                .containsExactlyInAnyOrder(
+                        tuple("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null),
+                        tuple("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS),
+                        tuple("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, ToolName.RADIO));
+    }
+
+    @Test
+    @DisplayName("실패한 상품의 실패 단계·오류 코드·메시지·재시도 여부가 저장되고 조회된다.")
+    void save_whenFailed_thenPersistFailureInfo() {
+        // given
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        Product product = createProduct("대나무 헬리콥터", null);
+        product.startDiagnosis();
+        product.fail(PipelineStage.TOOL_EXECUTION, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", true);
+        diagnoses.addProducts(List.of(product));
+        UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
+        flushAndClear();
+
+        // when
+        Product saved = diagnosesRepository.findWithProductsById(diagnosesId).orElseThrow().getProducts().getFirst();
+
+        // then
+        assertThat(saved.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(saved)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsExactly(PipelineStage.TOOL_EXECUTION, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", true);
+    }
+
+    @Test
+    @DisplayName("진단서를 삭제하면 상품의 질문과 진행 상태도 함께 제거되고 다른 진단서의 것은 남는다.")
+    void delete_thenDeleteOnlyItsQuestionsAndProgresses() {
+        // given
+        UUID targetId = diagnosesRepository.save(createDiagnosesWithQuestion()).getId();
+        UUID otherId = diagnosesRepository.save(createDiagnosesWithQuestion()).getId();
         flushAndClear();
 
         // when
@@ -256,24 +327,22 @@ class DiagnosesRepositoryTest {
         flushAndClear();
 
         // then
-        assertThat(countAgentReviews()).isEqualTo(1);
         assertThat(countQuestions()).isEqualTo(1);
+        assertThat(countProgresses()).isEqualTo(1);
         assertThat(diagnosesRepository.findById(otherId)).isPresent();
     }
 
     @Test
-    @DisplayName("진단서에서 상품을 제거하면 그 상품의 카드와 질문도 함께 제거된다.")
-    void removeProduct_thenDeleteItsAgentReviewsAndQuestions() {
+    @DisplayName("진단서에서 상품을 제거하면 그 상품의 질문도 함께 제거된다.")
+    void removeProduct_thenDeleteItsQuestions() {
         // given: 상품 2개 중 하나만 제거한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product target = createProduct("상품 A", null);
         target.startDiagnosis();
-        target.recordAgentReview(AgentType.CHILDREN, AgentReviewStatus.COMPLETED, "완구에 해당합니다.");
-        target.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
+        target.askQuestions(1, List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         Product remaining = createProduct("상품 B", null);
         remaining.startDiagnosis();
-        remaining.recordAgentReview(AgentType.CHILDREN, AgentReviewStatus.SKIPPED, "어린이제품이 아닙니다.");
-        remaining.askQuestions(List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
+        remaining.askQuestions(1, List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         diagnoses.addProducts(List.of(target, remaining));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
         flushAndClear();
@@ -285,16 +354,15 @@ class DiagnosesRepositoryTest {
 
         // then
         assertThat(countProducts()).isEqualTo(1);
-        assertThat(countAgentReviews()).isEqualTo(1);
         assertThat(countQuestions()).isEqualTo(1);
     }
 
-    private Diagnoses createDiagnosesWithReviewAndQuestion() {
+    private Diagnoses createDiagnosesWithQuestion() {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
         product.startDiagnosis();
-        product.recordAgentReview(AgentType.INTAKE, AgentReviewStatus.COMPLETED, "상세페이지를 인식했습니다.");
-        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));
         return diagnoses;
     }
@@ -327,8 +395,8 @@ class DiagnosesRepositoryTest {
         return entityManager.createQuery("select count(i) from ProductImage i", Long.class).getSingleResult();
     }
 
-    private long countAgentReviews() {
-        return entityManager.createQuery("select count(r) from AgentReview r", Long.class).getSingleResult();
+    private long countProgresses() {
+        return entityManager.createQuery("select count(p) from ProductProgress p", Long.class).getSingleResult();
     }
 
     private long countQuestions() {

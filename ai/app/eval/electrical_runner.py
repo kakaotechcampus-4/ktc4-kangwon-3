@@ -1,7 +1,7 @@
 """전기안전 Tool을 파이프라인 없이 실제 모델·법제처 API로 돌려 결과·토큰·시간을 확인한다.
 
     cd ai
-    python -m app.eval.electrical_runner                          # .env 모델, 내장 상품 6개, 1회
+    python -m app.eval.electrical_runner                          # 전기 Tool 프로필 모델, 내장 상품 6개, 1회
     python -m app.eval.electrical_runner --only 전기포트 --runs 3
     python -m app.eval.electrical_runner --model openai/gpt-4.1-mini --model gpt-6-luna@LUNA --runs 3 \
         --price gpt-6-luna=1000,250,4000 --out logs/eval/electrical-compare.json
@@ -16,7 +16,7 @@
                        예: LUNA_BASE_URL=https://mlapi.run/<엔드포인트>/v1 → --model openai/gpt-6-luna@LUNA
   - 추론 모델은 temperature=0을 거부한다 → --default-temperature openai/gpt-6-luna
   - 추론 강도: "이름@접두어#low" (luna: none/low/medium/high/xhigh). 같은 모델을 강도별로 나란히 비교할 수 있다.
-서비스 설정의 허용 모델(ALLOWED_MODELS)은 바꾸지 않는다. 이 스크립트에서만 모델을 직접 만든다.
+서비스 설정의 모델 프로필(MODEL_PROFILES)은 바꾸지 않는다. 이 스크립트에서만 모델을 직접 만든다.
 
 --price 이름=입력,캐시입력,출력 (1M 토큰당 원). usage.PRICING_KRW에 없는 모델의 비용 추정에 쓴다.
 
@@ -36,7 +36,8 @@ from time import perf_counter
 from dotenv import load_dotenv
 
 from .. import usage as usage_module
-from ..config import ENV_FILE, MAX_RETRIES, TIMEOUT_SECONDS
+from ..config import ENV_FILE, MAX_RETRIES, MODEL_PROFILES, TIMEOUT_SECONDS, TOOL_PROFILES
+from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_overrides
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import ToolName, ToolResult
@@ -137,6 +138,25 @@ def build_model(spec: str, *, default_temperature: bool = False):
         model=name, base_url=base_url, api_key=api_key, **options,
         timeout=TIMEOUT_SECONDS, max_retries=MAX_RETRIES, streaming=True, stream_usage=True,
     )
+
+
+def default_spec(default_temperature: list[str]) -> str:
+    """--model이 없을 때 전기 Tool 프로필(MODEL_PROFILE_OVERRIDES의 tool.electrical_safety 또는 기본값)을 '이름[#추론강도]'로.
+
+    프로필에 temperature가 없으면(추론 모델) default_temperature에 모델 이름을 넣어 temperature를 보내지 않게 함.
+    """
+    try:
+        overrides = parse_profile_overrides(os.environ.get(OVERRIDES_ENV, ""))
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from None
+    name = overrides.get(("tool", ToolName.ELECTRICAL), TOOL_PROFILES[ToolName.ELECTRICAL])
+    if name not in MODEL_PROFILES:
+        raise SystemExit(f"{OVERRIDES_ENV}의 tool.{ToolName.ELECTRICAL}={name!r}는 없는 프로필입니다 "
+                         f"(허용: {', '.join(MODEL_PROFILES)}).")
+    profile = MODEL_PROFILES[name]
+    if profile.temperature is None:
+        default_temperature.append(profile.model.id)
+    return profile.model.id + (f"#{profile.reasoning_effort}" if profile.reasoning_effort else "")
 
 
 class UsageCapture:
@@ -386,7 +406,7 @@ def main() -> int:
     if not products or args.runs < 1:
         parser.error("실행할 상품이 없거나 --runs가 1보다 작습니다.")
 
-    specs = args.model or [_env("OPENAI_MODEL")]
+    specs = args.model or [default_spec(args.default_temperature)]
     decision = ToolSelectionItem(tool_name=ToolName.ELECTRICAL, selected=True, reason="단독 실행 확인")
     results: dict[str, list[dict]] = {}
     law_client = LawApiClients.from_oc(_env("LAW_GO_KR_OC"))

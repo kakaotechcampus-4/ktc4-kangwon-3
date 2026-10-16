@@ -2,7 +2,7 @@
 
 - ChildrenItemSearch: Tool이 쓰는 조회 인터페이스.
 - LawApiItemSearch: 지금 쓰는 경로. 법제처 응답을 직접 읽어 품목 행을 만들고 기준일별로 캐시한다.
-- DatabaseItemSearch: 적재 단계 파싱 에이전트가 품목표를 DB에 넣으면 쓸 경로(스텁).
+- DatabaseItemSearch: 별표 규칙 파서(#307) 결과를 DB에 적재하면 쓸 경로(스텁).
 """
 
 import threading
@@ -12,14 +12,18 @@ from typing import Protocol
 
 from ..common.law import CachedLoader, DocRef, LawApiClients
 from ..common.ranking import rank_rows
-from .evidence import ChildrenEvidence, ChildrenItem, Definitions, load_children_evidence
+from .evidence import ChildrenEvidence, ChildrenItem, Definitions, Scheme, load_children_evidence, without_includes
 
 KST = timezone(timedelta(hours=9))
 
 
 @dataclass(frozen=True)
 class ChildrenCandidates:
-    """조회 결과. items는 상품과 비슷한 품목 행(terms가 비면 빈 목록)."""
+    """조회 결과. items는 상품과 비슷한 품목 행(terms가 비면 빈 목록).
+
+    designated는 안전인증·안전확인 품목 전체다. 맞는 품목이 없을 때 공급자적합성확인으로 낮춰 안내하므로,
+    그 판단 전에 품목 선택 모델이 두 제도의 품목을 빠짐없이 보게 한다(조회 순위에서 빠져도 낮춰지지 않게).
+    """
 
     items: tuple[ChildrenItem, ...]
     common_standard: ChildrenItem
@@ -27,6 +31,7 @@ class ChildrenCandidates:
     rule: DocRef
     notice: DocRef
     documents: list[dict[str, str]] = field(default_factory=list)
+    designated: tuple[ChildrenItem, ...] = ()
 
 
 class ChildrenItemSearch(Protocol):
@@ -52,16 +57,19 @@ class LawApiItemSearch:
     def catalog(self) -> list[str]:
         """품목표의 품목명 목록(시행규칙 품목명과 운용요령 표기). 조건 추출 모델이 조회어를 고를 때 쓴다."""
         evidence = self.evidence()
-        return list(dict.fromkeys(name for item in evidence.items for name in (item.name, *item.scope_names)))
+        return list(dict.fromkeys(without_includes(name) for item in evidence.items
+                                  for name in (item.name, *item.scope_names)))
 
     def search(self, terms: list[str], *, top_k: int) -> ChildrenCandidates:
         evidence = self.evidence()
+        # 순위에는 포함 문구를 뗀 이름만 쓴다("포함한다" 같은 글자가 유사도에 섞이지 않게).
         items = rank_rows(
             evidence.items, terms, top_k=top_k, key=lambda item: item.item_id,
-            text=lambda item: " ".join((item.name, *item.scope_names)),
-            names=lambda item: [item.name, *item.scope_names],
+            text=lambda item: " ".join(without_includes(name) for name in (item.name, *item.scope_names)),
+            names=lambda item: [without_includes(name) for name in (item.name, *item.scope_names)],
         ) if terms else []
-        return ChildrenCandidates(items=tuple(items), common_standard=evidence.common_standard,
+        designated = tuple(item for item in evidence.items if item.scheme in (Scheme.CERTIFICATION, Scheme.CONFIRMATION))
+        return ChildrenCandidates(items=tuple(items), designated=designated, common_standard=evidence.common_standard,
                                   definitions=evidence.definitions, rule=evidence.rule, notice=evidence.notice,
                                   documents=evidence.documents())
 
@@ -91,15 +99,18 @@ def default_item_search() -> LawApiItemSearch:
 
 
 class DatabaseItemSearch:
-    """품목 행을 DB에서 조회하는 경로. 테이블이 없어 자리만 둔다.
+    """품목 행을 DB에서 조회하는 경로. 적재 테이블이 없어 자리만 둔다.
 
-    필요한 것(칸 정의: 클로드 md파일 "어린이·전파 품목표 칸 정의"):
-    - 표 A 시행규칙 품목: 제도, 번호, 품목명, 적용 안전기준, 삭제 여부, 행 원문, 법령 버전
-    - 표 B 운용요령 적용범위: 제도, 품목명(운용요령 표기), 연결 품목 행 ID, 하위 범위, 적용범위 원문,
-      연령 조건 원문·숫자, 제외 조건 원문, 법령 버전
-    - 법 제2조 제1호·제12호 원문, 시행규칙 별표 3의 2.(공통안전기준) 원문
-    - 적재 작업: 법제처 조회 → 파싱 에이전트 → 검증 → 임베딩 → 저장
-    구현하면 같은 ChildrenCandidates를 돌려주므로 ChildrenTool은 바꾸지 않는다.
+    자료 출처는 별표 규칙 파서(#307)의 AnnexParseRecord(app/schemas/annex.py)다.
+    - 시행규칙 별표 1~3: AnnexItem 하나가 품목 행 하나.
+      item_label → 번호, item_name → 품목명, category_path → 제도,
+      attributes["적용 안전기준"] → standards, source_text → 근거 원문, skipped → 삭제된 품목.
+      별표 3의 "2. 개별 안전기준이 없는 …"(공통안전기준) 문장은 notes에서 찾는다.
+    - 운용요령 별표 3~5(적용범위)는 #307 대상에 없다. 적재 대상에 추가하거나 법제처 경로를 함께 쓴다.
+    - 법 제2조 제1호·제12호는 법령 조문 테이블(LawArticleRepository)에서 읽는다.
+    - 벡터 조회는 app.utils.embedding을 쓴다. Tool은 동기라 비동기 embed_text를 그대로 부를 수 없다.
+    LawApiItemSearch의 표 읽기는 DB 적재 전까지 쓰는 임시 경로다. 구현하면 같은 ChildrenCandidates를
+    돌려주므로 ChildrenTool은 바꾸지 않는다.
 
     Args:
         session_factory: app.database.get_session_factory()가 돌려주는 세션 팩토리.

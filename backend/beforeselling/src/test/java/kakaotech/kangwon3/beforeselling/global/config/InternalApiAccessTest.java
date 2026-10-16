@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class InternalApiAccessTest {
 
-    private static final String INTERNAL_URI = "/internal/v1/ai/products/01990000-0000-7000-8000-000000000000/events";
+    private static final String INTERNAL_URI = "/internal/v1/ai/products/01990000-0000-7000-8000-000000000000";
 
     @Autowired
     private MockMvc mockMvc;
@@ -56,8 +56,8 @@ class InternalApiAccessTest {
     @Test
     @DisplayName("올바른 내부 토큰이면 보안 체인을 통과한다.")
     void internalApi_withValidToken_thenPassSecurity() throws Exception {
-        // 콜백 컨트롤러가 붙기 전이라 404. 401이 아니면 인증 통과다.
+        // 본문 없이 보내 콜백 컨트롤러의 역직렬화에서 400. 401이 아니면 인증 통과다.
         mockMvc.perform(post(INTERNAL_URI).header(InternalTokenFilter.HEADER_NAME, internalToken))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 }

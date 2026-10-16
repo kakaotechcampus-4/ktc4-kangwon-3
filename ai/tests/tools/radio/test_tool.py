@@ -246,3 +246,10 @@ def test_결과는_Verification_규칙_검사를_통과한다(case):
         chosen = review()
     result, _, _ = run(product, facts, chosen)
     assert _verify(product, result) == []
+
+
+def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
+    names = []
+    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
+    RadioTool(item_search=Search())._get_steps()
+    assert names == [ToolName.RADIO]
