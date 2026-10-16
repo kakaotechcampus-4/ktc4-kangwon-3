@@ -8,9 +8,11 @@ from app.eval.collect_runner import (
     image_sourced_attributes,
     mode_input,
     product_key,
+    run_product,
     usage_of,
     write_summary,
 )
+from app import usage
 from app.pipeline.url_source import UrlSource
 from app.schemas.agent import ExtractionInput, ImageTriageResponse
 from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
@@ -105,3 +107,34 @@ def test_저장된_결과로_요약을_만든다(tmp_path):
     assert "| for_children | null | true |" in summary
     assert "selected 1회: **연령** = 3+ (근거: Age 3+)" in summary
     assert "| selected | 1 | 1 |" in summary
+
+
+def test_같은_상품을_다시_돌려도_앞_실행_비용이_섞이지_않는다(tmp_path):
+    # 사용량은 대상 ID로 모음. 실행마다 ID가 같으면 다시 돌린 상품의 비용이 두 배로 보였음
+    html = tmp_path / "page.html"
+    html.write_text("<html></html>", encoding="utf-8")
+
+    def _record(subject_id):
+        usage.record("test", usage.CallUsage(reported_model="m", input_tokens=100, cached_tokens=0, output_tokens=10),
+                     subject_id=subject_id)
+
+    class _Builder:
+        def build_from_html(self, url, raw_html, *, product_id):
+            _record(product_id)
+            return _source()
+
+    class _Product:
+        def model_dump(self, mode):
+            return {"attributes": []}
+
+    class _Extractor:
+        def extract(self, source):
+            _record(source.product_id)
+            return _Product()
+
+    for _ in range(2):
+        directory = run_product(URL, _Builder(), _Extractor(), runs=1, out=tmp_path / "out", html=html)
+
+    meta = json.loads((directory / "meta.json").read_text(encoding="utf-8"))
+    assert meta["triage"]["calls"] == 1
+    assert {mode: runs[0]["calls"] for mode, runs in meta["modes"].items()} == {"text": 1, "all": 1, "selected": 1}
