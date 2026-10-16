@@ -4,6 +4,13 @@ import time
 
 from ..observability.context import ExecutionContext, PipelineStage
 from ..schemas.agent import ExtractionInput
+from ..schemas.callback import (
+    PublicAssessmentDto,
+    PublicFindingDto,
+    PublicLegalSourceDto,
+    PublicQuestionDto,
+    PublicToolReviewDto,
+)
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import (
     AdvertisingAssessment,
@@ -302,3 +309,74 @@ def run_dummy_diagnosis(
         progress.stage(stage)
         time.sleep(DUMMY_STAGE_SECONDS)
     return build_dummy_assessment(item.product_id)
+
+
+# 실행 상태 → 분야 카드 상태. 나머지(부분 성공·실패)는 미완료
+_DUMMY_CARD_STATUS = {ToolStatus.SUCCESS: "COMPLETED", ToolStatus.SKIPPED: "SKIPPED"}
+
+
+class DummyAssessmentPresenter:
+    """가짜 진단 결과를 공개 진단서·질문으로 바꾸는 임시 변환기. 실제 변환기([콜백 5/5]) 전까지 사용.
+
+    result_status 결정·질문 키 생성 없이 고정값. 분야 카드·판단·법령 근거는 결과에서 그대로 옮김.
+    """
+
+    def assessment(self, result: FinalAssessment) -> PublicAssessmentDto:
+        """완료 결과의 공개 진단서.
+
+        Args:
+            result: 가짜 진단 결과.
+
+        Returns:
+            PublicAssessmentDto: 결과 상태는 직구 인증 필요로 고정.
+        """
+        return PublicAssessmentDto(
+            status="completed",
+            result_status="DIRECT_IMPORT_CERTIFICATION_REQUIRED",
+            summary=result.summary,
+            tool_reviews=[
+                PublicToolReviewDto(
+                    tool_name=tool_result.tool_name.name,
+                    status=_DUMMY_CARD_STATUS.get(tool_result.status, "INCOMPLETE"),
+                    findings=[_public_finding(finding, tool_result) for finding in tool_result.findings],
+                )
+                for tool_result in result.tool_results
+            ],
+            required_actions=result.required_actions,
+            notices=result.missing_information,
+        )
+
+    def questions(self, result: FinalAssessment) -> tuple[int, list[PublicQuestionDto]]:
+        """답변 대기 결과의 질문. 가짜 진단은 질문으로 끝나지 않아 고정 질문 하나.
+
+        Args:
+            result: 가짜 진단 결과.
+
+        Returns:
+            tuple[int, list[PublicQuestionDto]]: (질문 회차 1, 고정 질문).
+        """
+        return 1, [PublicQuestionDto(
+            question_key="battery_only", question_order=1, question_text="내장 배터리로만 동작하나요?",
+            help_text="배터리 전용이면 안전인증 대상에서 빠질 수 있어요.",
+        )]
+
+
+def _public_finding(finding: RegulatoryFinding, tool_result: ToolResult) -> PublicFindingDto:
+    """판단 하나를 공개 형식으로. 내부 전용 값(is_mock 등)은 빼고 옮김.
+
+    가짜 판단엔 법령 근거가 없어 분야 결과의 근거를 붙임 (BE 근거 저장 확인용).
+    """
+    sources = finding.legal_sources or getattr(tool_result.result, "legal_sources", [])
+    return PublicFindingDto(
+        subject=finding.subject,
+        determination=finding.determination,
+        risk_level=finding.risk_level,
+        summary=finding.summary,
+        rationale=finding.rationale,
+        legal_sources=[
+            PublicLegalSourceDto(**source.model_dump(include={
+                "source_name", "law_name", "article", "quoted_text", "source_url", "effective_date",
+            }))
+            for source in sources
+        ],
+    )
