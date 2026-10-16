@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
@@ -81,6 +82,46 @@ public class ProductService {
 
         log.debug("상품 삭제 완료. productId={}, userId={}, 진단서 함께 삭제={}",
                 productId, userId, diagnosesRemoved);
+    }
+
+    /**
+     * AI 진단 결과 반영(결과 콜백). 상품을 완료 처리하고 진단서 전체 상태를 다시 계산한다.
+     * 이미 반영된 결과(재전송)는 무시한다.
+     */
+    @Transactional
+    public void completeDiagnosis(UUID diagnosesId, UUID productId, String runId, AssessmentContent content) {
+        // 같은 진단서의 다른 상품 콜백과 동시에 진단서 상태를 재계산하지 않도록 진단서를 잠근다.
+        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        // 진단서와 상품 짝이 맞지 않는 경우도 같은 NOT_FOUND로 응답한다.
+        Product product = diagnoses.getProducts().stream()
+                .filter(candidate -> candidate.getId().equals(productId))
+                .findFirst()
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        // TODO: 진단 요청의 202 응답에서 runId를 저장(assignRun)하는 흐름이 구현되면 주석을 푼다.
+        //  지금은 runId가 항상 null이라, 켜 두면 모든 결과가 409(재시도) 또는 이전 실행으로 무시된다.
+        //  재실행(resume) 시 이전 runId를 비우지 않으면 새 실행의 결과가 이전 실행으로 무시되므로 함께 확인한다.
+        // // 202 응답의 runId를 저장하기 전에 도착한 콜백. AI는 COMMON-009(409)일 때만 다시 보낸다.
+        // if (!product.isRunAssigned()) {
+        //     throw new BaseException(CommonResponseCode.LOCK_CONFLICT);
+        // }
+        // if (!product.isCurrentRun(runId)) {
+        //     log.info("이전 실행의 결과 콜백을 무시합니다. productId={}, runId={}, currentRunId={}",
+        //             productId, runId, product.getRunId());
+        //     return;
+        // }
+        if (product.hasResult()) {
+            log.info("이미 결과가 반영된 상품의 결과 콜백을 무시합니다. productId={}, runId={}", productId, runId);
+            return;
+        }
+
+        product.complete(content);
+        diagnoses.refreshProcessingStatus();
+
+        log.debug("상품 진단 결과 반영 완료. diagnosesId={}, productId={}, resultStatus={}",
+                diagnosesId, productId, content.resultStatus());
     }
 
     // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.
