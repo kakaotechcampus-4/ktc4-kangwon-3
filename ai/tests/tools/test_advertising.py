@@ -254,6 +254,10 @@ def test_모델은_줄별_검토를_주장_목록보다_먼저_쓴다():
     ("인증: KC 방송통신기자재 적합성평가 R-R-ABC-1234", ["KC 방송통신"]),
     ("KC 인증정보: 확인되지 않음", []),        # AliExpress 사양 칸 이름
     ("KCAL 저칼로리 간식", []),
+    ("KC 인증을 받은 제품입니다", ["KC 인증"]),
+    ("KC 인증 없음", []),                     # 인증이 없다는 문장
+    ("KC 인증을 받지 않은 제품입니다", []),
+    ("KC인증 미취득", []),
 ])
 def test_국내_인증_표기만_찾는다(line, quotes):
     assert [claim.quote for claim in advertising.find_kc_claims([line])] == quotes
