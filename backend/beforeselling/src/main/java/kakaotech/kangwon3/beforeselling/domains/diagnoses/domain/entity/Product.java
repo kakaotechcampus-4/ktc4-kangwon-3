@@ -177,6 +177,11 @@ public class Product extends BaseEntity {
         return this.runId != null && this.runId.equals(runId);
     }
 
+    // 202 응답의 runId를 아직 저장하지 못한 상태. 이때 온 콜백은 다시 보내 달라고 한다.
+    public boolean isRunAssigned() {
+        return runId != null;
+    }
+
     // 같은 실행에서 이미 반영한 것보다 앞선 이벤트(재시도로 늦게 온 것, 중복)는 무시한다.
     public void recordProgress(String runId, int sequence, PipelineStage stage,
                                StageStatus stageStatus, ToolName toolName) {
@@ -231,13 +236,28 @@ public class Product extends BaseEntity {
         this.errorRetryable = errorRetryable;
     }
 
+    // 진단 결과를 반영하고 완료 상태로 끝낸다.
+    public void complete(AssessmentContent content) {
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.COMPLETED);
+
+        this.assessmentStatus = content.status();
+        this.resultStatus = content.resultStatus();
+        this.summary = content.summary();
+        content.toolReviews().forEach(review -> toolReviews.add(ProductToolReview.of(this, review)));
+        requiredActions.addAll(content.requiredActions());
+        notices.addAll(content.notices());
+    }
+
+    public boolean hasResult() {
+        return processingStatus == ProcessingStatus.COMPLETED;
+    }
+
     private void transition(ProcessingStatus from, ProcessingStatus to) {
         if (processingStatus != from) {
             throw new BaseException(CommonResponseCode.CONFLICT);
         }
         this.processingStatus = to;
     }
-
 
     // 대표 이미지와 상세 이미지 key를 순서대로 모은다(S3 정리·확정 처리에 사용).
     public List<String> collectImageKeys() {

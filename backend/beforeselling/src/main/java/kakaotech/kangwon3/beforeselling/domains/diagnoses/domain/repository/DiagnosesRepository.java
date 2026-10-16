@@ -39,4 +39,14 @@ public interface DiagnosesRepository extends JpaRepository<Diagnoses, UUID> {
     @Query("select d from Diagnoses d where d.id = :diagnosesId and d.userId = :userId")
     Optional<Diagnoses> findByIdAndUserIdForUpdate(@Param("diagnosesId") UUID diagnosesId,
                                                    @Param("userId") UUID userId);
+
+    // AI 콜백(내부 API)용. 사용자 정보가 없어 소유권 조건 없이 잠근다.
+    // 같은 진단서의 상품 콜백이 동시에 와도 진단서 상태 재계산이 서로 덮어쓰지 않게 한다.
+    // @EntityGraph를 붙이지 않는 이유는 findByIdAndUserIdForUpdate와 같다.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @QueryHints({
+            @QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000") // 3초 대기
+    })
+    @Query("select d from Diagnoses d where d.id = :diagnosesId")
+    Optional<Diagnoses> findByIdForUpdate(@Param("diagnosesId") UUID diagnosesId);
 }

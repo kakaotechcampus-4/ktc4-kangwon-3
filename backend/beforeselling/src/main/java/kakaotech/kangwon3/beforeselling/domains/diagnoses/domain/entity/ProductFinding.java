@@ -79,4 +79,12 @@ public class ProductFinding extends BaseEntity {
         this.summary = summary;
         this.rationale = rationale;
     }
+
+    static ProductFinding of(ProductToolReview toolReview, int sortOrder, AssessmentContent.FindingContent content) {
+        ProductFinding finding = new ProductFinding(toolReview, sortOrder, content.subject(),
+                content.determination(), content.riskLevel(), content.summary(), content.rationale());
+        content.legalSources().forEach(source ->
+                finding.legalSources.add(FindingLegalSource.of(finding, finding.legalSources.size(), source)));
+        return finding;
+    }
 }
