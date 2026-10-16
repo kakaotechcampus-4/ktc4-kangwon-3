@@ -1,0 +1,135 @@
+"""상품 주소 → 수집 → 이미지 분류 → 추출 입력 조립을 가짜 클라이언트·가짜 분류로 확인한다."""
+
+import pytest
+
+from app.pipeline.url_source import MAX_IMAGES, UnsupportedSiteError, UrlSourceBuilder, select_images
+from app.schemas.agent import ImageTriageItem, ImageTriageResponse
+from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
+
+URL = "https://seller.en.made-in-china.com/product/AbCd/China-Power-Bank.html"
+
+
+def _image(name: str, area: str = "description") -> ProductPageImage:
+    return ProductPageImage(url=f"https://img/{name}.jpg", thumbnail_url=f"https://img/{name}-small.jpg", area=area)
+
+
+def _page(*images: ProductPageImage) -> ProductPage:
+    return ProductPage(source_url=URL, site="made_in_china", title="보조배터리", text_blocks=["보조배터리", "Capacity: 10000mAh"],
+                       images=list(images))
+
+
+def _triage(*categories: str | None) -> ImageTriageResponse:
+    # None은 모델이 빠뜨린 번호
+    return ImageTriageResponse(items=[ImageTriageItem(index=index, category=category)
+                                      for index, category in enumerate(categories, 1) if category])
+
+
+class _FakeClient:
+    def __init__(self, page: ProductPage) -> None:
+        self.page = page
+        self.requested: list[str] = []
+        self.closed = False
+
+    def fetch_parsed(self, request):
+        self.requested.append(request.url)
+        return self.page
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _FakeTriage:
+    def __init__(self, response: ImageTriageResponse) -> None:
+        self.response = response
+        self.calls: list[tuple[list[str], str]] = []
+
+    def classify(self, image_urls, *, subject_id):
+        self.calls.append((image_urls, subject_id))
+        return self.response
+
+
+def test_사양_인증_포장과_대표_이미지만_페이지_순서대로_고른다():
+    page = _page(_image("main", "gallery"), _image("angle", "gallery"), _image("spec"), _image("banner"),
+                 _image("cert"), _image("box"), _image("scene"))
+
+    selected = select_images(page, _triage("product", "product", "specification", "unrelated",
+                                           "certification", "package", "lifestyle"))
+
+    # 대표(첫 갤러리)는 제품 사진으로 분류돼도 넘김
+    assert [image.url for image in selected] == [
+        "https://img/main.jpg", "https://img/spec.jpg", "https://img/cert.jpg", "https://img/box.jpg"]
+
+
+def test_모델이_빠뜨린_이미지는_넘기지_않는다():
+    page = _page(_image("main", "gallery"), _image("unknown"), _image("spec"))
+
+    assert [image.url for image in select_images(page, _triage(None, None, "specification"))] == [
+        "https://img/main.jpg", "https://img/spec.jpg"]
+
+
+def test_넘기는_이미지는_대표_포함_상한까지만():
+    page = _page(_image("main", "gallery"), *(_image(f"spec{n}") for n in range(MAX_IMAGES + 2)))
+
+    selected = select_images(page, _triage("product", *["specification"] * (MAX_IMAGES + 2)))
+
+    assert len(selected) == MAX_IMAGES
+    assert selected[0].url == "https://img/main.jpg"
+
+
+def test_갤러리가_없으면_대표_없이_고른다():
+    page = _page(_image("spec"), _image("scene"))
+
+    selected = select_images(page, _triage("specification", "lifestyle"))
+
+    assert [image.url for image in selected] == ["https://img/spec.jpg"]
+
+
+def test_주소로_받은_페이지를_썸네일로_분류하고_고른_원본_주소로_추출_입력을_만든다():
+    page = _page(_image("main", "gallery"), _image("spec"), _image("banner"))
+    client, triage = _FakeClient(page), _FakeTriage(_triage("product", "specification", "unrelated"))
+    builder = UrlSourceBuilder(triage, clients={"made-in-china.com": lambda: client})
+
+    source = builder.build(URL, product_id="p-1")
+
+    assert (client.requested, client.closed) == ([URL], True)
+    # 분류는 썸네일, 추출은 원본
+    thumbnails = ["https://img/main-small.jpg", "https://img/spec-small.jpg", "https://img/banner-small.jpg"]
+    assert triage.calls == [(thumbnails, "p-1")]
+    assert source.extraction_input.model_dump() == {
+        "product_id": "p-1", "source_url": URL, "text_blocks": ["보조배터리", "Capacity: 10000mAh"],
+        "image_urls": ["https://img/main.jpg", "https://img/spec.jpg"],
+    }
+    assert (source.page, source.triage) == (page, triage.response)
+
+
+def test_페이지를_받다_실패해도_클라이언트를_닫는다():
+    class _BrokenClient(_FakeClient):
+        def fetch_parsed(self, request):
+            raise RuntimeError("403")
+
+    client = _BrokenClient(_page())
+    builder = UrlSourceBuilder(_FakeTriage(_triage()), clients={"made-in-china.com": lambda: client})
+
+    with pytest.raises(RuntimeError):
+        builder.build(URL, product_id="p-1")
+    assert client.closed
+
+
+@pytest.mark.parametrize("url", [
+    "https://www.amazon.com/dp/B079MDLGT8",
+    "https://made-in-china.com.evil.example/product/x.html",
+    "https://notmade-in-china.com/product/x.html",
+])
+def test_수집할_수_없는_사이트는_받지_않는다(url):
+    builder = UrlSourceBuilder(_FakeTriage(_triage()), clients={"made-in-china.com": lambda: pytest.fail("부르면 안 됨")})
+
+    with pytest.raises(UnsupportedSiteError):
+        builder.build(url, product_id="p-1")
+
+
+def test_도메인_자체와_하위_도메인을_모두_받는다():
+    page = _page()
+    builder = UrlSourceBuilder(_FakeTriage(_triage()), clients={"made-in-china.com": lambda: _FakeClient(page)})
+
+    for url in ("https://made-in-china.com/product/x.html", "https://www.made-in-china.com/product/x.html"):
+        assert builder.build(url, product_id="p-1").page is page
