@@ -14,7 +14,7 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from ..agents.image_triage import ImageTriageAgent
-from ..clients.marketplace import MadeInChinaClient, MarketplaceBaseClient
+from ..clients.marketplace import MadeInChinaClient, MarketplaceBaseClient, matches_domain
 from ..schemas.agent import ExtractionInput, ImageCategory, ImageTriageResponse
 from ..schemas.clients.marketplace_request import ProductPageRequest
 from ..schemas.clients.marketplace_response import ProductPage, ProductPageImage
@@ -36,10 +36,10 @@ class SiteConfig:
     images: ImagePolicy
 
 
-# 도메인 → 사이트. 판매자마다 하위 도메인이 달라 끝부분으로 맞춤
+# 도메인 → 사이트. 도메인은 클라이언트의 DOMAINS (판매자 하위 도메인 포함)
 SITES: Mapping[str, SiteConfig] = {
     # 사양·인증이 글로 충실해 글만. 이미지를 넣으면 chemical_product 등 판정이 흔들림 (3개 상품 비교 실험)
-    "made-in-china.com": SiteConfig(MadeInChinaClient, images="none"),
+    **{domain: SiteConfig(MadeInChinaClient, images="none") for domain in MadeInChinaClient.DOMAINS},
 }
 # selected에서 넘길 분류. 판정에 쓸 글자가 있는 이미지
 KEEP_CATEGORIES = frozenset({ImageCategory.SPECIFICATION, ImageCategory.CERTIFICATION, ImageCategory.PACKAGE})
@@ -183,7 +183,7 @@ def site_for(url: str, sites: Mapping[str, SiteConfig] = SITES) -> SiteConfig:
     """
     host = urlparse(url).hostname or ""
     for domain, site in sites.items():
-        if host == domain or host.endswith(f".{domain}"):
+        if matches_domain(host, [domain]):
             return site
     raise UnsupportedSiteError(f"수집할 수 없는 판매 사이트입니다: {host or url}")
 
