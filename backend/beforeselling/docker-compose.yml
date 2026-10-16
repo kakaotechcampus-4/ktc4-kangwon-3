@@ -88,6 +88,9 @@ services:
       # 내부 API (AI 서버 콜백 인증)
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
 
+      # AI 서버 (BE → AI 진단 요청)
+      AI_BASE_URL: ${AI_BASE_URL:-http://ai-server:8000}
+
       # 소셜 로그인
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}

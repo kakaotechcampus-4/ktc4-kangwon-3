@@ -77,6 +77,10 @@ jwt:
 internal-api:
   token: ${INTERNAL_API_TOKEN}
 
+# BE → AI 진단 요청 대상. 로컬 AI 서버 기본 포트는 8000
+ai-server:
+  base-url: ${AI_BASE_URL:http://localhost:8000}
+
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
