@@ -19,7 +19,7 @@ public class AiCallbackUseCase {
         log.debug("AI 결과 콜백 수신. diagnosisId={}, productId={}, eventId={}, runId={}, sequence={}",
                 event.diagnosisId(), event.productId(), event.eventId(), event.runId(), event.sequence());
 
-        productService.completeDiagnosis(event.diagnosisId(), event.productId(), event.runId(),
+        productService.completeDiagnoses(event.diagnosisId(), event.productId(), event.runId(),
                 aiCallbackMapper.toContent(event.assessment()));
     }
 }
