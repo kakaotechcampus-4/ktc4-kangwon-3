@@ -27,7 +27,7 @@ class ExtractionFailedError(AgentError):
 class ExtractionAgent(BaseAgent[ProductAttributes]):
     """상품 원문에서 정보를 추출한다. 툴 선택이나 규제 판정은 맡지 않는다.
 
-    생성자는 BaseAgent 그대로. 모델 미주입 시 build_chat_model()로 생성하고,
+    생성자는 BaseAgent 그대로. 모델 미주입 시 build_agent_model()로 생성하고,
     평가 호출은 usage_agent("extraction-eval" 등)로 운영 비용과 나눠 집계함.
     """
 

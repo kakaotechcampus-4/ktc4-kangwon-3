@@ -154,8 +154,8 @@ def test_모델_호출이_실패하면_ExtractionFailedError로_감싸진다():
     assert str(exc_info.value) == "상품 정보 추출에 실패했습니다: rate limit exceeded"
 
 
-def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_쓴다(monkeypatch):
-    # 에이전트가 ChatOpenAI를 직접 만들지 않고 config.build_chat_model()에 위임하는지 확인.
+def test_모델을_주입하지_않으면_공통_설정의_build_agent_model을_쓴다(monkeypatch):
+    # 에이전트가 ChatOpenAI를 직접 만들지 않고 config.build_agent_model()에 위임하는지 확인.
     calls: list = []
 
     class _FakeModel:
@@ -164,7 +164,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             return self
 
     # 모델 생성은 BaseAgent 공통 경로
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: _FakeModel())
 
     ExtractionAgent()
 
@@ -174,7 +174,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
 def test_base_url이_없으면_401_대신_ConfigError로_알려준다(monkeypatch):
     # 예전에는 base_url이 비면 OpenAI 공식 서버로 요청이 나가서 원인을 알기 어려운
     # 401 invalid_issuer가 났다. 이제는 모델을 만들 때 바로 설정 오류로 알려줘야 한다.
-    monkeypatch.setattr("app.config.load_dotenv", lambda *args, **kwargs: None)
+    monkeypatch.setattr("app.config.settings.load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
 

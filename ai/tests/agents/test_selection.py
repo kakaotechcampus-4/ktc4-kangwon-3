@@ -188,7 +188,7 @@ def test_토큰_사용량과_캐시_적용량이_로그에_남는다(caplog):
     assert "output=400" in caplog.text
 
 
-def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_쓴다(monkeypatch):
+def test_모델을_주입하지_않으면_공통_설정의_build_agent_model을_쓴다(monkeypatch):
     calls: list = []
 
     class _FakeModel:
@@ -197,7 +197,7 @@ def test_모델을_주입하지_않으면_공통_설정의_build_chat_model을_�
             return self
 
     # 모델 생성은 BaseAgent 공통 경로
-    monkeypatch.setattr("app.agents.base.build_chat_model", lambda: _FakeModel())
+    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: _FakeModel())
 
     SelectionAgent()
 
