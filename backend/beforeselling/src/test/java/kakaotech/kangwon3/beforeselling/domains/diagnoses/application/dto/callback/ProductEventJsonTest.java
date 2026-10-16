@@ -148,12 +148,11 @@ class ProductEventJsonTest {
         assertThat(event).isInstanceOf(ProductProgressEvent.class);
     }
 
-    @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"product_unknown", "product_result"})
-    @DisplayName("정의되지 않았거나 아직 받지 않는 eventType은 거부한다.")
-    void read_whenUnsupportedEventType_thenThrow(String eventType) {
-        // given: 결과 콜백(product_result)은 결과 DTO를 추가할 때 받는다.
-        String json = event(eventType, """
+    @Test
+    @DisplayName("정의되지 않은 eventType은 거부한다.")
+    void read_whenUnsupportedEventType_thenThrow() {
+        // given
+        String json = event("product_unknown", """
                 "stage": "selection",
                 "stageStatus": "started\"""");
 
