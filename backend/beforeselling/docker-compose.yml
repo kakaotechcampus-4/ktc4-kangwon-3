@@ -88,6 +88,9 @@ services:
       # 내부 API (AI 서버 콜백 인증)
       INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
 
+      # 멈춘 진단 정리 기준 시간.
+      DIAGNOSES_STUCK_THRESHOLD: ${DIAGNOSES_STUCK_THRESHOLD:-15m}
+
       # 소셜 로그인
       KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID}
       KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET}
