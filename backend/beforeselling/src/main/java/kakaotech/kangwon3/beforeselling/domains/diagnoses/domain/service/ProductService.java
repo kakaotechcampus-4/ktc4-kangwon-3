@@ -35,6 +35,8 @@ public class ProductService {
     // BE가 직접 실패 처리할 때의 오류 코드
     static final String STUCK_ERROR_CODE = "BE_DIAGNOSES_TIMEOUT";
     static final String STUCK_ERROR_MESSAGE = "진단 결과를 받지 못해 진단을 종료했습니다.";
+    // AI_TIMEOUT과 같은 일시적인 실패라 다시 진단하면 성공할 수 있다.
+    static final boolean STUCK_ERROR_RETRYABLE = true;
 
     private final ProductRepository productRepository;
     private final DiagnosesRepository diagnosesRepository;
@@ -154,7 +156,7 @@ public class ProductService {
         }
 
         LocalDateTime lastUpdatedAt = product.getUpdatedAt();
-        product.fail(null, STUCK_ERROR_CODE, STUCK_ERROR_MESSAGE, null);
+        product.fail(null, STUCK_ERROR_CODE, STUCK_ERROR_MESSAGE, STUCK_ERROR_RETRYABLE);
         product.getDiagnoses().refreshProcessingStatus();
 
         log.warn("멈춘 진단 실패 처리. productId={}, diagnosesId={}, runId={}, lastUpdatedAt={}",
