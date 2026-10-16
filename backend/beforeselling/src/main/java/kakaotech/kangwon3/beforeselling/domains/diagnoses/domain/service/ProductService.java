@@ -2,6 +2,7 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
@@ -13,13 +14,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -27,6 +31,12 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ProductService {
+
+    // BE가 직접 실패 처리할 때의 오류 코드
+    static final String STUCK_ERROR_CODE = "BE_DIAGNOSES_TIMEOUT";
+    static final String STUCK_ERROR_MESSAGE = "진단 결과를 받지 못해 진단을 종료했습니다.";
+    // AI_TIMEOUT과 같은 일시적인 실패라 다시 진단하면 성공할 수 있다.
+    static final boolean STUCK_ERROR_RETRYABLE = true;
 
     private final ProductRepository productRepository;
     private final DiagnosesRepository diagnosesRepository;
@@ -122,6 +132,44 @@ public class ProductService {
 
         log.debug("상품 진단 결과 반영 완료. diagnosesId={}, productId={}, resultStatus={}",
                 diagnosesId, productId, content.resultStatus());
+    }
+
+    @Transactional
+    public boolean failStuckDiagnoses(UUID productId, LocalDateTime threshold) {
+        Optional<UUID> diagnosesId = productRepository.findDiagnosesIdById(productId);
+        if (diagnosesId.isEmpty()) {
+            return false;
+        }
+
+        Optional<Product> found = diagnosesRepository.findByIdForUpdate(diagnosesId.get())
+                .flatMap(diagnoses -> diagnoses.getProducts().stream()
+                        .filter(candidate -> candidate.getId().equals(productId))
+                        .findFirst());
+        if (found.isEmpty()) {
+            return false;
+        }
+
+        Product product = found.get();
+        if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS
+                || !product.getUpdatedAt().isBefore(threshold)) {
+            return false;
+        }
+
+        LocalDateTime lastUpdatedAt = product.getUpdatedAt();
+        product.fail(null, STUCK_ERROR_CODE, STUCK_ERROR_MESSAGE, STUCK_ERROR_RETRYABLE);
+        product.getDiagnoses().refreshProcessingStatus();
+
+        log.warn("멈춘 진단 실패 처리. productId={}, diagnosesId={}, runId={}, lastUpdatedAt={}",
+                productId, diagnosesId.get(), product.getRunId(), lastUpdatedAt);
+        return true;
+    }
+
+    /**
+     * 멈춘 진단 정리용. 진행 중이면서 마지막 상태 변경이 기준 시각보다 오래된 상품 ID를 오래된 순으로 가져온다.
+     */
+    public List<UUID> findStuckProductIds(LocalDateTime threshold, int limit) {
+        return productRepository.findIdsByStatusUpdatedBefore(
+                ProcessingStatus.IN_PROGRESS, threshold, PageRequest.of(0, limit));
     }
 
     // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.

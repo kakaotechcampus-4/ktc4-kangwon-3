@@ -2,6 +2,7 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
 import jakarta.persistence.EntityManager;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -248,6 +250,66 @@ class ProductRepositoryTest {
     @DisplayName("존재하지 않는 상품을 단건 조회하면 빈 값을 반환한다.")
     void findWithImagesByIdAndUserId_withUnknownId_thenReturnEmpty() {
         assertThat(productRepository.findWithImagesByIdAndUserId(UUID.randomUUID(), USER_ID)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("멈춘 진단 조회는 기준 시각보다 오래된 진행 중 상품만 오래된 순으로 반환한다.")
+    void findIdsByStatusUpdatedBefore_thenReturnStuckInProgressOldestFirst() {
+        // given: 상품을 만든 순서와 마지막 상태 변경 순서를 다르게 둔다.
+        LocalDateTime now = LocalDateTime.now();
+        List<UUID> ids = saveProducts(7);
+        changeStatus(ids.get(0), ProcessingStatus.IN_PROGRESS, now.minusMinutes(20));
+        changeStatus(ids.get(1), ProcessingStatus.IN_PROGRESS, now.minusMinutes(30));
+        changeStatus(ids.get(2), ProcessingStatus.IN_PROGRESS, now.minusMinutes(1));   // 아직 기준 시간 전
+        changeStatus(ids.get(3), ProcessingStatus.PENDING, now.minusMinutes(30));
+        changeStatus(ids.get(4), ProcessingStatus.AWAITING_INPUT, now.minusMinutes(30));
+        changeStatus(ids.get(5), ProcessingStatus.COMPLETED, now.minusMinutes(30));
+        changeStatus(ids.get(6), ProcessingStatus.FAILED, now.minusMinutes(30));
+
+        // when
+        List<UUID> stuckIds = productRepository.findIdsByStatusUpdatedBefore(
+                ProcessingStatus.IN_PROGRESS, now.minusMinutes(15), PageRequest.of(0, 10));
+
+        // then
+        assertThat(stuckIds).containsExactly(ids.get(1), ids.get(0));
+    }
+
+    @Test
+    @DisplayName("멈춘 진단 조회는 요청한 개수만큼 가장 오래된 것부터 반환한다.")
+    void findIdsByStatusUpdatedBefore_withLimit_thenReturnOldestOnly() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        List<UUID> ids = saveProducts(3);
+        changeStatus(ids.get(0), ProcessingStatus.IN_PROGRESS, now.minusMinutes(20));
+        changeStatus(ids.get(1), ProcessingStatus.IN_PROGRESS, now.minusMinutes(40));
+        changeStatus(ids.get(2), ProcessingStatus.IN_PROGRESS, now.minusMinutes(30));
+
+        // when
+        List<UUID> stuckIds = productRepository.findIdsByStatusUpdatedBefore(
+                ProcessingStatus.IN_PROGRESS, now.minusMinutes(15), PageRequest.of(0, 2));
+
+        // then
+        assertThat(stuckIds).containsExactly(ids.get(1), ids.get(2));
+    }
+
+    private List<UUID> saveProducts(int count) {
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        for (int i = 0; i < count; i++) {
+            diagnoses.addProducts(List.of(createProduct("상품 " + i, null)));
+        }
+        List<UUID> ids = diagnosesRepository.save(diagnoses).getProducts().stream().map(Product::getId).toList();
+        flushAndClear();
+        return ids;
+    }
+
+    // updatedAt은 auditing이 저장 시각으로 덮어쓰므로, 과거 시각은 SQL로 직접 넣는다.
+    private void changeStatus(UUID productId, ProcessingStatus status, LocalDateTime updatedAt) {
+        entityManager.createNativeQuery(
+                        "update product set processing_status = :status, updated_at = :updatedAt where product_id = :id")
+                .setParameter("status", status.name())
+                .setParameter("updatedAt", updatedAt)
+                .setParameter("id", productId)
+                .executeUpdate();
     }
 
     private void saveDiagnoses(UUID userId, String... productNames) {
