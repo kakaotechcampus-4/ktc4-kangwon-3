@@ -82,8 +82,9 @@ class RadioTool(RegulatoryTool):
     def _get_steps(self) -> tuple[_FactsStep, _ReviewStep]:
         if self._steps is None:
             if self._model is None:
-                from ...config import build_chat_model
-                self._model = build_chat_model()
+                # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
+                from ...config import build_tool_model
+                self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
             self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))
         return self._steps
