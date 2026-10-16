@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -159,6 +160,14 @@ public class ProductService {
         log.warn("멈춘 진단 실패 처리. productId={}, diagnosesId={}, runId={}, lastUpdatedAt={}",
                 productId, diagnosesId.get(), product.getRunId(), lastUpdatedAt);
         return true;
+    }
+
+    /**
+     * 멈춘 진단 정리용. 진행 중이면서 마지막 상태 변경이 기준 시각보다 오래된 상품 ID를 오래된 순으로 가져온다.
+     */
+    public List<UUID> findStuckProductIds(LocalDateTime threshold, int limit) {
+        return productRepository.findIdsByStatusUpdatedBefore(
+                ProcessingStatus.IN_PROGRESS, threshold, PageRequest.of(0, limit));
     }
 
     // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.
