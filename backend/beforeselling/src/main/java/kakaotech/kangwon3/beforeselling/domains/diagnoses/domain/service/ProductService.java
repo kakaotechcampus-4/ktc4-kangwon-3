@@ -110,20 +110,15 @@ public class ProductService {
                 .findFirst()
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
-        // TODO: 진단 요청의 202 응답에서 runId를 저장(assignRun)하는 흐름이 구현되면 주석을 푼다.
-        //  지금은 runId가 항상 null이라, 켜 두면 모든 결과가 409(재시도) 또는 이전 실행으로 무시된다.
-        //  재실행(resume) 시 이전 runId를 비우지 않으면 새 실행의 결과가 이전 실행으로 무시되므로 함께 확인한다.
-        // // 202 응답의 runId를 저장하기 전에 도착한 콜백. AI는 COMMON-009(409)일 때만 다시 보낸다.
-        // if (!product.isRunAssigned()) {
-        //     throw new BaseException(CommonResponseCode.LOCK_CONFLICT);
-        // }
-        // if (!product.isCurrentRun(runId)) {
-        //     log.info("이전 실행의 결과 콜백을 무시합니다. productId={}, runId={}, currentRunId={}",
-        //             productId, runId, product.getRunId());
-        //     return;
-        // }
+        // 현재 runId와 다르면 202 응답의 runId를 저장하기 전에 도착한 새 실행의 콜백일 수 있어 다시 보내 달라고 한다.
+        // AI는 COMMON-009(409)일 때만 다시 보내고, 정말 이전 실행의 콜백이면 재시도 끝에 버려진다.
+        if (!product.isCurrentRun(runId)) {
+            log.debug("현재 실행이 아닌 결과 콜백.. productId={}, runId={}, currentRunId={}",
+                    productId, runId, product.getRunId());
+            throw new BaseException(CommonResponseCode.LOCK_CONFLICT);
+        }
         if (product.hasResult()) {
-            log.info("이미 결과가 반영된 상품의 결과 콜백을 무시합니다. productId={}, runId={}", productId, runId);
+            log.debug("이미 결과가 반영된 상품의 결과 콜백을 무시합니다. productId={}, runId={}", productId, runId);
             return;
         }
 

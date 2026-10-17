@@ -33,7 +33,7 @@ public interface AiCallbackApi {
                     결과 콜백 처리 규칙
                     - 이미 결과가 반영된 상품에 결과가 다시 오면 반영하지 않고 200으로 응답합니다.
                     - 진단서 잠금을 기다리다 시간이 초과되면 `LOCK_CONFLICT`(COMMON-009)로 응답합니다. 다시 보내면 됩니다.
-                    - 실행 식별자(runId)는 아직 확인하지 않습니다(runId 저장 흐름 구현 후 적용).
+                    - 실행 식별자(runId)가 현재 실행과 다르거나 아직 저장 전이면 `LOCK_CONFLICT`(COMMON-009)로 응답합니다. 다시 보내면 됩니다.
                     - 진단 중이 아닌 상품(대기, 답변 대기, 실패)이면 `CONFLICT`(COMMON-010)입니다.
                     - 같은 분야(`toolName`)의 카드가 중복되면 저장 단계에서 `DATA_INTEGRITY_VIOLATION`(COMMON-003)으로 거절됩니다.
                     """)
