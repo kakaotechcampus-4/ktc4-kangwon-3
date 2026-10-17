@@ -47,7 +47,11 @@ public interface DiagnosesApi {
             description = """
                     진단서 한 건의 상세 정보를 조회합니다. 등록 시 입력한 원본(`sourceText`, `imageUrls`)을 모두 포함합니다.
                     저장은 S3 key로 하지만 응답의 `imageUrls`와 `productImageUrl`은 접근 가능한 URL로 조립되어 내려갑니다.
-                    진단이 완료되지 않은 경우 `resultStatus`와 `summary`는 `null`입니다.
+                    진단이 완료되면 상품마다 분야별 카드(`toolReviews`)와 그 안의 판단 항목(`findings`)·법령 근거(`legalSources`),
+                    필요한 조치(`requiredActions`), 안내 사항(`notices`)이 함께 내려갑니다. 분야별 카드는 `toolName` 순서
+                    (CUSTOMS → CHILDREN → ELECTRICAL → RADIO → FOOD_DRUG → LABEL_AD)로 정렬됩니다.
+                    진단이 완료되지 않은 경우 `assessmentStatus`, `resultStatus`, `summary`는 `null`이고
+                    `toolReviews`, `requiredActions`, `notices`는 빈 배열입니다.
                     """)
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(responseClass = DiagnosesDetailResponse.class, description = "조회 성공"),
