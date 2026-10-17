@@ -376,16 +376,17 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("이전 실행의 결과가 늦게 오면 예외 없이 무시하고 상품은 진행 중으로 남는다.")
-    void completeDiagnoses_withPreviousRun_thenIgnore() {
-        // given
+    @DisplayName("현재 실행과 다른 실행의 결과가 오면 다시 보내 달라는 LOCK_CONFLICT 예외가 발생하고 결과를 반영하지 않는다.")
+    void completeDiagnoses_withOtherRun_thenThrowLockConflict() {
+        // given: 새 실행의 runId를 저장하기 전에 그 결과가 먼저 왔거나, 이전 실행의 결과가 늦게 온 경우
         Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
         givenLockedDiagnosesById(diagnoses);
 
-        // when
-        productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, "previous-run", assessmentContent("지난 결과"));
-
-        // then
+        // when & then
+        assertThatThrownBy(() -> productService.completeDiagnoses(DIAGNOSES_ID, PRODUCT_ID, "other-run", assessmentContent("다른 실행 결과")))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.LOCK_CONFLICT);
         Product product = diagnoses.getProducts().getFirst();
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
         assertThat(product.getSummary()).isNull();
