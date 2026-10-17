@@ -1,0 +1,514 @@
+{
+ "description": "표시·광고 Tool 개발 평가셋. 입력 listing_text(tests/fixtures/_raw/advertising_dev_inputs.json, 저장소에 없음)는 추출 결과(logs/eval/20261008-191544.json, gpt-6-luna) 중 원문과 글자 그대로 일치하는 줄만 남기고, 이어폰은 원문 269행 판매자 소개를 더했다. 추출 흔들림과 툴 성능을 나눠 보기 위해 입력을 고정한다. 개발 중 보고 고치는 셋이라 홀드아웃이 아니다.",
+ "inputs_file": "tests/fixtures/_raw/advertising_dev_inputs.json",
+ "inputs_sha256_12": "b234cf64544f",
+ "reviewed_by": "부분 검토. 미분류 16건 라벨과 인증 나열 기준은 gityhb 확인(2026-10-12). 나머지 초안은 Claude가 근거 픽스처를 보고 정했다(미검토)",
+ "law_versions": "tests/fixtures/advertising_law/README.md",
+ "risk_types": {
+  "body_effect": "실증 고시 Ⅲ 1 인체에 직접 영향",
+  "safety_certification": "실증 고시 Ⅲ 2 안전·환경·신기술·인증",
+  "performance_quality": "실증 고시 Ⅲ 3 성능·효능·품질",
+  "ranking_absolute": "실증 고시 Ⅲ 4 순위, 지정고시 14 나 절대적 표현"
+ },
+ "scoring": "탐지 문구가 must_flag 항목 text를 포함하거나 그 안에 포함되면 맞힌 것(risk_type은 따로 센다). must_flag를 못 잡으면 놓침, must_not_flag를 잡으면 오탐. acceptable은 어느 쪽으로도 세지 않는다. 어느 목록에도 없는 문구를 잡으면 '미분류'로 따로 보고 사람이 정한다.",
+ "cases": [
+  {
+   "fixture": "ali_sample.txt",
+   "product_id": "ali_sample",
+   "must_flag": [
+    {
+     "text": "아이들의 연약한 피부에 적합한",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1 ④(\"인체에 무해한 원료\")와 같은 인체 안전 주장으로 본 판단. 예시와 문구가 직접 같지는 않다"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "무선 드라이기",
+     "why": "상품 이름"
+    },
+    {
+     "text": "리튬 배터리",
+     "why": "사양"
+    },
+    {
+     "text": "인증정보: CE-RoHS; CE-EMC(Electric)",
+     "why": "인증 이름만 나열한 사실 표기. 국내 인증으로 오인하게 쓴 문구가 없어 잡지 않는다(SELECTION_EVAL 5절 ③). reviewed_phrases에는 남긴다"
+    },
+    {
+     "text": "부드러운 바람",
+     "why": "느낌에 대한 주관적 표현(지정고시 14 나)"
+    }
+   ],
+   "acceptable": []
+  },
+  {
+   "fixture": "battery_product_aa_rechargeable.txt",
+   "product_id": "battery_product_aa_rechargeable",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "800mAh AA 배터리 4개",
+     "why": "사양"
+    },
+    {
+     "text": "배터리 용량(mAh): 800마",
+     "why": "사양"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "여러 번 충전 가능",
+     "why": "충전식 배터리의 기본 성질 설명"
+    }
+   ]
+  },
+  {
+   "fixture": "cert_number_kc_text.txt",
+   "product_id": "cert_number_kc_text",
+   "must_flag": [
+    {
+     "text": "고효율",
+     "risk_type": "performance_quality",
+     "basis": "실증 고시 Ⅲ 3, 지정고시 5 나(판단기준 없이 막연한 성능)"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "전기 파리채",
+     "why": "상품 이름"
+    },
+    {
+     "text": "USB 충전",
+     "why": "사양"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "실내 모기 퇴치기",
+     "why": "상품 종류 이름이지만 퇴치 성능 주장으로도 읽힌다"
+    },
+    {
+     "text": "해충 퇴치기",
+     "why": "상품 종류 이름. '실내 모기 퇴치기'와 같은 경우"
+    }
+   ]
+  },
+  {
+   "fixture": "cert_number_led_stand.txt",
+   "product_id": "cert_number_led_stand",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "침실/책상/커피 바 장식 및 야간 조명에 적합",
+     "why": "용도 안내(선택 정답표)"
+    },
+    {
+     "text": "공칭 전압 0~5V",
+     "why": "사양"
+    },
+    {
+     "text": "작풍 현대적인",
+     "why": "주관적 판단(지정고시 14 나)"
+    },
+    {
+     "text": "인증 ce,FCC,ROHS는 무엇입니까?",
+     "why": "인증 이름만 나열한 사실 표기. 국내 인증으로 오인하게 쓴 문구가 없어 잡지 않는다(SELECTION_EVAL 5절 ③). reviewed_phrases에는 남긴다"
+    },
+    {
+     "text": "3색 조광 기능",
+     "why": "기능 사양"
+    },
+    {
+     "text": "밝기 조절 가능",
+     "why": "사양 항목"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "고농도 화학 물질 없음",
+     "why": "AliExpress 공통 사양 항목. 판매자가 쓴 안전 주장인지 확인 필요"
+    }
+   ]
+  },
+  {
+   "fixture": "children_age_label_toy.txt",
+   "product_id": "children_age_label_toy",
+   "must_flag": [
+    {
+     "text": "창의력과 지능 향상",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1 ②(\"집중력과 기억력을 향상\")"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "남아와 여아에 적합",
+     "why": "대상 안내"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "창의력 및 지능 향상",
+     "why": "정답 '창의력과 지능 향상'과 같은 주장(두 번째 제목 줄)"
+    }
+   ]
+  },
+  {
+   "fixture": "cosmetic_claim_face_roller.txt",
+   "product_id": "cosmetic_claim_face_roller",
+   "must_flag": [
+    {
+     "text": "얼굴 리프팅 및 탄력",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1, 소비자 안전 지침 2 나(화장품 탄력 회복 예시)"
+    },
+    {
+     "text": "경락선 개통",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1"
+    },
+    {
+     "text": "근육 이완",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "전기 불필요",
+     "why": "사양"
+    },
+    {
+     "text": "크리스마스, 추수감사절, 할로윈을 위한",
+     "why": "선물 용도 안내"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "얼굴 윤곽 조정",
+     "why": "외모 변화 주장. 주관적 판단인지 인체 효과인지 경계"
+    }
+   ]
+  },
+  {
+   "fixture": "cosmetic_claim_led_mask.txt",
+   "product_id": "cosmetic_claim_led_mask",
+   "must_flag": [
+    {
+     "text": "주름 개선",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1"
+    },
+    {
+     "text": "피부 재생",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1, 소비자 안전 지침 2 나(피부재생 예시)"
+    },
+    {
+     "text": "여드름 치료",
+     "risk_type": "body_effect",
+     "basis": "소비자 안전 지침 1 가(의약품이 아닌 상품의 의약품 효능 표방)"
+    },
+    {
+     "text": "피부톤 개선",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "배터리가 포함되어 있습니까? 아니요",
+     "why": "사양"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "고농도 화학 물질 없음",
+     "why": "AliExpress 공통 사양 항목. led_stand와 같은 기준"
+    }
+   ]
+  },
+  {
+   "fixture": "coupang_direct_import.txt",
+   "product_id": "coupang_direct_import",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "304 스테인리스 스틸",
+     "why": "재질 사양"
+    },
+    {
+     "text": "재질: 스테인리스",
+     "why": "사양"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "대용량",
+     "why": "용량 1200ML를 함께 밝힘"
+    }
+   ]
+  },
+  {
+   "fixture": "food_contact_silicone_utensils.txt",
+   "product_id": "food_contact_silicone_utensils",
+   "must_flag": [
+    {
+     "text": "요리와 베이킹에 완벽",
+     "risk_type": "ranking_absolute",
+     "basis": "지정고시 14 나(절대적 표현), 선택 정답표"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "선물로 이상적",
+     "why": "주관적 판단(지정고시 14 나)"
+    },
+    {
+     "text": "편안한 나무 손잡이",
+     "why": "주관적 판단(지정고시 14 나)"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "논스틱, 내열성",
+     "why": "기능 사양 나열. 수치 없는 성능 주장으로도 읽힌다"
+    },
+    {
+     "text": "요리 및 베이킹에 적합",
+     "why": "용도 안내"
+    },
+    {
+     "text": "세척 용이",
+     "why": "수치 없는 기능 주장. 팀 논의 중(#295)"
+    }
+   ]
+  },
+  {
+   "fixture": "medical_claim_knee_heating_pad.txt",
+   "product_id": "medical_claim_knee_heating_pad",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "관절용 온열 무릎 스트랩",
+     "why": "추출 정답표: 제목은 '관절용'일 뿐 효능을 말하지 않는다"
+    },
+    {
+     "text": "일상 사용에 이상적입니다",
+     "why": "주관적 판단(지정고시 14 나)"
+    },
+    {
+     "text": "가열 온도: 40-60℃",
+     "why": "사양"
+    },
+    {
+     "text": "정격 전압: 5V",
+     "why": "사양"
+    },
+    {
+     "text": "온도는 약 44입니다.°씨",
+     "why": "단계별 조건을 밝힌 사양"
+    },
+    {
+     "text": "온도는 약 41도입니다.°씨",
+     "why": "단계별 조건을 밝힌 사양"
+    },
+    {
+     "text": "온도는 약 38도입니다.°씨",
+     "why": "단계별 조건을 밝힌 사양"
+    },
+    {
+     "text": "온도는 56-65입니다.°씨",
+     "why": "단계별 조건을 밝힌 사양"
+    },
+    {
+     "text": "온도는 46-59입니다.°씨",
+     "why": "단계별 조건을 밝힌 사양"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "품목 유형 교정기 및 지지대",
+     "why": "AliExpress 공통 분류 항목"
+    },
+    {
+     "text": "물리 치료",
+     "why": "기계 번역으로 깨진 측정 오차 안내문 안의 낱말"
+    },
+    {
+     "text": "고농도 화학 물질 없음",
+     "why": "AliExpress 공통 사양 항목. 판매자 안전 주장으로 볼지 팀 논의 중(#295)"
+    }
+   ]
+  },
+  {
+   "fixture": "medical_claim_posture_band.txt",
+   "product_id": "medical_claim_posture_band",
+   "must_flag": [
+    {
+     "text": "굽은 등 교정기",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1, 선택 정답표(신체기능 개선 효능 표방)"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "성인 남녀",
+     "why": "대상 안내"
+    },
+    {
+     "text": "재료 Composite Material",
+     "why": "사양"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "앉은 자세 교정 벨트",
+     "why": "같은 제목 안 교정 표현. '굽은 등 교정기'와 같은 주장으로 볼지 확인 필요"
+    },
+    {
+     "text": "어깨 등 스트레이트",
+     "why": "교정 효과 주장으로도 읽힌다"
+    },
+    {
+     "text": "고농도 화학 물질 없음",
+     "why": "AliExpress 공통 사양 항목. 판매자 안전 주장으로 볼지 팀 논의 중(#295)"
+    },
+    {
+     "text": "등 자세 교정기",
+     "why": "'굽은 등 교정기'와 같은 교정 주장"
+    }
+   ]
+  },
+  {
+   "fixture": "power_bank.txt",
+   "product_id": "power_bank",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "MagSafe 1460mAh 케이스",
+     "why": "사양"
+    },
+    {
+     "text": "프로스트 케이스",
+     "why": "상품 이름"
+    }
+   ],
+   "acceptable": []
+  },
+  {
+   "fixture": "wireless_comm_bone_conduction_earphone.txt",
+   "product_id": "wireless_comm_bone_conduction_earphone",
+   "must_flag": [
+    {
+     "text": "최고 품질의 칩셋과 자재만을 사용하여",
+     "risk_type": "ranking_absolute",
+     "basis": "지정고시 14 나(\"최고\" 절대적 표현)"
+    },
+    {
+     "text": "저가형 이어폰은 절대 판매하지 않습니다",
+     "risk_type": "ranking_absolute",
+     "basis": "추출 정답표(판매자의 절대적 표현)"
+    },
+    {
+     "text": "수영이나 목욕에도 문제가 없습니다",
+     "risk_type": "performance_quality",
+     "basis": "실증 고시 Ⅲ 3(성능·품질)"
+    },
+    {
+     "text": "귀 내부 위생을 유지하는 데 매우 도움이 됩니다",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1"
+    },
+    {
+     "text": "더욱 안전하게 사용할 수 있습니다",
+     "risk_type": "safety_certification",
+     "basis": "소비자 안전 지침 1 나"
+    },
+    {
+     "text": "2000곡 이상의 노래를 저장할 수 있습니다",
+     "risk_type": "performance_quality",
+     "basis": "실증 고시 Ⅲ 3(수치로 된 성능 주장), 선택 프롬프트 '객관적 수치의 과장 가능성'"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "이어폰을 바닷물/소금물에 오랫동안 담가둘 수 없습니다",
+     "why": "주의사항"
+    },
+    {
+     "text": "5V1A 이하의 출력을 가진 충전 헤드를 사용하십시오",
+     "why": "사용 안내"
+    },
+    {
+     "text": "전송 거리: > 10미터",
+     "why": "사양"
+    },
+    {
+     "text": "배터리 수명: 볼륨 65%에서 약 10시간",
+     "why": "조건을 밝힌 사양"
+    },
+    {
+     "text": "IPX8 방수 기능",
+     "why": "방수 등급 표기(사양)"
+    },
+    {
+     "text": "다른 스테레오 청취 경험을 제공합니다",
+     "why": "청취 경험에 대한 주관적 표현"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "아마존 유명 브랜드 OEM/ODM 주문을 전문으로 처리하는 정식 자격을 갖춘 직영 공장입니다",
+     "why": "사업자 주장(지정고시 2·10). 첫 범위 밖"
+    },
+    {
+     "text": "2년 품질 보증",
+     "why": "거래조건(지정고시 11). 첫 범위 밖"
+    },
+    {
+     "text": "Shokz",
+     "why": "다른 회사 상표를 상품명에 씀. 첫 범위 밖"
+    },
+    {
+     "text": "음질이 향상되었으며 골전도 음질이 최적화되어",
+     "why": "음질은 주관적 판단과 성능 주장의 경계"
+    },
+    {
+     "text": "떨어지거나 흔들리거나 움직이지 않습니다",
+     "why": "착용 성능 주장. 절대적 표현에 가깝다"
+    },
+    {
+     "text": "위험한 상황에서 헤드폰을 사용할 수 있는 가능성을 보장합니다",
+     "why": "안전 주장으로도 읽힌다"
+    },
+    {
+     "text": "뛰어난 방수 성능",
+     "why": "정답 '수영이나 목욕에도 문제가 없습니다'와 같은 문장의 앞부분"
+    }
+   ]
+  },
+  {
+   "fixture": "wireless_shield_rfid.txt",
+   "product_id": "wireless_shield_rfid",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "초슬림",
+     "why": "형태 설명"
+    },
+    {
+     "text": "남녀공용",
+     "why": "대상 안내"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "RFID 차단",
+     "why": "기능 설명. 선택 정답표는 표시광고 미선택이지만 실증 고시 Ⅲ 3 ⑤(차단 효과)로도 읽힌다"
+    }
+   ]
+  }
+ ]
+}
