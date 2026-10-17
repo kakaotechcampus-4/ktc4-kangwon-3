@@ -58,7 +58,7 @@ public class ProductService {
         Product product = productRepository.findWithImagesByIdAndUserId(productId, userId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
-        product.loadResult();
+        product.loadDetail();
 
         return product;
     }
