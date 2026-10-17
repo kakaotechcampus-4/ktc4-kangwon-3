@@ -56,7 +56,11 @@ public interface ProductApi {
                     상품 하나의 진단 결과를 조회합니다. (마이페이지 → 상품 클릭)
                     응답은 진단서 단건 조회의 `products[]` 항목과 같은 형태입니다.
                     저장은 S3 key로 하지만 응답의 `imageUrls`와 `productImageUrl`은 접근 가능한 URL로 조립되어 내려갑니다.
-                    진단이 완료되지 않은 경우 `resultStatus`와 `summary`는 `null`입니다.
+                    진단이 완료되면 상품마다 분야별 카드(`toolReviews`)와 그 안의 판단 항목(`findings`)·법령 근거(`legalSources`),
+                    필요한 조치(`requiredActions`), 안내 사항(`notices`)이 함께 내려갑니다. 분야별 카드는 `toolName` 순서
+                    (CUSTOMS → CHILDREN → ELECTRICAL → RADIO → FOOD_DRUG → LABEL_AD)로 정렬됩니다.
+                    진단이 완료되지 않은 경우 `assessmentStatus`, `resultStatus`, `summary`는 `null`이고
+                    `toolReviews`, `requiredActions`, `notices`는 빈 배열입니다.
                     없는 상품과 다른 사용자의 상품은 모두 `NOT_FOUND`로 응답합니다.
                     """)
     @ApiResponseExplanations(
