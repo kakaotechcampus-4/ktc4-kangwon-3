@@ -252,6 +252,14 @@ public class Product extends BaseEntity {
         return processingStatus == ProcessingStatus.COMPLETED;
     }
 
+    // open-in-view=false 라 DTO 매핑 전에 트랜잭션 안에서 진단 결과 컬렉션을 미리 읽어 둠.
+    public void loadResult() {
+        toolReviews.forEach(review ->
+                review.getFindings().forEach(finding -> finding.getLegalSources().size()));
+        requiredActions.size();
+        notices.size();
+    }
+
     private void transition(ProcessingStatus from, ProcessingStatus to) {
         if (processingStatus != from) {
             throw new BaseException(CommonResponseCode.CONFLICT);
