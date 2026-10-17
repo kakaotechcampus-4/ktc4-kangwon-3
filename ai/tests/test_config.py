@@ -13,6 +13,8 @@ _VALID = {
     "data_go_kr_key": "test-data-key",
     "safetykorea_key": "test-safety-key",
     "law_oc": "test-oc",
+    "internal_api_token": "test-internal-token-0123456789abcdef",
+    "be_base_url": "http://be-server:8080",
 }
 
 _VALID_ENV = {
@@ -23,6 +25,8 @@ _VALID_ENV = {
     "DATA_GO_KR_KEY": "test-data-key",
     "KEY_SAFETYKOREA": "test-safety-key",
     "LAW_GO_KR_OC": "test-oc",
+    "INTERNAL_API_TOKEN": "test-internal-token-0123456789abcdef",
+    "BE_BASE_URL": "http://be-server:8080",
     # 셸에 남은 덮어쓰기 값이 테스트에 섞이지 않게 기본은 지움
     "MODEL_PROFILE_OVERRIDES": None,
 }
@@ -118,7 +122,8 @@ def test_필수_환경변수가_모두_있으면_설정을_읽는다(monkeypatch
 
 @pytest.mark.parametrize(
     "missing",
-    ["OPENAI_EMBEDDING_MODEL", "DATA_GO_KR_KEY", "KEY_SAFETYKOREA", "LAW_GO_KR_OC"],
+    ["OPENAI_EMBEDDING_MODEL", "DATA_GO_KR_KEY", "KEY_SAFETYKOREA", "LAW_GO_KR_OC",
+     "INTERNAL_API_TOKEN", "BE_BASE_URL"],
 )
 def test_모델_이름과_외부_API_키가_없으면_설정_로딩에_실패한다(monkeypatch, missing):
     # 코드에 기본값이 없으므로 하나라도 빠지면 조용히 메워지지 않고 lifespan에서 기동이 실패해야 한다.
@@ -159,7 +164,8 @@ def test_빠진_필수_환경변수는_한_번에_모두_알려준다(monkeypatc
 
 
 @pytest.mark.parametrize(
-    "field_name", ["embedding_model", "data_go_kr_key", "safetykorea_key", "law_oc"],
+    "field_name",
+    ["embedding_model", "data_go_kr_key", "safetykorea_key", "law_oc", "internal_api_token", "be_base_url"],
 )
 def test_Settings를_직접_만들어도_필수_값이_비면_거부한다(field_name):
     with pytest.raises(config.ConfigError, match="필수 설정이 비어 있습니다"):
@@ -330,3 +336,25 @@ def test_에이전트_Tool_모델은_설정을_한_번_읽고_프로필로_만�
 
     assert len(reads) == 1
     assert captured["model"] == getattr(config, pick)(name, original()).model.id
+
+
+def test_내부_API_토큰이_BE_기준보다_짧으면_거부하고_값은_노출하지_않는다():
+    short = "short-internal-token-31-chars-x"
+
+    with pytest.raises(config.ConfigError, match="INTERNAL_API_TOKEN은 32자 이상") as exc_info:
+        _settings(internal_api_token=short)
+
+    assert short not in str(exc_info.value)
+    assert _settings(internal_api_token="x" * 32).internal_api_token == "x" * 32
+
+
+@pytest.mark.parametrize("be_base_url", ["be-server:8080", "ftp://be-server", "localhost:8080"])
+def test_BE_주소는_http나_https로_시작해야_한다(be_base_url):
+    with pytest.raises(config.ConfigError, match="BE_BASE_URL"):
+        _settings(be_base_url=be_base_url)
+
+
+def test_내부_API_토큰은_repr에_노출되지_않는다():
+    token = "private-internal-token-0123456789abcdef"
+
+    assert token not in repr(_settings(internal_api_token=token))
