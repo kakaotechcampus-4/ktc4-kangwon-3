@@ -7,7 +7,8 @@
 | `app/tools/electrical/tool.py` | `ElectricalTool` 흐름 (조건 추출 → 조회 → 규칙 → 선택 → 결과 조립) |
 | `app/tools/electrical/rules.py` | 코드 규칙(저전압·전지 전용·ESS 필터)과 구매대행 안내 문구 |
 | `app/tools/electrical/search.py` | 품목 조회 인터페이스 `ElectricalItemSearch`, `LawApiItemSearch`, `DatabaseItemSearch`(스텁) |
-| `app/tools/electrical/evidence.py` | 법령 버전 선택, 품목표·공통 비고·별표 13 파서, 캐시 |
+| `app/tools/electrical/evidence.py` | 품목표·공통 비고·별표 13 파서. 법령 버전 선택·본문 대조·캐시는 공용 `app/tools/common/law.py` |
+| `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용): 법제처 조회(`law.py`), 모델 호출 단계(`agent.py`), 원문 대조(`facts.py`), 행 순위(`ranking.py`) |
 | `app/schemas/electrical.py`, `app/prompts/electrical/facts.md`·`review.md` | LLM 입출력 |
 | `app/eval/electrical_runner.py` | 실제 실행·모델 비교·평가 채점·재채점 (`python -m app.eval.electrical_runner`) |
 | `tests/tools/electrical/` | 단위 테스트(`test_tool.py`, `test_evidence.py`)와 법제처 Fake(`conftest.py`) |
@@ -60,7 +61,15 @@ Product (추출 에이전트 결과)
 | `AC 220V`와 `DC 12V` | 교류·직류 혼재. 충돌(판정 보류) |
 | `24V`와 `220V` (교류) | 기준 양쪽에 걸침. 충돌(판정 보류) |
 
-값이 없으면 "~ 정보가 필요합니다", 충돌이면 "~ 정보가 서로 달라 확인이 필요합니다"로 질문을 나눈다. 다른 조건은 글자가 다르면 충돌이다.
+값이 없으면 "~ 정보가 필요합니다", 충돌이면 "~ 정보가 서로 달라 확인이 필요합니다"로 질문을 나눈다.
+
+**충돌로 보는 조건은 판단을 바꾸는 것뿐이다.** 전원·전압(위 표)과 전지 전용 여부(예·아니오가 함께 나올 때)만 충돌이다.
+제품 종류·용도는 값이 여러 개여도(예: "무선 전기포트"와 "전기주전자") 모두 조회어로 쓰고, 정격 소비전력·어댑터 포함 여부는
+판단에 쓰지 않으므로 충돌을 검사하지 않는다.
+
+**질문도 판단을 바꾸는 조건만 낸다**(BE·AI 계약 #310 논의: 질문 키는 답에 따라 판단이 달라지는 정보에만).
+질문 대상은 제품 종류·전원 방식·정격 전압·전지 전용 여부다. 품목 선택 모델이 확정에 더 필요하다고 한 그 밖의 조건
+(용도·소비전력 등)은 그 후보의 `assumptions`에 "품목 확정에는 … 확인이 더 필요합니다"로 남긴다.
 
 ### 구매대행 특례 상태 (`query.purchase_agent`)
 
@@ -86,7 +95,8 @@ Product (추출 에이전트 결과)
 
 ## 입력 조건
 
-- 품목 조회에는 **제품 종류만 있으면 된다.** 없거나 상품 모순이 있으면 조회하지 않고 정보 부족을 반환한다.
+- 품목 조회에는 **제품 종류만 있으면 된다.** 없으면 조회하지 않고 정보 부족을 반환한다.
+- 추출 단계가 표시한 상품 모순(`Product.conflicts`, 예: 배터리 용량 불일치)은 조회를 막지 않는다. 결과의 `assumptions`에 그대로 남긴다.
 - 전원 방식·정격 전압이 없으면 `missing_information`(질문)으로 남기고 품목 검토는 계속한다.
 - `Product.listing_text`와 `Attribute.source_text`만 상품 인용 근거로 쓴다. 나머지 Product 값은 조회용 힌트이며, boolean만으로 판단하지 않는다.
 
@@ -110,7 +120,8 @@ Product (추출 에이전트 결과)
 
 ## 결과
 
-- 선택된 행: `POSSIBLY_REQUIRED`, subject `"{제도}대상 후보 — {품목}"`. 근거는 그 행 원문(분류·품목·세부품목·비고)이고, 저전압이면 운용요령 제3조도 붙인다.
+- 선택된 행: `POSSIBLY_REQUIRED`, subject `"{제도}대상 후보 — {품목}"`, summary는 "이 품목으로 분류되면 … 가능성이 있습니다(확정 아님)". 근거는 그 행 원문(분류·품목·세부품목·비고)이고, 저전압이면 운용요령 제3조도 붙인다. 출처 이름은 다른 규제 Tool과 같은 "법제처 국가법령정보"다.
+- 각 후보의 `requirements`에 그 행의 판매 안내(구매대행·사입별 할 일)를 넣는다. 재실행에서 판단이 빠지면 ToolExecutor가 그 판단의 할 일만 함께 지운다.
 - 조건 부족·빈 후보·맞는 행 없음: `INSUFFICIENT_INFORMATION`. 비대상으로 해석하지 않는다.
 - 모델 출력 중 대조되지 않는 항목은 **그 항목만 버리고** 계속한다(원문에 없는 조건, 후보에 없는 행, 미확인 조건 참조, 저전압 제외 행, 중복 선택). 버린 수는 `query`와 `assumptions`에 남는다.
 - 품목 선택마다 모델이 이유를 쓴 뒤 `applies`(해당 가능성 있음/없음)를 함께 낸다. `false`면 이유와 선택이 어긋난 것이므로 코드가 버린다(`query.not_applicable`).
@@ -118,7 +129,7 @@ Product (추출 에이전트 결과)
 - `required_actions`: 선택된 후보 품목 기준의 구매대행·사입별 할 일(위 표).
 - `ElectricalAssessment.legal_sources`는 비운다. 긴 근거는 findings에만 둔다(Verification 입력 중복 방지). `safety_management_required`는 확정이 아니므로 `None`이다.
 - 모델 호출·구조화 출력 실패, 법령 조회 오류는 `ElectricalToolError`로 전파한다(원인은 예외 체인).
-- 모델 두 호출을 `electrical-facts`, `electrical-review` 사용량 기록으로 구분한다.
+- 모델 호출은 공통 BaseAgent(#284)를 쓰는 `ToolStep`(`app/tools/common/agent.py`)이 맡는다. 프롬프트는 `PromptName.ELECTRICAL_FACTS`·`ELECTRICAL_REVIEW`로 읽고, 사용량은 `electrical-facts`, `electrical-review`로 구분해 기록한다.
 
 ## 남은 작업
 
