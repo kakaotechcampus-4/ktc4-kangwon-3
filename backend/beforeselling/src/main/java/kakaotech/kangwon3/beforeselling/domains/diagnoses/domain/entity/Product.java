@@ -217,10 +217,19 @@ public class Product extends BaseEntity {
         if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
+
+        // 이미 받은 회차를 다시 저장하면 flush 시점에 유니크 제약 위반이 난다. 지난 회차도 함께 막는다.
+        if (questionRound <= latestQuestionRound()) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
         
         transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
         contents.forEach(content -> questions.add(new ProductQuestion(this, questionRound,
                 content.questionKey(), content.questionOrder(), content.questionText(), content.helpText())));
+    }
+
+    public boolean hasQuestionsOfRound(int questionRound) {
+        return questions.stream().anyMatch(question -> question.getQuestionRound() == questionRound);
     }
 
     // 진단을 실패로 끝내고 실패 정보를 남긴다.
@@ -256,6 +265,10 @@ public class Product extends BaseEntity {
         return processingStatus == ProcessingStatus.FAILED;
     }
 
+    public boolean isAwaitingInput() {
+        return processingStatus == ProcessingStatus.AWAITING_INPUT;
+    }
+
     // open-in-view=false 라 DTO 매핑 전에 트랜잭션 안에서 상세 응답에 필요한 컬렉션(이미지, 진단 결과)을 미리 읽어 둠.
     public void loadDetail() {
         images.size();
@@ -270,6 +283,11 @@ public class Product extends BaseEntity {
             throw new BaseException(CommonResponseCode.CONFLICT);
         }
         this.processingStatus = to;
+    }
+
+    // 아직 질문을 받은 적이 없으면 0
+    private int latestQuestionRound() {
+        return questions.stream().mapToInt(ProductQuestion::getQuestionRound).max().orElse(0);
     }
 
     // 대표 이미지와 상세 이미지 key를 순서대로 모은다(S3 정리·확정 처리에 사용).
