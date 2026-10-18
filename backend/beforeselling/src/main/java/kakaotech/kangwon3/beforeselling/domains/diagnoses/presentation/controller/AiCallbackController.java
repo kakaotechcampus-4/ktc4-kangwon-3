@@ -41,10 +41,9 @@ public class AiCallbackController implements AiCallbackApi {
             case ProductResultEvent result -> aiCallbackUseCase.handleResult(result);
             // TODO: 진행·질문·실패 콜백 처리. 구현하면 아래 throw를 지우고 주석을 푼다.
             //  받은 척(200) 하면 AI가 전달된 것으로 보고 다시 보내지 않으므로, 처리 전까지는 400으로 거절해 로그에 남긴다.
-            // case ProductProgressEvent progress -> aiCallbackUseCase.handleProgress(progress);
+            case ProductProgressEvent progress -> aiCallbackUseCase.handleProgress(progress);
             // case ProductAwaitingInputEvent awaitingInput -> aiCallbackUseCase.handleAwaitingInput(awaitingInput);
             // case ProductFailedEvent failed -> aiCallbackUseCase.handleFailed(failed);
-            case ProductProgressEvent progress -> throw new BaseException(CommonResponseCode.BAD_REQUEST);
             case ProductAwaitingInputEvent awaitingInput -> throw new BaseException(CommonResponseCode.BAD_REQUEST);
             case ProductFailedEvent failed -> throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
