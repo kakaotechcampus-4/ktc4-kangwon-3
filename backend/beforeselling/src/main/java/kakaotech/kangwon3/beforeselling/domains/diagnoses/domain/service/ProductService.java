@@ -104,30 +104,15 @@ public class ProductService {
      */
     @Transactional
     public void completeDiagnoses(UUID diagnosesId, UUID productId, String runId, AssessmentContent content) {
-        // 같은 진단서의 다른 상품 콜백과 동시에 진단서 상태를 재계산하지 않도록 진단서를 잠근다.
-        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
-                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+        Product product = lockCurrentRunProduct(diagnosesId, productId, runId);
 
-        // 진단서와 상품 짝이 맞지 않는 경우도 같은 NOT_FOUND로 응답한다.
-        Product product = diagnoses.getProducts().stream()
-                .filter(candidate -> candidate.getId().equals(productId))
-                .findFirst()
-                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
-
-        // 현재 runId와 다르면 202 응답의 runId를 저장하기 전에 도착한 새 실행의 콜백일 수 있어 다시 보내 달라고 한다.
-        // AI는 COMMON-009(409)일 때만 다시 보내고, 정말 이전 실행의 콜백이면 재시도 끝에 버려진다.
-        if (!product.isCurrentRun(runId)) {
-            log.debug("현재 실행이 아닌 결과 콜백.. productId={}, runId={}, currentRunId={}",
-                    productId, runId, product.getRunId());
-            throw new BaseException(CommonResponseCode.LOCK_CONFLICT);
-        }
         if (product.hasResult()) {
             log.debug("이미 결과가 반영된 상품의 결과 콜백을 무시합니다. productId={}, runId={}", productId, runId);
             return;
         }
 
         product.complete(content);
-        diagnoses.refreshProcessingStatus();
+        product.getDiagnoses().refreshProcessingStatus();
 
         log.debug("상품 진단 결과 반영 완료. diagnosesId={}, productId={}, resultStatus={}",
                 diagnosesId, productId, content.resultStatus());
@@ -181,6 +166,28 @@ public class ProductService {
             return;
         }
         eventPublisher.publishEvent(new S3FileDeleteRequestedEvent(keys));
+    }
+
+    // 진단서를 잠그고 상품을 찾은 뒤, 현재 실행의 콜백인지 확인한다.
+    private Product lockCurrentRunProduct(UUID diagnosesId, UUID productId, String runId) {
+        // 같은 진단서의 다른 상품 콜백, 멈춘 진단 정리와 동시에 상품·진단서 상태를 바꾸지 않도록 진단서를 잠근다.
+        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        // 진단서와 상품 짝이 맞지 않는 경우도 같은 NOT_FOUND로 응답
+        Product product = diagnoses.getProducts().stream()
+                .filter(candidate -> candidate.getId().equals(productId))
+                .findFirst()
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        // 현재 runId와 다르면 202 응답의 runId를 저장하기 전에 도착한 새 실행의 콜백일 수 있어 다시 보내 달라고 한다.
+        if (!product.isCurrentRun(runId)) {
+            log.debug("현재 실행이 아닌 콜백. productId={}, runId={}, currentRunId={}",
+                    productId, runId, product.getRunId());
+            throw new BaseException(CommonResponseCode.LOCK_CONFLICT);
+        }
+
+        return product;
     }
 
 }
