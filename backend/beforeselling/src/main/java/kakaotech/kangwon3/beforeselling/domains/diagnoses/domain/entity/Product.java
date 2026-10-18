@@ -252,6 +252,10 @@ public class Product extends BaseEntity {
         return processingStatus == ProcessingStatus.COMPLETED;
     }
 
+    public boolean isFailed() {
+        return processingStatus == ProcessingStatus.FAILED;
+    }
+
     // open-in-view=false 라 DTO 매핑 전에 트랜잭션 안에서 상세 응답에 필요한 컬렉션(이미지, 진단 결과)을 미리 읽어 둠.
     public void loadDetail() {
         images.size();
