@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductAwaitingInputEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductFailedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductProgressEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductResultEvent;
@@ -25,6 +26,15 @@ public class AiCallbackUseCase {
 
         productService.recordProgress(event.diagnosesId(), event.productId(), event.runId(), event.sequence(),
                 event.stage(), event.stageStatus(), event.toolName());
+    }
+
+    public void handleAwaitingInput(ProductAwaitingInputEvent event) {
+        log.debug("AI 질문 콜백 수신. diagnosesId={}, productId={}, eventId={}, runId={}, sequence={}, questionRound={}, questionCount={}",
+                event.diagnosesId(), event.productId(), event.eventId(), event.runId(), event.sequence(),
+                event.questionRound(), event.questions().size());
+
+        productService.askQuestions(event.diagnosesId(), event.productId(), event.runId(),
+                event.questionRound(), aiCallbackMapper.toContents(event.questions()));
     }
 
     public void handleResult(ProductResultEvent event) {
