@@ -105,6 +105,15 @@ def test_접수하면_dev_상품_ID와_실행_ID를_돌려주고_진단서_없�
     assert executor.received[0].text_blocks == ["무선 RC 보트 2.4GHz"]
 
 
+def test_이미지_URL만_보내도_추출_입력으로_넘긴다(executor):
+    urls = ["https://example.com/a.jpg", "data:image/png;base64,AAA"]
+    response = _client(executor).post(ROUTE, json={"imageUrls": urls}, headers=HEADERS)
+
+    assert response.status_code == 202, response.text
+    _wait_until(lambda: executor.received)
+    assert executor.received[0].image_urls == urls
+
+
 def test_끝나면_공개_진단서와_내부_결과를_함께_조회한다(executor, gate):
     client = _client(executor)
     data = _submit(client)
@@ -178,10 +187,11 @@ def test_개발용_상한을_넘으면_429(executor):
 
 
 @pytest.mark.parametrize("body", [
-    {}, {"textBlocks": [], "imagesBase64": []}, {"productId": "p-1", "textBlocks": ["x"]},
+    {}, {"textBlocks": [], "imageUrls": []}, {"productId": "p-1", "textBlocks": ["x"]},
+    {"imagesBase64": ["https://example.com/a.jpg"]},
 ])
-def test_입력이_없거나_상품_ID를_보내면_422(executor, body):
-    # 상품 ID는 서버가 발급. 정의하지 않은 필드는 받지 않음
+def test_입력이_없거나_정의하지_않은_필드를_보내면_422(executor, body):
+    # 상품 ID는 서버가 발급. 운영용 이름(imagesBase64) 등 정의하지 않은 필드는 받지 않음
     response = _client(executor).post(ROUTE, json=body, headers=HEADERS)
 
     assert response.status_code == 422
