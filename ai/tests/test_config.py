@@ -29,6 +29,8 @@ _VALID_ENV = {
     "BE_BASE_URL": "http://be-server:8080",
     # 셸에 남은 덮어쓰기 값이 테스트에 섞이지 않게 기본은 지움
     "MODEL_PROFILE_OVERRIDES": None,
+    "AI_DEV_API_ENABLED": None,
+    "AI_DEV_API_KEY": None,
 }
 
 
@@ -358,3 +360,60 @@ def test_내부_API_토큰은_repr에_노출되지_않는다():
     token = "private-internal-token-0123456789abcdef"
 
     assert token not in repr(_settings(internal_api_token=token))
+
+
+_DEV_KEY = "test-dev-api-key-0123456789abcdefgh"
+
+
+def test_개발용_진단은_기본으로_꺼져_있고_키도_필요_없다(monkeypatch):
+    _env(monkeypatch)
+
+    settings = config.load_settings()
+
+    assert (settings.dev_api_enabled, settings.dev_api_key) == (False, "")
+
+
+@pytest.mark.parametrize("raw", ["true", "TRUE", " 1 ", "yes", "on"])
+def test_개발용_진단을_켜면_키를_읽는다(monkeypatch, raw):
+    _env(monkeypatch, AI_DEV_API_ENABLED=raw, AI_DEV_API_KEY=f" {_DEV_KEY} ")
+
+    settings = config.load_settings()
+
+    assert (settings.dev_api_enabled, settings.dev_api_key) == (True, _DEV_KEY)
+
+
+@pytest.mark.parametrize("raw", ["false", "0", "no", "off", ""])
+def test_끄는_값은_모두_꺼짐으로_읽는다(monkeypatch, raw):
+    _env(monkeypatch, AI_DEV_API_ENABLED=raw)
+
+    assert config.load_settings().dev_api_enabled is False
+
+
+def test_켜기_값의_오타는_꺼짐으로_넘기지_않고_기동을_막는다(monkeypatch):
+    _env(monkeypatch, AI_DEV_API_ENABLED="treu")
+
+    with pytest.raises(config.ConfigError, match="AI_DEV_API_ENABLED"):
+        config.load_settings()
+
+
+@pytest.mark.parametrize("key", ["", "   ", "short-dev-key-31-characters-xxx"])
+def test_개발용_진단을_켰는데_키가_없거나_짧으면_기동을_막고_값은_노출하지_않는다(key):
+    with pytest.raises(config.ConfigError, match="AI_DEV_API_KEY") as exc_info:
+        _settings(dev_api_enabled=True, dev_api_key=key)
+
+    if key.strip():
+        assert key not in str(exc_info.value)
+
+
+def test_개발용_키가_콜백_토큰과_같으면_기동을_막는다():
+    # 공유되는 개발용 키로 BE 내부 API에 가짜 결과를 넣을 수 없게
+    token = _VALID["internal_api_token"]
+
+    with pytest.raises(config.ConfigError, match="INTERNAL_API_TOKEN과 다른 값") as exc_info:
+        _settings(dev_api_enabled=True, dev_api_key=token)
+
+    assert token not in str(exc_info.value)
+
+
+def test_개발용_키는_repr에_노출되지_않는다():
+    assert _DEV_KEY not in repr(_settings(dev_api_enabled=True, dev_api_key=_DEV_KEY))
