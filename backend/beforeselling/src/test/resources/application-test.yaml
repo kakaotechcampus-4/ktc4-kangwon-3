@@ -33,6 +33,9 @@ jwt:
 internal-api:
   token: test-internal-api-token-must-be-at-least-32-bytes
 
+ai-server:
+  base-url: http://localhost:8000
+
 app:
   cors:
     allowed-origins: http://localhost:5173

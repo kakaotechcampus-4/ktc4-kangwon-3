@@ -16,6 +16,7 @@ class PromptName(StrEnum):
     VERIFICATION = "verification"
     CHILDREN_FACTS = "children/facts"
     CHILDREN_REVIEW = "children/review"
+    ADVERTISING = "advertising"
     IMAGE_TRIAGE = "image_triage"
 
 

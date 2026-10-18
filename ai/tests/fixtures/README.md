@@ -26,6 +26,10 @@ API 키 없이 CI에서 돈다.
 `MANIFEST.txt`의 지문(줄바꿈을 LF로 맞춘 SHA-256 앞 12자)으로 확인한다. `holdout_DO_NOT_OPEN`
 폴더는 프롬프트·정제 규칙을 고치는 동안 열지 않는다(#253 최종 확인용).
 
+표시·광고 Tool 평가 입력(`advertising_dev_inputs.json`, `advertising_holdout_inputs.json`)은 같은 노션 페이지의
+`advertising_inputs.zip`에 따로 둔다. 풀어서 이 디렉터리에 넣고, zip 안 `MANIFEST.txt`의 지문이
+`tests/eval_truth_advertising/*.json`의 `inputs_sha256_12`와 같은지 확인한다(다르면 러너가 실행하지 않는다).
+
 ```bash
 python scripts/try_extraction.py --text tests/fixtures/_raw/power_bank.txt
 ```

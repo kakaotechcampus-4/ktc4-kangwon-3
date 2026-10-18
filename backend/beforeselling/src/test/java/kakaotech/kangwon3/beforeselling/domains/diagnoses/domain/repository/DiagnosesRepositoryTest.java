@@ -192,12 +192,37 @@ class DiagnosesRepositoryTest {
     }
 
     @Test
+    @DisplayName("소유자와 관계없이 진단서 id로 잠금 조회하면 진단서와 상품이 반환된다.")
+    void findByIdForUpdate_thenReturnDiagnosesWithProducts() {
+        // given: AI 콜백처럼 사용자 정보 없이 조회하는 경우
+        UUID diagnosesId = diagnosesRepository.save(createDiagnoses(OTHER_USER_ID, null)).getId();
+        flushAndClear();
+
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdForUpdate(diagnosesId);
+
+        // then
+        assertThat(result).isPresent();
+        assertThat(result.get().getProducts()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("없는 진단서 id로 잠금 조회하면 빈 결과가 반환된다.")
+    void findByIdForUpdate_withUnknownId_thenReturnEmpty() {
+        // when
+        Optional<Diagnoses> result = diagnosesRepository.findByIdForUpdate(UUID.randomUUID());
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     @DisplayName("상품의 질문은 상품과 함께 저장되고, 질문 순서대로 조회된다.")
     void save_thenPersistQuestionsInOrder() {
         // given: 질문을 순서와 반대로 추가한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
-        product.startDiagnosis();
+        product.startDiagnoses();
         product.askQuestions(1, List.of(
                 new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null),
                 new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
@@ -220,7 +245,7 @@ class DiagnosesRepositoryTest {
         // given: 1회차 답이 불분명해 2회차에 같은 항목을 다시 묻는 경우
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
-        product.startDiagnosis();
+        product.startDiagnoses();
         product.askQuestions(1, List.of(
                 new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null),
                 new QuestionContent("target_age", 2, "실제로 주로 판매하는 대상 연령은?", null)));
@@ -245,7 +270,7 @@ class DiagnosesRepositoryTest {
         // given
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
-        product.startDiagnosis();
+        product.startDiagnoses();
         product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
         product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CUSTOMS);
         product.recordProgress("run-1", 3, PipelineStage.TOOL_EXECUTION, StageStatus.SKIPPED, ToolName.RADIO);
@@ -272,7 +297,7 @@ class DiagnosesRepositoryTest {
         // given
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
-        product.startDiagnosis();
+        product.startDiagnoses();
         product.fail(PipelineStage.TOOL_EXECUTION, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", true);
         diagnoses.addProducts(List.of(product));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
@@ -313,10 +338,10 @@ class DiagnosesRepositoryTest {
         // given: 상품 2개 중 하나만 제거한다.
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product target = createProduct("상품 A", null);
-        target.startDiagnosis();
+        target.startDiagnoses();
         target.askQuestions(1, List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         Product remaining = createProduct("상품 B", null);
-        remaining.startDiagnosis();
+        remaining.startDiagnoses();
         remaining.askQuestions(1, List.of(new QuestionContent("target_age", 1, "실제로 주로 판매하는 대상 연령은?", null)));
         diagnoses.addProducts(List.of(target, remaining));
         UUID diagnosesId = diagnosesRepository.save(diagnoses).getId();
@@ -335,7 +360,7 @@ class DiagnosesRepositoryTest {
     private Diagnoses createDiagnosesWithQuestion() {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         Product product = createProduct("대나무 헬리콥터", null);
-        product.startDiagnosis();
+        product.startDiagnoses();
         product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
         product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         diagnoses.addProducts(List.of(product));

@@ -50,12 +50,12 @@ class ProductTest {
 
     @Test
     @DisplayName("대기 중인 상품의 진단을 시작하면 진행 중 상태가 된다.")
-    void startDiagnosis_whenPending_thenInProgress() {
+    void startDiagnoses_whenPending_thenInProgress() {
         // given
         Product product = createProduct();
 
         // when
-        product.startDiagnosis();
+        product.startDiagnoses();
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
@@ -63,12 +63,12 @@ class ProductTest {
 
     @Test
     @DisplayName("이미 진단이 시작된 상품의 진단을 다시 시작하면 CONFLICT 예외가 발생한다.")
-    void startDiagnosis_whenInProgress_thenThrowConflict() {
+    void startDiagnoses_whenInProgress_thenThrowConflict() {
         // given
         Product product = createInProgressProduct();
 
         // when & then
-        assertConflict(product::startDiagnosis);
+        assertConflict(product::startDiagnoses);
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
 
@@ -310,20 +310,20 @@ class ProductTest {
     }
 
     @Test
-    @DisplayName("BE가 직접 실패 처리하면 실패 단계와 재시도 여부 없이 실패 정보가 저장된다.")
+    @DisplayName("실패 단계와 재시도 여부가 없어도 실패 정보가 저장된다.")
     void fail_whenNoStageAndRetryable_thenFailedWithNulls() {
-        // given: 멈춘 진단 정리 스케줄러처럼 AI 이벤트 없이 실패 처리하는 경우
+        // given: AI가 공개하지 않는 내부 단계에서 실패해 stage·retryable을 보내지 않은 경우
         Product product = createInProgressProduct();
 
         // when
-        product.fail(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+        product.fail(null, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", null);
 
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
         assertThat(product)
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
-                .containsExactly(null, "BE_DIAGNOSIS_TIMEOUT", "진단 결과를 받지 못했습니다.", null);
+                .containsExactly(null, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", null);
     }
 
     @ParameterizedTest(name = "code=[{0}], message=[{1}]")
@@ -457,13 +457,142 @@ class ProductTest {
         assertThat(product.getQuestions()).isEmpty();
     }
 
+    @Test
+    @DisplayName("진행 중인 상품이 완료 결과를 받으면 완료 상태가 되고 결과 카드·판단·근거·조치가 받은 순서대로 채워진다.")
+    void complete_whenInProgress_thenCompletedWithResultInOrder() {
+        // given
+        Product product = createInProgressProduct();
+        AssessmentContent content = new AssessmentContent(
+                AssessmentStatus.COMPLETED,
+                ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED,
+                "사입해서 판매하려면 안전확인(KC)이 필요합니다.",
+                List.of(
+                        new AssessmentContent.ToolReviewContent(ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null,
+                                List.of(
+                                        finding("안전확인 대상 여부", List.of(
+                                                legalSource("어린이제품 안전 특별법 시행규칙", "별표 2"),
+                                                legalSource("어린이제품 안전 특별법", "제17조"))),
+                                        finding("표시사항", List.of()))),
+                        new AssessmentContent.ToolReviewContent(ToolName.FOOD_DRUG, ToolReviewStatus.SKIPPED,
+                                "식품 접촉 성분이 감지되지 않았습니다.", List.of())),
+                List.of("안전확인(KC) 신고 후 판매", "공급사에 시험성적서 요청"),
+                List.of());
+
+        // when
+        product.complete(content);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+        assertThat(product.getAssessmentStatus()).isEqualTo(AssessmentStatus.COMPLETED);
+        assertThat(product.getResultStatus()).isEqualTo(ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED);
+        assertThat(product.getSummary()).isEqualTo("사입해서 판매하려면 안전확인(KC)이 필요합니다.");
+        assertThat(product.getToolReviews())
+                .extracting(ProductToolReview::getToolName, ProductToolReview::getStatus, ProductToolReview::getMessage)
+                .containsExactly(
+                        tuple(ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null),
+                        tuple(ToolName.FOOD_DRUG, ToolReviewStatus.SKIPPED, "식품 접촉 성분이 감지되지 않았습니다."));
+
+        ProductToolReview children = product.getToolReviews().getFirst();
+        assertThat(children.getFindings())
+                .extracting(ProductFinding::getSortOrder, ProductFinding::getSubject)
+                .containsExactly(tuple(0, "안전확인 대상 여부"), tuple(1, "표시사항"));
+        assertThat(children.getFindings().getFirst().getLegalSources())
+                .extracting(FindingLegalSource::getSortOrder, FindingLegalSource::getLawName)
+                .containsExactly(tuple(0, "어린이제품 안전 특별법 시행규칙"), tuple(1, "어린이제품 안전 특별법"));
+        assertThat(product.getRequiredActions()).containsExactly("안전확인(KC) 신고 후 판매", "공급사에 시험성적서 요청");
+        assertThat(product.getNotices()).isEmpty();
+        assertThat(product.hasResult()).isTrue();
+    }
+
+    @Test
+    @DisplayName("안내 문구가 있는 미완료 결과를 받으면 재확인 필요로 완료 상태가 된다.")
+    void complete_withIncompleteResult_thenCompletedAsRecheckRequired() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.complete(incompleteContent(ResultStatus.RECHECK_REQUIRED, List.of("전파 인증 여부는 확인하지 못했습니다.")));
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+        assertThat(product.getAssessmentStatus()).isEqualTo(AssessmentStatus.INCOMPLETE);
+        assertThat(product.getResultStatus()).isEqualTo(ResultStatus.RECHECK_REQUIRED);
+        assertThat(product.getNotices()).containsExactly("전파 인증 여부는 확인하지 못했습니다.");
+    }
+
+    @Test
+    @DisplayName("진단을 시작하지 않은 상품이 결과를 받으면 CONFLICT 예외가 발생하고 결과가 채워지지 않는다.")
+    void complete_whenPending_thenThrowConflict() {
+        // given
+        Product product = createProduct();
+
+        // when & then
+        assertConflict(() -> product.complete(completedContent(List.of())));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
+        assertThat(product.getResultStatus()).isNull();
+    }
+
+    @Test
+    @DisplayName("답변 대기 중인 상품이 결과를 받으면 CONFLICT 예외가 발생하고 결과가 채워지지 않는다.")
+    void complete_whenAwaitingInput_thenThrowConflict() {
+        // given
+        Product product = createAwaitingInputProduct();
+
+        // when & then
+        assertConflict(() -> product.complete(completedContent(List.of())));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(product.getResultStatus()).isNull();
+    }
+
+    @Test
+    @DisplayName("결과를 받기 전인 상품은 결과가 없는 것으로 본다.")
+    void hasResult_whenInProgress_thenFalse() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertThat(product.hasResult()).isFalse();
+    }
+
+    @Test
+    @DisplayName("실행 식별자를 받기 전인 상품은 실행이 배정되지 않은 것으로 보고, 받은 뒤에는 배정된 것으로 본다.")
+    void isRunAssigned_beforeAndAfterAssignRun() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertThat(product.isRunAssigned()).isFalse();
+        product.assignRun("run-1");
+        assertThat(product.isRunAssigned()).isTrue();
+    }
+
+    private AssessmentContent completedContent(List<AssessmentContent.ToolReviewContent> toolReviews) {
+        return new AssessmentContent(AssessmentStatus.COMPLETED, ResultStatus.PURCHASING_AGENT_ALLOWED,
+                "구매대행으로 판매할 수 있습니다.", toolReviews, List.of(), List.of());
+    }
+
+    private AssessmentContent incompleteContent(ResultStatus resultStatus, List<String> notices) {
+        return new AssessmentContent(AssessmentStatus.INCOMPLETE, resultStatus,
+                "일부 항목을 확인하지 못했습니다.", List.of(), List.of(), notices);
+    }
+
+    private AssessmentContent.FindingContent finding(String subject,
+                                                     List<AssessmentContent.LegalSourceContent> legalSources) {
+        return new AssessmentContent.FindingContent(subject, Determination.REQUIRED, RiskLevel.HIGH,
+                subject + " 요약", subject + " 근거", legalSources);
+    }
+
+    private AssessmentContent.LegalSourceContent legalSource(String lawName, String article) {
+        return new AssessmentContent.LegalSourceContent("국가법령정보센터", lawName, article, null, null, null);
+    }
+
     private Product createProduct() {
         return Product.pending(PRODUCT_NAME, null, SourceType.URL, SOURCE_URL, null);
     }
 
     private Product createInProgressProduct() {
         Product product = createProduct();
-        product.startDiagnosis();
+        product.startDiagnoses();
         return product;
     }
 
