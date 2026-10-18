@@ -59,8 +59,12 @@ public class ProductService {
      */
     public Product getProduct(UUID userId, UUID productId) {
         // 없는 상품과 남의 상품 모두 빈 결과라 같은 NOT_FOUND 로 응답한다.
-        return productRepository.findWithImagesByIdAndUserId(productId, userId)
+        Product product = productRepository.findWithImagesByIdAndUserId(productId, userId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        product.loadDetail();
+
+        return product;
     }
 
     /**

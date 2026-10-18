@@ -85,9 +85,9 @@ public class DiagnosesService {
         }
 
         // open-in-view=false 라 DTO 매핑 시점에는 세션이 닫혀 있다.
-        // products는 EntityGraph로 함께 조회되지만 그 하위 images는 지연 상태이므로
-        // 트랜잭션 안에서 강제로 초기화한다(@BatchSize 덕에 추가 쿼리는 1번).
-        diagnoses.getProducts().forEach(product -> product.getImages().size());
+        // products는 EntityGraph로 함께 조회되지만 그 하위 images와 진단 결과는 지연 상태이므로
+        // 트랜잭션 안에서 강제로 초기화한다(@BatchSize 덕에 컬렉션별 추가 쿼리는 1번).
+        diagnoses.getProducts().forEach(Product::loadDetail);
 
         return diagnoses;
     }
