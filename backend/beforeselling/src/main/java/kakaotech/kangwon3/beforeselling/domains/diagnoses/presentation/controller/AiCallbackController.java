@@ -10,7 +10,6 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.Ai
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.api.AiCallbackApi;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
-import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,12 +38,9 @@ public class AiCallbackController implements AiCallbackApi {
     ) {
         switch (event) {
             case ProductResultEvent result -> aiCallbackUseCase.handleResult(result);
-            // TODO: 진행·질문·실패 콜백 처리. 구현하면 아래 throw를 지우고 주석을 푼다.
-            //  받은 척(200) 하면 AI가 전달된 것으로 보고 다시 보내지 않으므로, 처리 전까지는 400으로 거절해 로그에 남긴다.
             case ProductProgressEvent progress -> aiCallbackUseCase.handleProgress(progress);
-            // case ProductAwaitingInputEvent awaitingInput -> aiCallbackUseCase.handleAwaitingInput(awaitingInput);
+            case ProductAwaitingInputEvent awaitingInput -> aiCallbackUseCase.handleAwaitingInput(awaitingInput);
             case ProductFailedEvent failed -> aiCallbackUseCase.handleFailed(failed);
-            case ProductAwaitingInputEvent awaitingInput -> throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
