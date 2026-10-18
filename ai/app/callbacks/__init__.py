@@ -6,11 +6,12 @@ from ..schemas.schemas import ToolName
 from ..schemas.session import DiagnosisSession
 from ..sessions.executor import SessionExecutor, ToolProgressStatus
 from .events import AssessmentPresenter, EventBuilder
+from .http import HttpCallbackSender
 from .outbox import CallbackOutbox, CallbackSender, CallbackTransportError, SendResult
 
 __all__ = [
     "AssessmentPresenter", "CallbackOutbox", "CallbackSender", "CallbackTransportError", "EventBuilder",
-    "SendResult", "connect_callbacks",
+    "HttpCallbackSender", "SendResult", "connect_callbacks",
 ]
 
 

@@ -5,7 +5,7 @@ from itertools import count
 from app.callbacks.events import EventBuilder
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
-from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
+from app.schemas.callback import PublicAssessmentDto, PublicFindingDto, PublicQuestionDto, PublicToolReviewDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession
 from app.sessions.store import SessionStore
@@ -233,3 +233,21 @@ def test_끝난_실행과_진단서_없는_실행의_Tool_진행은_보내지_�
         "context": context.model_copy(update={"diagnosis_id": None, "run_type": RunType.TEST}),
     })
     assert _builder().build_tool(test_session, ToolName.ELECTRICAL, "started") == []
+
+
+def test_BE_길이_제한을_넘는_진단서는_결과_대신_실패_이벤트로_끝낸다():
+    # BE에 보내면 400으로 거절돼 재시도 없이 사라짐 → AI에서 변환 실패로 잡음 (#331)
+    class _LongSubjectPresenter(_Presenter):
+        def assessment(self, result):
+            finding = PublicFindingDto(subject="가" * 256, determination="required", risk_level="high",
+                                       summary="요약", rationale="근거")
+            return PublicAssessmentDto(
+                status="completed", result_status="DIRECT_IMPORT_CERTIFICATION_REQUIRED", summary=result.summary,
+                tool_reviews=[PublicToolReviewDto(tool_name="ELECTRICAL", status="COMPLETED", findings=[finding])],
+            )
+
+    store, context, _ = _running()
+
+    [event] = _builder(_LongSubjectPresenter()).build(store.finish(context, build_dummy_assessment("p-1")))
+
+    assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)

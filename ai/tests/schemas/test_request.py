@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.request import DiagnosisRequest
-from app.schemas.response import DiagnosisAccepted, DiagnosisAcceptedResponse
+from app.schemas.response import AcceptedProduct, DiagnosisAccepted, DiagnosisAcceptedResponse
 
 
 def _product(product_id: str = "p-1", **fields) -> dict:
@@ -64,18 +64,34 @@ def test_요청은_snake_case_키를_거부한다(payload):
 
 
 def test_응답은_코드에서_필드_이름으로_만들_수_있다():
-    assert DiagnosisAccepted(diagnosis_id="d-1", accepted_product_ids=["p-1"]).diagnosis_id == "d-1"
+    accepted = DiagnosisAccepted(diagnosis_id="d-1", products=[AcceptedProduct(product_id="p-1", run_id="run-1")])
+
+    assert (accepted.diagnosis_id, accepted.products[0].status) == ("d-1", "accepted")
 
 
 def test_접수_응답은_data를_camelCase로_내보낸다():
     response = DiagnosisAcceptedResponse(
         code="OK", message="진단 요청이 접수되었습니다.",
-        data=DiagnosisAccepted(diagnosis_id="d-1", accepted_product_ids=["p-1", "p-2"]),
+        data=DiagnosisAccepted(diagnosis_id="d-1", products=[
+            AcceptedProduct(product_id="p-1", run_id="run-1"), AcceptedProduct(product_id="p-2", run_id="run-2"),
+        ]),
     )
 
     assert response.model_dump(by_alias=True) == {
         "code": "OK",
         "message": "진단 요청이 접수되었습니다.",
         "details": None,
-        "data": {"diagnosisId": "d-1", "acceptedProductIds": ["p-1", "p-2"]},
+        "data": {"diagnosisId": "d-1", "products": [
+            {"productId": "p-1", "runId": "run-1", "status": "accepted"},
+            {"productId": "p-2", "runId": "run-2", "status": "accepted"},
+        ]},
     }
+
+
+@pytest.mark.parametrize("fields", [
+    {"products": []},
+    {"products": [{"product_id": "p-1", "run_id": ""}]},
+])
+def test_접수_응답은_상품과_실행_ID가_비면_만들지_않는다(fields):
+    with pytest.raises(ValidationError):
+        DiagnosisAccepted(diagnosis_id="d-1", **fields)
