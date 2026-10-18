@@ -43,9 +43,8 @@ public class AiCallbackController implements AiCallbackApi {
             //  받은 척(200) 하면 AI가 전달된 것으로 보고 다시 보내지 않으므로, 처리 전까지는 400으로 거절해 로그에 남긴다.
             case ProductProgressEvent progress -> aiCallbackUseCase.handleProgress(progress);
             // case ProductAwaitingInputEvent awaitingInput -> aiCallbackUseCase.handleAwaitingInput(awaitingInput);
-            // case ProductFailedEvent failed -> aiCallbackUseCase.handleFailed(failed);
+            case ProductFailedEvent failed -> aiCallbackUseCase.handleFailed(failed);
             case ProductAwaitingInputEvent awaitingInput -> throw new BaseException(CommonResponseCode.BAD_REQUEST);
-            case ProductFailedEvent failed -> throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
