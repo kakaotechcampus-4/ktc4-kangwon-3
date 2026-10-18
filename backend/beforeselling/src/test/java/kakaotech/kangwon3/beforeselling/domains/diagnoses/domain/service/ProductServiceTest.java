@@ -3,15 +3,22 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductProgress;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductQuestion;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteRequestedEvent;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +41,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -326,6 +334,178 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("현재 실행의 진행 상태를 받으면 단계·툴별 진행 상태가 저장되고 처리 상태는 그대로다.")
+    void recordProgress_thenAddProgressAndKeepStatus() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.recordProgress(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 3,
+                PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CHILDREN);
+
+        // then
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getProgresses())
+                .extracting(ProductProgress::getRunId, ProductProgress::getSequence, ProductProgress::getStage,
+                        ProductProgress::getStageStatus, ProductProgress::getToolName)
+                .containsExactly(tuple(RUN_ID, 3, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.CHILDREN));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("실행 식별자를 저장하기 전에 진행 상태가 오면 다시 보내 달라는 LOCK_CONFLICT 예외가 발생하고 저장하지 않는다.")
+    void recordProgress_whenRunNotAssigned_thenThrowLockConflict() {
+        // given: AI의 202 응답을 저장하기 전에 진행 콜백이 먼저 도착한 경우
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A"));
+        diagnoses.startDiagnoses();
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.recordProgress(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1,
+                PipelineStage.EXTRACTION, StageStatus.STARTED, null), CommonResponseCode.LOCK_CONFLICT);
+        assertThat(diagnoses.getProducts().getFirst().getProgresses()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("현재 실행과 다른 실행의 진행 상태가 오면 다시 보내 달라는 LOCK_CONFLICT 예외가 발생하고 저장하지 않는다.")
+    void recordProgress_withOtherRun_thenThrowLockConflict() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.recordProgress(DIAGNOSES_ID, PRODUCT_ID, "other-run", 1,
+                PipelineStage.EXTRACTION, StageStatus.STARTED, null), CommonResponseCode.LOCK_CONFLICT);
+        assertThat(diagnoses.getProducts().getFirst().getProgresses()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("멈춘 진단 정리로 이미 실패 처리된 상품에 진행 상태가 오면 예외 없이 무시한다.")
+    void recordProgress_whenFailed_thenIgnore() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        failByScheduler(product);
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.recordProgress(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 5,
+                PipelineStage.AGGREGATION, StageStatus.STARTED, null);
+
+        // then
+        assertThat(product.getProgresses()).isEmpty();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("답변 대기 중인 상품에 진행 상태가 오면 CONFLICT 예외가 발생하고 저장하지 않는다.")
+    void recordProgress_whenAwaitingInput_thenThrowConflict() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        product.askQuestions(1, List.of(question("sales_type", "구매대행으로 파나요?")));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.recordProgress(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 5,
+                PipelineStage.AGGREGATION, StageStatus.STARTED, null), CommonResponseCode.CONFLICT);
+        assertThat(product.getProgresses()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("현재 실행의 질문을 받으면 질문이 저장되고, 다른 상품이 진행 중이어도 진단서는 답변 대기가 된다.")
+    void askQuestions_thenAddQuestionsAndDiagnosesAwaitingInput() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1,
+                List.of(question("sales_type", "구매대행으로 파나요?"), question("target_age", "대상 연령은?")));
+
+        // then
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getQuestions())
+                .extracting(ProductQuestion::getQuestionRound, ProductQuestion::getQuestionKey)
+                .containsExactly(tuple(1, "sales_type"), tuple(1, "target_age"));
+        assertThat(diagnoses.getProducts())
+                .extracting(Product::getProcessingStatus)
+                .containsExactly(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+    }
+
+    @Test
+    @DisplayName("답변 대기 중에 이미 저장한 회차의 질문이 다시 오면 예외 없이 무시하고 처음 받은 질문을 유지한다.")
+    void askQuestions_whenSameRoundResent_thenIgnore() {
+        // given: 저장은 됐지만 응답이 유실돼 AI가 같은 질문을 다시 보낸 경우
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+        productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1,
+                List.of(question("sales_type", "처음 받은 질문")));
+
+        // when
+        productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1,
+                List.of(question("sales_type", "다시 받은 질문")));
+
+        // then
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getQuestions())
+                .extracting(ProductQuestion::getQuestionText)
+                .containsExactly("처음 받은 질문");
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+    }
+
+    @Test
+    @DisplayName("답변 대기 중에 다른 회차의 질문이 오면 CONFLICT 예외가 발생하고 질문이 늘지 않는다.")
+    void askQuestions_whenOtherRoundWhileAwaitingInput_thenThrowConflict() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+        productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1,
+                List.of(question("sales_type", "구매대행으로 파나요?")));
+
+        // when & then
+        assertResponseCode(() -> productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 2,
+                List.of(question("target_age", "대상 연령은?"))), CommonResponseCode.CONFLICT);
+        assertThat(diagnoses.getProducts().getFirst().getQuestions()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("재진단 중에 이미 받은 회차의 질문이 다시 오면 무시하지 않고 CONFLICT 예외가 발생한다.")
+    void askQuestions_whenReceivedRoundAfterResume_thenThrowConflict() {
+        // given: 사용자가 답하고 재진단을 시작한 뒤 지난 회차 질문이 늦게 온 경우
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+        productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1,
+                List.of(question("sales_type", "구매대행으로 파나요?")));
+        Product product = diagnoses.getProducts().getFirst();
+        product.resume();
+
+        // when & then
+        assertResponseCode(() -> productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1,
+                List.of(question("sales_type", "구매대행으로 파나요?"))), CommonResponseCode.CONFLICT);
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getQuestions()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("현재 실행과 다른 실행의 질문이 오면 다시 보내 달라는 LOCK_CONFLICT 예외가 발생하고 저장하지 않는다.")
+    void askQuestions_withOtherRun_thenThrowLockConflict() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.askQuestions(DIAGNOSES_ID, PRODUCT_ID, "other-run", 1,
+                List.of(question("sales_type", "구매대행으로 파나요?"))), CommonResponseCode.LOCK_CONFLICT);
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getQuestions()).isEmpty();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
     @DisplayName("현재 실행의 결과를 받으면 상품이 완료되고 진단서 상태가 다시 계산된다.")
     void completeDiagnoses_thenCompleteProductAndRefreshDiagnoses() {
         // given
@@ -433,6 +613,93 @@ class ProductServiceTest {
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
         assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("현재 실행의 실패를 받으면 상품이 실패 정보와 함께 실패 처리되고 진단서 상태가 다시 계산된다.")
+    void failDiagnoses_thenFailProductAndRefreshDiagnoses() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, PipelineStage.TOOL_EXECUTION,
+                "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", false);
+
+        // then
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(product.getFailedStage()).isEqualTo(PipelineStage.TOOL_EXECUTION);
+        assertThat(product.getErrorCode()).isEqualTo("AI_PIPELINE_ERROR");
+        assertThat(product.getErrorMessage()).isEqualTo("진단 중 오류가 발생했습니다.");
+        assertThat(product.getErrorRetryable()).isFalse();
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("다른 상품이 아직 진행 중이면 실패를 반영해도 진단서는 진행 중으로 남는다.")
+    void failDiagnoses_withOtherProductInProgress_thenDiagnosesStillInProgress() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, null, "AI_TIMEOUT", "시간이 초과되었습니다.", true);
+
+        // then
+        assertThat(diagnoses.getProducts())
+                .extracting(Product::getProcessingStatus)
+                .containsExactly(ProcessingStatus.FAILED, ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("멈춘 진단 정리로 이미 실패 처리된 상품에 실패가 오면 예외 없이 무시하고 먼저 기록된 실패 정보를 유지한다.")
+    void failDiagnoses_whenAlreadyFailed_thenIgnoreAndKeepFirstFailure() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        failByScheduler(product);
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, PipelineStage.TOOL_EXECUTION,
+                "AI_TIMEOUT", "시간이 초과되었습니다.", true);
+
+        // then
+        assertThat(product.getErrorCode()).isEqualTo(ProductService.STUCK_ERROR_CODE);
+        assertThat(product.getFailedStage()).isNull();
+    }
+
+    @Test
+    @DisplayName("현재 실행과 다른 실행의 실패가 오면 다시 보내 달라는 LOCK_CONFLICT 예외가 발생하고 실패 처리하지 않는다.")
+    void failDiagnoses_withOtherRun_thenThrowLockConflict() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, "other-run", null,
+                "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", false), CommonResponseCode.LOCK_CONFLICT);
+        Product product = diagnoses.getProducts().getFirst();
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getErrorCode()).isNull();
+    }
+
+    @Test
+    @DisplayName("답변 대기 중인 상품에 실패가 오면 CONFLICT 예외가 발생하고 실패 처리하지 않는다.")
+    void failDiagnoses_whenAwaitingInput_thenThrowConflict() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        product.askQuestions(1, List.of(question("sales_type", "구매대행으로 파나요?")));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, null,
+                "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", false), CommonResponseCode.CONFLICT);
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(product.getErrorCode()).isNull();
     }
 
     @Test
@@ -587,6 +854,23 @@ class ProductServiceTest {
         diagnoses.startDiagnoses();
         diagnoses.getProducts().forEach(product -> product.assignRun(RUN_ID));
         return diagnoses;
+    }
+
+    // 멈춘 진단 정리(failStuckDiagnoses)가 먼저 실패 처리한 상태
+    private void failByScheduler(Product product) {
+        product.fail(null, ProductService.STUCK_ERROR_CODE, ProductService.STUCK_ERROR_MESSAGE,
+                ProductService.STUCK_ERROR_RETRYABLE);
+    }
+
+    private QuestionContent question(String questionKey, String questionText) {
+        return new QuestionContent(questionKey, 1, questionText, null);
+    }
+
+    private void assertResponseCode(ThrowingCallable action, CommonResponseCode responseCode) {
+        assertThatThrownBy(action)
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(responseCode);
     }
 
     private AssessmentContent assessmentContent(String summary) {
