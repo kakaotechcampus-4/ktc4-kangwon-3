@@ -140,6 +140,28 @@ public class ProductService {
                 diagnosesId, productId, content.resultStatus());
     }
 
+    /**
+     * AI 진단 실패 반영(실패 콜백). 상품을 실패 처리하고 진단서 전체 상태를 다시 계산한다.
+     */
+    @Transactional
+    public void failDiagnoses(UUID diagnosesId, UUID productId, String runId, PipelineStage failedStage,
+                              String errorCode, String errorMessage, Boolean errorRetryable) {
+        Product product = lockCurrentRunProduct(diagnosesId, productId, runId);
+
+        // 먼저 기록된 실패 정보를 덮어쓰지 않는다.
+        if (product.isFailed()) {
+            log.info("이미 실패 처리된 상품의 실패 콜백을 무시합니다. productId={}, runId={}, errorCode={}, 기존 errorCode={}",
+                    productId, runId, errorCode, product.getErrorCode());
+            return;
+        }
+
+        product.fail(failedStage, errorCode, errorMessage, errorRetryable);
+        product.getDiagnoses().refreshProcessingStatus();
+
+        log.info("상품 진단 실패 반영 완료. diagnosesId={}, productId={}, failedStage={}, errorCode={}, retryable={}",
+                diagnosesId, productId, failedStage, errorCode, errorRetryable);
+    }
+
     @Transactional
     public boolean failStuckDiagnoses(UUID productId, LocalDateTime threshold) {
         Optional<UUID> diagnosesId = productRepository.findDiagnosesIdById(productId);
