@@ -162,7 +162,7 @@ public class Product extends BaseEntity {
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
     }
-    
+
     public void assignRun(String runId) {
         if (runId == null || runId.isBlank()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
@@ -206,7 +206,7 @@ public class Product extends BaseEntity {
     }
 
     // 질문을 받으면 사용자 답변을 기다리는 상태가 된다.
-    // BE는 AI가 보낸 회차를 그대로 저장한다.
+    // BE는 AI가 보낸 회차를 그대로 저장하되, 이미 받은 회차 이하의 질문은 받지 않는다.
     // 답변 대기 중에 다시 질문이 오면 상태 전이(IN_PROGRESS → AWAITING_INPUT)에서 CONFLICT로 막힌다.
     public void askQuestions(int questionRound, List<QuestionContent> contents) {
         // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
@@ -217,12 +217,11 @@ public class Product extends BaseEntity {
         if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
-
         // 이미 받은 회차를 다시 저장하면 flush 시점에 유니크 제약 위반이 난다. 지난 회차도 함께 막는다.
         if (questionRound <= latestQuestionRound()) {
             throw new BaseException(CommonResponseCode.CONFLICT);
         }
-        
+
         transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
         contents.forEach(content -> questions.add(new ProductQuestion(this, questionRound,
                 content.questionKey(), content.questionOrder(), content.questionText(), content.helpText())));

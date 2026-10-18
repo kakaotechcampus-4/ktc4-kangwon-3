@@ -77,7 +77,6 @@ public class ProductService {
         Diagnoses diagnoses = diagnosesRepository.findByIdAndUserIdForUpdate(diagnosesId, userId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
-
         Product product = diagnoses.getProducts().stream()
                 .filter(candidate -> candidate.getId().equals(productId))
                 .findFirst()
@@ -104,7 +103,6 @@ public class ProductService {
     @Transactional
     public void recordProgress(UUID diagnosesId, UUID productId, String runId, int sequence,
                                PipelineStage stage, StageStatus stageStatus, ToolName toolName) {
-
         Product product = lockCurrentRunProduct(diagnosesId, productId, runId);
 
         // 409(COMMON-010)를 주면 AI가 재시도 없이 버리면서 경고만 남으므로, 이미 끝난 진단으로 보고 받은 것으로 처리한다.
