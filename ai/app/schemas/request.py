@@ -80,3 +80,23 @@ class DiagnosisRequest(ApiRequestModel):
         if duplicates:
             raise ValueError(f"productId가 중복됩니다: {', '.join(duplicates)}")
         return self
+
+
+class DevDiagnosisRequest(ApiRequestModel):
+    """개발용 진단 요청 (#318). 상품 하나, 텍스트·이미지 중 하나 이상 필수. 상품 ID는 서버가 발급.
+
+    Args:
+        text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
+        images_base64: base64 data URI 또는 이미지 URL 목록.
+        source_url: 출처 표시용 URL (선택).
+    """
+
+    text_blocks: list[str] = Field(default_factory=list)
+    images_base64: list[str] = Field(default_factory=list)
+    source_url: str | None = None
+
+    @model_validator(mode="after")
+    def at_least_one_input(self):
+        if not self.text_blocks and not self.images_base64:
+            raise ValueError("textBlocks 또는 imagesBase64 중 하나는 필수입니다.")
+        return self
