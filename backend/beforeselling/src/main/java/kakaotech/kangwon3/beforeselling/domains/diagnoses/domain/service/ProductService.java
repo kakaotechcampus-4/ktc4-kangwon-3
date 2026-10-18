@@ -5,6 +5,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
@@ -118,6 +119,29 @@ public class ProductService {
         }
 
         product.recordProgress(runId, sequence, stage, stageStatus, toolName);
+    }
+
+    /**
+     * AI 질문 반영(질문 콜백). 질문을 저장하고 상품을 답변 대기로 바꾼 뒤 진단서 전체 상태를 다시 계산한다.
+     * 같은 회차 질문의 답변을 기다리는 중에 그 회차가 다시 오면(재전송) 무시한다.
+     */
+    @Transactional
+    public void askQuestions(UUID diagnosesId, UUID productId, String runId,
+                             int questionRound, List<QuestionContent> contents) {
+        Product product = lockCurrentRunProduct(diagnosesId, productId, runId);
+
+        // 저장은 됐지만 응답이 유실돼 AI가 다시 보낸 경우. 엔티티로 넘기면 CONFLICT(COMMON-010)라 받은 것으로 처리한다.
+        if (product.isAwaitingInput() && product.hasQuestionsOfRound(questionRound)) {
+            log.info("이미 저장한 회차의 질문 콜백을 무시합니다. productId={}, runId={}, questionRound={}",
+                    productId, runId, questionRound);
+            return;
+        }
+
+        product.askQuestions(questionRound, contents);
+        product.getDiagnoses().refreshProcessingStatus();
+
+        log.debug("상품 질문 저장 완료. diagnosesId={}, productId={}, questionRound={}, questionCount={}",
+                diagnosesId, productId, questionRound, contents.size());
     }
 
     /**
