@@ -1,7 +1,9 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductFailedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductProgressEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductResultEvent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.PublicErrorDto;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper.AiCallbackMapper;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductService;
 import lombok.RequiredArgsConstructor;
@@ -31,5 +33,15 @@ public class AiCallbackUseCase {
 
         productService.completeDiagnoses(event.diagnosesId(), event.productId(), event.runId(),
                 aiCallbackMapper.toContent(event.assessment()));
+    }
+
+    public void handleFailed(ProductFailedEvent event) {
+        log.debug("AI 실패 콜백 수신. diagnosesId={}, productId={}, eventId={}, runId={}, sequence={}, stage={}, errorCode={}",
+                event.diagnosesId(), event.productId(), event.eventId(), event.runId(), event.sequence(),
+                event.stage(), event.error().code());
+
+        PublicErrorDto error = event.error();
+        productService.failDiagnoses(event.diagnosesId(), event.productId(), event.runId(), event.stage(),
+                error.code(), error.message(), error.retryable());
     }
 }
