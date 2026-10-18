@@ -2,9 +2,12 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -94,6 +97,24 @@ public class ProductService {
                 productId, userId, diagnosesRemoved);
     }
 
+    /**
+     * AI 진행 상황 반영(진행 콜백). 단계·툴별 최신 상태만 남기고 처리 상태는 바꾸지 않는다.
+     */
+    @Transactional
+    public void recordProgress(UUID diagnosesId, UUID productId, String runId, int sequence,
+                               PipelineStage stage, StageStatus stageStatus, ToolName toolName) {
+
+        Product product = lockCurrentRunProduct(diagnosesId, productId, runId);
+
+        // 409를 주면 AI가 재시도 없이 버리면서 경고만 남으므로, 이미 끝난 진단으로 보고 받은 것으로 처리한다.
+        if (product.isFailed()) {
+            log.debug("실패 처리된 상품의 진행 콜백을 무시합니다. productId={}, runId={}, sequence={}",
+                    productId, runId, sequence);
+            return;
+        }
+
+        product.recordProgress(runId, sequence, stage, stageStatus, toolName);
+    }
     /**
      * AI 진단 결과 반영(결과 콜백). 상품을 완료 처리하고 진단서 전체 상태를 다시 계산한다.
      * 이미 반영된 결과(재전송)는 무시한다.
