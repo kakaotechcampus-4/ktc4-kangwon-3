@@ -110,7 +110,7 @@ public class ProductService {
 
         Product product = lockCurrentRunProduct(diagnosesId, productId, runId);
 
-        // 409를 주면 AI가 재시도 없이 버리면서 경고만 남으므로, 이미 끝난 진단으로 보고 받은 것으로 처리한다.
+        // 409(COMMON-010)를 주면 AI가 재시도 없이 버리면서 경고만 남으므로, 이미 끝난 진단으로 보고 받은 것으로 처리한다.
         if (product.isFailed()) {
             log.debug("실패 처리된 상품의 진행 콜백을 무시합니다. productId={}, runId={}, sequence={}",
                     productId, runId, sequence);
@@ -119,6 +119,7 @@ public class ProductService {
 
         product.recordProgress(runId, sequence, stage, stageStatus, toolName);
     }
+
     /**
      * AI 진단 결과 반영(결과 콜백). 상품을 완료 처리하고 진단서 전체 상태를 다시 계산한다.
      * 이미 반영된 결과(재전송)는 무시한다.
