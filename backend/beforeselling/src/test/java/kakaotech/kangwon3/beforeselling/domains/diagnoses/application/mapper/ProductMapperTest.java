@@ -1,13 +1,24 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.FindingLegalSourceResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFinding;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductToolReview;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLevel;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolReviewStatus;
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import org.junit.jupiter.api.DisplayName;
@@ -23,6 +34,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import java.util.UUID;
 
 class ProductMapperTest {
@@ -176,6 +188,116 @@ class ProductMapperTest {
         // then
         assertThat(response.resultStatus()).isEqualTo(ResultStatus.RECHECK_REQUIRED);
         assertThat(response.summary()).isEqualTo("배터리 표시 항목 재확인이 필요합니다.");
+    }
+
+    @Test
+    @DisplayName("진단이 완료된 상품을 상세로 변환하면 분야별 카드와 판단 항목, 법령 근거, 필요한 조치, 안내 사항이 담긴다.")
+    void toResponse_withCompletedAssessment_thenIncludeToolReviewsAndFindingsAndLegalSources() {
+        // given
+        Product product = createCompletedProduct(List.of(childrenReview()));
+        ProductToolReview review = product.getToolReviews().getFirst();
+        ProductFinding finding = review.getFindings().getFirst();
+        UUID toolReviewId = UUID.randomUUID();
+        UUID findingId = UUID.randomUUID();
+        UUID legalSourceId = UUID.randomUUID();
+        ReflectionTestUtils.setField(review, "id", toolReviewId);
+        ReflectionTestUtils.setField(finding, "id", findingId);
+        ReflectionTestUtils.setField(finding.getLegalSources().getFirst(), "id", legalSourceId);
+
+        // when
+        ProductResponse response = productMapper.toResponse(product);
+
+        // then
+        assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+        assertThat(response.assessmentStatus()).isEqualTo(AssessmentStatus.COMPLETED);
+        assertThat(response.resultStatus()).isEqualTo(ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED);
+        assertThat(response.summary()).isEqualTo("사입해서 판매하려면 안전확인(KC)이 필요합니다.");
+        assertThat(response.requiredActions()).containsExactly("안전확인 신고", "사용연령 표시");
+        assertThat(response.notices()).containsExactly("구매대행으로 판매하면 결론이 달라질 수 있습니다.");
+
+        ProductToolReviewResponse toolReview = response.toolReviews().getFirst();
+        assertThat(toolReview.productToolReviewId()).isEqualTo(toolReviewId);
+        assertThat(toolReview.toolName()).isEqualTo(ToolName.CHILDREN);
+        assertThat(toolReview.status()).isEqualTo(ToolReviewStatus.COMPLETED);
+        assertThat(toolReview.findings())
+                .extracting(ProductFindingResponse::productFindingId, ProductFindingResponse::subject,
+                        ProductFindingResponse::determination, ProductFindingResponse::riskLevel)
+                .containsExactly(
+                        tuple(findingId, "안전확인 대상 여부", Determination.REQUIRED, RiskLevel.HIGH),
+                        tuple(null, "표시사항", Determination.POSSIBLY_REQUIRED, RiskLevel.MEDIUM));
+
+        ProductFindingResponse certification = toolReview.findings().getFirst();
+        assertThat(certification.summary()).isEqualTo("안전확인이 필요합니다.");
+        assertThat(certification.rationale()).isEqualTo("권장연령 3-6세 기준으로 완구에 해당합니다.");
+        assertThat(certification.legalSources())
+                .extracting(FindingLegalSourceResponse::findingLegalSourceId, FindingLegalSourceResponse::lawName,
+                        FindingLegalSourceResponse::article, FindingLegalSourceResponse::effectiveDate)
+                .containsExactly(
+                        tuple(legalSourceId, "어린이제품 안전 특별법 시행규칙", "별표 2", "2026-01-01"),
+                        tuple(null, "어린이제품 안전 특별법", "제17조", null));
+    }
+
+    @Test
+    @DisplayName("분야별 카드는 결과에 담긴 순서와 관계없이 정해진 분야 순서대로 담긴다.")
+    void toResponse_withToolReviewsOutOfOrder_thenSortByToolName() {
+        // given: 정해진 분야 순서(CUSTOMS → CHILDREN → ... → LABEL_AD)와 반대로 담는다.
+        Product product = createCompletedProduct(List.of(
+                skippedReview(ToolName.LABEL_AD),
+                childrenReview(),
+                skippedReview(ToolName.CUSTOMS)));
+
+        // when
+        ProductResponse response = productMapper.toResponse(product);
+
+        // then
+        assertThat(response.toolReviews())
+                .extracting(ProductToolReviewResponse::toolName)
+                .containsExactly(ToolName.CUSTOMS, ToolName.CHILDREN, ToolName.LABEL_AD);
+    }
+
+    @Test
+    @DisplayName("진단이 끝나지 않은 상품을 상세로 변환하면 결과 상태는 비어 있고 결과 목록은 빈 목록이다.")
+    void toResponse_withoutAssessment_thenResultListsAreEmpty() {
+        // given & when
+        ProductResponse response = productMapper.toResponse(
+                createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, null));
+
+        // then
+        assertThat(response.assessmentStatus()).isNull();
+        assertThat(response.toolReviews()).isEmpty();
+        assertThat(response.requiredActions()).isEmpty();
+        assertThat(response.notices()).isEmpty();
+    }
+
+    private Product createCompletedProduct(List<AssessmentContent.ToolReviewContent> toolReviews) {
+        Product product = createProduct(PRODUCT_ID, PRODUCT_IMAGE_KEY, SourceType.URL, null);
+        product.startDiagnoses();
+        product.complete(new AssessmentContent(
+                AssessmentStatus.COMPLETED,
+                ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED,
+                "사입해서 판매하려면 안전확인(KC)이 필요합니다.",
+                toolReviews,
+                List.of("안전확인 신고", "사용연령 표시"),
+                List.of("구매대행으로 판매하면 결론이 달라질 수 있습니다.")));
+        return product;
+    }
+
+    private AssessmentContent.ToolReviewContent childrenReview() {
+        return new AssessmentContent.ToolReviewContent(ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null, List.of(
+                new AssessmentContent.FindingContent("안전확인 대상 여부", Determination.REQUIRED, RiskLevel.HIGH,
+                        "안전확인이 필요합니다.", "권장연령 3-6세 기준으로 완구에 해당합니다.", List.of(
+                        new AssessmentContent.LegalSourceContent("국가법령정보센터", "어린이제품 안전 특별법 시행규칙",
+                                "별표 2", "완구: 14세 미만의 어린이가 놀이용으로 사용하는 제품",
+                                "https://www.law.go.kr", "2026-01-01"),
+                        new AssessmentContent.LegalSourceContent("국가법령정보센터", "어린이제품 안전 특별법",
+                                "제17조", null, null, null))),
+                new AssessmentContent.FindingContent("표시사항", Determination.POSSIBLY_REQUIRED, RiskLevel.MEDIUM,
+                        "사용연령 표시를 확인해야 합니다.", "상세페이지에 사용연령 표기가 없습니다.", List.of())));
+    }
+
+    private AssessmentContent.ToolReviewContent skippedReview(ToolName toolName) {
+        return new AssessmentContent.ToolReviewContent(toolName, ToolReviewStatus.SKIPPED,
+                "해당하지 않아 검토하지 않았습니다.", List.of());
     }
 
     private Product createProduct(UUID productId, String productImageKey,
