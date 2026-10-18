@@ -64,7 +64,7 @@ async def submit_dev_diagnosis(
     """
     item = ExtractionInput(
         product_id=DEV_PRODUCT_PREFIX, source_url=req.source_url, text_blocks=req.text_blocks,
-        image_urls=req.images_base64,
+        image_urls=req.image_urls,
     )
     try:
         session = executor.submit_dev(item)
