@@ -252,6 +252,10 @@ public class Product extends BaseEntity {
         return processingStatus == ProcessingStatus.COMPLETED;
     }
 
+    public boolean isFailed() {
+        return processingStatus == ProcessingStatus.FAILED;
+    }
+
     private void transition(ProcessingStatus from, ProcessingStatus to) {
         if (processingStatus != from) {
             throw new BaseException(CommonResponseCode.CONFLICT);
