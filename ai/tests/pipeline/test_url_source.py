@@ -199,3 +199,27 @@ def test_빌더에_이미지_방식을_주면_사이트_설정보다_우선한�
 def test_Made_in_China는_글만_쓴다():
     # 이미지를 넣으면 chemical_product 등 판정이 흔들림 (3개 상품 비교 실험)
     assert SITES["made-in-china.com"].images == "none"
+
+
+def test_selected는_후보가_분류_한도를_넘으면_앞에서부터_한도까지만_분류한다():
+    # 분류 에이전트는 한도를 넘으면 오류 → URL 진단 전체가 실패했음 (#337 리뷰)
+    from app.agents.image_triage import MAX_IMAGES as MAX_TRIAGE_IMAGES
+
+    page = _page(_image("main", "gallery"), *(_image(f"img{n}") for n in range(2, MAX_TRIAGE_IMAGES + 2)))
+
+    class _LimitedTriage(_FakeTriage):
+        def classify(self, image_urls, *, subject_id):
+            if len(image_urls) > MAX_TRIAGE_IMAGES:
+                raise ValueError(f"이미지는 한 번에 {MAX_TRIAGE_IMAGES}장까지 분류합니다")
+            return super().classify(image_urls, subject_id=subject_id)
+
+    # 2번이 사양, 마지막(한도 밖) 이미지는 분류되지 않음
+    triage = _LimitedTriage(_triage("product", "specification", *["lifestyle"] * (MAX_TRIAGE_IMAGES - 2)))
+    builder = UrlSourceBuilder(triage, sites=_sites(lambda: _FakeClient(page)))
+
+    source = builder.build(URL, product_id="p-1")
+
+    [(classified, _)] = triage.calls
+    assert len(page.images) == MAX_TRIAGE_IMAGES + 1
+    assert classified == [image.thumbnail_url for image in page.images[:MAX_TRIAGE_IMAGES]]
+    assert source.extraction_input.image_urls == ["https://img/main.jpg", "https://img/img2.jpg"]
