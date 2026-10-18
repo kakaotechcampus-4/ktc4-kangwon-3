@@ -3,9 +3,13 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.PublicAssessmentDto;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.PublicFindingDto;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.PublicLegalSourceDto;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.PublicQuestionDto;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.PublicToolReviewDto;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class AiCallbackMapper {
@@ -19,6 +23,10 @@ public class AiCallbackMapper {
                 dto.requiredActions(),
                 dto.notices()
         );
+    }
+
+    public List<QuestionContent> toContents(List<PublicQuestionDto> dtos) {
+        return dtos.stream().map(this::toContent).toList();
     }
 
     private AssessmentContent.ToolReviewContent toContent(PublicToolReviewDto dto) {
@@ -49,6 +57,15 @@ public class AiCallbackMapper {
                 dto.quotedText(),
                 dto.sourceUrl(),
                 dto.effectiveDate()
+        );
+    }
+
+    private QuestionContent toContent(PublicQuestionDto dto) {
+        return new QuestionContent(
+                dto.questionKey(),
+                dto.questionOrder(),
+                dto.questionText(),
+                dto.helpText()
         );
     }
 }

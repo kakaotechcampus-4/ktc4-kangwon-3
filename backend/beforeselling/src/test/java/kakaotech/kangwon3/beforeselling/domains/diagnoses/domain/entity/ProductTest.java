@@ -418,7 +418,7 @@ class ProductTest {
     @Test
     @DisplayName("답변 후 재진단 중인 상품은 다시 질문을 받을 수 있다.")
     void askQuestions_whenResumed_thenAddQuestionsAndAwaitInput() {
-        // given: 질문 횟수(최대 2회)는 AI가 제한하므로 BE는 상태만 확인한다.
+        // given: 질문 횟수(최대 2회)는 AI가 제한하므로 BE는 상태와 회차가 앞으로 가는지만 확인한다.
         Product product = createAwaitingInputProduct();
         product.resume();
 
@@ -455,6 +455,36 @@ class ProductTest {
                 new QuestionContent("sales_type", 2, "사입해서 파나요?", null))));
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
         assertThat(product.getQuestions()).isEmpty();
+    }
+
+    @ParameterizedTest(name = "회차 {0}")
+    @ValueSource(ints = {1, 2})
+    @DisplayName("재진단 중에 이미 받은 회차 이하의 질문이 오면 CONFLICT 예외가 발생하고 상태와 질문이 바뀌지 않는다.")
+    void askQuestions_whenReceivedRoundOrBefore_thenThrowConflict(int questionRound) {
+        // given: 1·2회차 질문에 모두 답하고 다시 진단 중인 상품
+        Product product = createAwaitingInputProduct();
+        product.resume();
+        product.askQuestions(2, List.of(new QuestionContent("target_age", 1, "대상 연령은?", null)));
+        product.resume();
+
+        // when & then
+        assertConflict(() -> product.askQuestions(questionRound,
+                List.of(new QuestionContent("usage", 1, "용도는?", null))));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getQuestions())
+                .extracting(ProductQuestion::getQuestionRound, ProductQuestion::getQuestionKey)
+                .containsExactly(tuple(1, "sales_type"), tuple(2, "target_age"));
+    }
+
+    @Test
+    @DisplayName("받은 회차의 질문이 있는지 회차별로 구분한다.")
+    void hasQuestionsOfRound_thenOnlyReceivedRound() {
+        // given
+        Product product = createAwaitingInputProduct();
+
+        // when & then
+        assertThat(product.hasQuestionsOfRound(1)).isTrue();
+        assertThat(product.hasQuestionsOfRound(2)).isFalse();
     }
 
     @Test
@@ -552,6 +582,32 @@ class ProductTest {
 
         // when & then
         assertThat(product.hasResult()).isFalse();
+    }
+
+    @Test
+    @DisplayName("실패 처리된 상품만 실패한 것으로 본다.")
+    void isFailed_beforeAndAfterFail() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertThat(product.isFailed()).isFalse();
+        product.fail(null, ERROR_CODE, ERROR_MESSAGE, false);
+        assertThat(product.isFailed()).isTrue();
+    }
+
+    @Test
+    @DisplayName("질문을 받은 상품만 답변 대기 중인 것으로 보고, 재진단하면 답변 대기가 아니다.")
+    void isAwaitingInput_beforeAndAfterQuestionsAndResume() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertThat(product.isAwaitingInput()).isFalse();
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+        assertThat(product.isAwaitingInput()).isTrue();
+        product.resume();
+        assertThat(product.isAwaitingInput()).isFalse();
     }
 
     @Test
