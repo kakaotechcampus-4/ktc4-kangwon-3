@@ -65,6 +65,27 @@ export enum RiskLevel {
     Unknown = "UNKNOWN",
 }
 
+/** 진단 파이프라인 단계 */
+export enum PipelineStage {
+    Extraction = "EXTRACTION",
+    Selection = "SELECTION",
+    ToolExecution = "TOOL_EXECUTION",
+    Aggregation = "AGGREGATION",
+    Verification = "VERIFICATION",
+    Finalization = "FINALIZATION",
+}
+
+/** 진행 단계 하나의 상태
+ * - Started: 시작됨
+ * - Completed: 완료됨
+ * - Skipped: 건너뜀
+*/
+export enum StageStatus {
+    Started = "STARTED",
+    Completed = "COMPLETED",
+    Skipped = "SKIPPED",
+}
+
 /**
  * 판정 근거가 된 법령 출처
  * - sourceName: 출처 이름 (예: 국가법령정보센터)
@@ -112,7 +133,44 @@ export interface ToolReview {
     findings: Finding[]
 }
 
-/** 상품 단건/진단서 조회 응답이 공유하는 상품 결과 형태. 결과 전에는 관련 필드가 null/빈 배열 */
+/** 진단 진행 화면에서 보여줄, 단계·Tool별 최신 상태 하나 */
+export interface ProductProgress {
+    stage: PipelineStage
+    // stage가 ToolExecution일 때만 값이 있고, 단계 자체의 진행이면 null
+    toolName: ToolName | null
+    stageStatus: StageStatus
+}
+
+/** 진단 중 사용자에게 묻는 질문 하나
+ * - questionRound: 질문 회차 (답변 후 재진단에서 다시 물으면 2)
+ * - helpText: 질문 보조 설명. 없으면 null
+ * - answerText: 답변하기 전에는 null
+ */
+export interface Question {
+    questionId: string
+    questionRound: number
+    questionOrder: number
+    questionText: string
+    helpText: string | null
+    answerText: string | null
+}
+
+/** 진단 실패 정보. processingStatus가 Failed일 때만 값이 있음
+ * - failedStage: 실패한 단계. 진단 시작 전 실패나 결과를 받지 못해 종료한 경우 null
+ * - retryable: 다시 진단하면 성공할 수 있는지. 알 수 없으면 null
+ */
+export interface ProductFailure {
+    failedStage: PipelineStage | null
+    errorCode: string
+    errorMessage: string
+    retryable: boolean | null
+}
+
+/**
+ * 상품 단건(GET /api/v1/products/{productId})/진단서(GET /api/v1/diagnoses/{diagnosesId}) 조회 응답이
+ * 공유하는 상품 하나의 형태. Result 페이지와 진단 진행(폴링) 화면이 함께 쓴다.
+ * 결과 전에는 관련 필드가 null/빈 배열.
+ */
 export interface ProductResult {
     productId: string
     productName: string
@@ -122,6 +180,9 @@ export interface ProductResult {
     sourceText: string | null
     imageUrls: string[]
     processingStatus: ProcessingStatusType
+    progresses: ProductProgress[]
+    questions: Question[]
+    failure: ProductFailure | null
     assessmentStatus: AssessmentStatus | null
     resultStatus: ResultStatus | null
     summary: string | null
