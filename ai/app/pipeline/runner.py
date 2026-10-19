@@ -22,7 +22,7 @@ class ExtractionStage(Protocol):
 
 
 class SelectionStage(Protocol):
-    def select(self, product: Product) -> ToolSelectionResponse: ...
+    def run(self, product: Product) -> ToolSelectionResponse: ...
 
 
 class ToolExecutionStage(Protocol):
@@ -170,7 +170,7 @@ class CompliancePipeline:
 
     def run(self, source: ExtractionInput) -> FinalAssessment:
         product: Product = self._extractor.run(source)
-        selection: ToolSelectionResponse = self._selector.select(product)
+        selection: ToolSelectionResponse = self._selector.run(product)
         selection_result: SelectionResult = self._tool_executor.execute_initial(
             product,
             selection,
