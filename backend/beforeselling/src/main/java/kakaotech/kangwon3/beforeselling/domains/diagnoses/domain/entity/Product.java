@@ -268,9 +268,18 @@ public class Product extends BaseEntity {
         return processingStatus == ProcessingStatus.AWAITING_INPUT;
     }
 
-    // open-in-view=false 라 DTO 매핑 전에 트랜잭션 안에서 상세 응답에 필요한 컬렉션(이미지, 진단 결과)을 미리 읽어 둠.
+    // 현재 실행의 진행 상태만
+    public List<ProductProgress> currentProgresses() {
+        return progresses.stream()
+                .filter(progress -> progress.isOfRun(runId))
+                .toList();
+    }
+
+    // open-in-view=false 라 DTO 매핑 전에 트랜잭션 안에서 상세 응답에 필요한 컬렉션(이미지, 진행, 질문, 진단 결과)을 미리 읽어 둠.
     public void loadDetail() {
         images.size();
+        progresses.size();
+        questions.size();
         toolReviews.forEach(review ->
                 review.getFindings().forEach(finding -> finding.getLegalSources().size()));
         requiredActions.size();
