@@ -32,8 +32,11 @@ _ITEM_LABEL_RE = re.compile(r"(?:^|\s)[가-힣]\.\s")
 
 
 def law_key(name: str) -> str:
-    """법령 이름 비교용 키. 공백·가운뎃점(·, ㆍ, 깨진 ?) 차이를 무시한다(고시는 'ㆍ', GW는 '·'를 쓴다)."""
-    return compact(name).translate(_DOTS)
+    """법령 이름 비교용 키. 공백·가운뎃점(·, ㆍ, 깨진 ?) 차이를 무시한다(고시는 'ㆍ', GW는 '·'를 쓴다).
+
+    GW는 같은 법령에 요건 종류를 덧붙여 줄 때가 있어(예: "야생생물 보호 및 관리에 관한 법률(허가)") 끝의 괄호는 뗀다.
+    """
+    return compact(re.sub(r"\([^()]*\)\s*$", "", name)).translate(_DOTS)
 
 
 @dataclass(frozen=True)
