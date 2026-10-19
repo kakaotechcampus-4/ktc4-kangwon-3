@@ -50,11 +50,15 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
     papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
     who = f"{', '.join(agencies)}의 " if agencies else ""
     import_action = (f"{label} 사입·수입 판매: 이 HS로 분류되면 수입신고 때 세관장확인을 받아야 합니다. "
-                     f"{who}{papers}를 미리 갖춰야 통관됩니다(관세법 제226조, 세관장확인 고시 별표 2).")
+                     f"{who}{papers}{_object_particle(papers)} 미리 갖춰야 통관됩니다(관세법 제226조, 세관장확인 고시 별표 2).")
     if omission is None:
         return [import_action, f"{label} 구매대행: 개인 사용 목적 수입의 세관장확인 생략 여부는 확인이 필요합니다."]
     status, condition = omission
     if status == "excepted":
+        # 단서의 조건 원문은 괄호째 오므로 괄호를 벗겨 "(… 단서 조건: …)" 한 겹으로 쓴다.
+        condition = condition.strip()
+        if condition.startswith("(") and condition.endswith(")"):
+            condition = condition[1:-1].strip()
         note = f" 조건: {condition}" if condition else ""
         return [import_action,
                 f"{label} 구매대행: 상행위 이외 목적 등 대외무역법 시행령 제19조 사유의 수입이어도 「{law_name}」 요건은 "
@@ -71,3 +75,11 @@ def omission_status(law_name: str, exceptions: dict[str, str] | None) -> tuple[s
         return None
     key = law_key(law_name)
     return ("excepted", exceptions[key]) if key in exceptions else ("omittable", "")
+
+
+def _object_particle(word: str) -> str:
+    """목적격 조사. 마지막 글자에 받침이 있으면 "을", 없으면(한글이 아니어도) "를"."""
+    last = word.rstrip()[-1:]
+    if not ("가" <= last <= "힣"):
+        return "를"
+    return "을" if (ord(last) - ord("가")) % 28 else "를"
