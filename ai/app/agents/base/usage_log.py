@@ -1,7 +1,6 @@
 """에이전트 모델 호출 1건의 사용량 기록·콘솔 로그. 응답 → 사용량 변환은 app/usage.py."""
 
 import logging
-from time import perf_counter
 from typing import Any
 
 from ...usage import CallUsage, record
@@ -16,7 +15,7 @@ def record_call(
     configured_model: str | None,
     reasoning_effort: str | None,
     subject_id: str,
-    started_at: float,
+    elapsed_ms: int,
     error_type: str | None = None,
 ) -> None:
     """호출 1건을 공용 사용량 로그에 남긴다. 기록 실패는 호출 결과에 영향 없음.
@@ -27,7 +26,7 @@ def record_call(
         configured_model: 비용 계산용 모델 이름.
         reasoning_effort: 추론 강도. 스텁·주입 모델은 None.
         subject_id: 기록 대상 ID (상품 ID).
-        started_at: 호출 시작 시각 (perf_counter).
+        elapsed_ms: 걸린 시간(ms).
         error_type: 실패 원인 예외 이름. 성공이면 None.
     """
     record(
@@ -37,7 +36,7 @@ def record_call(
         reasoning_effort=reasoning_effort,
         subject_id=subject_id,
         ok=error_type is None,
-        elapsed_ms=round((perf_counter() - started_at) * 1000),
+        elapsed_ms=elapsed_ms,
         error_type=error_type,
     )
 

@@ -10,8 +10,9 @@ from pydantic import BaseModel
 
 from ...config import build_agent_model, build_tool_model
 from ...prompts import PromptName, PromptSnapshot, get_prompt
-from ...usage import CallUsage, from_completion, from_response
+from ...usage import CallUsage, estimate_krw, from_completion, from_response
 from .errors import AgentError, ModelFailurePhase
+from .meta import AgentRunMeta
 from .parsing import parse_structured_output
 from .protocols import ModelLike, OutputT
 from .usage_log import log_token_usage, record_call
@@ -98,7 +99,7 @@ class BaseAgent(Generic[OutputT]):
         subject_id: str,
         partial_result: object | None = None,
     ) -> OutputT:
-        """모델을 호출해 구조화 출력을 돌려준다. 성공·실패 모두 사용량을 한 번 기록.
+        """모델을 호출해 구조화 출력만 돌려준다. 실행 정보가 필요하면 ``_invoke_with_meta``.
 
         Args:
             messages: 모델에 보낼 메시지.
@@ -109,7 +110,30 @@ class BaseAgent(Generic[OutputT]):
             OutputT: 검증된 출력.
 
         Raises:
-            AgentError: 호출·파싱 실패. 실제 타입은 ``error_class``, 원인은 ``__cause__``.
+            AgentError: 호출·파싱 실패. 실제 타입은 ``error_class``, 원인은 ``__cause__``, 실행 정보는 ``meta``.
+            RuntimeError: 모델 없이 호출한 경우.
+        """
+        return self._invoke_with_meta(messages, subject_id=subject_id, partial_result=partial_result)[0]
+
+    def _invoke_with_meta(
+        self,
+        messages: list[Any],
+        *,
+        subject_id: str,
+        partial_result: object | None = None,
+    ) -> tuple[OutputT, AgentRunMeta]:
+        """모델을 호출해 구조화 출력과 실행 정보를 돌려준다. 성공·실패 모두 사용량을 한 번 기록.
+
+        Args:
+            messages: 모델에 보낼 메시지.
+            subject_id: 사용량 기록 대상 ID (상품 ID).
+            partial_result: 실패 시 예외에 담을 부분 결과.
+
+        Returns:
+            tuple[OutputT, AgentRunMeta]: 검증된 출력과 실행 정보.
+
+        Raises:
+            AgentError: 호출·파싱 실패. 실제 타입은 ``error_class``, 원인은 ``__cause__``, 실행 정보는 ``meta``.
             RuntimeError: 모델 없이 호출한 경우.
         """
         # 모델 미주입 상태 (creates_default_model=False 에이전트를 모델 없이 만든 경우)
@@ -121,13 +145,11 @@ class BaseAgent(Generic[OutputT]):
             result = self._structured.invoke(messages)
         except (LengthFinishReasonError, ContentFilterFinishReasonError) as exc:
             # 응답은 받았으나 길이 초과·콘텐츠 필터로 출력이 잘림 → 예외에 담긴 사용량 기록
-            usage = from_completion(exc.completion)
-            self._record_usage(usage, subject_id, started_at, error_type=type(exc).__name__)
-            self._raise_model_error(ModelFailurePhase.PARSING, exc, partial_result=partial_result)
+            self._fail(ModelFailurePhase.PARSING, exc, from_completion(exc.completion), subject_id, started_at,
+                       partial_result)
         except Exception as exc:
             # 응답 자체를 못 받음 (네트워크·타임아웃·인증·서버 오류) → 사용량 없이 실패만 기록
-            self._record_usage(None, subject_id, started_at, error_type=type(exc).__name__)
-            self._raise_model_error(ModelFailurePhase.CALL, exc, partial_result=partial_result)
+            self._fail(ModelFailurePhase.CALL, exc, None, subject_id, started_at, partial_result)
 
         raw_message = result.get("raw")
         usage = from_response(raw_message)
@@ -135,12 +157,11 @@ class BaseAgent(Generic[OutputT]):
             output = parse_structured_output(result, self.output_schema, self.component_name)
         except Exception as cause:
             # 응답은 받았으나 거절·JSON 오류·스키마 위반·빈 출력 → 쓴 토큰까지 기록
-            self._record_usage(usage, subject_id, started_at, error_type=type(cause).__name__)
-            self._raise_model_error(ModelFailurePhase.PARSING, cause, partial_result=partial_result)
+            self._fail(ModelFailurePhase.PARSING, cause, usage, subject_id, started_at, partial_result)
 
-        self._record_usage(usage, subject_id, started_at)
+        meta = self._finish_call(usage, subject_id, started_at)
         log_token_usage(self.component_name, usage, raw_message)
-        return output
+        return output, meta
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
         """실패 예외 문구를 만든다. 하위 클래스가 정의.
@@ -157,50 +178,92 @@ class BaseAgent(Generic[OutputT]):
         """
         raise NotImplementedError
 
-    def _raise_model_error(
+    def _run_meta(
         self,
-        phase: ModelFailurePhase,
-        cause: Exception,
         *,
-        partial_result: object | None = None,
-    ) -> NoReturn:
-        """원인 예외를 ``error_class``로 감싸 던진다.
+        usage: CallUsage | None = None,
+        elapsed_ms: int = 0,
+        error_type: str | None = None,
+    ) -> AgentRunMeta:
+        """이 에이전트의 모델·프롬프트 정보로 실행 정보를 만든다.
 
         Args:
-            phase: 실패 단계. 문구 선택에 씀.
-            cause: 원인 예외. ``__cause__``로 연결.
-            partial_result: 예외에 담을 부분 결과.
+            usage: 사용량. 모르거나 호출이 없었으면 None.
+            elapsed_ms: 걸린 시간(ms).
+            error_type: 실패 원인 예외 이름. 성공이면 None.
 
-        Raises:
-            AgentError: 항상. 실제 타입은 ``error_class``.
+        Returns:
+            AgentRunMeta: 실행 정보.
         """
-        raise self.error_class(
-            self._failure_message(phase, cause),
-            partial_result=partial_result,
-        ) from cause
+        prompt = self.prompt
+        return AgentRunMeta(
+            component=self.component_name,
+            model=self._configured_model,
+            reasoning_effort=self._reasoning_effort,
+            prompt_name=prompt.name.value,
+            prompt_sha256=prompt.sha256,
+            usage=usage,
+            cost_krw=estimate_krw(usage, self._configured_model) if usage else None,
+            elapsed_ms=elapsed_ms,
+            error_type=error_type,
+        )
 
-    def _record_usage(
+    def _finish_call(
         self,
         usage: CallUsage | None,
         subject_id: str,
         started_at: float,
         *,
         error_type: str | None = None,
-    ) -> None:
-        """호출 1건을 이 에이전트 이름·모델로 사용량 로그에 남긴다.
+    ) -> AgentRunMeta:
+        """호출 1건을 마무리한다. 걸린 시간을 한 번 재서 사용량 로그와 실행 정보에 같이 씀.
 
         Args:
             usage: 사용량. 호출 실패로 모르면 None.
             subject_id: 기록 대상 ID (상품 ID).
             started_at: 호출 시작 시각 (perf_counter).
             error_type: 실패 원인 예외 이름. 성공이면 None.
+
+        Returns:
+            AgentRunMeta: 실행 정보.
         """
+        elapsed_ms = round((perf_counter() - started_at) * 1000)
         record_call(
             self._usage_agent,
             usage,
             configured_model=self._configured_model,
             reasoning_effort=self._reasoning_effort,
             subject_id=subject_id,
-            started_at=started_at,
+            elapsed_ms=elapsed_ms,
             error_type=error_type,
         )
+        return self._run_meta(usage=usage, elapsed_ms=elapsed_ms, error_type=error_type)
+
+    def _fail(
+        self,
+        phase: ModelFailurePhase,
+        cause: Exception,
+        usage: CallUsage | None,
+        subject_id: str,
+        started_at: float,
+        partial_result: object | None,
+    ) -> NoReturn:
+        """실패 호출을 기록하고 원인 예외를 ``error_class``로 감싸 던진다.
+
+        Args:
+            phase: 실패 단계. 문구 선택에 씀.
+            cause: 원인 예외. ``__cause__``로 연결.
+            usage: 사용량. 호출 실패로 모르면 None.
+            subject_id: 기록 대상 ID (상품 ID).
+            started_at: 호출 시작 시각 (perf_counter).
+            partial_result: 예외에 담을 부분 결과.
+
+        Raises:
+            AgentError: 항상. 실제 타입은 ``error_class``, 실행 정보는 ``meta``.
+        """
+        meta = self._finish_call(usage, subject_id, started_at, error_type=type(cause).__name__)
+        raise self.error_class(
+            self._failure_message(phase, cause),
+            partial_result=partial_result,
+            meta=meta,
+        ) from cause
