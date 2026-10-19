@@ -13,11 +13,11 @@ from pydantic import BaseModel
 
 from ...config import build_agent_model, build_tool_model
 from ...prompts import PromptName, PromptSnapshot, get_prompt
-from ...usage import CallUsage, from_response
+from ...usage import CallUsage, from_completion, from_response
 from .errors import AgentError, ModelFailurePhase
 from .parsing import OutputT, parse_structured_output
 from .protocols import ModelLike
-from .usage_log import log_token_usage, record_call, usage_from_completion
+from .usage_log import log_token_usage, record_call
 
 
 class BaseAgent(Generic[OutputT]):
@@ -130,7 +130,7 @@ class BaseAgent(Generic[OutputT]):
             result = self._structured.invoke(messages)
         except (LengthFinishReasonError, ContentFilterFinishReasonError) as exc:
             # 응답은 다 받았지만 길이 초과·필터로 출력이 잘린 경우. SDK가 예외에 사용량을 담아 줌
-            usage = usage_from_completion(exc.completion)
+            usage = from_completion(exc.completion)
             self._record_usage(usage, subject_id, started_at, error_type=type(exc).__name__)
             self._raise_model_error(ModelFailurePhase.PARSING, exc, partial_result=partial_result)
         except Exception as exc:

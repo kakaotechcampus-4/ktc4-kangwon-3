@@ -112,6 +112,36 @@ def from_response(raw) -> CallUsage | None:
     )
 
 
+def from_completion(completion) -> CallUsage | None:
+    """SDK 종료 사유 예외(길이 초과·콘텐츠 필터)에 담긴 ChatCompletion에서 사용량을 뽑는다.
+
+    응답은 다 받았지만 출력이 잘린 경우라 토큰은 이미 쓰임. from_response의 게이트웨이 값과 같은 필드를 읽음
+    (캐시 적중·캐시 쓰기는 게이트웨이 공통 필드도 확인).
+
+    Args:
+        completion: 예외의 ``completion`` 속성 (openai ChatCompletion).
+
+    Returns:
+        CallUsage | None: 사용량. usage가 없으면 None.
+    """
+    usage = getattr(completion, "usage", None)
+    if usage is None:
+        return None
+    prompt_details = getattr(usage, "prompt_tokens_details", None)
+    completion_details = getattr(usage, "completion_tokens_details", None)
+    # 게이트웨이 공통 필드(cached_prompt_tokens·cache_write_tokens)는 usage 바로 아래에 올 수 있음
+    cached = getattr(prompt_details, "cached_tokens", 0) or getattr(usage, "cached_prompt_tokens", 0)
+    cache_write = getattr(prompt_details, "cache_write_tokens", 0) or getattr(usage, "cache_write_tokens", 0)
+    return CallUsage(
+        reported_model=getattr(completion, "model", None) or "",
+        input_tokens=usage.prompt_tokens or 0,
+        cached_tokens=cached or 0,
+        output_tokens=usage.completion_tokens or 0,
+        reasoning_tokens=getattr(completion_details, "reasoning_tokens", 0) or 0,
+        cache_write_tokens=cache_write or 0,
+    )
+
+
 def estimate_krw(usage: CallUsage, configured_model: str | None) -> float | None:
     """카테캠 ML API 단가로 예상 비용을 계산한다. 단가를 모르면 None이다."""
     price = PRICING_KRW.get(configured_model or "")

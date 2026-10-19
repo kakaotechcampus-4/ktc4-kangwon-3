@@ -1,4 +1,4 @@
-"""에이전트 모델 호출 1건의 사용량 계산·기록·콘솔 로그."""
+"""에이전트 모델 호출 1건의 사용량 기록·콘솔 로그. 응답 → 사용량 변환은 공용 app/usage.py."""
 
 import logging
 from time import perf_counter
@@ -7,27 +7,6 @@ from typing import Any
 from ...usage import CallUsage, record
 
 logger = logging.getLogger(__name__)
-
-
-def usage_from_completion(completion: Any) -> CallUsage | None:
-    """SDK 종료 사유 예외(길이 초과·콘텐츠 필터)에 담긴 ChatCompletion에서 사용량을 꺼낸다.
-
-    Args:
-        completion: 예외의 ``completion`` 속성.
-
-    Returns:
-        CallUsage | None: 사용량. completion에 usage가 없으면 None.
-    """
-    usage = getattr(completion, "usage", None)
-    if usage is None:
-        return None
-    details = getattr(usage, "prompt_tokens_details", None)
-    return CallUsage(
-        reported_model=getattr(completion, "model", None) or "",
-        input_tokens=usage.prompt_tokens or 0,
-        cached_tokens=getattr(details, "cached_tokens", 0) or 0,
-        output_tokens=usage.completion_tokens or 0,
-    )
 
 
 def record_call(
