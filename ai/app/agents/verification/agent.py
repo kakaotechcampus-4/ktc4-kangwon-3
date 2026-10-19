@@ -17,7 +17,6 @@ from ..base import AgentError, BaseAgent, ModelFailurePhase
 from .rules import run_rule_checks
 from .schemas import _Review
 
-# 추가 Tool 실행으로 보완할 수 있는 검증 이슈이다.
 _TOOL_RECOVERABLE_ISSUES = frozenset(
     {
         IssueType.TOOL_FAILURE,
@@ -43,9 +42,7 @@ class VerificationAgent(BaseAgent[_Review]):
     prompt_name = PromptName.VERIFICATION
     output_schema = _Review
     error_class = VerificationError
-    # 프록시가 strict json_schema를 지원하므로 함수호출 방식 대신 스키마를 강제함
     structured_output_options = {"method": "json_schema", "strict": True}
-    # 규칙 전용 실행(verify_rules)은 모델이 필요 없어 자동 생성하지 않음. 모델은 from_env()로
     creates_default_model = False
 
     @classmethod
@@ -87,6 +84,7 @@ class VerificationAgent(BaseAgent[_Review]):
         try:
             return self._invoke(messages, subject_id=subject_id, partial_result=rules)
         except VerificationError as exc:
+            # 모델 호출·파싱 실패 → trace만 남기고 같은 예외를 그대로 다시 던짐 (원인은 __cause__ 유지)
             cause = exc.__cause__
             self._append_trace(
                 trace,
@@ -94,7 +92,6 @@ class VerificationAgent(BaseAgent[_Review]):
                 status="failed",
                 detail=f"_Review 생성 실패: {type(cause).__name__}",
             )
-            # 새 예외로 감싸지 않아 원본 원인이 __cause__에 그대로 남음
             raise
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
@@ -136,9 +133,8 @@ class VerificationAgent(BaseAgent[_Review]):
             status="started",
             detail=f"DraftAssessment 입력: findings={len(draft.findings)}",
         )
-        # 모델 호출 전에 확정적으로 검사할 수 있는 규칙 결과를 먼저 만든다.
-        # 이후 모델 단계가 실패해도 이 결과는 VerificationError에 보존된다.
         rules = self.verify_rules(draft, trace=trace)
+        # 모델 미주입 (from_env 없이 생성) → 규칙 결과를 담아 실패
         if self._structured is None:
             self._append_trace(
                 trace,
@@ -183,6 +179,7 @@ class VerificationAgent(BaseAgent[_Review]):
             )
             result = self._merge(rules, review)
         except VerificationError as exc:
+            # _check_scope 실패 (검토 ID 중복·누락·없는 ID 참조)
             self._append_trace(
                 trace,
                 action="review_validation_failed",
@@ -194,6 +191,7 @@ class VerificationAgent(BaseAgent[_Review]):
                 partial_result=rules,
             ) from exc
         except Exception as exc:
+            # 모델 출력을 VerificationResult로 병합하다 실패 (예상 밖 값 등)
             self._append_trace(
                 trace,
                 action="result_merge_failed",
@@ -279,14 +277,12 @@ class VerificationAgent(BaseAgent[_Review]):
             status=Status.APPROVED,
             issues=context.issues,
             additional_tools_required=context.additional_tools,
-            # 초안에 이미 있는 사용자 질문도 상태 판단에 함께 반영한다.
             follow_up_questions=list(draft.follow_up_questions),
         )
         result.status = self._status(result)
         result.review_summary = (
             "규칙 검사만 실행했습니다. 모델 의미 검증과 외부 법령 조회는 수행하지 않았습니다."
         )
-        # checked_finding_ids는 의미 검토를 마친 모델 결과에서만 채운다.
         self._append_trace(
             trace,
             action="rules_completed",
@@ -299,7 +295,10 @@ class VerificationAgent(BaseAgent[_Review]):
         return result
 
     def _build_messages(self, draft: DraftAssessment) -> list[dict[str, str]]:
-        """심사 초안을 모델 메시지로 만든다. 조회 파라미터·원시 응답·Tool별 findings는 뺌.
+        """심사 초안을 모델 메시지로 만든다.
+
+        조회 파라미터·원시 응답(키·개인정보가 섞일 수 있음)과 Tool별 findings(최상위와 같음)는 뺌.
+        출력 스키마는 API로 전달되므로 프롬프트에 넣지 않음.
 
         Args:
             draft: 검증할 심사 초안.
@@ -308,13 +307,9 @@ class VerificationAgent(BaseAgent[_Review]):
             list[dict[str, str]]: [시스템 프롬프트, 초안 JSON].
         """
         payload = draft.model_dump(mode="json")
-        # 조회 파라미터와 원시 응답에는 키·토큰·개인정보가 섞일 수 있어 모델에 보내지 않는다.
-        # tool_results[].findings는 최상위 findings와 항상 같아야 한다는 규칙을 verify_rules()가 이미 검사하므로, 모델에는 최상위 목록 한 벌만 보내 입력 토큰을 줄인다.
         for tool_record in payload["tool_results"]:
             for key in ("query", "raw_response", "error", "findings"):
                 tool_record.pop(key, None)
-        # 출력 JSON Schema는 with_structured_output이 API에 직접 전달한다.
-        # 프롬프트에 다시 붙이면 토큰만 늘고 두 스키마가 어긋날 수 있어 넣지 않는다.
         return [
             {"role": "system", "content": self.prompt.text},
             {"role": "user", "content": json.dumps({"draft": payload}, ensure_ascii=False)},
@@ -333,8 +328,10 @@ class VerificationAgent(BaseAgent[_Review]):
         """
         expected = {f.finding_id for f in draft.findings}
         checked = review.checked_finding_ids
+        # 같은 판단을 두 번 이상 검토했다고 보고
         if len(checked) != len(set(checked)):
             raise VerificationError("checked_finding_ids에 중복이 있습니다.")
+        # 검토한 ID 집합이 입력 판단과 다름 (빠뜨렸거나 없는 ID를 만듦)
         if set(checked) != expected:
             missing = sorted(expected - set(checked))
             unknown = sorted(set(checked) - expected)
@@ -343,6 +340,7 @@ class VerificationAgent(BaseAgent[_Review]):
             )
         for issue in review.issues:
             unknown = sorted(set(issue.related_finding_ids) - expected)
+            # 지적이 입력에 없는 판단 ID를 참조
             if unknown:
                 raise VerificationError(f"지적이 존재하지 않는 판단 ID를 참조합니다: {unknown}")
 
@@ -391,12 +389,12 @@ class VerificationAgent(BaseAgent[_Review]):
         tools = list(
             dict.fromkeys(rules.additional_tools_required + review.additional_tools_required)
         )
-        # 같은 질문이 규칙과 모델에서 겹치면 required가 강한 쪽을 남긴다.
         questions: dict[str, FollowUpQuestion] = {q.question: q for q in rules.follow_up_questions}
         for question in review.follow_up_questions:
             existing = questions.get(question.question)
             if existing is None:
                 questions[question.question] = FollowUpQuestion(**question.model_dump())
+            # 규칙·모델에 같은 질문 → 한쪽이라도 필수면 필수로
             elif question.required and not existing.required:
                 questions[question.question] = existing.model_copy(update={"required": True})
 
@@ -407,8 +405,6 @@ class VerificationAgent(BaseAgent[_Review]):
             follow_up_questions=list(questions.values()),
             checked_finding_ids=list(review.checked_finding_ids),
         )
-        # 최종 상태와 요약은 병합된 실제 결과를 기준으로 코드가 만든다.
-        # 모델 요약을 그대로 쓰면 규칙이 찾은 추가 도구와 모순될 수 있다.
         merged.status = self._status(merged)
         summary_parts = [f"검증 상태 {merged.status.value}, 지적 {len(issues)}건."]
         if tools:
@@ -441,6 +437,7 @@ class VerificationAgent(BaseAgent[_Review]):
             and issue.issue_type not in _TOOL_RECOVERABLE_ISSUES
             for issue in result.issues
         )
+        # Tool 재실행으로 못 고치는 critical
         if blocking_critical:
             return Status.REVISION_REQUIRED
 
@@ -450,7 +447,7 @@ class VerificationAgent(BaseAgent[_Review]):
         if result.additional_tools_required:
             return Status.TOOLS_REQUIRED
 
-        # 복구 가능한 critical이라도 실행할 Tool이 지정되지 않았다면 자동 복구가 불가능.
+        # Tool로 고칠 수 있는 critical인데 재실행할 Tool이 지정되지 않음
         if any(issue.severity == "critical" for issue in result.issues):
             return Status.REVISION_REQUIRED
 

@@ -65,9 +65,10 @@ def log_token_usage(component_name: str, usage: CallUsage | None, raw_message: A
             usage.reasoning_tokens,
             usage.total_tokens,
         )
-        # 게이트웨이 원본 필드명이 OpenAI와 다를 수 있어 디버그로 남김
         response_metadata = getattr(raw_message, "response_metadata", None) or {}
+        # 게이트웨이 원본 usage가 있으면 필드명 대조용 디버그 로그
         if response_metadata.get("token_usage"):
             logger.debug("게이트웨이 원본 usage: %s", response_metadata["token_usage"])
     except Exception:
+        # 사용량 객체·응답 모양이 예상과 달라 로그 포맷 실패 → 판정에 영향 없게 무시
         pass

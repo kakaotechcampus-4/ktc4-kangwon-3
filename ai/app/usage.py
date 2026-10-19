@@ -16,28 +16,31 @@ from pathlib import Path
 
 from .config.catalog import CHAT_MODELS
 
-# 테스트에서 monkeypatch로 바꿔 쓰므로 모듈 전역으로 둔다.
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
 
-# 카테캠 엘리스 ML API Serverless 단가(1M 토큰당 KRW). 단가·출처는 config/catalog.py에서 관리
 PRICING_KRW = {model_id: asdict(model.price) for model_id, model in CHAT_MODELS.items() if model.price}
 
 
 @dataclass(frozen=True)
 class CallUsage:
-    """호출 1건의 토큰 사용량. cached·cache_write는 input_tokens에, reasoning은 output_tokens에 포함된 값이다.
+    """호출 1건의 토큰 사용량. cached·cache_write는 input_tokens에, reasoning은 output_tokens에 포함.
 
-    게이트웨이는 캐시 쓰기 토큰을 1.25배로 쳐서 input_tokens에 넣어 보고함 (2026-10-14 실호출, Luna·Claude).
-    비용은 input_tokens로 계산하면 쓰기 할증까지 들어감.
+    게이트웨이는 캐시 쓰기를 1.25배로 쳐서 input_tokens에 넣음 (2026-10-14 실호출) → 비용에 쓰기 할증 포함.
+
+    Attributes:
+        reported_model: 게이트웨이가 실제로 돌린 모델.
+        input_tokens: 입력 토큰.
+        cached_tokens: 입력 중 캐시 적중.
+        output_tokens: 출력 토큰.
+        reasoning_tokens: 출력 중 추론 토큰 (출력 단가로 과금, 강도별 비교용).
+        cache_write_tokens: 이번 호출로 캐시에 새로 쓴 입력 토큰.
     """
 
     reported_model: str
     input_tokens: int
     cached_tokens: int
     output_tokens: int
-    # 추론 모델이 답 전에 쓴 토큰. 출력 단가로 과금되어 비용 계산은 output_tokens로 충분, 강도별 비교용
     reasoning_tokens: int = 0
-    # 이번 호출로 캐시에 새로 쓴 프롬프트 토큰 (다음 호출부터 적중 대상)
     cache_write_tokens: int = 0
 
     @property
@@ -73,7 +76,6 @@ def from_handler(handler) -> CallUsage | None:
     for entry in metadata.values():
         total_in += entry.get("input_tokens", 0) or 0
         total_out += entry.get("output_tokens", 0) or 0
-        # 프록시가 캐시 적중분을 알려준다. 없을 수도 있어 기본값을 둔다.
         total_cached += (entry.get("input_token_details") or {}).get("cache_read", 0) or 0
         total_reasoning += (entry.get("output_token_details") or {}).get("reasoning", 0) or 0
         total_write += (entry.get("input_token_details") or {}).get("cache_creation", 0) or 0
@@ -95,7 +97,7 @@ def from_response(raw) -> CallUsage | None:
     metadata = getattr(raw, "response_metadata", None) or {}
     gateway = metadata.get("token_usage") or {}
     usage = getattr(raw, "usage_metadata", None) or {}
-    # 입력·출력이 다 있는 최종 사용량일 때만 (일부만 있는 값은 LangChain 값으로)
+    # 게이트웨이 값에 입력·출력이 다 있을 때만 사용 (일부만 있으면 usage_metadata로)
     if gateway.get("prompt_tokens") is not None and gateway.get("completion_tokens") is not None:
         prompt_details = gateway.get("prompt_tokens_details") or {}
         return CallUsage(
@@ -133,7 +135,6 @@ def from_completion(completion) -> CallUsage | None:
         return None
     prompt_details = getattr(usage, "prompt_tokens_details", None)
     completion_details = getattr(usage, "completion_tokens_details", None)
-    # 게이트웨이 공통 필드(cached_prompt_tokens·cache_write_tokens)는 usage 바로 아래에 올 수 있음
     cached = getattr(prompt_details, "cached_tokens", 0) or getattr(usage, "cached_prompt_tokens", 0)
     cache_write = getattr(prompt_details, "cache_write_tokens", 0) or getattr(usage, "cache_write_tokens", 0)
     return CallUsage(
@@ -195,9 +196,7 @@ def record(
             "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "agent": agent,
             "configured_model": configured_model,
-            # 같은 모델도 추론 강도에 따라 토큰·비용이 달라 함께 남김
             "reasoning_effort": reasoning_effort,
-            # 프록시가 실제로 돌린 모델. 요청한 모델과 다른지 확인할 수 있다.
             "reported_model": usage.reported_model if usage else None,
             "input_tokens": usage.input_tokens if usage else None,
             "cached_input_tokens": usage.cached_tokens if usage else None,
@@ -210,14 +209,13 @@ def record(
             "subject_id": subject_id,
             "success": ok,
             "latency_ms": elapsed_ms,
-            # 예외 메시지는 응답 내용이나 민감 정보를 포함할 수 있어 타입만 남긴다.
             "error_type": error_type,
         }
         USAGE_LOG.parent.mkdir(parents=True, exist_ok=True)
         with USAGE_LOG.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
     except Exception:
-        # 사용량 기록은 부가 기능이다. 파일 오류든 직렬화 오류든 호출 결과를 버리지 않는다.
+        # 파일·직렬화 오류 → 호출 결과에 영향 없게 무시
         pass
 
 
@@ -251,9 +249,10 @@ def summarize(path: Path | None = None) -> dict:
         try:
             row = json.loads(line)
         except json.JSONDecodeError:
+            # 깨진 줄 (쓰다 중단 등) → 건너뜀
             continue
         totals["calls"] += 1
-        # 필드명을 풀어 쓰기 전의 기존 JSONL도 계속 집계한다.
+        # 옛 필드명(ok·input·cached·output·est_krw)으로 쓴 줄도 대체로 읽음
         if not row.get("success", row.get("ok", True)):
             totals["failed"] += 1
         totals["input"] += row.get("input_tokens", row.get("input")) or 0
@@ -270,7 +269,6 @@ def summarize(path: Path | None = None) -> dict:
         bucket["input"] += row.get("input_tokens", row.get("input")) or 0
         bucket["cached"] += row.get("cached_input_tokens", row.get("cached")) or 0
     totals["est_krw"] = round(totals["est_krw"], 2)
-    # 전체·에이전트별 캐시 적중률 (입력 중 캐시 적중 비율)
     totals["cache_hit_rate"] = round(totals["cached"] / totals["input"], 4) if totals["input"] else None
     for bucket in totals["by_agent"].values():
         bucket["cache_hit_rate"] = round(bucket["cached"] / bucket["input"], 4) if bucket["input"] else None
