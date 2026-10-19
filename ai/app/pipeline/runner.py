@@ -49,7 +49,7 @@ class AggregationStage(Protocol):
 
 
 class VerificationStage(Protocol):
-    def verify(self, draft: DraftAssessment) -> VerificationResult: ...
+    def run(self, draft: DraftAssessment) -> VerificationResult: ...
 
 
 class _PipelineNextAction(StrEnum):
@@ -176,7 +176,7 @@ class CompliancePipeline:
             selection,
         )
         draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
-        verification: VerificationResult = self._verifier.verify(draft)
+        verification: VerificationResult = self._verifier.run(draft)
 
         retry_round = 0
         while True:
@@ -208,7 +208,7 @@ class CompliancePipeline:
                 retry_request,
             )
             draft = self._aggregator.aggregate(product, selection_result)
-            verification = self._verifier.verify(draft)
+            verification = self._verifier.run(draft)
 
             if has_no_progress(
                 previous_result,
