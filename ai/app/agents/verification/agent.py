@@ -5,14 +5,12 @@
 """
 
 import json
-from typing import Literal
 
 from ...prompts import PromptName
-from ...schemas.base import StrictModel, utc_now
+from ...schemas.base import utc_now
 from ...schemas.schemas import (
     DraftAssessment,
     FollowUpQuestion,
-    ToolName,
     TraceEvent,
     VerificationIssue,
     VerificationIssueType as IssueType,
@@ -21,6 +19,7 @@ from ...schemas.schemas import (
 )
 from ..base import AgentError, BaseAgent, ModelFailurePhase
 from .rules import run_rule_checks
+from .schemas import _Review
 
 # 추가 Tool 실행으로 보완할 수 있는 검증 이슈이다.
 _TOOL_RECOVERABLE_ISSUES = frozenset(
@@ -38,31 +37,6 @@ class VerificationError(AgentError):
     파이프라인은 이를 ``FinalVerificationStatus.INCOMPLETE`` 결과에 포함하고,
     정상 검증 완료로 취급하지 않아야 한다.
     """
-
-
-# 모델이 채우는 필드만 담는다. issue_id·question_id·verified_at은 서버가 만든다.
-# Structured Outputs의 strict 모드는 모든 필드를 required로 요구하므로 기본값을 두지 않는다.
-class _Issue(StrictModel):
-    severity: Literal["critical", "warning", "info"]
-    issue_type: IssueType
-    description: str
-    related_finding_ids: list[str]
-    recommended_action: str | None
-
-
-class _Question(StrictModel):
-    question: str
-    reason: str
-    related_tools: list[ToolName]
-    required: bool
-
-
-class _Review(StrictModel):
-    # 최종 status와 summary는 규칙 결과와 병합한 뒤 코드가 계산하므로 모델에게 생성시키지 않는다.
-    issues: list[_Issue]
-    additional_tools_required: list[ToolName]
-    follow_up_questions: list[_Question]
-    checked_finding_ids: list[str]
 
 
 class VerificationAgent(BaseAgent[_Review]):
