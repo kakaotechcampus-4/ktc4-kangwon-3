@@ -1,13 +1,20 @@
 import axios from "axios";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import ProductTabs from "@/components/common/ProductTabs";
+import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
+import type { ProductResult } from "./types";
 import { useProductResults } from "./useProductResults";
+
+// data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
+const EMPTY_PRODUCT_RESULTS: ProductResult[] = [];
 
 function ResultPage() {
     const { productId, diagnosesId } = useParams<{ productId?: string; diagnosesId?: string }>();
+    const [selectedProductIndex, setSelectedProductIndex] = useState(0);
     const navigate = useNavigate();
 
     const isMissingProductId = isMissingRouteParam(productId);
@@ -22,8 +29,11 @@ function ResultPage() {
         }
     }, [isInvalidAccess, navigate]);
 
-    const { data: products, isPending, isError, error, refetch } = useProductResults(productId, diagnosesId, isInvalidAccess);
-    
+    const { data, isPending, isError, error, refetch } = useProductResults(productId, diagnosesId, isInvalidAccess);
+    const products = data ?? EMPTY_PRODUCT_RESULTS;
+
+    const productNames = products.map((product) => product.productName)
+
     // 존재하지 않는 id로 접근한 경우(404)는 재시도를 띄우지 않고 메인으로 돌려보낸다.
     const isNotFoundError = axios.isAxiosError(error) && error.response?.status === 404;
 
@@ -35,8 +45,8 @@ function ResultPage() {
     }, [isNotFoundError, navigate]);
 
     return (
-        <div>
-            <h1>결과 페이지 입니다.</h1>
+        <div className="flex w-full flex-col gap-8">
+            <SectionIntro title="진단 결과" description={`${products.length}개 상품에 대한 판정입니다. 상품을 눌러 각각의 근거를 확인하세요.`} />
             {isNotFoundError ? null : isPending ? (
                 <div className="flex w-full justify-center py-12">
                     <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
@@ -53,10 +63,12 @@ function ResultPage() {
                     </button>
                 </div>
             ) : (
-                <div>{/*TODO: 결과 표시 로직 구현. unused error을 피하기 위한 product.length 사용*/}{products.length}</div>
+                <div>
+                    <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
+                </div>
             )}
         </div>
-     );
+    );
 }
 
 export default ResultPage;
