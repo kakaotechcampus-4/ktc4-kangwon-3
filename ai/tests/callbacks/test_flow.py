@@ -1,6 +1,7 @@
 """진단 세션 실행부터 콜백 발신함 전송까지 묶어서, 상품별 이벤트 순서를 확인한다."""
 
 import threading
+import time
 
 import pytest
 
@@ -9,7 +10,7 @@ from app.observability.context import PipelineStage
 from app.routers import _dummy
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
-from app.schemas.schemas import ToolName
+from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.sessions.executor import SessionExecutor
 from app.sessions.store import SessionStore
 
@@ -86,7 +87,7 @@ def test_상품마다_진행_이벤트_뒤에_결과_이벤트가_순서대로_�
 def test_진단이_실패하면_실패_이벤트로_끝난다(monkeypatch, flow):
     executor, outbox, sender = flow
 
-    def _broken(item, context, progress):
+    def _broken(job_input, context, progress):
         raise RuntimeError("파이프라인 오류")
 
     monkeypatch.setattr(executor, "_job", _broken)
@@ -96,6 +97,40 @@ def test_진단이_실패하면_실패_이벤트로_끝난다(monkeypatch, flow)
 
     [event] = sender.events
     assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)
+
+
+def test_질문_뒤_재진단은_새_runId로_sequence를_1부터_보내고_결과로_끝난다(monkeypatch, flow):
+    executor, outbox, sender = flow
+
+    def _ask_then_finish(job_input, context, progress):
+        progress.stage(PipelineStage.EXTRACTION)
+        result = _dummy.build_dummy_assessment(job_input.source.product_id)
+        if job_input.answers:
+            return result
+        return result.model_copy(update={
+            "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+            "verification_status": FinalVerificationStatus.INCOMPLETE,
+        })
+
+    monkeypatch.setattr(executor, "_job", _ask_then_finish)
+    [first] = executor.submit("d-1", _inputs("p-1"))
+    deadline = time.monotonic() + 5
+    while executor.store.get("p-1").status.value != "awaiting_input":
+        assert time.monotonic() < deadline
+        time.sleep(0.01)
+    second = executor.resume(
+        diagnosis_id="d-1", product_id="p-1", run_id=first.context.run_id, question_round=1,
+        answers={"battery_only": "네"},
+    )
+    executor.shutdown(wait=True)
+    assert outbox.close(timeout=5) == 0
+
+    by_run = {
+        run_id: [(event.sequence, event.event_type) for event in sender.events if event.run_id == run_id]
+        for run_id in (first.context.run_id, second.context.run_id)
+    }
+    assert by_run[first.context.run_id] == [(1, "product_progress"), (2, "product_awaiting_input")]
+    assert by_run[second.context.run_id] == [(1, "product_progress"), (2, "product_result")]
 
 
 def test_진단서_변환이_실패하면_BE가_받는_마지막_이벤트는_실패다(monkeypatch):
@@ -171,7 +206,7 @@ def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나�
     executor, outbox, sender = flow
     tools = [ToolName.ELECTRICAL, ToolName.RADIO, ToolName.CHILDREN]
 
-    def _parallel_tools(item, context, progress):
+    def _parallel_tools(job_input, context, progress):
         progress.stage(PipelineStage.TOOL_EXECUTION)
 
         def run_tool(tool_name):
@@ -184,7 +219,7 @@ def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나�
         for thread in threads:
             thread.join()
         progress.stage(PipelineStage.AGGREGATION)
-        return _dummy.build_dummy_assessment(item.product_id)
+        return _dummy.build_dummy_assessment(job_input.source.product_id)
 
     monkeypatch.setattr(executor, "_job", _parallel_tools)
     executor.submit("d-1", _inputs("p-1"))
