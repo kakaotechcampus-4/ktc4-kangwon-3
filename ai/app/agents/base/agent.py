@@ -4,9 +4,8 @@
 """
 
 import logging
-from enum import StrEnum
 from time import perf_counter
-from typing import Any, ClassVar, Generic, Literal, NoReturn, Protocol, TypeVar
+from typing import Any, ClassVar, Generic, Literal, NoReturn, TypeVar
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai.chat_models.base import OpenAIRefusalError
@@ -14,47 +13,15 @@ from openai import ContentFilterFinishReasonError, LengthFinishReasonError
 from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
-from ..config import build_agent_model, build_tool_model
-from ..prompts import PromptName, PromptSnapshot, get_prompt
-from ..usage import CallUsage, from_response, record
+from ...config import build_agent_model, build_tool_model
+from ...prompts import PromptName, PromptSnapshot, get_prompt
+from ...usage import CallUsage, from_response, record
+from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
+from .protocols import ModelLike
 
 logger = logging.getLogger(__name__)
 
 OutputT = TypeVar("OutputT", bound=BaseModel)
-
-
-class StructuredModel(Protocol):
-    """``with_structured_output(..., include_raw=True)``가 돌려주는 객체의 최소 인터페이스.
-
-    invoke()는 ``{"raw": AIMessage, "parsed": 출력 | None, "parsing_error": Exception | None}``을 돌려줌.
-    """
-
-    def invoke(self, messages: list[Any]) -> dict[str, Any]: ...
-
-
-class ModelLike(Protocol):
-    """에이전트가 받는 모델의 최소 인터페이스.
-
-    ``BaseChatModel``과 테스트 스텁 모두 이 구조를 만족함.
-    """
-
-    def with_structured_output(self, schema: dict[str, Any], **kwargs: Any) -> StructuredModel: ...
-
-
-class AgentError(RuntimeError):
-    """에이전트 모델 호출·파싱 실패의 공통 부모.
-
-    Attributes:
-        partial_result: 실패 전까지 만든 부분 결과. 없으면 None.
-    """
-
-    def __init__(self, message: str, *, partial_result: object | None = None) -> None:
-        super().__init__(message)
-        self.partial_result = partial_result
-
-
-class MissingParsedOutput(RuntimeError):
-    """파싱 오류 없이 구조화 출력이 비어 온 경우의 원인 예외."""
 
 
 def _usage_from_completion(completion: Any) -> CallUsage | None:
@@ -69,11 +36,6 @@ def _usage_from_completion(completion: Any) -> CallUsage | None:
         cached_tokens=getattr(details, "cached_tokens", 0) or 0,
         output_tokens=usage.completion_tokens or 0,
     )
-
-
-class ModelFailurePhase(StrEnum):
-    CALL = "call"
-    PARSING = "parsing"
 
 
 class BaseAgent(Generic[OutputT]):
