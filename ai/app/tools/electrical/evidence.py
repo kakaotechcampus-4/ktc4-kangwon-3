@@ -10,23 +10,28 @@
 """
 
 import re
-import threading
-import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from enum import StrEnum
-from typing import Protocol, TypeVar
-from xml.etree.ElementTree import ParseError
-
-from pydantic import ValidationError
+from typing import Protocol
 
 from ...schemas.clients.law_request import LawSearchRequest, LawTextRequest
-from ...clients.law import AdmrulSearchClient, AdmrulTextClient, LawSearchClient, LawTextClient
-from ...schemas.clients.law_response import (
-    AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
+from ...schemas.clients.law_response import LawTextResponse
+from ...schemas.schemas import LegalSource
+from ..common.law import (
+    CachedLoader, EvidenceUnavailable, LawApiClients, LawLookup, LawLookupError, annex_text, article_text,
+    check_body, lookup, select_version,
 )
 
+__all__ = [
+    "AnnexBlock", "CachedLoader", "ElectricalEvidence", "ElectricalEvidenceSource", "EvidenceSection",
+    "EvidenceUnavailable", "LawApiClients", "LawApiEvidenceSource", "LawLookup", "LawLookupError", "Scheme",
+    "article_text", "compact", "normalize_text", "parse_annex", "parse_purchase_agent", "purchase_agent_status",
+    "select_version",
+]
+
+# 다른 규제 Tool(common.law.DocRef.source)과 같은 출처 이름.
+SOURCE_NAME = "법제처 국가법령정보"
 RULE_NAME = "전기용품 및 생활용품 안전관리법 시행규칙"
 RULE_ID = "008044"
 NOTICE_NAME = "전기용품 및 생활용품 안전관리 운용요령"
@@ -60,61 +65,6 @@ SCHEME_ANNEXES: dict[Scheme, tuple[str, str]] = {
 _SCHEME_CODES = {Scheme.CERTIFICATION: "cert", Scheme.CONFIRMATION: "conf", Scheme.SUPPLIER: "sdoc"}
 
 
-class EvidenceUnavailable(RuntimeError):
-    """조회는 됐지만 필요한 문서·버전·본문을 확인할 수 없다. 조회 실패(네트워크·API 오류)와 구분한다."""
-
-
-class LawLookupError(RuntimeError):
-    """법제처가 유효한 응답을 주지 않았다(API 오류 응답·XML 아님·기본정보 없음·응답 형식 불일치).
-
-    법제처 클라이언트는 이런 경우 RuntimeError를 던진다. Client 호출 지점에서만 이 예외로 바꿔,
-    Tool 내부의 버그(RuntimeError 계열)가 API 실패로 분류되지 않게 한다.
-    """
-
-
-class LawLookup(Protocol):
-    """근거 조회에 필요한 법제처 조회 4가지만 선언한다. 운영은 LawApiClients, 테스트는 Fake를 쓴다."""
-
-    def search_law(self, request: LawSearchRequest) -> LawSearchResponse: ...
-    def get_law_text(self, request: LawTextRequest) -> LawTextResponse: ...
-    def search_admrul(self, request: LawSearchRequest) -> AdmrulSearchResponse: ...
-    def get_admrul_text(self, request: LawTextRequest) -> AdmrulTextResponse: ...
-
-
-class LawApiClients:
-    """조회별로 나뉜 법제처 클라이언트(#293) 4개를 LawLookup 모양으로 묶는다. 다 쓰면 close()로 닫는다.
-
-    Args:
-        law_search, law_text, admrul_search, admrul_text: 각 조회 클라이언트(fetch_parsed·close를 가진 객체).
-    """
-
-    def __init__(self, law_search, law_text, admrul_search, admrul_text):
-        self._law_search = law_search
-        self._law_text = law_text
-        self._admrul_search = admrul_search
-        self._admrul_text = admrul_text
-
-    @classmethod
-    def from_oc(cls, oc: str) -> "LawApiClients":
-        return cls(LawSearchClient(oc), LawTextClient(oc), AdmrulSearchClient(oc), AdmrulTextClient(oc))
-
-    def search_law(self, request: LawSearchRequest) -> LawSearchResponse:
-        return self._law_search.fetch_parsed(request)
-
-    def get_law_text(self, request: LawTextRequest) -> LawTextResponse:
-        return self._law_text.fetch_parsed(request)
-
-    def search_admrul(self, request: LawSearchRequest) -> AdmrulSearchResponse:
-        return self._admrul_search.fetch_parsed(request)
-
-    def get_admrul_text(self, request: LawTextRequest) -> AdmrulTextResponse:
-        return self._admrul_text.fetch_parsed(request)
-
-    def close(self) -> None:
-        for client in (self._law_search, self._law_text, self._admrul_search, self._admrul_text):
-            client.close()
-
-
 @dataclass(frozen=True)
 class EvidenceSection:
     """인용 가능한 검토 단위 하나. LegalSource로 그대로 옮긴다."""
@@ -127,6 +77,13 @@ class EvidenceSection:
     section: str
     text: str
     source_url: str
+
+    def source(self) -> LegalSource:
+        """결과에 붙일 근거. 출처 이름은 다른 규제 Tool과 같은 값을 쓴다."""
+        return LegalSource(
+            source_name=SOURCE_NAME, law_name=self.document_name, article=self.section, quoted_text=self.text,
+            source_url=self.source_url, effective_date=self.effective_date, is_mock=False,
+        )
 
 
 @dataclass(frozen=True)
@@ -423,101 +380,7 @@ def _section(base: EvidenceSection, label: str, text: str, *, source_id: str | N
     )
 
 
-# -- 문서 버전 선택·본문 대조 --
-
-def _day(value: str | None) -> date:
-    if value is None or not re.fullmatch(r"[0-9]{8}", value):
-        raise EvidenceUnavailable("시행일을 확인할 수 없습니다.")
-    try:
-        return datetime.strptime(value, "%Y%m%d").date()
-    except ValueError as exc:
-        raise EvidenceUnavailable("시행일 형식이 잘못됐습니다.") from exc
-
-
-def select_version(result, *, name: str, identifier: str, id_field: str, name_field: str,
-                   version_field: str, as_of: date):
-    """검색 결과에서 기준일에 시행 중인 버전을 고른다.
-
-    법령 ID와 이름이 정확히 일치하는 항목 중 시행일이 기준일 이하인 최신 버전을 쓴다.
-    검색 첫 행·미래 시행 버전에 의존하지 않으며, 판단할 수 없으면 임의로 고르지 않는다.
-
-    Raises:
-        EvidenceUnavailable: 목록 불완전, 후보 없음, 같은 시행일에 버전이 둘 이상, 버전 번호 이상.
-    """
-    if result.total_count != len(result.items):
-        raise EvidenceUnavailable("검색 목록이 불완전합니다.")
-    candidates = []
-    for item in result.items:
-        if getattr(item, id_field) != identifier:
-            continue
-        if compact(getattr(item, name_field) or "") != compact(name):
-            continue
-        enforced = _day(item.enforce_date)
-        if enforced <= as_of:
-            candidates.append((enforced, item))
-    if not candidates:
-        raise EvidenceUnavailable("기준일에 적용할 문서 버전을 찾지 못했습니다.")
-    latest_day = max(day for day, _ in candidates)
-    latest = [item for day, item in candidates if day == latest_day]
-    if len({getattr(item, version_field) for item in latest}) != 1:
-        raise EvidenceUnavailable("같은 시행일의 문서 버전이 모호합니다.")
-    selected = latest[0]
-    version = getattr(selected, version_field)
-    if not isinstance(version, str) or not re.fullmatch(r"[0-9]+", version):
-        raise EvidenceUnavailable("문서 일련번호가 잘못됐습니다.")
-    return selected
-
-
-def _check_body(body: LawTextResponse | AdmrulTextResponse, selected, *, name: str, identifier: str) -> None:
-    if body.document_id != identifier or compact(body.name or "") != compact(name):
-        raise EvidenceUnavailable("검색 문서와 본문 식별 정보가 다릅니다.")
-    if body.enforce_date != selected.enforce_date:
-        raise EvidenceUnavailable("검색 버전과 본문 시행일이 다릅니다.")
-
-
-def article_text(body: LawTextResponse | AdmrulTextResponse, number: int) -> str:
-    """조문 하나의 전문을 원문 순서로 모은다.
-
-    항 아래 호·목이 중첩된 응답(PR #248 이후, 행정규칙은 #293 이후)과 평평한 목록 응답(이전) 모두 처리한다.
-
-    Raises:
-        EvidenceUnavailable: 조문을 유일하게 찾지 못한 경우.
-    """
-    articles = [article for article in body.articles
-                if str(article.article_number or "").lstrip("0") == str(number)
-                and getattr(article, "article_branch_number", None) in (None, "", "0", "00")]
-    if not articles:
-        # 행정규칙 본문은 번호 필드 없이 조문내용만 오는 경우가 있다.
-        articles = [article for article in body.articles
-                    if (article.article_content or "").lstrip().startswith(f"제{number}조(")]
-    if len(articles) != 1:
-        raise EvidenceUnavailable(f"제{number}조를 유일하게 식별하지 못했습니다.")
-    article = articles[0]
-    parts = [article.article_content or ""]
-
-    def collect(node) -> None:
-        parts.append(getattr(node, "content", None) or "")
-        for child_field in ("items", "sub_items"):
-            for child in getattr(node, child_field, None) or []:
-                collect(child)
-
-    for node in getattr(article, "paragraphs", None) or []:
-        collect(node)
-    for child_field in ("items", "sub_items"):
-        for node in getattr(article, child_field, None) or []:
-            collect(node)
-    return normalize_text(" ".join(parts))
-
-
-def _annex_text(body: LawTextResponse, number: str, title: str) -> str:
-    matches = [annex for annex in body.annexes
-               if annex.annex_type == "별표" and annex.annex_number == number
-               and annex.annex_branch_number in (None, "", "00")
-               and compact(title) in compact(annex.annex_title or "")]
-    if len(matches) != 1 or not (matches[0].annex_content or "").strip():
-        raise EvidenceUnavailable(f"별표 {int(number)}의 본문을 확인하지 못했습니다.")
-    return matches[0].annex_content
-
+# 문서 버전 선택·본문 대조·조문과 별표 꺼내기는 공용 모듈(common.law)을 쓴다.
 
 # -- 구매대행 특례 (법 제35조, 시행규칙 제56조·별표 13) --
 
@@ -593,19 +456,8 @@ class ElectricalEvidenceSource(Protocol):
     def load(self, as_of: date) -> ElectricalEvidence: ...
 
 
-_R = TypeVar("_R")
-
-
-def _lookup(call: Callable[..., _R], request) -> _R:
-    """Client 호출 하나를 실행한다. httpx 오류는 그대로 올려 호출자가 HTTP 상태별로 분류한다."""
-    try:
-        return call(request)
-    except (RuntimeError, ParseError, ValidationError) as exc:
-        raise LawLookupError(f"법제처 응답을 확인하지 못했습니다 ({type(exc).__name__}).") from exc
-
-
 class LawApiEvidenceSource:
-    """법제처 API로 시행규칙·운용요령을 조회한다. 실행마다 4회 요청하므로 CachedEvidenceSource로 감싼다.
+    """법제처 API로 시행규칙·운용요령을 조회한다. 실행마다 4회 요청하므로 공용 CachedLoader로 감싼다.
 
     Args:
         law_client: LawApiClients 또는 같은 메서드를 가진 객체. 생성·close는 호출자가 맡는다.
@@ -616,19 +468,19 @@ class LawApiEvidenceSource:
 
     def load(self, as_of: date) -> ElectricalEvidence:
         rule = select_version(
-            _lookup(self._client.search_law, LawSearchRequest(query=RULE_NAME, display=100)),
+            lookup(self._client.search_law, LawSearchRequest(query=RULE_NAME, display=100)),
             name=RULE_NAME, identifier=RULE_ID, id_field="law_id", name_field="law_name",
             version_field="mst", as_of=as_of,
         )
-        rule_body = _lookup(self._client.get_law_text, LawTextRequest(mst=rule.mst))
-        _check_body(rule_body, rule, name=RULE_NAME, identifier=RULE_ID)
+        rule_body = lookup(self._client.get_law_text, LawTextRequest(mst=rule.mst))
+        check_body(rule_body, name=RULE_NAME, identifier=RULE_ID, enforce_date=rule.enforce_date)
         notice = select_version(
-            _lookup(self._client.search_admrul, LawSearchRequest(query=NOTICE_NAME, display=100)),
+            lookup(self._client.search_admrul, LawSearchRequest(query=NOTICE_NAME, display=100)),
             name=NOTICE_NAME, identifier=NOTICE_ID, id_field="rule_id", name_field="name",
             version_field="serial_number", as_of=as_of,
         )
-        notice_body = _lookup(self._client.get_admrul_text, LawTextRequest(mst=notice.serial_number))
-        _check_body(notice_body, notice, name=NOTICE_NAME, identifier=NOTICE_ID)
+        notice_body = lookup(self._client.get_admrul_text, LawTextRequest(mst=notice.serial_number))
+        check_body(notice_body, name=NOTICE_NAME, identifier=NOTICE_ID, enforce_date=notice.enforce_date)
 
         # 법령 링크는 버전(MST)을 고정한 공개 열람 주소다. 요청 URL(OC 포함)은 쓰지 않는다.
         rule_url = f"https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq={rule.mst}"
@@ -648,7 +500,7 @@ class LawApiEvidenceSource:
         for scheme, (number, title) in SCHEME_ANNEXES.items():
             base = EvidenceSection(f"{_SCHEME_CODES[scheme]}", NOTICE_NAME, NOTICE_ID, notice.serial_number,
                                    notice.enforce_date, f"별표 {int(number)}", "", notice_url)
-            parsed, note = parse_annex(_annex_text(notice_body, number, title), scheme, base)
+            parsed, note = parse_annex(annex_text(notice_body, int(number), title=title), scheme, base)
             if not any(block.sub_items for block in parsed):
                 raise EvidenceUnavailable(f"별표 {int(number)}에서 세부품목을 찾지 못했습니다.")
             blocks.extend(parsed)
@@ -659,37 +511,6 @@ class LawApiEvidenceSource:
         return ElectricalEvidence(as_of=as_of, rule_scope=rule_scope, notice_scope=notice_scope,
                                   blocks=tuple(blocks), common_notes=common,
                                   purchase_agent=parse_purchase_agent(rule_body, rule_base))
-
-
-class CachedEvidenceSource:
-    """근거를 기준일별로 캐시한다. 여러 요청이 동시에 와도 한 번만 조회한다.
-
-    법령은 하루에도 개정·시행될 수 있으므로 기준일을 키로 쓰고, ttl_seconds가 지나면 다시 조회한다.
-    조회 실패는 캐시하지 않는다.
-
-    Args:
-        source: 실제 조회 경로.
-        ttl_seconds: 캐시 유지 시간. 기본 6시간.
-        clock: 테스트용 시계.
-    """
-
-    def __init__(self, source: ElectricalEvidenceSource, *, ttl_seconds: float = 6 * 3600,
-                 clock: Callable[[], float] = time.monotonic):
-        self._source = source
-        self._ttl = ttl_seconds
-        self._clock = clock
-        self._lock = threading.Lock()
-        self._cache: dict[date, tuple[float, ElectricalEvidence]] = {}
-
-    def load(self, as_of: date) -> ElectricalEvidence:
-        with self._lock:
-            cached = self._cache.get(as_of)
-            if cached is not None and self._clock() - cached[0] < self._ttl:
-                return cached[1]
-            evidence = self._source.load(as_of)
-            # 기준일이 바뀌면 이전 날짜는 다시 쓰지 않으므로 하나만 남긴다.
-            self._cache = {as_of: (self._clock(), evidence)}
-            return evidence
 
 
 class DatabaseEvidenceSource:
