@@ -13,7 +13,7 @@ from ...schemas.schemas import (
     VerificationResult,
     VerificationStatus as Status,
 )
-from ..base import Agent, AgentError, AgentResult, AgentRunMeta, ModelFailurePhase
+from ..base import AgentError, AgentResult, AgentRunMeta, BaseAgent, ModelFailurePhase
 from .rules import run_rule_checks
 from .schemas import _Review
 
@@ -32,7 +32,7 @@ class VerificationError(AgentError):
     """
 
 
-class VerificationAgent(Agent[DraftAssessment, _Review, VerificationResult]):
+class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult]):
     """심사 초안의 근거·누락·모순을 검증한다. 흐름(규칙 → 모델 검토 → 병합)이 달라 ``run_with_meta``를 다시 정의.
 
     모델을 자동으로 만들지 않음(``from_env``로 생성). 모델 없이도 ``verify_rules``는 동작하고 ``run``은 실패.

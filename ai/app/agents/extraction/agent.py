@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
-from ..base import Agent, AgentError
+from ..base import AgentError, BaseAgent
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
 
@@ -19,7 +19,7 @@ class ExtractionFailedError(AgentError):
     """추출 모델 호출·파싱 실패. 원인 예외는 ``__cause__``."""
 
 
-class ExtractionAgent(Agent[ExtractionInput, ProductAttributes, Product]):
+class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
     """상품 원문에서 상품 정보와 속성(툴 선택 신호)을 추출한다. 툴 선택·규제 판정은 안 함.
 
     모델 출력에 규칙 기반 추출(정규식)을 합쳐 Product를 만듦. 평가 호출은 usage_agent("extraction-eval")로 구분.
