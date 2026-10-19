@@ -34,25 +34,10 @@ class ToolStep(BaseAgent[ToolStepInput, _Output, _Output]):
 
     하위 클래스는 component_name, prompt_name, output_schema, error_class와 failure_label을 정함.
     모델은 Tool이 한 번 만들어 두 단계에 같이 넘김 (model=None이면 설정으로 만듦).
-    ``run(payload, subject_id=)`` 모양은 열린 Tool PR(radio·electrical·customs·food_drug) 머지 전까지 유지.
+    호출은 다른 에이전트와 같이 ``run(ToolStepInput(payload, subject_id))``.
     """
 
     failure_label: str = "규제 Tool"
-
-    def run(self, payload: dict[str, Any], *, subject_id: str) -> _Output:  # type: ignore[override]
-        """payload를 모델에 보내 구조화 출력을 받는다.
-
-        Args:
-            payload: 모델에 JSON으로 보낼 값.
-            subject_id: 사용량 기록 대상 ID (상품 ID).
-
-        Returns:
-            _Output: 검증된 구조화 출력.
-
-        Raises:
-            AgentError: 모델 호출·파싱 실패. 실제 타입은 ``error_class``.
-        """
-        return self.run_with_meta(ToolStepInput(payload, subject_id)).result
 
     def _build_messages(self, input: ToolStepInput) -> list[SystemMessage | HumanMessage]:
         """payload를 JSON 문자열로 바꿔 모델 메시지를 만든다.

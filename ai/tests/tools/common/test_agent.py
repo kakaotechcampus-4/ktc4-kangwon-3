@@ -1,7 +1,7 @@
-"""ToolStep 계약: 열린 Tool PR(electrical·radio·customs·food_drug)이 기대는 겉모양.
+"""ToolStep 계약: 규제 Tool(전기·어린이)과 전기 평가 러너가 기대는 겉모양.
 
 - ``ToolStep[출력]`` 하위 클래스 + ``failure_label``
-- ``run(payload, *, subject_id=)`` → 검증된 출력
+- ``run(ToolStepInput(payload, subject_id))`` → 검증된 출력
 - 실패 문구에 "모델 호출"/"구조화 출력", 원인은 ``__cause__``에만
 - 인스턴스에서 ``step.run``을 덮어썼다가 ``del``로 되돌림 (electrical 평가 러너)
 """
@@ -14,7 +14,10 @@ from langchain_core.messages import AIMessage
 from pydantic import BaseModel
 
 from app.prompts import PromptName
-from app.tools.common.agent import ToolModelError, ToolStep
+from app.tools.common.agent import ToolModelError, ToolStep, ToolStepInput
+
+
+_EMPTY = ToolStepInput({}, "p-1")
 
 
 class _Facts(BaseModel):
@@ -65,7 +68,7 @@ def records(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
 def test_payload를_JSON으로_보내고_검증된_출력을_돌려준다(records):
     model = _Model('{"value": "ok"}')
 
-    result = _FactsStep(model).run({"hints": ["전지"], "이름": "선풍기"}, subject_id="p-1")
+    result = _FactsStep(model).run(ToolStepInput({"hints": ["전지"], "이름": "선풍기"}, "p-1"))
 
     assert result == _Facts(value="ok")
     assert json.loads(model.received[0][-1].content) == {"hints": ["전지"], "이름": "선풍기"}
@@ -76,7 +79,7 @@ def test_호출_실패는_모델_호출_문구로_감싸고_원인은_체인에�
     cause = TimeoutError("게이트웨이 비밀 응답")
 
     with pytest.raises(_FactsError) as caught:
-        _FactsStep(_Model(error=cause)).run({}, subject_id="p-1")
+        _FactsStep(_Model(error=cause)).run(_EMPTY)
 
     assert "모델 호출" in str(caught.value)
     assert "가짜 Tool 조건 추출" in str(caught.value)
@@ -86,7 +89,7 @@ def test_호출_실패는_모델_호출_문구로_감싸고_원인은_체인에�
 
 def test_출력이_스키마와_다르면_구조화_출력_문구로_감싼다(records):
     with pytest.raises(_FactsError) as caught:
-        _FactsStep(_Model('{"wrong": 1}')).run({}, subject_id="p-1")
+        _FactsStep(_Model('{"wrong": 1}')).run(_EMPTY)
 
     assert "구조화 출력" in str(caught.value)
     assert caught.value.__cause__ is not None
@@ -95,14 +98,14 @@ def test_출력이_스키마와_다르면_구조화_출력_문구로_감싼다(r
 def test_Tool_오류는_ToolModelError_계열로_잡힌다(records):
     # Tool은 ToolModelError로 받아 실패 결과를 만듦
     with pytest.raises(ToolModelError):
-        _FactsStep(_Model(error=RuntimeError())).run({}, subject_id="p-1")
+        _FactsStep(_Model(error=RuntimeError())).run(_EMPTY)
 
 
 def test_인스턴스에서_run을_덮어썼다가_지우면_원래_run으로_돌아온다(records):
     step = _FactsStep(_Model('{"value": "ok"}'))
 
-    step.run = lambda payload, *, subject_id: _Facts(value="가짜")
-    assert step.run({}, subject_id="p-1").value == "가짜"
+    step.run = lambda input: _Facts(value="가짜")
+    assert step.run(_EMPTY).value == "가짜"
     del step.run
 
-    assert step.run({}, subject_id="p-1").value == "ok"
+    assert step.run(_EMPTY).value == "ok"
