@@ -20,8 +20,8 @@ def test_성공·실패_여부는_오류_타입으로_정해진다(records):
     assert (records[0]["usage"], records[1]["usage"]) == (_USAGE, None)
 
 
-def test_기록은_app_agents_base_record를_거친다(records):
-    # 열린 Tool PR 테스트·전기 평가 러너가 이 이름을 바꿔치기함 (호환용, 머지 후 정리)
+def test_기록은_app_usage_record를_거친다(records):
+    # 테스트·평가 러너(전기 Tool)가 이 이름을 바꿔치기해 사용량을 캡처함
     record_call("fake", _USAGE, configured_model="m", reasoning_effort=None, subject_id="p-1", elapsed_ms=0)
 
     assert [row["agent"] for row in records] == ["fake"]

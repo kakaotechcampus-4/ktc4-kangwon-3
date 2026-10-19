@@ -56,7 +56,7 @@ class _Model:
 def records(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     captured: list[dict[str, Any]] = []
     monkeypatch.setattr(
-        "app.agents.base.record",
+        "app.usage.record",
         lambda agent, usage, **kwargs: captured.append({"agent": agent, "usage": usage, **kwargs}),
     )
     return captured
