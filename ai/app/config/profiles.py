@@ -64,6 +64,8 @@ AGENT_PROFILES = {
     "extraction": "mini",
     "selection": "mini",
     "verification": "mini",
+    # 썸네일 일괄 분류. 글자를 옮겨 적지 않고 종류만 골라 작은 모델로 충분
+    "image_triage": "mini",
 }
 
 # Tool별 기본 프로필. 키는 ToolName 값. 에이전트와 이름이 겹쳐도 따로 고르도록 표를 나눔

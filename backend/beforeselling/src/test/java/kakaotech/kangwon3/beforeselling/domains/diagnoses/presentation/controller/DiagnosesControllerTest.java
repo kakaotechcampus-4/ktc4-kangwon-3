@@ -285,10 +285,10 @@ class DiagnosesControllerTest {
 
     private DiagnosesDetailResponse detailResponse() {
         ProductResponse product = new ProductResponse(
-                PRODUCT_ID, 0, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg", S3_URL_PREFIX + "product-detail/1/uuid_a2.jpg"),
-                ProcessingStatus.PENDING, null, null);
+                ProcessingStatus.PENDING, null, null, null, List.of(), List.of(), List.of());
 
         return new DiagnosesDetailResponse(
                 DIAGNOSES_ID, ProcessingStatus.PENDING, List.of(product),

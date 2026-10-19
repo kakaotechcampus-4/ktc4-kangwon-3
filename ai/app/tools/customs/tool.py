@@ -68,7 +68,7 @@ class CustomsTool(RegulatoryTool):
     생성 시 설정·모델·API 연결을 만들지 않아 레지스트리 생성 계약을 유지한다.
 
     Args:
-        model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 설정으로 만든다.
+        model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 Tool 프로필(`TOOL_PROFILES`)로 만든다.
         case_search: 결정사례 조회 경로. None이면 CLIP API.
         requirements: HS별 세관장확인 요건 조회 경로. None이면 세관장확인 GW(공공데이터포털 키).
         evidence: 근거 법령을 돌려주는 함수. None이면 법제처 API(기준일별 공용 캐시).

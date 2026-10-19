@@ -44,7 +44,7 @@ class ProductQuestionTest {
     private ProductQuestion createQuestion() {
         Product product = Product.pending("대나무 헬리콥터", null, SourceType.URL,
                 "https://ko.aliexpress.com/item/100500628491", null);
-        product.startDiagnosis();
+        product.startDiagnoses();
         product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         return product.getQuestions().getFirst();
     }

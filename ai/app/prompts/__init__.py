@@ -18,6 +18,8 @@ class PromptName(StrEnum):
     CUSTOMS_REVIEW = "customs/review"
     CHILDREN_FACTS = "children/facts"
     CHILDREN_REVIEW = "children/review"
+    ADVERTISING = "advertising"
+    IMAGE_TRIAGE = "image_triage"
 
 
 @dataclass(frozen=True)

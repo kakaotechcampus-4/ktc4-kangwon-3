@@ -69,4 +69,9 @@ public class FindingLegalSource extends BaseEntity {
         this.sourceUrl = sourceUrl;
         this.effectiveDate = effectiveDate;
     }
+
+    static FindingLegalSource of(ProductFinding finding, int sortOrder, AssessmentContent.LegalSourceContent content) {
+        return new FindingLegalSource(finding, sortOrder, content.sourceName(), content.lawName(),
+                content.article(), content.quotedText(), content.sourceUrl(), content.effectiveDate());
+    }
 }

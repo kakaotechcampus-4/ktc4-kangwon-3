@@ -1,6 +1,6 @@
 """API 공통 응답 스키마. BE의 ApiResponse<T> 형식에 맞춘다."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -37,16 +37,30 @@ class DiagnoseResponse(ApiResponse):
     data: FinalAssessment | None = None
 
 
+class AcceptedProduct(ApiModel):
+    """접수된 상품 하나 (#310).
+
+    Attributes:
+        product_id: 상품 ID (세션 ID).
+        run_id: 이번 실행 ID. 이 실행의 콜백에 같은 값이 실림 (BE Product.assignRun으로 저장).
+        status: 접수 상태. 항상 accepted.
+    """
+
+    product_id: str = Field(min_length=1)
+    run_id: str = Field(min_length=1)
+    status: Literal["accepted"] = "accepted"
+
+
 class DiagnosisAccepted(ApiModel):
     """진단 접수 결과. 이후 결과는 상품별 콜백으로 전달.
 
     Attributes:
         diagnosis_id: BE 진단서 ID.
-        accepted_product_ids: 접수된 상품 ID 목록 (세션 ID).
+        products: 접수된 상품과 상품별 실행 ID.
     """
 
-    diagnosis_id: str
-    accepted_product_ids: list[str]
+    diagnosis_id: str = Field(min_length=1)
+    products: list[AcceptedProduct] = Field(min_length=1)
 
 
 class DiagnosisAcceptedResponse(ApiResponse):

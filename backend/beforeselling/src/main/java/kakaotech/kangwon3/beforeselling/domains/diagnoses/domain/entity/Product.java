@@ -155,14 +155,14 @@ public class Product extends BaseEntity {
         this.sortOrder = sortOrder;
     }
 
-    public void startDiagnosis() {
+    public void startDiagnoses() {
         transition(ProcessingStatus.PENDING, ProcessingStatus.IN_PROGRESS);
     }
 
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
     }
-    
+
     public void assignRun(String runId) {
         if (runId == null || runId.isBlank()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
@@ -175,6 +175,11 @@ public class Product extends BaseEntity {
 
     public boolean isCurrentRun(String runId) {
         return this.runId != null && this.runId.equals(runId);
+    }
+
+    // 202 응답의 runId를 아직 저장하지 못한 상태. 이때 온 콜백은 다시 보내 달라고 한다.
+    public boolean isRunAssigned() {
+        return runId != null;
     }
 
     // 같은 실행에서 이미 반영한 것보다 앞선 이벤트(재시도로 늦게 온 것, 중복)는 무시한다.
@@ -201,7 +206,7 @@ public class Product extends BaseEntity {
     }
 
     // 질문을 받으면 사용자 답변을 기다리는 상태가 된다.
-    // BE는 AI가 보낸 회차를 그대로 저장한다.
+    // BE는 AI가 보낸 회차를 그대로 저장하되, 이미 받은 회차 이하의 질문은 받지 않는다.
     // 답변 대기 중에 다시 질문이 오면 상태 전이(IN_PROGRESS → AWAITING_INPUT)에서 CONFLICT로 막힌다.
     public void askQuestions(int questionRound, List<QuestionContent> contents) {
         // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
@@ -212,10 +217,18 @@ public class Product extends BaseEntity {
         if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
-        
+        // 이미 받은 회차를 다시 저장하면 flush 시점에 유니크 제약 위반이 난다. 지난 회차도 함께 막는다.
+        if (questionRound <= latestQuestionRound()) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
         transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
         contents.forEach(content -> questions.add(new ProductQuestion(this, questionRound,
                 content.questionKey(), content.questionOrder(), content.questionText(), content.helpText())));
+    }
+
+    public boolean hasQuestionsOfRound(int questionRound) {
+        return questions.stream().anyMatch(question -> question.getQuestionRound() == questionRound);
     }
 
     // 진단을 실패로 끝내고 실패 정보를 남긴다.
@@ -231,6 +244,39 @@ public class Product extends BaseEntity {
         this.errorRetryable = errorRetryable;
     }
 
+    // 진단 결과를 반영하고 완료 상태로 끝낸다.
+    public void complete(AssessmentContent content) {
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.COMPLETED);
+
+        this.assessmentStatus = content.status();
+        this.resultStatus = content.resultStatus();
+        this.summary = content.summary();
+        content.toolReviews().forEach(review -> toolReviews.add(ProductToolReview.of(this, review)));
+        requiredActions.addAll(content.requiredActions());
+        notices.addAll(content.notices());
+    }
+
+    public boolean hasResult() {
+        return processingStatus == ProcessingStatus.COMPLETED;
+    }
+
+    public boolean isFailed() {
+        return processingStatus == ProcessingStatus.FAILED;
+    }
+
+    public boolean isAwaitingInput() {
+        return processingStatus == ProcessingStatus.AWAITING_INPUT;
+    }
+
+    // open-in-view=false 라 DTO 매핑 전에 트랜잭션 안에서 상세 응답에 필요한 컬렉션(이미지, 진단 결과)을 미리 읽어 둠.
+    public void loadDetail() {
+        images.size();
+        toolReviews.forEach(review ->
+                review.getFindings().forEach(finding -> finding.getLegalSources().size()));
+        requiredActions.size();
+        notices.size();
+    }
+
     private void transition(ProcessingStatus from, ProcessingStatus to) {
         if (processingStatus != from) {
             throw new BaseException(CommonResponseCode.CONFLICT);
@@ -238,6 +284,10 @@ public class Product extends BaseEntity {
         this.processingStatus = to;
     }
 
+    // 아직 질문을 받은 적이 없으면 0
+    private int latestQuestionRound() {
+        return questions.stream().mapToInt(ProductQuestion::getQuestionRound).max().orElse(0);
+    }
 
     // 대표 이미지와 상세 이미지 key를 순서대로 모은다(S3 정리·확정 처리에 사용).
     public List<String> collectImageKeys() {
