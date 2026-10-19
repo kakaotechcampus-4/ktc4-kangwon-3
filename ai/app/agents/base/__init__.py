@@ -4,7 +4,7 @@
 - parsing.py: 모델 응답 → 출력 스키마 (거절·엄격한 JSON·빈 응답 처리)
 - usage_log.py: 호출 1건의 사용량 기록·콘솔 로그
 - errors.py: AgentError·MissingParsedOutput·ModelFailurePhase
-- protocols.py: 주입 모델의 최소 인터페이스 (ModelLike·StructuredModel)
+- protocols.py: 공통 타입 — 주입 모델 인터페이스 (ModelLike·StructuredModel), 출력 타입 변수 OutputT
 """
 
 from .agent import BaseAgent

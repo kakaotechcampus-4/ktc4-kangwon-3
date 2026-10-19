@@ -1,13 +1,11 @@
 """구조화 출력 모델 응답을 출력 스키마로 해석한다."""
 
-from typing import Any, TypeVar
+from typing import Any
 
 from langchain_openai.chat_models.base import OpenAIRefusalError
-from pydantic import BaseModel
 
 from .errors import MissingParsedOutput
-
-OutputT = TypeVar("OutputT", bound=BaseModel)
+from .protocols import OutputT
 
 
 def parse_structured_output(result: dict[str, Any], output_schema: type[OutputT], component_name: str) -> OutputT:
