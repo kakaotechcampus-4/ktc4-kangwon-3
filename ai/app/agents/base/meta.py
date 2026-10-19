@@ -1,7 +1,11 @@
-"""에이전트 호출 1건의 실행 정보. 파이프라인·평가가 결과와 함께 받음."""
+"""에이전트 호출 1건의 실행 정보와 결과 묶음. 파이프라인·평가가 결과와 함께 받음."""
+
+from dataclasses import dataclass
+from typing import Generic
 
 from ...schemas.base import StrictModel
 from ...usage import CallUsage
+from .protocols import ResultT
 
 
 class AgentRunMeta(StrictModel):
@@ -28,3 +32,16 @@ class AgentRunMeta(StrictModel):
     cost_krw: float | None = None
     elapsed_ms: int = 0
     error_type: str | None = None
+
+
+@dataclass(frozen=True)
+class AgentResult(Generic[ResultT]):
+    """에이전트 결과와 실행 정보 묶음 (``Agent.run_with_meta`` 반환값).
+
+    Attributes:
+        result: 에이전트 결과.
+        meta: 실행 정보.
+    """
+
+    result: ResultT
+    meta: AgentRunMeta
