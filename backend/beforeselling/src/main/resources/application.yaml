@@ -84,6 +84,7 @@ ai-server:
 # 진단이 이 시간 동안 상태 변화 없이 진행 중이면 멈춘 것으로 보고 실패 처리한다.
 diagnoses:
   stuck-threshold: ${DIAGNOSES_STUCK_THRESHOLD:15m}
+  poll-interval: ${DIAGNOSES_POLL_INTERVAL:3s}
 
 app:
   cors:
