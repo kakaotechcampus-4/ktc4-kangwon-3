@@ -8,9 +8,9 @@ import json
 from dataclasses import dataclass, field
 from typing import Literal
 
-from ..prompts import PromptName
-from ..schemas.base import StrictModel, utc_now
-from ..schemas.schemas import (
+from ...prompts import PromptName
+from ...schemas.base import StrictModel, utc_now
+from ...schemas.schemas import (
     Determination,
     DraftAssessment,
     FollowUpQuestion,
@@ -23,7 +23,7 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus as Status,
 )
-from .base import AgentError, BaseAgent, ModelFailurePhase
+from ..base import AgentError, BaseAgent, ModelFailurePhase
 
 # 상세 결과의 kind와 툴 종류의 대응. 판별 유니온이 둘의 일치까지 검사하지는 않는다.
 _RESULT_KINDS = {
@@ -132,7 +132,7 @@ class VerificationAgent(BaseAgent[_Review]):
 
     @classmethod
     def from_env(cls) -> "VerificationAgent":
-        from ..config import build_agent_model
+        from ...config import build_agent_model
 
         return cls(build_agent_model(cls.component_name))
 
