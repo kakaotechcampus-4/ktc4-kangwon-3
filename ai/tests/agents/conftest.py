@@ -1,7 +1,7 @@
 """에이전트 테스트 공용 설정.
 
 - stub_model: 응답을 정해 두는 가짜 모델 (구조화 출력 인자·받은 메시지 기록)
-- records: 사용량 기록(app.agents.base.record) 캡처
+- records: 사용량 기록(app.usage.record) 캡처
 - fake_gateway: 실제 ChatOpenAI에 붙이는 가짜 스트리밍 게이트웨이 (네트워크로 나가지 않음)
 """
 
@@ -110,7 +110,7 @@ def records(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     """에이전트가 남긴 사용량 기록 행. 키는 agent·usage와 record 키워드 인자(subject_id·ok·error_type 등)."""
     captured: list[dict[str, Any]] = []
     monkeypatch.setattr(
-        "app.agents.base.record",
+        "app.usage.record",
         lambda agent, usage, **kwargs: captured.append({"agent": agent, "usage": usage, **kwargs}),
     )
     return captured

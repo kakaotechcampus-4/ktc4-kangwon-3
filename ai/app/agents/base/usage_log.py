@@ -3,6 +3,7 @@
 import logging
 from typing import Any
 
+from ... import usage as usage_module
 from ...usage import CallUsage
 
 logger = logging.getLogger(__name__)
@@ -31,10 +32,8 @@ def record_call(
         error_type: 실패 원인 예외 이름. 성공이면 None.
         failure_phase: 실패 단계 (call·parsing·finalize). 성공이면 None.
     """
-    # 호출 때마다 패키지의 record를 찾음 → app.agents.base.record 바꿔치기(열린 Tool PR 테스트·전기 평가 러너)가 먹힘
-    from . import record
-
-    record(
+    # 모듈 속성으로 찾음 → app.usage.record 바꿔치기(테스트·평가 러너 사용량 캡처)가 먹힘
+    usage_module.record(
         agent,
         usage,
         configured_model=configured_model,

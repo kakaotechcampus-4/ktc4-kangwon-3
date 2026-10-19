@@ -190,7 +190,7 @@ def test_실패를_단계별로_기록하고_집계한다(tmp_path, monkeypatch)
     usage.record("image_triage", usage.CallUsage("m", 10, 0, 1), ok=False, error_type="ImageTriageFailedError",
                  failure_phase="finalize")
     usage.record("extraction", None, ok=False, error_type="TimeoutError", failure_phase="call")
-    # 단계를 안 넘기는 호출부(전기 Tool 직접 기록)의 실패
+    # 단계 필드가 없던 옛 기록의 실패
     usage.record("electrical-facts", None, ok=False, error_type="ValueError")
 
     rows = [json.loads(line) for line in target.read_text(encoding="utf-8").splitlines()]

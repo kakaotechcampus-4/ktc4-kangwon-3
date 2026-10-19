@@ -36,7 +36,6 @@ from time import perf_counter
 from dotenv import load_dotenv
 
 from .. import usage as usage_module
-from ..agents import base as agent_base
 from ..config import ENV_FILE, MAX_RETRIES, MODEL_PROFILES, TIMEOUT_SECONDS, TOOL_PROFILES
 from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_overrides
 from ..schemas.agent import ToolSelectionItem
@@ -170,7 +169,7 @@ class UsageCapture:
         self.outputs: dict[str, dict] = {}
         self._tool = tool
         self._steps = tool._get_steps()
-        self._original = agent_base.record
+        self._original = usage_module.record
 
     def __enter__(self):
         for step in self._steps:
@@ -195,15 +194,16 @@ class UsageCapture:
                 "latency_ms": kw.get("elapsed_ms"),
                 "ok": kw.get("ok", True),
                 "error_type": kw.get("error_type"),
+                "failure_phase": kw.get("failure_phase"),
             })
             self._original(agent, usage, **kw)
 
-        # 모델 호출·사용량 기록은 공통 BaseAgent가 한다(app.agents.base.record).
-        agent_base.record = capture
+        # 모델 호출·사용량 기록은 공통 BaseAgent가 한다(app.usage.record).
+        usage_module.record = capture
         return self
 
     def __exit__(self, *exc):
-        agent_base.record = self._original
+        usage_module.record = self._original
         for step in self._steps:
             del step.run
 

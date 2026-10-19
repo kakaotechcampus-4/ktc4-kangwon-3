@@ -8,7 +8,6 @@
 - protocols.py: 공통 타입 — 주입 모델 인터페이스 (ModelLike·StructuredModel), 타입 변수 InputT·OutputT·ResultT
 """
 
-from ...usage import record  # 호환용: 열린 Tool PR이 app.agents.base.record를 바꿔치기함. 머지 후 정리
 from .agent import BaseAgent
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
 from .meta import AgentResult, AgentRunMeta
@@ -16,5 +15,5 @@ from .protocols import ModelLike, StructuredModel
 
 __all__ = [
     "AgentError", "AgentResult", "AgentRunMeta", "BaseAgent", "MissingParsedOutput", "ModelFailurePhase",
-    "ModelLike", "StructuredModel", "record",
+    "ModelLike", "StructuredModel",
 ]
