@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 
+import { ResultStatus } from "@/api/types.ts";
 import SectionIntro from "@/components/common/SectionIntro";
 
 import { PAGE_SIZE } from "./constraints.ts";
@@ -7,7 +8,7 @@ import MyProductList from "./MyProductList.tsx";
 import NotificationSettings from "./NotificationSettings.tsx";
 import ProductFilterBar from "./ProductFilterBar.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
-import { type ProductFilter, ResultStatus } from "./types.ts";
+import type { ProductFilter } from "./types.ts";
 import { useMyProducts } from "./useMyProducts.ts";
 
 function MyPage() {
