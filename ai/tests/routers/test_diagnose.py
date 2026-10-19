@@ -11,7 +11,7 @@ from app.routers import _dummy
 from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment, run_dummy_diagnosis
 from app.routers.diagnose import get_session_executor
 from app.schemas.agent import ExtractionInput
-from app.schemas.session import SessionStatus
+from app.schemas.session import DiagnosisInput, SessionStatus
 from app.sessions.executor import SessionExecutor
 from app.sessions.store import SessionStore
 
@@ -38,10 +38,10 @@ def executor(gate):
     """lifespan 대신 쓰는 실행기. 관문이 열릴 때까지 진단이 끝나지 않음."""
     received: list[ExtractionInput] = []
 
-    def job(item, context, progress):
-        received.append(item)
+    def job(job_input, context, progress):
+        received.append(job_input.source)
         gate.wait(timeout=5)
-        return build_dummy_assessment(item.product_id)
+        return build_dummy_assessment(job_input.source.product_id)
 
     instance = SessionExecutor(
         SessionStore(), job, questions=DummyAssessmentPresenter().questions, max_running=2, max_inflight=3,
@@ -148,7 +148,9 @@ def test_더미_진단은_단계를_순서대로_알리고_고정_결과를_반�
         def stage(self, stage):
             stages.append(stage)
 
-    result = run_dummy_diagnosis(ExtractionInput(product_id="p-1", text_blocks=["설명"]), None, Recorder())
+    job_input = DiagnosisInput(source=ExtractionInput(product_id="p-1", text_blocks=["설명"]))
+
+    result = run_dummy_diagnosis(job_input, None, Recorder())
 
     assert stages == list(_dummy.DUMMY_STAGES)
     assert result.product.product_id == "p-1"

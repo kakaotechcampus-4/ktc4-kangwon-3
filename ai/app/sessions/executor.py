@@ -20,7 +20,7 @@ from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment, ToolName
-from ..schemas.session import DiagnosisSession, SessionStatus
+from ..schemas.session import DiagnosisInput, DiagnosisSession, SessionStatus
 from .store import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -37,8 +37,8 @@ class ProgressReporter(Protocol):
     def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None: ...
 
 
-# 상품 입력, 실행 컨텍스트, 진행 알림을 받아 최종 결과를 돌려주는 진단 함수
-DiagnosisJob = Callable[[ExtractionInput, ExecutionContext, ProgressReporter], FinalAssessment]
+# 실행 입력(원래 입력 + 재진단이면 이전 결과·답변), 실행 컨텍스트, 진행 알림을 받아 최종 결과를 돌려주는 진단 함수
+DiagnosisJob = Callable[[DiagnosisInput, ExecutionContext, ProgressReporter], FinalAssessment]
 # 답변 대기로 끝난 결과를 BE에 보낼 질문으로 바꾸는 함수. 결과는 세션에 기록돼 질문 콜백·답변 검사에 쓰임
 QuestionBuilder = Callable[[FinalAssessment], list[PublicQuestionDto]]
 # 세션 상태가 바뀔 때마다 호출. 이후 콜백 전송기 자리
@@ -150,9 +150,50 @@ class SessionExecutor:
             sessions = self.store.accept(diagnosis_id, inputs)
             self._inflight += len(inputs)
 
-        for item, session in zip(inputs, sessions):
-            self._pool.submit(self._run, item, session.context)
+        for session in sessions:
+            self._pool.submit(self._run, session.context)
         return sessions
+
+    def resume(
+        self,
+        *,
+        diagnosis_id: str,
+        product_id: str,
+        run_id: str,
+        question_round: int,
+        answers: dict[str, str],
+    ) -> DiagnosisSession:
+        """답변 대기 세션을 답변과 함께 재접수하고 새 실행을 예약한다. 접수와 같은 대기열·상한 사용.
+
+        Args:
+            diagnosis_id: BE 진단서 ID.
+            product_id: 세션 ID (상품 ID).
+            run_id: 질문으로 끝난 실행 ID.
+            question_round: 답하는 질문 회차.
+            answers: 질문 키 → 답변.
+
+        Returns:
+            DiagnosisSession: 재접수된 세션. context.run_id가 새 실행 ID.
+
+        Raises:
+            QueueFullError: 대기 + 실행 중 세션이 상한을 넘는 경우.
+            SessionNotFoundError: 세션이 없는 경우.
+            ResumeConflictError: 답변 대기가 아니거나 실행·회차·진단서가 다른 경우.
+            UnknownQuestionKeyError: 이번 회차에 묻지 않은 질문 키가 있는 경우.
+        """
+        with self._lock:
+            if self._inflight + 1 > self._max_inflight:
+                raise QueueFullError(
+                    f"진단 대기열이 가득 찼습니다 ({self._inflight}/{self._max_inflight})."
+                )
+            session = self.store.resume(
+                diagnosis_id=diagnosis_id, product_id=product_id, run_id=run_id,
+                question_round=question_round, answers=answers,
+            )
+            self._inflight += 1
+
+        self._pool.submit(self._run, session.context)
+        return session
 
     def submit_dev(self, item: ExtractionInput) -> DiagnosisSession:
         """개발용 진단 한 건을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
@@ -179,11 +220,11 @@ class SessionExecutor:
                 raise QueueFullError(
                     f"진단 대기열이 가득 찼습니다 ({self._inflight}/{self._max_inflight})."
                 )
-            [session] = self.store.accept(None, [product_id], run_type=RunType.TEST)
+            [session] = self.store.accept(None, [item], run_type=RunType.TEST)
             self._inflight += 1
             self._dev_runs.add(session.context.run_id)
 
-        self._pool.submit(self._run, item, session.context)
+        self._pool.submit(self._run, session.context)
         return session
 
     def expire_overdue(self) -> int:
@@ -215,7 +256,7 @@ class SessionExecutor:
         """
         self._pool.shutdown(wait=wait, cancel_futures=not wait)
 
-    def _run(self, item: ExtractionInput, context: ExecutionContext) -> None:
+    def _run(self, context: ExecutionContext) -> None:
         """세션 하나를 실행한다. 예외는 실패로 기록하고 밖으로 내보내지 않음."""
         # 저장소 갱신은 모두 이 실행의 context로. 시간 초과 뒤 재접수된 새 세션은 건드리지 않음
         try:
@@ -224,8 +265,10 @@ class SessionExecutor:
             if started is None:
                 return
             self._publish(started)
+            # 첫 실행은 이전 결과·답변이 비어 있음
+            job_input = DiagnosisInput(source=started.source, previous=started.result, answers=started.answers)
             try:
-                result = self._job(item, context, _Progress(self, context))
+                result = self._job(job_input, context, _Progress(self, context))
                 # 질문 변환 실패도 진단 실패로. 질문 없이 답변 대기로 두면 BE에서 진행 중으로 남음
                 questions = (
                     self._questions(result)

@@ -13,7 +13,7 @@ from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import SessionStatus
 from app.sessions.executor import QueueFullError, SessionExecutor
-from app.sessions.store import SessionConflictError, SessionStore
+from app.sessions.store import ResumeConflictError, SessionConflictError, SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
 _QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
@@ -37,16 +37,17 @@ class _GatedJob:
         self._raise_error = raise_error
         self._lock = threading.Lock()
 
-    def __call__(self, item, context, progress):
+    def __call__(self, job_input, context, progress):
+        product_id = job_input.source.product_id
         gate = threading.Event()
         with self._lock:
-            self.gates[item.product_id] = gate
-            self.started.append(item.product_id)
+            self.gates[product_id] = gate
+            self.started.append(product_id)
         progress.stage(PipelineStage.EXTRACTION)
         gate.wait(timeout=5)
         if self._raise_error:
             raise RuntimeError("파이프라인 오류")
-        return self._result_for(item.product_id)
+        return self._result_for(product_id)
 
     def release(self, product_id: str) -> None:
         _wait_until(lambda: product_id in self.gates)
@@ -217,6 +218,78 @@ def test_답변_대기로_끝나면_실행_자리를_반납한다(executors):
     _wait_until(lambda: "p-2" in job.started)
 
 
+class _AnswerJob:
+    """답변이 없으면 질문으로, 답변이 있으면 완료로 끝나는 진단 함수. 받은 입력을 기록."""
+
+    def __init__(self) -> None:
+        self.inputs: list = []
+
+    def __call__(self, job_input, context, progress):
+        self.inputs.append((job_input, context.run_id))
+        product_id = job_input.source.product_id
+        return build_dummy_assessment(product_id) if job_input.answers else _awaiting(product_id)
+
+
+def _resume(executor: SessionExecutor, product_id: str = "p-1", **fields) -> object:
+    waiting = executor.store.get(product_id)
+    request = {
+        "diagnosis_id": "d-1", "product_id": product_id, "run_id": waiting.context.run_id,
+        "question_round": waiting.question_round, "answers": {"battery_only": "네"}, **fields,
+    }
+    return executor.resume(**request)
+
+
+def test_재진단은_새_실행으로_이전_결과와_답변을_진단_함수에_넘긴다(executors):
+    job = _AnswerJob()
+    executor = _executor(executors, job)
+    executor.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = executor.store.get("p-1")
+
+    resumed = _resume(executor)
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+
+    (first, first_run), (second, second_run) = job.inputs
+    assert (first.previous, first.answers) == (None, [])
+    assert second.source == first.source
+    assert second.previous == waiting.result
+    assert [(a.question_key, a.answer_text) for a in second.answers] == [("battery_only", "네")]
+    assert (first_run, second_run) == (waiting.context.run_id, resumed.context.run_id)
+    assert first_run != second_run
+
+
+def test_재진단도_대기열_상한을_지키고_넘치면_세션을_바꾸지_않는다(executors):
+    gated = _GatedJob(result_for=_awaiting)
+    executor = _executor(executors, gated, max_running=1, max_inflight=1)
+    executor.submit("d-1", _inputs("p-1"))
+    gated.release("p-1")
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: executor._inflight == 0)
+    executor.submit("d-2", _inputs("p-2"))
+    waiting = executor.store.get("p-1")
+
+    with pytest.raises(QueueFullError):
+        _resume(executor)
+
+    assert executor.store.get("p-1") == waiting
+    gated.release("p-2")
+
+
+def test_맞지_않는_재진단은_실행을_예약하지_않고_대기열도_차지하지_않는다(executors):
+    job = _AnswerJob()
+    executor = _executor(executors, job, max_inflight=1)
+    executor.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: executor._inflight == 0)
+
+    with pytest.raises(ResumeConflictError):
+        _resume(executor, question_round=2)
+
+    assert (executor._inflight, len(job.inputs)) == (0, 1)
+    _resume(executor)
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+
+
 def test_최대_시간을_넘긴_세션은_시간_초과로_끝내고_늦게_온_결과는_무시한다(executors):
     clock = _Clock()
     job = _GatedJob()
@@ -245,13 +318,13 @@ def test_시간_초과_뒤_재접수한_세션은_옛_실행이_덮어쓰지_않
     gates = {"old": threading.Event(), "new": threading.Event()}
     started = {"old": threading.Event(), "new": threading.Event()}
 
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         label = "new" if started["old"].is_set() else "old"
         started[label].set()
         gates[label].wait(timeout=5)
         if label == "old":
             progress.stage(PipelineStage.VERIFICATION)
-        result = build_dummy_assessment(item.product_id)
+        result = build_dummy_assessment(job_input.source.product_id)
         return result.model_copy(update={"product": result.product.model_copy(update={"product_name": label})})
 
     executor = _executor(executors, job, clock=clock, max_duration=timedelta(minutes=10))
@@ -289,11 +362,11 @@ def test_구독자_오류는_실행을_멈추지_않는다(executors):
 
 
 def test_Tool_진행은_세션을_바꾸지_않고_Tool_구독자에게만_알린다(executors):
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         progress.stage(PipelineStage.TOOL_EXECUTION)
         progress.tool(ToolName.ELECTRICAL, "started")
         progress.tool(ToolName.ELECTRICAL, "completed")
-        return build_dummy_assessment(item.product_id)
+        return build_dummy_assessment(job_input.source.product_id)
 
     executor = _executor(executors, job)
     sessions, tools = [], []
@@ -318,11 +391,11 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(ex
     clock = _Clock()
     gate, started = threading.Event(), threading.Event()
 
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         started.set()
         gate.wait(timeout=5)
         progress.tool(ToolName.ELECTRICAL, "completed")
-        return build_dummy_assessment(item.product_id)
+        return build_dummy_assessment(job_input.source.product_id)
 
     executor = _executor(executors, job, clock=clock, max_duration=timedelta(minutes=10))
     tools = []
@@ -338,9 +411,9 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(ex
 
 
 def test_Tool_구독자_오류는_실행을_멈추지_않는다(executors):
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         progress.tool(ToolName.ELECTRICAL, "started")
-        return build_dummy_assessment(item.product_id)
+        return build_dummy_assessment(job_input.source.product_id)
 
     executor = _executor(executors, job)
     executor.subscribe_tool(lambda s, name, status: (_ for _ in ()).throw(RuntimeError("구독자 오류")))

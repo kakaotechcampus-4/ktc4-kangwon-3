@@ -44,6 +44,20 @@ class SessionAnswer(StrictModel):
     answer_text: str = Field(min_length=1)
 
 
+class DiagnosisInput(StrictModel):
+    """진단 함수가 받는 실행 한 번의 입력. 첫 실행은 원래 입력만, 재진단은 이전 결과·답변까지.
+
+    Attributes:
+        source: 접수 때 받은 원래 입력.
+        previous: 재진단이면 이전 실행 결과(추출 결과 포함). 첫 실행이면 None.
+        answers: 지금까지 받은 사용자 답변. 첫 실행이면 빈 목록.
+    """
+
+    source: ExtractionInput
+    previous: FinalAssessment | None = None
+    answers: list[SessionAnswer] = Field(default_factory=list)
+
+
 class DiagnosisSession(StrictModel):
     """진단 세션 한 건의 현재 상태.
 
