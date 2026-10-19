@@ -5,6 +5,7 @@ from itertools import count
 from app.callbacks.events import EventBuilder
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
+from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicAssessmentDto, PublicFindingDto, PublicQuestionDto, PublicToolReviewDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession
@@ -27,6 +28,10 @@ class _BrokenPresenter(_Presenter):
         raise ValueError("변환 실패")
 
 
+def _inputs(*product_ids: str) -> list[ExtractionInput]:
+    return [ExtractionInput(product_id=product_id, text_blocks=["상품 설명"]) for product_id in product_ids]
+
+
 def _builder(presenter=None) -> EventBuilder:
     ids = count(1)
     return EventBuilder(presenter or _Presenter(), new_event_id=lambda: f"e-{next(ids)}")
@@ -34,7 +39,7 @@ def _builder(presenter=None) -> EventBuilder:
 
 def _running(product_id: str = "p-1") -> tuple[SessionStore, ExecutionContext, DiagnosisSession]:
     store = SessionStore()
-    context = store.accept("d-1", [product_id])[0].context
+    context = store.accept("d-1", _inputs(product_id))[0].context
     return store, context, store.start(context)
 
 
@@ -102,7 +107,7 @@ def test_실패와_시간_초과는_마지막_단계와_공개_문구로_보낸�
 
 def test_대기_중_시간_초과는_단계_없이_실패로_보낸다():
     store = SessionStore()
-    context = store.accept("d-1", ["p-1"])[0].context
+    context = store.accept("d-1", _inputs("p-1"))[0].context
 
     [event] = _builder().build(store.fail(context, error_code="AI_TIMEOUT", retryable=True))
 
@@ -140,7 +145,7 @@ def test_실행마다_sequence를_1부터_따로_센다():
 
 def test_진단서_없는_실행은_보내지_않는다():
     store = SessionStore()
-    context = store.accept("d-1", ["p-1"])[0].context
+    context = store.accept("d-1", _inputs("p-1"))[0].context
     session = store.start(context).model_copy(update={
         "context": context.model_copy(update={"diagnosis_id": None, "run_type": RunType.TEST}),
     })

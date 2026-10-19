@@ -10,6 +10,7 @@ from typing import Any
 
 from ..config import SESSION_RETENTION_SECONDS
 from ..observability.context import ExecutionContext, PipelineStage, RunType
+from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment
@@ -54,40 +55,40 @@ class SessionStore:
         self._clock = clock
 
     def accept(
-        self, diagnosis_id: str | None, product_ids: list[str], *, run_type: RunType = RunType.PRODUCTION,
+        self, diagnosis_id: str | None, inputs: list[ExtractionInput], *, run_type: RunType = RunType.PRODUCTION,
     ) -> list[DiagnosisSession]:
         """진단서 한 건의 상품들을 세션으로 접수한다.
 
         하나라도 진행 중이면 아무것도 접수하지 않고 전체를 거절함 (#263).
-        완료·실패한 상품은 새 세션으로 교체.
+        완료·실패한 상품은 새 세션으로 교체. 입력은 재진단용으로 세션에 보관.
 
         Args:
             diagnosis_id: BE 진단서 ID. 개발용 진단은 None (콜백 대상 아님).
-            product_ids: 접수할 상품 ID 목록.
+            inputs: 접수할 상품별 입력. product_id가 세션 ID.
             run_type: 실행 종류. 개발용 진단은 TEST.
 
         Returns:
-            list[DiagnosisSession]: 접수된 세션. product_ids 순서와 같음.
+            list[DiagnosisSession]: 접수된 세션. inputs 순서와 같음.
 
         Raises:
             SessionConflictError: 진행 중인 상품이 하나라도 있는 경우.
         """
         with self._lock:
             conflicts = [
-                product_id for product_id in product_ids
-                if (session := self._sessions.get(product_id)) and session.status in ACTIVE_STATUSES
+                item.product_id for item in inputs
+                if (session := self._sessions.get(item.product_id)) and session.status in ACTIVE_STATUSES
             ]
             if conflicts:
                 raise SessionConflictError(conflicts)
 
             now = self._clock()
             accepted = []
-            for product_id in product_ids:
+            for item in inputs:
                 context = ExecutionContext.start(
-                    product_id=product_id, run_type=run_type, diagnosis_id=diagnosis_id,
+                    product_id=item.product_id, run_type=run_type, diagnosis_id=diagnosis_id,
                 )
-                session = DiagnosisSession(context=context, accepted_at=now, updated_at=now)
-                self._sessions[product_id] = session
+                session = DiagnosisSession(context=context, source=item, accepted_at=now, updated_at=now)
+                self._sessions[item.product_id] = session
                 accepted.append(session)
             return accepted
 
