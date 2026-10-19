@@ -178,6 +178,7 @@ def record(
     ok: bool = True,
     elapsed_ms: int | None = None,
     error_type: str | None = None,
+    failure_phase: str | None = None,
 ) -> None:
     """호출 1건을 JSONL 한 줄로 기록한다. 기록 실패는 무시 (호출 결과에 영향 없음).
 
@@ -187,9 +188,10 @@ def record(
         configured_model: 비용 계산용 모델 이름.
         reasoning_effort: 추론 강도.
         subject_id: 기록 대상 ID (상품 ID).
-        ok: 성공 여부.
+        ok: 호출한 쪽이 결과를 받았는지. 후처리 실패도 False.
         elapsed_ms: 걸린 시간(ms).
         error_type: 실패 원인 예외 이름 (메시지는 남기지 않음).
+        failure_phase: 실패 단계 (call·parsing·finalize). 성공이면 None, 단계를 안 넘기는 옛 호출부도 None.
     """
     try:
         row = {
@@ -210,6 +212,7 @@ def record(
             "success": ok,
             "latency_ms": elapsed_ms,
             "error_type": error_type,
+            "failure_phase": failure_phase,
         }
         USAGE_LOG.parent.mkdir(parents=True, exist_ok=True)
         with USAGE_LOG.open("a", encoding="utf-8") as handle:
@@ -226,12 +229,13 @@ def summarize(path: Path | None = None) -> dict:
         path: 기록 파일. None이면 USAGE_LOG.
 
     Returns:
-        dict: 호출·실패 수, 토큰, 예상 비용, 캐시 적중률, 에이전트별 집계.
+        dict: 호출·실패 수(단계별 포함), 토큰, 예상 비용, 캐시 적중률, 에이전트별 집계.
     """
     target = path or USAGE_LOG
     totals = {
         "calls": 0,
         "failed": 0,
+        "failed_by_phase": {},
         "input": 0,
         "cached": 0,
         "cache_write": 0,
@@ -253,8 +257,12 @@ def summarize(path: Path | None = None) -> dict:
             continue
         totals["calls"] += 1
         # 옛 필드명(ok·input·cached·output·est_krw)으로 쓴 줄도 대체로 읽음
-        if not row.get("success", row.get("ok", True)):
+        failed = not row.get("success", row.get("ok", True))
+        # 단계 없는 실패 (옛 기록·단계를 안 넘기는 호출부) → unknown
+        phase = (row.get("failure_phase") or "unknown") if failed else None
+        if failed:
             totals["failed"] += 1
+            totals["failed_by_phase"][phase] = totals["failed_by_phase"].get(phase, 0) + 1
         totals["input"] += row.get("input_tokens", row.get("input")) or 0
         totals["cached"] += row.get("cached_input_tokens", row.get("cached")) or 0
         totals["output"] += row.get("output_tokens", row.get("output")) or 0
@@ -263,8 +271,13 @@ def summarize(path: Path | None = None) -> dict:
         krw = row.get("estimated_cost_krw", row.get("est_krw")) or 0
         totals["est_krw"] += krw
         agent = row.get("agent") or "unknown"
-        bucket = totals["by_agent"].setdefault(agent, {"calls": 0, "est_krw": 0.0, "input": 0, "cached": 0})
+        bucket = totals["by_agent"].setdefault(
+            agent, {"calls": 0, "failed": 0, "failed_by_phase": {}, "est_krw": 0.0, "input": 0, "cached": 0},
+        )
         bucket["calls"] += 1
+        if failed:
+            bucket["failed"] += 1
+            bucket["failed_by_phase"][phase] = bucket["failed_by_phase"].get(phase, 0) + 1
         bucket["est_krw"] = round(bucket["est_krw"] + krw, 4)
         bucket["input"] += row.get("input_tokens", row.get("input")) or 0
         bucket["cached"] += row.get("cached_input_tokens", row.get("cached")) or 0
@@ -288,13 +301,15 @@ def main() -> int:
         return 0
     cached_ratio = (totals["cache_hit_rate"] or 0) * 100
     print(f"기록 파일: {USAGE_LOG}")
-    print(f"호출 {totals['calls']}회 (실패 {totals['failed']}회)")
+    phases = ", ".join(f"{phase} {count}" for phase, count in sorted(totals["failed_by_phase"].items()))
+    print(f"호출 {totals['calls']}회 (실패 {totals['failed']}회{f': {phases}' if phases else ''})")
     print(f"입력 {totals['input']:,} 토큰 (캐시 적중 {totals['cached']:,} = {cached_ratio:.0f}%, 캐시 쓰기 {totals['cache_write']:,})")
     print(f"출력 {totals['output']:,} 토큰 (추론 {totals['reasoning']:,})")
     print(f"예상 비용 {totals['est_krw']:,.2f}원  <- 카테캠 ML API 표시 단가 기준입니다")
     for agent, bucket in sorted(totals["by_agent"].items()):
         hit = f", 캐시 적중 {bucket['cache_hit_rate'] * 100:.0f}%" if bucket["cache_hit_rate"] is not None else ""
-        print(f"  {agent}: {bucket['calls']}회, {bucket['est_krw']:,.2f}원{hit}")
+        failed = f", 실패 {bucket['failed']}회" if bucket["failed"] else ""
+        print(f"  {agent}: {bucket['calls']}회{failed}, {bucket['est_krw']:,.2f}원{hit}")
     return 0
 
 

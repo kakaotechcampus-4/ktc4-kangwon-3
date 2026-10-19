@@ -183,6 +183,26 @@ def test_호출과_집계에_캐시_적중률을_남긴다(tmp_path, monkeypatch
     assert totals["by_agent"]["selection"]["cache_hit_rate"] is None
 
 
+def test_실패를_단계별로_기록하고_집계한다(tmp_path, monkeypatch):
+    target = tmp_path / "usage.jsonl"
+    monkeypatch.setattr(usage, "USAGE_LOG", target)
+    usage.record("image_triage", usage.CallUsage("m", 10, 0, 1))
+    usage.record("image_triage", usage.CallUsage("m", 10, 0, 1), ok=False, error_type="ImageTriageFailedError",
+                 failure_phase="finalize")
+    usage.record("extraction", None, ok=False, error_type="TimeoutError", failure_phase="call")
+    # 단계를 안 넘기는 호출부(전기 Tool 직접 기록)의 실패
+    usage.record("electrical-facts", None, ok=False, error_type="ValueError")
+
+    rows = [json.loads(line) for line in target.read_text(encoding="utf-8").splitlines()]
+    totals = usage.summarize(target)
+
+    assert [row["failure_phase"] for row in rows] == [None, "finalize", "call", None]
+    assert totals["failed"] == 3
+    assert totals["failed_by_phase"] == {"finalize": 1, "call": 1, "unknown": 1}
+    assert totals["by_agent"]["image_triage"]["failed_by_phase"] == {"finalize": 1}
+    assert (totals["by_agent"]["image_triage"]["calls"], totals["by_agent"]["image_triage"]["failed"]) == (2, 1)
+
+
 def test_LangChain이_사용량을_놓쳐도_게이트웨이_최종_사용량으로_남긴다():
     # Gemini는 조각마다 누적 사용량을 보내 usage_metadata가 None이 됨 (2026-10-14 실호출)
     raw = SimpleNamespace(

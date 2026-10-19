@@ -37,11 +37,13 @@ class MissingParsedOutput(RuntimeError):
 
 
 class ModelFailurePhase(StrEnum):
-    """모델 호출 실패 단계. 실패 문구 선택에 씀.
+    """에이전트 실패 단계. 실패 문구 선택과 사용량 기록(``failure_phase``)에 씀.
 
     CALL: 응답을 받지 못함.
     PARSING: 응답은 받았으나 출력 해석 실패 (잘림·거절·스키마 위반).
+    FINALIZE: 출력은 스키마에 맞으나 에이전트 후처리에서 실패 (입력에 없는 번호·검토 범위 불일치 등).
     """
 
     CALL = "call"
     PARSING = "parsing"
+    FINALIZE = "finalize"

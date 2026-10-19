@@ -17,6 +17,7 @@ def record_call(
     subject_id: str,
     elapsed_ms: int,
     error_type: str | None = None,
+    failure_phase: str | None = None,
 ) -> None:
     """호출 1건을 공용 사용량 로그에 남긴다. 기록 실패는 호출 결과에 영향 없음.
 
@@ -28,6 +29,7 @@ def record_call(
         subject_id: 기록 대상 ID (상품 ID).
         elapsed_ms: 걸린 시간(ms).
         error_type: 실패 원인 예외 이름. 성공이면 None.
+        failure_phase: 실패 단계 (call·parsing·finalize). 성공이면 None.
     """
     # 호출 때마다 패키지의 record를 찾음 → app.agents.base.record 바꿔치기(열린 Tool PR 테스트·전기 평가 러너)가 먹힘
     from . import record
@@ -41,6 +43,7 @@ def record_call(
         ok=error_type is None,
         elapsed_ms=elapsed_ms,
         error_type=error_type,
+        failure_phase=failure_phase,
     )
 
 

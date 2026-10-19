@@ -13,7 +13,8 @@ from ...schemas.schemas import (
     VerificationResult,
     VerificationStatus as Status,
 )
-from ..base import AgentError, AgentResult, AgentRunMeta, BaseAgent, ModelFailurePhase
+from ...usage import CallUsage
+from ..base import AgentError, AgentResult, BaseAgent, ModelFailurePhase
 from .rules import run_rule_checks
 from .schemas import _Review
 
@@ -67,8 +68,10 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
         subject_id: str,
         rules: VerificationResult,
         trace: list[TraceEvent] | None,
-    ) -> tuple[_Review, AgentRunMeta]:
+    ) -> tuple[_Review, CallUsage | None, float]:
         """모델 검토를 호출한다. 실패하면 trace를 남기고 같은 예외를 다시 던짐 (#171 §4.2).
+
+        성공 기록은 검토 범위 검사·병합 뒤 ``run_with_meta``가 남김.
 
         Args:
             messages: 모델에 보낼 메시지.
@@ -77,13 +80,13 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             trace: 실행 이력. None이면 기록 안 함.
 
         Returns:
-            tuple[_Review, AgentRunMeta]: 모델 검토 결과와 실행 정보.
+            tuple[_Review, CallUsage | None, float]: 모델 검토 결과, 사용량, 호출 시작 시각.
 
         Raises:
             VerificationError: 호출·파싱 실패. 원인은 ``__cause__``.
         """
         try:
-            return self._invoke_with_meta(messages, subject_id=subject_id, partial_result=rules)
+            return self._call_model(messages, subject_id=subject_id, partial_result=rules)
         except VerificationError as exc:
             # 모델 호출·파싱 실패 → trace만 남기고 같은 예외를 그대로 다시 던짐 (원인은 __cause__ 유지)
             cause = exc.__cause__
@@ -171,9 +174,10 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             status="started",
             detail="DraftAssessment를 GPT 구조화 출력 _Review로 검토합니다.",
         )
-        review, meta = self._review_with_trace(
+        subject_id = self._subject_id(draft)
+        review, usage, started_at = self._review_with_trace(
             self._build_messages(draft),
-            subject_id=self._subject_id(draft),
+            subject_id=subject_id,
             rules=rules,
             trace=trace,
         )
@@ -204,11 +208,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
                 status="failed",
                 detail="_Review의 ID 참조 또는 검토 범위가 유효하지 않습니다.",
             )
-            raise VerificationError(
-                str(exc),
-                partial_result=rules,
-                meta=meta,
-            ) from exc
+            self._fail_after_call(exc, usage, subject_id, started_at, partial_result=rules)
         except Exception as exc:
             # 모델 출력을 VerificationResult로 병합하다 실패 (예상 밖 값 등)
             self._append_trace(
@@ -217,11 +217,10 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
                 status="failed",
                 detail=f"VerificationResult 생성 실패: {type(exc).__name__}",
             )
-            raise VerificationError(
-                f"모델 검토 결과 처리에 실패했습니다: {type(exc).__name__}",
-                partial_result=rules,
-                meta=meta,
-            ) from exc
+            error = VerificationError(f"모델 검토 결과 처리에 실패했습니다: {type(exc).__name__}")
+            error.__cause__ = exc
+            self._fail_after_call(error, usage, subject_id, started_at, partial_result=rules)
+        meta = self._finish_call(usage, subject_id, started_at)
 
         self._append_trace(
             trace,
