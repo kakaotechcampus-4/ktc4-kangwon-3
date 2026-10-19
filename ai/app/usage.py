@@ -42,24 +42,28 @@ class CallUsage:
 
     @property
     def uncached_input(self) -> int:
-        # 캐시 적중분은 단가가 낮아 따로 계산한다. 음수가 되지 않게 막는다.
+        """캐시 미적중 입력 토큰 (단가가 달라 따로 계산). 0 미만이면 0."""
         return max(self.input_tokens - self.cached_tokens, 0)
 
     @property
     def total_tokens(self) -> int:
+        """입력 + 출력 토큰."""
         return self.input_tokens + self.output_tokens
 
     @property
     def cache_hit_rate(self) -> float | None:
-        # 입력 중 캐시 적중 비율. 입력이 없으면 None
+        """입력 중 캐시 적중 비율. 입력이 없으면 None."""
         return round(self.cached_tokens / self.input_tokens, 4) if self.input_tokens else None
 
 
 def from_handler(handler) -> CallUsage | None:
-    """UsageMetadataCallbackHandler에서 사용량을 뽑는다.
+    """UsageMetadataCallbackHandler에서 사용량을 뽑는다. 모델별 집계를 합침.
 
-    실제 모델 호출이 없었으면(테스트 스텁 등) None을 돌려준다.
-    핸들러는 모델 이름을 키로 집계하므로 호출마다 새 핸들러를 쓰면 항목이 하나다.
+    Args:
+        handler: 호출에 쓴 콜백 핸들러.
+
+    Returns:
+        CallUsage | None: 사용량. 실제 호출이 없었으면(테스트 스텁 등) None.
     """
     metadata = getattr(handler, "usage_metadata", None) or {}
     if not metadata:
@@ -79,11 +83,14 @@ def from_handler(handler) -> CallUsage | None:
 def from_response(raw) -> CallUsage | None:
     """구조화 출력의 원본 응답(AIMessage)에서 사용량을 뽑는다.
 
-    게이트웨이 최종 사용량(response_metadata["token_usage"])이 있으면 그걸 먼저 씀. 세 회사 공통 형식이라
-    LangChain이 놓치는 값까지 들어 있음 (2026-10-14 실호출).
-        - Gemini: 조각마다 누적 사용량을 보내 usage_metadata가 None이 됨
-        - Claude: 캐시를 공통 필드(cached_prompt_tokens·cache_write_tokens)로만 보내 캐시가 0으로 잡힘
-    없으면 usage_metadata(include_raw=True 응답에 붙음)를 씀. 둘 다 없으면(테스트 스텁 등) None을 돌려준다.
+    게이트웨이 최종 사용량(``response_metadata["token_usage"]``)을 먼저, 없으면 ``usage_metadata``를 씀.
+    게이트웨이 값은 LangChain이 놓치는 Gemini 사용량·Claude 캐시까지 담음 (2026-10-14 실호출).
+
+    Args:
+        raw: ``include_raw=True`` 결과의 원본 응답.
+
+    Returns:
+        CallUsage | None: 사용량. 둘 다 없으면(테스트 스텁 등) None.
     """
     metadata = getattr(raw, "response_metadata", None) or {}
     gateway = metadata.get("token_usage") or {}
@@ -113,10 +120,7 @@ def from_response(raw) -> CallUsage | None:
 
 
 def from_completion(completion) -> CallUsage | None:
-    """SDK 종료 사유 예외(길이 초과·콘텐츠 필터)에 담긴 ChatCompletion에서 사용량을 뽑는다.
-
-    응답은 다 받았지만 출력이 잘린 경우라 토큰은 이미 쓰임. from_response의 게이트웨이 값과 같은 필드를 읽음
-    (캐시 적중·캐시 쓰기는 게이트웨이 공통 필드도 확인).
+    """출력이 잘린 호출(길이 초과·콘텐츠 필터 예외)의 ChatCompletion에서 사용량을 뽑는다.
 
     Args:
         completion: 예외의 ``completion`` 속성 (openai ChatCompletion).
@@ -143,7 +147,15 @@ def from_completion(completion) -> CallUsage | None:
 
 
 def estimate_krw(usage: CallUsage, configured_model: str | None) -> float | None:
-    """카테캠 ML API 단가로 예상 비용을 계산한다. 단가를 모르면 None이다."""
+    """카테캠 ML API 단가로 예상 비용을 계산한다.
+
+    Args:
+        usage: 사용량.
+        configured_model: 단가표에서 찾을 모델 이름.
+
+    Returns:
+        float | None: 예상 비용(원). 단가를 모르면 None.
+    """
     price = PRICING_KRW.get(configured_model or "")
     if price is None:
         return None
@@ -166,7 +178,18 @@ def record(
     elapsed_ms: int | None = None,
     error_type: str | None = None,
 ) -> None:
-    """호출 1건을 기록한다. 로깅 실패가 검증을 막지 않도록 어떤 예외도 밖으로 내지 않는다."""
+    """호출 1건을 JSONL 한 줄로 기록한다. 기록 실패는 무시 (호출 결과에 영향 없음).
+
+    Args:
+        agent: 기록 이름.
+        usage: 사용량. 호출 실패로 모르면 None.
+        configured_model: 비용 계산용 모델 이름.
+        reasoning_effort: 추론 강도.
+        subject_id: 기록 대상 ID (상품 ID).
+        ok: 성공 여부.
+        elapsed_ms: 걸린 시간(ms).
+        error_type: 실패 원인 예외 이름 (메시지는 남기지 않음).
+    """
     try:
         row = {
             "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
@@ -199,7 +222,14 @@ def record(
 
 
 def summarize(path: Path | None = None) -> dict:
-    """기록된 호출을 합산한다. 깨진 줄은 건너뛴다."""
+    """기록된 호출을 전체·에이전트별로 합산한다. 깨진 줄은 건너뜀.
+
+    Args:
+        path: 기록 파일. None이면 USAGE_LOG.
+
+    Returns:
+        dict: 호출·실패 수, 토큰, 예상 비용, 캐시 적중률, 에이전트별 집계.
+    """
     target = path or USAGE_LOG
     totals = {
         "calls": 0,
@@ -248,6 +278,11 @@ def summarize(path: Path | None = None) -> dict:
 
 
 def main() -> int:
+    """사용량 총계를 출력한다 (``python -m app.usage``).
+
+    Returns:
+        int: 종료 코드. 항상 0.
+    """
     sys.stdout.reconfigure(encoding="utf-8")
     totals = summarize()
     if totals["calls"] == 0:

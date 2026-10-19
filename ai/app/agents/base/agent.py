@@ -1,7 +1,4 @@
-"""에이전트 공통 모델 호출·사용량 기록·예외 변환 (#171 §4 M1).
-
-각 에이전트는 프롬프트·출력 스키마·예외·실패 문구만 정하고, 모델 호출 순서는 Base가 맡음.
-"""
+"""에이전트 공통 베이스. 모델 준비·구조화 출력 호출·예외 변환 (#171 §4 M1)."""
 
 from time import perf_counter
 from typing import Any, ClassVar, Generic, Literal, NoReturn
@@ -21,19 +18,16 @@ from .usage_log import log_token_usage, record_call
 
 
 class BaseAgent(Generic[OutputT]):
-    """구조화 출력 모델 호출을 공통으로 처리하는 에이전트 부모.
-
-    하위 클래스는 필수 클래스 변수 4개와 ``_failure_message``를 정의함.
+    """구조화 출력 모델 호출을 맡는 에이전트 부모. 하위 클래스는 필수 변수 4개와 ``_failure_message``를 정의.
 
     Attributes:
-        component_name: 에이전트 이름. 모델 프로필·사용량 기록·오류 문구에 씀. (필수)
-        prompt_name: 시스템 프롬프트 이름. (필수)
-        output_schema: 모델 구조화 출력 스키마. (필수)
-        error_class: 호출·파싱 실패 시 던질 예외. AgentError 하위. (필수)
-        structured_output_options: with_structured_output에 넘길 추가 옵션 (예: strict). 문서 §4.2 확장
-        creates_default_model: 모델 미주입 시 프로필로 만들지. 검증은 규칙 전용 실행 때문에 False. 문서 §4.2 확장
-        model_profile: 모델 프로필 위치 (표 종류, 이름). None이면 ("agent", component_name).
-            Tool 안 에이전트는 ("tool", ToolName 값)으로 TOOL_PROFILES 사용
+        component_name: 에이전트 이름. 프로필·사용량 기록·오류 문구에 씀 (필수)
+        prompt_name: 시스템 프롬프트 (필수)
+        output_schema: 구조화 출력 스키마 (필수)
+        error_class: 실패 시 던질 예외. AgentError 하위 (필수)
+        structured_output_options: with_structured_output 추가 옵션 (예: strict)
+        creates_default_model: 모델 미주입 시 프로필로 만들지. 검증 에이전트는 규칙 전용 실행 때문에 False
+        model_profile: (표 종류, 이름). None이면 ("agent", component_name). Tool 안 에이전트는 ("tool", ToolName 값)
     """
 
     component_name: ClassVar[str]
@@ -54,9 +48,8 @@ class BaseAgent(Generic[OutputT]):
         """에이전트를 만든다.
 
         Args:
-            model: 구조화 출력을 지원하는 모델. None이면 ``creates_default_model``에 따라
-                ``model_profile``의 프로필로 만들거나, 모델 없이 둠 (검증 규칙 전용 실행).
-            configured_model: 비용 계산에 쓸 모델 이름. None이면 model의 model_name.
+            model: 구조화 출력 모델. None이면 프로필로 만들거나(``creates_default_model``) 모델 없이 둠.
+            configured_model: 비용 계산용 모델 이름. None이면 model의 model_name.
             usage_agent: 사용량 기록 이름. None이면 component_name.
 
         Raises:
@@ -87,17 +80,17 @@ class BaseAgent(Generic[OutputT]):
 
     @property
     def prompt(self) -> PromptSnapshot:
-        """이 에이전트의 프롬프트 스냅샷 (원문·경로·지문). 로더가 캐시함."""
+        """시스템 프롬프트 스냅샷 (원문·경로·지문)."""
         return get_prompt(self.prompt_name)
 
     def _messages(self, human_content: str | list[dict[str, Any]]) -> list[SystemMessage | HumanMessage]:
-        """시스템 프롬프트와 사용자 입력으로 모델 메시지를 만든다.
+        """[시스템 프롬프트, 사용자 입력] 메시지를 만든다.
 
         Args:
-            human_content: 사용자 메시지 내용. 텍스트 또는 텍스트·이미지 블록 목록.
+            human_content: 사용자 입력. 텍스트 또는 텍스트·이미지 블록 목록.
 
         Returns:
-            list[SystemMessage | HumanMessage]: [시스템 프롬프트, 사용자 입력].
+            list[SystemMessage | HumanMessage]: 모델에 보낼 메시지.
         """
         return [SystemMessage(content=self.prompt.text), HumanMessage(content=human_content)]
 
@@ -113,14 +106,14 @@ class BaseAgent(Generic[OutputT]):
         Args:
             messages: 모델에 보낼 메시지.
             subject_id: 사용량 기록 대상 ID (상품 ID).
-            partial_result: 실패 시 예외에 보존할 부분 결과.
+            partial_result: 실패 시 예외에 담을 부분 결과.
 
         Returns:
-            OutputT: 파싱된 출력.
+            OutputT: 검증된 출력.
 
         Raises:
-            AgentError: 호출 또는 파싱 실패 시 ``error_class`` 예외. 원인은 ``__cause__``에 보존.
-            RuntimeError: 모델 없이 호출한 경우. 호출 전 하위 클래스에서 막아야 함.
+            AgentError: 호출·파싱 실패. 실제 타입은 ``error_class``, 원인은 ``__cause__``.
+            RuntimeError: 모델 없이 호출한 경우.
         """
         if self._structured is None:
             raise RuntimeError(f"{self.component_name}: 모델 없이 _invoke를 호출했습니다.")
@@ -152,7 +145,7 @@ class BaseAgent(Generic[OutputT]):
         return output
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
-        """호출·파싱 실패 시 예외 문구. 각 에이전트가 기존 문구를 돌려줌.
+        """실패 예외 문구를 만든다. 하위 클래스가 정의.
 
         Args:
             phase: 실패 단계.
@@ -160,6 +153,9 @@ class BaseAgent(Generic[OutputT]):
 
         Returns:
             str: 예외 메시지.
+
+        Raises:
+            NotImplementedError: 하위 클래스가 정의하지 않은 경우.
         """
         raise NotImplementedError
 
@@ -170,12 +166,12 @@ class BaseAgent(Generic[OutputT]):
         *,
         partial_result: object | None = None,
     ) -> NoReturn:
-        """에이전트별 예외(``error_class``)로 감싸 던진다.
+        """원인 예외를 ``error_class``로 감싸 던진다.
 
         Args:
-            phase: 실패 단계. ``_failure_message`` 문구 선택에 씀.
+            phase: 실패 단계. 문구 선택에 씀.
             cause: 원인 예외. ``__cause__``로 연결.
-            partial_result: 예외에 보존할 부분 결과.
+            partial_result: 예외에 담을 부분 결과.
 
         Raises:
             AgentError: 항상. 실제 타입은 ``error_class``.
@@ -193,12 +189,12 @@ class BaseAgent(Generic[OutputT]):
         *,
         error_type: str | None = None,
     ) -> None:
-        """이 에이전트의 기록 이름·모델로 호출 1건을 사용량 로그에 남긴다.
+        """호출 1건을 이 에이전트 이름·모델로 사용량 로그에 남긴다.
 
         Args:
-            usage: 응답에서 읽은 사용량. 호출 자체가 실패해 모르면 None.
+            usage: 사용량. 호출 실패로 모르면 None.
             subject_id: 기록 대상 ID (상품 ID).
-            started_at: 호출 시작 시각 (perf_counter). 걸린 시간 계산용.
+            started_at: 호출 시작 시각 (perf_counter).
             error_type: 실패 원인 예외 이름. 성공이면 None.
         """
         record_call(

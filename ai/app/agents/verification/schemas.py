@@ -1,6 +1,6 @@
-"""검증 에이전트가 모델에게 받는 구조화 출력 스키마.
+"""검증 에이전트가 모델에게 받는 구조화 출력 스키마. 최종 VerificationResult는 agent.py가 병합해 만듦.
 
-issue_id·question_id·verified_at 등 서버가 만드는 값은 없음. 최종 VerificationResult는 agent.py가 병합해 만듦.
+클래스 docstring은 JSON 스키마 description으로 모델 요청에 들어가므로 두지 않음 (설명은 주석으로).
 """
 
 from typing import Literal
