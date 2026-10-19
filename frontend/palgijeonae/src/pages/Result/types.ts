@@ -112,7 +112,6 @@ export interface ToolReview {
     findings: Finding[]
 }
 
-
 /** 상품 단건/진단서 조회 응답이 공유하는 상품 결과 형태. 결과 전에는 관련 필드가 null/빈 배열 */
 export interface ProductResult {
     productId: string
