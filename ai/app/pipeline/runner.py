@@ -18,7 +18,7 @@ from ..schemas.schemas import (
 
 
 class ExtractionStage(Protocol):
-    def extract(self, source: ExtractionInput) -> Product: ...
+    def run(self, source: ExtractionInput) -> Product: ...
 
 
 class SelectionStage(Protocol):
@@ -169,7 +169,7 @@ class CompliancePipeline:
         self._max_retry_rounds = max_retry_rounds
 
     def run(self, source: ExtractionInput) -> FinalAssessment:
-        product: Product = self._extractor.extract(source)
+        product: Product = self._extractor.run(source)
         selection: ToolSelectionResponse = self._selector.select(product)
         selection_result: SelectionResult = self._tool_executor.execute_initial(
             product,

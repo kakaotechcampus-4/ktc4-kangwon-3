@@ -9,7 +9,7 @@ LLM과 완전히 독립적으로 실행되며, 결과는 ExtractionAgent가 LLM 
 
 import re
 
-from ..schemas.product import Attribute
+from ...schemas.product import Attribute
 
 # 단어 경계에 \b를 쓰지 않는다. 파이썬의 \b는 한글도 단어 문자로 보기 때문에 "CE인증",
 # "220V정격"처럼 한글이 바로 붙은(한국어 페이지에서 아주 흔한) 표기를 놓친다.
@@ -89,7 +89,14 @@ _PATTERNS_BY_NAME = (
 
 
 def extract_rule_based_attributes(text_blocks: list[str]) -> list[Attribute]:
-    """정규식으로 뽑히는 확정적 사실을 Attribute 목록으로 반환한다. 못 찾으면 빈 리스트."""
+    """정규식으로 뽑히는 확정적 사실을 속성으로 뽑는다.
+
+    Args:
+        text_blocks: 상품 원문 블록.
+
+    Returns:
+        list[Attribute]: 찾은 속성. 못 찾으면 빈 목록.
+    """
     facts: list[Attribute] = []
     for block in text_blocks:
         for pattern, name in _PATTERNS_BY_NAME:
@@ -101,15 +108,16 @@ def extract_rule_based_attributes(text_blocks: list[str]) -> list[Attribute]:
 
 
 def detect_battery_capacity_conflict(text_blocks: list[str]) -> list[str]:
-    """배터리 용량(mAh) 표기와 '배터리 미포함' 문구가 같은 상세페이지에 함께 있는
-    경우를 "모순 가능성 후보"로 보고한다.
+    """배터리 용량(mAh) 표기와 '배터리 미포함' 문구가 한 상세페이지에 함께 있으면 모순 후보로 보고한다.
 
-    확정된 모순이 아니라 검토가 필요한 후보다. 정규식은 문맥을 이해하지 못하므로
-    본체 배터리와 부속품 배터리를 완벽히 구분할 수 없고(부속품 문맥은 아래에서 제외하지만
-    표현이 다양해 전부 걸러내진 못한다), 이 결과는 LLM이 채운 특성 값을 덮어쓰지 않는다.
+    확정이 아닌 검토 후보이고 모델 값을 덮어쓰지 않음. 부속품 배터리 문맥은 빼지만 표현이 다양해 다 못 거름.
+    부정 표현이 없는 모순(예: "디퓨저"인데 "무향")은 정규식으로 못 잡아 모델이 conflicts로 보고.
 
-    다른 종류의 모순(카테고리는 "디퓨저"인데 속성은 "무향"인 경우 등)은 부정 표현이
-    없어서 정규식으로 못 잡는다 — 이건 여전히 LLM이 conflicts 필드로 직접 보고해야 한다.
+    Args:
+        text_blocks: 상품 원문 블록 (용량·미포함 문구가 다른 블록에 있을 수 있어 합쳐서 봄).
+
+    Returns:
+        list[str]: 모순 후보 문장. 없으면 빈 목록.
     """
     # 실제 케이스(파워뱅크)에서 용량은 제목 블록에, "미포함" 문구는 스펙표 블록에 따로
     # 있었다. 블록 단위가 아니라 전체 상세페이지를 합쳐서 봐야 이런 경우를 잡는다.
@@ -136,7 +144,14 @@ def detect_battery_capacity_conflict(text_blocks: list[str]) -> list[str]:
 
 
 def _has_non_accessory_negation(combined: str) -> bool:
-    """부속품 문맥으로 설명되지 않는 '배터리 미포함' 문구가 따로 있는지 본다."""
+    """부속품 문맥으로 설명되지 않는 '배터리 미포함' 문구가 따로 있는지 본다.
+
+    Args:
+        combined: 합친 상세페이지 글.
+
+    Returns:
+        bool: 부속품 문맥 밖의 미포함 문구가 있으면 True.
+    """
     accessory_spans = [m.span() for m in _ACCESSORY_BATTERY_PATTERN.finditer(combined)]
     for match in _NO_BATTERY_PATTERN.finditer(combined):
         inside_accessory = any(
@@ -148,7 +163,15 @@ def _has_non_accessory_negation(combined: str) -> bool:
 
 
 def _context(block: str, match: re.Match) -> str:
-    """매치 주변 문맥을 짧게 잘라 근거로 남긴다."""
+    """매치 앞뒤 20자를 잘라 근거 문장으로 쓴다.
+
+    Args:
+        block: 매치가 나온 원문 블록.
+        match: 정규식 매치.
+
+    Returns:
+        str: 앞뒤 공백을 지운 주변 문맥.
+    """
     start = max(0, match.start() - 20)
     end = min(len(block), match.end() + 20)
     return block[start:end].strip()

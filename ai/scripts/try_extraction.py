@@ -49,7 +49,7 @@ def main() -> None:
 
     # 토큰 사용량 로그는 stderr로 보내서 stdout의 결과 JSON을 그대로 파이프에 넘길 수 있게 한다.
     logging.basicConfig(level=logging.WARNING, stream=sys.stderr, format="[%(levelname)s] %(message)s")
-    logging.getLogger("app.agents.extraction").setLevel(logging.INFO)
+    logging.getLogger("app.agents").setLevel(logging.INFO)
 
     source = ExtractionInput(
         product_id=args.product_id,
@@ -58,7 +58,7 @@ def main() -> None:
         image_urls=[_image_to_data_uri(p) for p in args.image],
     )
 
-    product = ExtractionAgent().extract(source)
+    product = ExtractionAgent().run(source)
     print(json.dumps(product.model_dump(mode="json"), ensure_ascii=False, indent=2))
 
 

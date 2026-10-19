@@ -124,7 +124,7 @@ def run_fixture(agent: ExtractionAgent, name: str, runs: int) -> list[dict]:
         source = ExtractionInput(product_id=f"eval-{Path(name).stem}-{index}", text_blocks=[text])
         started = time.perf_counter()
         try:
-            product = agent.extract(source)
+            product = agent.run(source)
         except ExtractionFailedError as exc:
             elapsed = int((time.perf_counter() - started) * 1000)
             # 사용량 기록은 에이전트가 직접 남긴다(실패 회차 포함). 여기서 또 남기면

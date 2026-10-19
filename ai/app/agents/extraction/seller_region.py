@@ -66,10 +66,30 @@ def extract_seller_region(text: str) -> SellerRegion:
 
 
 def _index(stripped: list[str], start: int, match) -> int | None:
+    """start부터 조건에 맞는 첫 줄 번호를 찾는다.
+
+    Args:
+        stripped: 앞뒤 공백을 지운 줄 목록.
+        start: 찾기 시작할 줄 번호.
+        match: 줄 하나를 받아 bool을 돌려주는 조건.
+
+    Returns:
+        int | None: 줄 번호. 없으면 None.
+    """
     return next((i for i in range(start, len(stripped)) if match(stripped[i])), None)
 
 
 def _first_text(lines: list[str], start: int, stop: int) -> str | None:
+    """구간에서 처음 나오는 빈 줄 아닌 줄을 돌려준다 (판매자 제목 찾기).
+
+    Args:
+        lines: 원문 줄 목록.
+        start: 구간 시작 줄 번호.
+        stop: 구간 끝 줄 번호 (미포함).
+
+    Returns:
+        str | None: 앞뒤 공백을 지운 줄. 없으면 None.
+    """
     return next((lines[i].strip() for i in range(start, stop) if lines[i].strip()), None)
 
 
@@ -79,7 +99,14 @@ def _first_text(lines: list[str], start: int, stop: int) -> str | None:
 # 남기는 구간: 제목 구역, 두 번째 "상품 정보"(첫 번째는 탭 줄)부터 구매자 질문·면책 조항 전까지.
 
 def _is_aliexpress(head: list[str]) -> bool:
-    """상단 첫 세 줄 안에 로고 줄("AliExpress")이 있으면 AliExpress 페이지로 본다."""
+    """상단 첫 세 줄 안에 로고 줄("AliExpress")이 있으면 AliExpress 페이지로 본다.
+
+    Args:
+        head: 앞부분 줄 목록 (앞뒤 공백 제거).
+
+    Returns:
+        bool: AliExpress 페이지면 True.
+    """
     return "AliExpress" in head[:3]
 
 
@@ -123,8 +150,13 @@ _TEMU_REVIEW_COUNT = re.compile(r"리뷰 [\d,]+건")
 def _is_temu(head: list[str]) -> bool:
     """상단의 고정 안내 줄("Temu 앱 다운로드")이 있으면 Temu 페이지로 본다.
 
-    "Temu"가 들어간 줄로 보면 다른 쇼핑몰의 제목·최근 검색어에 Temu가 있을 때도 Temu로 알아보고
-    "표지를 찾지 못했다"는 거짓 경고를 낸다(#257 리뷰). 실제 Temu 원문 15건 모두 이 줄이 있다.
+    "Temu"가 들어간 줄로만 보면 다른 쇼핑몰 제목·검색어의 Temu에도 걸려 거짓 경고가 남 (#257 리뷰).
+
+    Args:
+        head: 앞부분 줄 목록 (앞뒤 공백 제거).
+
+    Returns:
+        bool: Temu 페이지면 True.
     """
     return "Temu 앱 다운로드" in head
 
