@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from app.agents.selection import _PROMPT_PATH as SELECTION_PROMPT_PATH
+from app.agents.selection import PROMPT_PATH as SELECTION_PROMPT_PATH
 from app.eval.runner import prompt_fingerprint
 from app.schemas.schemas import ToolName
 
