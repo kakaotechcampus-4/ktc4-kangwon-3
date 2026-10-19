@@ -1,6 +1,8 @@
 """검증 에이전트가 모델에게 받는 구조화 출력 스키마. 최종 VerificationResult는 agent.py가 병합해 만듦.
 
-클래스 docstring은 JSON 스키마 description으로 모델 요청에 들어가므로 두지 않음 (설명은 주석으로).
+- 모델이 채우는 필드만 둠. issue_id·question_id·verified_at은 서버가, status·summary는 코드가 만듦
+- strict 모드는 모든 필드를 required로 요구해 기본값 없음
+- 클래스 docstring은 JSON 스키마 description으로 모델 요청에 들어가므로 두지 않음
 """
 
 from typing import Literal
@@ -9,8 +11,6 @@ from ...schemas.base import StrictModel
 from ...schemas.schemas import ToolName, VerificationIssueType as IssueType
 
 
-# 모델이 채우는 필드만 담는다. issue_id·question_id·verified_at은 서버가 만든다.
-# Structured Outputs의 strict 모드는 모든 필드를 required로 요구하므로 기본값을 두지 않는다.
 class _Issue(StrictModel):
     severity: Literal["critical", "warning", "info"]
     issue_type: IssueType
@@ -27,7 +27,6 @@ class _Question(StrictModel):
 
 
 class _Review(StrictModel):
-    # 최종 status와 summary는 규칙 결과와 병합한 뒤 코드가 계산하므로 모델에게 생성시키지 않는다.
     issues: list[_Issue]
     additional_tools_required: list[ToolName]
     follow_up_questions: list[_Question]

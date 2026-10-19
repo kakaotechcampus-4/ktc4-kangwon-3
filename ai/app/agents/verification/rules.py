@@ -13,7 +13,6 @@ from ...schemas.schemas import (
     VerificationIssueType as IssueType,
 )
 
-# 상세 결과의 kind와 툴 종류의 대응. 판별 유니온이 둘의 일치까지 검사하지는 않는다.
 RESULT_KINDS = {
     ToolName.CUSTOMS: "customs",
     ToolName.RADIO: "radio",
@@ -23,7 +22,6 @@ RESULT_KINDS = {
     ToolName.LABEL_AD: "advertising",
 }
 
-# 확정적 판단은 실자료 근거가 있어야 한다. 정보 부족·가능성 판단은 대상이 아니다.
 DEFINITIVE = frozenset(
     {Determination.REQUIRED, Determination.NOT_REQUIRED, Determination.NOT_APPLICABLE}
 )
@@ -128,6 +126,7 @@ def check_tool_consistency(
                     IssueType.CONTRADICTION,
                     f"{name}: 미선택 툴에 실행 결과 또는 판단이 들어 있습니다.",
                 )
+        # 상세 결과 kind가 툴 종류와 다름 (스키마 판별 유니온은 이 일치까지는 검사 안 함)
         if tool_record.result is not None and tool_record.result.kind != RESULT_KINDS[name]:
             context.add(
                 IssueType.CONTRADICTION,
@@ -145,9 +144,7 @@ def check_required_tools(
         draft: 검증할 심사 초안.
         context: 이슈를 모을 곳.
     """
-    # True인 명시적 신호만 후보 누락 검사에 쓴다. 규제 적용을 확정하는 규칙이 아니다.
-    # CUSTOMS와 LABEL_AD는 단순 불리언 하나로 강제하지 않는다. 기본 실행 정책이 필요하면
-    # selection·pipeline 담당자와 합의해 별도의 정책으로 추가해야 한다.
+    # 관세·표시광고는 불리언 신호 하나로 강제하지 않아 제외 (기본 실행 정책은 선택·파이프라인과 합의 필요)
     product = draft.product
     signals: dict[ToolName, list[bool | None]] = {
         ToolName.RADIO: [product.wireless_comm, product.wireless_charging],
@@ -164,6 +161,7 @@ def check_required_tools(
         ],
     }
     for name, values in signals.items():
+        # 신호가 명시적으로 True인데 툴 미선택 (적용 확정이 아니라 누락 후보 경고)
         if any(value is True for value in values) and name not in draft.selected_tools:
             context.add(
                 IssueType.MISSING_TOOL,
@@ -173,9 +171,7 @@ def check_required_tools(
                 severity="warning",
             )
 
-    # for_children은 연령 표기뿐 아니라 광고 맥락까지 해석한 값이라,
-    # 판단이 서지 않으면 null로 남는다. target_age만 보면 "성인용"·"만 14세 이상"까지
-    # 걸리므로 연령 표기가 있으면서 for_children이 None일 때만 잡는다.
+    # 연령 표기는 있는데 어린이 대상 판단이 None이고 어린이 툴 미선택 ("성인용" 등 오탐 때문에 target_age만으로는 안 잡음)
     if (
         product.for_children is None
         and (product.target_age or "").strip()
@@ -205,7 +201,6 @@ def check_findings(
     if not final_ids:
         context.add(IssueType.MISSING_EVIDENCE, "검증할 종합 판단이 없습니다.")
 
-    # 툴이 만든 원본 판단을 모아 종합 결과와 대조한다.
     original: dict[str, RegulatoryFinding] = {}
     for tool_record in draft.tool_results:
         for finding in tool_record.findings:
@@ -221,19 +216,17 @@ def check_findings(
             f"툴 판단 {dropped}가 종합 결과에서 누락되었습니다.",
         )
 
-    # DraftAssessment.findings는 도구 판단의 출처 보존용 목록이다. aggregate 단계는
-    # overall_status·summary·required_actions를 종합하되 원본 finding을 변경하지 않는다.
-    # 이 계약을 바꾸려면 원본과 종합 판단을 별도 필드로 분리하는 스키마 합의가 먼저 필요하다.
     for finding in draft.findings:
         finding_id = finding.finding_id
+        # 종합 판단이 툴 원본과 다름 (aggregate는 원본 finding을 바꾸지 않는 계약)
         if finding_id not in original or original[finding_id] != finding:
             context.add(
                 IssueType.CONTRADICTION,
                 "종합 판단이 원래 툴 판단과 일치하지 않습니다.",
                 (finding_id,),
             )
+        # 확정 판단(필요·불필요·해당 없음)만 근거 필수. 가능성·정보 부족은 제외
         if finding.determination in DEFINITIVE:
-            # "근거가 없다"와 "근거는 있는데 mock이다"는 서로 다른 문제다.
             cited = [
                 source
                 for source in finding.legal_sources
@@ -241,6 +234,7 @@ def check_findings(
                 and (source.source_url or "").strip()
             ]
             usable = [source for source in cited if not source.is_mock]
+            # 인용문+출처를 갖춘 근거가 하나도 없음 → 툴 재실행 요청
             if not cited:
                 context.add(
                     IssueType.MISSING_EVIDENCE,
@@ -249,9 +243,8 @@ def check_findings(
                     (finding_id,),
                     finding.tool_name,
                 )
+            # 근거가 mock뿐 → 재실행해도 안 바뀌어 경고만 (실자료가 오면 자동 해소)
             elif not usable:
-                # 툴이 실자료를 돌려주면 is_mock=False가 되어 이 지적은 저절로 사라진다.
-                # 같은 툴을 재실행해도 mock 여부는 바뀌지 않으므로 툴 재실행을 요구하지 않는다.
                 context.add(
                     IssueType.MISSING_EVIDENCE,
                     "확정적 판단의 근거가 mock 자료뿐입니다. "

@@ -47,6 +47,9 @@ class BaseAgent(Generic[OutputT]):
     ) -> None:
         """에이전트를 만든다.
 
+        출력 스키마는 pydantic 클래스 대신 같은 JSON 스키마 dict로 넘김 (클래스를 넘기면 SDK가 스트림 도중
+        파싱하다 예외를 내 실패 호출의 사용량이 기록되지 않음). ``include_raw``로 원본 응답의 사용량·본문을 읽음.
+
         Args:
             model: 구조화 출력 모델. None이면 프로필로 만들거나(``creates_default_model``) 모델 없이 둠.
             configured_model: 비용 계산용 모델 이름. None이면 model의 model_name.
@@ -55,19 +58,13 @@ class BaseAgent(Generic[OutputT]):
         Raises:
             ConfigError: 모델을 만들어야 하는데 설정이 없거나 잘못된 경우.
         """
-        # 모델 생성은 config 한 곳에서. model_profile(기본 component_name)으로 프로필 표에서 고름
+        # 미주입 + 자동 생성 대상이면 프로필로 생성 (검증처럼 creates_default_model=False면 모델 없이 둠)
         if model is None and self.creates_default_model:
             kind, name = self.model_profile or ("agent", self.component_name)
             model = build_tool_model(name) if kind == "tool" else build_agent_model(name)
         self._configured_model = configured_model or getattr(model, "model_name", None)
-        # 프로필의 추론 강도. 사용량 기록용, 스텁·주입 모델은 None
         self._reasoning_effort = getattr(model, "reasoning_effort", None)
         self._usage_agent = usage_agent or self.component_name
-        # include_raw: 원본 응답에서 토큰 사용량과 본문을 읽음. 본문 검증은 parse_structured_output이 직접
-        # 스키마는 Pydantic 클래스가 아닌 dict로 넘김. 클래스를 넘기면 SDK가 스트림 도중 파싱하다
-        # 사용량 조각을 받기 전에 예외를 내서 파싱 실패·길이 초과 시 토큰 비용이 기록되지 않음.
-        # dict는 SDK가 클래스를 변환할 때와 같은 함수로 만들어 요청 본문은 그대로.
-        # LangChain은 {"name", "schema", "strict"} 형태만 받아 json_schema 안쪽을 넘김
         self._structured = (
             None
             if model is None
@@ -115,6 +112,7 @@ class BaseAgent(Generic[OutputT]):
             AgentError: 호출·파싱 실패. 실제 타입은 ``error_class``, 원인은 ``__cause__``.
             RuntimeError: 모델 없이 호출한 경우.
         """
+        # 모델 미주입 상태 (creates_default_model=False 에이전트를 모델 없이 만든 경우)
         if self._structured is None:
             raise RuntimeError(f"{self.component_name}: 모델 없이 _invoke를 호출했습니다.")
 
@@ -122,12 +120,12 @@ class BaseAgent(Generic[OutputT]):
         try:
             result = self._structured.invoke(messages)
         except (LengthFinishReasonError, ContentFilterFinishReasonError) as exc:
-            # 응답은 다 받았지만 길이 초과·필터로 출력이 잘린 경우. SDK가 예외에 사용량을 담아 줌
+            # 응답은 받았으나 길이 초과·콘텐츠 필터로 출력이 잘림 → 예외에 담긴 사용량 기록
             usage = from_completion(exc.completion)
             self._record_usage(usage, subject_id, started_at, error_type=type(exc).__name__)
             self._raise_model_error(ModelFailurePhase.PARSING, exc, partial_result=partial_result)
         except Exception as exc:
-            # 호출 실패는 사용량을 알 수 없음. 시도 횟수 집계용으로 실패만 기록
+            # 응답 자체를 못 받음 (네트워크·타임아웃·인증·서버 오류) → 사용량 없이 실패만 기록
             self._record_usage(None, subject_id, started_at, error_type=type(exc).__name__)
             self._raise_model_error(ModelFailurePhase.CALL, exc, partial_result=partial_result)
 
@@ -136,7 +134,7 @@ class BaseAgent(Generic[OutputT]):
         try:
             output = parse_structured_output(result, self.output_schema, self.component_name)
         except Exception as cause:
-            # 파싱에 실패해도 토큰은 이미 사용됨
+            # 응답은 받았으나 거절·JSON 오류·스키마 위반·빈 출력 → 쓴 토큰까지 기록
             self._record_usage(usage, subject_id, started_at, error_type=type(cause).__name__)
             self._raise_model_error(ModelFailurePhase.PARSING, cause, partial_result=partial_result)
 

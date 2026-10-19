@@ -28,23 +28,24 @@ def parse_structured_output(result: dict[str, Any], output_schema: type[OutputT]
         Exception: 본문 없는 응답의 parsing_error를 그대로 던짐.
     """
     raw_message = result.get("raw")
-    # 모델이 거절한 경우. develop(SDK 파싱)과 같은 원인 예외 사용
     refusal = (getattr(raw_message, "additional_kwargs", None) or {}).get("refusal")
+    # 응답에 refusal이 있음 (모델이 답변 거절)
     if refusal:
         raise OpenAIRefusalError(refusal)
     content = getattr(raw_message, "content", None)
+    # 본문이 있으면 엄격한 JSON 검증. LangChain parsed(잘린 JSON 보정 등 관대한 해석)는 안 씀
     if isinstance(content, str) and content.strip():
-        # 본문은 엄격한 JSON으로 검증 (SDK와 같은 pydantic JSON 모드).
-        # LangChain 파서의 parsed는 잘린 JSON 보정·코드블록 제거 등 관대하게 해석해 쓰지 않음
         return output_schema.model_validate_json(content)
 
-    # 본문이 없는 응답(빈 응답) 또는 parsed를 바로 주는 테스트 스텁
+    # 여기부터 본문 없음 (빈 응답 또는 parsed를 바로 주는 테스트 스텁)
     parsing_error = result.get("parsing_error")
+    # LangChain이 파싱 오류를 넘긴 경우. 예외 객체면 그대로, 문자열이면 감싸서
     if parsing_error is not None:
         if isinstance(parsing_error, Exception):
             raise parsing_error
         raise MissingParsedOutput(f"{component_name}: 구조화 출력 파싱 실패: {parsing_error}")
     parsed = result.get("parsed")
+    # 본문·parsed·오류 모두 없음 (빈 출력)
     if parsed is None:
         raise MissingParsedOutput(f"{component_name}: 구조화 출력이 비어 있습니다.")
     return output_schema.model_validate(parsed)
