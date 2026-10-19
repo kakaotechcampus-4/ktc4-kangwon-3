@@ -1,4 +1,5 @@
-import type { MyProductItem, PageInfo, ResultStatus } from "@/pages/Mypage/types";
+import type { ResultStatus } from "@/api/types";
+import type { MyProductItem, PageInfo } from "@/pages/Mypage/types";
 
 import apiClient from "./client";
 
