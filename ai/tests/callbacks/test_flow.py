@@ -151,7 +151,7 @@ def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신�
 
     store, executor, outbox = SessionStore(), _Executor(), _Outbox()
     connect_callbacks(executor, _Builder(_Presenter()), outbox)
-    context = store.accept("d-1", ["p-1"])[0].context
+    context = store.accept("d-1", _inputs("p-1"))[0].context
     store.start(context)
     extraction = store.update_stage(context, PipelineStage.EXTRACTION)
     selection = store.update_stage(context, PipelineStage.SELECTION)

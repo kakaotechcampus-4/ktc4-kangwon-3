@@ -139,7 +139,7 @@ class SessionExecutor:
                 raise QueueFullError(
                     f"진단 대기열이 가득 찼습니다 ({self._inflight}/{self._max_inflight})."
                 )
-            sessions = self.store.accept(diagnosis_id, [item.product_id for item in inputs])
+            sessions = self.store.accept(diagnosis_id, inputs)
             self._inflight += len(inputs)
 
         for item, session in zip(inputs, sessions):
