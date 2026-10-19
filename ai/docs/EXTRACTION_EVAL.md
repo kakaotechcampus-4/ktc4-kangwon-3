@@ -1,6 +1,6 @@
 # 추출 에이전트 검증 기준과 테스트 설계
 
-추출 에이전트(`app/agents/extraction.py`)가 상세페이지를 **일관되게 잘못 해석하는 경우**를
+추출 에이전트(`app/agents/extraction/`)가 상세페이지를 **일관되게 잘못 해석하는 경우**를
 찾아내기 위한 기준이다. 선택·검증 에이전트가 완성되면 같은 틀을 통합 테스트로 넓힌다.
 
 ---
@@ -215,7 +215,7 @@ v1에서는 이 값이 흔들려서(`['어린이용', None, ...]`) 불안정으�
 - `wireless_shield_rfid`의 리뷰 혼입. 텍스트 입력은 사용자가 상세페이지를 통째로 복사해 붙이는
   한 칸짜리라 리뷰를 구조로 떼어낼 수 없고, URL 입력은 크롤링이 아직 없어 분리할 수 있는지
   확인되지 않았다. 리뷰가 섞여 하위 단계에서 실제로 무엇이 틀리는지 먼저 재고 대응을 정한다(#190).
-- 규칙 레이어(`utils/extraction_rules.py`)는 페이지 전체를 정규식으로 훑는다. 지금 픽스처에서는
+- 규칙 레이어(`agents/extraction/rules.py`)는 페이지 전체를 정규식으로 훑는다. 지금 픽스처에서는
   판매자 구역에서만 값을 뽑지만, 리뷰에 용량·인증번호가 적힌 상품이 들어오면 원칙 6과 어긋나게
   뽑힌다.
 
@@ -338,7 +338,7 @@ AliExpress 페이지)로 한다.
 
 AliExpress AI 상품 요약(#229), 연관 상품의 규격·용량(#251), 검색창 글자(#252)가 판매자 정보로 쓰였다.
 프롬프트 문구로 막는 방식은 처음 보는 상품에서 약했으므로(위 3)), LLM에 넘기기 전에 쇼핑몰 화면 표지로
-판매자 구역만 남긴다(`app/utils/seller_region.py`). 판매자 제목은 정제 단계에서 찾아 두고, 모델이
+판매자 구역만 남긴다(`app/agents/extraction/seller_region.py`). 판매자 제목은 정제 단계에서 찾아 두고, 모델이
 `listing_text`에서 빼면 코드가 원문 그대로 넣는다. 원칙 6에도 쇼핑몰이 만든 글을 추가했다.
 
 정답표가 있는 14건(재현용 AliExpress 3건 + 기존 11건)을 5회 × 2라운드로 쟀다(`eb03d1c` + 스트리밍
@@ -706,7 +706,7 @@ python -m app.eval.runner --rescore logs/eval/20260916-014923.json
     "git_commit": "eefecaa",
     "git_dirty": false,
     "model": "openai/gpt-4.1-mini",
-    "prompt_path": "app/prompts/extraction.md",
+    "prompt_path": "app/agents/extraction/prompt.md",
     "prompt_sha256": "02889dd2ee11ed337c94102505c1c5bca3c00e2cf468c9f0fc06a4f2f820c77f",
     "runs": 5
   },
