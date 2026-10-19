@@ -1,8 +1,11 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.FindingLegalSourceResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFailureResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductProgressResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductQuestionResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
@@ -10,6 +13,8 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.FindingL
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFinding;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductProgress;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductQuestion;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductToolReview;
 import kakaotech.kangwon3.beforeselling.global.common.PageInfo;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
@@ -23,6 +28,11 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class ProductMapper {
+
+    // 진행 상태는 저장 순서가 없어 단계 순서로, 같은 단계 안에서는 단계 자체의 진행(toolName 없음)을 먼저 두고 Tool은 분야 선언 순서로 고정
+    private static final Comparator<ProductProgress> PROGRESS_ORDER = Comparator
+            .comparing(ProductProgress::getStage)
+            .thenComparing(ProductProgress::getToolName, Comparator.nullsFirst(Comparator.naturalOrder()));
 
     private final S3UrlKeyCodec s3UrlKeyCodec;
 
@@ -62,12 +72,49 @@ public class ProductMapper {
                 product.getSourceText(),
                 imageUrls,
                 product.getProcessingStatus(),
+                toProgressResponses(product.currentProgresses()),
+                toQuestionResponses(product.getQuestions()),
+                toFailureResponse(product),
                 product.getAssessmentStatus(),
                 product.getResultStatus(),
                 product.getSummary(),
                 toToolReviewResponses(product.getToolReviews()),
                 List.copyOf(product.getRequiredActions()),
                 List.copyOf(product.getNotices())
+        );
+    }
+
+    private List<ProductProgressResponse> toProgressResponses(List<ProductProgress> progresses) {
+        return progresses.stream()
+                .sorted(PROGRESS_ORDER)
+                .map(progress -> new ProductProgressResponse(
+                        progress.getStage(),
+                        progress.getToolName(),
+                        progress.getStageStatus()))
+                .toList();
+    }
+
+    private List<ProductQuestionResponse> toQuestionResponses(List<ProductQuestion> questions) {
+        return questions.stream()
+                .map(question -> new ProductQuestionResponse(
+                        question.getId(),
+                        question.getQuestionRound(),
+                        question.getQuestionOrder(),
+                        question.getQuestionText(),
+                        question.getHelpText(),
+                        question.getAnswerText()))
+                .toList();
+    }
+
+    private ProductFailureResponse toFailureResponse(Product product) {
+        if (!product.isFailed()) {
+            return null;
+        }
+        return new ProductFailureResponse(
+                product.getFailedStage(),
+                product.getErrorCode(),
+                product.getErrorMessage(),
+                product.getErrorRetryable()
         );
     }
 
