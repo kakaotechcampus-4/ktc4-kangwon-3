@@ -62,8 +62,7 @@ function QuestionPage() {
                 Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
             ),
         onSuccess: () => {
-            // TODO: 추후 result 페이지 구현 후 경로 파라미터로 교체 (/result/diagnosis/:diagnosisId)
-            navigate("/result")
+            navigate(`/result/diagnoses/${diagnosesId}`);
         },
         onError: (error) => {
             alert(error instanceof Error ? error.message : "답변 제출에 실패했습니다. 다시 시도해주세요.");
