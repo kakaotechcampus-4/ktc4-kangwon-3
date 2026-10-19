@@ -128,7 +128,7 @@ def test_같은_상품을_다시_돌려도_앞_실행_비용이_섞이지_않는
             return {"attributes": []}
 
     class _Extractor:
-        def extract(self, source):
+        def run(self, source):
             _record(source.product_id)
             return _Product()
 
