@@ -12,9 +12,12 @@
 
 import json
 import re
+from dataclasses import dataclass
+
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from .base import RegulatoryTool
-from ..agents.base import AgentError, BaseAgent, ModelFailurePhase, ModelLike
+from ..agents.base import Agent, AgentError, ModelFailurePhase, ModelLike
 from ..prompts import PromptName
 from ..schemas.advertising import AdvertisingClaim, AdvertisingReview, AdvertisingRiskType
 from ..schemas.agent import ToolSelectionItem
@@ -131,7 +134,20 @@ class AdvertisingReviewError(AgentError):
     """표시·광고 문구 검토 모델 호출 또는 파싱 실패."""
 
 
-class AdvertisingReviewer(BaseAgent[AdvertisingReview]):
+@dataclass(frozen=True)
+class AdvertisingReviewInput:
+    """문구 검토 입력.
+
+    Attributes:
+        product: 사용량 기록과 문맥(상품 이름·종류)에 쓸 상품.
+        lines: 검토할 판매자 문구. 빈 줄은 뺀 listing_text.
+    """
+
+    product: Product
+    lines: list[str]
+
+
+class AdvertisingReviewer(Agent[AdvertisingReviewInput, AdvertisingReview, AdvertisingReview]):
     """listing_text에서 실증이 필요한 주장을 인용하는 모델 호출부."""
 
     component_name = "advertising"
@@ -141,24 +157,41 @@ class AdvertisingReviewer(BaseAgent[AdvertisingReview]):
     output_schema = AdvertisingReview
     error_class = AdvertisingReviewError
 
-    def review(self, product: Product, lines: list[str]) -> AdvertisingReview:
-        """상품 이름·종류와 판매자 문구를 보내 의심 문구를 받는다.
+    def _build_messages(self, input: AdvertisingReviewInput) -> list[SystemMessage | HumanMessage]:
+        """상품 이름·종류와 판매자 문구로 모델 메시지를 만든다.
 
         Args:
-            product: 사용량 기록과 문맥(상품 이름·종류)에 쓸 상품.
-            lines: 검토할 판매자 문구. 빈 줄은 뺀 listing_text.
+            input: 문구 검토 입력.
 
         Returns:
-            AdvertisingReview: 모델이 인용한 의심 문구. 원문 대조 전이다.
-
-        Raises:
-            AdvertisingReviewError: 호출 또는 파싱 실패.
+            list[SystemMessage | HumanMessage]: 모델에 보낼 메시지.
         """
-        payload = {"product_name": product.product_name, "category": product.category, "listing_text": lines}
-        messages = self._messages(json.dumps(payload, ensure_ascii=False))
-        return self._invoke(messages, subject_id=product.product_id)
+        product = input.product
+        payload = {"product_name": product.product_name, "category": product.category, "listing_text": input.lines}
+        return self._messages(json.dumps(payload, ensure_ascii=False))
+
+    def _subject_id(self, input: AdvertisingReviewInput) -> str:
+        """사용량 기록 대상 ID.
+
+        Args:
+            input: 문구 검토 입력.
+
+        Returns:
+            str: 상품 ID.
+        """
+        return input.product.product_id
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
+        """실패 문구를 만든다. 원인은 예외 이름만 넣음.
+
+        Args:
+            phase: 실패 단계.
+            cause: 원인 예외.
+
+        Returns:
+            str: 예외 메시지.
+        """
+        # 응답을 못 받은 실패
         if phase is ModelFailurePhase.CALL:
             return f"표시·광고 문구 검토 모델 호출에 실패했습니다: {type(cause).__name__}"
         return f"모델 응답이 AdvertisingReview 스키마와 맞지 않습니다: {type(cause).__name__}"
@@ -246,7 +279,7 @@ class AdvertisingTool(RegulatoryTool):
             return self._no_listing_result(decision)
 
         reviewer = self._reviewer or AdvertisingReviewer(self._model)
-        review = reviewer.review(product, lines)
+        review = reviewer.run(AdvertisingReviewInput(product, lines))
         kept, dropped = self._verify_quotes(review.claims, lines)
         # 모델이 놓쳐도 KC 표기는 빠지지 않게 더한다. 모델 인용과 겹치면 모델 쪽을 남긴다.
         kc_added = [
