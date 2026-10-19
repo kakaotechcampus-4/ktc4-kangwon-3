@@ -20,7 +20,7 @@ class _Presenter:
                                    summary=result.summary)
 
     def questions(self, result):
-        return 1, [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
+        return [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
 
 
 class _Sender:
@@ -39,7 +39,9 @@ def flow(monkeypatch):
     # 가짜 진단의 단계별 지연을 없앰
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     sender = _Sender()
-    executor = SessionExecutor(SessionStore(), _dummy.run_dummy_diagnosis, max_running=2)
+    executor = SessionExecutor(
+        SessionStore(), _dummy.run_dummy_diagnosis, questions=_Presenter().questions, max_running=2,
+    )
     outbox = CallbackOutbox(sender, workers=2)
     connect_callbacks(executor, EventBuilder(_Presenter()), outbox)
     yield executor, outbox, sender
@@ -104,7 +106,7 @@ def test_진단서_변환이_실패하면_BE가_받는_마지막_이벤트는_�
 
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     sender = _Sender()
-    executor = SessionExecutor(SessionStore(), _dummy.run_dummy_diagnosis)
+    executor = SessionExecutor(SessionStore(), _dummy.run_dummy_diagnosis, questions=_Presenter().questions)
     outbox = CallbackOutbox(sender)
     connect_callbacks(executor, EventBuilder(_BrokenPresenter()), outbox)
 

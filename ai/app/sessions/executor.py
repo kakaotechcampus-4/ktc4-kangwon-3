@@ -18,7 +18,8 @@ from ..errors import AIResponseCode
 from ..observability.context import ExecutionContext, PipelineStage, RunType
 from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
-from ..schemas.schemas import FinalAssessment, ToolName
+from ..schemas.callback import PublicQuestionDto
+from ..schemas.schemas import ExecutionEndReason, FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession, SessionStatus
 from .store import SessionStore
 
@@ -38,6 +39,8 @@ class ProgressReporter(Protocol):
 
 # 상품 입력, 실행 컨텍스트, 진행 알림을 받아 최종 결과를 돌려주는 진단 함수
 DiagnosisJob = Callable[[ExtractionInput, ExecutionContext, ProgressReporter], FinalAssessment]
+# 답변 대기로 끝난 결과를 BE에 보낼 질문으로 바꾸는 함수. 결과는 세션에 기록돼 질문 콜백·답변 검사에 쓰임
+QuestionBuilder = Callable[[FinalAssessment], list[PublicQuestionDto]]
 # 세션 상태가 바뀔 때마다 호출. 이후 콜백 전송기 자리
 SessionListener = Callable[[DiagnosisSession], None]
 # Tool 진행마다 호출. 세션 상태는 바뀌지 않아 그 시점 세션을 같이 전달
@@ -75,6 +78,7 @@ class SessionExecutor:
         store: SessionStore,
         job: DiagnosisJob,
         *,
+        questions: QuestionBuilder,
         max_running: int = MAX_RUNNING_SESSIONS,
         max_inflight: int = MAX_INFLIGHT_SESSIONS,
         max_dev_inflight: int = MAX_DEV_INFLIGHT_SESSIONS,
@@ -86,6 +90,7 @@ class SessionExecutor:
         Args:
             store: 세션 저장소.
             job: 실행할 진단 함수.
+            questions: 답변 대기 결과의 질문 변환 함수.
             max_running: 동시 실행 상한.
             max_inflight: 대기 + 실행 중 세션 상한.
             max_dev_inflight: 개발용 진단의 대기 + 실행 중 상한. 전체 상한에도 같이 셈.
@@ -94,6 +99,7 @@ class SessionExecutor:
         """
         self.store = store
         self._job = job
+        self._questions = questions
         self._pool = ThreadPoolExecutor(max_workers=max_running, thread_name_prefix="diagnosis")
         self._max_inflight = max_inflight
         self._max_dev_inflight = max_dev_inflight
@@ -220,6 +226,12 @@ class SessionExecutor:
             self._publish(started)
             try:
                 result = self._job(item, context, _Progress(self, context))
+                # 질문 변환 실패도 진단 실패로. 질문 없이 답변 대기로 두면 BE에서 진행 중으로 남음
+                questions = (
+                    self._questions(result)
+                    if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED
+                    else None
+                )
             except Exception:
                 logger.exception(
                     "진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id,
@@ -229,7 +241,7 @@ class SessionExecutor:
                     context, error_code=AIResponseCode.PIPELINE_ERROR.value.code, retryable=False,
                 ))
                 return
-            self._publish(self.store.finish(context, result))
+            self._publish(self.store.finish(context, result, questions))
         finally:
             # 답변 대기로 끝나도 실행 자리 반납
             with self._lock:

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.observability.context import PipelineStage
 from app.routers import _dummy
-from app.routers._dummy import build_dummy_assessment, run_dummy_diagnosis
+from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment, run_dummy_diagnosis
 from app.routers.diagnose import get_session_executor
 from app.schemas.agent import ExtractionInput
 from app.schemas.session import SessionStatus
@@ -43,7 +43,9 @@ def executor(gate):
         gate.wait(timeout=5)
         return build_dummy_assessment(item.product_id)
 
-    instance = SessionExecutor(SessionStore(), job, max_running=2, max_inflight=3)
+    instance = SessionExecutor(
+        SessionStore(), job, questions=DummyAssessmentPresenter().questions, max_running=2, max_inflight=3,
+    )
     instance.received = received
     yield instance
     instance.shutdown(wait=True)
