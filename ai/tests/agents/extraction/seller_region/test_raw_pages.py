@@ -9,9 +9,9 @@ from pathlib import Path
 
 import pytest
 
-from app.utils.seller_region import extract_seller_region
+from app.agents.extraction.seller_region import extract_seller_region
 
-RAW_FILES = sorted((Path(__file__).parents[1] / "fixtures" / "_raw").glob("*.txt"))
+RAW_FILES = sorted((Path(__file__).parents[3] / "fixtures" / "_raw").glob("*.txt"))
 
 pytestmark = pytest.mark.skipif(not RAW_FILES, reason="로컬 원문(tests/fixtures/_raw)이 없습니다.")
 

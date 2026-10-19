@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from app.utils.seller_region import extract_seller_region
+from app.agents.extraction.seller_region import extract_seller_region
 
-SKELETON_DIR = Path(__file__).parents[1] / "fixtures" / "seller_region"
+SKELETON_DIR = Path(__file__).parents[3] / "fixtures" / "seller_region"
 TITLE = "판매자 상품 제목 자리표시 (Temu는 구역에서 가장 긴 줄을 제목으로 찾으므로 이 줄을 일부러 길게 둔다)"
 EXPECTED = json.loads((SKELETON_DIR / "expected.json").read_text(encoding="utf-8"))
 
@@ -37,7 +37,7 @@ def test_실제_페이지_구조에서_정제_결과가_그대로다(name: str):
 
 
 def _skeleton_script():
-    path = Path(__file__).parents[2] / "scripts" / "make_seller_region_skeletons.py"
+    path = Path(__file__).parents[4] / "scripts" / "make_seller_region_skeletons.py"
     spec = importlib.util.spec_from_file_location("make_seller_region_skeletons", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

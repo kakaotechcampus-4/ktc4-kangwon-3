@@ -4,7 +4,7 @@
 상품 글은 `본문`·제목 자리표시로 바꾼 파일이다. 상품 글이 없어 공개 저장소에 올려도 된다.
 
 - `expected.json`: 파일별 기대 결과(쇼핑몰, 잘림 여부, 제목 유무, 남는 줄)
-- 테스트: `tests/utils/test_seller_region_structure.py`
+- 테스트: `tests/agents/extraction/seller_region/test_skeletons.py`
 
 정제 규칙을 일부러 바꿨거나 새 원문을 `_raw`에 넣었으면 다시 만든다.
 
@@ -19,4 +19,4 @@ python scripts/make_seller_region_skeletons.py   (ai/ 에서 실행)
 접혀서, 본문 중간을 자르는 표지는 구조 테스트가 잡지 못한다(본문 안의 "개요"에서 자르게 바꿔 보니 원문 11개의
 정제 결과가 바뀌었는데 구조 테스트 28개는 그대로 통과했다). 그래서 스크립트는 남긴 구간의 경계 줄이 목록에 없으면
 실패한다. 정제 코드를 고친 뒤 스크립트를 다시 돌리지 않으면 이 검사도 돌지 않는다(원문이 CI에 없다).
-새 페이지에서 화면이 바뀌었는지는 `tests/utils/test_seller_region_raw.py`로 먼저 확인한다(원문이 있을 때만 실행).
+새 페이지에서 화면이 바뀌었는지는 `tests/agents/extraction/seller_region/test_raw_pages.py`로 먼저 확인한다(원문이 있을 때만 실행).

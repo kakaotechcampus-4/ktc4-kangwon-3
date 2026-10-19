@@ -64,7 +64,7 @@
 > "보조배터리 등", "RFID 차단")은 상품 종류로 추론하는 예시가 아니라 필드 정의에 가까워 남겼다.
 > 이 3곳과 겹치는 칸(`ali_sample`의 무선 3종, `power_bank.battery_is_the_product`,
 > `wireless_shield_rfid.wireless_shield`)은 v4에서도 기존 3건 수치가 좋게 나올 수 있다.
-> 지운 예시가 다시 들어오지 않게 `tests/agents/test_extraction_prompt_examples.py`가 막는다.
+> 지운 예시가 다시 들어오지 않게 `tests/agents/extraction/test_prompt.py`가 막는다.
 >
 > **v2에 들어간 4곳(예시 7개)은 v1 → v2 개선폭을 부풀렸을 수 있다.** 오류를 보고 그 상품을 예시로
 > 적었으니 당연한 결과다. v1부터 있던 2곳은 두 측정에 모두 들어 있어 개선폭과는 무관하지만,
@@ -593,7 +593,7 @@ ai/tests/eval_truth/<픽스처 이름>.json
 확인용 8건(0절 "처음 보는 상품으로 다시 잰 결과")으로 식품 접촉, 의료·화장품 표방, 전지 자체가
 상품인 축은 정답표가 생겼다. 다만 이 8건은 측정에만 쓰고 프롬프트 수정에는 쓰지 않는다.
 **인증번호 축은 아직 비어 있다.** 확인용 8건 모두 페이지에 KC 번호가 없었다. `kc_certified_fan`은
-규칙 레이어의 인증번호 패턴을 맞춰 본 샘플이라(`test_extraction_fixtures.py`) 처음 보는 상품이 아니다.
+규칙 레이어의 인증번호 패턴을 맞춰 본 샘플이라(`tests/agents/extraction/rules/test_fixtures.py`) 처음 보는 상품이 아니다.
 
 **기존 실패는 발견될 때마다 반드시 픽스처로 추가한다** — 같은 실패가 다시 나는 것을
 막는 게 이 테스트의 존재 이유다.

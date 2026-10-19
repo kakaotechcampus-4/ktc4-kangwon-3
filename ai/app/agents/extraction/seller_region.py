@@ -13,7 +13,7 @@
 - 지원하는 쇼핑몰은 판매자가 상품을 떼오는 AliExpress·Temu다. 쿠팡은 국내 판매처라 소싱 출처가
   아니어서 지원하지 않는다(#257 리뷰). 쿠팡 페이지는 알아보지 못한 입력과 같이 그대로 넘어간다.
 - 화면 구조가 바뀐 것은 실제 페이지에서 표지 줄만 남긴 뼈대 픽스처(tests/fixtures/seller_region)로
-  잡는다. 새 페이지를 모으면 원문 점검 테스트(test_seller_region_raw.py)로 화면 변경을 확인한다.
+  잡는다. 새 페이지를 모으면 원문 점검 테스트(tests/agents/extraction/seller_region/test_raw_pages.py)로 화면 변경을 확인한다.
 """
 
 import logging
