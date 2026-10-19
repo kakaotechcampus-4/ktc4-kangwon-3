@@ -1,7 +1,4 @@
-"""검증 규칙 검사. 모델 없이 DraftAssessment의 구조·근거 유무만 본다.
-
-VerificationAgent.verify_rules가 run_rule_checks를 불러 이슈와 재실행할 툴을 모은다.
-"""
+"""검증 규칙 검사. 모델 없이 심사 초안의 구조·근거 유무만 봄 (VerificationAgent.verify_rules가 사용)."""
 
 from dataclasses import dataclass, field
 from typing import Literal
@@ -37,7 +34,12 @@ Severity = Literal["critical", "warning", "info"]
 
 @dataclass
 class RuleCheckContext:
-    """규칙 검사에서 발견한 이슈와 재실행할 툴을 순서대로 수집한다."""
+    """규칙 검사가 찾은 이슈와 재실행할 툴을 순서대로 모은다.
+
+    Attributes:
+        issues: 발견한 이슈.
+        additional_tools: 재실행할 툴. 중복 없음.
+    """
 
     issues: list[VerificationIssue] = field(default_factory=list)
     additional_tools: list[ToolName] = field(default_factory=list)
@@ -50,6 +52,15 @@ class RuleCheckContext:
         tool: ToolName | None = None,
         severity: Severity = "critical",
     ) -> None:
+        """이슈 하나를 추가하고, tool이 있으면 재실행 목록에 넣는다.
+
+        Args:
+            kind: 이슈 종류.
+            text: 설명.
+            ids: 관련 finding ID.
+            tool: 재실행할 툴. None이면 추가 안 함.
+            severity: 심각도.
+        """
         self.issues.append(
             VerificationIssue(
                 severity=severity,
@@ -67,7 +78,12 @@ def check_tool_consistency(
     draft: DraftAssessment,
     context: RuleCheckContext,
 ) -> None:
-    """툴 선택 목록과 실행 기록 사이의 구조적 정합성을 검사한다."""
+    """툴 선택 목록과 실행 기록이 서로 맞는지 검사한다.
+
+    Args:
+        draft: 검증할 심사 초안.
+        context: 이슈를 모을 곳.
+    """
     records = {result.tool_name: result for result in draft.tool_results}
     if len(records) != len(draft.tool_results):
         context.add(IssueType.CONTRADICTION, "같은 툴의 실행 기록이 중복되었습니다.")
@@ -118,11 +134,17 @@ def check_tool_consistency(
                 f"{name}: 상세 결과 kind가 툴 종류와 다릅니다.",
             )
 
+
 def check_required_tools(
     draft: DraftAssessment,
     context: RuleCheckContext,
 ) -> None:
-    """상품 신호와 선택된 심사 툴을 교차 검사한다."""
+    """상품 신호가 있는데 해당 툴이 선택되지 않았는지 검사한다.
+
+    Args:
+        draft: 검증할 심사 초안.
+        context: 이슈를 모을 곳.
+    """
     # True인 명시적 신호만 후보 누락 검사에 쓴다. 규제 적용을 확정하는 규칙이 아니다.
     # CUSTOMS와 LABEL_AD는 단순 불리언 하나로 강제하지 않는다. 기본 실행 정책이 필요하면
     # selection·pipeline 담당자와 합의해 별도의 정책으로 추가해야 한다.
@@ -166,11 +188,17 @@ def check_required_tools(
             severity="warning",
         )
 
+
 def check_findings(
     draft: DraftAssessment,
     context: RuleCheckContext,
 ) -> None:
-    """원본·종합 finding의 일치 여부와 확정 판단의 근거를 검사한다."""
+    """종합 판단이 툴 원본 판단과 같은지, 확정 판단에 근거가 있는지 검사한다.
+
+    Args:
+        draft: 검증할 심사 초안.
+        context: 이슈를 모을 곳.
+    """
     final_ids = [finding.finding_id for finding in draft.findings]
     if len(final_ids) != len(set(final_ids)):
         context.add(IssueType.CONTRADICTION, "종합 판단의 finding_id가 중복되었습니다.")
@@ -234,7 +262,7 @@ def check_findings(
 
 
 def run_rule_checks(draft: DraftAssessment) -> RuleCheckContext:
-    """툴 정합성·필수 툴·finding 근거 검사를 차례로 실행한다.
+    """규칙 검사 3종(툴 정합성·필수 툴·판단 근거)을 차례로 실행한다.
 
     Args:
         draft: 검증할 심사 초안.
