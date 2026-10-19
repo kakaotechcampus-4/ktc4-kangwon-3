@@ -3,7 +3,7 @@
 import logging
 from typing import Any
 
-from ...usage import CallUsage, record
+from ...usage import CallUsage
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,9 @@ def record_call(
         elapsed_ms: 걸린 시간(ms).
         error_type: 실패 원인 예외 이름. 성공이면 None.
     """
+    # 호출 때마다 패키지의 record를 찾음 → app.agents.base.record 바꿔치기(열린 Tool PR 테스트·전기 평가 러너)가 먹힘
+    from . import record
+
     record(
         agent,
         usage,
