@@ -5,6 +5,8 @@ from typing import Any, Protocol, TypeVar
 from pydantic import BaseModel
 
 OutputT = TypeVar("OutputT", bound=BaseModel)
+InputT = TypeVar("InputT")
+ResultT = TypeVar("ResultT")
 
 
 class StructuredModel(Protocol):
