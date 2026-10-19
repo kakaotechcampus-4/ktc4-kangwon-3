@@ -99,6 +99,16 @@ class ResumeAcceptedResponse(ApiResponse):
     data: ResumeAccepted | None = None
 
 
+class UnknownQuestionKeys(ApiModel):
+    """이번 회차에 묻지 않은 질문의 답변이 섞여 재진단을 거절한 경우의 상세 (400).
+
+    Attributes:
+        question_keys: 묻지 않은 질문 키 목록.
+    """
+
+    question_keys: list[str]
+
+
 def ok(data: Any = None, message: str = "요청이 성공적으로 처리되었습니다.") -> ApiResponse:
     """성공 응답을 생성한다."""
     return ApiResponse(code="OK", message=message, data=data)
