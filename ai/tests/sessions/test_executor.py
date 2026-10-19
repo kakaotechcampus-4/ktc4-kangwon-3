@@ -12,7 +12,7 @@ from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import SessionStatus
-from app.sessions.executor import QueueFullError, SessionExecutor
+from app.sessions.executor import QUESTION_LIMIT_NOTICE, QueueFullError, SessionExecutor
 from app.sessions.store import ResumeConflictError, SessionConflictError, SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
@@ -288,6 +288,44 @@ def test_맞지_않는_재진단은_실행을_예약하지_않고_대기열도_�
     assert (executor._inflight, len(job.inputs)) == (0, 1)
     _resume(executor)
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+
+
+def _always_ask(job_input, context, progress):
+    return _awaiting(job_input.source.product_id)
+
+
+def _answer_round(executor: SessionExecutor, question_round: int) -> None:
+    """지금 회차 질문에 답하고 다음 실행이 끝날 때까지 기다린다."""
+    _wait_until(lambda: executor.store.get("p-1").status is SessionStatus.AWAITING_INPUT
+                and executor.store.get("p-1").question_round == question_round)
+    run_id = _resume(executor).context.run_id
+    _wait_until(lambda: executor.store.get("p-1").context.run_id == run_id
+                and executor.store.get("p-1").status in (SessionStatus.AWAITING_INPUT, SessionStatus.COMPLETED))
+
+
+def test_1회차_답변_뒤_다시_질문하면_2회차_질문으로_기다린다(executors):
+    executor = _executor(executors, _always_ask)
+    executor.submit("d-1", _inputs("p-1"))
+
+    _answer_round(executor, 1)
+
+    session = executor.store.get("p-1")
+    assert (session.status, session.question_round) == (SessionStatus.AWAITING_INPUT, 2)
+
+
+def test_2회차_답변_뒤에도_질문이_남으면_질문_대신_미완료_결과로_끝낸다(executors):
+    executor = _executor(executors, _always_ask)
+    executor.submit("d-1", _inputs("p-1"))
+
+    _answer_round(executor, 1)
+    _answer_round(executor, 2)
+
+    session = executor.store.get("p-1")
+    assert (session.status, session.question_round) == (SessionStatus.COMPLETED, 2)
+    assert session.termination_reason is ExecutionEndReason.QUESTION_LIMIT_EXCEEDED
+    assert session.result.verification_status is FinalVerificationStatus.INCOMPLETE
+    assert session.result.missing_information[-1] == QUESTION_LIMIT_NOTICE
+    assert [a.question_round for a in session.answers] == [1, 2]
 
 
 def test_최대_시간을_넘긴_세션은_시간_초과로_끝내고_늦게_온_결과는_무시한다(executors):
