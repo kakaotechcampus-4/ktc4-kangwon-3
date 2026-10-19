@@ -47,7 +47,7 @@ const SOURCE_TYPE_INFO: Record<SourceType, SourceTypeInfo> = {
     [SourceType.TextImage]: { icon: imageIcon, label: "이미지 / 텍스트" },
 };
 
-function MyProduct({ productName, productImageUrl, sourceType, processingStatus, resultStatus }: MyProductProps) {
+function MyProduct({ productId, productName, productImageUrl, sourceType, processingStatus, resultStatus }: MyProductProps) {
     const navigate = useNavigate();
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
@@ -55,10 +55,9 @@ function MyProduct({ productName, productImageUrl, sourceType, processingStatus,
     // 진단 결과가 없을 시 진단서 이동을 막기 위한 boolean 변수.
     const isDiagnosisComplete = resultStatus != null;
 
-    // TODO: Result 페이지 구현 시 경로 파라미터로 id 전달 예정
     const handleClick = () => {
         if (isDiagnosisComplete) {
-            navigate("/result");
+            navigate(`/result/product/${productId}`);
         }
     };
 
