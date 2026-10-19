@@ -46,7 +46,7 @@ def main() -> int:
         if args.rules_only:
             result = VerificationAgent().verify_rules(draft, trace=trace)
         else:
-            result = VerificationAgent.from_env().verify(draft, trace=trace)
+            result = VerificationAgent.from_env().run(draft, trace=trace)
     except VerificationError as exc:
         _print_trace(trace)
         print(f"검증 미완료: {exc}", file=sys.stderr)
