@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from threading import Lock
 from typing import Any
 
-from ..config import SESSION_RETENTION_SECONDS
+from ..config import AWAITING_INPUT_RETENTION_SECONDS, SESSION_RETENTION_SECONDS
 from ..observability.context import ExecutionContext, PipelineStage, RunType
 from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
@@ -18,8 +18,6 @@ from ..schemas.session import DiagnosisSession, SessionAnswer, SessionStatus
 
 # 진행 중으로 보는 상태. 같은 상품의 새 접수를 막음
 ACTIVE_STATUSES = frozenset({SessionStatus.ACCEPTED, SessionStatus.RUNNING, SessionStatus.AWAITING_INPUT})
-# 보관 시간이 지나면 지우는 상태
-FINISHED_STATUSES = frozenset({SessionStatus.COMPLETED, SessionStatus.FAILED})
 
 
 class SessionConflictError(RuntimeError):
@@ -61,17 +59,24 @@ class SessionStore:
         self,
         *,
         retention: timedelta = timedelta(seconds=SESSION_RETENTION_SECONDS),
+        awaiting_retention: timedelta = timedelta(seconds=AWAITING_INPUT_RETENTION_SECONDS),
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         """저장소를 만든다.
 
         Args:
             retention: 종료된 세션 보관 시간.
+            awaiting_retention: 답변 대기 세션 보관 시간. 지나면 지워져 재진단은 세션 없음(404).
             clock: 현재 시각 함수. 테스트에서 시각을 고정할 때 주입.
         """
         self._sessions: dict[str, DiagnosisSession] = {}
         self._lock = Lock()
-        self._retention = retention
+        # 상태별 보관 시간. 정리 대상 상태를 늘리면 여기만 추가
+        self._retention_by_status = {
+            SessionStatus.COMPLETED: retention,
+            SessionStatus.FAILED: retention,
+            SessionStatus.AWAITING_INPUT: awaiting_retention,
+        }
         self._clock = clock
 
     def accept(
@@ -282,16 +287,19 @@ class SessionStore:
         )
 
     def purge(self) -> int:
-        """보관 시간이 지난 종료 세션을 지운다. 답변 대기 세션은 남김.
+        """보관 시간이 지난 종료·답변 대기 세션을 지운다. 접수·실행 중 세션은 시간 초과 처리가 맡음.
+
+        보관 시간은 마지막 상태 변경(updated_at)부터. 답변 대기는 질문을 보낸 시각부터.
 
         Returns:
             int: 지운 세션 수.
         """
         with self._lock:
-            deadline = self._clock() - self._retention
+            now = self._clock()
             expired = [
                 product_id for product_id, session in self._sessions.items()
-                if session.status in FINISHED_STATUSES and session.updated_at <= deadline
+                if (retention := self._retention_by_status.get(session.status)) is not None
+                and session.updated_at <= now - retention
             ]
             for product_id in expired:
                 del self._sessions[product_id]

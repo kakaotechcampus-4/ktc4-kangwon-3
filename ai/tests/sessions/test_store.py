@@ -36,7 +36,7 @@ class _Clock:
 
 
 def _store(clock: _Clock | None = None) -> SessionStore:
-    return SessionStore(retention=timedelta(hours=1), clock=clock or _Clock())
+    return SessionStore(retention=timedelta(hours=1), awaiting_retention=timedelta(hours=24), clock=clock or _Clock())
 
 
 def _ctx(store: SessionStore, product_id: str) -> ExecutionContext:
@@ -229,6 +229,58 @@ def test_보관_시간이_지난_종료_세션만_지우고_답변_대기는_남
     assert store.get("failed") is None
     assert store.get("waiting").status is SessionStatus.AWAITING_INPUT
     assert store.get("running").status is SessionStatus.RUNNING
+
+
+def test_답변_대기_세션은_자기_보관_시간이_지나면_지우고_재진단은_세션_없음이_된다():
+    clock = _Clock()
+    store = _store(clock)
+    store.accept("d-1", _inputs("p-1"))
+    store.start(_ctx(store, "p-1"))
+    waiting = store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), _QUESTIONS)
+
+    clock.advance(hours=23, minutes=59)
+    assert store.purge() == 0
+
+    clock.advance(minutes=1)
+    assert store.purge() == 1
+    with pytest.raises(SessionNotFoundError):
+        store.resume(
+            diagnosis_id="d-1", product_id="p-1", run_id=waiting.context.run_id, question_round=1,
+            answers={"battery_only": "네"},
+        )
+
+
+def test_보관_시간은_상태별로_따로_정할_수_있다():
+    clock = _Clock()
+    store = SessionStore(retention=timedelta(hours=2), awaiting_retention=timedelta(minutes=10), clock=clock)
+    store.accept("d-1", _inputs("done", "waiting"))
+    for product_id in ("done", "waiting"):
+        store.start(_ctx(store, product_id))
+    store.finish(_ctx(store, "done"), build_dummy_assessment("done"))
+    store.finish(_ctx(store, "waiting"), _awaiting_result("waiting"), _QUESTIONS)
+
+    clock.advance(minutes=10)
+
+    assert store.purge() == 1
+    assert (store.get("waiting"), store.get("done").status) == (None, SessionStatus.COMPLETED)
+
+
+def test_재접수된_세션은_답변_대기_보관_시간과_무관하게_남는다():
+    # 재접수 뒤는 접수 상태라 시간 초과 처리(실행기)가 맡음
+    clock = _Clock()
+    store = _store(clock)
+    store.accept("d-1", _inputs("p-1"))
+    store.start(_ctx(store, "p-1"))
+    waiting = store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), _QUESTIONS)
+    store.resume(
+        diagnosis_id="d-1", product_id="p-1", run_id=waiting.context.run_id, question_round=1,
+        answers={"battery_only": "네"},
+    )
+
+    clock.advance(hours=25)
+
+    assert store.purge() == 0
+    assert store.get("p-1").status is SessionStatus.ACCEPTED
 
 
 def test_재접수된_세션은_옛_실행의_컨텍스트로_바꿀_수_없다():
