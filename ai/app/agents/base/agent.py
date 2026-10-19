@@ -12,8 +12,8 @@ from ...config import build_agent_model, build_tool_model
 from ...prompts import PromptName, PromptSnapshot, get_prompt
 from ...usage import CallUsage, from_completion, from_response
 from .errors import AgentError, ModelFailurePhase
-from .parsing import OutputT, parse_structured_output
-from .protocols import ModelLike
+from .parsing import parse_structured_output
+from .protocols import ModelLike, OutputT
 from .usage_log import log_token_usage, record_call
 
 

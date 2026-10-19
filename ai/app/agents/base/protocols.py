@@ -1,6 +1,10 @@
-"""에이전트가 받는 모델의 최소 인터페이스. BaseChatModel과 테스트 스텁 모두 만족."""
+"""에이전트 공통 타입. 주입 모델의 최소 인터페이스(BaseChatModel·테스트 스텁 모두 만족)와 제네릭 타입 변수."""
 
-from typing import Any, Protocol
+from typing import Any, Protocol, TypeVar
+
+from pydantic import BaseModel
+
+OutputT = TypeVar("OutputT", bound=BaseModel)
 
 
 class StructuredModel(Protocol):
