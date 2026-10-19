@@ -36,7 +36,8 @@ class StuckDiagnosesSchedulerTest {
 
     @BeforeEach
     void setUp() {
-        scheduler = new StuckDiagnosesScheduler(productService, new DiagnosesProperties(STUCK_THRESHOLD));
+        scheduler = new StuckDiagnosesScheduler(productService,
+                new DiagnosesProperties(STUCK_THRESHOLD, Duration.ofSeconds(3)));
     }
 
     @Test
