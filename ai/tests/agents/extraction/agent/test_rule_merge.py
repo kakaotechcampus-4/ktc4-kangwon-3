@@ -1,6 +1,7 @@
 """모델 출력과 규칙 추출 결과 병합: (항목명, 값) 기준, 규칙이 모델 값을 덮지 않음 (#40, #90)."""
 
 from app.agents.extraction import ExtractionAgent
+from app.agents.extraction.rules import detect_battery_capacity_conflict
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes
 
@@ -20,6 +21,17 @@ def test_모델이_놓친_배터리_모순도_규칙이_잡아_conflicts에_담�
     assert len(result.conflicts) == 1
     assert "1460mAh" in result.conflicts[0]
     assert any(a.name == "배터리 용량" and a.value == "1460mAh" for a in result.attributes)
+
+
+def test_모델과_규칙이_같은_모순을_내면_한_번만_남긴다(stub_model, records):
+    text_blocks = ["MagSafe 1460mAh 케이스", "배터리 속성 배터리 미포함"]
+    [rule_conflict] = detect_battery_capacity_conflict(text_blocks)
+    reply = ProductAttributes(conflicts=["모델이 먼저 찾은 모순", rule_conflict])
+
+    result = _run(stub_model, reply, *text_blocks)
+
+    # 모델 것이 먼저, 같은 문장은 중복 없이
+    assert result.conflicts == ["모델이 먼저 찾은 모순", rule_conflict]
 
 
 def test_규칙_값이_다른_속성값의_부분문자열이어도_버려지지_않는다(stub_model, records):
