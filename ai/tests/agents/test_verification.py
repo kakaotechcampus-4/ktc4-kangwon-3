@@ -9,7 +9,7 @@ from langchain_core.messages import AIMessage
 
 from app.agents.base import AgentError, MissingParsedOutput
 from app.agents.verification import VerificationAgent, VerificationError
-from app.agents.verification.agent import _Issue, _Question, _Review
+from app.agents.verification.schemas import _Issue, _Question, _Review
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination,
