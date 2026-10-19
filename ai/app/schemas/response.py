@@ -83,6 +83,26 @@ class DiagnosisConflict(ApiModel):
     conflict_product_ids: list[str]
 
 
+class ResumeAccepted(ApiModel):
+    """재진단 접수 결과 (#310). 이후 결과는 새 실행 ID로 콜백 전달.
+
+    Attributes:
+        product_id: 상품 ID (세션 ID).
+        run_id: 새로 발급한 실행 ID (BE Product.assignRun으로 저장).
+        status: 접수 상태. 항상 accepted.
+    """
+
+    product_id: str = Field(min_length=1)
+    run_id: str = Field(min_length=1)
+    status: Literal["accepted"] = "accepted"
+
+
+class ResumeAcceptedResponse(ApiResponse):
+    """재진단 접수 응답 (202). data에 ResumeAccepted가 담긴다."""
+
+    data: ResumeAccepted | None = None
+
+
 def ok(data: Any = None, message: str = "요청이 성공적으로 처리되었습니다.") -> ApiResponse:
     """성공 응답을 생성한다."""
     return ApiResponse(code="OK", message=message, data=data)
