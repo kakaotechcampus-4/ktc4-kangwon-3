@@ -123,7 +123,7 @@ B에서는 추출이 정답이 `null`인 다른 필드 6개(`electrical_powered=
 
 실제로 기준이 갈리는 곳이 있다. 선택 프롬프트는 `wireless_shield=true`면 전파를 선택하라고 하지만,
 검증 에이전트의 누락 검사는 전파 신호로 `wireless_comm`·`wireless_charging`만 본다
-(`app/agents/verification.py`의 `_check_required_tools`). 이 정답표는 선택 프롬프트를 따라
+(`app/agents/verification/rules.py`의 `check_required_tools`). 이 정답표는 선택 프롬프트를 따라
 `wireless_shield_rfid` 전파를 선택으로 매겼다.
 
 선택 담당과 확인해 **선택 프롬프트 쪽을 고치기로 했다**(#188 리뷰). 선택 담당 설명으로는 서비스 구조
