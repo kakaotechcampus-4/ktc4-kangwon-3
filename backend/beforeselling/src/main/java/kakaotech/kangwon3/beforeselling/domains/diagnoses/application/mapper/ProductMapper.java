@@ -55,7 +55,6 @@ public class ProductMapper {
 
         return new ProductResponse(
                 product.getId(),
-                product.getSortOrder(),
                 product.getProductName(),
                 s3UrlKeyCodec.toUrlOrNull(product.getProductImageKey()),
                 product.getSourceType(),

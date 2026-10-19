@@ -110,7 +110,7 @@ class DiagnosesMapperTest {
     }
 
     @Test
-    @DisplayName("상품 여러 개를 담은 진단서를 변환하면 정렬 값과 함께 모두 반환된다.")
+    @DisplayName("상품 여러 개를 담은 진단서를 변환하면 등록한 순서대로 모두 반환된다.")
     void toDetailResponse_withMultipleProducts_thenIncludeAllInOrder() {
         // given
         Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY, "상품 A", "상품 B", "상품 C");
@@ -120,11 +120,8 @@ class DiagnosesMapperTest {
 
         // then
         assertThat(response.products())
-                .extracting(ProductResponse::productName, ProductResponse::sortOrder)
-                .containsExactly(
-                        org.assertj.core.api.Assertions.tuple("상품 A", 0),
-                        org.assertj.core.api.Assertions.tuple("상품 B", 1),
-                        org.assertj.core.api.Assertions.tuple("상품 C", 2));
+                .extracting(ProductResponse::productName)
+                .containsExactly("상품 A", "상품 B", "상품 C");
     }
 
     @Test

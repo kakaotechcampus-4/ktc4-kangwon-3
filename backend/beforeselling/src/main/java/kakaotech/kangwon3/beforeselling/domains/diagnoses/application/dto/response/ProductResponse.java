@@ -14,9 +14,6 @@ public record ProductResponse(
         @Schema(example = "0b9f3c2e-6d1a-4f7b-9c8e-2a5d4e3f1b6c")
         UUID productId,
 
-        @Schema(description = "업로드 순서(0부터)", example = "0")
-        int sortOrder,
-
         @Schema(example = "무선 블루투스 이어폰")
         String productName,
 
