@@ -1,12 +1,14 @@
-import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 import {
     AssessmentStatus,
     Determination,
+    PipelineStage,
     type ProductResult,
     RiskLevel,
+    StageStatus,
     ToolName,
     ToolReviewStatus,
-} from "@/pages/Result/types";
+} from "@/api/product";
+import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 
 // TEMP: UI 구현을 위한 목업 데이터. 완료 3건 + 미완료(대기/진행중) 2건.
 const MOCK_PRODUCT_RESULTS: ProductResult[] = [
@@ -19,6 +21,9 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         sourceText: null,
         imageUrls: [],
         processingStatus: ProcessingStatusType.Completed,
+        progresses: [],
+        questions: [],
+        failure: null,
         assessmentStatus: AssessmentStatus.Completed,
         resultStatus: ResultStatus.DirectImportCertificationRequired,
         summary: "블루투스 무선기기로 전파법상 적합성평가 대상이라 사입 전 KC 전파인증이 필요합니다. 구매대행은 개인 사용 목적 면제 범위 안에서 가능합니다.",
@@ -173,6 +178,9 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         sourceText: "접이식 알루미늄 캠핑 테이블, 휴대용 가방 포함",
         imageUrls: [],
         processingStatus: ProcessingStatusType.Completed,
+        progresses: [],
+        questions: [],
+        failure: null,
         assessmentStatus: AssessmentStatus.Completed,
         resultStatus: ResultStatus.PurchasingAgentAllowed,
         summary: "전기·전파 요소가 없고 별도 인증 대상이 아니라 구매대행이 가능합니다.",
@@ -207,6 +215,9 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         sourceText: null,
         imageUrls: [],
         processingStatus: ProcessingStatusType.Completed,
+        progresses: [],
+        questions: [],
+        failure: null,
         assessmentStatus: AssessmentStatus.Incomplete,
         resultStatus: ResultStatus.RecheckRequired,
         summary: "상세페이지 정보만으로는 어린이제품 안전기준 대상 여부를 확정하기 어려워 재확인이 필요합니다.",
@@ -241,6 +252,9 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         sourceText: "야광 비즈로 팔찌를 만드는 DIY 키트, 5가지 색상",
         imageUrls: [],
         processingStatus: ProcessingStatusType.Pending,
+        progresses: [],
+        questions: [],
+        failure: null,
         assessmentStatus: null,
         resultStatus: null,
         summary: null,
@@ -257,6 +271,13 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         sourceText: null,
         imageUrls: [],
         processingStatus: ProcessingStatusType.InProgress,
+        progresses: [
+            { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.ToolExecution, toolName: ToolName.Customs, stageStatus: StageStatus.Started },
+        ],
+        questions: [],
+        failure: null,
         assessmentStatus: null,
         resultStatus: null,
         summary: null,
