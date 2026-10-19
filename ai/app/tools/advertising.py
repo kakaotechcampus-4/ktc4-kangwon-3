@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from .base import RegulatoryTool
-from ..agents.base import Agent, AgentError, ModelFailurePhase, ModelLike
+from ..agents.base import AgentError, BaseAgent, ModelFailurePhase, ModelLike
 from ..prompts import PromptName
 from ..schemas.advertising import AdvertisingClaim, AdvertisingReview, AdvertisingRiskType
 from ..schemas.agent import ToolSelectionItem
@@ -147,7 +147,7 @@ class AdvertisingReviewInput:
     lines: list[str]
 
 
-class AdvertisingReviewer(Agent[AdvertisingReviewInput, AdvertisingReview, AdvertisingReview]):
+class AdvertisingReviewer(BaseAgent[AdvertisingReviewInput, AdvertisingReview, AdvertisingReview]):
     """listing_text에서 실증이 필요한 주장을 인용하는 모델 호출부."""
 
     component_name = "advertising"

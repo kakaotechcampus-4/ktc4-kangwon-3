@@ -1,4 +1,4 @@
-"""규제 Tool 안의 모델 호출 한 단계(조건 추출, 품목 선택). 공통 실행 인터페이스(Agent)로 호출·사용량 기록·예외 변환을 맞춤."""
+"""규제 Tool 안의 모델 호출 한 단계(조건 추출, 품목 선택). 공통 에이전트 베이스(BaseAgent)로 호출·사용량 기록·예외 변환을 맞춤."""
 
 import json
 from dataclasses import dataclass
@@ -7,7 +7,7 @@ from typing import Any, TypeVar
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
-from ...agents.base import Agent, AgentError, ModelFailurePhase
+from ...agents.base import AgentError, BaseAgent, ModelFailurePhase
 
 _Output = TypeVar("_Output", bound=BaseModel)
 
@@ -29,7 +29,7 @@ class ToolStepInput:
     subject_id: str
 
 
-class ToolStep(Agent[ToolStepInput, _Output, _Output]):
+class ToolStep(BaseAgent[ToolStepInput, _Output, _Output]):
     """입력 dict를 JSON으로 보내고 구조화 출력을 받는 단계.
 
     하위 클래스는 component_name, prompt_name, output_schema, error_class와 failure_label을 정함.

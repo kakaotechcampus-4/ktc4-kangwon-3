@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ToolSelectionResponse
 from ...schemas.product import Product
-from ..base import Agent, AgentError
+from ..base import AgentError, BaseAgent
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.SELECTION).path
@@ -17,7 +17,7 @@ class SelectionFailedError(AgentError):
     """선택 모델 호출·파싱 실패. 원인 예외는 ``__cause__``."""
 
 
-class SelectionAgent(Agent[Product, ToolSelectionResponse, ToolSelectionResponse]):
+class SelectionAgent(BaseAgent[Product, ToolSelectionResponse, ToolSelectionResponse]):
     """추출된 상품 정보를 보고 6개 심사 도메인 각각의 선택 여부와 이유를 낸다.
 
     평가 호출은 usage_agent("selection-eval")로 운영 비용과 구분.

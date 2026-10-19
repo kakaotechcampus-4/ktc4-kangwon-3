@@ -36,7 +36,7 @@ class AgentRunMeta(StrictModel):
 
 @dataclass(frozen=True)
 class AgentResult(Generic[ResultT]):
-    """에이전트 결과와 실행 정보 묶음 (``Agent.run_with_meta`` 반환값).
+    """에이전트 결과와 실행 정보 묶음 (``BaseAgent.run_with_meta`` 반환값).
 
     Attributes:
         result: 에이전트 결과.
