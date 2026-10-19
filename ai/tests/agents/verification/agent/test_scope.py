@@ -18,8 +18,9 @@ def test_검토_범위가_다르면_실패_trace와_규칙_결과를_남긴다(s
     assert trace[-1].status == "failed"
     assert exc_info.value.partial_result is not None
     assert exc_info.value.partial_result.checked_finding_ids == []
-    # 모델은 이미 불렀으므로 실행 정보도 담김
+    # 모델은 이미 불렀으므로 실행 정보도 담기고, 사용량은 finalize 실패 1행
     assert exc_info.value.meta is not None
+    assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "finalize")]
 
 
 def test_검토_범위에_중복이_있으면_실패한다(samples, stub_model, records):

@@ -56,8 +56,12 @@ def test_모델이_빠뜨린_번호는_결과에도_없다(fake_gateway, records
 def test_입력에_없는_번호를_돌려주면_실패로_알린다(fake_gateway, records):
     agent = ImageTriageAgent(fake_gateway(_answer((1, "product"), (4, "specification")), "stop", []))
 
-    with pytest.raises(ImageTriageFailedError, match=r"\[4\]"):
+    with pytest.raises(ImageTriageFailedError, match=r"\[4\]") as caught:
         agent.run(_input())
+
+    # 응답은 스키마에 맞으나 후처리에서 거름 → 성공이 아니라 finalize 실패로 기록
+    assert (records[0]["ok"], records[0]["failure_phase"]) == (False, "finalize")
+    assert caught.value.meta is not None
 
 
 @pytest.mark.parametrize("content", [

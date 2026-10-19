@@ -21,6 +21,7 @@ class AgentRunMeta(StrictModel):
         cost_krw: 예상 비용(원). 단가를 모르면 None.
         elapsed_ms: 걸린 시간(ms).
         error_type: 실패 원인 예외 이름. 성공이면 None.
+        failure_phase: 실패 단계 (call·parsing·finalize). 성공이면 None.
     """
 
     component: str
@@ -32,6 +33,7 @@ class AgentRunMeta(StrictModel):
     cost_krw: float | None = None
     elapsed_ms: int = 0
     error_type: str | None = None
+    failure_phase: str | None = None
 
 
 @dataclass(frozen=True)
