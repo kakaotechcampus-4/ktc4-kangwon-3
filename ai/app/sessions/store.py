@@ -14,7 +14,7 @@ from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment
-from ..schemas.session import DiagnosisSession, SessionStatus
+from ..schemas.session import DiagnosisSession, SessionAnswer, SessionStatus
 
 # 진행 중으로 보는 상태. 같은 상품의 새 접수를 막음
 ACTIVE_STATUSES = frozenset({SessionStatus.ACCEPTED, SessionStatus.RUNNING, SessionStatus.AWAITING_INPUT})
@@ -32,6 +32,26 @@ class SessionConflictError(RuntimeError):
     def __init__(self, product_ids: list[str]) -> None:
         super().__init__(f"이미 진행 중인 상품이 있습니다: {', '.join(product_ids)}")
         self.product_ids = product_ids
+
+
+class SessionNotFoundError(LookupError):
+    """재진단할 세션이 없는 경우. AI 재시작·정리로 사라진 세션 포함."""
+
+
+class ResumeConflictError(RuntimeError):
+    """답변 대기가 아니거나, 요청이 기다리는 질문(실행·회차·진단서)과 맞지 않는 경우. 중복·늦게 온 답변."""
+
+
+class UnknownQuestionKeyError(ValueError):
+    """이번 회차에 묻지 않은 질문의 답변이 섞인 경우.
+
+    Attributes:
+        question_keys: 묻지 않은 질문 키 목록.
+    """
+
+    def __init__(self, question_keys: list[str]) -> None:
+        super().__init__(f"이번 회차에 묻지 않은 질문입니다: {', '.join(question_keys)}")
+        self.question_keys = question_keys
 
 
 class SessionStore:
@@ -88,6 +108,71 @@ class SessionStore:
                 self._sessions[item.product_id] = session
                 accepted.append(session)
             return accepted
+
+    def resume(
+        self,
+        *,
+        diagnosis_id: str,
+        product_id: str,
+        run_id: str,
+        question_round: int,
+        answers: dict[str, str],
+    ) -> DiagnosisSession:
+        """답변 대기 세션에 답변을 더해 새 실행으로 다시 접수한다 (#310).
+
+        원래 입력·이전 결과·질문은 그대로 두고, 새 run_id로 접수 상태가 됨.
+        시간 초과 기준(accepted_at)은 재접수 시각부터. 답하지 않은 질문은 허용.
+
+        Args:
+            diagnosis_id: BE 진단서 ID. 세션과 같아야 함.
+            product_id: 세션 ID (상품 ID).
+            run_id: 질문으로 끝난 실행 ID. 지금 세션의 실행과 같아야 함.
+            question_round: 답하는 질문 회차. 지금 기다리는 회차와 같아야 함.
+            answers: 질문 키 → 답변.
+
+        Returns:
+            DiagnosisSession: 재접수된 세션.
+
+        Raises:
+            SessionNotFoundError: 세션이 없는 경우.
+            ResumeConflictError: 답변 대기가 아니거나 실행·회차·진단서가 다른 경우.
+            UnknownQuestionKeyError: 이번 회차에 묻지 않은 질문 키가 있는 경우.
+        """
+        with self._lock:
+            session = self._sessions.get(product_id)
+            if session is None:
+                raise SessionNotFoundError(f"세션이 없습니다: {product_id}")
+            if session.status is not SessionStatus.AWAITING_INPUT:
+                raise ResumeConflictError(f"답변 대기 상태가 아닙니다: {product_id} ({session.status})")
+            expected = (session.context.diagnosis_id, session.context.run_id, session.question_round)
+            if (diagnosis_id, run_id, question_round) != expected:
+                raise ResumeConflictError(f"기다리는 질문과 다른 답변입니다: {product_id}")
+            asked = {question.question_key for question in session.questions}
+            unknown = [key for key in answers if key not in asked]
+            if unknown:
+                raise UnknownQuestionKeyError(unknown)
+
+            now = self._clock()
+            context = ExecutionContext.start(
+                product_id=product_id, run_type=session.context.run_type, diagnosis_id=diagnosis_id,
+            )
+            new_answers = [
+                SessionAnswer(question_round=question_round, question_key=key, answer_text=text)
+                for key, text in answers.items()
+            ]
+            resumed = DiagnosisSession.model_validate({
+                **dict(session),
+                "context": context,
+                "status": SessionStatus.ACCEPTED,
+                "stage": None,
+                "stage_started_at": None,
+                "termination_reason": None,
+                "answers": [*session.answers, *new_answers],
+                "accepted_at": now,
+                "updated_at": now,
+            })
+            self._sessions[product_id] = resumed
+            return resumed
 
     def get(self, product_id: str) -> DiagnosisSession | None:
         """세션을 조회한다.

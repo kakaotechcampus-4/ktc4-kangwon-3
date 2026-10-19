@@ -10,7 +10,13 @@ from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
 from app.schemas.session import SessionStatus
-from app.sessions.store import SessionConflictError, SessionStore
+from app.sessions.store import (
+    ResumeConflictError,
+    SessionConflictError,
+    SessionNotFoundError,
+    SessionStore,
+    UnknownQuestionKeyError,
+)
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
 _QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
@@ -241,3 +247,121 @@ def test_재접수된_세션은_옛_실행의_컨텍스트로_바꿀_수_없다(
     session = store.get("p-1")
     assert session.context.run_id != old.run_id
     assert (session.status, session.stage, session.result) == (SessionStatus.RUNNING, None, None)
+
+
+def _awaiting_session(store: SessionStore, product_id: str = "p-1"):
+    """질문으로 끝나 답변을 기다리는 세션."""
+    store.accept("d-1", _inputs(product_id))
+    store.start(_ctx(store, product_id))
+    return store.finish(_ctx(store, product_id), _awaiting_result(product_id), _QUESTIONS)
+
+
+def _resume(store: SessionStore, waiting, **fields):
+    request = {
+        "diagnosis_id": "d-1", "product_id": waiting.context.product_id, "run_id": waiting.context.run_id,
+        "question_round": waiting.question_round, "answers": {"battery_only": "네"}, **fields,
+    }
+    return store.resume(**request)
+
+
+def test_답변_대기_세션을_답변과_함께_새_실행으로_재접수한다():
+    clock = _Clock()
+    store = _store(clock)
+    waiting = _awaiting_session(store)
+    clock.advance(minutes=30)
+
+    session = _resume(store, waiting)
+
+    assert session.context.run_id != waiting.context.run_id
+    assert (session.context.diagnosis_id, session.context.run_type) == ("d-1", RunType.PRODUCTION)
+    assert (session.status, session.stage, session.termination_reason) == (SessionStatus.ACCEPTED, None, None)
+    assert [(a.question_round, a.question_key, a.answer_text) for a in session.answers] == [(1, "battery_only", "네")]
+    # 시간 초과 기준은 재접수 시각부터
+    assert session.accepted_at == START + timedelta(minutes=30)
+    assert store.get("p-1") == session
+
+
+def test_재접수해도_원래_입력과_이전_결과와_질문은_그대로_둔다():
+    store = _store()
+    waiting = _awaiting_session(store)
+
+    session = _resume(store, waiting)
+
+    assert (session.source, session.result) == (waiting.source, waiting.result)
+    assert (session.question_round, session.questions) == (1, _QUESTIONS)
+
+
+def test_세션이_없으면_재접수하지_않는다():
+    store = _store()
+
+    with pytest.raises(SessionNotFoundError):
+        store.resume(diagnosis_id="d-1", product_id="p-1", run_id="run-1", question_round=1, answers={"k": "네"})
+
+
+@pytest.mark.parametrize("finish", [
+    lambda store: None,                                                                      # 실행 중
+    lambda store: store.finish(_ctx(store, "p-1"), build_dummy_assessment("p-1")),           # 완료
+    lambda store: store.fail(_ctx(store, "p-1"), error_code="AI_TIMEOUT", retryable=True),  # 실패
+])
+def test_답변_대기가_아니면_재접수하지_않는다(finish):
+    store = _store()
+    store.accept("d-1", _inputs("p-1"))
+    store.start(_ctx(store, "p-1"))
+    finish(store)
+    before = store.get("p-1")
+
+    with pytest.raises(ResumeConflictError):
+        store.resume(
+            diagnosis_id="d-1", product_id="p-1", run_id=before.context.run_id, question_round=1,
+            answers={"battery_only": "네"},
+        )
+
+    assert store.get("p-1") == before
+
+
+@pytest.mark.parametrize("fields", [
+    {"run_id": "other-run"},
+    {"question_round": 2},
+    {"diagnosis_id": "d-2"},
+])
+def test_기다리는_실행_회차_진단서와_다르면_재접수하지_않는다(fields):
+    store = _store()
+    waiting = _awaiting_session(store)
+
+    with pytest.raises(ResumeConflictError):
+        _resume(store, waiting, **fields)
+
+    assert store.get("p-1") == waiting
+
+
+def test_같은_답변이_두_번_오면_두_번째는_거절한다():
+    # 첫 요청으로 이미 접수 상태라 BE 재시도·중복 요청은 새 실행을 만들지 않음
+    store = _store()
+    waiting = _awaiting_session(store)
+    first = _resume(store, waiting)
+
+    with pytest.raises(ResumeConflictError):
+        _resume(store, waiting)
+
+    assert store.get("p-1") == first
+
+
+def test_이번_회차에_묻지_않은_질문_키가_있으면_거절한다():
+    store = _store()
+    waiting = _awaiting_session(store)
+
+    with pytest.raises(UnknownQuestionKeyError) as caught:
+        _resume(store, waiting, answers={"battery_only": "네", "target_age": "8세"})
+
+    assert caught.value.question_keys == ["target_age"]
+    assert store.get("p-1") == waiting
+
+
+def test_재접수_뒤_질문으로_끝난_실행의_늦은_변경은_무시한다():
+    store = _store()
+    waiting = _awaiting_session(store)
+    _resume(store, waiting)
+
+    assert store.start(waiting.context) is None
+    assert store.fail(waiting.context, error_code="AI_TIMEOUT", retryable=True) is None
+    assert store.start(_ctx(store, "p-1")).status is SessionStatus.RUNNING
