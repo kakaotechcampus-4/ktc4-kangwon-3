@@ -156,7 +156,7 @@ def run_product(
             _dump(run_dir / "extraction_input.json", extraction_input.model_dump(mode="json"))
             started = time.monotonic()
             try:
-                product = extractor.extract(extraction_input).model_dump(mode="json")
+                product = extractor.run(extraction_input).model_dump(mode="json")
             except ExtractionFailedError as exc:
                 product = {"_failed": type(exc.__cause__ or exc).__name__}
             _dump(run_dir / "product.json", product)

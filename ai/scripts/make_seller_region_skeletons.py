@@ -18,7 +18,7 @@ from pathlib import Path
 AI_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(AI_ROOT))
 
-from app.utils.seller_region import extract_seller_region  # noqa: E402
+from app.agents.extraction.seller_region import extract_seller_region  # noqa: E402
 
 RAW_DIR = AI_ROOT / "tests" / "fixtures" / "_raw"
 OUT_DIR = AI_ROOT / "tests" / "fixtures" / "seller_region"
