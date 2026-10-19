@@ -6,11 +6,13 @@ import pytest
 
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
+from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
 from app.schemas.session import SessionStatus
 from app.sessions.store import SessionConflictError, SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+_QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
 
 
 class _Clock:
@@ -57,7 +59,7 @@ def test_상품마다_실행_컨텍스트를_만들어_접수한다():
 @pytest.mark.parametrize("make_active", [
     lambda store: None,                                   # 접수
     lambda store: store.start(_ctx(store, "p-1")),                     # 실행 중
-    lambda store: (store.start(_ctx(store, "p-1")), store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"))),  # 답변 대기
+    lambda store: (store.start(_ctx(store, "p-1")), store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), _QUESTIONS)),  # 답변 대기
 ])
 def test_진행_중인_상품이_섞이면_요청_전체를_거절한다(make_active):
     # #263: 진행 중 상품 포함 시 요청 전체 거절
@@ -119,10 +121,32 @@ def test_답변이_필요한_결과는_답변_대기로_둔다():
     store.accept("d-1", ["p-1"])
     store.start(_ctx(store, "p-1"))
 
-    session = store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"))
+    session = store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), _QUESTIONS)
 
     assert session.status is SessionStatus.AWAITING_INPUT
     assert session.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED
+    assert (session.question_round, session.questions) == (1, _QUESTIONS)
+
+
+def test_질문_없이_답변_대기로_끝내지_않는다():
+    store = _store()
+    store.accept("d-1", ["p-1"])
+    store.start(_ctx(store, "p-1"))
+
+    with pytest.raises(ValueError):
+        store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"))
+
+    assert store.get("p-1").status is SessionStatus.RUNNING
+
+
+def test_완료는_질문을_넘겨도_기록하지_않는다():
+    store = _store()
+    store.accept("d-1", ["p-1"])
+    store.start(_ctx(store, "p-1"))
+
+    session = store.finish(_ctx(store, "p-1"), build_dummy_assessment("p-1"), _QUESTIONS)
+
+    assert (session.status, session.question_round, session.questions) == (SessionStatus.COMPLETED, 0, [])
 
 
 def test_실패는_종료_사유_없이_오류_코드로만_기록한다():
@@ -174,7 +198,7 @@ def test_보관_시간이_지난_종료_세션만_지우고_답변_대기는_남
         store.start(_ctx(store, product_id))
     store.finish(_ctx(store, "done"), build_dummy_assessment("done"))
     store.fail(_ctx(store, "failed"), error_code="AI_PIPELINE_ERROR", retryable=True)
-    store.finish(_ctx(store, "waiting"), _awaiting_result("waiting"))
+    store.finish(_ctx(store, "waiting"), _awaiting_result("waiting"), _QUESTIONS)
 
     clock.advance(minutes=59)
     assert store.purge() == 0

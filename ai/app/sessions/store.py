@@ -11,6 +11,7 @@ from typing import Any
 from ..config import SESSION_RETENTION_SECONDS
 from ..observability.context import ExecutionContext, PipelineStage, RunType
 from ..schemas.base import utc_now
+from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment
 from ..schemas.session import DiagnosisSession, SessionStatus
 
@@ -137,27 +138,40 @@ class SessionStore:
             context, {SessionStatus.RUNNING}, stage=stage, stage_started_at=self._clock(),
         )
 
-    def finish(self, context: ExecutionContext, result: FinalAssessment) -> DiagnosisSession | None:
+    def finish(
+        self,
+        context: ExecutionContext,
+        result: FinalAssessment,
+        questions: list[PublicQuestionDto] | None = None,
+    ) -> DiagnosisSession | None:
         """실행 결과를 기록한다.
 
-        종료 사유가 user_input_required면 답변 대기, 그 외는 완료로 둠.
+        종료 사유가 user_input_required면 답변 대기(질문 회차 1 증가), 그 외는 완료로 둠.
 
         Args:
             context: 이 실행의 컨텍스트. 세션의 run_id와 같을 때만 바꿈.
             result: 파이프라인 최종 결과.
+            questions: 답변 대기로 끝날 때 보낼 질문. 완료면 무시.
 
         Returns:
             DiagnosisSession | None: 바뀐 세션. 실행 중이 아니거나(시간 초과로 이미 실패 등)
                 재접수로 다른 실행의 세션이면 None. 늦게 끝난 결과 무시용.
+
+        Raises:
+            ValueError: 답변 대기로 끝나는데 질문이 없는 경우.
         """
-        status = (
-            SessionStatus.AWAITING_INPUT
-            if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED
-            else SessionStatus.COMPLETED
-        )
+        if result.termination_reason is not ExecutionEndReason.USER_INPUT_REQUIRED:
+            return self._transition(
+                context, {SessionStatus.RUNNING},
+                status=SessionStatus.COMPLETED, termination_reason=result.termination_reason, result=result,
+            )
+        if not questions:
+            raise ValueError("답변 대기로 끝나는 결과에는 질문이 필요합니다.")
         return self._transition(
             context, {SessionStatus.RUNNING},
-            status=status, termination_reason=result.termination_reason, result=result,
+            derive=lambda session: {"question_round": session.question_round + 1},
+            status=SessionStatus.AWAITING_INPUT, termination_reason=result.termination_reason, result=result,
+            questions=list(questions),
         )
 
     def fail(self, context: ExecutionContext, *, error_code: str, retryable: bool) -> DiagnosisSession | None:
@@ -195,9 +209,16 @@ class SessionStore:
             return len(expired)
 
     def _transition(
-        self, context: ExecutionContext, allowed: set[SessionStatus], **changes: Any,
+        self,
+        context: ExecutionContext,
+        allowed: set[SessionStatus],
+        derive: Callable[[DiagnosisSession], dict[str, Any]] | None = None,
+        **changes: Any,
     ) -> DiagnosisSession | None:
-        """같은 실행(run_id)의 세션이 허용된 상태일 때만 바꾼다. 바꾼 세션은 새 객체로 교체."""
+        """같은 실행(run_id)의 세션이 허용된 상태일 때만 바꾼다. 바꾼 세션은 새 객체로 교체.
+
+        derive는 지금 세션 값으로 계산하는 변경(회차 증가 등). 잠금 안에서 부름.
+        """
         product_id = context.product_id
         with self._lock:
             session = self._sessions.get(product_id)
@@ -207,8 +228,9 @@ class SessionStore:
             if session.context.run_id != context.run_id:
                 return None
             # 검증(UTC 정규화 등)을 다시 거치도록 model_copy 대신 새로 만듦
+            derived = derive(session) if derive else {}
             updated = DiagnosisSession.model_validate(
-                {**dict(session), **changes, "updated_at": self._clock()},
+                {**dict(session), **changes, **derived, "updated_at": self._clock()},
             )
             self._sessions[product_id] = updated
             return updated

@@ -346,16 +346,16 @@ class DummyAssessmentPresenter:
             notices=result.missing_information,
         )
 
-    def questions(self, result: FinalAssessment) -> tuple[int, list[PublicQuestionDto]]:
-        """답변 대기 결과의 질문. 가짜 진단은 질문으로 끝나지 않아 고정 질문 하나.
+    def questions(self, result: FinalAssessment) -> list[PublicQuestionDto]:
+        """답변 대기 결과의 질문. 가짜 진단은 질문으로 끝나지 않아 고정 질문 하나. 회차는 세션이 셈.
 
         Args:
             result: 가짜 진단 결과.
 
         Returns:
-            tuple[int, list[PublicQuestionDto]]: (질문 회차 1, 고정 질문).
+            list[PublicQuestionDto]: 고정 질문.
         """
-        return 1, [PublicQuestionDto(
+        return [PublicQuestionDto(
             question_key="battery_only", question_order=1, question_text="내장 배터리로만 동작하나요?",
             help_text="배터리 전용이면 안전인증 대상에서 빠질 수 있어요.",
         )]

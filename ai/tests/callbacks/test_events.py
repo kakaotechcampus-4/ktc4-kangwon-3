@@ -11,22 +11,19 @@ from app.schemas.session import DiagnosisSession
 from app.sessions.store import SessionStore
 
 
+_QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
+
+
 class _Presenter:
-    """고정 진단서·질문을 돌려주는 가짜 변환기."""
+    """고정 진단서를 돌려주는 가짜 변환기."""
 
     def assessment(self, result):
         return PublicAssessmentDto(status="completed", result_status="DIRECT_IMPORT_CERTIFICATION_REQUIRED",
                                    summary=result.summary)
 
-    def questions(self, result):
-        return 1, [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
-
 
 class _BrokenPresenter(_Presenter):
     def assessment(self, result):
-        raise ValueError("변환 실패")
-
-    def questions(self, result):
         raise ValueError("변환 실패")
 
 
@@ -83,13 +80,12 @@ def test_실행_시작과_내부_전용_단계와_같은_단계_반복은_이벤
     assert builder.build(store.update_stage(context, PipelineStage.EXTRACTION)) == []
 
 
-def test_답변_대기는_질문_이벤트로_보낸다():
+def test_답변_대기는_세션에_기록된_회차와_질문으로_질문_이벤트를_보낸다():
     store, context, _ = _running()
 
-    [event] = _builder().build(store.finish(context, _awaiting("p-1")))
+    [event] = _builder().build(store.finish(context, _awaiting("p-1"), _QUESTIONS))
 
-    assert (event.event_type, event.question_round, event.questions[0].question_key) == (
-        "product_awaiting_input", 1, "battery_only")
+    assert (event.event_type, event.question_round, event.questions) == ("product_awaiting_input", 1, _QUESTIONS)
 
 
 def test_실패와_시간_초과는_마지막_단계와_공개_문구로_보낸다():
@@ -163,14 +159,6 @@ def test_진단서_변환이_실패하면_실패_이벤트로_끝낸다(caplog):
     assert (event.event_type, event.sequence, event.stage) == ("product_failed", 2, "extraction")
     assert (event.error.code, event.error.retryable) == ("AI_PIPELINE_ERROR", False)
     assert "변환 실패" in caplog.text
-
-
-def test_질문_변환이_실패해도_실패_이벤트로_끝낸다():
-    store, context, _ = _running()
-
-    [event] = _builder(_BrokenPresenter()).build(store.finish(context, _awaiting("p-1")))
-
-    assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)
 
 
 def test_변환_실패로_끝난_실행의_늦은_변경은_이벤트를_만들지_않는다():

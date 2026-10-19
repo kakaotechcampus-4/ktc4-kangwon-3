@@ -7,6 +7,7 @@ from pydantic import AwareDatetime, Field, field_validator
 
 from ..observability.context import ExecutionContext, PipelineStage
 from .base import StrictModel, utc_now
+from .callback import PublicQuestionDto
 from .schemas import ExecutionEndReason, FinalAssessment
 
 
@@ -36,6 +37,8 @@ class DiagnosisSession(StrictModel):
         stage: 현재 단계 (#171 PipelineStage). 실행 전이면 None.
         termination_reason: 실행 종료 사유. 종료 전이거나 실패면 None.
         result: 진단 결과. 결과 없이 끝났으면 None.
+        question_round: 마지막으로 보낸 질문 회차. 질문 전이면 0.
+        questions: 그 회차에 보낸 질문. 질문 콜백과 재진단 답변 검사의 기준.
         error_code: 실패 코드. 실패가 아니면 None.
         retryable: 같은 요청을 다시 보내 복구 가능한지. 실패가 아니면 None.
         accepted_at: 접수 시각 (UTC).
@@ -48,6 +51,8 @@ class DiagnosisSession(StrictModel):
     stage: PipelineStage | None = None
     termination_reason: ExecutionEndReason | None = None
     result: FinalAssessment | None = None
+    question_round: int = Field(default=0, ge=0, strict=True)
+    questions: list[PublicQuestionDto] = Field(default_factory=list)
     error_code: str | None = None
     retryable: bool | None = None
     accepted_at: AwareDatetime = Field(default_factory=utc_now)

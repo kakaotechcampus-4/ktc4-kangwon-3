@@ -9,12 +9,14 @@ import pytest
 from app.observability.context import PipelineStage
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
+from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import SessionStatus
 from app.sessions.executor import QueueFullError, SessionExecutor
 from app.sessions.store import SessionConflictError, SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+_QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
 
 
 class _Clock:
@@ -63,6 +65,13 @@ def _inputs(*product_ids: str) -> list[ExtractionInput]:
     return [ExtractionInput(product_id=pid, text_blocks=["상품 설명"]) for pid in product_ids]
 
 
+def _awaiting(product_id: str):
+    return build_dummy_assessment(product_id).model_copy(update={
+        "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+    })
+
+
 def _status(store: SessionStore, product_id: str) -> SessionStatus | None:
     session = store.get(product_id)
     return session.status if session else None
@@ -78,6 +87,7 @@ def executors():
 
 def _executor(executors, job, **kwargs) -> SessionExecutor:
     clock = kwargs.pop("clock", _Clock())
+    kwargs.setdefault("questions", lambda result: _QUESTIONS)
     executor = SessionExecutor(SessionStore(clock=clock), job, clock=clock, **kwargs)
     executors.append(executor)
     return executor
@@ -151,14 +161,50 @@ def test_진행_중인_상품이_섞이면_접수하지_않고_대기열도_차�
     executor.submit("d-3", _inputs("p-2"))
 
 
-def test_답변_대기로_끝나면_실행_자리를_반납한다(executors):
-    def awaiting(product_id):
-        return build_dummy_assessment(product_id).model_copy(update={
-            "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
-            "verification_status": FinalVerificationStatus.INCOMPLETE,
-        })
+def test_답변_대기로_끝나면_질문과_회차를_세션에_기록한다(executors):
+    job = _GatedJob(result_for=_awaiting)
+    executor = _executor(executors, job)
 
-    job = _GatedJob(result_for=awaiting)
+    executor.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.AWAITING_INPUT)
+
+    session = executor.store.get("p-1")
+    assert (session.question_round, session.questions) == (1, _QUESTIONS)
+
+
+def test_질문_변환이_실패하면_재시도_불가_실패로_기록한다(executors):
+    # 질문 없이 답변 대기로 두면 질문 콜백을 못 보내 BE에서 진행 중으로 남음
+    def broken(result):
+        raise ValueError("질문 키 없음")
+
+    job = _GatedJob(result_for=_awaiting)
+    executor = _executor(executors, job, questions=broken)
+
+    executor.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.FAILED)
+
+    session = executor.store.get("p-1")
+    assert (session.error_code, session.retryable, session.questions) == ("AI_PIPELINE_ERROR", False, [])
+
+
+def test_완료로_끝나면_질문을_만들지_않는다(executors):
+    def unexpected(result):
+        raise AssertionError("완료 결과에 질문 변환을 부름")
+
+    job = _GatedJob()
+    executor = _executor(executors, job, questions=unexpected)
+
+    executor.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+
+    assert executor.store.get("p-1").question_round == 0
+
+
+def test_답변_대기로_끝나면_실행_자리를_반납한다(executors):
+    job = _GatedJob(result_for=_awaiting)
     executor = _executor(executors, job, max_running=1, max_inflight=1)
 
     executor.submit("d-1", _inputs("p-1"))
