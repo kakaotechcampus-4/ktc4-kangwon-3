@@ -19,7 +19,7 @@ from ..observability.context import ExecutionContext, PipelineStage, RunType
 from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
 from ..schemas.callback import PublicQuestionDto
-from ..schemas.schemas import ExecutionEndReason, FinalAssessment, ToolName
+from ..schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerificationStatus, ToolName
 from ..schemas.session import DiagnosisInput, DiagnosisSession, SessionStatus
 from .store import SessionStore
 
@@ -49,6 +49,25 @@ ToolListener = Callable[[DiagnosisSession, ToolName, ToolProgressStatus], None]
 
 class QueueFullError(RuntimeError):
     """대기 + 실행 중 세션이 상한을 넘어 접수를 거절한 경우."""
+
+
+# 사용자에게 질문하는 최대 회차 (#310). 넘으면 질문 대신 미완료 결과로 끝냄
+MAX_QUESTION_ROUNDS = 2
+# 질문 회차를 다 쓰고 미완료로 끝낼 때 결과에 붙이는 안내 (공개 진단서 notices로 나감)
+QUESTION_LIMIT_NOTICE = "추가 확인이 필요한 정보가 남아 있어 진단을 끝까지 마치지 못했습니다. 판매 전 직접 확인이 필요합니다."
+
+
+def _close_at_question_limit(result: FinalAssessment, context: ExecutionContext) -> FinalAssessment:
+    """질문 회차를 다 쓴 실행의 질문 결과를 미완료 결과로 바꾼다. 남은 질문은 기록용으로 그대로 둠."""
+    logger.warning(
+        "질문 회차 초과로 미완료 처리 (product_id=%s, run_id=%s, 남은 질문 %d개)",
+        context.product_id, context.run_id, len(result.follow_up_questions),
+    )
+    return result.model_copy(update={
+        "termination_reason": ExecutionEndReason.QUESTION_LIMIT_EXCEEDED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+        "missing_information": [*result.missing_information, QUESTION_LIMIT_NOTICE],
+    })
 
 
 class _Progress:
@@ -269,6 +288,9 @@ class SessionExecutor:
             job_input = DiagnosisInput(source=started.source, previous=started.result, answers=started.answers)
             try:
                 result = self._job(job_input, context, _Progress(self, context))
+                if (result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED
+                        and started.question_round >= MAX_QUESTION_ROUNDS):
+                    result = _close_at_question_limit(result, context)
                 # 질문 변환 실패도 진단 실패로. 질문 없이 답변 대기로 두면 BE에서 진행 중으로 남음
                 questions = (
                     self._questions(result)
