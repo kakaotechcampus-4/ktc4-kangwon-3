@@ -201,6 +201,9 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
     ) -> OutputT:
         """모델을 호출해 구조화 출력만 돌려준다. 실행 정보가 필요하면 ``_invoke_with_meta``.
 
+        호출 직후 성공으로 기록하므로 결과를 받은 뒤 실패할 수 있는 후처리가 있으면 쓰지 말 것
+        (``_invoke_with_meta`` 참고).
+
         Args:
             messages: 모델에 보낼 메시지.
             subject_id: 사용량 기록 대상 ID (상품 ID).
@@ -223,6 +226,10 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         partial_result: object | None = None,
     ) -> tuple[OutputT, AgentRunMeta]:
         """모델을 호출해 구조화 출력과 실행 정보를 돌려준다. 성공·실패 모두 사용량을 한 번 기록.
+
+        호출 직후 성공으로 기록하므로, 결과를 받은 뒤 실패할 수 있는 후처리(검사·병합 등)가 있으면 쓰지 말 것.
+        그 경우 ``_call_model``로 받고 후처리가 끝난 뒤 ``_finish_call``(성공)이나 ``_fail_after_call``(실패)로
+        기록 (후처리 실패가 성공으로 남지 않게, ``run_with_meta``·검증 에이전트가 이 방식).
 
         Args:
             messages: 모델에 보낼 메시지.
