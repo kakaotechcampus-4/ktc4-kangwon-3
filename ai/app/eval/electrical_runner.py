@@ -175,8 +175,8 @@ class UsageCapture:
         for step in self._steps:
             original_run = step.run
 
-            def run(payload, *, subject_id, _step=step, _original=original_run):
-                parsed = _original(payload, subject_id=subject_id)
+            def run(input, _step=step, _original=original_run):
+                parsed = _original(input)
                 # 저장 키는 예전 원자료와 같게 "electrical_facts"·"electrical_review"로 둔다(--rescore 호환).
                 self.outputs[_step.component_name.replace("-", "_")] = parsed.model_dump(mode="json")
                 return parsed
