@@ -1,6 +1,7 @@
 """에이전트와 평가 러너가 함께 쓰는 프롬프트 로더 (#171 §3).
 
 모델에 넘기는 본문과 기록하는 지문(sha256)은 같은 스냅샷에서 가져옴.
+파일 위치는 에이전트 패키지 안 ``app/agents/<이름>/prompt.md``가 우선, 없으면 ``app/prompts/<이름>.md``.
 """
 
 from dataclasses import dataclass
@@ -9,8 +10,13 @@ from functools import lru_cache
 from hashlib import sha256
 from pathlib import Path
 
+_PROMPTS_DIR = Path(__file__).parent
+_AGENTS_DIR = _PROMPTS_DIR.parent / "agents"
+
 
 class PromptName(StrEnum):
+    """프롬프트 이름. 값이 파일 위치(``agents/<값>/prompt.md`` 또는 ``prompts/<값>.md``)를 정함."""
+
     EXTRACTION = "extraction"
     SELECTION = "selection"
     VERIFICATION = "verification"
@@ -38,13 +44,47 @@ class PromptSnapshot:
 
 
 def normalize_newlines(text: str) -> str:
-    """CRLF·CR 줄바꿈을 LF로 맞춘다. 운영체제마다 지문이 달라지지 않게 함."""
+    """CRLF·CR 줄바꿈을 LF로 맞춘다. 운영체제마다 지문이 달라지지 않게 함.
+
+    Args:
+        text: 원문.
+
+    Returns:
+        str: 줄바꿈을 LF로 맞춘 문자열.
+    """
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 def fingerprint(text: str) -> str:
-    """줄바꿈을 맞춘 본문의 SHA-256. 로더와 평가 러너가 같은 규칙을 씀."""
+    """줄바꿈을 맞춘 본문의 SHA-256. 로더와 평가 러너가 같은 규칙을 씀.
+
+    Args:
+        text: 프롬프트 본문.
+
+    Returns:
+        str: SHA-256 16진 문자열.
+    """
     return sha256(normalize_newlines(text).encode("utf-8")).hexdigest()
+
+
+def prompt_path(name: PromptName) -> Path:
+    """프롬프트 파일 경로를 찾는다. 에이전트 패키지 안 prompt.md 우선, 없으면 app/prompts.
+
+    Args:
+        name: 프롬프트 이름.
+
+    Returns:
+        Path: 프롬프트 파일 경로. 둘 다 없으면 app/prompts 쪽 경로(읽을 때 FileNotFoundError).
+
+    Raises:
+        RuntimeError: 두 위치에 모두 있는 경우.
+    """
+    package = _AGENTS_DIR / name.value / "prompt.md"
+    legacy = _PROMPTS_DIR / f"{name.value}.md"
+    # 패키지로 옮기고 옛 파일을 안 지움 → 어느 쪽을 읽는지 모호해 거부
+    if package.is_file() and legacy.is_file():
+        raise RuntimeError(f"프롬프트 '{name.value}'가 두 곳에 있습니다: {package}, {legacy}")
+    return package if package.is_file() else legacy
 
 
 @lru_cache(maxsize=None)
@@ -59,8 +99,9 @@ def get_prompt(name: PromptName) -> PromptSnapshot:
 
     Raises:
         FileNotFoundError: 프롬프트 파일이 없는 경우. 실패는 캐시하지 않음.
+        RuntimeError: 패키지·app/prompts 두 위치에 모두 있는 경우.
     """
-    path = Path(__file__).parent / f"{name.value}.md"
+    path = prompt_path(name)
     text = normalize_newlines(path.read_text(encoding="utf-8"))
     return PromptSnapshot(name=name, path=path, text=text, sha256=fingerprint(text))
 
