@@ -36,6 +36,17 @@ def test_상품_정보를_JSON으로_사용자_메시지에_담는다(stub_model
     assert (payload["product_id"], payload["product_name"], payload["electrical_powered"]) == ("test-001", "테스트 상품", True)
 
 
+def test_모르는_값은_빠뜨리지_않고_null로_보내_false와_구분한다(stub_model, records):
+    # 프롬프트 규칙: None은 "없다"가 아니라 정보 부족 → 키가 빠지면 모델이 구분 못 함
+    model = stub_model(_response())
+
+    SelectionAgent(model).run(Product(product_id="test-001", source_url=None, wireless_comm=False))
+
+    payload = json.loads(model.received[0][-1].content)
+    assert (payload["wireless_comm"], payload["for_children"]) == (False, None)
+    assert "for_children" in payload
+
+
 def test_시스템_프롬프트는_선택_프롬프트를_쓴다(stub_model, records):
     model = stub_model(_response())
 

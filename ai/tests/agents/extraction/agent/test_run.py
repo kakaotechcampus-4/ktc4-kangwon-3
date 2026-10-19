@@ -29,6 +29,16 @@ def test_텍스트와_이미지가_모두_없으면_예외를_낸다(stub_model,
         ExtractionAgent(stub_model(ProductAttributes())).run(ExtractionInput(product_id="prod-2"))
 
 
+def test_글_없이_이미지만_있어도_추출한다(stub_model, records):
+    # 상세 설명이 이미지뿐인 상품 (URL 입력에서 글을 못 얻은 경우)
+    model = stub_model(ProductAttributes(product_name="선풍기"))
+
+    result = ExtractionAgent(model).run(ExtractionInput(product_id="prod-img", image_urls=["https://img/spec.jpg"]))
+
+    assert result.product_name == "선풍기"
+    assert [part["type"] for part in model.received[0][-1].content] == ["image_url"]
+
+
 def test_텍스트와_이미지가_하나의_사용자_메시지로_모델에_전달된다(stub_model, records):
     model = stub_model(ProductAttributes())
     # 로컬 이미지는 호출자가 data URI로 바꿔 넣음

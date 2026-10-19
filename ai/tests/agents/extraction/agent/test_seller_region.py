@@ -35,3 +35,14 @@ def test_판매자_제목이_이미_있으면_다시_넣지_않는다(stub_model
     result = ExtractionAgent(model).run(ExtractionInput(product_id="prod-title-2", text_blocks=[aliexpress_page]))
 
     assert result.listing_text == [_TITLE, "판매자 설명 문장"]
+
+
+def test_여러_블록에_같은_판매자_제목이_있어도_한_번만_넣는다(stub_model, records, aliexpress_page):
+    # 같은 페이지를 두 번 수집하는 등 블록마다 제목이 반복되는 경우
+    model = stub_model(ProductAttributes(listing_text=["판매자 설명 문장"]))
+
+    result = ExtractionAgent(model).run(
+        ExtractionInput(product_id="prod-title-3", text_blocks=[aliexpress_page, aliexpress_page])
+    )
+
+    assert result.listing_text == [_TITLE, "판매자 설명 문장"]
