@@ -17,7 +17,7 @@ from collections import Counter
 from pathlib import Path
 
 from ..agents.base import AgentError
-from ..config import MAX_RETRIES, TIMEOUT_SECONDS, load_settings
+from ..config import CHAT_MODELS, MAX_RETRIES, TIMEOUT_SECONDS, ModelProfile, load_settings, tool_profile
 from ..prompts import PromptName, get_prompt
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Product
@@ -42,6 +42,34 @@ def build_model(spec: str):
     options = {"reasoning_effort": effort} if effort else {"temperature": 0}
     return name, ChatOpenAI(model=name, base_url=settings.base_url, api_key=settings.api_key, **options,
                             timeout=TIMEOUT_SECONDS, max_retries=MAX_RETRIES, streaming=True, stream_usage=True)
+
+
+def model_profile(spec: str | None) -> ModelProfile:
+    """측정 조건으로 남길 모델 프로필.
+
+    --model이 없으면 서비스와 같은 표시·광고 Tool 프로필(MODEL_PROFILE_OVERRIDES 반영),
+    있으면 카탈로그 모델로 만든 즉석 프로필. 카탈로그에 없는 모델은 부르지 않는다(profiles.py 원칙).
+
+    Args:
+        spec: --model 값 '이름[#추론강도]'. 없으면 None.
+
+    Returns:
+        ModelProfile: 이번 측정의 모델 조건.
+
+    Raises:
+        SystemExit: 카탈로그에 없는 모델이거나 모델이 받지 않는 옵션 조합인 경우.
+    """
+    if spec is None:
+        return tool_profile(ToolName.LABEL_AD)
+    name, _, effort = spec.partition("#")
+    if name not in CHAT_MODELS:
+        raise SystemExit(f"카탈로그에 없는 모델입니다: {name} (허용: {', '.join(CHAT_MODELS)})")
+    try:
+        # build_model과 같은 옵션: 추론 강도를 주면 temperature를 보내지 않음
+        return ModelProfile(f"--model {spec}", CHAT_MODELS[name],
+                            temperature=None if effort else 0, reasoning_effort=effort or None)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
 
 
 def run_case(tool: AdvertisingTool, product_id: str, lines: list[str], runs: int) -> list[dict]:
@@ -109,7 +137,7 @@ def main() -> int:
     parser.add_argument("--only", action="append", default=[], help="이 product_id만 실행(여러 번 줄 수 있음)")
     parser.add_argument("--rescore", type=Path, help="저장한 결과를 현재 평가셋으로 다시 채점")
     parser.add_argument("--out", type=Path)
-    parser.add_argument("--model", help="이름[#추론강도]. 없으면 .env 모델. 예: openai/gpt-6-luna#low")
+    parser.add_argument("--model", help="카탈로그 모델 '이름[#추론강도]'. 없으면 표시·광고 Tool 프로필. 예: openai/gpt-6-luna#low")
     args = parser.parse_args()
 
     truth, inputs = load_eval_set(args.truth, _AI_ROOT)
@@ -119,6 +147,8 @@ def main() -> int:
         report(truth, saved["results"])
         return 0
 
+    # 모델을 만들기 전에 정함. 카탈로그 밖 모델·잘못된 옵션이면 호출 없이 멈춤
+    profile = model_profile(args.model)
     if args.model:
         name, model = build_model(args.model)
         reviewer = AdvertisingReviewer(model, configured_model=name, usage_agent="advertising-eval")
@@ -126,8 +156,7 @@ def main() -> int:
         reviewer = AdvertisingReviewer(usage_agent="advertising-eval")
     tool = AdvertisingTool(reviewer=reviewer)
     targets = [case["product_id"] for case in truth["cases"] if not args.only or case["product_id"] in args.only]
-    meta = run_metadata(runs=args.runs, model=args.model or reviewer._configured_model or "알 수 없음",
-                        prompt_path=get_prompt(PromptName.ADVERTISING).path)
+    meta = run_metadata(runs=args.runs, profile=profile, prompt_path=get_prompt(PromptName.ADVERTISING).path)
     meta["inputs_sha256_12"] = truth["inputs_sha256_12"]
     meta["truth"] = args.truth.name
     print(describe_metadata(meta))
