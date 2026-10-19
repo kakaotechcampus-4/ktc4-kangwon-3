@@ -75,6 +75,11 @@ public class Diagnoses extends BaseEntity {
         return this.userId.equals(userId);
     }
 
+    // 대기·진행 중인 상품이 있으면 아직 상태가 바뀔 수 있다.
+    public boolean hasProcessingProduct() {
+        return hasAny(ProcessingStatus.PENDING) || hasAny(ProcessingStatus.IN_PROGRESS);
+    }
+
     /**
      * 상품들의 상태로 진단서 전체 상태를 다시 계산한다.
      */
