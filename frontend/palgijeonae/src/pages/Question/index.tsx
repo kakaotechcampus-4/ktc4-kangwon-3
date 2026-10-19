@@ -8,7 +8,7 @@ import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
-import { isMissingDiagnosesId } from "@/lib/routeParams";
+import { isMissingRouteParam } from "@/lib/routeParams";
 
 import { computeAnswerState } from "./answerState";
 import ProgressSummary from "./ProgressSummary";
@@ -26,7 +26,7 @@ function QuestionPage() {
 
     // diagnosesId 없이 잘못 진입한 경우(예: /question/undefined) 요청을 보내지 않고 업로드 페이지로 되돌린다.
     useEffect(() => {
-        if (isMissingDiagnosesId(diagnosesId)) {
+        if (isMissingRouteParam(diagnosesId)) {
             alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
             navigate("/upload", { replace: true });
         }
@@ -36,7 +36,7 @@ function QuestionPage() {
     const { data, isPending: isQuestionsPending, isError: isQuestionsError, refetch: refetchQuestions } = useQuery({
         queryKey: ["questions", diagnosesId],
         queryFn: () => getQuestions(diagnosesId!),
-        enabled: !isMissingDiagnosesId(diagnosesId),
+        enabled: !isMissingRouteParam(diagnosesId),
     });
 
     // 질문 데이터에서 화면에 필요한 파생값(기본값 적용, 탭 이름, 현재 선택된 질문)을 꺼낸다.
