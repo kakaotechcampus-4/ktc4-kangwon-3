@@ -1,10 +1,10 @@
-"""ImageTriageAgent 동작 검증. 실제 게이트웨이 대신 가짜 스트리밍 응답을 쓴다."""
+"""ImageTriageAgent 입출력: [n] 번호 블록, 번호순 결과, 입력에 없는 번호 거부, 호출 안 하는 경우 (#337)."""
 
 import json
 
 import pytest
 
-from app.agents.image_triage import MAX_IMAGES, ImageTriageAgent, ImageTriageFailedError
+from app.agents.image_triage import MAX_IMAGES, ImageTriageAgent, ImageTriageFailedError, ImageTriageInput
 from app.config import AGENT_PROFILES
 from app.schemas.agent import ImageCategory
 
@@ -15,12 +15,16 @@ def _answer(*items: tuple[int, str]) -> str:
     return json.dumps({"items": [{"index": index, "category": category} for index, category in items]})
 
 
-def test_이미지마다_번호를_붙여_순서대로_보낸다(fake_gateway):
+def _input(urls: list[str] = URLS) -> ImageTriageInput:
+    return ImageTriageInput(image_urls=urls, subject_id="page-1")
+
+
+def test_이미지마다_번호를_붙여_순서대로_보낸다(fake_gateway, records):
     requests: list[dict] = []
     agent = ImageTriageAgent(fake_gateway(_answer((1, "product"), (2, "specification"), (3, "unrelated")),
                                           "stop", requests))
 
-    agent.classify(URLS, subject_id="page-1")
+    agent.run(_input())
 
     [request] = requests
     system, user = request["messages"]
@@ -34,28 +38,26 @@ def test_이미지마다_번호를_붙여_순서대로_보낸다(fake_gateway):
     ]
 
 
-def test_분류를_번호순으로_돌려준다(fake_gateway):
+def test_분류를_번호순으로_돌려준다(fake_gateway, records):
     agent = ImageTriageAgent(fake_gateway(_answer((3, "certification"), (1, "product"), (2, "package")), "stop", []))
 
-    result = agent.classify(URLS, subject_id="page-1")
+    result = agent.run(_input())
 
     assert [(item.index, item.category) for item in result.items] == [
         (1, ImageCategory.PRODUCT), (2, ImageCategory.PACKAGE), (3, ImageCategory.CERTIFICATION)]
 
 
-def test_모델이_빠뜨린_번호는_결과에도_없다(fake_gateway):
+def test_모델이_빠뜨린_번호는_결과에도_없다(fake_gateway, records):
     agent = ImageTriageAgent(fake_gateway(_answer((1, "product"), (3, "specification")), "stop", []))
 
-    result = agent.classify(URLS, subject_id="page-1")
-
-    assert [item.index for item in result.items] == [1, 3]
+    assert [item.index for item in agent.run(_input()).items] == [1, 3]
 
 
-def test_입력에_없는_번호를_돌려주면_실패로_알린다(fake_gateway):
+def test_입력에_없는_번호를_돌려주면_실패로_알린다(fake_gateway, records):
     agent = ImageTriageAgent(fake_gateway(_answer((1, "product"), (4, "specification")), "stop", []))
 
     with pytest.raises(ImageTriageFailedError, match=r"\[4\]"):
-        agent.classify(URLS, subject_id="page-1")
+        agent.run(_input())
 
 
 @pytest.mark.parametrize("content", [
@@ -63,39 +65,32 @@ def test_입력에_없는_번호를_돌려주면_실패로_알린다(fake_gatewa
     _answer((1, "label")),  # 없는 분류
     "{}",
 ])
-def test_스키마와_맞지_않는_응답은_실패로_알린다(fake_gateway, content):
-    agent = ImageTriageAgent(fake_gateway(content, "stop", []))
-
-    with pytest.raises(ImageTriageFailedError, match="ImageTriageResponse"):
-        agent.classify(URLS, subject_id="page-1")
+def test_스키마와_맞지_않는_응답은_실패로_알린다(fake_gateway, records, content):
+    with pytest.raises(ImageTriageFailedError):
+        ImageTriageAgent(fake_gateway(content, "stop", [])).run(_input())
 
 
-def test_이미지가_없으면_모델을_부르지_않는다(fake_gateway):
+def test_이미지가_없으면_모델을_부르지_않는다(fake_gateway, records):
     requests: list[dict] = []
 
-    assert ImageTriageAgent(fake_gateway(_answer(), "stop", requests)).classify([], subject_id="page-1").items == []
-    assert requests == []
+    assert ImageTriageAgent(fake_gateway(_answer(), "stop", requests)).run(_input([])).items == []
+    assert (requests, records) == ([], [])
 
 
-def test_한_번에_보낼_수_있는_장수를_넘으면_부르지_않는다(fake_gateway):
+def test_한_번에_보낼_수_있는_장수를_넘으면_부르지_않는다(fake_gateway, records):
     requests: list[dict] = []
     agent = ImageTriageAgent(fake_gateway(_answer(), "stop", requests))
 
     with pytest.raises(ValueError, match=str(MAX_IMAGES)):
-        agent.classify([URLS[0]] * (MAX_IMAGES + 1), subject_id="page-1")
+        agent.run(_input([URLS[0]] * (MAX_IMAGES + 1)))
     assert requests == []
 
 
-def test_모델을_주입하지_않으면_image_triage_프로필로_만든다(monkeypatch):
-    names: list[str] = []
+def test_사용량은_입력의_기록_대상_ID로_남긴다(fake_gateway, records):
+    ImageTriageAgent(fake_gateway(_answer((1, "product")), "stop", [])).run(_input())
 
-    class _Model:
-        def with_structured_output(self, schema, **kwargs):
-            return self
+    assert (records[0]["agent"], records[0]["subject_id"]) == ("image_triage", "page-1")
 
-    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: names.append(name) or _Model())
 
-    ImageTriageAgent()
-
-    assert names == ["image_triage"]
+def test_기본_프로필은_mini다():
     assert AGENT_PROFILES["image_triage"] == "mini"
