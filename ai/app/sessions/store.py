@@ -52,6 +52,18 @@ class UnknownQuestionKeyError(ValueError):
         self.question_keys = question_keys
 
 
+class UnansweredQuestionError(ValueError):
+    """이번 회차 질문 중 답하지 않은 질문이 있는 경우. BE 답변 제출과 같은 기준.
+
+    Attributes:
+        question_keys: 답하지 않은 질문 키 목록.
+    """
+
+    def __init__(self, question_keys: list[str]) -> None:
+        super().__init__(f"답하지 않은 질문이 있습니다: {', '.join(question_keys)}")
+        self.question_keys = question_keys
+
+
 class SessionStore:
     """상품 ID를 세션 ID로 쓰는 진단 세션 저장소."""
 
@@ -129,7 +141,7 @@ class SessionStore:
         """답변 대기 세션에 답변을 더해 새 실행으로 다시 접수한다 (#310).
 
         원래 입력·이전 결과·질문은 그대로 두고, 새 run_id로 접수 상태가 됨.
-        시간 초과 기준(accepted_at)은 재접수 시각부터. 답하지 않은 질문은 허용.
+        시간 초과 기준(accepted_at)은 재접수 시각부터. 이번 회차 질문에는 모두 답해야 함.
 
         Args:
             diagnosis_id: BE 진단서 ID. 세션과 같아야 함.
@@ -145,6 +157,7 @@ class SessionStore:
             SessionNotFoundError: 세션이 없는 경우.
             ResumeConflictError: 답변 대기가 아니거나 실행·회차·진단서가 다른 경우.
             UnknownQuestionKeyError: 이번 회차에 묻지 않은 질문 키가 있는 경우.
+            UnansweredQuestionError: 이번 회차 질문 중 답하지 않은 질문이 있는 경우.
         """
         with self._lock:
             session = self._sessions.get(product_id)
@@ -159,6 +172,10 @@ class SessionStore:
             unknown = [key for key in answers if key not in asked]
             if unknown:
                 raise UnknownQuestionKeyError(unknown)
+            # 2회차는 새 키만 물어서 빠진 질문은 다시 물을 수 없음. BE 답변 제출도 전부 답해야 받음
+            unanswered = [question.question_key for question in session.questions if question.question_key not in answers]
+            if unanswered:
+                raise UnansweredQuestionError(unanswered)
 
             now = self._clock()
             context = ExecutionContext.start(
@@ -252,7 +269,7 @@ class SessionStore:
                 재접수로 다른 실행의 세션이면 None. 늦게 끝난 결과 무시용.
 
         Raises:
-            ValueError: 답변 대기로 끝나는데 질문이 없는 경우.
+            ValueError: 답변 대기로 끝나는데 질문이 없거나, 질문 키·순서가 겹치거나, 지난 회차 질문 키를 다시 쓴 경우.
         """
         if result.termination_reason is not ExecutionEndReason.USER_INPUT_REQUIRED:
             return self._transition(
@@ -261,9 +278,20 @@ class SessionStore:
             )
         if not questions:
             raise ValueError("답변 대기로 끝나는 결과에는 질문이 필요합니다.")
+        _check_unique([question.question_key for question in questions], "질문 키")
+        _check_unique([question.question_order for question in questions], "질문 순서")
+
+        def next_round(session: DiagnosisSession) -> dict[str, Any]:
+            # 세션의 질문은 지난 회차 것. 2회차는 새 키만 (#310)
+            asked = {question.question_key for question in session.questions}
+            reused = sorted(asked & {question.question_key for question in questions})
+            if reused:
+                raise ValueError(f"지난 회차에 물은 질문 키입니다: {', '.join(reused)}")
+            return {"question_round": session.question_round + 1}
+
         return self._transition(
             context, {SessionStatus.RUNNING},
-            derive=lambda session: {"question_round": session.question_round + 1},
+            derive=next_round,
             status=SessionStatus.AWAITING_INPUT, termination_reason=result.termination_reason, result=result,
             questions=list(questions),
         )
@@ -331,3 +359,10 @@ class SessionStore:
             )
             self._sessions[product_id] = updated
             return updated
+
+
+def _check_unique(values: list[Any], label: str) -> None:
+    """질문 콜백 검증과 같은 기준. 저장 전에 걸러 답변 대기로 남지 않게 함."""
+    duplicates = sorted({str(value) for value in values if values.count(value) > 1})
+    if duplicates:
+        raise ValueError(f"{label}가 겹칩니다: {', '.join(duplicates)}")

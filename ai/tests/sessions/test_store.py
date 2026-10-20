@@ -15,6 +15,7 @@ from app.sessions.store import (
     SessionConflictError,
     SessionNotFoundError,
     SessionStore,
+    UnansweredQuestionError,
     UnknownQuestionKeyError,
 )
 
@@ -46,6 +47,10 @@ def _ctx(store: SessionStore, product_id: str) -> ExecutionContext:
 
 def _inputs(*product_ids: str) -> list[ExtractionInput]:
     return [ExtractionInput(product_id=product_id, text_blocks=["상품 설명"]) for product_id in product_ids]
+
+
+def _question(key: str, order: int) -> PublicQuestionDto:
+    return PublicQuestionDto(question_key=key, question_order=order, question_text=f"{key} 질문")
 
 
 def _awaiting_result(product_id: str):
@@ -155,6 +160,22 @@ def test_질문_없이_답변_대기로_끝내지_않는다():
 
     with pytest.raises(ValueError):
         store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"))
+
+    assert store.get("p-1").status is SessionStatus.RUNNING
+
+
+@pytest.mark.parametrize("questions", [
+    [_question("battery_only", 1), _question("battery_only", 2)],    # 키 중복
+    [_question("battery_only", 1), _question("target_age", 1)],      # 순서 중복
+])
+def test_질문_키나_순서가_겹치면_답변_대기로_두지_않는다(questions):
+    # 질문 콜백 검증에서 걸리면 BE는 질문을 못 받은 채 기다리게 됨
+    store = _store()
+    store.accept("d-1", _inputs("p-1"))
+    store.start(_ctx(store, "p-1"))
+
+    with pytest.raises(ValueError, match="겹칩니다"):
+        store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), questions)
 
     assert store.get("p-1").status is SessionStatus.RUNNING
 
@@ -407,6 +428,34 @@ def test_이번_회차에_묻지_않은_질문_키가_있으면_거절한다():
 
     assert caught.value.question_keys == ["target_age"]
     assert store.get("p-1") == waiting
+
+
+def test_이번_회차_질문에_모두_답하지_않으면_거절한다():
+    # 2회차는 새 키만 물어서 빠진 질문은 다시 물을 수 없음
+    store = _store()
+    store.accept("d-1", _inputs("p-1"))
+    store.start(_ctx(store, "p-1"))
+    questions = [_question("battery_only", 1), _question("target_age", 2)]
+    waiting = store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), questions)
+
+    with pytest.raises(UnansweredQuestionError) as caught:
+        _resume(store, waiting)
+
+    assert caught.value.question_keys == ["target_age"]
+    assert store.get("p-1") == waiting
+
+
+def test_2회차는_지난_회차에_물은_질문_키를_다시_쓰지_않는다():
+    store = _store()
+    _resume(store, _awaiting_session(store))
+    store.start(_ctx(store, "p-1"))
+
+    with pytest.raises(ValueError, match="battery_only"):
+        store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), _QUESTIONS)
+    assert store.get("p-1").status is SessionStatus.RUNNING
+
+    session = store.finish(_ctx(store, "p-1"), _awaiting_result("p-1"), [_question("target_age", 1)])
+    assert (session.status, session.question_round) == (SessionStatus.AWAITING_INPUT, 2)
 
 
 def test_재접수_뒤_질문으로_끝난_실행의_늦은_변경은_무시한다():
