@@ -1,0 +1,66 @@
+import { useState } from "react";
+
+import type { Finding } from "@/api/product";
+import lawIcon from "@/assets/result-law.svg";
+import lawIconGray from "@/assets/result-law-gray.svg";
+import toggleIcon from "@/assets/upload-toggle.svg";
+import DefaultBox from "@/components/common/DefaultBox";
+import { cn } from "@/lib/cn";
+
+import LawCard from "./LawCard";
+
+// 근거 토글의 펼침 여부에 따른 아이콘/글자색
+const LEGAL_SOURCE_TOGGLE_STYLE: Record<"expanded" | "collapsed", { icon: string, textColorClass: string }> = {
+    expanded: { icon: lawIcon, textColorClass: "text-black" },
+    collapsed: { icon: lawIconGray, textColorClass: "text-neutral-border" },
+};
+
+interface FindingCardProps {
+    finding: Finding
+}
+
+function FindingCard({ finding }: FindingCardProps) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const { legalSources } = finding;
+    const [firstLegalSource, ...restLegalSources] = legalSources;
+    const firstLegalSourceLabel = firstLegalSource
+        ? [firstLegalSource.lawName, firstLegalSource.article].filter(Boolean).join(" ") || firstLegalSource.sourceName
+        : null;
+    const toggleStyle = LEGAL_SOURCE_TOGGLE_STYLE[isExpanded ? "expanded" : "collapsed"];
+
+    return (
+        <DefaultBox className="gap-4 rounded-[20px] px-7 py-6">
+            <div className="flex flex-col gap-2.5">
+                <p className="text-xl font-bold text-black">{finding.subject}</p>
+                <p className="text-base font-medium text-black">{finding.summary}</p>
+                <p className="text-sm leading-relaxed text-neutral-text">{finding.rationale}</p>
+            </div>
+            {firstLegalSource && (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => setIsExpanded((prev) => !prev)}
+                        className="flex w-full cursor-pointer flex-wrap items-center gap-2"
+                    >
+                        <img src={toggleStyle.icon} alt="" className="h-6 w-6" />
+                        <p className={cn("text-base font-bold", toggleStyle.textColorClass)}>근거</p>
+                        <p className={cn("text-sm", toggleStyle.textColorClass)}>{firstLegalSourceLabel}</p>
+                        {restLegalSources.length > 0 && (
+                            <p className="text-sm text-neutral-muted">외 {restLegalSources.length}건</p>
+                        )}
+                        <img src={toggleIcon} alt="" className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                    </button>
+                    {isExpanded && (
+                        <div className="flex w-full flex-col gap-3">
+                            {legalSources.map((legalSource) => (
+                                <LawCard key={legalSource.findingLegalSourceId} legalSource={legalSource} />
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+        </DefaultBox>
+    );
+}
+
+export default FindingCard;
