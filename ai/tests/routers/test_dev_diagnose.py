@@ -168,6 +168,28 @@ def test_공개_진단서_변환이_실패하면_원인을_보여준다(executor
     assert body["result"] is not None
 
 
+def test_내부_결과의_외부_API_키는_가려서_보여준다():
+    leaked = "근거 https://apis.data.go.kr/x?serviceKey=secret1&type=XML, https://www.law.go.kr/y?OC=secret2"
+
+    def job(item, context, progress):
+        return build_dummy_assessment(item.product_id).model_copy(update={"summary": leaked})
+
+    executor = SessionExecutor(SessionStore(), job)
+    try:
+        client = _client(executor)
+        data = _submit(client)
+        _wait_until(lambda: executor.store.get(data["productId"]).status.value == "completed")
+        body = client.get(f"{ROUTE}/{data['productId']}", headers=HEADERS).json()["data"]
+    finally:
+        executor.shutdown(wait=True)
+
+    assert body["result"]["summary"] == (
+        "근거 https://apis.data.go.kr/x?serviceKey=***&type=XML, https://www.law.go.kr/y?OC=***"
+    )
+    # 세션 원본은 그대로
+    assert executor.store.get(data["productId"]).result.summary == leaked
+
+
 def test_운영_상품이나_없는_상품은_조회할_수_없다(executor):
     executor.submit("d-1", [ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"])])
     client = _client(executor)
