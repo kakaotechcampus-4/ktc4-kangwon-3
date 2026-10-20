@@ -7,7 +7,12 @@ import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
+import DiagnosisResultTab from "./DiagnosisResult";
+import NextStepTab from "./NextSteps";
 import ProductCard from "./ProductCard";
+import ProductInfoTab from "./ProductInfo";
+import ResultTabs from "./ResultTabs";
+import { ResultTabKey } from "./types";
 import { useProductResults } from "./useProductResults";
 
 
@@ -17,6 +22,7 @@ const EMPTY_PRODUCT_RESULTS: ProductResult[] = [];
 function ResultPage() {
     const { productId, diagnosesId } = useParams<{ productId?: string; diagnosesId?: string }>();
     const [selectedProductIndex, setSelectedProductIndex] = useState(0);
+    const [selectedTab, setSelectedTab] = useState(ResultTabKey.DiagnosisResult);
     const navigate = useNavigate();
 
     const isMissingProductId = isMissingRouteParam(productId);
@@ -68,6 +74,10 @@ function ResultPage() {
                 <div className="flex w-full flex-col gap-6">
                     <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
                     <ProductCard productName={products[selectedProductIndex].productName} productImageUrl={products[selectedProductIndex].productImageUrl} resultStatus={products[selectedProductIndex].resultStatus} processingStatus={products[selectedProductIndex].processingStatus} sourceType={products[selectedProductIndex].sourceType} />
+                    <ResultTabs selected={selectedTab} onSelect={setSelectedTab} />
+                    {selectedTab === ResultTabKey.DiagnosisResult && <DiagnosisResultTab />}
+                    {selectedTab === ResultTabKey.NextSteps && <NextStepTab />}
+                    {selectedTab === ResultTabKey.ProductInfo && <ProductInfoTab />}
                 </div>
             )}
         </div>
