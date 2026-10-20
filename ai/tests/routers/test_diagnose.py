@@ -13,6 +13,7 @@ from app.routers.diagnose import get_session_executor
 from app.schemas.agent import ExtractionInput
 from app.schemas.session import SessionStatus
 from app.sessions.executor import SessionExecutor
+from app.sessions.job import JobDone
 from app.sessions.store import SessionStore
 
 CONTENT = "/api/ai/v1/diagnose/content"
@@ -41,7 +42,7 @@ def executor(gate):
     def job(item, context, progress):
         received.append(item)
         gate.wait(timeout=5)
-        return build_dummy_assessment(item.product_id)
+        return JobDone(build_dummy_assessment(item.product_id))
 
     instance = SessionExecutor(SessionStore(), job, max_running=2, max_inflight=3)
     instance.received = received
@@ -146,7 +147,8 @@ def test_더미_진단은_단계를_순서대로_알리고_고정_결과를_반�
         def stage(self, stage):
             stages.append(stage)
 
-    result = run_dummy_diagnosis(ExtractionInput(product_id="p-1", text_blocks=["설명"]), None, Recorder())
+    outcome = run_dummy_diagnosis(ExtractionInput(product_id="p-1", text_blocks=["설명"]), None, Recorder())
 
     assert stages == list(_dummy.DUMMY_STAGES)
-    assert result.product.product_id == "p-1"
+    assert isinstance(outcome, JobDone)
+    assert outcome.result.product.product_id == "p-1"

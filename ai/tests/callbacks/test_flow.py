@@ -11,6 +11,7 @@ from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
 from app.schemas.schemas import ToolName
 from app.sessions.executor import SessionExecutor
+from app.sessions.job import JobDone
 from app.sessions.store import SessionStore
 
 
@@ -182,7 +183,7 @@ def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나�
         for thread in threads:
             thread.join()
         progress.stage(PipelineStage.AGGREGATION)
-        return _dummy.build_dummy_assessment(item.product_id)
+        return JobDone(_dummy.build_dummy_assessment(item.product_id))
 
     monkeypatch.setattr(executor, "_job", _parallel_tools)
     executor.submit("d-1", _inputs("p-1"))

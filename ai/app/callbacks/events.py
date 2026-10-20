@@ -24,7 +24,7 @@ from ..schemas.callback import (
 )
 from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession, SessionStatus
-from ..sessions.executor import ToolProgressStatus
+from ..sessions.job import ToolProgressStatus
 
 _PUBLIC_STAGES = {stage.value: stage for stage in PublicPipelineStage}
 _ERROR_MESSAGES = {code.value.code: code.value.message for code in AIResponseCode}

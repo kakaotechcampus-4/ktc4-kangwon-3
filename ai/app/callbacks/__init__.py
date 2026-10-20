@@ -4,7 +4,8 @@ from threading import Lock
 
 from ..schemas.schemas import ToolName
 from ..schemas.session import DiagnosisSession
-from ..sessions.executor import SessionExecutor, ToolProgressStatus
+from ..sessions.executor import SessionExecutor
+from ..sessions.job import ToolProgressStatus
 from .events import AssessmentPresenter, EventBuilder
 from .http import HttpCallbackSender
 from .outbox import CallbackOutbox, CallbackSender, CallbackTransportError, SendResult

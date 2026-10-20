@@ -8,7 +8,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Literal, Protocol
+from typing import assert_never
 from uuid import uuid4
 
 from ..config import (
@@ -18,26 +18,13 @@ from ..errors import AIResponseCode
 from ..observability.context import ExecutionContext, PipelineStage, RunType
 from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
-from ..schemas.schemas import FinalAssessment, ToolName
+from ..schemas.schemas import ToolName
 from ..schemas.session import DiagnosisSession, SessionStatus
+from .job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, ToolProgressStatus
 from .store import SessionStore
 
 logger = logging.getLogger(__name__)
 
-# Tool 진행 상태. Tool 실행 오류도 completed (실패 여부는 분야 카드에서 표시)
-ToolProgressStatus = Literal["started", "completed", "skipped"]
-
-
-class ProgressReporter(Protocol):
-    """진단 함수가 부르는 진행 알림. 단계 변경과 Tool 진행은 서로 다른 경로."""
-
-    def stage(self, stage: PipelineStage) -> None: ...
-
-    def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None: ...
-
-
-# 상품 입력, 실행 컨텍스트, 진행 알림을 받아 최종 결과를 돌려주는 진단 함수
-DiagnosisJob = Callable[[ExtractionInput, ExecutionContext, ProgressReporter], FinalAssessment]
 # 세션 상태가 바뀔 때마다 호출. 이후 콜백 전송기 자리
 SessionListener = Callable[[DiagnosisSession], None]
 # Tool 진행마다 호출. 세션 상태는 바뀌지 않아 그 시점 세션을 같이 전달
@@ -219,7 +206,7 @@ class SessionExecutor:
                 return
             self._publish(started)
             try:
-                result = self._job(item, context, _Progress(self, context))
+                outcome = self._job(item, context, _Progress(self, context))
             except Exception:
                 logger.exception(
                     "진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id,
@@ -229,7 +216,14 @@ class SessionExecutor:
                     context, error_code=AIResponseCode.PIPELINE_ERROR.value.code, retryable=False,
                 ))
                 return
-            self._publish(self.store.finish(context, result))
+            match outcome:
+                case JobDone(result=result) | JobNeedsInput(result=result):
+                    # 완료·답변 대기 구분은 저장소가 결과의 종료 사유로 함 (저장소 정리 전까지)
+                    self._publish(self.store.finish(context, result))
+                case JobFailed(error_code=error_code, retryable=retryable):
+                    self._publish(self.store.fail(context, error_code=error_code, retryable=retryable))
+                case _:
+                    assert_never(outcome)
         finally:
             # 답변 대기로 끝나도 실행 자리 반납
             with self._lock:
