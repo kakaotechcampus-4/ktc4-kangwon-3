@@ -200,3 +200,14 @@ def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나�
     assert stages[0] == ("tool_execution", "started", None)
     assert stages[7] == ("tool_execution", "completed", None)
     assert len(tool_events) == 6
+
+
+def test_개발용_진단은_진행부터_결과까지_콜백을_보내지_않는다(flow):
+    executor, outbox, sender = flow
+
+    session = executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    executor.shutdown(wait=True)
+    outbox.close(timeout=5)
+
+    assert executor.store.get(session.context.product_id).status.value == "completed"
+    assert sender.events == []
