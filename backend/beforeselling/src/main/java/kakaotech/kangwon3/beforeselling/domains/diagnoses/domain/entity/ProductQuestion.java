@@ -71,6 +71,9 @@ public class ProductQuestion extends BaseEntity {
 
     // 질문은 한 번만 받으므로 답변도 한 번만 저장한다.
     public void answer(String answerText) {
+        if (answerText == null || answerText.isBlank()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
         if (isAnswered()) {
             throw new BaseException(CommonResponseCode.CONFLICT);
         }
