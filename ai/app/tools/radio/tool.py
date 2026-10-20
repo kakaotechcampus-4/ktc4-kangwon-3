@@ -15,7 +15,7 @@ from ...schemas.schemas import (
     Determination, LegalSource, RadioAssessment, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from ..base import RegulatoryTool
-from ..common.agent import ToolModelError, ToolStep
+from ..common.agent import ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable, compact
 from .evidence import RadioItem
@@ -109,8 +109,8 @@ class RadioTool(RegulatoryTool):
             raise RadioToolError("전파 대상기자재 조회에 실패했습니다.") from exc
 
         facts_step, review_step = self._get_steps()
-        extracted = facts_step.run({"hints": _hints(product), "evidence": snippets, "categories": catalog},
-                                   subject_id=product.product_id)
+        extracted = facts_step.run(ToolStepInput(
+            {"hints": _hints(product), "evidence": snippets, "categories": catalog}, product.product_id))
         facts = [fact for fact in extracted.facts if quote_matches(fact, snippets)]
         query["dropped_facts"] = len(extracted.facts) - len(facts)
         by_field = group_facts(facts)
@@ -152,13 +152,13 @@ class RadioTool(RegulatoryTool):
             return self._assemble(decision, facts, [], missing, assumptions, query)
 
         sections = list(dict.fromkeys(item.section for item in candidates.items))
-        review = review_step.run({
+        review = review_step.run(ToolStepInput({
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "product_bands_mhz": [list(band) for band in bands],
             "section_notes": {section: candidates.section_notes[section][:_NOTE_LIMIT]
                               for section in sections if section in candidates.section_notes},
             "candidates": [item.as_candidate() for item in candidates.items],
-        }, subject_id=product.product_id)
+        }, product.product_id))
 
         items = {item.item_id: item for item in candidates.items}
         findings, actions, selected = [], [], []
