@@ -17,7 +17,7 @@ from ...schemas.schemas import (
     CustomsAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from ..base import RegulatoryTool
-from ..common.agent import ToolModelError, ToolStep
+from ..common.agent import ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
 from .evidence import CustomsEvidence
@@ -116,7 +116,7 @@ class CustomsTool(RegulatoryTool):
 
         # ① 품목분류 결정 요소 추출
         facts_step, review_step = self._get_steps()
-        extracted = facts_step.run({"hints": _hints(product), "evidence": snippets}, subject_id=product.product_id)
+        extracted = facts_step.run(ToolStepInput({"hints": _hints(product), "evidence": snippets}, product.product_id))
         facts = [fact for fact in extracted.facts if quote_matches(fact, snippets)]
         query["dropped_facts"] = len(extracted.facts) - len(facts)
         by_field = group_facts(facts)
@@ -150,10 +150,10 @@ class CustomsTool(RegulatoryTool):
             return self._assemble(decision, facts, [], missing, assumptions, query)
 
         # ③ 같은 물품의 결정사례 선택
-        review = review_step.run({
+        review = review_step.run(ToolStepInput({
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "candidates": [case.as_candidate() for case in candidates.cases],
-        }, subject_id=product.product_id)
+        }, product.product_id))
         cases = {case.case_id: case for case in candidates.cases}
         chosen: list[tuple[HsCase, str]] = []
         for selection in review.selections:
