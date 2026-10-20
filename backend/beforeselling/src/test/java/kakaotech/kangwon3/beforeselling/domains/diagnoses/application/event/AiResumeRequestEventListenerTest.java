@@ -132,8 +132,12 @@ class AiResumeRequestEventListenerTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"BAD_REQUEST, AI_UNKNOWN_QUESTION_KEY", "UNPROCESSABLE_CONTENT, AI_INVALID_REQUEST"})
-    @DisplayName("AI가 요청 자체를 거절하면(400·422) 바로 다시 진단할 수 없는 실패로 처리한다.")
+    @CsvSource({
+            "BAD_REQUEST, AI_UNKNOWN_QUESTION_KEY",
+            "UNPROCESSABLE_CONTENT, AI_INVALID_REQUEST",
+            "CONFLICT, AI_RESUME_CONFLICT"
+    })
+    @DisplayName("AI가 요청을 거절하거나(400·422) 기다리는 질문과 어긋났다고 하면(409) 바로 다시 진단할 수 없는 실패로 처리한다.")
     void handle_whenRequestRejected_thenFailAsNotRetryable(HttpStatus status, String code) {
         // given
         given(aiDiagnosesClient.requestResume(any())).willThrow(rejected(status, code));
@@ -144,21 +148,6 @@ class AiResumeRequestEventListenerTest {
         // then
         then(productService).should().failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, null,
                 code, AiResumeRequestEventListener.REJECTED_MESSAGE, false);
-    }
-
-    @Test
-    @DisplayName("AI가 중복·늦은 답변으로 판단하면(409) 상품 상태를 바꾸지 않는다.")
-    void handle_whenResumeConflict_thenKeepState() {
-        // given
-        given(aiDiagnosesClient.requestResume(any()))
-                .willThrow(rejected(HttpStatus.CONFLICT, AiResumeRequestEventListener.RESUME_CONFLICT));
-
-        // when
-        listener.handle(event());
-
-        // then
-        then(productService).should(never()).failDiagnoses(any(), any(), any(), any(), any(), any(), any());
-        then(diagnosesService).should(never()).assignRuns(any(), any());
     }
 
     @Test
