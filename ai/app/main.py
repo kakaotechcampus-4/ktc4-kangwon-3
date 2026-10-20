@@ -5,6 +5,7 @@ import logging
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
+from prometheus_client import CollectorRegistry
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -12,7 +13,8 @@ from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .database import DatabaseNotConfiguredError, get_engine
 from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
-from .routers import dev_diagnose, diagnose, dummy, health
+from .observability.metrics import SessionMetrics, SessionSnapshotCollector
+from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
@@ -71,6 +73,11 @@ async def lifespan(app: FastAPI):
     outbox = CallbackOutbox(sender)
     presenter = DummyAssessmentPresenter()
     connect_callbacks(manager, EventBuilder(presenter), outbox)
+    # 세션 지표. 앱마다 registry를 따로 둬 테스트에서 lifespan을 여러 번 띄워도 이름이 겹치지 않음
+    registry = CollectorRegistry()
+    manager.subscribe(SessionMetrics(registry).on_event)
+    registry.register(SessionSnapshotCollector(manager))
+    app.state.metrics_registry = registry
     app.state.session_manager = manager
     # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
     app.state.assessment_presenter = presenter
@@ -105,3 +112,5 @@ api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
 api_v1.include_router(dev_diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
 
 app.include_router(api_v1)
+# Prometheus 수집 경로 (BE /actuator/prometheus 대응). 외부 공개 경로(/api/ai/) 밖에 둠
+app.include_router(metrics.router)

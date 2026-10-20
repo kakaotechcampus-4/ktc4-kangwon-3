@@ -29,5 +29,8 @@ hwp-hwpx-parser==1.0.0
 # 설정
 python-dotenv==1.2.3
 
+# 지표 (Prometheus 수집용 /metrics)
+prometheus-client==0.26.0
+
 # 개발 / 테스트
 pytest==9.1.1
