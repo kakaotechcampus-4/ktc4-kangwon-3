@@ -12,7 +12,7 @@ from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .database import DatabaseNotConfiguredError, get_engine
 from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
-from .routers import diagnose, dummy, health
+from .routers import dev_diagnose, diagnose, dummy, health
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .sessions.executor import SessionExecutor
 from .sessions.store import SessionStore
@@ -73,6 +73,8 @@ async def lifespan(app: FastAPI):
     outbox = CallbackOutbox(sender)
     connect_callbacks(executor, EventBuilder(presenter), outbox)
     app.state.session_executor = executor
+    # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
+    app.state.assessment_presenter = presenter
     sweeper = asyncio.create_task(_sweep_sessions(executor))
     try:
         yield
@@ -100,5 +102,7 @@ api_v1.include_router(health.router)
 # 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
 api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
 api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
+# 개발용 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
+api_v1.include_router(dev_diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
 
 app.include_router(api_v1)

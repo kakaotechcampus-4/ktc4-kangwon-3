@@ -9,10 +9,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import Literal, Protocol
+from uuid import uuid4
 
-from ..config import MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS
+from ..config import (
+    MAX_DEV_INFLIGHT_SESSIONS, MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS,
+)
 from ..errors import AIResponseCode
-from ..observability.context import ExecutionContext, PipelineStage
+from ..observability.context import ExecutionContext, PipelineStage, RunType
 from ..schemas.agent import ExtractionInput
 from ..schemas.base import utc_now
 from ..schemas.callback import PublicQuestionDto
@@ -97,6 +100,7 @@ class SessionExecutor:
         questions: QuestionBuilder,
         max_running: int = MAX_RUNNING_SESSIONS,
         max_inflight: int = MAX_INFLIGHT_SESSIONS,
+        max_dev_inflight: int = MAX_DEV_INFLIGHT_SESSIONS,
         max_duration: timedelta = timedelta(seconds=SESSION_MAX_DURATION_SECONDS),
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
@@ -108,6 +112,7 @@ class SessionExecutor:
             questions: 답변 대기 결과의 질문 변환 함수.
             max_running: 동시 실행 상한.
             max_inflight: 대기 + 실행 중 세션 상한.
+            max_dev_inflight: 개발용 진단의 대기 + 실행 중 상한. 전체 상한에도 같이 셈.
             max_duration: 접수부터 결과까지 최대 시간.
             clock: 현재 시각 함수. 테스트에서 시각을 고정할 때 주입.
         """
@@ -116,12 +121,15 @@ class SessionExecutor:
         self._questions = questions
         self._pool = ThreadPoolExecutor(max_workers=max_running, thread_name_prefix="diagnosis")
         self._max_inflight = max_inflight
+        self._max_dev_inflight = max_dev_inflight
         self._max_duration = max_duration
         self._clock = clock
         self._listeners: list[SessionListener] = []
         self._tool_listeners: list[ToolListener] = []
         self._lock = Lock()
         self._inflight = 0
+        # 실행 중인 개발용 진단의 run_id. 끝나면 개발용 자리도 반납
+        self._dev_runs: set[str] = set()
 
     def subscribe(self, listener: SessionListener) -> None:
         """세션 상태가 바뀔 때마다 부를 함수를 등록한다.
@@ -206,6 +214,38 @@ class SessionExecutor:
         self._pool.submit(self._run, session.context)
         return session
 
+    def submit_dev(self, item: ExtractionInput) -> DiagnosisSession:
+        """개발용 진단 한 건을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
+
+        상품 ID는 운영 상품과 겹치지 않게 dev- 접두어로 새로 발급하고, 입력의 product_id는 쓰지 않음.
+
+        Args:
+            item: 상품 입력.
+
+        Returns:
+            DiagnosisSession: 접수된 세션. 상품 ID는 발급한 dev- ID.
+
+        Raises:
+            QueueFullError: 개발용 상한 또는 전체 상한을 넘는 경우.
+        """
+        product_id = f"dev-{uuid4()}"
+        item = item.model_copy(update={"product_id": product_id})
+        with self._lock:
+            if len(self._dev_runs) >= self._max_dev_inflight:
+                raise QueueFullError(
+                    f"개발용 진단 대기열이 가득 찼습니다 ({len(self._dev_runs)}/{self._max_dev_inflight})."
+                )
+            if self._inflight + 1 > self._max_inflight:
+                raise QueueFullError(
+                    f"진단 대기열이 가득 찼습니다 ({self._inflight}/{self._max_inflight})."
+                )
+            [session] = self.store.accept(None, [item], run_type=RunType.TEST)
+            self._inflight += 1
+            self._dev_runs.add(session.context.run_id)
+
+        self._pool.submit(self._run, session.context)
+        return session
+
     def expire_overdue(self) -> int:
         """접수부터 최대 시간을 넘긴 세션을 시간 초과 실패로 끝낸다.
 
@@ -271,6 +311,7 @@ class SessionExecutor:
             # 답변 대기로 끝나도 실행 자리 반납
             with self._lock:
                 self._inflight -= 1
+                self._dev_runs.discard(context.run_id)
 
     def _publish(self, session: DiagnosisSession | None) -> None:
         """바뀐 세션을 구독자에게 전달한다. 구독자 오류는 실행에 영향 없음."""

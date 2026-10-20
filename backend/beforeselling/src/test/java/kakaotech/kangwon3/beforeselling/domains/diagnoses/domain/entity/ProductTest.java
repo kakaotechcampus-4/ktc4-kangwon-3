@@ -585,6 +585,39 @@ class ProductTest {
     }
 
     @Test
+    @DisplayName("현재 실행의 진행 상태만 돌려주고, 새 실행을 받으면 이전 실행의 행은 걸러 낸다.")
+    void currentProgresses_whenRunChanged_thenOnlyCurrentRun() {
+        // given
+        Product product = createInProgressProduct();
+        product.assignRun("run-1");
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
+        product.recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.COMPLETED, ToolName.CHILDREN);
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+        product.resume();
+
+        // when
+        product.assignRun("run-2");
+        product.recordProgress("run-2", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, null);
+
+        // then: 덮이지 않은 이전 실행의 툴 행은 남아 있지만 현재 진행에는 담기지 않는다.
+        assertThat(product.getProgresses()).hasSize(2);
+        assertThat(product.currentProgresses())
+                .extracting(ProductProgress::getRunId, ProductProgress::getStage, ProductProgress::getToolName)
+                .containsExactly(tuple("run-2", PipelineStage.EXTRACTION, null));
+    }
+
+    @Test
+    @DisplayName("실행 식별자를 받기 전에는 현재 실행의 진행 상태가 없다.")
+    void currentProgresses_whenRunNotAssigned_thenEmpty() {
+        // given
+        Product product = createInProgressProduct();
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, null);
+
+        // when & then
+        assertThat(product.currentProgresses()).isEmpty();
+    }
+
+    @Test
     @DisplayName("실패 처리된 상품만 실패한 것으로 본다.")
     void isFailed_beforeAndAfterFail() {
         // given

@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from app.clients.base import BaseClient
+from app.clients.base import BaseClient, mask_sensitive_params
 
 
 class _EchoClient(BaseClient[str, dict]):
@@ -83,3 +83,11 @@ def test_키_이름이_들어간_다른_파라미터는_가리지_않는다(wire
     message = str(BaseClient._mask_url(exc_info.value))
 
     assert "doc=keep" in message and "serviceKeyword=keep2" in message and "OC=***" in message
+
+
+def test_mask_sensitive_params는_키_값만_대소문자_구분_없이_가린다():
+    text = '근거 "https://x.kr/a?ServiceKey=k1&type=XML&oc=k2" 참고, serviceKey=k3'
+
+    masked = mask_sensitive_params(text)
+
+    assert masked == '근거 "https://x.kr/a?ServiceKey=***&type=XML&oc=***" 참고, serviceKey=k3'

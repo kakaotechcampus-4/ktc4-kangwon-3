@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.observability.context import PipelineStage
+from app.observability.context import PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
@@ -459,3 +459,48 @@ def test_Tool_구독자_오류는_실행을_멈추지_않는다(executors):
     executor.submit("d-1", _inputs("p-1"))
 
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
+
+
+def test_개발용_진단은_dev_상품_ID로_진단서_없이_접수한다(executors):
+    job = _GatedJob()
+    executor = _executor(executors, job)
+
+    session = executor.submit_dev(ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"]))
+
+    # 입력의 상품 ID는 쓰지 않고 운영 상품과 겹치지 않게 새로 발급
+    assert session.context.product_id.startswith("dev-")
+    assert (session.context.diagnosis_id, session.context.run_type) == (None, RunType.TEST)
+    assert executor.store.get("p-운영") is None
+    _wait_until(lambda: job.started)
+    assert job.started == [session.context.product_id]
+    job.release(session.context.product_id)
+    _wait_until(lambda: _status(executor.store, session.context.product_id) is SessionStatus.COMPLETED)
+
+
+def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운영_접수는_막지_않는다(executors):
+    job = _GatedJob()
+    executor = _executor(executors, job, max_dev_inflight=2)
+    first = executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+
+    with pytest.raises(QueueFullError, match="개발용"):
+        executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    # 운영 진단은 개발용 상한과 관계없이 접수
+    executor.submit("d-1", _inputs("p-1"))
+
+    # 개발용 하나가 끝나면 다시 받음
+    job.release(first.context.product_id)
+    _wait_until(lambda: _status(executor.store, first.context.product_id) is SessionStatus.COMPLETED)
+    _wait_until(lambda: len(executor._dev_runs) == 1)
+    executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+
+
+def test_개발용_진단도_전체_상한에_같이_센다(executors):
+    executor = _executor(executors, _GatedJob(), max_inflight=2, max_dev_inflight=3)
+    executor.submit("d-1", _inputs("p-1"))
+    executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+
+    with pytest.raises(QueueFullError):
+        executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    with pytest.raises(QueueFullError):
+        executor.submit("d-2", _inputs("p-2"))

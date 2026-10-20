@@ -79,15 +79,18 @@ class SessionStore:
         }
         self._clock = clock
 
-    def accept(self, diagnosis_id: str, inputs: list[ExtractionInput]) -> list[DiagnosisSession]:
+    def accept(
+        self, diagnosis_id: str | None, inputs: list[ExtractionInput], *, run_type: RunType = RunType.PRODUCTION,
+    ) -> list[DiagnosisSession]:
         """진단서 한 건의 상품들을 세션으로 접수한다.
 
         하나라도 진행 중이면 아무것도 접수하지 않고 전체를 거절함 (#263).
         완료·실패한 상품은 새 세션으로 교체. 입력은 재진단용으로 세션에 보관.
 
         Args:
-            diagnosis_id: BE 진단서 ID.
+            diagnosis_id: BE 진단서 ID. 개발용 진단은 None (콜백 대상 아님).
             inputs: 접수할 상품별 입력. product_id가 세션 ID.
+            run_type: 실행 종류. 개발용 진단은 TEST.
 
         Returns:
             list[DiagnosisSession]: 접수된 세션. inputs 순서와 같음.
@@ -107,7 +110,7 @@ class SessionStore:
             accepted = []
             for item in inputs:
                 context = ExecutionContext.start(
-                    product_id=item.product_id, run_type=RunType.PRODUCTION, diagnosis_id=diagnosis_id,
+                    product_id=item.product_id, run_type=run_type, diagnosis_id=diagnosis_id,
                 )
                 session = DiagnosisSession(context=context, source=item, accepted_at=now, updated_at=now)
                 self._sessions[item.product_id] = session

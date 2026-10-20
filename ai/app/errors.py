@@ -32,6 +32,7 @@ class AIResponseCode(Enum):
     # API 응답
     INVALID_REQUEST = ResponseCode(422, "AI_INVALID_REQUEST", "요청 형식이 올바르지 않습니다.")
     UNKNOWN_QUESTION_KEY = ResponseCode(400, "AI_UNKNOWN_QUESTION_KEY", "이번 회차에 묻지 않은 질문의 답변이 있습니다.")
+    UNAUTHORIZED = ResponseCode(401, "AI_UNAUTHORIZED", "인증 정보가 없거나 올바르지 않습니다.")
     NOT_FOUND = ResponseCode(404, "AI_NOT_FOUND", "요청한 경로를 찾을 수 없습니다.")
     # 재시작 등으로 세션이 사라진 경우. BE는 실패로 처리 (#301)
     SESSION_NOT_FOUND = ResponseCode(404, "AI_SESSION_NOT_FOUND", "진단 세션을 찾을 수 없습니다.")

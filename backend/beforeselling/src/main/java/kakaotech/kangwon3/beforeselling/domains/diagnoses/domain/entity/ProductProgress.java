@@ -67,6 +67,10 @@ public class ProductProgress extends BaseEntity {
         return this.stage == stage && this.toolName == toolName;
     }
 
+    boolean isOfRun(String runId) {
+        return this.runId.equals(runId);
+    }
+
     // 같은 실행에서 이미 반영한 이벤트보다 앞선(또는 같은) 이벤트인지. 실행이 바뀌면 sequence가 1부터 다시 시작한다.
     boolean isNewerOrSame(String runId, int sequence) {
         return this.runId.equals(runId) && this.sequence >= sequence;
