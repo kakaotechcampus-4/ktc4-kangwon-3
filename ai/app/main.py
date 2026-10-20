@@ -88,7 +88,8 @@ async def lifespan(app: FastAPI):
         sweeper.cancel()
         with suppress(asyncio.CancelledError):
             await sweeper
-        # 메모리 세션이라 재시작 시 어차피 사라짐. 실행 중 세션은 기다리지 않음
+        # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드는 프로세스 종료 때 끝까지 돌지만
+        # 발신함이 먼저 닫혀 이후 콜백은 버려짐. BE는 멈춤 감지(15분)로 실패 처리
         manager.shutdown(wait=False)
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
