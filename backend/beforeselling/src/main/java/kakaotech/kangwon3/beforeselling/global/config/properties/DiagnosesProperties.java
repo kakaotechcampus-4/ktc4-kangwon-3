@@ -9,6 +9,9 @@ import java.time.Duration;
 @Validated
 @ConfigurationProperties(prefix = "diagnoses")
 public record DiagnosesProperties(
-        @NotNull Duration stuckThreshold
+        @NotNull Duration stuckThreshold,
+
+        // FE가 진단서를 다시 조회할 간격
+        @NotNull Duration pollInterval
 ) {
 }

@@ -74,4 +74,8 @@ AGENT_PROFILES = {
 TOOL_PROFILES = {
     "electrical_safety": "mini",
     "labeling_advertising_detection": "mini",
+    "children_product_safety": "mini",
+    "radio_compliance": "mini",
+    "customs_requirements": "mini",
+    "food_drug_safety": "mini",
 }

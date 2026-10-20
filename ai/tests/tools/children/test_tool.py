@@ -408,6 +408,13 @@ def test_조회_오류는_Tool_오류로_전파한다():
         run(product, facts, review(select()), Search(RuntimeError("API 실패")))
 
 
+def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
+    names = []
+    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
+    ChildrenTool(item_search=Search())._get_steps()
+    assert names == [ToolName.CHILDREN]
+
+
 def test_DB_조회는_아직_자리만_있다():
     with pytest.raises(NotImplementedError):
         DatabaseItemSearch(session_factory=None).search(["완구"], top_k=6)

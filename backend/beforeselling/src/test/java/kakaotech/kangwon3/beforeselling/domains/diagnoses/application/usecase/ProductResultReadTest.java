@@ -1,16 +1,22 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductProgressResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductQuestionResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLevel;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolReviewStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
@@ -25,6 +31,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * open-in-view=false 라 DTO 매핑은 서비스 트랜잭션이 끝난 뒤에 일어난다.
@@ -78,6 +85,48 @@ class ProductResultReadTest {
         // then
         assertThat(response.products()).hasSize(2);
         response.products().forEach(this::assertAssessmentDetails);
+    }
+
+    @Test
+    @DisplayName("진단 중인 진단서를 조회하면 상품별 진행 상태·질문·실패 정보와 폴링 간격까지 함께 응답한다.")
+    void getDiagnoses_withProcessingProducts_thenIncludeProgressQuestionsFailureAndPollInterval() {
+        // given: 진행 중 / 답변 대기 / 실패 상품
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        diagnoses.addProducts(List.of(
+                Product.pending("진행 중 상품", null, SourceType.URL, SOURCE_URL, null),
+                Product.pending("답변 대기 상품", null, SourceType.URL, SOURCE_URL, null),
+                Product.pending("실패 상품", null, SourceType.URL, SOURCE_URL, null)));
+        diagnoses.startDiagnoses();
+        diagnoses.getProducts().forEach(product -> product.assignRun("run-1"));
+        List<Product> products = diagnoses.getProducts();
+        products.get(0).recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.COMPLETED, null);
+        products.get(0).recordProgress("run-1", 2, PipelineStage.TOOL_EXECUTION, StageStatus.STARTED, ToolName.RADIO);
+        products.get(1).askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
+        products.get(2).fail(PipelineStage.TOOL_EXECUTION, "AI_TIMEOUT", "진단 시간이 초과되었습니다.", true);
+        diagnoses.refreshProcessingStatus();
+        diagnosesRepository.save(diagnoses);
+
+        // when
+        DiagnosesDetailResponse response = diagnosesUseCase.getDiagnoses(USER_ID, diagnoses.getId());
+
+        // then
+        assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(response.pollIntervalMs()).isEqualTo(3000L);
+
+        ProductResponse inProgress = response.products().get(0);
+        assertThat(inProgress.progresses())
+                .extracting(ProductProgressResponse::stage, ProductProgressResponse::toolName)
+                .containsExactly(tuple(PipelineStage.EXTRACTION, null), tuple(PipelineStage.TOOL_EXECUTION, ToolName.RADIO));
+
+        ProductResponse awaitingInput = response.products().get(1);
+        assertThat(awaitingInput.questions())
+                .extracting(ProductQuestionResponse::questionText)
+                .containsExactly("구매대행으로 파나요?");
+        assertThat(awaitingInput.questions().getFirst().questionId()).isNotNull();
+
+        ProductResponse failed = response.products().get(2);
+        assertThat(failed.failure().errorCode()).isEqualTo("AI_TIMEOUT");
+        assertThat(failed.failure().retryable()).isTrue();
     }
 
     private void assertAssessmentDetails(ProductResponse response) {

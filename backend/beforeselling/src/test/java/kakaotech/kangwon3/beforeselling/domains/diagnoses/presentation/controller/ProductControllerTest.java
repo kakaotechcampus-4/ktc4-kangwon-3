@@ -365,10 +365,11 @@ class ProductControllerTest {
 
     private ProductResponse productResponse() {
         return new ProductResponse(
-                PRODUCT_ID, 0, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"),
-                ProcessingStatus.COMPLETED, AssessmentStatus.COMPLETED, ResultStatus.RECHECK_REQUIRED,
+                ProcessingStatus.COMPLETED, List.of(), List.of(), null,
+                AssessmentStatus.COMPLETED, ResultStatus.RECHECK_REQUIRED,
                 "배터리 표시 항목 재확인이 필요합니다.",
                 List.of(new ProductToolReviewResponse(TOOL_REVIEW_ID, ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null,
                         List.of(new ProductFindingResponse(FINDING_ID, "표시사항", Determination.POSSIBLY_REQUIRED,
