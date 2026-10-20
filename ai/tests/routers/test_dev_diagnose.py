@@ -14,6 +14,7 @@ from app.routers.diagnose import get_session_executor
 from app.schemas.agent import ExtractionInput
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
 from app.sessions.executor import SessionExecutor
+from app.sessions.job import JobDone, JobNeedsInput
 from app.sessions.store import SessionStore
 
 ROUTE = "/api/ai/v1/dev/diagnose"
@@ -50,7 +51,7 @@ def executor(gate):
     def job(item, context, progress):
         received.append(item)
         gate.wait(timeout=5)
-        return build_dummy_assessment(item.product_id)
+        return JobDone(build_dummy_assessment(item.product_id))
 
     instance = SessionExecutor(SessionStore(), job, max_running=2, max_dev_inflight=1)
     instance.received = received
@@ -136,8 +137,8 @@ def test_끝나면_공개_진단서와_내부_결과를_함께_조회한다(exec
 def test_답변_대기면_질문을_돌려준다():
     def job(item, context, progress):
         result = build_dummy_assessment(item.product_id)
-        return result.model_copy(update={"termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
-                                         "verification_status": FinalVerificationStatus.INCOMPLETE})
+        return JobNeedsInput(result.model_copy(update={"termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+                                                       "verification_status": FinalVerificationStatus.INCOMPLETE}))
 
     executor = SessionExecutor(SessionStore(), job)
     try:
@@ -172,7 +173,7 @@ def test_내부_결과의_외부_API_키는_가려서_보여준다():
     leaked = "근거 https://apis.data.go.kr/x?serviceKey=secret1&type=XML, https://www.law.go.kr/y?OC=secret2"
 
     def job(item, context, progress):
-        return build_dummy_assessment(item.product_id).model_copy(update={"summary": leaked})
+        return JobDone(build_dummy_assessment(item.product_id).model_copy(update={"summary": leaked}))
 
     executor = SessionExecutor(SessionStore(), job)
     try:

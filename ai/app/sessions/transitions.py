@@ -12,7 +12,7 @@ from ..observability.context import PipelineStage
 from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession, SessionStatus
 from .events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
-from .executor import ToolProgressStatus
+from .job import ToolProgressStatus
 
 
 @dataclass(frozen=True)

@@ -12,6 +12,7 @@ from app.schemas.agent import ExtractionInput
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import SessionStatus
 from app.sessions.executor import QueueFullError, SessionExecutor
+from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 from app.sessions.store import SessionConflictError, SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
@@ -28,10 +29,10 @@ class _Clock:
 class _GatedJob:
     """release() 전까지 상품별로 붙잡아 두는 진단 함수."""
 
-    def __init__(self, result_for=build_dummy_assessment, raise_error: bool = False) -> None:
+    def __init__(self, outcome_for=None, raise_error: bool = False) -> None:
         self.started: list[str] = []
         self.gates: dict[str, threading.Event] = {}
-        self._result_for = result_for
+        self._outcome_for = outcome_for or (lambda product_id: JobDone(build_dummy_assessment(product_id)))
         self._raise_error = raise_error
         self._lock = threading.Lock()
 
@@ -44,7 +45,7 @@ class _GatedJob:
         gate.wait(timeout=5)
         if self._raise_error:
             raise RuntimeError("파이프라인 오류")
-        return self._result_for(item.product_id)
+        return self._outcome_for(item.product_id)
 
     def release(self, product_id: str) -> None:
         _wait_until(lambda: product_id in self.gates)
@@ -113,6 +114,18 @@ def test_진단_함수_예외는_재시도_불가_실패로_기록한다(executo
     assert (session.error_code, session.retryable) == ("AI_PIPELINE_ERROR", False)
 
 
+def test_진단_함수가_실패를_돌려주면_그_코드로_실패를_기록한다(executors):
+    job = _GatedJob(outcome_for=lambda product_id: JobFailed("AI_INVALID_REQUEST", False))
+    executor = _executor(executors, job)
+
+    executor.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.FAILED)
+
+    session = executor.store.get("p-1")
+    assert (session.error_code, session.retryable, session.result) == ("AI_INVALID_REQUEST", False, None)
+
+
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(executors):
     job = _GatedJob()
     executor = _executor(executors, job, max_running=2)
@@ -153,12 +166,12 @@ def test_진행_중인_상품이_섞이면_접수하지_않고_대기열도_차�
 
 def test_답변_대기로_끝나면_실행_자리를_반납한다(executors):
     def awaiting(product_id):
-        return build_dummy_assessment(product_id).model_copy(update={
+        return JobNeedsInput(build_dummy_assessment(product_id).model_copy(update={
             "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
             "verification_status": FinalVerificationStatus.INCOMPLETE,
-        })
+        }))
 
-    job = _GatedJob(result_for=awaiting)
+    job = _GatedJob(outcome_for=awaiting)
     executor = _executor(executors, job, max_running=1, max_inflight=1)
 
     executor.submit("d-1", _inputs("p-1"))
@@ -206,7 +219,7 @@ def test_시간_초과_뒤_재접수한_세션은_옛_실행이_덮어쓰지_않
         if label == "old":
             progress.stage(PipelineStage.VERIFICATION)
         result = build_dummy_assessment(item.product_id)
-        return result.model_copy(update={"product": result.product.model_copy(update={"product_name": label})})
+        return JobDone(result.model_copy(update={"product": result.product.model_copy(update={"product_name": label})}))
 
     executor = _executor(executors, job, clock=clock, max_duration=timedelta(minutes=10))
     executor.submit("d-1", _inputs("p-1"))
@@ -247,7 +260,7 @@ def test_Tool_진행은_세션을_바꾸지_않고_Tool_구독자에게만_알�
         progress.stage(PipelineStage.TOOL_EXECUTION)
         progress.tool(ToolName.ELECTRICAL, "started")
         progress.tool(ToolName.ELECTRICAL, "completed")
-        return build_dummy_assessment(item.product_id)
+        return JobDone(build_dummy_assessment(item.product_id))
 
     executor = _executor(executors, job)
     sessions, tools = [], []
@@ -276,7 +289,7 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(ex
         started.set()
         gate.wait(timeout=5)
         progress.tool(ToolName.ELECTRICAL, "completed")
-        return build_dummy_assessment(item.product_id)
+        return JobDone(build_dummy_assessment(item.product_id))
 
     executor = _executor(executors, job, clock=clock, max_duration=timedelta(minutes=10))
     tools = []
@@ -294,7 +307,7 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(ex
 def test_Tool_구독자_오류는_실행을_멈추지_않는다(executors):
     def job(item, context, progress):
         progress.tool(ToolName.ELECTRICAL, "started")
-        return build_dummy_assessment(item.product_id)
+        return JobDone(build_dummy_assessment(item.product_id))
 
     executor = _executor(executors, job)
     executor.subscribe_tool(lambda s, name, status: (_ for _ in ()).throw(RuntimeError("구독자 오류")))

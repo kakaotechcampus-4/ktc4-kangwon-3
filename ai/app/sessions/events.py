@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from ..observability.context import PipelineStage
 from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession
-from .executor import ToolProgressStatus
+from .job import ToolProgressStatus
 
 
 @dataclass(frozen=True)

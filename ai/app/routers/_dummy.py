@@ -33,7 +33,7 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus,
 )
-from ..sessions.executor import ProgressReporter
+from ..sessions.job import JobDone, ProgressReporter
 
 
 def build_dummy_assessment(product_id: str) -> FinalAssessment:
@@ -292,10 +292,10 @@ DUMMY_STAGES = (
 
 def run_dummy_diagnosis(
     item: ExtractionInput, context: ExecutionContext, progress: ProgressReporter,
-) -> FinalAssessment:
+) -> JobDone:
     """파이프라인 러너 연결 전까지 세션 실행기에 넣는 더미 진단 함수.
 
-    단계 진행만 흉내 내고 고정 결과 반환. LLM·외부 API 호출 없음.
+    단계 진행만 흉내 내고 고정 결과로 완료. LLM·외부 API 호출 없음.
 
     Args:
         item: 상품 입력. product_id만 사용.
@@ -303,12 +303,12 @@ def run_dummy_diagnosis(
         progress: 단계 진행 알림.
 
     Returns:
-        RC 보트 기반 더미 FinalAssessment.
+        JobDone: RC 보트 기반 더미 FinalAssessment를 담은 완료.
     """
     for stage in DUMMY_STAGES:
         progress.stage(stage)
         time.sleep(DUMMY_STAGE_SECONDS)
-    return build_dummy_assessment(item.product_id)
+    return JobDone(build_dummy_assessment(item.product_id))
 
 
 # 실행 상태 → 분야 카드 상태. 나머지(부분 성공·실패)는 미완료
