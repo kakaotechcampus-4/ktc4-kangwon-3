@@ -1,7 +1,7 @@
 """통관 Tool을 파이프라인 없이 실제 모델·법제처·CLIP(·세관장확인 GW)으로 돌려 결과·토큰·시간을 확인한다.
 
     cd ai
-    python -m app.eval.customs_runner                                   # .env 모델, 내장 상품, 1회
+    python -m app.eval.customs_runner                                   # Tool 프로필 모델, 내장 상품, 1회
     python -m app.eval.customs_runner --only 전기주전자 --runs 3
     python -m app.eval.customs_runner --product product.json --json
     python -m app.eval.customs_runner --eval tests/eval_truth_customs/holdout.json --runs 3 --out logs/eval/customs.json
@@ -25,8 +25,8 @@ from time import perf_counter
 from dotenv import load_dotenv
 
 from .. import usage as usage_module
-from ..agents import base as agent_base
-from ..config import ENV_FILE
+from ..config import ENV_FILE, MODEL_PROFILES, TOOL_PROFILES
+from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_overrides
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Product
 from ..schemas.schemas import ToolName
@@ -57,7 +57,7 @@ class UsageCapture:
 
     def __init__(self) -> None:
         self.calls: list[dict] = []
-        self._original = agent_base.record
+        self._original = usage_module.record
 
     def __enter__(self):
         def capture(agent, usage, **kw):
@@ -69,11 +69,11 @@ class UsageCapture:
             })
             self._original(agent, usage, **kw)
 
-        agent_base.record = capture
+        usage_module.record = capture
         return self
 
     def __exit__(self, *exc):
-        agent_base.record = self._original
+        usage_module.record = self._original
 
 
 def run_once(tool: CustomsTool, product: Product) -> dict:
@@ -133,9 +133,28 @@ def score(results: dict[str, list[tuple[str, dict]]], cases: dict[str, list[str]
     return "\n".join(lines)
 
 
+def default_spec(default_temperature: list[str]) -> str:
+    """--model이 없을 때 이 Tool의 프로필(MODEL_PROFILE_OVERRIDES의 tool.{이름} 또는 기본값)을 '이름[#추론강도]'로.
+
+    electrical_runner.default_spec과 같다. 프로필에 temperature가 없으면 default_temperature에 모델 이름을 넣는다.
+    """
+    try:
+        overrides = parse_profile_overrides(os.environ.get(OVERRIDES_ENV, ""))
+    except ConfigError as exc:
+        raise SystemExit(str(exc)) from None
+    name = overrides.get(("tool", ToolName.CUSTOMS), TOOL_PROFILES[ToolName.CUSTOMS])
+    if name not in MODEL_PROFILES:
+        raise SystemExit(f"{OVERRIDES_ENV}의 tool.{ToolName.CUSTOMS}={name!r}는 없는 프로필입니다 "
+                         f"(허용: {', '.join(MODEL_PROFILES)}).")
+    profile = MODEL_PROFILES[name]
+    if profile.temperature is None:
+        default_temperature.append(profile.model.id)
+    return profile.model.id + (f"#{profile.reasoning_effort}" if profile.reasoning_effort else "")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--model", action="append", help="모델(여러 번 가능). 없으면 .env OPENAI_MODEL")
+    parser.add_argument("--model", action="append", help="모델(여러 번 가능). 없으면 이 Tool의 모델 프로필")
     parser.add_argument("--default-temperature", action="append", default=[], help="temperature를 보내지 않을 모델")
     parser.add_argument("--only", help="상품명에 이 글자가 들어간 내장 상품만")
     parser.add_argument("--runs", type=int, default=1)
@@ -167,7 +186,7 @@ def main() -> int:
         started = perf_counter()
         evidence.load(today)
         print(f"통관 근거 로드(최초 1회, 이후 캐시): {round((perf_counter() - started) * 1000)}ms", flush=True)
-        for spec in args.model or [_env("OPENAI_MODEL")]:
+        for spec in args.model or [default_spec(args.default_temperature)]:
             name, model = build_model(spec, default_temperature=spec in args.default_temperature)
             tool = CustomsTool(model, case_search=ClipCaseSearch(), requirements=requirements,
                                evidence=lambda: evidence.load(today), configured_model=name)
