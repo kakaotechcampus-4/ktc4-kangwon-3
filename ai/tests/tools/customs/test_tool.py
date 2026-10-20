@@ -27,7 +27,7 @@ _EVIDENCE = load_customs_evidence(FakeLaw(), AS_OF)
 
 @pytest.fixture(autouse=True)
 def no_usage_file(monkeypatch):
-    monkeypatch.setattr("app.agents.base.record", lambda *a, **kw: None)
+    monkeypatch.setattr("app.usage.record", lambda *a, **kw: None)
 
 
 class _Structured:
