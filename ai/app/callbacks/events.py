@@ -1,6 +1,6 @@
 """진단 세션 이벤트를 BE 콜백 이벤트로 바꾼다 (#310).
 
-SessionExecutor.subscribe()로 받은 세션 이벤트마다 보낼 이벤트 목록을 만듦.
+SessionManager.subscribe()로 받은 세션 이벤트마다 보낼 이벤트 목록을 만듦.
     - 실행 시작 → 없음
     - 단계 변경 → 진행 이벤트 (앞 단계 completed + 새 단계 started)
     - Tool 진행 → toolName 붙은 진행 이벤트. Tool 실행 단계 안에서만
@@ -105,7 +105,7 @@ class EventBuilder:
                 case Failed(session=session, error_code=error_code, retryable=retryable):
                     last = self._failed(session, run, error_code, retryable)
                 case Completed() | AwaitingInput() if content is _CONVERSION_FAILED:
-                    # 마지막 이벤트가 빠지지 않게 실패로 끝냄. 실행기의 파이프라인 오류와 같게 재시도 불가
+                    # 마지막 이벤트가 빠지지 않게 실패로 끝냄. 세션 관리자의 파이프라인 오류와 같게 재시도 불가
                     last = self._failed(event.session, run, AIResponseCode.PIPELINE_ERROR.value.code, False)
                 case Completed(session=session):
                     last = ProductResultEvent(**self._base(session, run), assessment=content)

@@ -12,7 +12,7 @@ from app.schemas.base import utc_now
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
 from app.schemas.schemas import ToolName
 from app.schemas.session import DiagnosisSession
-from app.sessions.executor import SessionExecutor
+from app.sessions.manager import SessionManager
 from app.sessions.job import JobDone
 from app.sessions.store import SessionStore
 from app.sessions.transitions import ChangeStage, Start, apply
@@ -43,11 +43,11 @@ def flow(monkeypatch):
     # 가짜 진단의 단계별 지연을 없앰
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     sender = _Sender()
-    executor = SessionExecutor(SessionStore(), _dummy.run_dummy_diagnosis, max_running=2)
+    manager = SessionManager(SessionStore(), _dummy.run_dummy_diagnosis, max_running=2)
     outbox = CallbackOutbox(sender, workers=2)
-    connect_callbacks(executor, EventBuilder(_Presenter()), outbox)
-    yield executor, outbox, sender
-    executor.shutdown(wait=True)
+    connect_callbacks(manager, EventBuilder(_Presenter()), outbox)
+    yield manager, outbox, sender
+    manager.shutdown(wait=True)
     outbox.close(timeout=1)
 
 
@@ -56,10 +56,10 @@ def _inputs(*product_ids: str) -> list[ExtractionInput]:
 
 
 def test_상품마다_진행_이벤트_뒤에_결과_이벤트가_순서대로_나간다(flow):
-    executor, outbox, sender = flow
+    manager, outbox, sender = flow
 
-    sessions = executor.submit("d-1", _inputs("p-1", "p-2", "p-3"))
-    executor.shutdown(wait=True)
+    sessions = manager.submit("d-1", _inputs("p-1", "p-2", "p-3"))
+    manager.shutdown(wait=True)
     assert outbox.close(timeout=5) == 0
 
     for session in sessions:
@@ -86,14 +86,14 @@ def test_상품마다_진행_이벤트_뒤에_결과_이벤트가_순서대로_�
 
 
 def test_진단이_실패하면_실패_이벤트로_끝난다(monkeypatch, flow):
-    executor, outbox, sender = flow
+    manager, outbox, sender = flow
 
     def _broken(item, context, progress):
         raise RuntimeError("파이프라인 오류")
 
-    monkeypatch.setattr(executor, "_job", _broken)
-    executor.submit("d-1", _inputs("p-1"))
-    executor.shutdown(wait=True)
+    monkeypatch.setattr(manager, "_job", _broken)
+    manager.submit("d-1", _inputs("p-1"))
+    manager.shutdown(wait=True)
     outbox.close(timeout=5)
 
     [event] = sender.events
@@ -108,16 +108,16 @@ def test_진단서_변환이_실패하면_BE가_받는_마지막_이벤트는_�
 
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     sender = _Sender()
-    executor = SessionExecutor(SessionStore(), _dummy.run_dummy_diagnosis)
+    manager = SessionManager(SessionStore(), _dummy.run_dummy_diagnosis)
     outbox = CallbackOutbox(sender)
-    connect_callbacks(executor, EventBuilder(_BrokenPresenter()), outbox)
+    connect_callbacks(manager, EventBuilder(_BrokenPresenter()), outbox)
 
-    [session] = executor.submit("d-1", _inputs("p-1"))
-    executor.shutdown(wait=True)
+    [session] = manager.submit("d-1", _inputs("p-1"))
+    manager.shutdown(wait=True)
     outbox.close(timeout=5)
 
     last = sender.events[-1]
-    assert executor.store.get("p-1").status.value == "completed"
+    assert manager.get("p-1").status.value == "completed"
     assert (last.event_type, last.stage, last.error.retryable) == ("product_failed", "finalization", False)
     assert [event.sequence for event in sender.events] == list(range(1, len(sender.events) + 1))
 
@@ -144,22 +144,22 @@ def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신�
                 second_built.wait(timeout=0.3)
             self.sequences.extend(event.sequence for event in events)
 
-    class _Executor:
+    class _Manager:
         def subscribe(self, listener) -> None:
             self.listener = listener
 
-    executor, outbox = _Executor(), _Outbox()
-    connect_callbacks(executor, _Builder(_Presenter()), outbox)
+    manager, outbox = _Manager(), _Outbox()
+    connect_callbacks(manager, _Builder(_Presenter()), outbox)
     now = utc_now()
     context = ExecutionContext.start(product_id="p-1", run_type=RunType.PRODUCTION, diagnosis_id="d-1")
     session = apply(DiagnosisSession(context=context, accepted_at=now, updated_at=now), Start(), now=now).session
     [extraction] = apply(session, ChangeStage(PipelineStage.EXTRACTION), now=now).events
     [selection] = apply(extraction.session, ChangeStage(PipelineStage.SELECTION), now=now).events
 
-    first = threading.Thread(target=executor.listener, args=(extraction,))
+    first = threading.Thread(target=manager.listener, args=(extraction,))
     first.start()
     first_waiting.wait(timeout=1)
-    second = threading.Thread(target=executor.listener, args=(selection,))
+    second = threading.Thread(target=manager.listener, args=(selection,))
     second.start()
     first.join(timeout=2)
     second.join(timeout=2)
@@ -168,7 +168,7 @@ def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신�
 
 
 def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나간다(monkeypatch, flow):
-    executor, outbox, sender = flow
+    manager, outbox, sender = flow
     tools = [ToolName.ELECTRICAL, ToolName.RADIO, ToolName.CHILDREN]
 
     def _parallel_tools(item, context, progress):
@@ -186,9 +186,9 @@ def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나�
         progress.stage(PipelineStage.AGGREGATION)
         return JobDone(_dummy.build_dummy_assessment(item.product_id))
 
-    monkeypatch.setattr(executor, "_job", _parallel_tools)
-    executor.submit("d-1", _inputs("p-1"))
-    executor.shutdown(wait=True)
+    monkeypatch.setattr(manager, "_job", _parallel_tools)
+    manager.submit("d-1", _inputs("p-1"))
+    manager.shutdown(wait=True)
     assert outbox.close(timeout=5) == 0
 
     events = sender.events
@@ -205,11 +205,11 @@ def test_Tool이_병렬로_진행을_알려도_BE에는_번호_순서대로_나�
 
 
 def test_개발용_진단은_진행부터_결과까지_콜백을_보내지_않는다(flow):
-    executor, outbox, sender = flow
+    manager, outbox, sender = flow
 
-    session = executor.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
-    executor.shutdown(wait=True)
+    session = manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.shutdown(wait=True)
     outbox.close(timeout=5)
 
-    assert executor.store.get(session.context.product_id).status.value == "completed"
+    assert manager.get(session.context.product_id).status.value == "completed"
     assert sender.events == []

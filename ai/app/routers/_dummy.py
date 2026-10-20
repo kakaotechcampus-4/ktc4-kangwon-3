@@ -293,7 +293,7 @@ DUMMY_STAGES = (
 def run_dummy_diagnosis(
     item: ExtractionInput, context: ExecutionContext, progress: ProgressReporter,
 ) -> JobDone:
-    """파이프라인 러너 연결 전까지 세션 실행기에 넣는 더미 진단 함수.
+    """파이프라인 러너 연결 전까지 세션 관리자에 넣는 더미 진단 함수.
 
     단계 진행만 흉내 내고 고정 결과로 완료. LLM·외부 API 호출 없음.
 
