@@ -39,6 +39,7 @@ class DiagnosisSession(StrictModel):
         error_code: 실패 코드. 실패가 아니면 None.
         retryable: 같은 요청을 다시 보내 복구 가능한지. 실패가 아니면 None.
         accepted_at: 접수 시각 (UTC).
+        started_at: 실행 시작 시각 (UTC). 대기 시간·실행 시간을 나눠 재는 데 씀. 실행 전이면 None.
         stage_started_at: 현재 단계 시작 시각 (UTC). 실행 전이면 None.
         updated_at: 마지막 상태 변경 시각 (UTC).
     """
@@ -51,11 +52,12 @@ class DiagnosisSession(StrictModel):
     error_code: str | None = None
     retryable: bool | None = None
     accepted_at: AwareDatetime = Field(default_factory=utc_now)
+    started_at: AwareDatetime | None = None
     stage_started_at: AwareDatetime | None = None
     updated_at: AwareDatetime = Field(default_factory=utc_now)
 
     # #171 §7.1 timestamp 규칙: 시간대가 있는 입력은 UTC로 정규화
-    @field_validator("accepted_at", "stage_started_at", "updated_at")
+    @field_validator("accepted_at", "started_at", "stage_started_at", "updated_at")
     @classmethod
     def _to_utc(cls, value: AwareDatetime | None) -> AwareDatetime | None:
         return value.astimezone(timezone.utc) if value is not None else None

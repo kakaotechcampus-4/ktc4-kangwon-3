@@ -18,6 +18,7 @@ def test_새_세션은_접수_상태이고_단계와_결과가_없다():
 
     assert session.status is SessionStatus.ACCEPTED
     assert session.stage is None
+    assert session.started_at is None
     assert session.stage_started_at is None
     assert session.termination_reason is None
     assert session.result is None
@@ -49,10 +50,12 @@ def test_다른_시간대의_시각은_UTC로_바꿔_저장한다():
 
     session = DiagnosisSession(
         context=_context(),
+        started_at=datetime(2026, 10, 8, 21, 0, tzinfo=kst),
         stage_started_at=datetime(2026, 10, 8, 21, 0, tzinfo=kst),
         updated_at=datetime(2026, 10, 8, 21, 0, tzinfo=kst),
     )
 
+    assert session.started_at == datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
     assert session.stage_started_at == datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
     assert session.stage_started_at.utcoffset() == timedelta(0)
     assert session.updated_at.utcoffset() == timedelta(0)

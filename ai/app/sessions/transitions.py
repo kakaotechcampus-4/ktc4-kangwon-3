@@ -152,7 +152,7 @@ def apply(session: DiagnosisSession, change: Change, *, now: datetime) -> Transi
     Args:
         session: 지금 세션. 바꾸지 않음.
         change: 일어난 일.
-        now: 변경 시각. updated_at·stage_started_at에 씀.
+        now: 변경 시각. updated_at·started_at·stage_started_at에 씀.
 
     Returns:
         Transition: 새 세션과 이벤트.
@@ -166,7 +166,7 @@ def apply(session: DiagnosisSession, change: Change, *, now: datetime) -> Transi
 
     match change:
         case Start():
-            updated = _replace(session, now, status=status)
+            updated = _replace(session, now, status=status, started_at=now)
             return Transition(updated, (Started(updated),))
         case ChangeStage(stage=stage):
             updated = _replace(session, now, stage=stage, stage_started_at=now)
