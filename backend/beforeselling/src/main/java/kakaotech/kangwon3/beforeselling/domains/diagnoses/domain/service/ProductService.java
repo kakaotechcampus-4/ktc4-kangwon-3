@@ -98,7 +98,7 @@ public class ProductService {
      * 커밋 뒤에 AI에 재진단을 요청하도록 이벤트를 발행한다.
      */
     @Transactional
-    public void answerQuestion(UUID userId, UUID productId, Map<UUID, String> answers) {
+    public void answerQuestions(UUID userId, UUID productId, Map<UUID, String> answers) {
         Product product = lockOwnedProduct(userId, productId);
 
         product.answerQuestions(answers);

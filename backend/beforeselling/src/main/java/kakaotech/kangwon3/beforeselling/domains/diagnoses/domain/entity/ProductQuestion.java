@@ -69,7 +69,7 @@ public class ProductQuestion extends BaseEntity {
         this.helpText = helpText;
     }
 
-    // 질문은 한 번만 받으므로 답변도 한 번만 저장한다.
+    // 질문 하나에 답변은 한 번만 저장한다. 재질문은 다음 회차의 새 질문으로 저장된다.
     public void answer(String answerText) {
         if (answerText == null || answerText.isBlank()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
