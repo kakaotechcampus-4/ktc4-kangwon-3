@@ -100,6 +100,13 @@ public class ProductService {
     @Transactional
     public void answerQuestion(UUID userId, UUID productId, Map<UUID, String> answers) {
         Product product = lockOwnedProduct(userId, productId);
+
+        product.answerQuestions(answers);
+        product.getDiagnoses().refreshProcessingStatus();
+
+        eventPublisher.publishEvent(toAiResumeRequestedEvent(product));
+        log.debug("질문 답변 저장 완료. productId={}, runId={}, questionRound={}, answerCount={}",
+                productId, product.getRunId(), product.latestQuestionRound(), answers.size());
     }
 
     /**
