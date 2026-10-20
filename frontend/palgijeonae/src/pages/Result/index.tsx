@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { ProductResult } from "@/api/product";
@@ -18,6 +18,13 @@ import { useProductResults } from "./useProductResults";
 
 // data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
 const EMPTY_PRODUCT_RESULTS: ProductResult[] = [];
+
+// 선택된 탭에 따라 보여줄 패널
+const TAB_PANELS: Record<ResultTabKey, ReactNode> = {
+    [ResultTabKey.DiagnosisResult]: <DiagnosisResultTab />,
+    [ResultTabKey.NextSteps]: <NextStepTab />,
+    [ResultTabKey.ProductInfo]: <ProductInfoTab />,
+};
 
 function ResultPage() {
     const { productId, diagnosesId } = useParams<{ productId?: string; diagnosesId?: string }>();
@@ -75,9 +82,7 @@ function ResultPage() {
                     <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
                     <ProductCard productName={products[selectedProductIndex].productName} productImageUrl={products[selectedProductIndex].productImageUrl} resultStatus={products[selectedProductIndex].resultStatus} processingStatus={products[selectedProductIndex].processingStatus} sourceType={products[selectedProductIndex].sourceType} />
                     <ResultTabs selected={selectedTab} onSelect={setSelectedTab} />
-                    {selectedTab === ResultTabKey.DiagnosisResult && <DiagnosisResultTab />}
-                    {selectedTab === ResultTabKey.NextSteps && <NextStepTab />}
-                    {selectedTab === ResultTabKey.ProductInfo && <ProductInfoTab />}
+                    {TAB_PANELS[selectedTab]}
                 </div>
             )}
         </div>
