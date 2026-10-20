@@ -35,6 +35,15 @@ public record ProductResponse(
         @Schema(example = "COMPLETED")
         ProcessingStatus processingStatus,
 
+        @Schema(description = "현재 실행의 단계·Tool별 진행 상태. 단계 순서, 같은 단계에서는 toolName 없는 행이 먼저. 진행 이벤트를 받기 전에는 빈 목록")
+        List<ProductProgressResponse> progresses,
+
+        @Schema(description = "진단 중 받은 질문. 회차·순서대로 모든 회차를 담음. 질문을 받기 전에는 빈 목록")
+        List<ProductQuestionResponse> questions,
+
+        @Schema(description = "실패한 상품(processingStatus = FAILED)만 값이 있음. 그 외에는 null")
+        ProductFailureResponse failure,
+
         @Schema(description = "결과를 받기 전에는 null", example = "COMPLETED")
         AssessmentStatus assessmentStatus,
 
