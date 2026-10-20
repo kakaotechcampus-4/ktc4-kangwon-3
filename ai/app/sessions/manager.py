@@ -1,6 +1,7 @@
-"""접수한 진단 세션을 실행 상한 안에서 백그라운드로 실행.
+"""진단 세션의 접수·실행·조회·정리를 맡는 세션 관리자. 라우터·콜백·정리 루프는 이 관리자만 씀.
 
-에이전트 호출이 동기라 스레드 풀 사용. 실행할 진단 함수는 주입식 (파이프라인 러너 연결 전).
+접수한 세션은 실행 상한 안에서 백그라운드로 실행. 에이전트 호출이 동기라 스레드 풀 사용.
+실행할 진단 함수는 주입식 (파이프라인 러너 연결 전).
 """
 
 import logging
@@ -38,19 +39,19 @@ SessionListener = Callable[[SessionEvent], None]
 class _Progress:
     """세션 하나의 진행 알림. 자기 실행(run_id)의 세션에만 적용."""
 
-    def __init__(self, executor: "SessionExecutor", context: ExecutionContext) -> None:
-        self._executor = executor
+    def __init__(self, manager: "SessionManager", context: ExecutionContext) -> None:
+        self._manager = manager
         self._context = context
 
     def stage(self, stage: PipelineStage) -> None:
-        self._executor._apply(self._context, ChangeStage(stage))
+        self._manager._apply(self._context, ChangeStage(stage))
 
     def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None:
-        self._executor._apply(self._context, ReportTool(tool_name, status))
+        self._manager._apply(self._context, ReportTool(tool_name, status))
 
 
-class SessionExecutor:
-    """세션을 접수해 진단 함수를 백그라운드로 실행한다."""
+class SessionManager:
+    """세션을 접수해 진단 함수를 백그라운드로 실행하고, 조회·정리를 맡는다."""
 
     def __init__(
         self,
@@ -63,7 +64,7 @@ class SessionExecutor:
         max_duration: timedelta = timedelta(seconds=SESSION_MAX_DURATION_SECONDS),
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
-        """실행기를 만든다.
+        """세션 관리자를 만든다.
 
         Args:
             store: 세션 저장소.
@@ -74,7 +75,7 @@ class SessionExecutor:
             max_duration: 접수부터 결과까지 최대 시간.
             clock: 현재 시각 함수. 테스트에서 시각을 고정할 때 주입.
         """
-        self.store = store
+        self._store = store
         self._job = job
         self._pool = ThreadPoolExecutor(max_workers=max_running, thread_name_prefix="diagnosis")
         self._max_inflight = max_inflight
@@ -95,6 +96,17 @@ class SessionExecutor:
             listener: 세션 이벤트를 받는 함수.
         """
         self._listeners.append(listener)
+
+    def get(self, product_id: str) -> DiagnosisSession | None:
+        """세션을 조회한다.
+
+        Args:
+            product_id: 세션 ID (상품 ID).
+
+        Returns:
+            DiagnosisSession | None: 세션. 없거나 정리됐으면 None.
+        """
+        return self._store.get(product_id)
 
     def submit(self, diagnosis_id: str, inputs: list[ExtractionInput]) -> list[DiagnosisSession]:
         """상품들을 세션으로 접수하고 백그라운드 실행을 예약한다.
@@ -164,7 +176,7 @@ class SessionExecutor:
         """
         deadline = self._clock() - self._max_duration
         expired = 0
-        for session in self.store.unfinished():
+        for session in self._store.unfinished():
             if session.accepted_at > deadline:
                 continue
             fail = Fail(AIResponseCode.TIMEOUT.value.code, retryable=True)
@@ -172,8 +184,16 @@ class SessionExecutor:
                 expired += 1
         return expired
 
+    def purge(self) -> int:
+        """보관 시간이 지난 종료 세션을 지운다. 답변 대기 세션은 남김.
+
+        Returns:
+            int: 지운 세션 수.
+        """
+        return self._store.purge()
+
     def shutdown(self, *, wait: bool = False) -> None:
-        """새 실행을 받지 않고 실행기를 닫는다.
+        """새 실행을 받지 않고 관리자를 닫는다.
 
         Args:
             wait: 실행 중인 세션이 끝날 때까지 기다릴지.
@@ -230,7 +250,7 @@ class SessionExecutor:
         """
         conflicts = [
             product_id for product_id in product_ids
-            if (session := self.store.get(product_id)) and STATUS_TRAITS[session.status].blocks_new_accept
+            if (session := self._store.get(product_id)) and STATUS_TRAITS[session.status].blocks_new_accept
         ]
         if conflicts:
             raise SessionConflictError(conflicts)
@@ -243,7 +263,7 @@ class SessionExecutor:
             )
             for product_id in product_ids
         ]
-        self.store.add(sessions)
+        self._store.add(sessions)
         return sessions
 
     def _apply(self, context: ExecutionContext, change: Change) -> Transition | None:
@@ -258,7 +278,7 @@ class SessionExecutor:
                 (시간 초과 뒤 늦게 온 결과 등)이면 None.
         """
         try:
-            transition = self.store.replace(context, lambda session: apply(session, change, now=self._clock()))
+            transition = self._store.replace(context, lambda session: apply(session, change, now=self._clock()))
         except InvalidTransitionError as e:
             logger.warning("세션 상태와 맞지 않는 변경 무시 (product_id=%s, run_id=%s): %s",
                            context.product_id, context.run_id, e)

@@ -14,14 +14,14 @@ from ..schemas.response import (
     DiagnosisConflict,
 )
 from ..sessions.errors import QueueFullError, SessionConflictError
-from ..sessions.executor import SessionExecutor
+from ..sessions.manager import SessionManager
 
 router = APIRouter(prefix="/diagnose", tags=["진단"])
 
 
-def get_session_executor(request: Request) -> SessionExecutor:
-    """lifespan에서 만든 세션 실행기를 꺼낸다. 테스트에서 의존성 교체용."""
-    return request.app.state.session_executor
+def get_session_manager(request: Request) -> SessionManager:
+    """lifespan에서 만든 세션 관리자를 꺼낸다. 테스트에서 의존성 교체용."""
+    return request.app.state.session_manager
 
 
 def _to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
@@ -47,7 +47,7 @@ def _to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
 )
 async def diagnose_by_content(
     req: DiagnosisRequest,
-    executor: SessionExecutor = Depends(get_session_executor),
+    manager: SessionManager = Depends(get_session_manager),
 ) -> DiagnosisAcceptedResponse:
     """진단서의 상품들을 세션으로 접수하고 바로 202를 반환한다.
 
@@ -55,7 +55,7 @@ async def diagnose_by_content(
 
     Args:
         req: 진단서 ID와 상품 1~10개.
-        executor: 세션 실행기.
+        manager: 세션 관리자.
 
     Returns:
         202 접수 응답.
@@ -64,7 +64,7 @@ async def diagnose_by_content(
         AIServiceError: 진행 중 상품이 섞이면 409(data.conflictProductIds), 대기열이 차면 429.
     """
     try:
-        sessions = executor.submit(req.diagnosis_id, [_to_extraction_input(p) for p in req.products])
+        sessions = manager.submit(req.diagnosis_id, [_to_extraction_input(p) for p in req.products])
     except SessionConflictError as e:
         raise AIServiceError(
             response_code=AIResponseCode.SESSION_CONFLICT.value,

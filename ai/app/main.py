@@ -14,7 +14,7 @@ from .database import DatabaseNotConfiguredError, get_engine
 from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .routers import dev_diagnose, diagnose, dummy, health
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
-from .sessions.executor import SessionExecutor
+from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
 
 logger = logging.getLogger(__name__)
@@ -23,27 +23,27 @@ logger = logging.getLogger(__name__)
 CALLBACK_CLOSE_SECONDS = 5.0
 
 
-async def _sweep_sessions(executor: SessionExecutor) -> None:
+async def _sweep_sessions(manager: SessionManager) -> None:
     """시간 초과 세션 실패 처리와 보관 시간 지난 세션 삭제를 주기적으로 실행한다.
 
     Args:
-        executor: 정리할 세션 실행기.
+        manager: 정리할 세션 관리자.
     """
     while True:
         await asyncio.sleep(SESSION_SWEEP_SECONDS)
         try:
             # 구독자(콜백 전송) 호출이 동기라 이벤트 루프 밖에서 실행
-            await asyncio.to_thread(executor.expire_overdue)
-            await asyncio.to_thread(executor.store.purge)
+            await asyncio.to_thread(manager.expire_overdue)
+            await asyncio.to_thread(manager.purge)
         except Exception:
             logger.exception("세션 정리 실패")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """서버 기동 시 필수 설정과 외부 연결을 검증하고 진단 세션 실행기를 띄운다.
+    """서버 기동 시 필수 설정과 외부 연결을 검증하고 진단 세션 관리자를 띄운다.
 
-    검증 실패 시 예외가 전파되어 서버가 뜨지 않는다. 종료 시 정리 작업과 실행기를 닫는다.
+    검증 실패 시 예외가 전파되어 서버가 뜨지 않는다. 종료 시 정리 작업과 세션 관리자를 닫는다.
     """
 
     ## 에러가 발생하면 서버가 뜨지 않도록, try-except로 잡지 않고 그대로 전파한다.
@@ -65,16 +65,16 @@ async def lifespan(app: FastAPI):
             logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
 
     # 진단 세션 (#264). 파이프라인 러너 연결 전까지 더미 진단으로 실행
-    executor = SessionExecutor(SessionStore(), run_dummy_diagnosis)
+    manager = SessionManager(SessionStore(), run_dummy_diagnosis)
     # BE 콜백 (#317). 실제 진단서 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     sender = HttpCallbackSender(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
     presenter = DummyAssessmentPresenter()
-    connect_callbacks(executor, EventBuilder(presenter), outbox)
-    app.state.session_executor = executor
+    connect_callbacks(manager, EventBuilder(presenter), outbox)
+    app.state.session_manager = manager
     # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
     app.state.assessment_presenter = presenter
-    sweeper = asyncio.create_task(_sweep_sessions(executor))
+    sweeper = asyncio.create_task(_sweep_sessions(manager))
     try:
         yield
     finally:
@@ -82,8 +82,8 @@ async def lifespan(app: FastAPI):
         with suppress(asyncio.CancelledError):
             await sweeper
         # 메모리 세션이라 재시작 시 어차피 사라짐. 실행 중 세션은 기다리지 않음
-        executor.shutdown(wait=False)
-        # 실행기를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
+        manager.shutdown(wait=False)
+        # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
 
