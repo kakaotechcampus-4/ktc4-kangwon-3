@@ -126,6 +126,12 @@ def test_재진단_질문_회차는_1이나_2_정수만_받는다(question_round
         ResumeRequest.model_validate(_resume(questionRound=question_round))
 
 
+def test_재진단_답변은_500자까지_받는다():
+    request = ResumeRequest.model_validate(_resume(answers=[{"questionKey": "battery_only", "answerText": "가" * 500}]))
+
+    assert len(request.answers[0].answer_text) == 500
+
+
 def test_재진단_답변의_질문_키_중복을_거부한다():
     answers = [{"questionKey": "battery_only", "answerText": "네"}, {"questionKey": "battery_only", "answerText": "아니요"}]
 
@@ -139,6 +145,7 @@ def test_재진단_답변의_질문_키_중복을_거부한다():
     {"answers": [{"questionKey": "", "answerText": "네"}]},
     {"answers": [{"questionKey": "k" * 51, "answerText": "네"}]},
     {"answers": [{"questionKey": "battery_only", "answerText": ""}]},
+    {"answers": [{"questionKey": "battery_only", "answerText": "가" * 501}]},
     {"extra": 1},
 ])
 def test_재진단_요청은_빈_값과_정의하지_않은_필드를_거부한다(fields):
