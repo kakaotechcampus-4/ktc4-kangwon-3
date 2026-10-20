@@ -1,8 +1,11 @@
 package kakaotech.kangwon3.beforeselling.global.infra.ai;
 
 import kakaotech.kangwon3.beforeselling.global.config.properties.AiServerProperties;
+import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiApiResponse;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesAccepted;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesRequest;
+import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeAccepted;
+import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 
@@ -28,6 +32,7 @@ class AiDiagnosesClientTest {
 
     private static final String BASE_URL = "http://ai-server:8000";
     private static final String DIAGNOSE_URL = BASE_URL + "/api/ai/v1/diagnose/content";
+    private static final String RESUME_URL = BASE_URL + "/api/ai/v1/diagnose/resume";
 
     private MockRestServiceServer server;
     private AiDiagnosesClient client;
@@ -112,5 +117,60 @@ class AiDiagnosesClientTest {
         // when & then
         assertThatThrownBy(() -> client.requestDiagnoses(new AiDiagnosesRequest("diagnosis-1", List.of())))
                 .isInstanceOf(RestClientException.class);
+    }
+
+    @Test
+    @DisplayName("답변을 camelCase 본문으로 AI 재진단 API에 보내고, 202 응답의 새 runId를 돌려준다.")
+    void requestResume_thenPostCamelCaseBodyAndReturnNewRunId() {
+        // given
+        AiResumeRequest request = new AiResumeRequest("diagnosis-1", "product-1", "run-1", 1, List.of(
+                new AiResumeRequest.Answer("battery_only", "네")));
+
+        server.expect(requestTo(RESUME_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "diagnosisId": "diagnosis-1",
+                          "productId": "product-1",
+                          "runId": "run-1",
+                          "questionRound": 1,
+                          "answers": [{"questionKey": "battery_only", "answerText": "네"}]
+                        }
+                        """, true))
+                .andRespond(withStatus(HttpStatus.ACCEPTED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {
+                                  "code": "OK",
+                                  "message": "재진단 요청이 접수되었습니다.",
+                                  "details": null,
+                                  "data": {"productId": "product-1", "runId": "run-2", "status": "accepted"}
+                                }
+                                """));
+
+        // when
+        AiResumeAccepted accepted = client.requestResume(request);
+
+        // then
+        server.verify();
+        assertThat(accepted).isEqualTo(new AiResumeAccepted("product-1", "run-2", "accepted"));
+    }
+
+    @Test
+    @DisplayName("AI가 재진단을 거절하면 예외에서 응답 본문의 code를 읽을 수 있다.")
+    void requestResume_whenRejected_thenExceptionCarriesCode() {
+        // given
+        server.expect(requestTo(RESUME_URL))
+                .andRespond(withStatus(HttpStatus.NOT_FOUND)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code": "AI_SESSION_NOT_FOUND", "message": "진단 세션을 찾을 수 없습니다.", "details": null, "data": null}
+                                """));
+
+        // when & then
+        assertThatThrownBy(() -> client.requestResume(
+                new AiResumeRequest("diagnosis-1", "product-1", "run-1", 1, List.of())))
+                .isInstanceOfSatisfying(RestClientResponseException.class, e ->
+                        assertThat(e.getResponseBodyAs(AiApiResponse.class).code()).isEqualTo("AI_SESSION_NOT_FOUND"));
     }
 }
