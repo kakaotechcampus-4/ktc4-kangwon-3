@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -13,7 +14,7 @@ import java.util.UUID;
 // 질문 콜백(eventType = product_awaiting_input)
 public record ProductAwaitingInputEvent(
         @NotBlank String eventId,
-        @NotNull UUID diagnosisId,
+        @JsonProperty("diagnosisId") @NotNull UUID diagnosesId,
         @NotNull UUID productId,
         @NotBlank String runId,
         @Min(1) int sequence,

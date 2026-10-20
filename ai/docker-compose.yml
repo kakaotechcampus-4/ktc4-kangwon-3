@@ -20,6 +20,8 @@ services:
 
       # BE URL 환경변수
       BE_BASE_URL: ${BE_BASE_URL:-http://be-server:8080}
+      # 콜백 인증 토큰 (BE와 같은 값)
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
       
       # AI DB URL 환경변수
       DATABASE_URL: ${DATABASE_URL}

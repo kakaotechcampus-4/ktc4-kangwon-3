@@ -72,7 +72,7 @@ class FoodDrugTool(RegulatoryTool):
     """식품용 기구·식품·건강기능식품(수입신고), 화장품(책임판매업·기능성·금지 원료), 의료기기(수입허가) 후보를 찾는다.
 
     Args:
-        model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 설정으로 만든다.
+        model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 Tool 프로필(`TOOL_PROFILES`)로 만든다.
         evidence: 근거(법령 조문 + 의료기기 품목·등급 + 화장품 금지 원료)를 돌려주는 함수. None이면 법제처 API(기준일별 공용 캐시).
         configured_model: 사용량 기록용 모델 이름.
         top_k: 품목 선택 모델에 넘길 의료기기 후보 수.

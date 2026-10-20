@@ -16,8 +16,12 @@ class PromptName(StrEnum):
     VERIFICATION = "verification"
     FOOD_DRUG_FACTS = "food_drug/facts"
     FOOD_DRUG_REVIEW = "food_drug/review"
+    ELECTRICAL_FACTS = "electrical/facts"
+    ELECTRICAL_REVIEW = "electrical/review"
     CHILDREN_FACTS = "children/facts"
     CHILDREN_REVIEW = "children/review"
+    ADVERTISING = "advertising"
+    IMAGE_TRIAGE = "image_triage"
 
 
 @dataclass(frozen=True)

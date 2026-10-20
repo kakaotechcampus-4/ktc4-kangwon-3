@@ -8,7 +8,7 @@ import pytest
 
 from app.schemas.clients.law_response import AdmrulSearchResponse
 from app.tools.electrical.evidence import (
-    NOTICE_ID, NOTICE_NAME, CachedEvidenceSource, DatabaseEvidenceSource, EvidenceUnavailable,
+    NOTICE_ID, NOTICE_NAME, CachedLoader, DatabaseEvidenceSource, EvidenceUnavailable,
     LawApiClients, LawApiEvidenceSource, LawLookupError, Scheme, article_text, compact, purchase_agent_status, select_version,
 )
 
@@ -128,12 +128,20 @@ def test_버전을_유일하게_정할_수_없으면_고르지_않는다(result)
                        version_field="serial_number", as_of=AS_OF)
 
 
-@pytest.mark.parametrize("field,value", [("document_id", "1"), ("name", "다른 고시"), ("enforce_date", "20200101")])
+@pytest.mark.parametrize("field,value", [("document_id", "1"), ("name", "다른 고시")])
 def test_검색과_본문의_식별정보가_다르면_근거로_쓰지_않는다(fake_law, field, value):
     body = fake_law.notice_bodies["2100000285148"]
     fake_law.notice_bodies["2100000285148"] = body.model_copy(update={field: value})
     with pytest.raises(EvidenceUnavailable):
         LawApiEvidenceSource(fake_law).load(AS_OF)
+
+
+def test_본문_시행일만_다르면_검색에서_고른_판으로_쓴다(fake_law):
+    # 시행일이 나뉜 개정판은 본문 시행일이 검색과 다르게 온다. 문서·이름이 같으면 쓰고 시행일은 검색 값.
+    body = fake_law.notice_bodies["2100000285148"]
+    fake_law.notice_bodies["2100000285148"] = body.model_copy(update={"enforce_date": "20991231"})
+    evidence = LawApiEvidenceSource(fake_law).load(AS_OF)
+    assert all(document["effective_date"] != "20991231" for document in evidence.documents)
 
 
 def test_필요한_별표가_없으면_근거로_쓰지_않는다(fake_law):
@@ -176,7 +184,7 @@ class _CountingSource:
 def test_같은_기준일은_한_번만_조회하고_유지시간이_지나면_다시_조회한다():
     now = [0.0]
     source = _CountingSource()
-    cached = CachedEvidenceSource(source, ttl_seconds=10, clock=lambda: now[0])
+    cached = CachedLoader(source.load, ttl_seconds=10, clock=lambda: now[0])
     first = cached.load(AS_OF)
     assert cached.load(AS_OF) is first and source.loads == 1
     now[0] = 11
@@ -188,7 +196,7 @@ def test_같은_기준일은_한_번만_조회하고_유지시간이_지나면_�
 
 def test_조회_실패는_캐시하지_않는다():
     source = _CountingSource(fail=True)
-    cached = CachedEvidenceSource(source)
+    cached = CachedLoader(source.load)
     for _ in range(2):
         with pytest.raises(EvidenceUnavailable):
             cached.load(AS_OF)

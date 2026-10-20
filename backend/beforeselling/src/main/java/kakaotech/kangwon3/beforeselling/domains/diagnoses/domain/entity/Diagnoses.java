@@ -62,8 +62,8 @@ public class Diagnoses extends BaseEntity {
         }
     }
 
-    public void startDiagnosis() {
-        products.forEach(Product::startDiagnosis);
+    public void startDiagnoses() {
+        products.forEach(Product::startDiagnoses);
         refreshProcessingStatus();
     }
 
@@ -73,6 +73,11 @@ public class Diagnoses extends BaseEntity {
 
     public boolean isOwnedBy(UUID userId) {
         return this.userId.equals(userId);
+    }
+
+    // 대기·진행 중인 상품이 있으면 아직 상태가 바뀔 수 있다.
+    public boolean hasProcessingProduct() {
+        return hasAny(ProcessingStatus.PENDING) || hasAny(ProcessingStatus.IN_PROGRESS);
     }
 
     /**
