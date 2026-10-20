@@ -17,7 +17,7 @@ from ...schemas.schemas import (
 from ..base import RegulatoryTool
 from ..common.agent import ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
-from ..common.law import EvidenceUnavailable, compact
+from ..common.law import EvidenceUnavailable
 from .evidence import RadioItem
 from .rules import ASSESSMENT_PARAGRAPH, band_label, normalized_bands, sale_actions
 from .search import RadioCandidates, RadioItemSearch, default_item_search
@@ -30,7 +30,8 @@ _QUESTIONS = {
     "wireless_feature": "무선 기능(블루투스·Wi-Fi·무선충전·RF 리모컨 등) 정보가 필요합니다.",
 }
 _REQUIRED_FIELDS = ("product_type", "wireless_feature")
-_ASKED_FIELDS = ("frequency",)
+# 판단을 바꾸는 조건만 질문한다(#341과 같은 기준). 주파수·출력·용도는 선택 모델의 참고값이라 가정으로 남긴다.
+_QUESTION_FIELDS = _REQUIRED_FIELDS
 _SEARCH_TERMS_LIMIT = 3
 _SELECTIONS_LIMIT = 3
 _NOTE_LIMIT = 1500
@@ -94,10 +95,10 @@ class RadioTool(RegulatoryTool):
         if not decision.selected:
             return ToolResult(tool_name=self.tool_name, selected=False, selection_reason=decision.reason,
                               status=ToolStatus.SKIPPED)
-        query: dict[str, Any] = {"dropped_facts": 0, "dropped_candidates": 0, "not_applicable": 0, "conflicted": []}
+        query: dict[str, Any] = {"dropped_facts": 0, "dropped_candidates": 0, "not_applicable": 0}
         snippets = product_snippets(product)
         if not snippets:
-            return self._assemble(decision, [], [], [*_REQUIRED_FIELDS, *_ASKED_FIELDS],
+            return self._assemble(decision, [], [], list(_REQUIRED_FIELDS),
                                   ["입력에 인용 가능한 상품 설명이 없습니다."], query)
 
         search = self._search or default_item_search()
@@ -116,26 +117,28 @@ class RadioTool(RegulatoryTool):
         by_field = group_facts(facts)
         terms = [term for term in extracted.search_terms if term.strip()][:_SEARCH_TERMS_LIMIT]
         query["search_terms"] = terms
-        bands = normalized_bands([fact.value for fact in by_field.get("frequency", [])])
+        # 주파수가 무선 기능 값 안에만 있는 경우(예: "Bluetooth 5.0 (2.4GHz)")도 읽는다.
+        bands = normalized_bands([fact.value for field in ("frequency", "wireless_feature")
+                                  for fact in by_field.get(field, [])])
         query["frequency_bands"] = [band_label(band) for band in bands]
 
         assumptions = ["전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."]
         if query["dropped_facts"]:
             assumptions.append(f"원문과 대조되지 않은 상품 조건 {query['dropped_facts']}개를 제외했습니다.")
-        missing = [field for field in (*_REQUIRED_FIELDS, *_ASKED_FIELDS) if field not in by_field]
-        conflicted = [field for field, values in by_field.items()
-                      if field in ("product_type",) and len({compact(fact.value) for fact in values}) > 1]
-        query["conflicted"] = conflicted
-        missing.extend(conflicted)
-        if product.conflicts or conflicted:
-            assumptions.append("상품 정보에 모순이 있어 적용 조건을 확정하지 않았습니다.")
+        missing = [field for field in _REQUIRED_FIELDS if field not in by_field]
+        if not bands:
+            assumptions.append("상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.")
+        if product.conflicts:
+            # 추출 단계가 표시한 모순(예: 배터리 용량 불일치)이 조회 전체를 막지 않게 가정으로만 남긴다(#341과 같음).
+            assumptions.append("추출 단계가 상품 정보의 모순을 표시했습니다: " + "; ".join(product.conflicts)
+                               + ". 무선 기능·제품 종류와 관련된 모순이면 결과가 달라질 수 있습니다.")
 
         if "wireless_feature" not in by_field:
             missing = [field for field in _REQUIRED_FIELDS if field not in by_field]
             assumptions.append("상품 원문에서 무선 기능 근거를 찾지 못해 무선기기 후보를 내지 않았습니다. "
                                "비대상 판단이 아닙니다(유선 전자파적합성 기기는 이 Tool 범위 밖).")
             return self._assemble(decision, facts, [], missing, assumptions, query)
-        if any(field not in by_field for field in _REQUIRED_FIELDS) or product.conflicts or conflicted:
+        if any(field not in by_field for field in _REQUIRED_FIELDS):
             return self._assemble(decision, facts, [], missing, assumptions, query)
 
         try:
@@ -162,7 +165,7 @@ class RadioTool(RegulatoryTool):
 
         items = {item.item_id: item for item in candidates.items}
         findings, actions, selected = [], [], []
-        for selection in review.selections[:_SELECTIONS_LIMIT]:
+        for selection in review.selections:
             if not selection.applies:
                 query["not_applicable"] += 1
                 continue
@@ -171,11 +174,22 @@ class RadioTool(RegulatoryTool):
             if item is None or item.item_id in selected or not used:
                 query["dropped_candidates"] += 1
                 continue
+            # 해당 없음·대조 안 되는 선택을 거른 뒤 상한을 적용한다(앞쪽 무효 선택이 맞는 행을 밀어내지 않게).
+            if len(selected) >= _SELECTIONS_LIMIT:
+                query["over_limit"] = query.get("over_limit", 0) + 1
+                continue
             selected.append(item.item_id)
-            missing.extend(field for field in selection.needed_fields if field not in by_field)
-            findings.append(self._candidate(item, selection.rationale, used, by_field, candidates, assumptions))
-            actions.extend(sale_actions(item, candidates.personal_use))
+            needed = [field for field in dict.fromkeys(selection.needed_fields) if field not in by_field]
+            missing.extend(field for field in needed if field in _QUESTION_FIELDS)
+            notes = []
+            if other := [_FIELDS[field] for field in needed if field not in _QUESTION_FIELDS and field in _FIELDS]:
+                notes.append(f"기자재 확정에는 {', '.join(other)} 확인이 더 필요합니다.")
+            item_actions = sale_actions(item, candidates.personal_use)
+            actions.extend(item_actions)
+            findings.append(self._candidate(item, selection.rationale, used, by_field, candidates,
+                                            [*assumptions, *notes], item_actions))
         query["selected_items"] = selected
+        query["assessment_types"] = list(dict.fromkeys(kind for item_id in selected for kind in items[item_id].assessment))
         if query["dropped_candidates"]:
             assumptions.append(f"후보 행과 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
         if not findings:
@@ -190,7 +204,7 @@ class RadioTool(RegulatoryTool):
         return [*terms, *values, *hints]
 
     def _candidate(self, item: RadioItem, rationale: str, used: list[str], by_field: dict,
-                   candidates: RadioCandidates, assumptions: list[str]) -> RegulatoryFinding:
+                   candidates: RadioCandidates, assumptions: list[str], actions: list[str]) -> RegulatoryFinding:
         kind = "·".join(item.assessment) or "적합성평가"
         sources = [candidates.notice.source("별표 1", item.row_text)]
         for assessment in item.assessment:
@@ -203,8 +217,10 @@ class RadioTool(RegulatoryTool):
             tool_name=self.tool_name, subject=f"{kind} 대상기자재 후보 — {item.name}",
             determination=Determination.POSSIBLY_REQUIRED, risk_level=RiskLevel.MEDIUM,
             summary=(f"방송통신기자재 {kind} 대상일 가능성이 있습니다({item.section} > {' > '.join(item.path)}). "
-                     "판매 목적 수입은 판매 전 적합성평가가 필요하고, 개인 사용 1대 반입은 면제 대상일 수 있습니다."),
-            rationale=rationale, legal_sources=sources,
+                     "판매 목적 수입은 판매 전 적합성평가가 필요합니다."
+                     + (" 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2)."
+                        if candidates.personal_use is not None else "")),
+            rationale=rationale, legal_sources=sources, requirements=list(actions),
             product_facts_used=[f"{_FIELDS[field]}: {fact.value} (근거: {fact.quote})"
                                 for field in used for fact in by_field[field]],
             assumptions=[*assumptions, "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. "
@@ -224,9 +240,7 @@ class RadioTool(RegulatoryTool):
                 product_facts_used=[f"{_FIELDS[fact.field]}: {fact.value} (근거: {fact.quote})" for fact in facts],
                 assumptions=list(assumptions),
             )]
-        types = list(dict.fromkeys(
-            finding.subject.split(" 대상기자재", 1)[0] for finding in findings
-            if finding.determination is Determination.POSSIBLY_REQUIRED))
+        types = list(query.get("assessment_types", []))
         detail = RadioAssessment(
             wireless_features=list(dict.fromkeys(fact.value for fact in facts if fact.field == "wireless_feature")),
             frequency_bands=list(query.get("frequency_bands", [])),
@@ -234,14 +248,11 @@ class RadioTool(RegulatoryTool):
             certification_type=", ".join(types) or None,
             legal_sources=[],
         )
-        conflicted = set(query.get("conflicted", ()))
         return ToolResult(
             tool_name=self.tool_name, selected=True, selection_reason=decision.reason,
             status=ToolStatus.SUCCESS, result=detail, findings=findings,
             required_actions=list(dict.fromkeys(actions or [])),
-            missing_information=[f"{_FIELDS[field]} 정보가 서로 달라 확인이 필요합니다." if field in conflicted
-                                 else _QUESTIONS.get(field, f"{_FIELDS[field]} 정보가 필요합니다.")
-                                 for field in missing],
+            missing_information=[_QUESTIONS.get(field, f"{_FIELDS[field]} 정보가 필요합니다.") for field in missing],
             query=query,
         )
 
