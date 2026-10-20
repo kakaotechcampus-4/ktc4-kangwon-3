@@ -1,5 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
+import jakarta.validation.Valid;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductAnswerRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.SortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
@@ -18,6 +20,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -59,6 +63,19 @@ public class ProductController implements ProductApi {
         ProductResponse response = productUseCase.getProduct(principal.userId(), productId);
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
+    }
+
+    // 질문 답변 제출. 저장 후 AI 재진단은 비동기로 요청한다.
+    @Override
+    @PostMapping("/{productId}/answers")
+    public ResponseEntity<ApiResponse<Void>> answerQuestions(
+            @LoginUser UserPrincipal principal,
+            @PathVariable UUID productId,
+            @Valid @RequestBody ProductAnswerRequest request
+    ) {
+        productUseCase.answerQuestions(principal.userId(), productId, request);
+
+        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
     }
 
     // 상품 단건 삭제
