@@ -32,7 +32,7 @@ public class AiResumeRequestEventListener {
     static final String INVALID_REQUEST = "AI_INVALID_REQUEST";
     static final String RESUME_CONFLICT = "AI_RESUME_CONFLICT";
 
-    static final String SESSION_NOT_FOUND_MESSAGE = "답변을 기다리는 시간이 지나 진단을 이어갈 수 없습니다. 다시 진단해 주세요.";
+    static final String SESSION_NOT_FOUND_MESSAGE = "진단 정보를 찾을 수 없어 이어서 진행할 수 없습니다. 다시 진단해 주세요.";
     static final String REJECTED_MESSAGE = "진단을 이어서 진행하지 못했습니다.";
 
     private final AiDiagnosesClient aiDiagnosesClient;
@@ -77,15 +77,12 @@ public class AiResumeRequestEventListener {
             // 세션이 사라져(AI 재시작, 답변 대기 24시간 경과) 이어서 진단할 수 없다. 처음부터 다시 진단하면 접수된다.
             case SESSION_NOT_FOUND -> fail(event, code, SESSION_NOT_FOUND_MESSAGE, true);
             // BE가 잘못 보낸 요청
-            case UNKNOWN_QUESTION_KEY, INVALID_REQUEST -> {
+            case UNKNOWN_QUESTION_KEY, INVALID_REQUEST, RESUME_CONFLICT -> {
                 log.error("AI가 재진단 요청을 거절했습니다. diagnosesId={}, productId={}, status={}, code={}, body={}",
                         event.diagnosesId(), event.productId(), e.getStatusCode(), code,
                         e.getResponseBodyAsString());
                 fail(event, code, REJECTED_MESSAGE, false);
             }
-            // 이미 접수됐거나(202 유실 뒤 재요청) 지난 질문에 대한 답변
-            case RESUME_CONFLICT -> log.warn("AI가 재진단 요청을 중복으로 판단했습니다. diagnosesId={}, productId={}, runId={}",
-                    event.diagnosesId(), event.productId(), event.runId());
             // 429·5xx 등. TODO: AI 요청 실패 처리(#335 후속). 지금은 멈춘 진단 정리(#330)에 맡긴다.
             case null, default -> log.error("AI 재진단 요청 실패. diagnosesId={}, productId={}, status={}, code={}",
                     event.diagnosesId(), event.productId(), e.getStatusCode(), code);
