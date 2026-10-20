@@ -10,6 +10,19 @@ import httpx
 # data.go.kr serviceKey, 법제처 OC
 _SENSITIVE_PARAM_RE = re.compile(r"([?&](?:serviceKey|OC)=)[^&\s'\"]+", re.IGNORECASE)
 
+
+def mask_sensitive_params(text: str) -> str:
+    """텍스트 속 URL의 키 쿼리 파라미터 값을 ``***``로 가린다.
+
+    Args:
+        text: 가릴 텍스트.
+
+    Returns:
+        str: 키 값이 가려진 텍스트.
+    """
+    return _SENSITIVE_PARAM_RE.sub(r"\1***", text)
+
+
 RequestT = TypeVar("RequestT")
 ResponseT = TypeVar("ResponseT")
 
@@ -133,7 +146,7 @@ class BaseClient(ABC, Generic[RequestT, ResponseT]):
         Returns:
             httpx.HTTPStatusError: URL이 마스킹된 새 예외.
         """
-        masked_msg = _SENSITIVE_PARAM_RE.sub(r"\1***", str(error))
+        masked_msg = mask_sensitive_params(str(error))
         return httpx.HTTPStatusError(
             message=masked_msg,
             request=error.request,

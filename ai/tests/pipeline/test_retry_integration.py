@@ -58,7 +58,7 @@ class _FakeExtractor:
     def __init__(self, product: Product) -> None:
         self._product = product
 
-    def extract(self, source: ExtractionInput) -> Product:
+    def run(self, source: ExtractionInput) -> Product:
         assert source.product_id == self._product.product_id
         return self._product.model_copy(deep=True)
 
@@ -67,7 +67,7 @@ class _FakeSelector:
     def __init__(self, selected_tool: ToolName) -> None:
         self._selected_tool = selected_tool
 
-    def select(self, product: Product) -> ToolSelectionResponse:
+    def run(self, product: Product) -> ToolSelectionResponse:
         return ToolSelectionResponse(
             decisions=[
                 ToolSelectionItem(
@@ -119,7 +119,7 @@ class _RuleOnlyVerifier:
     def __init__(self) -> None:
         self._delegate = VerificationAgent()
 
-    def verify(self, draft: DraftAssessment) -> VerificationResult:
+    def run(self, draft: DraftAssessment) -> VerificationResult:
         return self._delegate.verify_rules(draft)
 
 

@@ -27,10 +27,22 @@ def test_본문과_지문은_같은_스냅샷에서_나온다(name):
     snapshot = get_prompt(name)
 
     assert snapshot.name is name
-    assert snapshot.path.as_posix().endswith(f"/prompts/{name.value}.md")
+    assert snapshot.path.as_posix().endswith((f"/agents/{name.value}/prompt.md", f"/prompts/{name.value}.md"))
     assert snapshot.text
     assert snapshot.sha256 == hashlib.sha256(snapshot.text.encode("utf-8")).hexdigest()
     assert len(snapshot.sha256) == 64
+
+
+@pytest.mark.parametrize(("name", "location"), [
+    (PromptName.EXTRACTION, "agents/extraction/prompt.md"),
+    (PromptName.SELECTION, "agents/selection/prompt.md"),
+    (PromptName.VERIFICATION, "agents/verification/prompt.md"),
+    (PromptName.IMAGE_TRIAGE, "agents/image_triage/prompt.md"),
+    (PromptName.ADVERTISING, "prompts/advertising.md"),
+    (PromptName.CHILDREN_FACTS, "prompts/children/facts.md"),
+])
+def test_에이전트_패키지_프롬프트가_있으면_그쪽을_쓴다(name, location):
+    assert get_prompt(name).path.as_posix().endswith(f"/app/{location}")
 
 
 @pytest.mark.parametrize("text", ["가\r\n나\r\n", "가\r나\r", "가\n나\n"])

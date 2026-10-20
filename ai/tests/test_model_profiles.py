@@ -3,8 +3,9 @@
 import pytest
 
 from app import usage
-from app.config import AGENT_PROFILES, CHAT_MODELS, MODEL_PROFILES, ModelProfile, Price
+from app.config import AGENT_PROFILES, CHAT_MODELS, MODEL_PROFILES, TOOL_PROFILES, ModelProfile, Price
 from app.config.catalog import ChatModel, ClaudeModel, GeminiModel, OpenAIModel
+from app.schemas.schemas import ToolName
 
 _REASONING = OpenAIModel("reasoning", None, reasoning_efforts=("low", "medium"))
 
@@ -79,3 +80,7 @@ def test_비용_단가표는_단가를_아는_모델만_카탈로그에서_만�
         for model in CHAT_MODELS.values() if model.price
     }
     assert set(usage.PRICING_KRW) == {"openai/gpt-4.1-mini", "openai/gpt-6-luna"}
+
+
+def test_Tool_표에_있는_이름은_ToolName_값이다():
+    assert set(TOOL_PROFILES) <= {tool.value for tool in ToolName}

@@ -1,11 +1,15 @@
 """API 공통 응답 스키마. BE의 ApiResponse<T> 형식에 맞춘다."""
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import Field
 
+from ..observability.context import PipelineStage
 from .base import ApiModel, StrictModel
+from .callback import PublicAssessmentDto, PublicQuestionDto
 from .schemas import FinalAssessment
+from .session import SessionStatus
 
 
 class FieldErrorDetail(StrictModel):
@@ -92,3 +96,49 @@ def ok_diagnose(data: FinalAssessment, message: str = "진단이 성공적으로
 def fail(code: str, message: str, details: list[FieldErrorDetail] | None = None) -> ApiResponse:
     """실패 응답을 생성한다."""
     return ApiResponse(code=code, message=message, details=details)
+
+
+class DevDiagnosisAcceptedResponse(ApiResponse):
+    """개발용 진단 접수 응답 (202). data에 발급한 상품 ID·실행 ID."""
+
+    data: AcceptedProduct | None = None
+
+
+class DevDiagnosisStatus(ApiModel):
+    """개발용 진단 상태 (#318). BE가 콜백으로 받을 공개 진단서·질문과 내부 결과를 함께 담음.
+
+    Attributes:
+        product_id: 개발용 상품 ID (dev-).
+        run_id: 실행 ID.
+        status: 세션 상태.
+        stage: 현재(또는 마지막) 단계.
+        error_code: 실패 코드. 실패가 아니면 None.
+        retryable: 실패 시 다시 요청해도 되는지.
+        accepted_at: 접수 시각.
+        updated_at: 마지막 변경 시각.
+        assessment: 완료 시 BE에 결과 콜백으로 갈 공개 진단서.
+        question_round: 답변 대기 시 질문 회차.
+        questions: 답변 대기 시 BE에 질문 콜백으로 갈 질문.
+        presentation_error: 공개 진단서·질문 변환 실패 내용. 운영이라면 실패 콜백으로 끝나는 경우.
+        result: 내부 진단 결과 (Tool별 결과·검증 포함). 디버깅용.
+    """
+
+    product_id: str
+    run_id: str
+    status: SessionStatus
+    stage: PipelineStage | None = None
+    error_code: str | None = None
+    retryable: bool | None = None
+    accepted_at: datetime
+    updated_at: datetime
+    assessment: PublicAssessmentDto | None = None
+    question_round: int | None = None
+    questions: list[PublicQuestionDto] = Field(default_factory=list)
+    presentation_error: str | None = None
+    result: FinalAssessment | None = None
+
+
+class DevDiagnosisStatusResponse(ApiResponse):
+    """개발용 진단 상태 조회 응답. data에 DevDiagnosisStatus."""
+
+    data: DevDiagnosisStatus | None = None

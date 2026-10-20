@@ -8,28 +8,13 @@ services:
     container_name: ai-server
     restart: unless-stopped
     mem_limit: 1g
+    # 앱 환경변수는 .env 전체를 그대로 주입 (새 변수는 .env·.env.example에만 추가)
+    env_file: .env
+    # compose가 정하는 값만. env_file보다 우선함
     environment:
       TZ: Asia/Seoul
-
-      # 에이전트 환경변수
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
-      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL}
-      # (선택) 코드 기본값 대신 쓸 모델 프로필. 비우면 코드 기본값
-      MODEL_PROFILE_OVERRIDES: ${MODEL_PROFILE_OVERRIDES:-}
-
-      # BE URL 환경변수
+      # .env에 없으면 운영 기본값. 필수값이라 빠지면 기동 실패
       BE_BASE_URL: ${BE_BASE_URL:-http://be-server:8080}
-      # 콜백 인증 토큰 (BE와 같은 값)
-      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN}
-      
-      # AI DB URL 환경변수
-      DATABASE_URL: ${DATABASE_URL}
-
-      # 외부 API 클라이언트 환경변수
-      DATA_GO_KR_KEY: ${DATA_GO_KR_KEY}
-      KEY_SAFETYKOREA: ${KEY_SAFETYKOREA}
-      LAW_GO_KR_OC: ${LAW_GO_KR_OC}
     ports:
       - "8000:8000"
     depends_on:

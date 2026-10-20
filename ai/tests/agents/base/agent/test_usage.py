@@ -1,0 +1,35 @@
+"""BaseAgent 사용량 기록: 호출 1건당 1행, 기록 이름·모델·추론 강도 (#160, #284, #311)."""
+
+
+def test_성공하면_사용량을_한_번_기록한다(fakes, stub_model, records):
+    fakes.Agent(stub_model(fakes.Answer(value="ok"))).run(fakes.question)
+
+    assert len(records) == 1
+    row = records[0]
+    assert (row["agent"], row["subject_id"], row["ok"], row["error_type"]) == ("fake", "p-1", True, None)
+    assert row["configured_model"] == "openai/gpt-4.1-mini"
+    assert (row["usage"].input_tokens, row["usage"].cached_tokens, row["usage"].output_tokens) == (100, 40, 20)
+
+
+def test_사용량_기록과_실행_정보는_같은_측정값을_쓴다(fakes, stub_model, records):
+    meta = fakes.Agent(stub_model(fakes.Answer(value="ok"))).run_with_meta(fakes.question).meta
+
+    assert (meta.usage, meta.elapsed_ms) == (records[0]["usage"], records[0]["elapsed_ms"])
+
+
+def test_usage_agent와_configured_model을_넘기면_그_이름으로_기록한다(fakes, stub_model, records):
+    model = stub_model(fakes.Answer(value="ok"))
+
+    fakes.Agent(model, usage_agent="fake-eval", configured_model="custom").run(fakes.question)
+
+    assert (records[0]["agent"], records[0]["configured_model"]) == ("fake-eval", "custom")
+
+
+def test_모델의_추론_강도를_사용량_기록에_남긴다(fakes, stub_model, records):
+    reasoning = stub_model(fakes.Answer(value="ok"))
+    reasoning.reasoning_effort = "low"
+
+    fakes.Agent(reasoning).run(fakes.question)
+    fakes.Agent(stub_model(fakes.Answer(value="ok"))).run(fakes.question)
+
+    assert [record["reasoning_effort"] for record in records] == ["low", None]

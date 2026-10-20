@@ -42,7 +42,7 @@ def fake_be(monkeypatch):
     monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
     for name, value in _ENV.items():
         monkeypatch.setenv(name, value)
-    for name in ("DATABASE_URL", "MODEL_PROFILE_OVERRIDES"):
+    for name in ("DATABASE_URL", "MODEL_PROFILE_OVERRIDES", "AI_DEV_API_ENABLED", "AI_DEV_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     for cached in (config.get_settings, database.get_engine, database.get_session_factory):
@@ -80,3 +80,25 @@ def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_
     result = events[-1]
     assert result["eventType"] == "product_result"
     assert len(result["assessment"]["toolReviews"]) == 6
+
+
+def test_개발용_진단은_상태_조회로_결과를_보고_BE로는_콜백을_보내지_않는다(fake_be, monkeypatch):
+    key = "test-dev-api-key-0123456789abcdefgh"
+    monkeypatch.setenv("AI_DEV_API_ENABLED", "true")
+    monkeypatch.setenv("AI_DEV_API_KEY", key)
+    headers = {"X-Dev-Api-Key": key}
+
+    with TestClient(main.app) as client:
+        accepted = client.post("/api/ai/v1/dev/diagnose", json={"textBlocks": ["상품 설명"]}, headers=headers)
+        product_id = accepted.json()["data"]["productId"]
+
+        def status():
+            return client.get(f"/api/ai/v1/dev/diagnose/{product_id}", headers=headers).json()["data"]
+
+        _wait_until(lambda: status()["status"] == "completed")
+        done = status()
+
+    assert accepted.status_code == 202
+    assert done["assessment"]["status"] == "completed"
+    assert done["result"] is not None
+    assert fake_be == []

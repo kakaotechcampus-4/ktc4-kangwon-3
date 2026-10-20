@@ -398,6 +398,13 @@ def test_실제_Executor의_전체_결과와_누적이력에서_반복과_실패
         previous, previous_review = current, current_review
 
 
+class _RunStage:
+    """_LoopStages의 메서드 하나를 단계 인터페이스(run)로 내놓는 어댑터."""
+
+    def __init__(self, method):
+        self.run = method
+
+
 class _LoopStages:
     """비교용 상태를 생성하고 Runner의 호출 횟수와 마지막 결과를 관찰한다."""
 
@@ -503,8 +510,8 @@ def test_Runner는_종료정책을_적용하고_마지막_결과를_보존한다
 ):
     stages = _LoopStages(name, scenario)
     pipeline = CompliancePipeline(
-        extractor=stages, selector=stages, tool_executor=stages,
-        aggregator=stages, verifier=stages, max_retry_rounds=limit,
+        extractor=_RunStage(stages.extract), selector=_RunStage(stages.select), tool_executor=stages,
+        aggregator=stages, verifier=_RunStage(stages.verify), max_retry_rounds=limit,
     )
 
     result = pipeline.run(ExtractionInput(product_id="p1", text_blocks=["상품 원문"]))
