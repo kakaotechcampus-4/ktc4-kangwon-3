@@ -165,8 +165,8 @@ def test_결과는_검증_규칙을_통과하고_재실행을_요청받지_않�
 
 def test_모델을_넣지_않으면_표시광고_Tool_프로필로_모델을_만든다(monkeypatch):
     names: list[str] = []
-    monkeypatch.setattr("app.agents.base.build_agent_model", lambda name: pytest.fail("에이전트 표를 쓰면 안 됨"))
-    monkeypatch.setattr("app.agents.base.build_tool_model", lambda name: names.append(name) or _StubModel([]))
+    monkeypatch.setattr("app.agents.base.agent.build_agent_model", lambda name: pytest.fail("에이전트 표를 쓰면 안 됨"))
+    monkeypatch.setattr("app.agents.base.agent.build_tool_model", lambda name: names.append(name) or _StubModel([]))
 
     AdvertisingReviewer()
 

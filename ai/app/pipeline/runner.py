@@ -18,11 +18,11 @@ from ..schemas.schemas import (
 
 
 class ExtractionStage(Protocol):
-    def extract(self, source: ExtractionInput) -> Product: ...
+    def run(self, source: ExtractionInput) -> Product: ...
 
 
 class SelectionStage(Protocol):
-    def select(self, product: Product) -> ToolSelectionResponse: ...
+    def run(self, product: Product) -> ToolSelectionResponse: ...
 
 
 class ToolExecutionStage(Protocol):
@@ -49,7 +49,7 @@ class AggregationStage(Protocol):
 
 
 class VerificationStage(Protocol):
-    def verify(self, draft: DraftAssessment) -> VerificationResult: ...
+    def run(self, draft: DraftAssessment) -> VerificationResult: ...
 
 
 class _PipelineNextAction(StrEnum):
@@ -169,14 +169,14 @@ class CompliancePipeline:
         self._max_retry_rounds = max_retry_rounds
 
     def run(self, source: ExtractionInput) -> FinalAssessment:
-        product: Product = self._extractor.extract(source)
-        selection: ToolSelectionResponse = self._selector.select(product)
+        product: Product = self._extractor.run(source)
+        selection: ToolSelectionResponse = self._selector.run(product)
         selection_result: SelectionResult = self._tool_executor.execute_initial(
             product,
             selection,
         )
         draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
-        verification: VerificationResult = self._verifier.verify(draft)
+        verification: VerificationResult = self._verifier.run(draft)
 
         retry_round = 0
         while True:
@@ -208,7 +208,7 @@ class CompliancePipeline:
                 retry_request,
             )
             draft = self._aggregator.aggregate(product, selection_result)
-            verification = self._verifier.verify(draft)
+            verification = self._verifier.run(draft)
 
             if has_no_progress(
                 previous_result,
