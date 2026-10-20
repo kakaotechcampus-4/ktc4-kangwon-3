@@ -1,53 +1,31 @@
 """진단 세션의 접수·실행·조회·정리를 맡는 세션 관리자. 라우터·콜백·정리 루프는 이 관리자만 씀.
 
+자리 계산(capacity)·상태 변경(updater)·진단 실행(runner)을 조립함.
 접수한 세션은 실행 상한 안에서 백그라운드로 실행. 에이전트 호출이 동기라 스레드 풀 사용.
 실행할 진단 함수는 주입식 (파이프라인 러너 연결 전).
 """
 
-import logging
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import assert_never
 from uuid import uuid4
 
-from ..config import (
+from ...config import (
     MAX_DEV_INFLIGHT_SESSIONS, MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS,
 )
-from ..errors import AIResponseCode
-from ..observability.context import ExecutionContext, PipelineStage, RunType
-from ..schemas.agent import ExtractionInput
-from ..schemas.base import utc_now
-from ..schemas.schemas import ToolName
-from ..schemas.session import DiagnosisSession
-from .errors import QueueFullError, SessionConflictError
-from .events import SessionEvent
-from .job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, ToolProgressStatus
-from .store import SessionStore
-from .transitions import (
-    STATUS_TRAITS, AskUser, Change, ChangeStage, Complete, Fail, InvalidTransitionError, ReportTool, Start,
-    Transition, apply,
-)
-
-logger = logging.getLogger(__name__)
-
-# 세션 이벤트마다 호출. 콜백 전송기 자리
-SessionListener = Callable[[SessionEvent], None]
-
-
-class _Progress:
-    """세션 하나의 진행 알림. 자기 실행(run_id)의 세션에만 적용."""
-
-    def __init__(self, manager: "SessionManager", context: ExecutionContext) -> None:
-        self._manager = manager
-        self._context = context
-
-    def stage(self, stage: PipelineStage) -> None:
-        self._manager._apply(self._context, ChangeStage(stage))
-
-    def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None:
-        self._manager._apply(self._context, ReportTool(tool_name, status))
+from ...errors import AIResponseCode
+from ...observability.context import ExecutionContext, RunType
+from ...schemas.agent import ExtractionInput
+from ...schemas.base import utc_now
+from ...schemas.session import DiagnosisSession
+from ..errors import SessionConflictError
+from ..job import DiagnosisJob
+from ..store import SessionStore
+from ..transitions import STATUS_TRAITS, Fail
+from .capacity import SessionCapacity
+from .runner import run_session
+from .updater import SessionListener, SessionUpdater
 
 
 class SessionManager:
@@ -78,16 +56,12 @@ class SessionManager:
         self._store = store
         self._job = job
         self._pool = ThreadPoolExecutor(max_workers=max_running, thread_name_prefix="diagnosis")
-        self._max_inflight = max_inflight
-        self._max_dev_inflight = max_dev_inflight
+        self._capacity = SessionCapacity(max_inflight=max_inflight, max_dev_inflight=max_dev_inflight)
+        self._updater = SessionUpdater(store, clock)
         self._max_duration = max_duration
         self._clock = clock
-        self._listeners: list[SessionListener] = []
-        # 접수 확인(진행 중 상품·상한)과 세션 추가를 묶는 잠금
+        # 접수 확인(상한·진행 중 상품)부터 세션 추가·자리 차지까지 묶는 잠금
         self._lock = Lock()
-        self._inflight = 0
-        # 실행 중인 개발용 진단의 run_id. 끝나면 개발용 자리도 반납
-        self._dev_runs: set[str] = set()
 
     def subscribe(self, listener: SessionListener) -> None:
         """세션 이벤트(시작·단계 변경·Tool 진행·완료·답변 대기·실패)마다 부를 함수를 등록한다.
@@ -95,7 +69,7 @@ class SessionManager:
         Args:
             listener: 세션 이벤트를 받는 함수.
         """
-        self._listeners.append(listener)
+        self._updater.subscribe(listener)
 
     def get(self, product_id: str) -> DiagnosisSession | None:
         """세션을 조회한다.
@@ -123,12 +97,9 @@ class SessionManager:
             SessionConflictError: 진행 중인 상품이 섞인 경우.
         """
         with self._lock:
-            if self._inflight + len(inputs) > self._max_inflight:
-                raise QueueFullError(
-                    f"진단 대기열이 가득 찼습니다 ({self._inflight}/{self._max_inflight})."
-                )
+            self._capacity.check(len(inputs))
             sessions = self._accept(diagnosis_id, [item.product_id for item in inputs], RunType.PRODUCTION)
-            self._inflight += len(inputs)
+            self._capacity.take([session.context.run_id for session in sessions])
 
         for item, session in zip(inputs, sessions):
             self._pool.submit(self._run, item, session.context)
@@ -151,17 +122,9 @@ class SessionManager:
         product_id = f"dev-{uuid4()}"
         item = item.model_copy(update={"product_id": product_id})
         with self._lock:
-            if len(self._dev_runs) >= self._max_dev_inflight:
-                raise QueueFullError(
-                    f"개발용 진단 대기열이 가득 찼습니다 ({len(self._dev_runs)}/{self._max_dev_inflight})."
-                )
-            if self._inflight + 1 > self._max_inflight:
-                raise QueueFullError(
-                    f"진단 대기열이 가득 찼습니다 ({self._inflight}/{self._max_inflight})."
-                )
+            self._capacity.check(1, dev=True)
             [session] = self._accept(None, [product_id], RunType.TEST)
-            self._inflight += 1
-            self._dev_runs.add(session.context.run_id)
+            self._capacity.take([session.context.run_id], dev=True)
 
         self._pool.submit(self._run, item, session.context)
         return session
@@ -180,7 +143,7 @@ class SessionManager:
             if session.accepted_at > deadline:
                 continue
             fail = Fail(AIResponseCode.TIMEOUT.value.code, retryable=True)
-            if self._apply(session.context, fail) is not None:
+            if self._updater.apply(session.context, fail) is not None:
                 expired += 1
         return expired
 
@@ -201,35 +164,12 @@ class SessionManager:
         self._pool.shutdown(wait=wait, cancel_futures=not wait)
 
     def _run(self, item: ExtractionInput, context: ExecutionContext) -> None:
-        """세션 하나를 실행한다. 예외는 실패로 기록하고 밖으로 내보내지 않음."""
-        # 세션 변경은 모두 이 실행의 context로. 시간 초과 뒤 재접수된 새 세션은 건드리지 않음
+        """스레드 풀에서 세션 하나를 실행하고 자리를 반납한다."""
         try:
-            # 대기 중 시간 초과로 이미 실패한 세션이면 실행하지 않음
-            if self._apply(context, Start()) is None:
-                return
-            try:
-                outcome = self._job(item, context, _Progress(self, context))
-            except Exception:
-                logger.exception(
-                    "진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id,
-                )
-                # 일시적 오류인지 알 수 없어 재시도 불가로 기록. 코드 오류를 BE가 계속 재요청하지 않게 함
-                self._apply(context, Fail(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False))
-                return
-            match outcome:
-                case JobDone(result=result):
-                    self._apply(context, Complete(result))
-                case JobNeedsInput(result=result):
-                    self._apply(context, AskUser(result))
-                case JobFailed(error_code=error_code, retryable=retryable):
-                    self._apply(context, Fail(error_code, retryable))
-                case _:
-                    assert_never(outcome)
+            run_session(self._job, item, context, self._updater)
         finally:
             # 답변 대기로 끝나도 실행 자리 반납
-            with self._lock:
-                self._inflight -= 1
-                self._dev_runs.discard(context.run_id)
+            self._capacity.release(context.run_id)
 
     def _accept(self, diagnosis_id: str | None, product_ids: list[str], run_type: RunType) -> list[DiagnosisSession]:
         """상품들을 새 세션으로 저장소에 넣는다. self._lock 안에서 부름.
@@ -265,35 +205,3 @@ class SessionManager:
         ]
         self._store.add(sessions)
         return sessions
-
-    def _apply(self, context: ExecutionContext, change: Change) -> Transition | None:
-        """이 실행의 세션에 전이표대로 일을 적용하고 이벤트를 구독자에게 알린다.
-
-        Args:
-            context: 이 실행의 컨텍스트.
-            change: 일어난 일.
-
-        Returns:
-            Transition | None: 전이 결과. 재접수로 다른 실행이 됐거나, 지금 상태에서 할 수 없는 일
-                (시간 초과 뒤 늦게 온 결과 등)이면 None.
-        """
-        try:
-            transition = self._store.replace(context, lambda session: apply(session, change, now=self._clock()))
-        except InvalidTransitionError as e:
-            logger.warning("세션 상태와 맞지 않는 변경 무시 (product_id=%s, run_id=%s): %s",
-                           context.product_id, context.run_id, e)
-            return None
-        if transition is None:
-            return None
-        for event in transition.events:
-            self._publish(event)
-        return transition
-
-    def _publish(self, event: SessionEvent) -> None:
-        """세션 이벤트를 구독자에게 전달한다. 구독자 오류는 실행에 영향 없음."""
-        for listener in self._listeners:
-            try:
-                listener(event)
-            except Exception:
-                logger.warning("세션 구독자 처리 실패 (product_id=%s, event=%s)",
-                               event.session.context.product_id, type(event).__name__, exc_info=True)
