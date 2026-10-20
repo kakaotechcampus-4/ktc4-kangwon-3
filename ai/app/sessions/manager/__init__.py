@@ -4,8 +4,10 @@
     - capacity: 대기 + 실행 중 자리 (상한)
     - updater: 상태 변경의 단일 통로 (전이표 → 저장 → 이벤트 알림)
     - runner: 진단 함수 한 번 실행 (진행 알림·결말 → 상태 변경)
+    - snapshot: 바깥에서 읽어 가는 현황 (지표 수집용)
 """
 
 from .manager import SessionManager
+from .snapshot import SessionSnapshot
 
-__all__ = ["SessionManager"]
+__all__ = ["SessionManager", "SessionSnapshot"]

@@ -4,6 +4,7 @@ AI 재시작 시 세션은 사라짐. 보관·교체만 하고 상태를 어떻�
 여러 스레드가 함께 쓰므로 모든 읽기·쓰기는 잠금 안에서 처리.
 """
 
+from collections import Counter
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from threading import Lock
@@ -11,7 +12,7 @@ from threading import Lock
 from ..config import SESSION_RETENTION_SECONDS
 from ..observability.context import ExecutionContext
 from ..schemas.base import utc_now
-from ..schemas.session import DiagnosisSession
+from ..schemas.session import DiagnosisSession, SessionStatus
 from .transitions import STATUS_TRAITS, Transition
 
 
@@ -58,6 +59,16 @@ class SessionStore:
         """
         with self._lock:
             return self._sessions.get(product_id)
+
+    def count_by_status(self) -> dict[SessionStatus, int]:
+        """상태별 보관 중인 세션 수.
+
+        Returns:
+            dict[SessionStatus, int]: 모든 상태를 0 포함해 담음.
+        """
+        with self._lock:
+            counts = Counter(session.status for session in self._sessions.values())
+        return {status: counts[status] for status in SessionStatus}
 
     def unfinished(self) -> list[DiagnosisSession]:
         """시간 초과 대상(성격표의 times_out) 세션 목록. 답변 대기는 실행이 끝난 상태라 제외.
