@@ -226,7 +226,7 @@ def test_끝난_상품은_새_세션으로_다시_접수한다(managers, outcome
     manager = _manager(managers, job)
     [old] = manager.submit("d-1", _inputs("p-1"))
     job.release("p-1")
-    _wait_until(lambda: manager._inflight == 0)
+    _wait_until(lambda: manager._capacity.inflight == 0)
 
     [new] = manager.submit("d-2", _inputs("p-1"))
 
@@ -244,7 +244,7 @@ def test_답변_대기로_끝나면_실행_자리를_반납한다(managers):
     _wait_until(lambda: _status(manager,"p-1") is SessionStatus.AWAITING_INPUT)
 
     # 답변 대기 세션이 실행 자리·대기열을 차지하지 않으므로 다음 상품이 실행됨
-    _wait_until(lambda: manager._inflight == 0)
+    _wait_until(lambda: manager._capacity.inflight == 0)
     manager.submit("d-2", _inputs("p-2"))
     _wait_until(lambda: "p-2" in job.started)
 
@@ -267,7 +267,7 @@ def test_최대_시간을_넘긴_세션은_시간_초과로_끝내고_늦게_온
     assert session.retryable is True
 
     job.release("p-1")
-    _wait_until(lambda: manager._inflight == 0)
+    _wait_until(lambda: manager._capacity.inflight == 0)
     assert _status(manager,"p-1") is SessionStatus.FAILED
 
 
@@ -298,7 +298,7 @@ def test_시간_초과_뒤_재접수한_세션은_옛_실행이_덮어쓰지_않
 
     # 옛 실행이 끝나도 새 세션의 단계·상태·결과는 그대로
     gates["old"].set()
-    _wait_until(lambda: manager._inflight == 1)
+    _wait_until(lambda: manager._capacity.inflight == 1)
     session = manager.get("p-1")
     assert (session.status, session.stage, session.result) == (SessionStatus.RUNNING, None, None)
 
@@ -365,7 +365,7 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않고_경�
     manager.expire_overdue()
 
     gate.set()
-    _wait_until(lambda: manager._inflight == 0)
+    _wait_until(lambda: manager._capacity.inflight == 0)
     assert tools == []
     assert "세션 상태와 맞지 않는 변경 무시" in caplog.text
 
@@ -417,7 +417,7 @@ def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운�
     # 개발용 하나가 끝나면 다시 받음
     job.release(first.context.product_id)
     _wait_until(lambda: _status(manager,first.context.product_id) is SessionStatus.COMPLETED)
-    _wait_until(lambda: len(manager._dev_runs) == 1)
+    _wait_until(lambda: manager._capacity.dev_inflight == 1)
     manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
 
 
