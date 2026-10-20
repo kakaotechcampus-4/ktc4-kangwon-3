@@ -127,8 +127,8 @@ def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신�
     first_waiting, second_built = threading.Event(), threading.Event()
 
     class _Builder(EventBuilder):
-        def build(self, session):
-            events = super().build(session)
+        def build(self, event):
+            events = super().build(event)
             if events and events[0].sequence == 2:
                 second_built.set()
             return events
