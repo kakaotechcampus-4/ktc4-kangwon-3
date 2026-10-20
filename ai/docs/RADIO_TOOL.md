@@ -23,7 +23,7 @@ Product (추출 에이전트 결과)
                      대상기자재 분류명 목록("분류 > 세부 분류", 209개)을 주고 조회어를 그 안에서 고르게 한다
 → ③ 코드 규칙        무선 기능 원문 근거가 없으면 여기서 끝(후보 없음) · 주파수 표기를 MHz로 정규화
 → ② 코드 조회        고시 별표 1(1~10절, 230행) 중 비슷한 상위 8개
-→ ④ 모델 기자재 선택 후보 행 중 맞는 행 최대 3개 + 이유 + 해당 여부(applies)                  (prompts/radio/review.md)
+→ ④ 모델 기자재 선택 후보 행 중 맞는 행 + 이유 + 해당 여부(applies). 해당 없음·대조 안 되는 선택을 거른 뒤 최대 3개                  (prompts/radio/review.md)
 → ⑤ 코드 결과 조립   근거(행 원문·전파법 제58조의2 해당 항·시행령 별표 6의2) + 판매 방식별 할 일
 ```
 
@@ -35,7 +35,7 @@ Product (추출 에이전트 결과)
 | 규칙 | 근거 | 동작 |
 |---|---|---|
 | 무선 기능 | 이슈 #297 범위(무선 기기) | 상품 원문에 무선 기능 인용이 없으면 후보를 내지 않고 무선 기능을 묻는다. 비대상 판단이 아니다. 유선 전자파적합성(11절)은 범위 밖 |
-| 주파수 | 고시 별표 1 행 이름의 대역 | 원문 표기(2.4GHz, 5150∼5350㎒, 125kHz 등)를 MHz로 바꿔 행 대역과 함께 모델에 준다. 대역으로 행을 빼지는 않는다(상품 표기가 대략값이라) |
+| 주파수 | 고시 별표 1 행 이름의 대역 | 원문 표기(2.4GHz, 5150∼5350㎒, 125kHz 등)를 MHz로 바꿔 행 대역과 함께 모델에 준다. 주파수 조건뿐 아니라 무선 기능 값 안의 표기("Bluetooth 5.0 (2.4GHz)")도 읽는다. 대역으로 행을 빼지는 않는다(상품 표기가 대략값이라). 판단을 바꾸지 않아 질문하지 않고, 없으면 가정으로 남긴다 |
 | 평가유형 → 근거 항 | 전파법 제58조의2 | 적합인증 ②, 적합등록 ③, 자기적합확인 ④ |
 | 개인 사용 반입 면제 | 시행령 별표 6의2 자목 | 판매 안내에 "개인 사용 목적 1대 반입은 면제 대상일 수 있음(1년 이내 판매 시 제외), 구매대행 해당 여부는 확인 필요"로 조건부 표기 |
 
@@ -61,10 +61,12 @@ Product (추출 에이전트 결과)
 ## 결과
 
 - 선택된 행: `POSSIBLY_REQUIRED`, subject `"{평가유형} 대상기자재 후보 — {기자재명}"`. 근거는 고시 별표 1 행 원문, 전파법 제58조의2 해당 항, 시행령 별표 6의2 자목.
-- `required_actions`: 행마다 "사입·수입 판매: 적합성평가 받은 제품인지 KC 번호로 확인", "구매대행: 개인 사용 1대 면제 가능성, 해당 여부 확인 필요".
-- `RadioAssessment`: `wireless_features`(원문), `frequency_bands`(정규화), `certification_type`(후보 평가유형), `conformity_assessment_required=None`.
+- `required_actions`: 행마다 "사입·수입 판매: 적합성평가 받은 제품인지 KC 번호로 확인", "구매대행: 개인 사용 1대 면제 가능성, 해당 여부 확인 필요"(면제 목을 찾았을 때만). 각 판단의 `requirements`에도 그 행의 안내를 연결한다(재실행에서 판단이 빠지면 ToolExecutor가 그 할 일만 지움).
+- 질문(`missing_information`)은 판단을 바꾸는 조건(제품 종류·무선 기능)만. 그 밖에 선택 모델이 요청한 조건은 판단의 assumptions에 "확인이 더 필요"로 남긴다(#341과 같은 기준).
+- 추출 단계가 표시한 상품 모순(`Product.conflicts`)은 조회를 막지 않고 assumptions에만 남긴다. 제품 종류가 여러 값이면 충돌로 보지 않고 모두 조회어로 쓴다(#341과 같음).
+- `RadioAssessment`: `wireless_features`(원문), `frequency_bands`(정규화), `certification_type`(선택한 행들의 평가유형), `conformity_assessment_required=None`.
 - 모델 출력 중 대조되지 않는 항목은 그 항목만 버린다. `applies=false` 선택도 버린다.
-- `query`: `dropped_facts`, `dropped_candidates`, `not_applicable`, `conflicted`, `search_terms`, `frequency_bands`, `candidate_items`, `selected_items`, `documents`.
+- `query`: `dropped_facts`, `dropped_candidates`, `not_applicable`, `over_limit`(상한을 넘은 유효 선택), `search_terms`, `frequency_bands`, `candidate_items`, `selected_items`, `assessment_types`, `documents`.
 - 모델 호출·구조화 출력 실패, 법령 조회 오류는 `RadioToolError`로 전파한다. 근거 버전을 확인하지 못하면 정보 부족(SUCCESS)으로 끝낸다.
 - 사용량은 `radio-facts`, `radio-review`로 기록한다.
 
