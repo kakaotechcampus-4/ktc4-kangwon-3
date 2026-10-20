@@ -1,15 +1,18 @@
-"""세션 상태 변경 → 콜백 이벤트 변환을 실제 세션 저장소의 변경으로 확인한다."""
+"""세션 이벤트 → 콜백 이벤트 변환을 전이표가 실제로 내는 이벤트로 확인한다."""
 
 from itertools import count
+
+import pytest
 
 from app.callbacks.events import EventBuilder
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
+from app.schemas.base import utc_now
 from app.schemas.callback import PublicAssessmentDto, PublicFindingDto, PublicQuestionDto, PublicToolReviewDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
-from app.schemas.base import utc_now
 from app.schemas.session import DiagnosisSession
-from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, Start, apply
+from app.sessions.events import SessionEvent, Started, ToolProgressed
+from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, ReportTool, Start, apply
 
 
 class _Presenter:
@@ -37,19 +40,20 @@ def _builder(presenter=None) -> EventBuilder:
 
 
 class _Run:
-    """전이표대로 바꿔 가며 바뀐 세션을 돌려주는 실행 하나. 실행기 없이 세션 변경을 재현."""
+    """전이표대로 바꿔 가며 그 전이가 낸 세션 이벤트를 돌려주는 실행 하나. 실행기 없이 세션 이벤트를 재현."""
 
     def __init__(self, product_id: str = "p-1") -> None:
         now = utc_now()
         self.context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
         self.session = DiagnosisSession(context=self.context, accepted_at=now, updated_at=now)
 
-    def __call__(self, change: Change) -> DiagnosisSession:
-        self.session = apply(self.session, change, now=utc_now()).session
-        return self.session
+    def __call__(self, change: Change) -> SessionEvent:
+        [event] = apply(self.session, change, now=utc_now()).events
+        self.session = event.session
+        return event
 
 
-def _running(product_id: str = "p-1") -> tuple[_Run, ExecutionContext, DiagnosisSession]:
+def _running(product_id: str = "p-1") -> tuple[_Run, ExecutionContext, SessionEvent]:
     run = _Run(product_id)
     return run, run.context, run(Start())
 
@@ -156,11 +160,11 @@ def test_실행마다_sequence를_1부터_따로_센다():
 
 def test_진단서_없는_실행은_보내지_않는다():
     run, context, started = _running()
-    session = started.model_copy(update={
+    session = started.session.model_copy(update={
         "context": context.model_copy(update={"diagnosis_id": None, "run_type": RunType.TEST}),
     })
 
-    assert _builder().build(session) == []
+    assert _builder().build(Started(session)) == []
 
 
 def test_진단서_변환이_실패하면_실패_이벤트로_끝낸다(caplog):
@@ -200,10 +204,10 @@ def test_Tool_진행은_단계_이벤트에_이어_번호를_매기고_공개_�
     builder = _builder()
 
     events = [*builder.build(run(ChangeStage(PipelineStage.SELECTION))),
-              *builder.build(tool_stage := run(ChangeStage(PipelineStage.TOOL_EXECUTION))),
-              *builder.build_tool(tool_stage, ToolName.ELECTRICAL, "started"),
-              *builder.build_tool(tool_stage, ToolName.ELECTRICAL, "completed"),
-              *builder.build_tool(tool_stage, ToolName.RADIO, "skipped"),
+              *builder.build(run(ChangeStage(PipelineStage.TOOL_EXECUTION))),
+              *builder.build(run(ReportTool(ToolName.ELECTRICAL, "started"))),
+              *builder.build(run(ReportTool(ToolName.ELECTRICAL, "completed"))),
+              *builder.build(run(ReportTool(ToolName.RADIO, "skipped"))),
               *builder.build(run(ChangeStage(PipelineStage.AGGREGATION)))]
 
     assert [(*row, getattr(event, "tool_name", None)) for row, event in zip(_summary(events), events)] == [
@@ -222,10 +226,9 @@ def test_Tool_실행_단계_시작_전_Tool_진행은_보내지_않고_번호도
     # 단계 경로와 Tool 경로를 섞지 않음. 빠진 단계 시작을 대신 만들지 않음
     run, context, _ = _running()
     builder = _builder()
-    selection = run(ChangeStage(PipelineStage.SELECTION))
-    builder.build(selection)
+    builder.build(run(ChangeStage(PipelineStage.SELECTION)))
 
-    assert builder.build_tool(selection, ToolName.ELECTRICAL, "started") == []
+    assert builder.build(run(ReportTool(ToolName.ELECTRICAL, "started"))) == []
     assert "Tool 실행 단계 시작 전" in caplog.text
     [next_event, _] = builder.build(run(ChangeStage(PipelineStage.TOOL_EXECUTION)))
     assert next_event.sequence == 2
@@ -238,12 +241,44 @@ def test_끝난_실행과_진단서_없는_실행의_Tool_진행은_보내지_�
     builder.build(tool_stage)
     builder.build(run(Complete(build_dummy_assessment("p-1"))))
 
-    assert builder.build_tool(tool_stage, ToolName.ELECTRICAL, "completed") == []
+    # 끝난 뒤에는 전이표가 Tool 진행을 거절하므로 이벤트를 직접 만듦 (늦게 도착한 경우 재현)
+    assert builder.build(ToolProgressed(tool_stage.session, ToolName.ELECTRICAL, "completed")) == []
 
-    test_session = tool_stage.model_copy(update={
+    test_session = tool_stage.session.model_copy(update={
         "context": context.model_copy(update={"diagnosis_id": None, "run_type": RunType.TEST}),
     })
-    assert _builder().build_tool(test_session, ToolName.ELECTRICAL, "started") == []
+    assert _builder().build(ToolProgressed(test_session, ToolName.ELECTRICAL, "started")) == []
+
+
+def _every_event_kind() -> list[type[SessionEvent]]:
+    """SessionEvent의 하위 종류 전부 (손자 포함)."""
+    kinds, pending = [], [SessionEvent]
+    while pending:
+        for kind in pending.pop().__subclasses__():
+            kinds.append(kind)
+            pending.append(kind)
+    return kinds
+
+
+def _event_examples() -> dict[type[SessionEvent], SessionEvent]:
+    """세션 이벤트 종류마다 전이표가 실제로 내는 예시 하나."""
+    run, _, started = _running()
+    examples = [started, run(ChangeStage(PipelineStage.TOOL_EXECUTION)), run(ReportTool(ToolName.RADIO, "started"))]
+    examples += [_running()[0](change) for change in (
+        Complete(build_dummy_assessment("p-1")), AskUser(_awaiting("p-1")), Fail("AI_TIMEOUT", retryable=True),
+    )]
+    return {type(event): event for event in examples}
+
+
+def test_모든_세션_이벤트_종류에_예시가_있다():
+    # 새 이벤트 종류를 추가하면 예시도 넣어야 아래 전수 검사가 그 종류까지 확인함
+    assert set(_every_event_kind()) <= set(_event_examples())
+
+
+@pytest.mark.parametrize("kind", _every_event_kind(), ids=lambda kind: kind.__name__)
+def test_모든_세션_이벤트_종류를_처리한다(kind):
+    # 처리를 빠뜨린 종류는 TypeError
+    _builder().build(_event_examples()[kind])
 
 
 def test_BE_길이_제한을_넘는_진단서는_결과_대신_실패_이벤트로_끝낸다():
