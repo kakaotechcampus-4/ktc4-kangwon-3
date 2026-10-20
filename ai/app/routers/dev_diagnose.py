@@ -20,7 +20,8 @@ from ..schemas.response import (
 )
 from ..schemas.schemas import FinalAssessment
 from ..schemas.session import DiagnosisSession, SessionStatus
-from ..sessions.executor import QueueFullError, SessionExecutor
+from ..sessions.errors import QueueFullError
+from ..sessions.executor import SessionExecutor
 from .dev_auth import require_dev_api_key
 from .diagnose import get_session_executor
 

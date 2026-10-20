@@ -9,7 +9,6 @@ from app.routers._dummy import build_dummy_assessment
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.events import AwaitingInput, Completed, Failed, StageChanged, Started, ToolProgressed
-from app.sessions.store import ACTIVE_STATUSES, FINISHED_STATUSES
 from app.sessions.transitions import (
     STATUS_TRAITS, TRANSITIONS, AskUser, ChangeStage, Complete, Fail, InvalidTransitionError, ReportTool, Start, apply,
 )
@@ -59,14 +58,6 @@ def test_규칙표의_모든_일에_전수_검사용_예시가_있다():
 
 def test_모든_상태의_성격이_정해져_있다():
     assert set(STATUS_TRAITS) == set(SessionStatus)
-
-
-def test_성격표가_지금_저장소_규칙과_같다():
-    # 저장소가 성격표를 쓰기 전까지 두 곳이 어긋나지 않게 확인
-    traits = STATUS_TRAITS.items()
-    assert {status for status, t in traits if t.blocks_new_accept} == ACTIVE_STATUSES
-    assert {status for status, t in traits if t.purgeable} == FINISHED_STATUSES
-    assert {status for status, t in traits if t.times_out} == {SessionStatus.ACCEPTED, SessionStatus.RUNNING}
 
 
 def test_끝난_세션에는_어떤_일도_적용되지_않는다():

@@ -2,7 +2,7 @@
 
 SessionExecutor.subscribe()로 받은 세션마다 보낼 이벤트 목록을 만듦.
     - 단계 변경 → 진행 이벤트 (앞 단계 completed + 새 단계 started)
-    - Tool 진행(subscribe_tool) → toolName 붙은 진행 이벤트. Tool 실행 단계 안에서만
+    - Tool 진행(build_tool) → toolName 붙은 진행 이벤트. Tool 실행 단계 안에서만
     - 답변 대기 → 질문 이벤트, 완료 → 결과 이벤트, 실패·시간 초과 → 실패 이벤트
 질문·결과·실패는 그 실행(runId)의 마지막. 이후 같은 실행의 변경은 이벤트를 만들지 않음.
 진단서·질문 변환(result_status 결정, 질문 키)은 주입받은 AssessmentPresenter가 맡음.

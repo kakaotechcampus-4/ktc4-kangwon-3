@@ -5,14 +5,17 @@ import threading
 import pytest
 
 from app.callbacks import CallbackOutbox, EventBuilder, SendResult, connect_callbacks
-from app.observability.context import PipelineStage
+from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers import _dummy
 from app.schemas.agent import ExtractionInput
+from app.schemas.base import utc_now
 from app.schemas.callback import PublicAssessmentDto, PublicQuestionDto
 from app.schemas.schemas import ToolName
+from app.schemas.session import DiagnosisSession
 from app.sessions.executor import SessionExecutor
 from app.sessions.job import JobDone
 from app.sessions.store import SessionStore
+from app.sessions.transitions import ChangeStage, Start, apply
 
 
 class _Presenter:
@@ -145,15 +148,13 @@ def test_여러_스레드가_같은_실행의_이벤트를_만들어도_발신�
         def subscribe(self, listener) -> None:
             self.listener = listener
 
-        def subscribe_tool(self, listener) -> None:
-            pass
-
-    store, executor, outbox = SessionStore(), _Executor(), _Outbox()
+    executor, outbox = _Executor(), _Outbox()
     connect_callbacks(executor, _Builder(_Presenter()), outbox)
-    context = store.accept("d-1", ["p-1"])[0].context
-    store.start(context)
-    extraction = store.update_stage(context, PipelineStage.EXTRACTION)
-    selection = store.update_stage(context, PipelineStage.SELECTION)
+    now = utc_now()
+    context = ExecutionContext.start(product_id="p-1", run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+    session = apply(DiagnosisSession(context=context, accepted_at=now, updated_at=now), Start(), now=now).session
+    [extraction] = apply(session, ChangeStage(PipelineStage.EXTRACTION), now=now).events
+    [selection] = apply(extraction.session, ChangeStage(PipelineStage.SELECTION), now=now).events
 
     first = threading.Thread(target=executor.listener, args=(extraction,))
     first.start()

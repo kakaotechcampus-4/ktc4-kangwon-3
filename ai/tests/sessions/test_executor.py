@@ -11,9 +11,11 @@ from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import SessionStatus
-from app.sessions.executor import QueueFullError, SessionExecutor
+from app.sessions.errors import QueueFullError, SessionConflictError
+from app.sessions.events import Completed, StageChanged, Started, ToolProgressed
+from app.sessions.executor import SessionExecutor
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
-from app.sessions.store import SessionConflictError, SessionStore
+from app.sessions.store import SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
 
@@ -64,6 +66,13 @@ def _inputs(*product_ids: str) -> list[ExtractionInput]:
     return [ExtractionInput(product_id=pid, text_blocks=["상품 설명"]) for pid in product_ids]
 
 
+def _awaiting_result(product_id: str):
+    return build_dummy_assessment(product_id).model_copy(update={
+        "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+    })
+
+
 def _status(store: SessionStore, product_id: str) -> SessionStatus | None:
     session = store.get(product_id)
     return session.status if session else None
@@ -88,16 +97,16 @@ def test_결과가_나오면_완료로_기록하고_상태_변화를_구독자�
     job = _GatedJob()
     executor = _executor(executors, job)
     seen = []
-    executor.subscribe(lambda s: seen.append((s.status, s.stage)))
+    executor.subscribe(lambda e: seen.append((type(e), e.session.status, e.session.stage)))
 
     executor.submit("d-1", _inputs("p-1"))
     job.release("p-1")
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
 
     assert seen == [
-        (SessionStatus.RUNNING, None),
-        (SessionStatus.RUNNING, PipelineStage.EXTRACTION),
-        (SessionStatus.COMPLETED, PipelineStage.EXTRACTION),
+        (Started, SessionStatus.RUNNING, None),
+        (StageChanged, SessionStatus.RUNNING, PipelineStage.EXTRACTION),
+        (Completed, SessionStatus.COMPLETED, PipelineStage.EXTRACTION),
     ]
 
 
@@ -141,6 +150,18 @@ def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(
     assert _status(executor.store, "p-3") is SessionStatus.RUNNING
 
 
+def test_상품마다_실행_컨텍스트를_만들어_접수한다(executors):
+    executor = _executor(executors, _GatedJob())
+
+    sessions = executor.submit("d-1", _inputs("p-1", "p-2"))
+
+    assert [s.context.product_id for s in sessions] == ["p-1", "p-2"]
+    assert all(s.context.diagnosis_id == "d-1" for s in sessions)
+    assert all(s.context.run_type is RunType.PRODUCTION for s in sessions)
+    assert sessions[0].context.run_id != sessions[1].context.run_id
+    assert all((s.status, s.accepted_at) == (SessionStatus.ACCEPTED, START) for s in sessions)
+
+
 def test_대기열이_가득_차면_접수를_거절하고_세션을_만들지_않는다(executors):
     job = _GatedJob()
     executor = _executor(executors, job, max_running=1, max_inflight=2)
@@ -164,14 +185,58 @@ def test_진행_중인_상품이_섞이면_접수하지_않고_대기열도_차�
     executor.submit("d-3", _inputs("p-2"))
 
 
-def test_답변_대기로_끝나면_실행_자리를_반납한다(executors):
-    def awaiting(product_id):
-        return JobNeedsInput(build_dummy_assessment(product_id).model_copy(update={
-            "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
-            "verification_status": FinalVerificationStatus.INCOMPLETE,
-        }))
+@pytest.mark.parametrize(("ahead", "status"), [
+    (["blocker"], SessionStatus.ACCEPTED),   # 앞 상품이 실행 자리를 차지해 대기
+    ([], SessionStatus.RUNNING),
+])
+def test_접수_또는_실행_중인_상품이_섞이면_요청_전체를_거절한다(executors, ahead, status):
+    # #263: 진행 중 상품 포함 시 요청 전체 거절
+    job = _GatedJob()
+    executor = _executor(executors, job, max_running=1)
+    for product_id in ahead:
+        executor.submit("d-0", _inputs(product_id))
+        _wait_until(lambda: product_id in job.started)
+    executor.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(executor.store, "p-1") is status)
 
-    job = _GatedJob(outcome_for=awaiting)
+    with pytest.raises(SessionConflictError) as exc_info:
+        executor.submit("d-2", _inputs("p-2", "p-1"))
+
+    assert exc_info.value.product_ids == ["p-1"]
+    assert executor.store.get("p-2") is None
+
+
+def test_답변_대기_중인_상품도_새_접수를_막는다(executors):
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id)))
+    executor = _executor(executors, job)
+    executor.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.AWAITING_INPUT)
+
+    with pytest.raises(SessionConflictError):
+        executor.submit("d-2", _inputs("p-1"))
+
+
+@pytest.mark.parametrize("outcome_for", [
+    lambda product_id: JobDone(build_dummy_assessment(product_id)),
+    lambda product_id: JobFailed("AI_PIPELINE_ERROR", True),
+])
+def test_끝난_상품은_새_세션으로_다시_접수한다(executors, outcome_for):
+    job = _GatedJob(outcome_for=outcome_for)
+    executor = _executor(executors, job)
+    [old] = executor.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: executor._inflight == 0)
+
+    [new] = executor.submit("d-2", _inputs("p-1"))
+
+    assert new.status is SessionStatus.ACCEPTED
+    assert new.context.run_id != old.context.run_id
+    assert executor.store.get("p-1").context.run_id == new.context.run_id
+
+
+def test_답변_대기로_끝나면_실행_자리를_반납한다(executors):
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id)))
     executor = _executor(executors, job, max_running=1, max_inflight=1)
 
     executor.submit("d-1", _inputs("p-1"))
@@ -255,7 +320,7 @@ def test_구독자_오류는_실행을_멈추지_않는다(executors):
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
 
 
-def test_Tool_진행은_세션을_바꾸지_않고_Tool_구독자에게만_알린다(executors):
+def test_Tool_진행은_세션을_바꾸지_않고_이벤트만_낸다(executors):
     def job(item, context, progress):
         progress.stage(PipelineStage.TOOL_EXECUTION)
         progress.tool(ToolName.ELECTRICAL, "started")
@@ -263,25 +328,25 @@ def test_Tool_진행은_세션을_바꾸지_않고_Tool_구독자에게만_알�
         return JobDone(build_dummy_assessment(item.product_id))
 
     executor = _executor(executors, job)
-    sessions, tools = [], []
-    executor.subscribe(lambda s: sessions.append((s.status, s.stage)))
-    executor.subscribe_tool(lambda s, name, status: tools.append((s.stage, name, status)))
+    seen = []
+    executor.subscribe(lambda e: seen.append((type(e), e.session.status, e.session.stage)))
+    tools = []
+    executor.subscribe(lambda e: isinstance(e, ToolProgressed) and tools.append((e.tool_name, e.status)))
 
     executor.submit("d-1", _inputs("p-1"))
     _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.COMPLETED)
 
-    assert sessions == [
-        (SessionStatus.RUNNING, None),
-        (SessionStatus.RUNNING, PipelineStage.TOOL_EXECUTION),
-        (SessionStatus.COMPLETED, PipelineStage.TOOL_EXECUTION),
+    assert seen == [
+        (Started, SessionStatus.RUNNING, None),
+        (StageChanged, SessionStatus.RUNNING, PipelineStage.TOOL_EXECUTION),
+        (ToolProgressed, SessionStatus.RUNNING, PipelineStage.TOOL_EXECUTION),
+        (ToolProgressed, SessionStatus.RUNNING, PipelineStage.TOOL_EXECUTION),
+        (Completed, SessionStatus.COMPLETED, PipelineStage.TOOL_EXECUTION),
     ]
-    assert tools == [
-        (PipelineStage.TOOL_EXECUTION, ToolName.ELECTRICAL, "started"),
-        (PipelineStage.TOOL_EXECUTION, ToolName.ELECTRICAL, "completed"),
-    ]
+    assert tools == [(ToolName.ELECTRICAL, "started"), (ToolName.ELECTRICAL, "completed")]
 
 
-def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(executors):
+def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않고_경고로_남긴다(executors, caplog):
     clock = _Clock()
     gate, started = threading.Event(), threading.Event()
 
@@ -293,7 +358,7 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(ex
 
     executor = _executor(executors, job, clock=clock, max_duration=timedelta(minutes=10))
     tools = []
-    executor.subscribe_tool(lambda s, name, status: tools.append(name))
+    executor.subscribe(lambda e: isinstance(e, ToolProgressed) and tools.append(e.tool_name))
     executor.submit("d-1", _inputs("p-1"))
     started.wait(timeout=5)
     clock.now = START + timedelta(minutes=10)
@@ -302,15 +367,20 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않는다(ex
     gate.set()
     _wait_until(lambda: executor._inflight == 0)
     assert tools == []
+    assert "세션 상태와 맞지 않는 변경 무시" in caplog.text
 
 
-def test_Tool_구독자_오류는_실행을_멈추지_않는다(executors):
+def test_Tool_진행_처리_중_구독자_오류는_실행을_멈추지_않는다(executors):
     def job(item, context, progress):
         progress.tool(ToolName.ELECTRICAL, "started")
         return JobDone(build_dummy_assessment(item.product_id))
 
+    def broken(event):
+        if isinstance(event, ToolProgressed):
+            raise RuntimeError("구독자 오류")
+
     executor = _executor(executors, job)
-    executor.subscribe_tool(lambda s, name, status: (_ for _ in ()).throw(RuntimeError("구독자 오류")))
+    executor.subscribe(broken)
 
     executor.submit("d-1", _inputs("p-1"))
 
