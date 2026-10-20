@@ -87,11 +87,12 @@ class AnswerInput(ApiRequestModel):
 
     Args:
         question_key: 질문 콜백으로 보낸 질문 키 (BE ProductQuestion.questionKey).
-        answer_text: 사용자 답변.
+        answer_text: 사용자 답변. 최대 500자 (BE 답변 제출 API와 같은 기준).
     """
 
     question_key: str = Field(min_length=1, max_length=50)
-    answer_text: str = Field(min_length=1)
+    # 사용자가 직접 입력한 글이 LLM 입력으로 들어감. 길이 외 검사는 답변 세이프가드에서
+    answer_text: str = Field(min_length=1, max_length=500)
 
 
 class ResumeRequest(ApiRequestModel):
