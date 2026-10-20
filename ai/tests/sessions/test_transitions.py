@@ -66,12 +66,22 @@ def test_끝난_세션에는_어떤_일도_적용되지_않는다():
     assert not [key for key in TRANSITIONS if key[0] in finished]
 
 
-def test_실행_시작은_RUNNING으로_바꾸고_Started를_낸다():
+def test_실행_시작은_RUNNING으로_바꾸고_시작_시각을_기록하고_Started를_낸다():
     transition = apply(_session(), Start(), now=NOW)
 
     assert transition.session.status is SessionStatus.RUNNING
-    assert transition.session.updated_at == NOW
+    assert (transition.session.started_at, transition.session.updated_at) == (NOW, NOW)
     assert transition.events == (Started(transition.session),)
+
+
+def test_실행_시작_시각은_이후_변경에도_유지한다():
+    started = apply(_session(), Start(), now=NOW).session
+    later = NOW + timedelta(seconds=30)
+
+    staged = apply(started, ChangeStage(PipelineStage.EXTRACTION), now=later).session
+    finished = apply(staged, Complete(_COMPLETED), now=later).session
+
+    assert (finished.started_at, finished.updated_at) == (NOW, later)
 
 
 def test_단계_변경은_단계와_단계_시작_시각을_기록한다():
