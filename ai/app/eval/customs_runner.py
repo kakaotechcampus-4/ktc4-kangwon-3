@@ -25,7 +25,6 @@ from time import perf_counter
 from dotenv import load_dotenv
 
 from .. import usage as usage_module
-from ..agents import base as agent_base
 from ..config import ENV_FILE, MODEL_PROFILES, TOOL_PROFILES
 from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_overrides
 from ..schemas.agent import ToolSelectionItem
@@ -58,7 +57,7 @@ class UsageCapture:
 
     def __init__(self) -> None:
         self.calls: list[dict] = []
-        self._original = agent_base.record
+        self._original = usage_module.record
 
     def __enter__(self):
         def capture(agent, usage, **kw):
@@ -70,11 +69,11 @@ class UsageCapture:
             })
             self._original(agent, usage, **kw)
 
-        agent_base.record = capture
+        usage_module.record = capture
         return self
 
     def __exit__(self, *exc):
-        agent_base.record = self._original
+        usage_module.record = self._original
 
 
 def run_once(tool: CustomsTool, product: Product) -> dict:
