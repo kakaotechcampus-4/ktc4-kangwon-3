@@ -19,7 +19,7 @@ from ...schemas.schemas import (
     Determination, FoodDrugAssessment, LegalSource, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from ..base import RegulatoryTool
-from ..common.agent import ToolModelError, ToolStep
+from ..common.agent import ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
 from .evidence import DeviceItem, FoodDrugEvidence
@@ -122,8 +122,8 @@ class FoodDrugTool(RegulatoryTool):
         facts_step, review_step = self._get_steps()
         functional_types = ([{"number": item.number, "text": item.text} for item in evidence.functional_types]
                             if evidence is not None else [])
-        extracted = facts_step.run({"hints": _hints(product), "evidence": snippets,
-                                    "functional_types": functional_types}, subject_id=product.product_id)
+        extracted = facts_step.run(ToolStepInput({"hints": _hints(product), "evidence": snippets,
+                                                  "functional_types": functional_types}, product.product_id))
         raw = [*extracted.facts, *_judged_facts(extracted)]
         facts = [fact for fact in raw if _fact_matches(fact, snippets)]
         query["dropped_facts"] = len(raw) - len(facts)
@@ -356,10 +356,10 @@ class FoodDrugTool(RegulatoryTool):
         query["candidate_items"] = [item.item_id for item in candidates]
         if not candidates:
             return unmatched("비슷한 의료기기 품목을 찾지 못했습니다.")
-        review = review_step.run({
+        review = review_step.run(ToolStepInput({
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "candidates": [item.as_candidate() for item in candidates],
-        }, subject_id=product.product_id)
+        }, product.product_id))
         items = {item.item_id: item for item in candidates}
         # 먼저 선택을 대조해 버린 수를 세고, 그 안내를 담아 판단을 만든다(판단은 만들 때의 가정을 복사한다).
         chosen: list[tuple[DeviceItem, object, list[str]]] = []
