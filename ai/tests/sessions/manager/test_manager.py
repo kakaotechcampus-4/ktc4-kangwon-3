@@ -13,8 +13,8 @@ from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, Too
 from app.schemas.session import SessionStatus
 from app.sessions.errors import QueueFullError, SessionConflictError
 from app.sessions.events import Completed, StageChanged, Started, ToolProgressed
-from app.sessions.manager import SessionManager
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
+from app.sessions.manager import SessionManager
 from app.sessions.store import SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
@@ -430,3 +430,39 @@ def test_개발용_진단도_전체_상한에_같이_센다(managers):
         manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
     with pytest.raises(QueueFullError):
         manager.submit("d-2", _inputs("p-2"))
+
+
+def test_현황은_상태별_수와_자리_상한_누적_접수_거절을_담는다(managers):
+    job = _GatedJob()
+    manager = _manager(managers, job, max_running=1, max_inflight=4, max_dev_inflight=1)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    _wait_until(lambda: "p-1" in job.started)
+    with pytest.raises(SessionConflictError):
+        manager.submit("d-2", _inputs("p-1"))
+    # 3자리 사용 중 + 2개 > 상한 4
+    with pytest.raises(QueueFullError):
+        manager.submit("d-3", _inputs("p-8", "p-9"))
+
+    snapshot = manager.snapshot()
+
+    # 실행 자리 1개라 p-1만 실행 중, 나머지 둘은 대기
+    assert snapshot.status_counts[SessionStatus.RUNNING] == 1
+    assert snapshot.status_counts[SessionStatus.ACCEPTED] == 2
+    assert (snapshot.inflight, snapshot.dev_inflight) == (3, 1)
+    assert (snapshot.max_running, snapshot.max_inflight, snapshot.max_dev_inflight) == (1, 4, 1)
+    assert (snapshot.accepted[RunType.PRODUCTION], snapshot.accepted[RunType.TEST]) == (2, 1)
+    assert snapshot.rejected == {"queue_full": 1, "conflict": 1}
+
+
+def test_현황의_자리는_실행이_끝나면_돌아오고_상태별_수에_반영된다(managers):
+    job = _GatedJob()
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+
+    job.release("p-1")
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+
+    snapshot = manager.snapshot()
+    assert snapshot.status_counts[SessionStatus.COMPLETED] == 1
+    assert snapshot.accepted[RunType.PRODUCTION] == 1

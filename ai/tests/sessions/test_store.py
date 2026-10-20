@@ -91,6 +91,18 @@ def test_전이가_거절되면_세션을_그대로_두고_오류를_넘긴다()
     assert store.get("p-1") is session
 
 
+def test_상태별_세션_수를_없는_상태는_0으로_센다():
+    store = _store()
+    store.add([_session("p-1"), _session("p-2"), _session("p-3", SessionStatus.FAILED)])
+
+    counts = store.count_by_status()
+
+    assert counts == {
+        SessionStatus.ACCEPTED: 2, SessionStatus.RUNNING: 0, SessionStatus.AWAITING_INPUT: 0,
+        SessionStatus.COMPLETED: 0, SessionStatus.FAILED: 1,
+    }
+
+
 def test_시간_초과_대상은_접수와_실행_중인_세션만이다():
     store = _store()
     store.add([_session(status.value, status) for status in SessionStatus])
