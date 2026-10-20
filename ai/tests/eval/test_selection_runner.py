@@ -62,7 +62,7 @@ def test_같은_모델도_추론_강도가_다른_기록은_섞지_않는다(tmp
 def test_선택_평가_기록에는_선택_프롬프트_지문이_남는다():
     meta = run_metadata(runs=1, profile=MODEL_PROFILES["mini"], prompt_path=selection_runner.SELECTION_PROMPT_PATH)
 
-    assert meta["prompt_path"] == "app/prompts/selection.md"
+    assert meta["prompt_path"] == "app/agents/selection/prompt.md"
     assert meta["prompt_sha256"] == prompt_fingerprint(selection_runner.SELECTION_PROMPT_PATH)
 
 
@@ -72,7 +72,7 @@ class _FakeAgent:
     def __init__(self, **kwargs):
         self.seen: list = []
 
-    def select(self, product):
+    def run(self, product):
         self.seen.append(product)
         return ToolSelectionResponse(decisions=[
             ToolSelectionItem(
@@ -98,7 +98,7 @@ def test_같은_추출_결과로_B는_그대로_A는_정답_boolean으로_선택
     seen = agents[0].seen
     assert [p.wireless_charging for p in seen] == [False, None]  # B 그대로, A는 정답(null)
     saved = json.loads(next((tmp_path / "out").glob("selection-*.json")).read_text(encoding="utf-8"))
-    assert saved["meta"]["prompt_path"] == "app/prompts/selection.md"
+    assert saved["meta"]["prompt_path"] == "app/agents/selection/prompt.md"
     assert saved["meta"]["extraction_logs"] == [log.as_posix()]
     assert saved["meta"]["extraction_prompt_sha256"] == "aaa"
     assert saved["meta"]["extraction_model"] == "openai/gpt-4.1-mini"

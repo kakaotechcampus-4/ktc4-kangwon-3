@@ -73,7 +73,7 @@ class ProductAttributes(StrictModel):
     # 상세페이지 내 서로 다른 부분이 모순되는 사실을 말할 때(예: 제목엔 배터리 용량이
     # 적혀 있는데 스펙표엔 "배터리 미포함"이라 나오는 경우) 어느 한쪽을 임의로 확정하지
     # 않고 여기에 문장으로 남긴다. LLM이 문맥으로 발견한 것과, ExtractionAgent가 규칙
-    # 기반으로 발견한 것(extraction_rules.py)이 합쳐져서 들어온다.
+    # 기반으로 발견한 것(agents/extraction/rules.py)이 합쳐져서 들어온다.
     conflicts: list[str] = Field(default_factory=list)
 
     # 모델이 "값 없음"을 None이 아니라 ""(또는 공백)으로 주는 경우가 있다.

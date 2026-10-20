@@ -14,7 +14,7 @@ from typing import Literal
 from urllib.parse import urlparse
 
 from ..agents.image_triage import MAX_IMAGES as MAX_TRIAGE_IMAGES
-from ..agents.image_triage import ImageTriageAgent
+from ..agents.image_triage import ImageTriageAgent, ImageTriageInput
 from ..clients.marketplace import MadeInChinaClient, MarketplaceBaseClient, matches_domain
 from ..schemas.agent import ExtractionInput, ImageCategory, ImageTriageResponse
 from ..schemas.clients.marketplace_request import ProductPageRequest
@@ -149,9 +149,9 @@ class UrlSourceBuilder:
             if self._triage_agent is None:
                 self._triage_agent = ImageTriageAgent()
             # 분류 한도를 넘는 후보는 앞에서부터 한도까지만. 분류 안 된 뒤쪽 이미지는 select_images가 넘기지 않음
-            triage = self._triage_agent.classify(
-                [image.thumbnail_url for image in page.images[:MAX_TRIAGE_IMAGES]], subject_id=product_id,
-            )
+            triage = self._triage_agent.run(ImageTriageInput(
+                image_urls=[image.thumbnail_url for image in page.images[:MAX_TRIAGE_IMAGES]], subject_id=product_id,
+            ))
             selected = select_images(page, triage)
         elif images == "all":
             selected = page.images[:MAX_ALL_IMAGES]

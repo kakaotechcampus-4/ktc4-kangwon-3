@@ -12,7 +12,6 @@
 """
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -25,6 +24,7 @@ from pathlib import Path
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..config import ModelProfile, agent_profile
+from ..prompts import fingerprint
 from ..schemas.agent import ExtractionInput
 from .grading import Grade, Stability
 from .scoring import FixtureReport, load_truth, score
@@ -40,14 +40,16 @@ class RawFixtureMissing(FileNotFoundError):
 
 
 def prompt_fingerprint(path: Path | None = None) -> str:
-    """추출 프롬프트의 SHA-256. 한 글자만 달라도 값이 바뀐다.
+    """프롬프트 파일의 지문(SHA-256). 로더와 같은 규칙(줄바꿈 LF 통일)으로 계산.
 
-    줄바꿈은 LF로 맞춰서 잰다. 같은 내용인데 윈도우(CRLF)와 CI(LF)에서 다른 값이
-    나오면 "프롬프트가 바뀌었다"는 잘못된 경고가 뜬다.
+    Args:
+        path: 프롬프트 파일. None이면 추출 프롬프트.
+
+    Returns:
+        str: SHA-256 16진 문자열.
     """
     target = path or EXTRACTION_PROMPT_PATH
-    normalized = target.read_text(encoding="utf-8").replace("\r\n", "\n")
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return fingerprint(target.read_text(encoding="utf-8"))
 
 
 def _git(*args: str) -> str | None:
@@ -122,7 +124,7 @@ def run_fixture(agent: ExtractionAgent, name: str, runs: int) -> list[dict]:
         source = ExtractionInput(product_id=f"eval-{Path(name).stem}-{index}", text_blocks=[text])
         started = time.perf_counter()
         try:
-            product = agent.extract(source)
+            product = agent.run(source)
         except ExtractionFailedError as exc:
             elapsed = int((time.perf_counter() - started) * 1000)
             # 사용량 기록은 에이전트가 직접 남긴다(실패 회차 포함). 여기서 또 남기면
