@@ -19,13 +19,6 @@ import { useProductResults } from "./useProductResults";
 // data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
 const EMPTY_PRODUCT_RESULTS: ProductResult[] = [];
 
-// 선택된 탭에 따라 보여줄 패널
-const TAB_PANELS: Record<ResultTabKey, ReactNode> = {
-    [ResultTabKey.DiagnosisResult]: <DiagnosisResultTab />,
-    [ResultTabKey.NextSteps]: <NextStepTab />,
-    [ResultTabKey.ProductInfo]: <ProductInfoTab />,
-};
-
 function ResultPage() {
     const { productId, diagnosesId } = useParams<{ productId?: string; diagnosesId?: string }>();
     const [selectedProductIndex, setSelectedProductIndex] = useState(0);
@@ -59,6 +52,18 @@ function ResultPage() {
         }
     }, [isNotFoundError, navigate]);
 
+    // 선택된 탭에 따라 보여줄 패널
+    const tabPanels: Record<ResultTabKey, ReactNode> = {
+        [ResultTabKey.DiagnosisResult]: (
+            <DiagnosisResultTab
+                product={products[selectedProductIndex]}
+                onNextStepsClick={() => setSelectedTab(ResultTabKey.NextSteps)}
+            />
+        ),
+        [ResultTabKey.NextSteps]: <NextStepTab />,
+        [ResultTabKey.ProductInfo]: <ProductInfoTab />,
+    };
+
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단 결과" description={`${products.length}개 상품에 대한 판정입니다. 상품을 눌러 각각의 근거를 확인하세요.`} />
@@ -82,7 +87,7 @@ function ResultPage() {
                     <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
                     <ProductCard productName={products[selectedProductIndex].productName} productImageUrl={products[selectedProductIndex].productImageUrl} resultStatus={products[selectedProductIndex].resultStatus} processingStatus={products[selectedProductIndex].processingStatus} sourceType={products[selectedProductIndex].sourceType} />
                     <ResultTabs selected={selectedTab} onSelect={setSelectedTab} />
-                    {TAB_PANELS[selectedTab]}
+                    {tabPanels[selectedTab]}
                 </div>
             )}
         </div>
