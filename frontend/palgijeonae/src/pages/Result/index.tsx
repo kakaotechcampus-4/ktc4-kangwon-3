@@ -7,7 +7,9 @@ import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
+import ProductCard from "./ProductCard";
 import { useProductResults } from "./useProductResults";
+
 
 // data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
 const EMPTY_PRODUCT_RESULTS: ProductResult[] = [];
@@ -63,8 +65,9 @@ function ResultPage() {
                     </button>
                 </div>
             ) : (
-                <div>
+                <div className="flex w-full flex-col gap-6">
                     <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
+                    <ProductCard productName={products[selectedProductIndex].productName} productImageUrl={products[selectedProductIndex].productImageUrl} resultStatus={products[selectedProductIndex].resultStatus} processingStatus={products[selectedProductIndex].processingStatus} sourceType={products[selectedProductIndex].sourceType} />
                 </div>
             )}
         </div>
