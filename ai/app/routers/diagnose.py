@@ -13,8 +13,8 @@ from ..schemas.response import (
     DiagnosisAcceptedResponse,
     DiagnosisConflict,
 )
-from ..sessions.executor import QueueFullError, SessionExecutor
-from ..sessions.store import SessionConflictError
+from ..sessions.errors import QueueFullError, SessionConflictError
+from ..sessions.executor import SessionExecutor
 
 router = APIRouter(prefix="/diagnose", tags=["진단"])
 

@@ -2,10 +2,8 @@
 
 from threading import Lock
 
-from ..schemas.schemas import ToolName
-from ..schemas.session import DiagnosisSession
+from ..sessions.events import SessionEvent, ToolProgressed
 from ..sessions.executor import SessionExecutor
-from ..sessions.job import ToolProgressStatus
 from .events import AssessmentPresenter, EventBuilder
 from .http import HttpCallbackSender
 from .outbox import CallbackOutbox, CallbackSender, CallbackTransportError, SendResult
@@ -29,13 +27,12 @@ def connect_callbacks(executor: SessionExecutor, builder: EventBuilder, outbox: 
     """
     lock = Lock()
 
-    def deliver(session: DiagnosisSession) -> None:
+    def deliver(event: SessionEvent) -> None:
         with lock:
-            outbox.put(builder.build(session))
-
-    def deliver_tool(session: DiagnosisSession, tool_name: ToolName, status: ToolProgressStatus) -> None:
-        with lock:
-            outbox.put(builder.build_tool(session, tool_name, status))
+            # 이벤트 생성기가 세션 이벤트를 직접 받기 전까지 Tool 진행만 따로 넘김
+            if isinstance(event, ToolProgressed):
+                outbox.put(builder.build_tool(event.session, event.tool_name, event.status))
+            else:
+                outbox.put(builder.build(event.session))
 
     executor.subscribe(deliver)
-    executor.subscribe_tool(deliver_tool)

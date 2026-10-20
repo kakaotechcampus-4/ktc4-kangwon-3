@@ -7,8 +7,9 @@ from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.callback import PublicAssessmentDto, PublicFindingDto, PublicQuestionDto, PublicToolReviewDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
+from app.schemas.base import utc_now
 from app.schemas.session import DiagnosisSession
-from app.sessions.store import SessionStore
+from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, Start, apply
 
 
 class _Presenter:
@@ -35,10 +36,22 @@ def _builder(presenter=None) -> EventBuilder:
     return EventBuilder(presenter or _Presenter(), new_event_id=lambda: f"e-{next(ids)}")
 
 
-def _running(product_id: str = "p-1") -> tuple[SessionStore, ExecutionContext, DiagnosisSession]:
-    store = SessionStore()
-    context = store.accept("d-1", [product_id])[0].context
-    return store, context, store.start(context)
+class _Run:
+    """전이표대로 바꿔 가며 바뀐 세션을 돌려주는 실행 하나. 실행기 없이 세션 변경을 재현."""
+
+    def __init__(self, product_id: str = "p-1") -> None:
+        now = utc_now()
+        self.context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+        self.session = DiagnosisSession(context=self.context, accepted_at=now, updated_at=now)
+
+    def __call__(self, change: Change) -> DiagnosisSession:
+        self.session = apply(self.session, change, now=utc_now()).session
+        return self.session
+
+
+def _running(product_id: str = "p-1") -> tuple[_Run, ExecutionContext, DiagnosisSession]:
+    run = _Run(product_id)
+    return run, run.context, run(Start())
 
 
 def _awaiting(product_id: str):
@@ -54,13 +67,13 @@ def _summary(events) -> list[tuple]:
 
 
 def test_단계가_바뀌면_앞_단계_완료와_새_단계_시작을_순서대로_만든다():
-    store, context, started = _running()
+    run, context, started = _running()
     builder = _builder()
 
     events = [*builder.build(started),
-              *builder.build(store.update_stage(context, PipelineStage.EXTRACTION)),
-              *builder.build(store.update_stage(context, PipelineStage.SELECTION)),
-              *builder.build(store.finish(context, build_dummy_assessment("p-1")))]
+              *builder.build(run(ChangeStage(PipelineStage.EXTRACTION))),
+              *builder.build(run(ChangeStage(PipelineStage.SELECTION))),
+              *builder.build(run(Complete(build_dummy_assessment("p-1"))))]
 
     assert _summary(events) == [
         ("product_progress", 1, "extraction", "started"),
@@ -74,30 +87,30 @@ def test_단계가_바뀌면_앞_단계_완료와_새_단계_시작을_순서대
 
 
 def test_실행_시작과_내부_전용_단계와_같은_단계_반복은_이벤트를_만들지_않는다():
-    store, context, started = _running()
+    run, context, started = _running()
     builder = _builder()
 
     assert builder.build(started) == []
-    assert builder.build(store.update_stage(context, PipelineStage.PIPELINE)) == []
-    assert len(builder.build(store.update_stage(context, PipelineStage.EXTRACTION))) == 1
-    assert builder.build(store.update_stage(context, PipelineStage.EXTRACTION)) == []
+    assert builder.build(run(ChangeStage(PipelineStage.PIPELINE))) == []
+    assert len(builder.build(run(ChangeStage(PipelineStage.EXTRACTION)))) == 1
+    assert builder.build(run(ChangeStage(PipelineStage.EXTRACTION))) == []
 
 
 def test_답변_대기는_질문_이벤트로_보낸다():
-    store, context, _ = _running()
+    run, context, _ = _running()
 
-    [event] = _builder().build(store.finish(context, _awaiting("p-1")))
+    [event] = _builder().build(run(AskUser(_awaiting("p-1"))))
 
     assert (event.event_type, event.question_round, event.questions[0].question_key) == (
         "product_awaiting_input", 1, "battery_only")
 
 
 def test_실패와_시간_초과는_마지막_단계와_공개_문구로_보낸다():
-    store, context, _ = _running()
+    run, context, _ = _running()
     builder = _builder()
-    builder.build(store.update_stage(context, PipelineStage.TOOL_EXECUTION))
+    builder.build(run(ChangeStage(PipelineStage.TOOL_EXECUTION)))
 
-    [event] = builder.build(store.fail(context, error_code="AI_TIMEOUT", retryable=True))
+    [event] = builder.build(run(Fail("AI_TIMEOUT", retryable=True)))
 
     assert (event.event_type, event.sequence, event.stage) == ("product_failed", 2, "tool_execution")
     assert (event.error.code, event.error.message, event.error.retryable) == (
@@ -105,26 +118,25 @@ def test_실패와_시간_초과는_마지막_단계와_공개_문구로_보낸�
 
 
 def test_대기_중_시간_초과는_단계_없이_실패로_보낸다():
-    store = SessionStore()
-    context = store.accept("d-1", ["p-1"])[0].context
+    run = _Run()
 
-    [event] = _builder().build(store.fail(context, error_code="AI_TIMEOUT", retryable=True))
+    [event] = _builder().build(run(Fail("AI_TIMEOUT", retryable=True)))
 
     assert (event.sequence, event.stage) == (1, None)
 
 
 def test_모르는_오류_코드는_기본_문구로_보낸다():
-    store, context, _ = _running()
+    run, context, _ = _running()
 
-    [event] = _builder().build(store.fail(context, error_code="SOMETHING_NEW", retryable=False))
+    [event] = _builder().build(run(Fail("SOMETHING_NEW", retryable=False)))
 
     assert (event.error.code, event.error.message) == ("SOMETHING_NEW", "진단 실행 중 오류가 발생했습니다.")
 
 
 def test_끝난_실행의_늦은_변경은_이벤트를_만들지_않는다():
-    store, context, _ = _running()
+    run, context, _ = _running()
     builder = _builder()
-    finished = store.finish(context, build_dummy_assessment("p-1"))
+    finished = run(Complete(build_dummy_assessment("p-1")))
     builder.build(finished)
 
     # 같은 변경이 두 번 전달돼도 결과 이벤트는 한 번
@@ -133,19 +145,18 @@ def test_끝난_실행의_늦은_변경은_이벤트를_만들지_않는다():
 
 def test_실행마다_sequence를_1부터_따로_센다():
     builder = _builder()
-    first_store, first, first_started = _running("p-1")
-    second_store, second, _ = _running("p-2")
+    first_run, first, first_started = _running("p-1")
+    second_run, second, _ = _running("p-2")
 
-    builder.build(first_store.update_stage(first, PipelineStage.EXTRACTION))
-    [other] = builder.build(second_store.update_stage(second, PipelineStage.EXTRACTION))
+    builder.build(first_run(ChangeStage(PipelineStage.EXTRACTION)))
+    [other] = builder.build(second_run(ChangeStage(PipelineStage.EXTRACTION)))
 
     assert (other.run_id, other.sequence) == (second.run_id, 1)
 
 
 def test_진단서_없는_실행은_보내지_않는다():
-    store = SessionStore()
-    context = store.accept("d-1", ["p-1"])[0].context
-    session = store.start(context).model_copy(update={
+    run, context, started = _running()
+    session = started.model_copy(update={
         "context": context.model_copy(update={"diagnosis_id": None, "run_type": RunType.TEST}),
     })
 
@@ -154,11 +165,11 @@ def test_진단서_없는_실행은_보내지_않는다():
 
 def test_진단서_변환이_실패하면_실패_이벤트로_끝낸다(caplog):
     # 마지막 이벤트가 빠지면 BE에서 진행 중으로 남음
-    store, context, _ = _running()
+    run, context, _ = _running()
     builder = _builder(_BrokenPresenter())
-    builder.build(store.update_stage(context, PipelineStage.EXTRACTION))
+    builder.build(run(ChangeStage(PipelineStage.EXTRACTION)))
 
-    [event] = builder.build(store.finish(context, build_dummy_assessment("p-1")))
+    [event] = builder.build(run(Complete(build_dummy_assessment("p-1"))))
 
     assert (event.event_type, event.sequence, event.stage) == ("product_failed", 2, "extraction")
     assert (event.error.code, event.error.retryable) == ("AI_PIPELINE_ERROR", False)
@@ -166,17 +177,17 @@ def test_진단서_변환이_실패하면_실패_이벤트로_끝낸다(caplog):
 
 
 def test_질문_변환이_실패해도_실패_이벤트로_끝낸다():
-    store, context, _ = _running()
+    run, context, _ = _running()
 
-    [event] = _builder(_BrokenPresenter()).build(store.finish(context, _awaiting("p-1")))
+    [event] = _builder(_BrokenPresenter()).build(run(AskUser(_awaiting("p-1"))))
 
     assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)
 
 
 def test_변환_실패로_끝난_실행의_늦은_변경은_이벤트를_만들지_않는다():
-    store, context, _ = _running()
+    run, context, _ = _running()
     builder = _builder(_BrokenPresenter())
-    finished = store.finish(context, build_dummy_assessment("p-1"))
+    finished = run(Complete(build_dummy_assessment("p-1")))
     builder.build(finished)
 
     # 같은 변경이 다시 와도 실패 이벤트는 한 번
@@ -185,15 +196,15 @@ def test_변환_실패로_끝난_실행의_늦은_변경은_이벤트를_만들�
 
 
 def test_Tool_진행은_단계_이벤트에_이어_번호를_매기고_공개_이름으로_보낸다():
-    store, context, _ = _running()
+    run, context, _ = _running()
     builder = _builder()
 
-    events = [*builder.build(store.update_stage(context, PipelineStage.SELECTION)),
-              *builder.build(tool_stage := store.update_stage(context, PipelineStage.TOOL_EXECUTION)),
+    events = [*builder.build(run(ChangeStage(PipelineStage.SELECTION))),
+              *builder.build(tool_stage := run(ChangeStage(PipelineStage.TOOL_EXECUTION))),
               *builder.build_tool(tool_stage, ToolName.ELECTRICAL, "started"),
               *builder.build_tool(tool_stage, ToolName.ELECTRICAL, "completed"),
               *builder.build_tool(tool_stage, ToolName.RADIO, "skipped"),
-              *builder.build(store.update_stage(context, PipelineStage.AGGREGATION))]
+              *builder.build(run(ChangeStage(PipelineStage.AGGREGATION)))]
 
     assert [(*row, getattr(event, "tool_name", None)) for row, event in zip(_summary(events), events)] == [
         ("product_progress", 1, "selection", "started", None),
@@ -209,23 +220,23 @@ def test_Tool_진행은_단계_이벤트에_이어_번호를_매기고_공개_�
 
 def test_Tool_실행_단계_시작_전_Tool_진행은_보내지_않고_번호도_쓰지_않는다(caplog):
     # 단계 경로와 Tool 경로를 섞지 않음. 빠진 단계 시작을 대신 만들지 않음
-    store, context, _ = _running()
+    run, context, _ = _running()
     builder = _builder()
-    selection = store.update_stage(context, PipelineStage.SELECTION)
+    selection = run(ChangeStage(PipelineStage.SELECTION))
     builder.build(selection)
 
     assert builder.build_tool(selection, ToolName.ELECTRICAL, "started") == []
     assert "Tool 실행 단계 시작 전" in caplog.text
-    [next_event, _] = builder.build(store.update_stage(context, PipelineStage.TOOL_EXECUTION))
+    [next_event, _] = builder.build(run(ChangeStage(PipelineStage.TOOL_EXECUTION)))
     assert next_event.sequence == 2
 
 
 def test_끝난_실행과_진단서_없는_실행의_Tool_진행은_보내지_않는다():
-    store, context, _ = _running()
+    run, context, _ = _running()
     builder = _builder()
-    tool_stage = store.update_stage(context, PipelineStage.TOOL_EXECUTION)
+    tool_stage = run(ChangeStage(PipelineStage.TOOL_EXECUTION))
     builder.build(tool_stage)
-    builder.build(store.finish(context, build_dummy_assessment("p-1")))
+    builder.build(run(Complete(build_dummy_assessment("p-1"))))
 
     assert builder.build_tool(tool_stage, ToolName.ELECTRICAL, "completed") == []
 
@@ -246,8 +257,8 @@ def test_BE_길이_제한을_넘는_진단서는_결과_대신_실패_이벤트�
                 tool_reviews=[PublicToolReviewDto(tool_name="ELECTRICAL", status="COMPLETED", findings=[finding])],
             )
 
-    store, context, _ = _running()
+    run, context, _ = _running()
 
-    [event] = _builder(_LongSubjectPresenter()).build(store.finish(context, build_dummy_assessment("p-1")))
+    [event] = _builder(_LongSubjectPresenter()).build(run(Complete(build_dummy_assessment("p-1"))))
 
     assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)
