@@ -166,6 +166,11 @@ public class Product extends BaseEntity {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
     }
 
+    // AI가 요청을 받지 않아(429, 5xx, 연결 실패) 다시 보낼 상품을 대기로 되돌린다.
+    public void returnToPending() {
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.PENDING);
+    }
+
     public void assignRun(String runId) {
         if (runId == null || runId.isBlank()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
@@ -267,7 +272,11 @@ public class Product extends BaseEntity {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
 
-        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.FAILED);
+        // 재요청을 기다리던 상품(PENDING)도 AI 요청 기한을 넘기면 실패로 끝난다.
+        if (processingStatus != ProcessingStatus.IN_PROGRESS && processingStatus != ProcessingStatus.PENDING) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        this.processingStatus = ProcessingStatus.FAILED;
         this.failedStage = failedStage;
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
