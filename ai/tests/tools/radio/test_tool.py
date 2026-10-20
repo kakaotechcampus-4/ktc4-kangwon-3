@@ -148,12 +148,56 @@ def test_무선_기능_원문_근거가_없으면_후보를_내지_않는다():
     assert result.missing_information == ["무선 기능(블루투스·Wi-Fi·무선충전·RF 리모컨 등) 정보가 필요합니다."]
 
 
-def test_주파수가_없으면_질문으로_남기고_검토는_계속한다():
+def test_주파수는_판단을_바꾸지_않아_질문하지_않고_가정으로_남긴다():
     product, facts = product_and_facts("블루투스 무선 이어폰", (
         ("product_type", "무선 이어폰"), ("wireless_feature", "블루투스")))
     result, _, _ = run(product, facts, review(select(fact_fields=["wireless_feature"], needed_fields=["frequency"])))
+    finding = result.findings[0]
+    assert finding.determination is Determination.POSSIBLY_REQUIRED
+    assert result.missing_information == []
+    assert any("사용 주파수" in note for note in finding.assumptions)
+
+
+def test_무선_기능_값_안의_주파수도_읽는다():
+    text = "블루투스 무선 이어폰, Bluetooth 5.0 (2.4GHz)"
+    product, facts = product_and_facts(text, (
+        ("product_type", "무선 이어폰"), ("wireless_feature", "Bluetooth 5.0 (2.4GHz)")))
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["frequency_bands"] == ["2400 MHz"]
+
+
+def test_추출_단계의_상품_모순은_조회를_막지_않고_가정으로만_남긴다():
+    product, facts = product_and_facts()
+    product = product.model_copy(update={"conflicts": ["배터리 용량이 1200mAh와 1500mAh로 다르게 적혀 있음"]})
+    result, _, search = run(product, facts, review(select()))
+    assert search.calls, "모순이 있어도 대상기자재를 조회해야 합니다."
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
-    assert result.missing_information == ["사용 주파수 정보가 필요합니다."]
+    assert any("배터리 용량" in note for note in result.findings[0].assumptions)
+
+
+def test_제품_종류가_여러_값이어도_충돌이_아니라_모두_조회어로_쓴다():
+    text = "블루투스 무선 이어폰 겸 헤드셋, Bluetooth 5.3, 2.4GHz"
+    product, facts = product_and_facts(text, (
+        ("product_type", "무선 이어폰"), ("product_type", "헤드셋"), ("wireless_feature", "Bluetooth 5.3")))
+    result, _, search = run(product, facts, review(select()))
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+    assert {"무선 이어폰", "헤드셋"} <= set(search.calls[0])
+    assert result.missing_information == []
+
+
+def test_해당_없음이_앞에_여러_개여도_뒤의_맞는_행을_고른다():
+    product, facts = product_and_facts()
+    not_applicable = [select(item_id=AUDIO_ROW, applies=False) for _ in range(3)]
+    result, _, _ = run(product, facts, review(*not_applicable, select()))
+    assert result.query["selected_items"] == [DATA_ROW]
+    assert result.query["not_applicable"] == 3
+
+
+def test_판단마다_그_행의_판매_안내를_연결한다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review(select()))
+    finding = result.findings[0]
+    assert finding.requirements and set(finding.requirements) <= set(result.required_actions)
 
 
 def test_기자재_선택_모델에_정규화한_주파수와_절_비고를_준다():
