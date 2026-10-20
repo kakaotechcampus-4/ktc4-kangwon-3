@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductAnswerRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.FindingLegalSourceResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFailureResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
@@ -24,6 +25,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -47,6 +51,14 @@ public class ProductMapper {
                 product.getResultStatus(),
                 product.getCreatedAt()
         );
+    }
+
+    // 질문 ID → 답변. 중복 질문 ID는 요청 검증(isQuestionIdsUnique)에서 이미 걸러진다.
+    public Map<UUID, String> toAnswers(ProductAnswerRequest request) {
+        return request.answers().stream()
+                .collect(Collectors.toMap(
+                        ProductAnswerRequest.Answer::questionId,
+                        ProductAnswerRequest.Answer::answerText));
     }
 
     public ProductListResponse toListResponse(Page<Product> page) {
