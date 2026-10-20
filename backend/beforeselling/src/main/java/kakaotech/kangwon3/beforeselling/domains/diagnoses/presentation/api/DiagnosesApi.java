@@ -53,7 +53,8 @@ public interface DiagnosesApi {
                     - `pollIntervalMs`에 값이 있으면 그 간격(ms) 뒤에 다시 조회합니다. `null`이면 폴링을 멈춥니다.
                     - 대기·진행 중인 상품이 하나라도 있으면 값이 있습니다. 진단서 `processingStatus`가 `AWAITING_INPUT`이어도
                       다른 상품이 진행 중이면 값이 있으므로, 폴링 여부는 `processingStatus`가 아니라 `pollIntervalMs`로 판단합니다.
-                    - 답변 대기 상품만 남으면 `null`입니다. 사용자가 답변한 뒤 다시 폴링을 시작합니다.
+                    - 답변 대기 상품만 남으면 `null`입니다. 질문 답변 제출(`POST /api/v1/products/{productId}/answers`)이
+                      성공하면 상품이 다시 진행 중이 되므로 그때 폴링을 다시 시작합니다.
 
                     **상품별 진행 정보** (`products[]`)
                     - `progresses`: 현재 실행의 단계·Tool별 진행 상태입니다. 단계 순서
