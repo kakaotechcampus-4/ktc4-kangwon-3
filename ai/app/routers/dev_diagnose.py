@@ -7,6 +7,7 @@
 from fastapi import APIRouter, Depends, Request, status
 
 from ..callbacks import AssessmentPresenter
+from ..clients.base import mask_sensitive_params
 from ..errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
 from ..schemas.request import DevDiagnosisRequest
@@ -17,6 +18,7 @@ from ..schemas.response import (
     DevDiagnosisStatus,
     DevDiagnosisStatusResponse,
 )
+from ..schemas.schemas import FinalAssessment
 from ..schemas.session import DiagnosisSession, SessionStatus
 from ..sessions.executor import QueueFullError, SessionExecutor
 from .dev_auth import require_dev_api_key
@@ -126,5 +128,18 @@ def _status(session: DiagnosisSession, presenter: AssessmentPresenter) -> DevDia
         stage=session.stage, error_code=session.error_code, retryable=session.retryable,
         accepted_at=session.accepted_at, updated_at=session.updated_at,
         assessment=assessment, question_round=question_round, questions=questions,
-        presentation_error=error, result=session.result,
+        presentation_error=error, result=_masked(session.result) if session.result is not None else None,
     )
+
+
+def _masked(result: FinalAssessment) -> FinalAssessment:
+    """내부 결과 속 외부 API 키를 가린 사본을 만든다. 세션의 원본은 그대로 둠.
+
+    Args:
+        result: 세션에 담긴 내부 결과.
+
+    Returns:
+        FinalAssessment: 키 값이 ``***``로 가려진 사본.
+    """
+    # 외부에 열린 경로라 나중에 붙을 Tool의 근거 URL 등에 키가 섞여도 노출 방지
+    return FinalAssessment.model_validate_json(mask_sensitive_params(result.model_dump_json()))
