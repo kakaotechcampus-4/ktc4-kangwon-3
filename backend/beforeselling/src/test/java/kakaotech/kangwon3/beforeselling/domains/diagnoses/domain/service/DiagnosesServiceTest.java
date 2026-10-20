@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
@@ -22,6 +23,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,8 +65,8 @@ class DiagnosesServiceTest {
     private ArgumentCaptor<S3FileDeleteRequestedEvent> eventCaptor;
 
     @Test
-    @DisplayName("진단을 요청하면 진단서와 상품이 모두 PENDING 상태로 저장되고 진단 결과는 비어 있다.")
-    void createDiagnoses_thenSaveAsPending() {
+    @DisplayName("진단을 요청하면 진단서와 상품이 모두 진단 중(IN_PROGRESS)으로 저장되고 진단 결과는 비어 있다.")
+    void createDiagnoses_thenSaveAsInProgress() {
         // given
         given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
 
@@ -76,11 +78,11 @@ class DiagnosesServiceTest {
         Diagnoses saved = diagnosesCaptor.getValue();
 
         assertThat(saved.getUserId()).isEqualTo(USER_ID);
-        assertThat(saved.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
+        assertThat(saved.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
         assertThat(saved.getProducts()).hasSize(1);
 
         Product product = saved.getProducts().getFirst();
-        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
         assertThat(product.getResultStatus()).isNull();
         assertThat(product.getSummary()).isNull();
         assertThat(product.getProductName()).isEqualTo(PRODUCT_NAME);
@@ -246,6 +248,90 @@ class DiagnosesServiceTest {
 
         // then
         then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("진단을 요청하면 저장된 상품들의 입력 정보로 AI 진단 요청 이벤트를 발행한다.")
+    void createDiagnoses_thenPublishAiDiagnosesRequestedEvent() {
+        // given: 저장할 때 id가 부여되는 것을 흉내 낸다.
+        UUID productId = UUID.randomUUID();
+        given(diagnosesRepository.save(any(Diagnoses.class))).willAnswer(invocation -> {
+            Diagnoses diagnoses = invocation.getArgument(0);
+            ReflectionTestUtils.setField(diagnoses, "id", DIAGNOSES_ID);
+            ReflectionTestUtils.setField(diagnoses.getProducts().getFirst(), "id", productId);
+            return diagnoses;
+        });
+
+        // when
+        diagnosesService.createDiagnoses(USER_ID, List.of(new ProductCreateCommand(
+                PRODUCT_NAME, PRODUCT_IMAGE_KEY, SourceType.TEXT_IMAGE, null, "상세 설명",
+                List.of("product-detail/1/uuid_a1.jpg"))));
+
+        // then
+        ArgumentCaptor<AiDiagnosesRequestedEvent> captor = ArgumentCaptor.forClass(AiDiagnosesRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue()).isEqualTo(new AiDiagnosesRequestedEvent(DIAGNOSES_ID, List.of(
+                new AiDiagnosesRequestedEvent.ProductInput(productId, SourceType.TEXT_IMAGE, null, "상세 설명",
+                        List.of(PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg")))));
+    }
+
+    @Test
+    @DisplayName("AI 접수 응답의 실행 식별자를 진단서를 잠근 뒤 각 상품에 저장한다.")
+    void assignRuns_thenAssignRunIdToEachProduct() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(2);
+        UUID first = diagnoses.getProducts().get(0).getId();
+        UUID second = diagnoses.getProducts().get(1).getId();
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.assignRuns(DIAGNOSES_ID, Map.of(first, "run-1", second, "run-2"));
+
+        // then
+        assertThat(diagnoses.getProducts())
+                .extracting(Product::getRunId)
+                .containsExactly("run-1", "run-2");
+    }
+
+    @Test
+    @DisplayName("진단서에 없는 상품의 실행 식별자는 건너뛰고 나머지 상품에는 저장한다.")
+    void assignRuns_withUnknownProduct_thenSkipIt() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(1);
+        UUID productId = diagnoses.getProducts().getFirst().getId();
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.assignRuns(DIAGNOSES_ID, Map.of(productId, "run-1", UUID.randomUUID(), "run-x"));
+
+        // then
+        assertThat(diagnoses.getProducts().getFirst().getRunId()).isEqualTo("run-1");
+    }
+
+    @Test
+    @DisplayName("없는 진단서의 실행 식별자를 저장하려 하면 NOT_FOUND 예외가 발생한다.")
+    void assignRuns_whenDiagnosesNotFound_thenThrowNotFound() {
+        // given
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> diagnosesService.assignRuns(DIAGNOSES_ID, Map.of(UUID.randomUUID(), "run-1")))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+    }
+
+    // 진단을 시작한 상품 n개를 가진 진단서. 상품마다 id를 부여한다.
+    private Diagnoses createInProgressDiagnoses(int productCount) {
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        ReflectionTestUtils.setField(diagnoses, "id", DIAGNOSES_ID);
+        for (int i = 0; i < productCount; i++) {
+            Product product = Product.pending(PRODUCT_NAME + i, null, SourceType.URL, SOURCE_URL, null);
+            ReflectionTestUtils.setField(product, "id", UUID.randomUUID());
+            diagnoses.addProducts(List.of(product));
+        }
+        diagnoses.startDiagnoses();
+        return diagnoses;
     }
 
     private Diagnoses createDiagnoses(UUID diagnosesId) {

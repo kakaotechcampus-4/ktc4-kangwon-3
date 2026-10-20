@@ -1,12 +1,20 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.FindingLegalSourceResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.ProductUseCase;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLevel;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolReviewStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller.ProductController;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -67,6 +75,9 @@ class ProductControllerTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final UUID DIAGNOSES_ID = UUID.randomUUID(); // 추가
+    private static final UUID TOOL_REVIEW_ID = UUID.randomUUID();
+    private static final UUID FINDING_ID = UUID.randomUUID();
+    private static final UUID LEGAL_SOURCE_ID = UUID.randomUUID();
     private static final String BASE_URL = "/api/v1/products";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
@@ -276,7 +287,17 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.data.sourceType").value("URL"))
                 .andExpect(jsonPath("$.data.imageUrls[0]").value(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"))
                 .andExpect(jsonPath("$.data.resultStatus").value("RECHECK_REQUIRED"))
-                .andExpect(jsonPath("$.data.summary").value("배터리 표시 항목 재확인이 필요합니다."));
+                .andExpect(jsonPath("$.data.summary").value("배터리 표시 항목 재확인이 필요합니다."))
+                .andExpect(jsonPath("$.data.assessmentStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.toolReviews[0].productToolReviewId").value(TOOL_REVIEW_ID.toString()))
+                .andExpect(jsonPath("$.data.toolReviews[0].toolName").value("CHILDREN"))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].productFindingId").value(FINDING_ID.toString()))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].determination").value("POSSIBLY_REQUIRED"))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].legalSources[0].findingLegalSourceId")
+                        .value(LEGAL_SOURCE_ID.toString()))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].legalSources[0].article").value("별표 2"))
+                .andExpect(jsonPath("$.data.requiredActions[0]").value("배터리 표시 보완"))
+                .andExpect(jsonPath("$.data.notices[0]").value("구매대행 상품은 이 조문의 적용을 받지 않습니다."));
     }
 
     @Test
@@ -344,9 +365,18 @@ class ProductControllerTest {
 
     private ProductResponse productResponse() {
         return new ProductResponse(
-                PRODUCT_ID, 0, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"),
-                ProcessingStatus.COMPLETED, ResultStatus.RECHECK_REQUIRED, "배터리 표시 항목 재확인이 필요합니다.");
+                ProcessingStatus.COMPLETED, List.of(), List.of(), null,
+                AssessmentStatus.COMPLETED, ResultStatus.RECHECK_REQUIRED,
+                "배터리 표시 항목 재확인이 필요합니다.",
+                List.of(new ProductToolReviewResponse(TOOL_REVIEW_ID, ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null,
+                        List.of(new ProductFindingResponse(FINDING_ID, "표시사항", Determination.POSSIBLY_REQUIRED,
+                                RiskLevel.MEDIUM, "배터리 표시를 확인해야 합니다.", "상세페이지에 배터리 표기가 없습니다.",
+                                List.of(new FindingLegalSourceResponse(LEGAL_SOURCE_ID, "국가법령정보센터",
+                                        "어린이제품 안전 특별법 시행규칙", "별표 2", null, null, "2026-09-03")))))),
+                List.of("배터리 표시 보완"),
+                List.of("구매대행 상품은 이 조문의 적용을 받지 않습니다."));
     }
 }

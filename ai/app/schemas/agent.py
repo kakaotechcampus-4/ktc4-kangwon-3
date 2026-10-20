@@ -1,5 +1,6 @@
 """에이전트 연결을 위한 검토용 입출력 초안. BE-AI API 명세 확정본이 아니다."""
 
+from enum import StrEnum
 from typing import Self
 
 from pydantic import Field, model_validator
@@ -40,4 +41,34 @@ class ToolSelectionResponse(StrictModel):
         names = [item.tool_name for item in self.decisions]
         if len(names) != len(ToolName) or set(names) != set(ToolName):
             raise ValueError("선택 결과에는 6개 심사 툴이 각각 한 번씩 있어야 합니다.")
+        return self
+
+class ImageCategory(StrEnum):
+    """상품 페이지 이미지 분류. 사양·인증·포장은 추출에 쓸 글자가 있는 사진."""
+
+    SPECIFICATION = "specification"  # 정격·용량·사양이 적힌 표나 글자
+    CERTIFICATION = "certification"  # 인증 마크·라벨·명판·경고 문구·시험 성적서
+    PACKAGE = "package"  # 포장 상자·설명서의 글자 (연령, 구성품 등)
+    PRODUCT = "product"  # 글자가 거의 없는 제품 사진
+    LIFESTYLE = "lifestyle"  # 사용 장면·모델 연출 사진
+    UNRELATED = "unrelated"  # 다른 상품, 회사·배송 안내, 연락처 배너, 아이콘
+
+
+class ImageTriageItem(StrictModel):
+    """이미지 하나의 분류. index는 입력 순서 (1부터)."""
+
+    index: int = Field(ge=1)
+    category: ImageCategory
+
+
+class ImageTriageResponse(StrictModel):
+    """후보 이미지 분류 결과. 같은 번호는 한 번만."""
+
+    items: list[ImageTriageItem]
+
+    @model_validator(mode="after")
+    def unique_indexes(self) -> Self:
+        indexes = [item.index for item in self.items]
+        if len(indexes) != len(set(indexes)):
+            raise ValueError("같은 이미지 번호를 두 번 분류할 수 없습니다.")
         return self

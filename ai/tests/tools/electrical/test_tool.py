@@ -10,8 +10,9 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.electrical import ElectricalTool, ElectricalToolError
-from app.tools.electrical.rules import low_voltage, normal_text, object_particle
-from app.tools.electrical.evidence import CachedEvidenceSource, EvidenceUnavailable, LawApiEvidenceSource
+from app.tools.common.law import compact
+from app.tools.electrical.rules import low_voltage, object_particle
+from app.tools.electrical.evidence import CachedLoader, EvidenceUnavailable, LawApiEvidenceSource
 from app.tools.electrical.search import DatabaseItemSearch, LawApiItemSearch
 
 from .conftest import AS_OF, FakeLaw
@@ -21,24 +22,34 @@ FAN_ROW = "cert-07-15"        # 안전인증 · 팬(선풍기) — 저전압 포
 BATTERY_ROW = "conf-10-12"    # 안전확인 · 전지(충전지) — 저전압 포함 비고 있음
 
 
+class _Structured:
+    def __init__(self, owner, schema):
+        self.owner, self.schema = owner, schema
+
+    def invoke(self, messages):
+        self.owner.calls.append(self.schema)
+        self.owner.last_payload = messages[-1].content
+        if self.owner.error is not None:
+            raise self.owner.error
+        parsed = self.owner.facts if self.schema is ElectricalFacts else self.owner.review
+        return {"parsed": parsed, "raw": None, "parsing_error": self.owner.parsing_error}
+
+
 class Model:
+    """BaseAgent가 넘기는 JSON 스키마 이름(ElectricalFacts / ElectricalReview)으로 단계를 구분하는 Fake."""
+
     model_name = "test-model"
 
     def __init__(self, facts, review=None):
         self.facts = facts
         self.review = review or ElectricalReview()
         self.calls = []
+        self.error: Exception | None = None
+        self.parsing_error: Exception | None = None
 
-    def with_structured_output(self, schema, *, include_raw):
-        assert include_raw
-        self.schema = schema
-        return self
-
-    def invoke(self, messages):
-        self.calls.append(self.schema)
-        self.last_payload = messages[-1].content
-        parsed = self.facts if self.schema is ElectricalFacts else self.review
-        return {"parsed": parsed, "raw": None, "parsing_error": None}
+    def with_structured_output(self, schema, **kwargs):
+        assert kwargs.get("include_raw") is True
+        return _Structured(self, ElectricalFacts if schema["name"] == "ElectricalFacts" else ElectricalReview)
 
 
 class Search:
@@ -48,7 +59,7 @@ class Search:
 
     def __init__(self, *, error=None):
         if Search._shared is None:
-            Search._shared = LawApiItemSearch(CachedEvidenceSource(LawApiEvidenceSource(FakeLaw())), as_of=AS_OF)
+            Search._shared = LawApiItemSearch(CachedLoader(LawApiEvidenceSource(FakeLaw()).load), as_of=AS_OF)
         self.error = error
         self.calls = 0
 
@@ -62,7 +73,7 @@ class Search:
 @pytest.fixture(autouse=True)
 def no_usage_file(monkeypatch):
     # 테스트가 운영 사용량 로그를 변경하지 않도록 한다.
-    monkeypatch.setattr("app.tools.electrical.tool.record", lambda *a, **kw: None)
+    monkeypatch.setattr("app.usage.record", lambda *a, **kw: None)
 
 
 def decision(selected=True):
@@ -135,6 +146,53 @@ def test_조회한_후보_행에서_고른_품목을_후보로_내고_근거는_
     assert search.calls == 1
 
 
+def test_판단마다_판매_안내를_연결하고_출처_이름은_다른_규제_Tool과_같다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review(select()))
+    finding = result.findings[0]
+    # 재실행에서 판단이 빠질 때 ToolExecutor가 그 판단의 할 일만 지울 수 있어야 한다.
+    assert finding.requirements and set(finding.requirements) <= set(result.required_actions)
+    assert all(source.source_name == "법제처 국가법령정보" for source in finding.legal_sources)
+    assert "확정 아님" in finding.summary
+
+
+def test_추출_단계의_상품_모순은_품목_조회를_막지_않고_가정으로만_남긴다():
+    product, facts = product_and_facts()
+    product = product.model_copy(update={"conflicts": ["배터리 용량이 2000mAh와 3000mAh로 다르게 적혀 있음"]})
+    result, model, search = run(product, facts, review(select()))
+    assert search.calls == 1 and model.calls == [ElectricalFacts, ElectricalReview]
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+    assert any("배터리 용량" in text for text in result.findings[0].assumptions)
+    assert not any("모순을 해소" in text for text in result.missing_information)
+
+
+def test_제품_종류가_여러_값이어도_충돌이_아니라_모두_조회어로_쓴다():
+    text = "무선 전기포트 겸 전기주전자, AC 220V"
+    product, facts = product_and_facts(text, (("product_type", "무선 전기포트"), ("product_type", "전기주전자"),
+                                              ("power_source", "AC"), ("rated_voltage", "220V")), search_terms=[])
+    result, _, _ = run(product, facts, review(select()))
+    assert result.query["conflicted"] == []
+    assert KETTLE_ROW in result.query["candidate_items"]
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+
+
+def test_전지_전용_여부가_예와_아니오로_엇갈리면_충돌로_묻는다():
+    text = "건전지로만 작동합니다. 어댑터를 꽂아 쓰는 제품입니다. 전기포트"
+    product, facts = product_and_facts(text, (("product_type", "전기포트"), ("battery_only", "예"),
+                                              ("battery_only", "아니오")))
+    result, _, _ = run(product, facts, review(select()))
+    assert "battery_only" in result.query["conflicted"]
+    assert result.query["battery_only"] is None
+    assert any("배터리 전용 여부 정보가 서로 달라" in text for text in result.missing_information)
+
+
+def test_판단을_바꾸지_않는_조건은_질문이_아니라_가정으로_남긴다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review(select(needed_fields=["intended_use", "rated_power"])))
+    assert result.missing_information == []
+    assert any("제품 용도, 정격 소비전력 확인" in text for text in result.findings[0].assumptions)
+
+
 def test_모델에는_법령_전체가_아니라_후보_행만_들어간다():
     product, facts = product_and_facts()
     _, model, _ = run(product, facts, review(select()))
@@ -162,6 +220,13 @@ def test_미선택은_모델과_조회를_호출하지_않는다():
     result = ElectricalTool(model, item_search=search).execute(product, decision(False))
     assert result.status is ToolStatus.SKIPPED
     assert model.calls == [] and search.calls == 0
+
+
+def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
+    names = []
+    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
+    ElectricalTool(item_search=Search())._get_steps()
+    assert names == [ToolName.ELECTRICAL]
 
 
 def test_boolean만_있으면_조건을_추측하지_않는다():
@@ -496,16 +561,15 @@ def test_조회_오류는_비대상이나_정보부족으로_바꾸지_않는다
 @pytest.mark.parametrize("mode", ["call", "parse", "missing_output"])
 def test_모델_호출과_파싱_실패는_공통_Tool_예외로_알린다(mode):
     product, facts = product_and_facts()
+    model = Model(None if mode == "missing_output" else facts)
+    if mode == "call":
+        model.error = TimeoutError("의도한 모델 실패")
+    elif mode == "parse":
+        model.parsing_error = ValueError("파싱 실패")
 
-    class BrokenModel(Model):
-        def invoke(self, messages):
-            if mode == "call":
-                raise TimeoutError("의도한 모델 실패")
-            return {"raw": None, "parsed": None,
-                    "parsing_error": ValueError("파싱 실패") if mode == "parse" else None}
-
-    with pytest.raises(ElectricalToolError, match="모델 처리"):
-        ElectricalTool(BrokenModel(facts), item_search=Search()).execute(product, decision())
+    with pytest.raises(ElectricalToolError, match="모델 호출|구조화 출력") as caught:
+        ElectricalTool(model, item_search=Search()).execute(product, decision())
+    assert caught.value.__cause__ is not None
 
 
 def test_다른_Tool의_선택정보는_실행하지_않는다():
@@ -520,7 +584,7 @@ def test_DB_조회는_아직_스텁이다():
 
 
 def test_표_테두리와_공백을_무시하고_대조한다():
-    assert normal_text("│비고) 정격입력이    │\n│것은 제외한다. │") == normal_text("비고) 정격입력이 것은 제외한다.")
+    assert compact("│비고) 정격입력이    │\n│것은 제외한다. │") == compact("비고) 정격입력이 것은 제외한다.")
 
 
 # -- Verification 소비 계약 (파이프라인 연결 전) --
@@ -550,3 +614,11 @@ def test_결과는_Verification_규칙_검사를_통과한다(case):
         chosen = review(select(BATTERY_ROW))
     result, _, _ = run(product, facts, chosen)
     assert _verify(product, result) == []
+
+
+def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어간다():
+    from app.schemas.product import Attribute
+    from app.tools.electrical.tool import _hints
+    product = Product(product_id="p1", listing_text=["포트"], attributes=[Attribute(name="품목", value="전기포트")])
+    assert _hints(product)["attributes"] == [{"name": "품목", "value": "전기포트"}]
+    assert "listing_text" not in _hints(product)

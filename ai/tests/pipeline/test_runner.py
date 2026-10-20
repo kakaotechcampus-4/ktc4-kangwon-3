@@ -239,13 +239,13 @@ def test_재실행이_필요하지_않으면_각_단계를_한_번씩_실행한�
     verification = VerificationResult(status=verification_status)
 
     class FakeExtractor:
-        def extract(self, received: ExtractionInput) -> Product:
+        def run(self, received: ExtractionInput) -> Product:
             calls.append("extract")
             assert received == source
             return product
 
     class FakeSelector:
-        def select(self, received: Product) -> ToolSelectionResponse:
+        def run(self, received: Product) -> ToolSelectionResponse:
             calls.append("select")
             assert received == product
             return selection
@@ -273,7 +273,7 @@ def test_재실행이_필요하지_않으면_각_단계를_한_번씩_실행한�
             return draft
 
     class FakeVerifier:
-        def verify(self, received: DraftAssessment) -> VerificationResult:
+        def run(self, received: DraftAssessment) -> VerificationResult:
             calls.append("verify")
             assert received == draft
             return verification
@@ -379,13 +379,13 @@ def test_추가_Tool이_필요하면_재실행한_결과를_재종합하고_재�
     approved = VerificationResult(status=VerificationStatus.APPROVED)
 
     class FakeExtractor:
-        def extract(self, received: ExtractionInput) -> Product:
+        def run(self, received: ExtractionInput) -> Product:
             calls.append("extract")
             assert received == source
             return product
 
     class FakeSelector:
-        def select(self, received: Product) -> ToolSelectionResponse:
+        def run(self, received: Product) -> ToolSelectionResponse:
             calls.append("select")
             assert received == product
             return selection
@@ -433,7 +433,7 @@ def test_추가_Tool이_필요하면_재실행한_결과를_재종합하고_재�
             return retried_draft
 
     class FakeVerifier:
-        def verify(self, received: DraftAssessment) -> VerificationResult:
+        def run(self, received: DraftAssessment) -> VerificationResult:
             if received == initial_draft:
                 calls.append("verify_initial")
                 return tools_required
@@ -543,14 +543,14 @@ def test_Tool_재실행은_최대_3회이며_회차별_결과를_다음_입력�
     verification_calls = 0
 
     class FakeExtractor:
-        def extract(self, received: ExtractionInput) -> Product:
+        def run(self, received: ExtractionInput) -> Product:
             nonlocal extraction_calls
             extraction_calls += 1
             assert received == source
             return product
 
     class FakeSelector:
-        def select(self, received: Product) -> ToolSelectionResponse:
+        def run(self, received: Product) -> ToolSelectionResponse:
             nonlocal selection_calls
             selection_calls += 1
             assert received == product
@@ -606,7 +606,7 @@ def test_Tool_재실행은_최대_3회이며_회차별_결과를_다음_입력�
             )
 
     class FakeVerifier:
-        def verify(self, received: DraftAssessment) -> VerificationResult:
+        def run(self, received: DraftAssessment) -> VerificationResult:
             nonlocal verification_calls
             assert received.product == product
             result = verifications[verification_calls]
@@ -706,12 +706,12 @@ def test_설정한_최대_횟수만큼만_Tool을_재실행한다(
     retry_calls = 0
 
     class FakeExtractor:
-        def extract(self, received: ExtractionInput) -> Product:
+        def run(self, received: ExtractionInput) -> Product:
             assert received == source
             return product
 
     class FakeSelector:
-        def select(self, received: Product) -> ToolSelectionResponse:
+        def run(self, received: Product) -> ToolSelectionResponse:
             assert received == product
             return selection
 
@@ -749,7 +749,7 @@ def test_설정한_최대_횟수만큼만_Tool을_재실행한다(
             return draft
 
     class FakeVerifier:
-        def verify(self, received: DraftAssessment) -> VerificationResult:
+        def run(self, received: DraftAssessment) -> VerificationResult:
             assert received == draft
             return tools_required
 

@@ -7,6 +7,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
+import kakaotech.kangwon3.beforeselling.global.config.properties.DiagnosesProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.util.List;
 public class DiagnosesMapper {
 
     private final ProductMapper productMapper;
+    private final DiagnosesProperties diagnosesProperties;
 
     public List<ProductCreateCommand> toCommands(DiagnosesCreateRequest request) {
         return request.products().stream()
@@ -47,10 +49,15 @@ public class DiagnosesMapper {
         return new DiagnosesDetailResponse(
                 diagnoses.getId(),
                 diagnoses.getProcessingStatus(),
+                toPollIntervalMs(diagnoses),
                 products,
                 diagnoses.getCreatedAt(),
                 diagnoses.getUpdatedAt()
         );
+    }
+
+    private Long toPollIntervalMs(Diagnoses diagnoses) {
+        return diagnoses.hasProcessingProduct() ? diagnosesProperties.pollInterval().toMillis() : null;
     }
 
 }

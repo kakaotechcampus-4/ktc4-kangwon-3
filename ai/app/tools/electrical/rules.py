@@ -11,14 +11,7 @@ from ...schemas.electrical import ElectricalFact
 from ...schemas.product import Product
 from .evidence import AnnexBlock, compact
 
-# 법제처 별표는 표 테두리 문자(─│┌ 등, U+2500–257F)가 줄바꿈 자리마다 끼어 온다.
-# 공백만 지우면 모델이 정확히 이어 쓴 인용도 원문과 다르다고 판정한다.
-_BOX_DRAWING = {code: None for code in range(0x2500, 0x2580)}
 _VOLTAGE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*[Vv](?![A-Za-z])")
-
-
-def normal_text(text: str) -> str:
-    return "".join(text.translate(_BOX_DRAWING).split())
 
 
 POWER_FIELDS = ("power_source", "rated_voltage")

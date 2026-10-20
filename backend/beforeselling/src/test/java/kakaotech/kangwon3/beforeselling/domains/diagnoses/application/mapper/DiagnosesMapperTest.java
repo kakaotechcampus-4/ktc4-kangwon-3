@@ -8,8 +8,10 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductCreateCommand;
+import kakaotech.kangwon3.beforeselling.global.config.properties.DiagnosesProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import org.junit.jupiter.api.DisplayName;
@@ -37,8 +39,8 @@ class DiagnosesMapperTest {
             "test-bucket", "ap-northeast-2",
             Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null));
 
-    private final DiagnosesMapper diagnosesMapper =
-            new DiagnosesMapper(new ProductMapper(s3UrlKeyCodec));
+    private final DiagnosesMapper diagnosesMapper = new DiagnosesMapper(new ProductMapper(s3UrlKeyCodec),
+            new DiagnosesProperties(Duration.ofMinutes(15), Duration.ofSeconds(3)));
 
     @Test
     @DisplayName("진단 요청을 변환하면 상품마다 커맨드가 요청 순서대로 만들어진다.")
@@ -110,7 +112,7 @@ class DiagnosesMapperTest {
     }
 
     @Test
-    @DisplayName("상품 여러 개를 담은 진단서를 변환하면 정렬 값과 함께 모두 반환된다.")
+    @DisplayName("상품 여러 개를 담은 진단서를 변환하면 등록한 순서대로 모두 반환된다.")
     void toDetailResponse_withMultipleProducts_thenIncludeAllInOrder() {
         // given
         Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY, "상품 A", "상품 B", "상품 C");
@@ -120,11 +122,8 @@ class DiagnosesMapperTest {
 
         // then
         assertThat(response.products())
-                .extracting(ProductResponse::productName, ProductResponse::sortOrder)
-                .containsExactly(
-                        org.assertj.core.api.Assertions.tuple("상품 A", 0),
-                        org.assertj.core.api.Assertions.tuple("상품 B", 1),
-                        org.assertj.core.api.Assertions.tuple("상품 C", 2));
+                .extracting(ProductResponse::productName)
+                .containsExactly("상품 A", "상품 B", "상품 C");
     }
 
     @Test
@@ -151,6 +150,58 @@ class DiagnosesMapperTest {
         assertThat(product.resultStatus()).isNull();
         assertThat(product.summary()).isNull();
         assertThat(product.imageUrls()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("진단 중인 상품이 있으면 설정한 폴링 간격을 ms로 담는다.")
+    void toDetailResponse_withProcessingProduct_thenIncludePollInterval() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY);
+        diagnoses.startDiagnoses();
+
+        // when
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
+
+        // then
+        assertThat(response.pollIntervalMs()).isEqualTo(3000L);
+    }
+
+    @Test
+    @DisplayName("한 상품이 답변 대기여도 다른 상품이 진행 중이면 진단서 상태와 관계없이 폴링 간격을 담는다.")
+    void toDetailResponse_withAwaitingInputAndInProgress_thenIncludePollInterval() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY, "상품 A", "상품 B");
+        diagnoses.startDiagnoses();
+        diagnoses.getProducts().getFirst().askQuestions(1, List.of(question()));
+        diagnoses.refreshProcessingStatus();
+
+        // when
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
+
+        // then
+        assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(response.pollIntervalMs()).isEqualTo(3000L);
+    }
+
+    @Test
+    @DisplayName("진단 중인 상품이 없으면(답변 대기·실패만 남음) 폴링 간격이 비어 폴링을 멈추게 한다.")
+    void toDetailResponse_withoutProcessingProduct_thenPollIntervalIsNull() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(DIAGNOSES_ID, PRODUCT_IMAGE_KEY, "상품 A", "상품 B");
+        diagnoses.startDiagnoses();
+        diagnoses.getProducts().getFirst().askQuestions(1, List.of(question()));
+        diagnoses.getProducts().get(1).fail(null, "AI_TIMEOUT", "시간이 초과되었습니다.", true);
+        diagnoses.refreshProcessingStatus();
+
+        // when
+        DiagnosesDetailResponse response = diagnosesMapper.toDetailResponse(diagnoses);
+
+        // then
+        assertThat(response.pollIntervalMs()).isNull();
+    }
+
+    private QuestionContent question() {
+        return new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null);
     }
 
     private ProductCreateRequest productRequest(String productName, List<String> imageKeys) {

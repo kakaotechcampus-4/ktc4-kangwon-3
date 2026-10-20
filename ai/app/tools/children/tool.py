@@ -15,7 +15,7 @@ from ...schemas.schemas import (
     ChildrenAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from ..base import RegulatoryTool
-from ..common.agent import ToolModelError, ToolStep
+from ..common.agent import ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable, compact
 from .evidence import SCHEME_ANNEXES, SHORT_SCOPE_LIMIT, ChildrenItem, Definitions
@@ -81,8 +81,9 @@ class ChildrenTool(RegulatoryTool):
     def _get_steps(self) -> tuple[_FactsStep, _ReviewStep]:
         if self._steps is None:
             if self._model is None:
-                from ...config import build_chat_model
-                self._model = build_chat_model()
+                # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
+                from ...config import build_tool_model
+                self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
             self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))
         return self._steps
@@ -109,8 +110,8 @@ class ChildrenTool(RegulatoryTool):
             raise ChildrenToolError("어린이제품 법령 품목표 조회에 실패했습니다.") from exc
 
         facts_step, review_step = self._get_steps()
-        extracted = facts_step.run({"hints": _hints(product), "evidence": snippets, "item_names": catalog,
-                                    "excluded_kinds": list(EXCLUDED_KINDS)}, subject_id=product.product_id)
+        extracted = facts_step.run(ToolStepInput({"hints": _hints(product), "evidence": snippets, "item_names": catalog,
+                                                  "excluded_kinds": list(EXCLUDED_KINDS)}, product.product_id))
         facts = [fact for fact in extracted.facts
                  if quote_matches(fact, snippets, value_in_quote=fact.field != "excluded_kind")
                  and (fact.field != "excluded_kind" or _excluded_kind(fact.value) is not None)
@@ -196,12 +197,12 @@ class ChildrenTool(RegulatoryTool):
         query["candidate_items"] = [item.item_id for item in review_items]
         findings, actions, selected = [], [], []
         if review_items:
-            review = review_step.run({
+            review = review_step.run(ToolStepInput({
                 "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
                 "age_state": state,
                 "candidates": [item.as_candidate() if item in ranked else item.as_candidate(SHORT_SCOPE_LIMIT)
                                for item in review_items],
-            }, subject_id=product.product_id)
+            }, product.product_id))
             items = {item.item_id: item for item in review_items}
             for selection in review.selections:
                 if not selection.applies:

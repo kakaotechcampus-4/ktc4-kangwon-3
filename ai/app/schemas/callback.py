@@ -17,6 +17,9 @@ from .schemas import Determination, RiskLevel
 # BE AgentType과 같은 값 (#325에서 ToolName으로 이름 변경)
 PublicToolName = Literal["CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD"]
 
+# 공백 아닌 글자가 하나 이상 (BE @NotBlank). 공백뿐이면 BE가 400으로 거절해 결과가 사라짐
+NonBlankStr = Annotated[str, Field(pattern=r"\S")]
+
 
 class PublicPipelineStage(StrEnum):
     """BE에 공개하는 진행 단계. 내부 전용 단계(pipeline)는 공개하지 않음."""
@@ -40,10 +43,10 @@ class ProductEventBase(ApiModel):
         sequence: 실행 안에서의 이벤트 순서. 실행마다 1부터.
     """
 
-    event_id: str = Field(min_length=1)
+    event_id: NonBlankStr
     diagnosis_id: str = Field(min_length=1)
     product_id: str = Field(min_length=1)
-    run_id: str = Field(min_length=1)
+    run_id: NonBlankStr
     sequence: int = Field(ge=1, strict=True)
 
 
@@ -65,9 +68,9 @@ class ProductProgressEvent(ProductEventBase):
 class PublicQuestionDto(ApiModel):
     """사용자에게 물을 질문 하나. BE ProductQuestion 저장 형식."""
 
-    question_key: str = Field(min_length=1, max_length=50)
+    question_key: NonBlankStr = Field(max_length=50)
     question_order: int = Field(ge=1, strict=True)
-    question_text: str = Field(min_length=1)
+    question_text: NonBlankStr
     help_text: str | None = None
 
 
@@ -87,21 +90,22 @@ class ProductAwaitingInputEvent(ProductEventBase):
         return self
 
 
+# 최대 길이는 BE 수신 DTO(#331)·DB 칸 길이와 같음. 넘으면 BE가 400으로 거절해 결과가 사라짐
 class PublicLegalSourceDto(ApiModel):
-    source_name: str = Field(min_length=1)
-    law_name: str | None = None
-    article: str | None = None
+    source_name: NonBlankStr = Field(max_length=255)
+    law_name: str | None = Field(default=None, max_length=255)
+    article: str | None = Field(default=None, max_length=255)
     quoted_text: str | None = None
     source_url: str | None = None
-    effective_date: str | None = None
+    effective_date: str | None = Field(default=None, max_length=50)
 
 
 class PublicFindingDto(ApiModel):
-    subject: str = Field(min_length=1)
+    subject: NonBlankStr = Field(max_length=255)
     determination: Determination
     risk_level: RiskLevel
-    summary: str = Field(min_length=1)
-    rationale: str = Field(min_length=1)
+    summary: NonBlankStr
+    rationale: NonBlankStr
     legal_sources: list[PublicLegalSourceDto] = Field(default_factory=list)
 
 
@@ -123,10 +127,10 @@ class PublicAssessmentDto(ApiModel):
         "DIRECT_IMPORT_CERTIFICATION_REQUIRED",
         "RECHECK_REQUIRED",
     ]
-    summary: str = Field(min_length=1)
+    summary: NonBlankStr
     tool_reviews: list[PublicToolReviewDto] = Field(default_factory=list)
-    required_actions: list[str] = Field(default_factory=list)
-    notices: list[str] = Field(default_factory=list)
+    required_actions: list[NonBlankStr] = Field(default_factory=list)
+    notices: list[NonBlankStr] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_display_state(self):
@@ -148,8 +152,8 @@ class ProductResultEvent(ProductEventBase):
 
 
 class PublicErrorDto(ApiModel):
-    code: str = Field(min_length=1)
-    message: str = Field(min_length=1)
+    code: NonBlankStr = Field(max_length=50)  # BE Product.error_code 칸 길이
+    message: NonBlankStr
     retryable: bool | None = None
 
 

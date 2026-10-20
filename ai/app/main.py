@@ -8,15 +8,19 @@ from fastapi import APIRouter, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect_callbacks
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .database import DatabaseNotConfiguredError, get_engine
 from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
-from .routers import diagnose, dummy, health
-from .routers._dummy import run_dummy_diagnosis
+from .routers import dev_diagnose, diagnose, dummy, health
+from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .sessions.executor import SessionExecutor
 from .sessions.store import SessionStore
 
 logger = logging.getLogger(__name__)
+
+# 종료 시 남은 콜백을 보내는 최대 대기 시간. 넘으면 버리고 로그만 남김
+CALLBACK_CLOSE_SECONDS = 5.0
 
 
 async def _sweep_sessions(executor: SessionExecutor) -> None:
@@ -43,7 +47,7 @@ async def lifespan(app: FastAPI):
     """
 
     ## 에러가 발생하면 서버가 뜨지 않도록, try-except로 잡지 않고 그대로 전파한다.
-    get_settings()
+    settings = get_settings()
     logger.info("환경변수 검증 완료")
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
@@ -62,7 +66,14 @@ async def lifespan(app: FastAPI):
 
     # 진단 세션 (#264). 파이프라인 러너 연결 전까지 더미 진단으로 실행
     executor = SessionExecutor(SessionStore(), run_dummy_diagnosis)
+    # BE 콜백 (#317). 실제 진단서 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
+    sender = HttpCallbackSender(settings.be_base_url, settings.internal_api_token)
+    outbox = CallbackOutbox(sender)
+    presenter = DummyAssessmentPresenter()
+    connect_callbacks(executor, EventBuilder(presenter), outbox)
     app.state.session_executor = executor
+    # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
+    app.state.assessment_presenter = presenter
     sweeper = asyncio.create_task(_sweep_sessions(executor))
     try:
         yield
@@ -72,6 +83,9 @@ async def lifespan(app: FastAPI):
             await sweeper
         # 메모리 세션이라 재시작 시 어차피 사라짐. 실행 중 세션은 기다리지 않음
         executor.shutdown(wait=False)
+        # 실행기를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
+        await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
+        sender.close()
 
 
 app = FastAPI(
@@ -87,5 +101,7 @@ api_v1.include_router(health.router)
 # 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
 api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
 api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
+# 개발용 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
+api_v1.include_router(dev_diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
 
 app.include_router(api_v1)

@@ -35,7 +35,9 @@ jobs:
           bash deploy/test/blue-green.test.sh
 
       - name: 운영 compose 병합 검사
-        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml config -q
 
       - name: JDK 25 설치
         uses: actions/setup-java@v4

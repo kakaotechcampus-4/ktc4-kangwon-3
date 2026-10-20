@@ -31,6 +31,7 @@ class AIResponseCode(Enum):
 
     # API 응답
     INVALID_REQUEST = ResponseCode(422, "AI_INVALID_REQUEST", "요청 형식이 올바르지 않습니다.")
+    UNAUTHORIZED = ResponseCode(401, "AI_UNAUTHORIZED", "인증 정보가 없거나 올바르지 않습니다.")
     NOT_FOUND = ResponseCode(404, "AI_NOT_FOUND", "요청한 경로를 찾을 수 없습니다.")
     METHOD_NOT_ALLOWED = ResponseCode(405, "AI_METHOD_NOT_ALLOWED", "허용되지 않은 HTTP 메서드입니다.")
     SESSION_CONFLICT = ResponseCode(409, "AI_SESSION_CONFLICT", "이미 진행 중인 상품이 있습니다.")

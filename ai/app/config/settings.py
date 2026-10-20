@@ -23,7 +23,19 @@ REQUIRED_ENV = {
     "DATA_GO_KR_KEY": "data_go_kr_key",
     "KEY_SAFETYKOREA": "safetykorea_key",
     "LAW_GO_KR_OC": "law_oc",
+    "INTERNAL_API_TOKEN": "internal_api_token",
+    "BE_BASE_URL": "be_base_url",
 }
+
+# BE InternalApiProperties의 @Size(min = 32)와 같은 기준
+INTERNAL_API_TOKEN_MIN_LENGTH = 32
+
+# (선택) 개발용 진단 엔드포인트. 켤 때만 키 필수
+DEV_API_ENABLED_ENV = "AI_DEV_API_ENABLED"
+DEV_API_KEY_ENV = "AI_DEV_API_KEY"
+DEV_API_KEY_MIN_LENGTH = 32
+_TRUE_VALUES = ("true", "1", "yes", "on")
+_FALSE_VALUES = ("false", "0", "no", "off", "")
 
 
 class ConfigError(RuntimeError):
@@ -72,6 +84,11 @@ class Settings:
         data_go_kr_key: 공공데이터포털 서비스 키 (DATA_GO_KR_KEY). 관세청 세관장확인·식약처가 사용.
         safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA).
         law_oc: 법제처 OC 값 (LAW_GO_KR_OC).
+        internal_api_token: BE 내부 API 토큰 (INTERNAL_API_TOKEN). 콜백 X-Internal-Token 헤더 값, BE와 같은 값.
+        be_base_url: 콜백을 보낼 BE 주소 (BE_BASE_URL).
+        dev_api_enabled: 개발용 진단 엔드포인트 켜기 (AI_DEV_API_ENABLED). 기본 꺼짐.
+        dev_api_key: 개발용 진단 API 키 (AI_DEV_API_KEY). 켜져 있을 때만 필수, X-Dev-Api-Key 헤더 값.
+            여러 사람에게 공유되는 값이라 콜백 토큰과 같으면 BE 내부 API에 가짜 결과를 넣을 수 있어 같은 값은 거부.
         database_url: AI 전용 PostgreSQL 접속 문자열 (DATABASE_URL).
             개발 단계에서는 DB 없이도 서버를 띄울 수 있게 선택으로 둔다. 비어 있으면 DB 기능을 쓰지 않는다.
         agent_profiles: 에이전트 이름 → 프로필 이름. 기본은 AGENT_PROFILES.
@@ -87,7 +104,11 @@ class Settings:
     data_go_kr_key: str = field(repr=False)
     safetykorea_key: str = field(repr=False)
     law_oc: str = field(repr=False)
+    internal_api_token: str = field(repr=False)
+    be_base_url: str
     database_url: str = field(repr=False)
+    dev_api_enabled: bool = False
+    dev_api_key: str = field(default="", repr=False)
     agent_profiles: dict[str, str] = field(default_factory=lambda: dict(AGENT_PROFILES))
     tool_profiles: dict[str, str] = field(default_factory=lambda: dict(TOOL_PROFILES))
 
@@ -112,7 +133,23 @@ class Settings:
         # 비어 있는 필수 설정이 있는 경우
         if empty:
             raise ConfigError(f"필수 설정이 비어 있습니다: {', '.join(empty)}")
-        
+
+        # 토큰이 BE 기준보다 짧은 경우. 값은 출력하지 않음
+        if len(self.internal_api_token.strip()) < INTERNAL_API_TOKEN_MIN_LENGTH:
+            raise ConfigError(f"INTERNAL_API_TOKEN은 {INTERNAL_API_TOKEN_MIN_LENGTH}자 이상이어야 합니다.")
+
+        # BE 주소가 http(s)://로 시작하지 않는 경우
+        if not self.be_base_url.startswith(("http://", "https://")):
+            raise ConfigError("BE_BASE_URL은 http:// 또는 https://로 시작해야 합니다.")
+
+        # 개발용 진단을 켰으면 키 필수. 값은 출력하지 않음
+        if self.dev_api_enabled:
+            if len(self.dev_api_key.strip()) < DEV_API_KEY_MIN_LENGTH:
+                raise ConfigError(f"{DEV_API_ENABLED_ENV}가 켜져 있으면 {DEV_API_KEY_ENV}가 "
+                                  f"{DEV_API_KEY_MIN_LENGTH}자 이상이어야 합니다.")
+            if self.dev_api_key.strip() == self.internal_api_token.strip():
+                raise ConfigError(f"{DEV_API_KEY_ENV}는 INTERNAL_API_TOKEN과 다른 값이어야 합니다.")
+
         # 비어 있는 것은 허용하지만(DB 미사용), 값을 넣었는데 형식이 틀린 경우
         if self.database_url and not self.database_url.startswith("postgresql"):
             # 접속 문자열에는 DB 비밀번호가 들어 있어 실제 값은 출력하지 않음.
@@ -169,9 +206,25 @@ def load_settings() -> Settings:
     return Settings(
         **values,
         database_url=os.environ.get("DATABASE_URL", "").strip(),
+        dev_api_enabled=_parse_bool(DEV_API_ENABLED_ENV, os.environ.get(DEV_API_ENABLED_ENV, "")),
+        dev_api_key=os.environ.get(DEV_API_KEY_ENV, "").strip(),
         agent_profiles={name: overrides.get(("agent", name), default) for name, default in AGENT_PROFILES.items()},
         tool_profiles={name: overrides.get(("tool", name), default) for name, default in TOOL_PROFILES.items()},
     )
+
+
+def _parse_bool(name: str, raw: str) -> bool:
+    """켜기·끄기 환경변수를 읽는다. 오타가 조용히 꺼짐이 되지 않게 모르는 값은 거부.
+
+    Raises:
+        ConfigError: true·false·1·0·yes·no·on·off(대소문자 무시)나 빈 값이 아닌 경우.
+    """
+    value = raw.strip().lower()
+    if value in _TRUE_VALUES:
+        return True
+    if value in _FALSE_VALUES:
+        return False
+    raise ConfigError(f"{name}은 true 또는 false여야 합니다.")
 
 
 @lru_cache(maxsize=1)

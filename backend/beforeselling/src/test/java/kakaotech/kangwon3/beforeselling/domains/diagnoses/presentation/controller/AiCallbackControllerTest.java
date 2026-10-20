@@ -1,12 +1,19 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductAwaitingInputEvent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductFailedEvent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductProgressEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.ProductResultEvent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.callback.PublicQuestionDto;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.AiCallbackUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
+import kakaotech.kangwon3.beforeselling.global.config.ValidationConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
@@ -38,6 +45,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -47,11 +55,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AiCallbackController.class)
 @ActiveProfiles("test")
-@Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
+@Import({SecurityConfig.class, ValidationConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
 @EnableConfigurationProperties({AppProperties.class, JwtProperties.class, InternalApiProperties.class})
 class AiCallbackControllerTest {
 
-    private static final UUID DIAGNOSIS_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
+    private static final UUID DIAGNOSES_ID = UUID.fromString("01990000-0000-7000-8000-000000000001");
     private static final UUID PRODUCT_ID = UUID.fromString("01990000-0000-7000-8000-000000000002");
     private static final String URL = "/internal/v1/ai/products/" + PRODUCT_ID;
     private static final String COMMON_FIELDS = """
@@ -144,7 +152,7 @@ class AiCallbackControllerTest {
 
         ProductResultEvent event = captor.getValue();
         assertThat(event.productId()).isEqualTo(PRODUCT_ID);
-        assertThat(event.diagnosisId()).isEqualTo(DIAGNOSIS_ID);
+        assertThat(event.diagnosesId()).isEqualTo(DIAGNOSES_ID);
         assertThat(event.runId()).isEqualTo("run-1");
         assertThat(event.assessment().status()).isEqualTo(AssessmentStatus.COMPLETED);
         assertThat(event.assessment().resultStatus()).isEqualTo(ResultStatus.DIRECT_IMPORT_CERTIFICATION_REQUIRED);
@@ -153,23 +161,100 @@ class AiCallbackControllerTest {
                 .isEqualTo(Determination.REQUIRED);
     }
 
+    @Test
+    @DisplayName("진행 콜백을 받으면 진행 반영을 요청하고 200을 응답한다.")
+    void receiveCallback_withProgressEvent_thenHandleProgress() throws Exception {
+        // given: stage·stageStatus는 AI 값 그대로 소문자로 온다.
+        String json = """
+                {"eventType": "product_progress", %s, "stage": "tool_execution", "stageStatus": "started", "toolName": "CHILDREN"}"""
+                .formatted(COMMON_FIELDS);
+
+        // when
+        mockMvc.perform(callback(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+
+        // then
+        ArgumentCaptor<ProductProgressEvent> captor = ArgumentCaptor.forClass(ProductProgressEvent.class);
+        then(aiCallbackUseCase).should().handleProgress(captor.capture());
+
+        ProductProgressEvent event = captor.getValue();
+        assertThat(event.diagnosesId()).isEqualTo(DIAGNOSES_ID);
+        assertThat(event.productId()).isEqualTo(PRODUCT_ID);
+        assertThat(event.sequence()).isEqualTo(14);
+        assertThat(event.stage()).isEqualTo(PipelineStage.TOOL_EXECUTION);
+        assertThat(event.stageStatus()).isEqualTo(StageStatus.STARTED);
+        assertThat(event.toolName()).isEqualTo(ToolName.CHILDREN);
+    }
+
+    @Test
+    @DisplayName("질문 콜백을 받으면 질문 반영을 요청하고 200을 응답한다.")
+    void receiveCallback_withAwaitingInputEvent_thenHandleAwaitingInput() throws Exception {
+        // given
+        String json = """
+                {"eventType": "product_awaiting_input", %s, "questionRound": 1,
+                 "questions": [{"questionKey": "sales_type", "questionOrder": 1, "questionText": "구매대행으로 파나요?"}]}"""
+                .formatted(COMMON_FIELDS);
+
+        // when
+        mockMvc.perform(callback(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+
+        // then
+        ArgumentCaptor<ProductAwaitingInputEvent> captor = ArgumentCaptor.forClass(ProductAwaitingInputEvent.class);
+        then(aiCallbackUseCase).should().handleAwaitingInput(captor.capture());
+
+        ProductAwaitingInputEvent event = captor.getValue();
+        assertThat(event.diagnosesId()).isEqualTo(DIAGNOSES_ID);
+        assertThat(event.questionRound()).isEqualTo(1);
+        assertThat(event.questions())
+                .extracting(PublicQuestionDto::questionKey, PublicQuestionDto::questionText, PublicQuestionDto::helpText)
+                .containsExactly(tuple("sales_type", "구매대행으로 파나요?", null));
+    }
+
+    @Test
+    @DisplayName("실패 콜백을 받으면 실패 반영을 요청하고 200을 응답한다.")
+    void receiveCallback_withFailedEvent_thenHandleFailed() throws Exception {
+        // given: 실행 전에 실패하면 stage 없이 온다.
+        String json = """
+                {"eventType": "product_failed", %s, "stage": null,
+                 "error": {"code": "AI_TIMEOUT", "message": "시간이 초과되었습니다.", "retryable": true}}"""
+                .formatted(COMMON_FIELDS);
+
+        // when
+        mockMvc.perform(callback(json))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+
+        // then
+        ArgumentCaptor<ProductFailedEvent> captor = ArgumentCaptor.forClass(ProductFailedEvent.class);
+        then(aiCallbackUseCase).should().handleFailed(captor.capture());
+
+        ProductFailedEvent event = captor.getValue();
+        assertThat(event.diagnosesId()).isEqualTo(DIAGNOSES_ID);
+        assertThat(event.stage()).isNull();
+        assertThat(event.error().code()).isEqualTo("AI_TIMEOUT");
+        assertThat(event.error().message()).isEqualTo("시간이 초과되었습니다.");
+        assertThat(event.error().retryable()).isTrue();
+    }
+
     @ParameterizedTest(name = "{0}")
     @ValueSource(strings = {
             """
-            {"eventType": "product_progress", %s, "stage": "selection", "stageStatus": "started"}""",
+            {"eventType": "product_progress", %s, "stageStatus": "started"}""",
             """
-            {"eventType": "product_awaiting_input", %s, "questionRound": 1,
-             "questions": [{"questionKey": "sales_type", "questionOrder": 1, "questionText": "구매대행으로 파나요?"}]}""",
+            {"eventType": "product_awaiting_input", %s, "questionRound": 1, "questions": []}""",
             """
-            {"eventType": "product_failed", %s, "error": {"code": "AI_TIMEOUT", "message": "시간이 초과되었습니다."}}"""
+            {"eventType": "product_failed", %s, "error": {"code": " ", "message": "시간이 초과되었습니다."}}"""
     })
-    @DisplayName("아직 처리하지 않는 진행·질문·실패 콜백은 400과 COMMON-001 코드로 거절한다.")
-    void receiveCallback_withNotYetHandledEvent_thenBadRequest(String template) throws Exception {
+    @DisplayName("진행·질문·실패 콜백의 필수 값이 비어 있으면 400과 COMMON-002 코드를 응답하고 반영을 요청하지 않는다.")
+    void receiveCallback_withInvalidEvent_thenBadRequest(String template) throws Exception {
         mockMvc.perform(callback(template.formatted(COMMON_FIELDS)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("COMMON-001"));
+                .andExpect(jsonPath("$.code").value("COMMON-002"));
 
-        then(aiCallbackUseCase).should(never()).handleResult(any());
+        then(aiCallbackUseCase).shouldHaveNoInteractions();
     }
 
     @Test
@@ -183,6 +268,21 @@ class AiCallbackControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"))
                 .andExpect(jsonPath("$.details[0].field").value("assessment.summary"));
+
+        then(aiCallbackUseCase).should(never()).handleResult(any());
+    }
+
+    @Test
+    @DisplayName("진단서 ID가 없으면 AI가 보내는 JSON 키(diagnosisId)로 필드 위치를 응답한다.")
+    void receiveCallback_withoutDiagnosesId_thenBadRequestWithJsonFieldName() throws Exception {
+        // given
+        String json = RESULT_JSON.replace("\"diagnosisId\": \"01990000-0000-7000-8000-000000000001\"", "\"diagnosisId\": null");
+
+        // when & then
+        mockMvc.perform(callback(json))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].field").value("diagnosisId"));
 
         then(aiCallbackUseCase).should(never()).handleResult(any());
     }
