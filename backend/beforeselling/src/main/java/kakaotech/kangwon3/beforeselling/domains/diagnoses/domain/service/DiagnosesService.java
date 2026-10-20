@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
@@ -16,9 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -28,6 +31,16 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DiagnosesService {
+
+    // AI가 요청을 거절해 BE가 실패 처리할 때의 오류. 대부분 BE 코드·설정 문제라 다시 진단해도 같은 결과인 경우.
+    static final String REQUEST_REJECTED_ERROR_CODE = "BE_AI_REQUEST_REJECTED";
+    static final String REQUEST_REJECTED_ERROR_MESSAGE = "진단 요청이 거절되어 진단을 시작하지 못했습니다.";
+    static final boolean REQUEST_REJECTED_ERROR_RETRYABLE = false;
+
+    // 재요청 기한까지 AI가 요청을 받지 못했을 때의 오류. 일시적인 장애라 다시 진단하면 성공할 수 있음.
+    static final String REQUEST_UNAVAILABLE_ERROR_CODE = "BE_AI_REQUEST_UNAVAILABLE";
+    static final String REQUEST_UNAVAILABLE_ERROR_MESSAGE = "AI 서버가 요청을 받지 못해 진단을 시작하지 못했습니다.";
+    static final boolean REQUEST_UNAVAILABLE_ERROR_RETRYABLE = true;
 
     private final DiagnosesRepository diagnosesRepository;
     private final S3FileService s3FileService;
@@ -44,7 +57,7 @@ public class DiagnosesService {
 
         s3FileService.markConfirmed(collectImageKeys(diagnoses));
         Diagnoses saved = diagnosesRepository.save(diagnoses);
-        eventPublisher.publishEvent(toAiDiagnosesRequestedEvent(saved));
+        eventPublisher.publishEvent(toAiDiagnosesRequestedEvent(saved.getId(), saved.getProducts()));
         log.debug("진단서 생성 완료. diagnosesId={}, userId={}, 상품 수={}",
                 saved.getId(), userId, commands.size());
 
@@ -71,6 +84,78 @@ public class DiagnosesService {
             }
             product.assignRun(runId);
         });
+    }
+
+    /**
+     * AI가 요청을 받지 않은(429, 5xx, 연결 실패) 상품을 대기로 되돌린다. 재요청 스케줄러가 다시 보낸다.
+     */
+    @Transactional
+    public void returnToPending(UUID diagnosesId, List<UUID> productIds) {
+        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        findProducts(diagnoses, productIds).forEach(product -> {
+            // 실행 식별자가 있으면 AI가 실제로는 접수한 것
+            if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS || product.isRunAssigned()) {
+                return;
+            }
+            product.returnToPending();
+        });
+        diagnoses.refreshProcessingStatus();
+    }
+
+    /**
+     * AI가 다시 보내도 실패할 요청(400, 404, 405, 422, 501 등)으로 거절한 상품을 실패 처리한다.
+     */
+    @Transactional
+    public void failRejectedRequest(UUID diagnosesId, List<UUID> productIds) {
+        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        findProducts(diagnoses, productIds).forEach(product -> {
+            // 실행 식별자가 있으면 AI가 실제로는 접수한 것
+            if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS || product.isRunAssigned()) {
+                return;
+            }
+            product.fail(null, REQUEST_REJECTED_ERROR_CODE, REQUEST_REJECTED_ERROR_MESSAGE,
+                    REQUEST_REJECTED_ERROR_RETRYABLE);
+        });
+        diagnoses.refreshProcessingStatus();
+    }
+
+    /**
+     * 대기 상품을 다시 AI에 보낼 수 있게 진단 중으로 바꾸고, 보낼 내용을 돌려준다.
+     * 기한 전에 만들어진 상품은 더 기다리지 않고 실패 처리한다. 보낼 상품이 없으면 빈 값.
+     */
+    @Transactional
+    public Optional<AiDiagnosesRequestedEvent> restartPendingProducts(UUID diagnosesId, LocalDateTime deadline) {
+        Optional<Diagnoses> found = diagnosesRepository.findByIdForUpdate(diagnosesId);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Diagnoses diagnoses = found.get();
+        List<Product> restarted = new ArrayList<>();
+        for (Product product : diagnoses.getProducts()) {
+            if (product.getProcessingStatus() != ProcessingStatus.PENDING) {
+                continue;
+            }
+            if (product.getCreatedAt().isBefore(deadline)) {
+                product.fail(null, REQUEST_UNAVAILABLE_ERROR_CODE, REQUEST_UNAVAILABLE_ERROR_MESSAGE,
+                        REQUEST_UNAVAILABLE_ERROR_RETRYABLE);
+                log.warn("AI 재요청 기한이 지나 실패 처리합니다. diagnosesId={}, productId={}, createdAt={}",
+                        diagnosesId, product.getId(), product.getCreatedAt());
+                continue;
+            }
+            product.startDiagnoses();
+            restarted.add(product);
+        }
+        diagnoses.refreshProcessingStatus();
+
+        if (restarted.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(toAiDiagnosesRequestedEvent(diagnosesId, restarted));
     }
 
     // 단건 조회 + 소유권 검증
@@ -127,8 +212,15 @@ public class DiagnosesService {
     }
 
 
-    private AiDiagnosesRequestedEvent toAiDiagnosesRequestedEvent(Diagnoses diagnoses) {
-        return new AiDiagnosesRequestedEvent(diagnoses.getId(), diagnoses.getProducts().stream()
+    // 진단서에 없는 상품 ID는 건너뛴다.
+    private List<Product> findProducts(Diagnoses diagnoses, List<UUID> productIds) {
+        return diagnoses.getProducts().stream()
+                .filter(product -> productIds.contains(product.getId()))
+                .toList();
+    }
+
+    private AiDiagnosesRequestedEvent toAiDiagnosesRequestedEvent(UUID diagnosesId, List<Product> products) {
+        return new AiDiagnosesRequestedEvent(diagnosesId, products.stream()
                 .map(product -> new AiDiagnosesRequestedEvent.ProductInput(product.getId(), product.getSourceType(),
                         product.getSourceUrl(), product.getSourceText(), product.collectImageKeys()))
                 .toList());
