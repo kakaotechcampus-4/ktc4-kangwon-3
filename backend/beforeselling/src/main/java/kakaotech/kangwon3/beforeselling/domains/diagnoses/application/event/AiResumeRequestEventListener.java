@@ -18,8 +18,6 @@ import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Map;
 
-import static software.amazon.awssdk.http.auth.aws.crt.internal.util.CrtHttpRequestConverter.toRequest;
-
 /**
  * 사용자 답변이 커밋된 뒤 AI에 재진단을 요청하고, 접수 응답(202)의 새 실행 식별자를 저장한다.
  */
