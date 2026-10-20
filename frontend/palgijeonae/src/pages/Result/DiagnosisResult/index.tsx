@@ -3,6 +3,7 @@ import { ResultStatus } from "@/api/types";
 import { RESULT_STATUS_BADGES } from "@/constants/statusBadges";
 
 import ResultBanner from "./ResultBanner";
+import ToolReviewCard from "./ToolReviewCard";
 
 interface DiagnosisResultTabProps {
     product: ProductResult
@@ -10,7 +11,7 @@ interface DiagnosisResultTabProps {
 }
 
 function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabProps) {
-    const { resultStatus, summary, requiredActions } = product;
+    const { resultStatus, summary, requiredActions, toolReviews } = product;
     const isSuccess = resultStatus === ResultStatus.PurchasingAgentAllowed;
 
     return (
@@ -27,6 +28,9 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
                     onNextStepsClick={onNextStepsClick}
                 />
             )}
+            {toolReviews.map((toolReview) => (
+                <ToolReviewCard key={toolReview.productToolReviewId} toolReview={toolReview} />
+            ))}
         </div>
     );
 }
