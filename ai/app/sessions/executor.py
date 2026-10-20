@@ -199,6 +199,7 @@ class SessionExecutor:
             SessionNotFoundError: 세션이 없는 경우.
             ResumeConflictError: 답변 대기가 아니거나 실행·회차·진단서가 다른 경우.
             UnknownQuestionKeyError: 이번 회차에 묻지 않은 질문 키가 있는 경우.
+            UnansweredQuestionError: 이번 회차 질문 중 답하지 않은 질문이 있는 경우.
         """
         with self._lock:
             if self._inflight + 1 > self._max_inflight:
@@ -291,12 +292,13 @@ class SessionExecutor:
                 if (result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED
                         and started.question_round >= MAX_QUESTION_ROUNDS):
                     result = _close_at_question_limit(result, context)
-                # 질문 변환 실패도 진단 실패로. 질문 없이 답변 대기로 두면 BE에서 진행 중으로 남음
+                # 질문 변환·검증 실패도 진단 실패로. 질문 콜백을 못 보낸 채 답변 대기로 두면 BE에서 진행 중으로 남음
                 questions = (
                     self._questions(result)
                     if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED
                     else None
                 )
+                finished = self.store.finish(context, result, questions)
             except Exception:
                 logger.exception(
                     "진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id,
@@ -306,7 +308,7 @@ class SessionExecutor:
                     context, error_code=AIResponseCode.PIPELINE_ERROR.value.code, retryable=False,
                 ))
                 return
-            self._publish(self.store.finish(context, result, questions))
+            self._publish(finished)
         finally:
             # 답변 대기로 끝나도 실행 자리 반납
             with self._lock:

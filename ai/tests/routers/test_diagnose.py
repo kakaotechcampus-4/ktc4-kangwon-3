@@ -244,6 +244,23 @@ def test_묻지_않은_질문의_답변은_400과_질문_키로_거절한다(cli
     assert executor.store.get("p-1") == waiting
 
 
+def test_이번_회차_질문에_모두_답하지_않으면_422로_거절한다(client, executor):
+    store = executor.store
+    [session] = store.accept("d-1", [ExtractionInput(product_id="p-1", text_blocks=["상품 설명"])])
+    store.start(session.context)
+    questions = [*_QUESTIONS, PublicQuestionDto(question_key="target_age", question_order=2, question_text="몇 세용인가요?")]
+    awaiting = build_dummy_assessment("p-1").model_copy(update={
+        "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+    })
+    waiting = store.finish(session.context, awaiting, questions)
+
+    response = client.post(RESUME, json=_resume_payload(waiting))
+
+    assert (response.status_code, response.json()["code"]) == (422, "AI_INVALID_REQUEST")
+    assert store.get("p-1") == waiting
+
+
 def test_재진단도_대기열이_가득_차면_429를_반환한다(client, executor):
     waiting = _waiting(executor)
     client.post(CONTENT, json=_payload("p-2", "p-3", "p-4"))

@@ -21,6 +21,7 @@ from ..sessions.store import (
     ResumeConflictError,
     SessionConflictError,
     SessionNotFoundError,
+    UnansweredQuestionError,
     UnknownQuestionKeyError,
 )
 
@@ -102,6 +103,8 @@ async def diagnose_by_content(
         status.HTTP_400_BAD_REQUEST: {"model": ApiResponse, "description": "묻지 않은 질문의 답변 포함. data.questionKeys"},
         status.HTTP_404_NOT_FOUND: {"model": ApiResponse, "description": "세션 없음 (AI 재시작 등). BE는 실패로 처리"},
         status.HTTP_409_CONFLICT: {"model": ApiResponse, "description": "답변 대기 아님, 실행·회차·진단서 불일치"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ApiResponse,
+                                               "description": "형식 오류, 또는 이번 회차 질문 중 답하지 않은 질문 있음"},
         status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse, "description": "진단 대기열 초과"},
     },
     summary="답변 후 재진단 접수",
@@ -122,7 +125,7 @@ async def resume_diagnosis(
 
     Raises:
         AIServiceError: 묻지 않은 질문 키면 400(data.questionKeys), 세션이 없으면 404,
-            답변 대기가 아니거나 실행·회차·진단서가 다르면 409, 대기열이 차면 429.
+            답변 대기가 아니거나 실행·회차·진단서가 다르면 409, 답하지 않은 질문이 있으면 422, 대기열이 차면 429.
     """
     try:
         session = executor.resume(
@@ -137,6 +140,9 @@ async def resume_diagnosis(
             response_code=AIResponseCode.UNKNOWN_QUESTION_KEY.value,
             data=UnknownQuestionKeys(question_keys=e.question_keys),
         ) from e
+    except UnansweredQuestionError as e:
+        # BE 답변 제출도 전부 답해야 받아서 새 응답 코드 없이 형식 오류로
+        raise AIServiceError(response_code=AIResponseCode.INVALID_REQUEST.value) from e
     except SessionNotFoundError as e:
         raise AIServiceError(response_code=AIResponseCode.SESSION_NOT_FOUND.value) from e
     except ResumeConflictError as e:

@@ -190,6 +190,18 @@ def test_질문_변환이_실패하면_재시도_불가_실패로_기록한다(e
     assert (session.error_code, session.retryable, session.questions) == ("AI_PIPELINE_ERROR", False, [])
 
 
+def test_질문_키가_겹치면_답변_대기_대신_재시도_불가_실패로_기록한다(executors):
+    job = _GatedJob(result_for=_awaiting)
+    executor = _executor(executors, job, questions=lambda result: [*_QUESTIONS, *_QUESTIONS])
+
+    executor.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(executor.store, "p-1") is SessionStatus.FAILED)
+
+    session = executor.store.get("p-1")
+    assert (session.error_code, session.retryable, session.questions) == ("AI_PIPELINE_ERROR", False, [])
+
+
 def test_완료로_끝나면_질문을_만들지_않는다(executors):
     def unexpected(result):
         raise AssertionError("완료 결과에 질문 변환을 부름")
@@ -234,7 +246,8 @@ def _resume(executor: SessionExecutor, product_id: str = "p-1", **fields) -> obj
     waiting = executor.store.get(product_id)
     request = {
         "diagnosis_id": "d-1", "product_id": product_id, "run_id": waiting.context.run_id,
-        "question_round": waiting.question_round, "answers": {"battery_only": "네"}, **fields,
+        "question_round": waiting.question_round,
+        "answers": {question.question_key: "네" for question in waiting.questions}, **fields,
     }
     return executor.resume(**request)
 
@@ -294,6 +307,16 @@ def _always_ask(job_input, context, progress):
     return _awaiting(job_input.source.product_id)
 
 
+def _new_questions():
+    """부를 때마다 새 키의 질문을 만드는 변환 함수. 2회차는 새 키만 (#310)."""
+    asked = []
+
+    def questions(result):
+        asked.append(f"q{len(asked) + 1}")
+        return [PublicQuestionDto(question_key=asked[-1], question_order=1, question_text="추가 질문")]
+    return questions
+
+
 def _answer_round(executor: SessionExecutor, question_round: int) -> None:
     """지금 회차 질문에 답하고 다음 실행이 끝날 때까지 기다린다."""
     _wait_until(lambda: executor.store.get("p-1").status is SessionStatus.AWAITING_INPUT
@@ -304,7 +327,7 @@ def _answer_round(executor: SessionExecutor, question_round: int) -> None:
 
 
 def test_1회차_답변_뒤_다시_질문하면_2회차_질문으로_기다린다(executors):
-    executor = _executor(executors, _always_ask)
+    executor = _executor(executors, _always_ask, questions=_new_questions())
     executor.submit("d-1", _inputs("p-1"))
 
     _answer_round(executor, 1)
@@ -314,7 +337,7 @@ def test_1회차_답변_뒤_다시_질문하면_2회차_질문으로_기다린�
 
 
 def test_2회차_답변_뒤에도_질문이_남으면_질문_대신_미완료_결과로_끝낸다(executors):
-    executor = _executor(executors, _always_ask)
+    executor = _executor(executors, _always_ask, questions=_new_questions())
     executor.submit("d-1", _inputs("p-1"))
 
     _answer_round(executor, 1)
