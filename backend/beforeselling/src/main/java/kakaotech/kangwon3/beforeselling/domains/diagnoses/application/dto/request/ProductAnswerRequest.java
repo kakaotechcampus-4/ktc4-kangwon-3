@@ -27,8 +27,8 @@ public record ProductAnswerRequest(
             @Size(max = 500, message = "답변은 500자를 넘을 수 없습니다.")
             String answerText
     ) {
-
     }
+
     @JsonIgnore
     @AssertTrue(message = "같은 질문에 두 번 답할 수 없습니다.")
     public boolean isQuestionIdsUnique() {
