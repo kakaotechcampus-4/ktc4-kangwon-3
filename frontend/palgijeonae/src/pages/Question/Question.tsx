@@ -24,7 +24,7 @@ function Question({ id, questionNumber, title, description, answer, onChange }: 
                         value={answer}
                         aria-label={title}
                         onChange={(e) => onChange(e.target.value)}
-                        className="box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2 focus:border-primary focus:outline-none"
+                        className="box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2 focus:border-primary"
                         placeholder="주어진 질문에 자유롭게 답변하세요. 답변 분석은 AI가 합니다." />
                 </div>
             </div>

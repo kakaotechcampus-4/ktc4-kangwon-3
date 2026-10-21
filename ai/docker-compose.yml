@@ -8,25 +8,13 @@ services:
     container_name: ai-server
     restart: unless-stopped
     mem_limit: 1g
+    # 앱 환경변수는 .env 전체를 그대로 주입 (새 변수는 .env·.env.example에만 추가)
+    env_file: .env
+    # compose가 정하는 값만. env_file보다 우선함
     environment:
       TZ: Asia/Seoul
-
-      # 에이전트 환경변수
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
-      OPENAI_MODEL: ${OPENAI_MODEL}
-      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL}
-
-      # BE URL 환경변수
-      BE_BASE_URL: ${BE_BASE_URL:-http://host.docker.internal:8080}
-      
-      # AI DB URL 환경변수
-      DATABASE_URL: ${DATABASE_URL}
-
-      # 외부 API 클라이언트 환경변수
-      DATA_GO_KR_KEY: ${DATA_GO_KR_KEY}
-      KEY_SAFETYKOREA: ${KEY_SAFETYKOREA}
-      LAW_GO_KR_OC: ${LAW_GO_KR_OC}
+      # .env에 없으면 운영 기본값. 필수값이라 빠지면 기동 실패
+      BE_BASE_URL: ${BE_BASE_URL:-http://be-server:8080}
     ports:
       - "8000:8000"
     depends_on:
@@ -38,7 +26,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks: [ai-net]
+    networks: [ai-net, be-ai-net]
 
   ai-db:
     image: pgvector/pgvector:pg16
@@ -73,3 +61,7 @@ volumes:
 networks:
   ai-net:
     name: ai-net
+  # BE-AI 요청 전용 네트워크
+  be-ai-net:
+    name: be-ai-net
+    external: true

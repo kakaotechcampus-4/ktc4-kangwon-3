@@ -12,6 +12,9 @@ import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.hibernate.annotations.UuidGenerator;
 import java.util.UUID;
 
@@ -23,9 +26,6 @@ import java.util.UUID;
         indexes = @Index(name = "idx_product_diagnoses_id_sort_order", columnList = "diagnoses_id, sort_order")
 )
 public class Product extends BaseEntity {
-
-    // 질문을 받을 수 있는 마지막 회차. 질문은 첫 진단(0)에서 한 번만 받고, 재질문은 하지 않는다.
-    public static final int MAX_QUESTION_ROUND = 0;
 
     @Id
     @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
@@ -56,13 +56,31 @@ public class Product extends BaseEntity {
     @Column(name = "processing_status", nullable = false)
     private ProcessingStatus processingStatus;
 
+    // AI 실행 식별자. 진단 요청·재실행 요청의 202 응답으로 받는다. 받기 전에는 null
+    @Column(name = "run_id")
+    private String runId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "failed_stage")
+    private PipelineStage failedStage;
+
+    @Column(name = "error_code", length = 50)
+    private String errorCode;
+
+    @Column(name = "error_message", columnDefinition = "TEXT")
+    private String errorMessage;
+
+    @Column(name = "error_retryable")
+    private Boolean errorRetryable;
+
+    // 결과를 받기 전에는 null
+    @Enumerated(EnumType.STRING)
+    @Column(name = "assessment_status")
+    private AssessmentStatus assessmentStatus;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "result_status")
     private ResultStatus resultStatus;
-
-    // 0: 첫 진단, 1: 질문 답변 후 재진단(반드시 결과로 끝난다).
-    @Column(name = "diagnosis_round", nullable = false, columnDefinition = "integer default 0")
-    private int diagnosisRound;
 
     @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
@@ -76,15 +94,35 @@ public class Product extends BaseEntity {
     @BatchSize(size = 100)
     private List<ProductImage> images = new ArrayList<>();
 
-    // 카드와 질문은 fetch join하지 않는다. List 컬렉션을 둘 이상 함께 fetch join하면 MultipleBagFetchException 발생
+    // 질문과 결과 컬렉션은 fetch join하지 않는다. List 컬렉션을 둘 이상 함께 fetch join하면 MultipleBagFetchException 발생
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @BatchSize(size = 100)
-    private List<AgentReview> agentReviews = new ArrayList<>();
-
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("questionOrder ASC")
+    @OrderBy("questionRound ASC, questionOrder ASC")
     @BatchSize(size = 100)
     private List<ProductQuestion> questions = new ArrayList<>();
+
+    // 진행 콜백의 단계·툴별 최신 상태. 진행 화면에서 읽는다.
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    private List<ProductProgress> progresses = new ArrayList<>();
+
+    // 이하 진단 결과. 분야별 카드는 결과 콜백으로만 채운다(진행 콜백에는 카드 내용이 없다).
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 100)
+    private List<ProductToolReview> toolReviews = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_required_action", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "action_order")
+    @Column(name = "action_text", nullable = false, columnDefinition = "TEXT")
+    @BatchSize(size = 100)
+    private List<String> requiredActions = new ArrayList<>();
+
+    @ElementCollection
+    @CollectionTable(name = "product_notice", joinColumns = @JoinColumn(name = "product_id"))
+    @OrderColumn(name = "notice_order")
+    @Column(name = "notice_text", nullable = false, columnDefinition = "TEXT")
+    @BatchSize(size = 100)
+    private List<String> notices = new ArrayList<>();
 
     @Builder(access = AccessLevel.PRIVATE)
     private Product(String productName, String productImageKey,
@@ -120,37 +158,60 @@ public class Product extends BaseEntity {
         this.sortOrder = sortOrder;
     }
 
-    public void startDiagnosis() {
+    public void startDiagnoses() {
         transition(ProcessingStatus.PENDING, ProcessingStatus.IN_PROGRESS);
-    }
-
-    public void awaitInput() {
-        if (diagnosisRound > MAX_QUESTION_ROUND) {
-            throw new BaseException(CommonResponseCode.CONFLICT);
-        }
-        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
     }
 
     public void resume() {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
-        diagnosisRound++;
     }
 
-    // 같은 에이전트의 카드가 이미 있으면 덮어쓴다(재진단 갱신, 콜백 중복 수신).
-    // 동시에 들어온 콜백끼리 경쟁하지 않도록, 호출하는 쪽에서 진단서를 비관적 락으로 잡은 뒤 호출한다.
-    public void recordAgentReview(AgentType agentType, AgentReviewStatus status, String description) {
-        agentReviews.stream()
-                .filter(review -> review.getAgentType() == agentType)
+    public void assignRun(String runId) {
+        if (runId == null || runId.isBlank()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        if (processingStatus != ProcessingStatus.IN_PROGRESS) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        this.runId = runId;
+    }
+
+    public boolean isCurrentRun(String runId) {
+        return this.runId != null && this.runId.equals(runId);
+    }
+
+    // 202 응답의 runId를 아직 저장하지 못한 상태. 이때 온 콜백은 다시 보내 달라고 한다.
+    public boolean isRunAssigned() {
+        return runId != null;
+    }
+
+    // 같은 실행에서 이미 반영한 것보다 앞선 이벤트(재시도로 늦게 온 것, 중복)는 무시한다.
+    public void recordProgress(String runId, int sequence, PipelineStage stage,
+                               StageStatus stageStatus, ToolName toolName) {
+        if (toolName != null && stage != PipelineStage.TOOL_EXECUTION) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+        if (processingStatus != ProcessingStatus.IN_PROGRESS) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
+        progresses.stream()
+                .filter(progress -> progress.isFor(stage, toolName))
                 .findFirst()
                 .ifPresentOrElse(
-                        review -> review.update(status, description),
-                        () -> agentReviews.add(new AgentReview(this, agentType, status, description))
+                        progress -> {
+                            if (!progress.isNewerOrSame(runId, sequence)) {
+                                progress.update(runId, sequence, stageStatus);
+                            }
+                        },
+                        () -> progresses.add(new ProductProgress(this, runId, sequence, stage, stageStatus, toolName))
                 );
     }
 
-    // 질문은 첫 진단에서 한 번만 받고, 받으면 사용자 답변을 기다리는 상태가 된다.
-    // 두 번째 호출은 상태(AWAITING_INPUT) 또는 회차 제한 때문에 awaitInput()에서 CONFLICT로 막힌다.
-    public void askQuestions(List<QuestionContent> contents) {
+    // 질문을 받으면 사용자 답변을 기다리는 상태가 된다.
+    // BE는 AI가 보낸 회차를 그대로 저장하되, 이미 받은 회차 이하의 질문은 받지 않는다.
+    // 답변 대기 중에 다시 질문이 오면 상태 전이(IN_PROGRESS → AWAITING_INPUT)에서 CONFLICT로 막힌다.
+    public void askQuestions(int questionRound, List<QuestionContent> contents) {
         // 질문 없이 답변 대기가 되면 사용자가 답할 수 없어 진단이 멈춘다.
         if (contents.isEmpty()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
@@ -159,14 +220,100 @@ public class Product extends BaseEntity {
         if (contents.stream().map(QuestionContent::questionKey).distinct().count() != contents.size()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
+        // 이미 받은 회차를 다시 저장하면 flush 시점에 유니크 제약 위반이 난다. 지난 회차도 함께 막는다.
+        if (questionRound <= latestQuestionRound()) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
 
-        awaitInput();
-        contents.forEach(content -> questions.add(new ProductQuestion(this, content.questionKey(),
-                content.questionOrder(), content.questionText(), content.helpText())));
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.AWAITING_INPUT);
+        contents.forEach(content -> questions.add(new ProductQuestion(this, questionRound,
+                content.questionKey(), content.questionOrder(), content.questionText(), content.helpText())));
     }
 
-    public void fail() {
+    public boolean hasQuestionsOfRound(int questionRound) {
+        return questions.stream().anyMatch(question -> question.getQuestionRound() == questionRound);
+    }
+
+    // 사용자 답변을 저장하고 다시 진단 중으로 바꾼다.
+    public void answerQuestions(Map<UUID, String> answers) {
+        if (!isAwaitingInput()) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
+        List<ProductQuestion> waitingQuestions = latestRoundQuestions();
+        Set<UUID> waitingQuestionIds = waitingQuestions.stream()
+                .map(ProductQuestion::getId)
+                .collect(Collectors.toSet());
+        // 일부만 답했거나, 지난 회차·다른 상품의 질문이 섞이면 거절한다.
+        if (!waitingQuestionIds.equals(answers.keySet())) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+
+        waitingQuestions.forEach(question -> question.answer(answers.get(question.getId())));
+        resume();
+    }
+
+    // 지금 기다리는(또는 마지막으로 답한) 회차의 질문
+    public List<ProductQuestion> latestRoundQuestions() {
+        int latestRound = latestQuestionRound();
+        return questions.stream()
+                .filter(question -> question.getQuestionRound() == latestRound)
+                .toList();
+    }
+
+    // 진단을 실패로 끝내고 실패 정보를 남긴다.
+    public void fail(PipelineStage failedStage, String errorCode, String errorMessage, Boolean errorRetryable) {
+        if (errorCode == null || errorCode.isBlank() || errorMessage == null || errorMessage.isBlank()) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+
         transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.FAILED);
+        this.failedStage = failedStage;
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+        this.errorRetryable = errorRetryable;
+    }
+
+    // 진단 결과를 반영하고 완료 상태로 끝낸다.
+    public void complete(AssessmentContent content) {
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.COMPLETED);
+
+        this.assessmentStatus = content.status();
+        this.resultStatus = content.resultStatus();
+        this.summary = content.summary();
+        content.toolReviews().forEach(review -> toolReviews.add(ProductToolReview.of(this, review)));
+        requiredActions.addAll(content.requiredActions());
+        notices.addAll(content.notices());
+    }
+
+    public boolean hasResult() {
+        return processingStatus == ProcessingStatus.COMPLETED;
+    }
+
+    public boolean isFailed() {
+        return processingStatus == ProcessingStatus.FAILED;
+    }
+
+    public boolean isAwaitingInput() {
+        return processingStatus == ProcessingStatus.AWAITING_INPUT;
+    }
+
+    // 현재 실행의 진행 상태만
+    public List<ProductProgress> currentProgresses() {
+        return progresses.stream()
+                .filter(progress -> progress.isOfRun(runId))
+                .toList();
+    }
+
+    // open-in-view=false 라 DTO 매핑 전에 트랜잭션 안에서 상세 응답에 필요한 컬렉션(이미지, 진행, 질문, 진단 결과)을 미리 읽어 둠.
+    public void loadDetail() {
+        images.size();
+        progresses.size();
+        questions.size();
+        toolReviews.forEach(review ->
+                review.getFindings().forEach(finding -> finding.getLegalSources().size()));
+        requiredActions.size();
+        notices.size();
     }
 
     private void transition(ProcessingStatus from, ProcessingStatus to) {
@@ -176,6 +323,10 @@ public class Product extends BaseEntity {
         this.processingStatus = to;
     }
 
+    // 아직 질문을 받은 적이 없으면 0
+    public int latestQuestionRound() {
+        return questions.stream().mapToInt(ProductQuestion::getQuestionRound).max().orElse(0);
+    }
 
     // 대표 이미지와 상세 이미지 key를 순서대로 모은다(S3 정리·확정 처리에 사용).
     public List<String> collectImageKeys() {

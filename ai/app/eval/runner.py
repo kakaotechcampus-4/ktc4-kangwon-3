@@ -12,7 +12,6 @@
 """
 
 import argparse
-import hashlib
 import json
 import subprocess
 import sys
@@ -24,7 +23,8 @@ from pathlib import Path
 # 적으면 한쪽만 옮겨졌을 때 "다른 프롬프트로 잰 결과"를 같은 것으로 착각하게 된다.
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
-from ..config import load_settings
+from ..config import ModelProfile, agent_profile
+from ..prompts import fingerprint
 from ..schemas.agent import ExtractionInput
 from .grading import Grade, Stability
 from .scoring import FixtureReport, load_truth, score
@@ -40,14 +40,16 @@ class RawFixtureMissing(FileNotFoundError):
 
 
 def prompt_fingerprint(path: Path | None = None) -> str:
-    """추출 프롬프트의 SHA-256. 한 글자만 달라도 값이 바뀐다.
+    """프롬프트 파일의 지문(SHA-256). 로더와 같은 규칙(줄바꿈 LF 통일)으로 계산.
 
-    줄바꿈은 LF로 맞춰서 잰다. 같은 내용인데 윈도우(CRLF)와 CI(LF)에서 다른 값이
-    나오면 "프롬프트가 바뀌었다"는 잘못된 경고가 뜬다.
+    Args:
+        path: 프롬프트 파일. None이면 추출 프롬프트.
+
+    Returns:
+        str: SHA-256 16진 문자열.
     """
     target = path or EXTRACTION_PROMPT_PATH
-    normalized = target.read_text(encoding="utf-8").replace("\r\n", "\n")
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+    return fingerprint(target.read_text(encoding="utf-8"))
 
 
 def _git(*args: str) -> str | None:
@@ -61,12 +63,13 @@ def _git(*args: str) -> str | None:
     return done.stdout.strip() if done.returncode == 0 else None
 
 
-def run_metadata(*, runs: int, model: str, prompt_path: Path | None = None) -> dict:
+def run_metadata(*, runs: int, profile: ModelProfile, prompt_path: Path | None = None) -> dict:
     """이번 측정이 "무엇으로" 나온 값인지 기록한다.
 
     프롬프트가 바뀌면 이전 수치와 비교하면 안 된다. 사람이 버전을 적는 방식은
     까먹지만 파일 지문은 틀리지 않으므로 해시를 남긴다.
     prompt_path를 주면 그 프롬프트의 지문을 남긴다(선택 평가). 기본은 추출 프롬프트다.
+    모델은 이름만으로 부족함. 같은 모델도 추론 강도가 다르면 출력·비용이 달라 프로필 전체를 남김.
     """
     target = prompt_path or EXTRACTION_PROMPT_PATH
     # 범위를 ai/ 로 제한한다. 제한하지 않으면 다른 팀의 커밋 안 된 파일까지 잡혀서
@@ -77,7 +80,8 @@ def run_metadata(*, runs: int, model: str, prompt_path: Path | None = None) -> d
         "git_commit": _git("rev-parse", "--short", "HEAD"),
         # 커밋 해시만으로는 부족하다. 커밋하지 않은 수정이 있으면 그 해시의 코드가 아니다.
         "git_dirty": None if dirty is None else bool(dirty),
-        "model": model,
+        "model": profile.model.id,
+        "model_profile": profile.metadata(),
         "prompt_path": target.relative_to(_AI_ROOT).as_posix(),
         "prompt_sha256": prompt_fingerprint(target),
         "runs": runs,
@@ -90,8 +94,14 @@ def describe_metadata(meta: dict) -> str:
     # 재채점 전체가 죽으면 안 된다.
     dirty = " (커밋 안 된 수정 있음)" if meta.get("git_dirty") else ""
     fingerprint = (meta.get("prompt_sha256") or "알 수 없음")[:12]
+    profile = meta.get("model_profile") or {}
+    # 프로필이 없는 예전 기록은 모델 이름만
+    condition = ", ".join(part for part in (
+        profile.get("profile"),
+        profile.get("reasoning_effort") and f"추론 {profile['reasoning_effort']}",
+    ) if part)
     return (
-        f"모델 {meta.get('model') or '알 수 없음'} / "
+        f"모델 {meta.get('model') or '알 수 없음'}{f' ({condition})' if condition else ''} / "
         f"커밋 {meta.get('git_commit') or '알 수 없음'}{dirty} / "
         f"프롬프트 {fingerprint} / {meta.get('runs', '?')}회"
     )
@@ -114,7 +124,7 @@ def run_fixture(agent: ExtractionAgent, name: str, runs: int) -> list[dict]:
         source = ExtractionInput(product_id=f"eval-{Path(name).stem}-{index}", text_blocks=[text])
         started = time.perf_counter()
         try:
-            product = agent.extract(source)
+            product = agent.run(source)
         except ExtractionFailedError as exc:
             elapsed = int((time.perf_counter() - started) * 1000)
             # 사용량 기록은 에이전트가 직접 남긴다(실패 회차 포함). 여기서 또 남기면
@@ -218,7 +228,7 @@ def main() -> int:
     # 평가로 쓴 비용이 운영 비용과 섞이면 어느 쪽이 얼마인지 볼 수 없다.
     agent = ExtractionAgent(usage_agent="extraction-eval")
     # ExtractionAgent()가 설정을 이미 검증했으므로 여기서 다시 읽어도 실패하지 않는다.
-    meta = run_metadata(runs=args.runs, model=load_settings().model)
+    meta = run_metadata(runs=args.runs, profile=agent_profile("extraction"))
     print(f"측정 조건: {describe_metadata(meta)}", file=sys.stderr)
     if meta["git_dirty"]:
         print("  커밋하지 않은 수정이 있습니다. 기록된 커밋만으로는 재현되지 않습니다.",

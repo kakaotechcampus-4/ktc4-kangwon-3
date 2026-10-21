@@ -1,18 +1,35 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import Button from "@/components/common/Button";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
+import { isMissingDiagnosesId } from "@/lib/routeParams";
 
 import Process from "./Process";
 import { useJudgementProcess } from "./useJudgementProcess";
 
-// TODO: SSE 연동(api/judgement.ts) 시 useParams()로 라우트의 :diagnosesId를 읽어 useJudgementProcess에 넘긴다.
+// TODO: SSE 연동(api/judgement.ts) 시 diagnosesId를 useJudgementProcess에 넘겨 실제 데이터로 교체한다.
 function JudgementPage() {
     const { productNames, selectedProduct, visibleAgents, isCurrentProductDone, allProductsDone, selectProduct, correctAgent } =
         useJudgementProcess();
+    const { diagnosesId } = useParams<{ diagnosesId?: string }>();
     const navigate = useNavigate();
+
+    // diagnosesId 없이 잘못 진입한 경우(예: /judgement/undefined) 업로드 페이지로 되돌린다.
+    useEffect(() => {
+        if (isMissingDiagnosesId(diagnosesId)) {
+            alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
+            navigate("/upload", { replace: true });
+        }
+    }, [diagnosesId, navigate]);
+
+    const handleQuestionsClick = () => {
+        if (isMissingDiagnosesId(diagnosesId)) {
+            return;
+        }
+        navigate(`/question/${diagnosesId}`);
+    };
 
     // 새 프로세스가 나타나거나 다른 제품 탭으로 전환될 때 자동 스크롤한다.
     // 판정이 끝난 제품(히스토리 확인)이면 첫 프로세스로, 아직 진행 중이면 마지막(현재 단계) 프로세스로 포커싱한다.
@@ -44,8 +61,7 @@ function JudgementPage() {
 
             {allProductsDone && (
                 <div className="flex w-full justify-end">
-                    {/* TODO: 이 페이지에 diagnosesId가 연동되면 navigate(`/question/${diagnosesId}`)로 교체한다. */}
-                    <Button text="확인이 필요한 질문 →" onClick={() => navigate("/question")} fontSize={15} />
+                    <Button text="확인이 필요한 질문 →" onClick={handleQuestionsClick} fontSize={15} />
                 </div>
             )}
         </div>

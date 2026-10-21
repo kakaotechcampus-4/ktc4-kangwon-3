@@ -8,6 +8,7 @@ import SectionIntro from "@/components/common/SectionIntro/index.tsx"
 import { useAuthStore } from "@/store/useAuthStore.ts"
 
 import LoginButton from "./LoginButton.tsx"
+import { Provider } from "./types.ts"
 
 const API_URL = import.meta.env.VITE_API_URL
 
@@ -23,7 +24,7 @@ function LoginPage() {
         }
     }, [isLoggedIn, navigate])
 
-    const handleSocialLogin = (provider: 'kakao' | 'naver' | 'google') => {
+    const handleSocialLogin = (provider: Provider) => {
         const redirectUri = `${window.location.origin}/oauth/callback`
         window.location.href = `${API_URL}/oauth2/authorization/${provider}?redirect_uri=${encodeURIComponent(redirectUri)}`
     }
@@ -36,22 +37,22 @@ function LoginPage() {
         <div className="flex w-lg flex-col rounded-2xl gap-5 px-10 pt-8 pb-12 border border-neutral-border mt-10">
             <SectionIntro title="로그인" description="소셜 계정으로 간편하게 로그인 하세요." />
             <LoginButton
-                provider="kakao"
+                provider={Provider.Kakao}
                 label="카카오"
                 image={kakao}
-                onClick={() => handleSocialLogin('kakao')}
+                onClick={() => handleSocialLogin(Provider.Kakao)}
             />
             <LoginButton
-                provider="naver"
+                provider={Provider.Naver}
                 label="네이버"
                 image={naver}
-                onClick={() => handleSocialLogin('naver')}
+                onClick={() => handleSocialLogin(Provider.Naver)}
             />
             <LoginButton
-                provider="google"
+                provider={Provider.Google}
                 label="구글"
                 image={google}
-                onClick={() => handleSocialLogin('google')}
+                onClick={() => handleSocialLogin(Provider.Google)}
             />
         </div>
     );

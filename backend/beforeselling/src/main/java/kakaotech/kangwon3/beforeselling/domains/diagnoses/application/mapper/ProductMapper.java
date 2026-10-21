@@ -1,21 +1,42 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductAnswerRequest;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.FindingLegalSourceResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFailureResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductProgressResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductQuestionResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.FindingLegalSource;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFinding;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductProgress;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductQuestion;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductToolReview;
 import kakaotech.kangwon3.beforeselling.global.common.PageInfo;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.S3UrlKeyCodec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
 public class ProductMapper {
+
+    // 진행 상태는 저장 순서가 없어 단계 순서로, 같은 단계 안에서는 단계 자체의 진행(toolName 없음)을 먼저 두고 Tool은 분야 선언 순서로 고정
+    private static final Comparator<ProductProgress> PROGRESS_ORDER = Comparator
+            .comparing(ProductProgress::getStage)
+            .thenComparing(ProductProgress::getToolName, Comparator.nullsFirst(Comparator.naturalOrder()));
 
     private final S3UrlKeyCodec s3UrlKeyCodec;
 
@@ -30,6 +51,14 @@ public class ProductMapper {
                 product.getResultStatus(),
                 product.getCreatedAt()
         );
+    }
+
+    // 질문 ID → 답변. 중복 질문 ID는 요청 검증(isQuestionIdsUnique)에서 이미 걸러진다.
+    public Map<UUID, String> toAnswers(ProductAnswerRequest request) {
+        return request.answers().stream()
+                .collect(Collectors.toMap(
+                        ProductAnswerRequest.Answer::questionId,
+                        ProductAnswerRequest.Answer::answerText));
     }
 
     public ProductListResponse toListResponse(Page<Product> page) {
@@ -48,7 +77,6 @@ public class ProductMapper {
 
         return new ProductResponse(
                 product.getId(),
-                product.getSortOrder(),
                 product.getProductName(),
                 s3UrlKeyCodec.toUrlOrNull(product.getProductImageKey()),
                 product.getSourceType(),
@@ -56,8 +84,99 @@ public class ProductMapper {
                 product.getSourceText(),
                 imageUrls,
                 product.getProcessingStatus(),
+                toProgressResponses(product.currentProgresses()),
+                toQuestionResponses(product.getQuestions()),
+                toFailureResponse(product),
+                product.getAssessmentStatus(),
                 product.getResultStatus(),
-                product.getSummary()
+                product.getSummary(),
+                toToolReviewResponses(product.getToolReviews()),
+                List.copyOf(product.getRequiredActions()),
+                List.copyOf(product.getNotices())
+        );
+    }
+
+    private List<ProductProgressResponse> toProgressResponses(List<ProductProgress> progresses) {
+        return progresses.stream()
+                .sorted(PROGRESS_ORDER)
+                .map(progress -> new ProductProgressResponse(
+                        progress.getStage(),
+                        progress.getToolName(),
+                        progress.getStageStatus()))
+                .toList();
+    }
+
+    private List<ProductQuestionResponse> toQuestionResponses(List<ProductQuestion> questions) {
+        return questions.stream()
+                .map(question -> new ProductQuestionResponse(
+                        question.getId(),
+                        question.getQuestionRound(),
+                        question.getQuestionOrder(),
+                        question.getQuestionText(),
+                        question.getHelpText(),
+                        question.getAnswerText()))
+                .toList();
+    }
+
+    private ProductFailureResponse toFailureResponse(Product product) {
+        if (!product.isFailed()) {
+            return null;
+        }
+        return new ProductFailureResponse(
+                product.getFailedStage(),
+                product.getErrorCode(),
+                product.getErrorMessage(),
+                product.getErrorRetryable()
+        );
+    }
+
+    // 분야별 카드는 저장 순서가 없어 분야(ToolName) 선언 순으로 고정
+    private List<ProductToolReviewResponse> toToolReviewResponses(List<ProductToolReview> toolReviews) {
+        return toolReviews.stream()
+                .sorted(Comparator.comparing(ProductToolReview::getToolName))
+                .map(this::toToolReviewResponse)
+                .toList();
+    }
+
+    private ProductToolReviewResponse toToolReviewResponse(ProductToolReview toolReview) {
+        List<ProductFindingResponse> findings = toolReview.getFindings().stream()
+                .map(this::toFindingResponse)
+                .toList();
+
+        return new ProductToolReviewResponse(
+                toolReview.getId(),
+                toolReview.getToolName(),
+                toolReview.getStatus(),
+                toolReview.getMessage(),
+                findings
+        );
+    }
+
+    private ProductFindingResponse toFindingResponse(ProductFinding finding) {
+        List<FindingLegalSourceResponse> legalSources = finding.getLegalSources().stream()
+                .map(this::toLegalSourceResponse)
+                .toList();
+
+        return new ProductFindingResponse(
+                finding.getId(),
+                finding.getSubject(),
+                finding.getDetermination(),
+                finding.getRiskLevel(),
+                finding.getSummary(),
+                finding.getRationale(),
+                legalSources
+        );
+    }
+
+    private FindingLegalSourceResponse toLegalSourceResponse(FindingLegalSource legalSource) {
+        return new FindingLegalSourceResponse(
+                legalSource.getId(),
+                legalSource.getSourceName(),
+                legalSource.getLawName(),
+                legalSource.getArticle(),
+                legalSource.getQuotedText(),
+                legalSource.getSourceUrl(),
+                legalSource.getEffectiveDate()
         );
     }
 }

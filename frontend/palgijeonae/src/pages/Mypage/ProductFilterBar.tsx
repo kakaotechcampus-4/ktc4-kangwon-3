@@ -4,21 +4,21 @@ import clear from "@/assets/delete-gray.svg"
 import search from "@/assets/mypage-search.svg"
 import { cn } from "@/lib/cn";
 
-import type { ProductFilter } from "./types.ts";
+import { type ProductFilter, ResultStatus } from "./types.ts";
 
 const FILTER_TABS: { key: ProductFilter; label: string }[] = [
     { key: "all", label: "전체" },
-    { key: "PURCHASING_AGENT_ALLOWED", label: "구매 대행 가능" },
-    { key: "DIRECT_IMPORT_CERTIFICATION_REQUIRED", label: "사입 인증 필요" },
-    { key: "RECHECK_REQUIRED", label: "재확인 필요" },
+    { key: ResultStatus.PurchasingAgentAllowed, label: "구매 대행 가능" },
+    { key: ResultStatus.DirectImportCertificationRequired, label: "사입 인증 필요" },
+    { key: ResultStatus.RecheckRequired, label: "재확인 필요" },
 ];
 
 // 선택된 탭들에 서로 다른 색을 얹는다.
 const FILTER_TAB_SELECTED_CLASSES: Record<ProductFilter, string> = {
     all: "text-black bg-neutral-border",
-    PURCHASING_AGENT_ALLOWED: "text-status-success bg-status-success-bg",
-    DIRECT_IMPORT_CERTIFICATION_REQUIRED: "text-status-danger bg-status-danger-bg",
-    RECHECK_REQUIRED: "text-status-warning bg-status-warning-bg",
+    [ResultStatus.PurchasingAgentAllowed]: "text-status-success bg-status-success-bg",
+    [ResultStatus.DirectImportCertificationRequired]: "text-status-danger bg-status-danger-bg",
+    [ResultStatus.RecheckRequired]: "text-status-warning bg-status-warning-bg",
 };
 
 // 선택되지 않은 탭들은 공통 스타일링을 사용한다.
@@ -60,10 +60,11 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
     };
 
     return (
-        <div className="px-1.5 flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
             <form onSubmit={handleSubmit} className="relative w-full">
                 <input
                     type="text"
+                    aria-label="상품명 검색"
                     placeholder="상품명으로 검색하세요"
                     value={draftSearchTerm}
                     onChange={(event) => handleChange(event.target.value)}

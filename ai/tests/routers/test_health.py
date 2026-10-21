@@ -55,4 +55,4 @@ def test_프롬프트_파일이_없으면_503과_누락된_프롬프트를_반�
     response = client.get("/api/ai/v1/health/ready")
 
     assert response.status_code == 503
-    assert response.json()["errors"] == ["prompt: selection.md 누락"]
+    assert response.json()["errors"] == ["prompt: selection 누락"]

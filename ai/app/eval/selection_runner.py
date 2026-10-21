@@ -20,9 +20,9 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from ..agents.selection import _PROMPT_PATH as SELECTION_PROMPT_PATH
+from ..agents.selection import PROMPT_PATH as SELECTION_PROMPT_PATH
 from ..agents.selection import SelectionAgent, SelectionFailedError
-from ..config import load_settings
+from ..config import agent_profile
 from ..schemas.product import Product
 from .grading import Grade, Stability
 from .runner import RESULT_DIR, TRUTH_DIR, describe_metadata, prompt_fingerprint, run_metadata
@@ -46,16 +46,19 @@ def load_extraction_outputs(paths: list[Path]) -> tuple[dict[str, list[dict]], s
 
     프롬프트나 모델이 다른 기록을 섞으면 어떤 추출로 잰 선택 결과인지 알 수 없으므로 막는다.
     프롬프트 지문이 같아도 모델이 다르면(gpt-4.1-mini와 Luna, #279) 출력이 다르다.
+    같은 모델도 추론 강도(luna-low·luna-medium)가 다르면 다른 조건으로 봄.
 
     Returns:
-        픽스처별 추출 결과, 추출 프롬프트 지문, 추출 모델.
+        픽스처별 추출 결과, 추출 프롬프트 지문, 추출 모델(추론 강도가 있으면 "모델#강도").
     """
     merged: dict[str, list[dict]] = {}
     conditions: list[tuple[str, str]] = []
     for path in paths:
         saved = json.loads(path.read_text(encoding="utf-8"))
         meta = saved.get("meta") or {}
-        conditions.append((meta.get("prompt_sha256") or "알 수 없음", meta.get("model") or "알 수 없음"))
+        effort = (meta.get("model_profile") or {}).get("reasoning_effort")
+        model = (meta.get("model") or "알 수 없음") + (f"#{effort}" if effort else "")
+        conditions.append((meta.get("prompt_sha256") or "알 수 없음", model))
         for name, outputs in saved["results"].items():
             merged.setdefault(name, []).extend(o for o in outputs if not o.get("_failed"))
     if len({prompt for prompt, _ in conditions}) > 1:
@@ -68,7 +71,7 @@ def load_extraction_outputs(paths: list[Path]) -> tuple[dict[str, list[dict]], s
 def _select(agent: SelectionAgent, product: dict, product_id: str) -> dict | None:
     """선택 한 번. 실패한 회차는 None으로 남긴다(사용량은 에이전트가 직접 기록한다)."""
     try:
-        response = agent.select(Product.model_validate({**product, "product_id": product_id}))
+        response = agent.run(Product.model_validate({**product, "product_id": product_id}))
     except SelectionFailedError as exc:
         print(f"      선택 실패: {exc}", file=sys.stderr)
         return None
@@ -206,7 +209,7 @@ def main() -> int:
 
     # 평가로 쓴 비용이 운영 비용과 섞이면 어느 쪽이 얼마인지 볼 수 없다.
     agent = SelectionAgent(usage_agent="selection-eval")
-    meta = run_metadata(runs=args.runs, model=load_settings().model, prompt_path=SELECTION_PROMPT_PATH)
+    meta = run_metadata(runs=args.runs, profile=agent_profile("selection"), prompt_path=SELECTION_PROMPT_PATH)
     # 어떤 추출 결과로 잰 선택인지 함께 남긴다. 추출이 바뀌면 모드 B 수치가 달라진다.
     meta["extraction_logs"] = [p.as_posix() for p in args.extraction_log]
     meta["extraction_prompt_sha256"] = extraction_prompt

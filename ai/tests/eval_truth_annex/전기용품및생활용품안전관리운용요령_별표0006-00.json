@@ -1,0 +1,291 @@
+{
+  "fixture": "전기용품및생활용품안전관리운용요령_별표0006-00",
+  "output": {
+    "scheme": "공급자적합성확인대상생활용품",
+    "items": [
+      {
+        "category_path": [
+          "1. 화학",
+          "폴리염화비닐관"
+        ],
+        "item_label": "①",
+        "item_name": "연질염화비닐호스",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [
+          "연질염화비닐호스를 포함한다"
+        ],
+        "attributes": [],
+        "source_text": "① 연질염화비닐호스"
+      },
+      {
+        "category_path": [
+          "1. 화학",
+          "폴리염화비닐관"
+        ],
+        "item_label": "②",
+        "item_name": "폴리염화비닐관",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [
+          "연질염화비닐호스를 포함한다"
+        ],
+        "attributes": [],
+        "source_text": "② 폴리염화비닐관"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "가. 가구"
+        ],
+        "item_label": "①",
+        "item_name": "높이 762mm 이상의 가정용 서랍장 및 사무용 파일링 캐비넷",
+        "conditions": [
+          "높이 762mm 이상의 가정용 서랍장 및 사무용 파일링 캐비넷에 한정한다"
+        ],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 높이 762mm 이상의 가정용 서랍장 및 사무용 파일링 캐비넷"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "나. 롤러스케이트"
+        ],
+        "item_label": "①",
+        "item_name": "롤러스케이트",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 롤러스케이트"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "다. 바퀴 달린 운동화"
+        ],
+        "item_label": "①",
+        "item_name": "바퀴 달린 운동화",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 바퀴 달린 운동화"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "마. 창문 블라인드"
+        ],
+        "item_label": "①",
+        "item_name": "창문 블라인드",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 창문 블라인드"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "바. 쌍꺼풀용 테이프"
+        ],
+        "item_label": "①",
+        "item_name": "쌍꺼풀용 테이프",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 쌍꺼풀용 테이프"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "사. 속눈썹 열 성형기"
+        ],
+        "item_label": "①",
+        "item_name": "속눈썹 열 성형기",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 속눈썹 열 성형기"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "아. 가(假) 속눈썹(인조 속눈썹)"
+        ],
+        "item_label": "①",
+        "item_name": "가(假) 속눈썹(인조 속눈썹)",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 가(假) 속눈썹(인조 속눈썹)"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "자. 쇼핑카트"
+        ],
+        "item_label": "①",
+        "item_name": "쇼핑카트",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 쇼핑카트"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "차. 휴대용 사다리"
+        ],
+        "item_label": "①",
+        "item_name": "주택용 사다리",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 주택용 사다리"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "차. 휴대용 사다리"
+        ],
+        "item_label": "②",
+        "item_name": "도배용 사다리",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "② 도배용 사다리"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "차. 휴대용 사다리"
+        ],
+        "item_label": "③",
+        "item_name": "원예용 사다리",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "③ 원예용 사다리"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "차. 휴대용 사다리"
+        ],
+        "item_label": "④",
+        "item_name": "계단식 소형 사다리",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "④ 계단식 소형 사다리"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "카. 인라인롤러스케이트"
+        ],
+        "item_label": "①",
+        "item_name": "인라인롤러스케이트",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 인라인롤러스케이트"
+      },
+      {
+        "category_path": [
+          "2. 생활",
+          "타. 킥보드"
+        ],
+        "item_label": "①",
+        "item_name": "킥보드",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 킥보드"
+      },
+      {
+        "category_path": [
+          "3. 기계금속",
+          "가. 자동차용 휴대용 잭"
+        ],
+        "item_label": "①",
+        "item_name": "자동차용 유압식 잭",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 자동차용 유압식 잭"
+      },
+      {
+        "category_path": [
+          "3. 기계금속",
+          "가. 자동차용 휴대용 잭"
+        ],
+        "item_label": "②",
+        "item_name": "자동차용 나사식 잭",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "② 자동차용 나사식 잭"
+      },
+      {
+        "category_path": [
+          "3. 기계금속",
+          "나. 빙삭기"
+        ],
+        "item_label": "①",
+        "item_name": "빙삭기",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 빙삭기"
+      },
+      {
+        "category_path": [
+          "5. 건축",
+          "물탱크"
+        ],
+        "item_label": "①",
+        "item_name": "물탱크",
+        "conditions": [],
+        "exclusions": [],
+        "inclusions": [],
+        "attributes": [],
+        "source_text": "① 물탱크"
+      }
+    ],
+    "skipped": [
+      {
+        "category_path": [
+          "2. 생활"
+        ],
+        "item_label": "라.",
+        "reason": "삭제"
+      },
+      {
+        "category_path": [
+          "4. 섬유"
+        ],
+        "item_label": null,
+        "reason": "대상 없음"
+      }
+    ],
+    "notes": []
+  }
+}

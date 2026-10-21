@@ -2,6 +2,8 @@
 langchain==1.3.18
 langchain-core==1.6.1
 langchain-openai==1.6.0
+# BaseAgent가 SDK 구조화 출력 변환 함수를 직접 사용. 설치 시점마다 버전이 달라지지 않게 고정 (서버 컨테이너 기준)
+openai==3.26.0
 
 # 웹 프레임워크
 fastapi==0.115.12
@@ -18,8 +20,17 @@ pgvector==0.3.6
 # 외부 API 호출
 httpx==0.28.1
 
+# 판매 사이트 상품 페이지 HTML 읽기 (파서는 표준 html.parser)
+beautifulsoup4==4.12.3
+
+# 별표 원본 파일(HWP·HWPX) 표 읽기. HWP5 레코드 해석의 비공개 함수를 써서 버전 고정
+hwp-hwpx-parser==1.0.0
+
 # 설정
 python-dotenv==1.2.3
+
+# 지표 (Prometheus 수집용 /metrics)
+prometheus-client==0.26.0
 
 # 개발 / 테스트
 pytest==9.1.1

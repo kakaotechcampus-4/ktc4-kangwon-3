@@ -2,12 +2,17 @@ import type { MyProductItem, PageInfo, ResultStatus } from "@/pages/Mypage/types
 
 import apiClient from "./client";
 
+export enum SortType {
+    Latest = "LATEST",
+    Oldest = "OLDEST",
+}
+
 interface GetMyProductsParams {
     resultStatus?: ResultStatus;
     keyword?: string;
     page: number;
     size: number;
-    sortType: "LATEST" | "OLDEST";
+    sortType: SortType;
 }
 
 export async function getMyProducts(params: GetMyProductsParams) {
