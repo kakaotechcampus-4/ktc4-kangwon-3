@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
 from app import config
-from app.exception_handlers import register_exception_handlers
+from app.routers.exception_handlers import register_exception_handlers
 from app.routers import dev_auth
 from app.routers.dev_auth import DEV_API_KEY_HEADER, require_dev_api_key
 
