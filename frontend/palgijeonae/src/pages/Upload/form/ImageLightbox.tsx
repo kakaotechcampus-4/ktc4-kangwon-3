@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import deleteIcon from "@/assets/delete-gray.svg";
 import { cn } from "@/lib/cn";
@@ -53,12 +54,24 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
         };
     }, []);
 
+    // 뒤에 가려진 페이지 콘텐츠가 Tab으로 접근되지 않도록 비활성화한다.
+    useEffect(() => {
+        const root = document.getElementById("root");
+        if (!root) {
+            return;
+        }
+        root.inert = true;
+        return () => {
+            root.inert = false;
+        };
+    }, []);
+
     const currentFile = files[currentIndex];
     if (!currentFile) {
         return null;
     }
 
-    return (
+    return createPortal(
         <div
             ref={dialogRef}
             role="dialog"
@@ -144,7 +157,8 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                     ))}
                 </div>
             )}
-        </div>
+        </div>,
+        document.body,
     );
 }
 

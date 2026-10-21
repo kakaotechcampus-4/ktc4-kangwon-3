@@ -74,30 +74,43 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedIm
 
                     return (
                         <div key={`${file.name}-${index}`} className={thumbnailVariants({ thumbnailSize })}>
-                            <img
-                                src={previewUrls[index]}
-                                alt={file.name}
-                                onClick={() => setSelectedIndex(index)}
-                                className="h-full w-full cursor-pointer rounded-2xl object-cover"
-                            />
                             {showMoreOverlay ? (
-                                <button
-                                    type="button"
-                                    onClick={() => setExpanded(true)}
-                                    className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-2xl bg-white/70 text-lg font-semibold text-black"
-                                >
-                                    +{hiddenCount}
-                                </button>
-                            ) : (
-                                onRemove && (
+                                <>
+                                    <img
+                                        src={previewUrls[index]}
+                                        alt=""
+                                        className="h-full w-full rounded-2xl object-cover"
+                                    />
                                     <button
                                         type="button"
-                                        onClick={() => onRemove(index)}
-                                        className="absolute top-2 right-2 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-white"
+                                        onClick={() => setExpanded(true)}
+                                        className="absolute inset-0 flex cursor-pointer items-center justify-center rounded-2xl bg-white/70 text-lg font-semibold text-black"
                                     >
-                                        <img src={deleteIcon} alt="삭제" className="h-full w-full" />
+                                        +{hiddenCount}
                                     </button>
-                                )
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedIndex(index)}
+                                    aria-label={`${file.name} 크게 보기`}
+                                    className="h-full w-full cursor-pointer rounded-2xl"
+                                >
+                                    <img
+                                        src={previewUrls[index]}
+                                        alt=""
+                                        className="h-full w-full rounded-2xl object-cover"
+                                    />
+                                </button>
+                            )}
+                            {!showMoreOverlay && onRemove && (
+                                <button
+                                    type="button"
+                                    onClick={() => onRemove(index)}
+                                    className="absolute top-2 right-2 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full bg-white"
+                                >
+                                    <img src={deleteIcon} alt="삭제" className="h-full w-full" />
+                                </button>
                             )}
                         </div>
                     );
