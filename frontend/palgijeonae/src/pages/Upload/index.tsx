@@ -66,7 +66,7 @@ function UploadPage() {
             <SectionIntro title="상품 업로드" description="상세페이지를 붙여넣거나 이미지·URL로 추가하세요.
 최대 10개까지의 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다." />
             {isPending ? (
-                <div className="flex w-full flex-col items-center justify-center gap-4 py-12">
+                <div role="status" className="flex w-full flex-col items-center justify-center gap-4 py-12">
                     <div className="h-16 w-16 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
                     <p className="text-lg text-neutral-text">진단 요청을 보내는 중...</p>
                 </div>

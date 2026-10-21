@@ -40,7 +40,7 @@ function OAuthCallbackPage() {
     }, [searchParams, navigate])
 
     return (
-        <div className="flex w-full flex-col items-center justify-center gap-4 py-20">
+        <div role="status" className="flex w-full flex-col items-center justify-center gap-4 py-20">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-primary" />
             <p className="text-lg text-neutral-text">로그인 처리 중입니다...</p>
         </div>

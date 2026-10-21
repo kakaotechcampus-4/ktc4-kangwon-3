@@ -22,7 +22,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
             <SectionIntro title="전체 상품" size="xl" />
             {isLoading ? (
                 <div className="flex w-full justify-center py-12">
-                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
+                    <div role="status" aria-label="로딩 중" className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
                 </div>
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
