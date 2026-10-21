@@ -52,22 +52,22 @@ def run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionUp
     job_input = DiagnosisInput(source=session.source, previous=session.result, answers=session.answers)
     try:
         outcome = job(job_input, context, _Progress(updater, context))
+        if isinstance(outcome, JobNeedsInput) and session.question_round >= MAX_QUESTION_ROUNDS:
+            outcome = JobDone(_close_at_question_limit(outcome.result, context))
+        # 결말 기록 실패도 진단 실패로. 실행 중으로 남으면 시간 초과까지 콜백 없이 멈춤
+        match outcome:
+            case JobDone(result=result):
+                updater.apply(context, Complete(result))
+            case JobNeedsInput(result=result, questions=questions):
+                updater.apply(context, AskUser(result, questions))
+            case JobFailed(error_code=error_code, retryable=retryable):
+                updater.apply(context, Fail(error_code, retryable))
+            case _:
+                assert_never(outcome)
     except Exception:
         logger.exception("진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id)
         # 일시적 오류인지 알 수 없어 재시도 불가로 기록. 코드 오류를 BE가 계속 재요청하지 않게 함
         updater.apply(context, Fail(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False))
-        return
-    if isinstance(outcome, JobNeedsInput) and session.question_round >= MAX_QUESTION_ROUNDS:
-        outcome = JobDone(_close_at_question_limit(outcome.result, context))
-    match outcome:
-        case JobDone(result=result):
-            updater.apply(context, Complete(result))
-        case JobNeedsInput(result=result, questions=questions):
-            updater.apply(context, AskUser(result, questions))
-        case JobFailed(error_code=error_code, retryable=retryable):
-            updater.apply(context, Fail(error_code, retryable))
-        case _:
-            assert_never(outcome)
 
 
 def _close_at_question_limit(result: FinalAssessment, context: ExecutionContext) -> FinalAssessment:
