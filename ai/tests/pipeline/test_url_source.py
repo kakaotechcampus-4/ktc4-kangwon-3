@@ -49,8 +49,8 @@ class _FakeTriage:
         self.response = response
         self.calls: list[tuple[list[str], str]] = []
 
-    def classify(self, image_urls, *, subject_id):
-        self.calls.append((image_urls, subject_id))
+    def run(self, input):
+        self.calls.append((input.image_urls, input.subject_id))
         return self.response
 
 
@@ -208,10 +208,10 @@ def test_selected는_후보가_분류_한도를_넘으면_앞에서부터_한도
     page = _page(_image("main", "gallery"), *(_image(f"img{n}") for n in range(2, MAX_TRIAGE_IMAGES + 2)))
 
     class _LimitedTriage(_FakeTriage):
-        def classify(self, image_urls, *, subject_id):
-            if len(image_urls) > MAX_TRIAGE_IMAGES:
+        def run(self, input):
+            if len(input.image_urls) > MAX_TRIAGE_IMAGES:
                 raise ValueError(f"이미지는 한 번에 {MAX_TRIAGE_IMAGES}장까지 분류합니다")
-            return super().classify(image_urls, subject_id=subject_id)
+            return super().run(input)
 
     # 2번이 사양, 마지막(한도 밖) 이미지는 분류되지 않음
     triage = _LimitedTriage(_triage("product", "specification", *["lifestyle"] * (MAX_TRIAGE_IMAGES - 2)))

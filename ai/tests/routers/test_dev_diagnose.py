@@ -48,10 +48,10 @@ def manager(gate):
     """관문이 열릴 때까지 진단이 끝나지 않는 세션 관리자. 개발용 상한은 1."""
     received: list[ExtractionInput] = []
 
-    def job(item, context, progress):
-        received.append(item)
+    def job(job_input, context, progress):
+        received.append(job_input.source)
         gate.wait(timeout=5)
-        return JobDone(build_dummy_assessment(item.product_id))
+        return JobDone(build_dummy_assessment(job_input.source.product_id))
 
     instance = SessionManager(SessionStore(), job, max_running=2, max_dev_inflight=1)
     instance.received = received
@@ -135,10 +135,11 @@ def test_끝나면_공개_진단서와_내부_결과를_함께_조회한다(mana
 
 
 def test_답변_대기면_질문을_돌려준다():
-    def job(item, context, progress):
-        result = build_dummy_assessment(item.product_id)
+    def job(job_input, context, progress):
+        result = build_dummy_assessment(job_input.source.product_id)
         return JobNeedsInput(result.model_copy(update={"termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
-                                                       "verification_status": FinalVerificationStatus.INCOMPLETE}))
+                                                       "verification_status": FinalVerificationStatus.INCOMPLETE}),
+                             DummyAssessmentPresenter().questions(result))
 
     manager = SessionManager(SessionStore(), job)
     try:
@@ -172,8 +173,8 @@ def test_공개_진단서_변환이_실패하면_원인을_보여준다(manager,
 def test_내부_결과의_외부_API_키는_가려서_보여준다():
     leaked = "근거 https://apis.data.go.kr/x?serviceKey=secret1&type=XML, https://www.law.go.kr/y?OC=secret2"
 
-    def job(item, context, progress):
-        return JobDone(build_dummy_assessment(item.product_id).model_copy(update={"summary": leaked}))
+    def job(job_input, context, progress):
+        return JobDone(build_dummy_assessment(job_input.source.product_id).model_copy(update={"summary": leaked}))
 
     manager = SessionManager(SessionStore(), job)
     try:

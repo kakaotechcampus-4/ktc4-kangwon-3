@@ -7,11 +7,13 @@ from prometheus_client import CollectorRegistry
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.observability.metrics import SessionMetrics, SessionSnapshotCollector
 from app.routers._dummy import build_dummy_assessment
-from app.schemas.schemas import ToolName
+from app.schemas.agent import ExtractionInput
+from app.schemas.callback import PublicQuestionDto
+from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.events import SessionEvent
 from app.sessions.manager import SessionSnapshot
-from app.sessions.transitions import Change, ChangeStage, Complete, Fail, ReportTool, Start, apply
+from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, ReportTool, Resume, Start, apply
 
 ACCEPTED_AT = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
 
@@ -21,7 +23,8 @@ class _Run:
 
     def __init__(self, run_type: RunType = RunType.PRODUCTION) -> None:
         context = ExecutionContext.start(product_id="p-1", run_type=run_type, diagnosis_id="d-1")
-        self.session = DiagnosisSession(context=context, accepted_at=ACCEPTED_AT, updated_at=ACCEPTED_AT)
+        source = ExtractionInput(product_id="p-1", text_blocks=["상품 설명"])
+        self.session = DiagnosisSession(context=context, source=source, accepted_at=ACCEPTED_AT, updated_at=ACCEPTED_AT)
 
     def __call__(self, change: Change, *, at: float) -> SessionEvent:
         [event] = apply(self.session, change, now=ACCEPTED_AT + timedelta(seconds=at)).events
@@ -63,6 +66,29 @@ def test_대기_중_시간_초과는_실행_시간_없이_실패로_센다():
     assert registry.get_sample_value("ai_session_run_seconds_count", labels) is None
     assert registry.get_sample_value(
         "ai_session_failed_total", {"run_type": "production", "error_code": "AI_TIMEOUT"}) == 1
+
+
+def test_재진단_실행은_재접수_시각부터_따로_잰다():
+    metrics, registry = _metrics()
+    run = _Run()
+    awaiting = build_dummy_assessment("p-1").model_copy(update={
+        "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+    })
+    questions = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
+    new_context = ExecutionContext.start(product_id="p-1", run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+
+    for event in (run(Start(), at=1), run(AskUser(awaiting, questions), at=10),
+                  run(Resume(new_context, []), at=100), run(Start(), at=103),
+                  run(Complete(build_dummy_assessment("p-1")), at=110)):
+        metrics.on_event(event)
+
+    def value(name, **labels):
+        return registry.get_sample_value(name, {"run_type": "production", **labels})
+
+    assert value("ai_session_queue_wait_seconds_sum") == 1 + 3
+    assert value("ai_session_total_seconds_sum", outcome="completed") == 10
+    assert value("ai_session_run_seconds_sum", outcome="completed") == 7
 
 
 def test_Tool_진행을_Tool과_상태별로_센다():

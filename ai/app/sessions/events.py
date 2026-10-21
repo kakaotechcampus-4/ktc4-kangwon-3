@@ -84,3 +84,8 @@ class Failed(SessionEvent):
 
     error_code: str
     retryable: bool
+
+
+@dataclass(frozen=True)
+class Resumed(SessionEvent):
+    """답변을 받아 새 실행으로 재접수 (AWAITING_INPUT → ACCEPTED). session.context가 새 실행."""

@@ -9,11 +9,11 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from threading import Lock
 
-from ..config import SESSION_RETENTION_SECONDS
+from ..config import AWAITING_INPUT_RETENTION_SECONDS, SESSION_RETENTION_SECONDS
 from ..observability.context import ExecutionContext
 from ..schemas.base import utc_now
 from ..schemas.session import DiagnosisSession, SessionStatus
-from .transitions import STATUS_TRAITS, Transition
+from .transitions import STATUS_TRAITS, Retention, Transition
 
 
 class SessionStore:
@@ -23,17 +23,20 @@ class SessionStore:
         self,
         *,
         retention: timedelta = timedelta(seconds=SESSION_RETENTION_SECONDS),
+        awaiting_retention: timedelta = timedelta(seconds=AWAITING_INPUT_RETENTION_SECONDS),
         clock: Callable[[], datetime] = utc_now,
     ) -> None:
         """저장소를 만든다.
 
         Args:
             retention: 종료된 세션 보관 시간.
+            awaiting_retention: 답변 대기 세션 보관 시간. 지나면 지워져 재진단은 세션 없음(404).
             clock: 현재 시각 함수. 테스트에서 시각을 고정할 때 주입.
         """
         self._sessions: dict[str, DiagnosisSession] = {}
         self._lock = Lock()
-        self._retention = retention
+        # 성격표의 보관 시간 종류 → 보관 시간
+        self._retention: dict[Retention, timedelta] = {"ended": retention, "awaiting_input": awaiting_retention}
         self._clock = clock
 
     def add(self, sessions: list[DiagnosisSession]) -> None:
@@ -82,7 +85,7 @@ class SessionStore:
     def replace(
         self, context: ExecutionContext, change: Callable[[DiagnosisSession], Transition],
     ) -> Transition | None:
-        """같은 실행(run_id)의 세션에 change를 적용하고 나온 세션으로 교체한다.
+        """같은 실행(run_id)의 세션에 change를 적용하고 나온 세션으로 교체한다. 재접수면 새 실행의 세션이 들어감.
 
         읽기부터 교체까지 잠금 하나로 묶음. 그 사이 다른 스레드의 변경이 끼어들지 않음.
 
@@ -106,16 +109,19 @@ class SessionStore:
             return transition
 
     def purge(self) -> int:
-        """보관 시간이 지난 종료 세션(성격표의 purgeable)을 지운다. 답변 대기 세션은 남김.
+        """보관 시간이 지난 세션을 성격표의 보관 시간 종류대로 지운다. 접수·실행 중 세션은 시간 초과 처리가 맡음.
+
+        보관 시간은 마지막 상태 변경(updated_at)부터. 답변 대기는 질문을 보낸 시각부터.
 
         Returns:
             int: 지운 세션 수.
         """
         with self._lock:
-            deadline = self._clock() - self._retention
+            now = self._clock()
             expired = [
                 product_id for product_id, session in self._sessions.items()
-                if STATUS_TRAITS[session.status].purgeable and session.updated_at <= deadline
+                if (retention := STATUS_TRAITS[session.status].retention) is not None
+                and session.updated_at <= now - self._retention[retention]
             ]
             for product_id in expired:
                 del self._sessions[product_id]

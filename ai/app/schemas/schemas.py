@@ -311,6 +311,8 @@ class ExecutionEndReason(StrEnum):
     NO_PROGRESS = "no_progress"
     # 비용 제한 종료 계약. 누적 비용 계산과 호출 전 예산 확인은 후속 구현한다.
     COST_LIMIT_EXCEEDED = "cost_limit_exceeded"
+    # 질문 회차(최대 2회, #310)를 다 쓰고도 질문이 남은 경우. 질문 대신 미완료 결과로 끝낸다.
+    QUESTION_LIMIT_EXCEEDED = "question_limit_exceeded"
 
 # 검증 결과까지 포함한 최종 결과
 # 최종 응답이라도 INCOMPLETE일 수 있다. 검증 완료 여부와 종합 판단을 함께 확인한다.

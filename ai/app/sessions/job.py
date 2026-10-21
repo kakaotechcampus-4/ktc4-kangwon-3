@@ -11,8 +11,9 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from ..observability.context import ExecutionContext, PipelineStage
-from ..schemas.agent import ExtractionInput
+from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment, ToolName
+from ..schemas.session import DiagnosisInput
 
 # Tool 진행 상태. Tool 실행 오류도 completed (실패 여부는 분야 카드에서 표시)
 ToolProgressStatus = Literal["started", "completed", "skipped"]
@@ -50,12 +51,14 @@ class JobNeedsInput:
 
     Attributes:
         result: 질문이 담긴 이번 실행의 결과. 종료 사유는 user_input_required.
+        questions: BE에 보낼 질문. 세션에 기록돼 질문 콜백·재진단 답변 검사에 쓰임.
 
     Raises:
         ValueError: 결과의 종료 사유가 user_input_required가 아닌 경우.
     """
 
     result: FinalAssessment
+    questions: list[PublicQuestionDto]
 
     def __post_init__(self) -> None:
         if self.result.termination_reason is not ExecutionEndReason.USER_INPUT_REQUIRED:
@@ -77,5 +80,5 @@ class JobFailed:
 
 Outcome = JobDone | JobNeedsInput | JobFailed
 
-# 상품 입력, 실행 컨텍스트, 진행 알림을 받아 결말을 돌려주는 진단 함수
-DiagnosisJob = Callable[[ExtractionInput, ExecutionContext, ProgressReporter], Outcome]
+# 실행 입력(원래 입력 + 재진단이면 이전 결과·답변), 실행 컨텍스트, 진행 알림을 받아 결말을 돌려주는 진단 함수
+DiagnosisJob = Callable[[DiagnosisInput, ExecutionContext, ProgressReporter], Outcome]

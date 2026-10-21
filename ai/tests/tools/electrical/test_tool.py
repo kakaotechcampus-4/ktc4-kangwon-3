@@ -73,7 +73,7 @@ class Search:
 @pytest.fixture(autouse=True)
 def no_usage_file(monkeypatch):
     # 테스트가 운영 사용량 로그를 변경하지 않도록 한다.
-    monkeypatch.setattr("app.agents.base.record", lambda *a, **kw: None)
+    monkeypatch.setattr("app.usage.record", lambda *a, **kw: None)
 
 
 def decision(selected=True):

@@ -15,7 +15,7 @@ _AWAITING = _COMPLETED.model_copy(update={
 
 def test_종료_사유가_맞으면_결말을_만든다():
     assert JobDone(_COMPLETED).result is _COMPLETED
-    assert JobNeedsInput(_AWAITING).result is _AWAITING
+    assert JobNeedsInput(_AWAITING, []).result is _AWAITING
 
 
 def test_답변이_필요한_결과로_완료를_만들면_거절한다():
@@ -25,4 +25,4 @@ def test_답변이_필요한_결과로_완료를_만들면_거절한다():
 
 def test_답변이_필요하지_않은_결과로_답변_대기를_만들면_거절한다():
     with pytest.raises(ValueError):
-        JobNeedsInput(_COMPLETED)
+        JobNeedsInput(_COMPLETED, [])

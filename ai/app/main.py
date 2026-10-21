@@ -66,12 +66,13 @@ async def lifespan(app: FastAPI):
         except SQLAlchemyError as e:
             logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
 
+    # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
+    presenter = DummyAssessmentPresenter()
     # 진단 세션 (#264). 파이프라인 러너 연결 전까지 더미 진단으로 실행
     manager = SessionManager(SessionStore(), run_dummy_diagnosis)
-    # BE 콜백 (#317). 실제 진단서 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
+    # BE 콜백 (#317)
     sender = HttpCallbackSender(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
-    presenter = DummyAssessmentPresenter()
     connect_callbacks(manager, EventBuilder(presenter), outbox)
     # 세션 지표. 앱마다 registry를 따로 둬 테스트에서 lifespan을 여러 번 띄워도 이름이 겹치지 않음
     registry = CollectorRegistry()

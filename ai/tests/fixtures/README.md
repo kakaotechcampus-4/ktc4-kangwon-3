@@ -12,7 +12,7 @@
 `≤36V`, `1460mah`/`1460mAh` 혼용처럼 **실제 페이지의 표기 quirk를 그대로 보존**한다.
 규칙 레이어의 오탐은 대부분 이런 표기에서 나오기 때문에, 다듬으면 테스트 가치가 사라진다.
 
-`test_extraction_fixtures.py`가 이 파일들로 회귀 테스트를 돌린다. LLM을 호출하지 않아
+`tests/agents/extraction/rules/test_fixtures.py`가 이 파일들로 회귀 테스트를 돌린다. LLM을 호출하지 않아
 API 키 없이 CI에서 돈다.
 
 ## `_raw/` (원문, 저장소에 없음)
@@ -34,13 +34,13 @@ API 키 없이 CI에서 돈다.
 python scripts/try_extraction.py --text tests/fixtures/_raw/power_bank.txt
 ```
 
-원문이 없어도 `test_extraction_fixtures.py`는 축약본만으로 돌아간다.
+원문이 없어도 `tests/agents/extraction/rules/test_fixtures.py`는 축약본만으로 돌아간다.
 
 ## 픽스처를 추가할 때
 
 1. 원문을 `_raw/`에 넣는다.
 2. 스펙 사실만 남긴 축약본을 같은 이름으로 이 디렉터리에 만든다.
-3. `test_extraction_fixtures.py`의 `_EXPECTED`에 기대값을 등록한다.
+3. `tests/agents/extraction/rules/conftest.py`의 `_EXPECTED`에 기대값을 등록한다.
 
 3번을 빠뜨리면 `test_모든_텍스트_픽스처가_기대표에_들어_있다`가 실패한다.
 픽스처만 추가하고 아무도 안 돌려보는 상황을 막기 위한 장치다.
