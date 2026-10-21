@@ -13,6 +13,7 @@ class AgentRunMeta(StrictModel):
 
     Attributes:
         component: 에이전트 이름.
+        usage_name: 사용량·지표 기록 이름 (평가 호출은 extraction-eval 등으로 운영과 구분). None이면 component.
         model: 비용 계산용 모델 이름. 모델이 없는 에이전트(규칙 전용 실행)는 None.
         reasoning_effort: 추론 강도. 스텁·주입 모델은 None.
         prompt_name: 시스템 프롬프트 이름.
@@ -25,6 +26,7 @@ class AgentRunMeta(StrictModel):
     """
 
     component: str
+    usage_name: str | None = None
     model: str | None = None
     reasoning_effort: str | None = None
     prompt_name: str | None = None
