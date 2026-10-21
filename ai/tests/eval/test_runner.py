@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 
 from app.config import MODEL_PROFILES
+from app.eval.errors import RawFixtureMissing
 from app.eval.runner import (
     EXTRACTION_PROMPT_PATH,
-    RawFixtureMissing,
     describe_metadata,
     prompt_fingerprint,
     rescore,

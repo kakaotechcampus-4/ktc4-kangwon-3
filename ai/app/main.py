@@ -11,11 +11,11 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect_callbacks
 from .config import SESSION_SWEEP_SECONDS, get_settings
-from .database import DatabaseNotConfiguredError, get_engine
-from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .observability.metrics import SessionMetrics, SessionSnapshotCollector
+from .repositories.database import DatabaseNotConfiguredError, get_engine
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
+from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
 

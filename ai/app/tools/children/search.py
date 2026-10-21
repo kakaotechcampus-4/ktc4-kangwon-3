@@ -113,7 +113,7 @@ class DatabaseItemSearch:
     돌려주므로 ChildrenTool은 바꾸지 않는다.
 
     Args:
-        session_factory: app.database.get_session_factory()가 돌려주는 세션 팩토리.
+        session_factory: app.repositories.database.get_session_factory()가 돌려주는 세션 팩토리.
     """
 
     def __init__(self, session_factory):

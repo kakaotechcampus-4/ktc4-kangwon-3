@@ -10,7 +10,7 @@ from fastapi import Depends
 from fastapi.security import APIKeyHeader
 
 from ..config import Settings, get_settings
-from ..errors import AIResponseCode, AIServiceError
+from ..domain.errors import AIResponseCode, AIServiceError
 
 DEV_API_KEY_HEADER = "X-Dev-Api-Key"
 

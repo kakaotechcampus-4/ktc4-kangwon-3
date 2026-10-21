@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Request, status
 
-from ..errors import AIResponseCode, AIServiceError
+from ..domain.errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
 from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, ResumeRequest, UrlDiagnoseRequest
 from ..schemas.response import (

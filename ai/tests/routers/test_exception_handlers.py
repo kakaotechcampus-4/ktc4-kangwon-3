@@ -7,10 +7,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.errors import AIResponseCode, AIServiceError
-from app.exception_handlers import register_exception_handlers
+from app.domain.errors import AIResponseCode, AIServiceError
+from app.routers.exception_handlers import register_exception_handlers
 from app.main import app as main_app
-from app.observability.context import PipelineStage
+from app.domain.context import PipelineStage
 from app.schemas.request import DiagnosisRequest
 from app.schemas.response import DiagnosisConflict
 
@@ -112,7 +112,7 @@ def test_AIServiceError는_코드의_상태와_공개_data로_응답한다(clien
 
 
 def test_AIServiceError의_원인_단계_재시도_부분_결과는_응답에_넣지_않는다(client, caplog):
-    with caplog.at_level(logging.ERROR, logger="app.exception_handlers"):
+    with caplog.at_level(logging.ERROR, logger="app.routers.exception_handlers"):
         response = client.get("/service-failure")
 
     assert response.status_code == 500
@@ -175,7 +175,7 @@ def test_표에_없는_HTTP_오류는_상태_범위로_코드를_정한다(clien
 
 
 def test_미구현_501은_오류_로그를_남기지_않는다(client, caplog):
-    with caplog.at_level(logging.ERROR, logger="app.exception_handlers"):
+    with caplog.at_level(logging.ERROR, logger="app.routers.exception_handlers"):
         response = client.get("/not-implemented")
 
     assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")

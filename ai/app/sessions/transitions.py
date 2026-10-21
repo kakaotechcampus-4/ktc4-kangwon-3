@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, assert_never
 
-from ..observability.context import ExecutionContext, PipelineStage
+from ..domain.context import ExecutionContext, PipelineStage
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession, SessionAnswer, SessionStatus
+from .errors import InvalidTransitionError
 from .events import (
     AwaitingInput, Completed, Failed, Resumed, SessionEvent, StageChanged, Started, ToolProgressed,
 )
@@ -140,20 +141,6 @@ STATUS_TRAITS: dict[SessionStatus, StatusTraits] = {
     SessionStatus.COMPLETED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended"),
     SessionStatus.FAILED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended"),
 }
-
-
-class InvalidTransitionError(ValueError):
-    """규칙표에 없는 전이를 요청한 경우. 시간 초과 뒤 늦게 온 결과 등.
-
-    Attributes:
-        status: 세션의 지금 상태.
-        change: 요청한 일.
-    """
-
-    def __init__(self, status: SessionStatus, change: Change) -> None:
-        super().__init__(f"{status} 상태에서는 {type(change).__name__}을 할 수 없습니다.")
-        self.status = status
-        self.change = change
 
 
 @dataclass(frozen=True)

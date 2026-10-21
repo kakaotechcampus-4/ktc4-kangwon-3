@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Request, status
 
 from ..callbacks import AssessmentPresenter
 from ..clients.base import mask_sensitive_params
-from ..errors import AIResponseCode, AIServiceError
+from ..domain.errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
 from ..schemas.request import DevDiagnosisRequest
 from ..schemas.response import (
