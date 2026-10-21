@@ -20,7 +20,7 @@ from ..base import RegulatoryTool
 from ..common.agent import ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
-from .evidence import CustomsEvidence
+from .evidence import CustomsEvidence, law_key
 from .rules import format_hs, omission_status, related_tool, sale_actions
 from .search import (
     CaseSearch, HsCase, Requirement, RequirementLookup, default_case_search, default_evidence_loader,
@@ -194,11 +194,13 @@ class CustomsTool(RegulatoryTool):
 
         # ⑤ 결과 조립: 법령별 요건 후보와 판매 방식별 할 일
         findings, actions = [], []
+        # GW가 같은 법령에 요건 종류를 붙여 줄 때가 있어(예: "…법률(허가)") 비교 키로 묶는다. 표시는 처음 온 이름.
         by_law: dict[str, list[Requirement]] = {}
         for item in requirements:
-            by_law.setdefault(item.law_name, []).append(item)
+            by_law.setdefault(law_key(item.law_name), []).append(item)
         related: dict[str, str] = {}
-        for law_name, items in by_law.items():
+        for items in by_law.values():
+            law_name = items[0].law_name
             codes = list(dict.fromkeys(item.hs_code for item in items))
             documents = list(dict.fromkeys(item.document for item in items if item.document))
             agencies = list(dict.fromkeys(item.agency for item in items if item.agency))
