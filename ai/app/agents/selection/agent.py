@@ -7,14 +7,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ToolSelectionResponse
 from ...schemas.product import Product
-from ..base import AgentError, BaseAgent
+from ..base import BaseAgent
+from .errors import SelectionFailedError
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.SELECTION).path
-
-
-class SelectionFailedError(AgentError):
-    """선택 모델 호출·파싱 실패. 원인 예외는 ``__cause__``."""
 
 
 class SelectionAgent(BaseAgent[Product, ToolSelectionResponse, ToolSelectionResponse]):
