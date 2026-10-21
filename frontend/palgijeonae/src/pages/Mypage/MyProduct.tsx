@@ -77,7 +77,7 @@ function MyProduct({ productName, productImageUrl, sourceType, processingStatus,
                     </div>
                     <div className="flex gap-2 items-center">
                         <img src={SOURCE_TYPE_INFO[sourceType].icon}
-                            alt={SOURCE_TYPE_INFO[sourceType].label}
+                            alt=""
                             className="w-5 h-5" />
                         <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
                     </div>
