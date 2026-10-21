@@ -29,7 +29,7 @@ function Header() {
         <header className="fixed top-0 left-0 z-50 flex w-full items-center justify-between border-b border-neutral-border bg-white px-5 py-4">
             <Link to="/">
                 <img src={logo}
-                    alt="Logo"
+                    alt="사이트 로고"
                     className="w-[150px] object-contain" />
             </Link>
             <div className="flex items-center gap-3">
@@ -48,7 +48,7 @@ function Header() {
                             >
                                 <img
                                     src={logoutIcon}
-                                    alt="Logout"
+                                    alt="로그아웃"
                                     className="h-7 w-7"
                                 />
                             </button>
