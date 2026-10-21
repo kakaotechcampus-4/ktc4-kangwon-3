@@ -1,1 +1,1 @@
-"""공통 실행·관측 계약 구현 (#171 AI_COMMON_CONTRACT.md)."""
+"""관측: Prometheus 지표 등 (#171 AI_COMMON_CONTRACT.md). 공통 실행 컨텍스트는 domain/context.py."""

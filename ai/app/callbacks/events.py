@@ -19,7 +19,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from ..errors import AIResponseCode
-from ..observability.context import PipelineStage
+from ..domain.context import PipelineStage
 from ..schemas.callback import (
     ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,
     PublicErrorDto, PublicPipelineStage, PublicProductEvent,

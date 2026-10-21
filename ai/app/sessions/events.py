@@ -5,7 +5,7 @@
 
 from dataclasses import dataclass
 
-from ..observability.context import PipelineStage
+from ..domain.context import PipelineStage
 from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession
 from .job import ToolProgressStatus

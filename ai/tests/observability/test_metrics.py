@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from prometheus_client import CollectorRegistry
 
-from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
 from app.observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
 from app.routers._dummy import build_dummy_assessment

@@ -15,7 +15,7 @@ from ...config import (
     MAX_DEV_INFLIGHT_SESSIONS, MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS,
 )
 from ...errors import AIResponseCode
-from ...observability.context import ExecutionContext, RunType
+from ...domain.context import ExecutionContext, RunType
 from ...schemas.agent import ExtractionInput
 from ...schemas.base import utc_now
 from ...schemas.session import DiagnosisSession, SessionAnswer
