@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from ..observability.context import PipelineStage
+from ..domain.context import PipelineStage
 from .base import ApiModel, StrictModel
 from .callback import PublicAssessmentDto, PublicQuestionDto
 from .schemas import FinalAssessment

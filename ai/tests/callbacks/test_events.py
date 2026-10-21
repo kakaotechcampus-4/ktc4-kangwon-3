@@ -5,7 +5,7 @@ from itertools import count
 import pytest
 
 from app.callbacks.events import EventBuilder
-from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.base import utc_now

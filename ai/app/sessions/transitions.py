@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal, assert_never
 
-from ..observability.context import ExecutionContext, PipelineStage
+from ..domain.context import ExecutionContext, PipelineStage
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession, SessionAnswer, SessionStatus

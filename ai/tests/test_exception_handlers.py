@@ -10,7 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.errors import AIResponseCode, AIServiceError
 from app.exception_handlers import register_exception_handlers
 from app.main import app as main_app
-from app.observability.context import PipelineStage
+from app.domain.context import PipelineStage
 from app.schemas.request import DiagnosisRequest
 from app.schemas.response import DiagnosisConflict
 

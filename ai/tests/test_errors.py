@@ -3,7 +3,7 @@
 import pytest
 
 from app.errors import AIResponseCode, AIServiceError
-from app.observability.context import PipelineStage
+from app.domain.context import PipelineStage
 from app.schemas.response import DiagnosisConflict
 
 

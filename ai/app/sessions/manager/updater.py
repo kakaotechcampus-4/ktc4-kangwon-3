@@ -4,7 +4,7 @@ import logging
 from collections.abc import Callable
 from datetime import datetime
 
-from ...observability.context import ExecutionContext
+from ...domain.context import ExecutionContext
 from ...schemas.session import DiagnosisSession
 from ..events import SessionEvent
 from ..store import SessionStore

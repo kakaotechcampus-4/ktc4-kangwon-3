@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.routers import _dummy
 from app.routers._dummy import build_dummy_assessment, run_dummy_diagnosis
 from app.routers.diagnose import get_session_manager

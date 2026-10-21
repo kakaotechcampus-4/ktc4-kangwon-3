@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.schemas.agent import ExtractionInput
 from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.store import SessionStore

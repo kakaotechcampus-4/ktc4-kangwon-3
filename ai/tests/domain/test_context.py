@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.observability.context import ExecutionContext, RunType
+from app.domain.context import ExecutionContext, RunType
 
 
 def _context() -> ExecutionContext:
