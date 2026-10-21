@@ -14,10 +14,10 @@ function RevisionNoticeBanner({ revisedDate, title, description, onCheckClick }:
     return (
         <DefaultBox tone="warning">
             <div className="flex flex-row gap-5 items-center">
-                <img src={bell} alt="알림 아이콘" className="w-8 h-8"/>
+                <img src={bell} alt="" className="w-8 h-8"/>
                 <div className="bg-white px-3 py-1 rounded-full border border-status-warning text-status-warning text-sm font-medium">개정 알림</div>
                 <div className="flex flex-row gap-2 items-center">
-                    <img src={calendar} alt="캘린더 아이콘" className="w-7 h-7"/>
+                    <img src={calendar} alt="" className="w-7 h-7"/>
                     <p className="text-base font-bold text-status-warning">개정 일자</p>
                     <p className="text-sm font-semibold text-status-warning">{revisedDate}</p>
                 </div>
