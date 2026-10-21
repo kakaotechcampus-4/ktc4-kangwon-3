@@ -8,7 +8,7 @@ from enum import Enum
 
 from pydantic import BaseModel
 
-from .domain.context import PipelineStage
+from .context import PipelineStage
 
 
 @dataclass(frozen=True)
