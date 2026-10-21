@@ -7,8 +7,9 @@ import pytest
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.schemas.agent import ExtractionInput
 from app.schemas.session import DiagnosisSession, SessionStatus
+from app.sessions.errors import InvalidTransitionError
 from app.sessions.store import SessionStore
-from app.sessions.transitions import ChangeStage, InvalidTransitionError, Start, apply
+from app.sessions.transitions import ChangeStage, Start, apply
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
 

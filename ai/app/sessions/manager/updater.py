@@ -6,9 +6,10 @@ from datetime import datetime
 
 from ...domain.context import ExecutionContext
 from ...schemas.session import DiagnosisSession
+from ..errors import InvalidTransitionError
 from ..events import SessionEvent
 from ..store import SessionStore
-from ..transitions import Change, InvalidTransitionError, Transition, apply
+from ..transitions import Change, Transition, apply
 
 logger = logging.getLogger(__name__)
 

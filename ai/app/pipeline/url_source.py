@@ -19,6 +19,7 @@ from ..clients.marketplace import MadeInChinaClient, MarketplaceBaseClient, matc
 from ..schemas.agent import ExtractionInput, ImageCategory, ImageTriageResponse
 from ..schemas.clients.marketplace_request import ProductPageRequest
 from ..schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from .errors import UnsupportedSiteError
 
 # 추출에 넣을 이미지 방식. 사이트마다 페이지·이미지 성격이 달라 사이트별로 정함
 ImagePolicy = Literal["none", "selected", "all"]
@@ -48,10 +49,6 @@ KEEP_CATEGORIES = frozenset({ImageCategory.SPECIFICATION, ImageCategory.CERTIFIC
 MAX_IMAGES = 8
 # all에서 넘기는 이미지 상한. 넘는 페이지는 앞에서부터
 MAX_ALL_IMAGES = 50
-
-
-class UnsupportedSiteError(ValueError):
-    """수집할 수 없는 판매 사이트 주소."""
 
 
 @dataclass(frozen=True)

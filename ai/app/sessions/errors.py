@@ -1,4 +1,15 @@
-"""세션 접수·재진단 거절 오류. 라우터가 HTTP 응답(400·404·409·422·429)으로 바꿈."""
+"""세션 예외.
+
+    - 접수·재진단 거절: 라우터가 HTTP 응답(400·404·409·422·429)으로 바꿈
+    - 전이 오류(InvalidTransitionError): 세션 관리자가 경고 로그만 남기고 무시
+"""
+
+from typing import TYPE_CHECKING
+
+from ..schemas.session import SessionStatus
+
+if TYPE_CHECKING:
+    from .transitions import Change
 
 
 class QueueFullError(RuntimeError):
@@ -47,3 +58,17 @@ class UnansweredQuestionError(ValueError):
     def __init__(self, question_keys: list[str]) -> None:
         super().__init__(f"답하지 않은 질문이 있습니다: {', '.join(question_keys)}")
         self.question_keys = question_keys
+
+
+class InvalidTransitionError(ValueError):
+    """규칙표에 없는 전이를 요청한 경우. 시간 초과 뒤 늦게 온 결과 등.
+
+    Attributes:
+        status: 세션의 지금 상태.
+        change: 요청한 일.
+    """
+
+    def __init__(self, status: SessionStatus, change: "Change") -> None:
+        super().__init__(f"{status} 상태에서는 {type(change).__name__}을 할 수 없습니다.")
+        self.status = status
+        self.change = change
