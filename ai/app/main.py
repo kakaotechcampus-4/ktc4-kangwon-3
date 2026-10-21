@@ -13,7 +13,8 @@ from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .database import DatabaseNotConfiguredError, get_engine
 from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
-from .observability.metrics import SessionMetrics, SessionSnapshotCollector
+from .observability.agent_sinks import agent_sinks
+from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .sessions.manager import SessionManager
@@ -78,6 +79,9 @@ async def lifespan(app: FastAPI):
     registry = CollectorRegistry()
     manager.subscribe(SessionMetrics(registry).on_event)
     registry.register(SessionSnapshotCollector(manager))
+    # 에이전트 지표. 등록표는 앱 전체 공용이라 종료 때 해제 (lifespan을 다시 띄워도 옛 registry에 안 쌓이게)
+    agent_metrics = AgentMetrics(registry).on_run
+    agent_sinks.add(agent_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
     # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
@@ -95,6 +99,7 @@ async def lifespan(app: FastAPI):
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
+        agent_sinks.remove(agent_metrics)
 
 
 app = FastAPI(
