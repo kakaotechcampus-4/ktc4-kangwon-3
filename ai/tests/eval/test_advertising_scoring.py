@@ -4,7 +4,8 @@ import json
 
 import pytest
 
-from app.eval.advertising_scoring import InputsMismatch, inputs_digest, load_eval_set, overlaps, score_case
+from app.eval.advertising_scoring import inputs_digest, load_eval_set, overlaps, score_case
+from app.eval.errors import InputsMismatch
 
 CASE = {
     "must_flag": [{"text": "통기성 2배", "risk_type": "performance_quality"},
