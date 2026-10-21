@@ -14,7 +14,7 @@ from uuid import uuid4
 from ...config import (
     MAX_DEV_INFLIGHT_SESSIONS, MAX_INFLIGHT_SESSIONS, MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS,
 )
-from ...errors import AIResponseCode
+from ...domain.errors import AIResponseCode
 from ...domain.context import ExecutionContext, RunType
 from ...schemas.agent import ExtractionInput
 from ...schemas.base import utc_now

@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .errors import AIResponseCode, AIServiceError, ResponseCode
+from .domain.errors import AIResponseCode, AIServiceError, ResponseCode
 from .schemas.response import ApiResponse, FieldErrorDetail
 
 logger = logging.getLogger(__name__)

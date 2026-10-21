@@ -18,7 +18,7 @@ from threading import Lock
 from typing import Protocol
 from uuid import uuid4
 
-from ..errors import AIResponseCode
+from ..domain.errors import AIResponseCode
 from ..domain.context import PipelineStage
 from ..schemas.callback import (
     ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,

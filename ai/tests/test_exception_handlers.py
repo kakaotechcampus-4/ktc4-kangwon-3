@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.errors import AIResponseCode, AIServiceError
+from app.domain.errors import AIResponseCode, AIServiceError
 from app.exception_handlers import register_exception_handlers
 from app.main import app as main_app
 from app.domain.context import PipelineStage

@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.errors import AIResponseCode, AIServiceError
+from app.domain.errors import AIResponseCode, AIServiceError
 from app.domain.context import PipelineStage
 from app.schemas.response import DiagnosisConflict
 
