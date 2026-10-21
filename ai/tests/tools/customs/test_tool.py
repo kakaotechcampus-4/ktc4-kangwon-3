@@ -167,14 +167,39 @@ def test_모델에는_후보_사례의_앞부분만_들어간다():
 
 # -- 요건이 없거나 확인하지 못한 경우 --
 
-def test_HS에_세관장확인_요건이_없으면_비대상으로_단정하지_않고_정보부족으로_낸다():
+def test_조회해서_요건이_없으면_정보부족이_아니라_HS_후보_기준_요건_없음으로_낸다():
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({}))
     finding = result.findings[0]
-    assert finding.determination is Determination.INSUFFICIENT_INFORMATION
+    assert finding.subject == "세관장확인 대상 법령 — HS 후보 기준 없음"
+    assert finding.determination is Determination.NOT_REQUIRED
     assert finding.risk_level is RiskLevel.LOW
     assert "국내 판매 규제가 없다는 뜻은 아닙니다" in finding.summary
+    assert any("다른 HS로 분류되면" in note for note in finding.assumptions)
+    # 확정 판단이라 인용문과 공개 주소가 있는 근거 조문을 붙인다(관세법 제226조)
+    assert any(source.quoted_text and source.source_url for source in finding.legal_sources)
     assert result.required_actions == []
+
+
+def test_근거_법령을_읽지_못하면_요건이_없어도_정보부족으로_둔다():
+    def unavailable():
+        raise EvidenceUnavailable("관세법 본문 시행일 확인 실패")
+    product, facts = product_and_facts()
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({}), evidence=unavailable)
+    finding = result.findings[0]
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION
+    assert finding.subject == "세관장확인 대상 법령 — 조회되지 않음"
+
+
+def test_GW가_요건_종류를_붙인_같은_법령은_판단_하나로_묶는다():
+    from dataclasses import replace
+    permit = replace(FakeRequirements.ELECTRICAL, law_name="전기용품 및 생활용품 안전관리법(허가)", agency="한국제품안전협회")
+    product, facts = product_and_facts()
+    table = {"8516799000": [FakeRequirements.ELECTRICAL, permit]}
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements(table))
+    candidates = [finding for finding in result.findings if finding.subject.startswith("세관장확인 대상 후보")]
+    assert len(candidates) == 1
+    assert candidates[0].subject == "세관장확인 대상 후보 — 전기용품 및 생활용품 안전관리법"
 
 
 def test_GW_키가_없으면_요건_미확인으로_내고_확인_방법을_안내한다():
@@ -378,7 +403,7 @@ def test_일부_HS만_요건이_없으면_그_HS도_따로_알린다():
     result, _, _, _ = run(product, facts, chosen, requirements=FakeRequirements({"8516799000": [FakeRequirements.ELECTRICAL]}))
     subjects = [finding.subject for finding in result.findings]
     assert "세관장확인 대상 후보 — 전기용품 및 생활용품 안전관리법" in subjects
-    empty = next(finding for finding in result.findings if finding.subject == "세관장확인 대상 법령 — 조회되지 않음")
+    empty = next(finding for finding in result.findings if finding.subject == "세관장확인 대상 법령 — HS 후보 기준 없음")
     assert "8419.81-0000" in empty.summary and "8516.79" not in empty.summary
 
 
