@@ -60,6 +60,7 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedIm
                     <button
                         type="button"
                         onClick={() => setExpanded((prev) => !prev)}
+                        aria-expanded={expanded}
                         className="cursor-pointer text-sm font-medium text-neutral-border"
                     >
                         {expanded ? "접기" : `모두 보기 (+${files.length - DEFAULT_VISIBLE_COUNT})`}
