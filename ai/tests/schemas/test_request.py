@@ -1,10 +1,16 @@
-"""진단서 단위 접수 요청·응답 스키마의 camelCase 경계와 입력 검증을 확인한다."""
+"""진단 접수·재진단 요청·응답 스키마의 camelCase 경계와 입력 검증을 확인한다."""
 
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.request import DiagnosisRequest
-from app.schemas.response import AcceptedProduct, DiagnosisAccepted, DiagnosisAcceptedResponse
+from app.schemas.request import DiagnosisRequest, ResumeRequest
+from app.schemas.response import (
+    AcceptedProduct,
+    DiagnosisAccepted,
+    DiagnosisAcceptedResponse,
+    ResumeAccepted,
+    ResumeAcceptedResponse,
+)
 
 
 def _product(product_id: str = "p-1", **fields) -> dict:
@@ -95,3 +101,70 @@ def test_접수_응답은_data를_camelCase로_내보낸다():
 def test_접수_응답은_상품과_실행_ID가_비면_만들지_않는다(fields):
     with pytest.raises(ValidationError):
         DiagnosisAccepted(diagnosis_id="d-1", **fields)
+
+
+def _resume(**fields) -> dict:
+    return {
+        "diagnosisId": "d-1", "productId": "p-1", "runId": "run-1", "questionRound": 1,
+        "answers": [{"questionKey": "battery_only", "answerText": "네"}],
+        **fields,
+    }
+
+
+def test_재진단_요청을_camelCase로_읽는다():
+    request = ResumeRequest.model_validate(_resume())
+
+    assert (request.diagnosis_id, request.product_id, request.run_id, request.question_round) == (
+        "d-1", "p-1", "run-1", 1,
+    )
+    assert (request.answers[0].question_key, request.answers[0].answer_text) == ("battery_only", "네")
+
+
+@pytest.mark.parametrize("question_round", [0, 3, "1", True])
+def test_재진단_질문_회차는_1이나_2_정수만_받는다(question_round):
+    with pytest.raises(ValidationError):
+        ResumeRequest.model_validate(_resume(questionRound=question_round))
+
+
+def test_재진단_답변은_500자까지_받는다():
+    request = ResumeRequest.model_validate(_resume(answers=[{"questionKey": "battery_only", "answerText": "가" * 500}]))
+
+    assert len(request.answers[0].answer_text) == 500
+
+
+def test_재진단_답변의_질문_키_중복을_거부한다():
+    answers = [{"questionKey": "battery_only", "answerText": "네"}, {"questionKey": "battery_only", "answerText": "아니요"}]
+
+    with pytest.raises(ValidationError, match="battery_only"):
+        ResumeRequest.model_validate(_resume(answers=answers))
+
+
+@pytest.mark.parametrize("fields", [
+    {"answers": []},
+    {"runId": ""},
+    {"answers": [{"questionKey": "", "answerText": "네"}]},
+    {"answers": [{"questionKey": "k" * 51, "answerText": "네"}]},
+    {"answers": [{"questionKey": "battery_only", "answerText": ""}]},
+    {"answers": [{"questionKey": "battery_only", "answerText": " \n\t"}]},
+    {"answers": [{"questionKey": "battery_only", "answerText": "가" * 501}]},
+    {"extra": 1},
+])
+def test_재진단_요청은_빈_값과_정의하지_않은_필드를_거부한다(fields):
+    with pytest.raises(ValidationError):
+        ResumeRequest.model_validate(_resume(**fields))
+
+
+def test_재진단_요청은_snake_case_키를_거부한다():
+    payload = _resume()
+    payload["question_round"] = payload.pop("questionRound")
+
+    with pytest.raises(ValidationError):
+        ResumeRequest.model_validate(payload)
+
+
+def test_재진단_접수_응답은_data를_camelCase로_내보낸다():
+    response = ResumeAcceptedResponse(
+        code="OK", message="재진단 요청이 접수되었습니다.", data=ResumeAccepted(product_id="p-1", run_id="run-2"),
+    )
+
+    assert response.model_dump(by_alias=True)["data"] == {"productId": "p-1", "runId": "run-2", "status": "accepted"}

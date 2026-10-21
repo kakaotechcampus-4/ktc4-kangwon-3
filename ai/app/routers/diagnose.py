@@ -1,10 +1,10 @@
-"""진단 라우터. 진단서 단위 접수(content)와 URL 진단(미구현) 엔드포인트를 제공한다."""
+"""진단 라우터. 진단서 단위 접수(content), 답변 후 재진단(resume), URL 진단(미구현) 엔드포인트를 제공한다."""
 
 from fastapi import APIRouter, Depends, Request, status
 
 from ..errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
-from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, UrlDiagnoseRequest
+from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, ResumeRequest, UrlDiagnoseRequest
 from ..schemas.response import (
     AcceptedProduct,
     ApiResponse,
@@ -12,9 +12,18 @@ from ..schemas.response import (
     DiagnosisAccepted,
     DiagnosisAcceptedResponse,
     DiagnosisConflict,
+    ResumeAccepted,
+    ResumeAcceptedResponse,
+    UnknownQuestionKeys,
 )
 from ..sessions.executor import QueueFullError, SessionExecutor
-from ..sessions.store import SessionConflictError
+from ..sessions.store import (
+    ResumeConflictError,
+    SessionConflictError,
+    SessionNotFoundError,
+    UnansweredQuestionError,
+    UnknownQuestionKeyError,
+)
 
 router = APIRouter(prefix="/diagnose", tags=["진단"])
 
@@ -83,6 +92,68 @@ async def diagnose_by_content(
                 for session in sessions
             ],
         ),
+    )
+
+
+@router.post(
+    "/resume",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=ResumeAcceptedResponse,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"model": ApiResponse, "description": "묻지 않은 질문의 답변 포함. data.questionKeys"},
+        status.HTTP_404_NOT_FOUND: {"model": ApiResponse, "description": "세션 없음 (AI 재시작 등). BE는 실패로 처리"},
+        status.HTTP_409_CONFLICT: {"model": ApiResponse, "description": "답변 대기 아님, 실행·회차·진단서 불일치"},
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ApiResponse,
+                                               "description": "형식 오류, 또는 이번 회차 질문 중 답하지 않은 질문 있음"},
+        status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse, "description": "진단 대기열 초과"},
+    },
+    summary="답변 후 재진단 접수",
+    description="답변 대기 상품에 이번 회차 답변을 더해 새 실행으로 접수한다. 결과는 새 runId의 콜백으로 전달 (#310).",
+)
+async def resume_diagnosis(
+    req: ResumeRequest,
+    executor: SessionExecutor = Depends(get_session_executor),
+) -> ResumeAcceptedResponse:
+    """답변 대기 상품을 답변과 함께 재접수하고 바로 202를 반환한다.
+
+    Args:
+        req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변.
+        executor: 세션 실행기.
+
+    Returns:
+        202 재진단 접수 응답. runId는 새 실행 ID.
+
+    Raises:
+        AIServiceError: 묻지 않은 질문 키면 400(data.questionKeys), 세션이 없으면 404,
+            답변 대기가 아니거나 실행·회차·진단서가 다르면 409, 답하지 않은 질문이 있으면 422, 대기열이 차면 429.
+    """
+    try:
+        session = executor.resume(
+            diagnosis_id=req.diagnosis_id,
+            product_id=req.product_id,
+            run_id=req.run_id,
+            question_round=req.question_round,
+            answers={answer.question_key: answer.answer_text for answer in req.answers},
+        )
+    except UnknownQuestionKeyError as e:
+        raise AIServiceError(
+            response_code=AIResponseCode.UNKNOWN_QUESTION_KEY.value,
+            data=UnknownQuestionKeys(question_keys=e.question_keys),
+        ) from e
+    except UnansweredQuestionError as e:
+        # BE 답변 제출도 전부 답해야 받아서 새 응답 코드 없이 형식 오류로
+        raise AIServiceError(response_code=AIResponseCode.INVALID_REQUEST.value) from e
+    except SessionNotFoundError as e:
+        raise AIServiceError(response_code=AIResponseCode.SESSION_NOT_FOUND.value) from e
+    except ResumeConflictError as e:
+        raise AIServiceError(response_code=AIResponseCode.RESUME_CONFLICT.value) from e
+    except QueueFullError as e:
+        raise AIServiceError(response_code=AIResponseCode.QUEUE_FULL.value, retryable=True) from e
+
+    return ResumeAcceptedResponse(
+        code="OK",
+        message="재진단 요청이 접수되었습니다.",
+        data=ResumeAccepted(product_id=session.context.product_id, run_id=session.context.run_id),
     )
 
 

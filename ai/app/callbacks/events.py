@@ -5,7 +5,8 @@ SessionExecutor.subscribe()로 받은 세션마다 보낼 이벤트 목록을 �
     - Tool 진행(subscribe_tool) → toolName 붙은 진행 이벤트. Tool 실행 단계 안에서만
     - 답변 대기 → 질문 이벤트, 완료 → 결과 이벤트, 실패·시간 초과 → 실패 이벤트
 질문·결과·실패는 그 실행(runId)의 마지막. 이후 같은 실행의 변경은 이벤트를 만들지 않음.
-진단서·질문 변환(result_status 결정, 질문 키)은 주입받은 AssessmentPresenter가 맡음.
+진단서 변환(result_status 결정)은 주입받은 AssessmentPresenter가 맡음.
+질문 회차·질문은 실행기가 세션에 기록한 값을 그대로 씀 (재진단 답변 검사와 같은 기준).
 변환이 실패하면 실패 이벤트로 끝냄 (마지막 이벤트가 빠지면 BE에서 진행 중으로 남음).
 """
 
@@ -36,14 +37,10 @@ logger = logging.getLogger(__name__)
 
 
 class AssessmentPresenter(Protocol):
-    """진단 결과를 BE에 공개할 진단서·질문으로 바꾸는 쪽."""
+    """완료 결과를 BE에 공개할 진단서로 바꾸는 쪽."""
 
     def assessment(self, result: FinalAssessment) -> PublicAssessmentDto:
         """완료 결과의 공개 진단서."""
-        ...
-
-    def questions(self, result: FinalAssessment) -> tuple[int, list[PublicQuestionDto]]:
-        """답변 대기 결과의 (질문 회차, 질문 목록)."""
         ...
 
 
@@ -59,7 +56,7 @@ class EventBuilder:
     """세션 상태 변경을 콜백 이벤트로 바꾼다. 여러 실행 스레드에서 동시에 불려도 됨.
 
     Args:
-        presenter: 진단서·질문 변환.
+        presenter: 진단서 변환.
         new_event_id: 이벤트 ID 생성 함수. 테스트에서 고정할 때 주입.
     """
 
@@ -148,13 +145,13 @@ class EventBuilder:
     def _content(
         self, session: DiagnosisSession,
     ) -> PublicAssessmentDto | tuple[int, list[PublicQuestionDto]] | None:
-        """완료면 공개 진단서, 답변 대기면 (질문 회차, 질문). 그 외는 None."""
+        """완료면 공개 진단서, 답변 대기면 세션에 기록된 (질문 회차, 질문). 그 외는 None."""
         if session.result is None:
             return None
         if session.status is SessionStatus.COMPLETED:
             return self._presenter.assessment(session.result)
         if session.status is SessionStatus.AWAITING_INPUT:
-            return self._presenter.questions(session.result)
+            return session.question_round, session.questions
         return None
 
     def _progress(self, session: DiagnosisSession, run: _RunState) -> list[PublicProductEvent]:
