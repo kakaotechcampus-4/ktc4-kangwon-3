@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import apiClient from '@/api/client'
 import logoutIcon from '@/assets/header-logout.png'
@@ -21,20 +21,17 @@ function Header() {
         },
     })
 
-    const handleLogoClick = () => {
-        navigate('/')
-    }
-
     const handleButtonClick = () => {
         navigate(isLoggedIn ? '/mypage' : '/login')
     }
 
     return (
         <header className="fixed top-0 left-0 z-50 flex w-full items-center justify-between border-b border-neutral-border bg-white px-5 py-4">
-            <img src={logo}
-                alt="Logo"
-                className="cursor-pointer w-[150px] object-contain"
-                onClick={handleLogoClick} />
+            <Link to="/">
+                <img src={logo}
+                    alt="Logo"
+                    className="w-[150px] object-contain" />
+            </Link>
             <div className="flex items-center gap-3">
                 {isAuthReady && (
                     <>
