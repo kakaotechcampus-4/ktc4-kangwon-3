@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.schemas.agent import ExtractionInput
 from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.store import SessionStore
 from app.sessions.transitions import ChangeStage, InvalidTransitionError, Start, apply
@@ -26,12 +27,13 @@ class _Clock:
 
 
 def _store(clock: _Clock | None = None) -> SessionStore:
-    return SessionStore(retention=timedelta(hours=1), clock=clock or _Clock())
+    return SessionStore(retention=timedelta(hours=1), awaiting_retention=timedelta(hours=24), clock=clock or _Clock())
 
 
 def _session(product_id: str = "p-1", status: SessionStatus = SessionStatus.ACCEPTED) -> DiagnosisSession:
     context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
-    return DiagnosisSession(context=context, status=status, accepted_at=START, updated_at=START)
+    source = ExtractionInput(product_id=product_id, text_blocks=["상품 설명"])
+    return DiagnosisSession(context=context, source=source, status=status, accepted_at=START, updated_at=START)
 
 
 def test_넣은_세션을_상품_ID로_조회한다():
@@ -125,3 +127,27 @@ def test_보관_시간이_지난_종료_세션만_지우고_답변_대기는_남
     assert {status for status in SessionStatus if store.get(status.value)} == {
         SessionStatus.ACCEPTED, SessionStatus.RUNNING, SessionStatus.AWAITING_INPUT,
     }
+
+
+def test_답변_대기_세션은_자기_보관_시간이_지나면_지운다():
+    clock = _Clock()
+    store = _store(clock)
+    store.add([_session("waiting", SessionStatus.AWAITING_INPUT)])
+
+    clock.advance(hours=23, minutes=59)
+    assert store.purge() == 0
+
+    clock.advance(minutes=1)
+    assert store.purge() == 1
+    assert store.get("waiting") is None
+
+
+def test_보관_시간은_종료와_답변_대기를_따로_정할_수_있다():
+    clock = _Clock()
+    store = SessionStore(retention=timedelta(hours=2), awaiting_retention=timedelta(minutes=10), clock=clock)
+    store.add([_session("done", SessionStatus.COMPLETED), _session("waiting", SessionStatus.AWAITING_INPUT)])
+
+    clock.advance(minutes=10)
+
+    assert store.purge() == 1
+    assert (store.get("waiting"), store.get("done").status) == (None, SessionStatus.COMPLETED)

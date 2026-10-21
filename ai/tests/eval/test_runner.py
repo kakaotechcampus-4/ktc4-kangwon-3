@@ -41,7 +41,7 @@ def test_실행_기록에_프롬프트_지문과_커밋이_남는다():
     assert meta["runs"] == 5
     assert meta["model"] == "openai/gpt-4.1-mini"
     assert meta["model_profile"] == MODEL_PROFILES["mini"].metadata()
-    assert meta["prompt_path"] == "app/prompts/extraction.md"
+    assert meta["prompt_path"] == "app/agents/extraction/prompt.md"
     assert meta["prompt_sha256"] == prompt_fingerprint()
 
 

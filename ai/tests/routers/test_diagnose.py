@@ -1,4 +1,4 @@
-"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422)와 URL 진단 501을 확인한다."""
+"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422), 재진단(202·400·404·409·429·422), URL 진단 501을 확인한다."""
 
 from threading import Event
 
@@ -6,14 +6,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.observability.context import PipelineStage
+from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers import _dummy
 from app.routers._dummy import build_dummy_assessment, run_dummy_diagnosis
 from app.routers.diagnose import get_session_manager
 from app.schemas.agent import ExtractionInput
-from app.schemas.session import SessionStatus
-from app.sessions.manager import SessionManager
+from app.schemas.base import utc_now
+from app.schemas.callback import PublicQuestionDto
+from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
+from app.schemas.session import DiagnosisInput, DiagnosisSession, SessionStatus
 from app.sessions.job import JobDone
+from app.sessions.manager import SessionManager
+from app.sessions.transitions import AskUser, Start, apply
 from app.sessions.store import SessionStore
 
 CONTENT = "/api/ai/v1/diagnose/content"
@@ -39,14 +43,18 @@ def manager(gate):
     """lifespan 대신 쓰는 세션 관리자. 관문이 열릴 때까지 진단이 끝나지 않음."""
     received: list[ExtractionInput] = []
 
-    def job(item, context, progress):
-        received.append(item)
+    def job(job_input, context, progress):
+        received.append(job_input.source)
         gate.wait(timeout=5)
-        return JobDone(build_dummy_assessment(item.product_id))
+        return JobDone(build_dummy_assessment(job_input.source.product_id))
 
-    instance = SessionManager(SessionStore(), job, max_running=2, max_inflight=3)
+    store = SessionStore()
+    instance = SessionManager(store, job, max_running=2, max_inflight=3)
+    instance.store = store
     instance.received = received
     yield instance
+    # 관문을 먼저 열어야 붙잡힌 진단이 끝남. 안 열면 진단마다 5초 대기 후 종료
+    gate.set()
     instance.shutdown(wait=True)
 
 
@@ -147,8 +155,137 @@ def test_더미_진단은_단계를_순서대로_알리고_고정_결과를_반�
         def stage(self, stage):
             stages.append(stage)
 
-    outcome = run_dummy_diagnosis(ExtractionInput(product_id="p-1", text_blocks=["설명"]), None, Recorder())
+    job_input = DiagnosisInput(source=ExtractionInput(product_id="p-1", text_blocks=["설명"]))
+
+    outcome = run_dummy_diagnosis(job_input, None, Recorder())
 
     assert stages == list(_dummy.DUMMY_STAGES)
     assert isinstance(outcome, JobDone)
     assert outcome.result.product.product_id == "p-1"
+
+
+RESUME = "/api/ai/v1/diagnose/resume"
+_QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
+
+
+def _waiting(manager: SessionManager, product_id: str = "p-1", questions=_QUESTIONS):
+    """질문으로 끝나 답변을 기다리는 세션. 관리자를 거치지 않고 전이표로 만들어 저장소에 직접 넣음."""
+    now = utc_now()
+    context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+    source = ExtractionInput(product_id=product_id, text_blocks=["상품 설명"])
+    session = apply(DiagnosisSession(context=context, source=source), Start(), now=now).session
+    awaiting = build_dummy_assessment(product_id).model_copy(update={
+        "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+    })
+    waiting = apply(session, AskUser(awaiting, questions), now=now).session
+    manager.store.add([waiting])
+    return waiting
+
+
+def _resume_payload(waiting, **fields) -> dict:
+    return {
+        "diagnosisId": "d-1", "productId": waiting.context.product_id, "runId": waiting.context.run_id,
+        "questionRound": waiting.question_round, "answers": [{"questionKey": "battery_only", "answerText": "네"}],
+        **fields,
+    }
+
+
+def test_답변_대기_상품을_새_runId로_재접수하고_202를_반환한다(client, manager):
+    waiting = _waiting(manager)
+
+    response = client.post(RESUME, json=_resume_payload(waiting))
+
+    assert response.status_code == 202
+    session = manager.get("p-1")
+    assert response.json() == {
+        "code": "OK",
+        "message": "재진단 요청이 접수되었습니다.",
+        "details": None,
+        "data": {"productId": "p-1", "runId": session.context.run_id, "status": "accepted"},
+    }
+    assert session.context.run_id != waiting.context.run_id
+    assert [(a.question_key, a.answer_text) for a in session.answers] == [("battery_only", "네")]
+
+
+def test_세션이_없으면_404를_반환한다(client):
+    payload = {"diagnosisId": "d-1", "productId": "p-1", "runId": "run-1", "questionRound": 1,
+               "answers": [{"questionKey": "battery_only", "answerText": "네"}]}
+
+    response = client.post(RESUME, json=payload)
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "AI_SESSION_NOT_FOUND"
+
+
+@pytest.mark.parametrize("fields", [{"runId": "other-run"}, {"questionRound": 2}, {"diagnosisId": "d-2"}])
+def test_기다리는_질문과_다른_답변은_409로_거절한다(client, manager, fields):
+    waiting = _waiting(manager)
+
+    response = client.post(RESUME, json=_resume_payload(waiting, **fields))
+
+    assert response.status_code == 409
+    assert response.json()["code"] == "AI_RESUME_CONFLICT"
+    assert manager.get("p-1") == waiting
+
+
+def test_같은_답변이_두_번_오면_두_번째는_409이고_실행은_하나만_생긴다(client, manager):
+    waiting = _waiting(manager)
+    first = client.post(RESUME, json=_resume_payload(waiting))
+
+    second = client.post(RESUME, json=_resume_payload(waiting))
+
+    assert (first.status_code, second.status_code) == (202, 409)
+    assert manager.get("p-1").context.run_id == first.json()["data"]["runId"]
+
+
+def test_묻지_않은_질문의_답변은_400과_질문_키로_거절한다(client, manager):
+    waiting = _waiting(manager)
+    answers = [{"questionKey": "battery_only", "answerText": "네"}, {"questionKey": "target_age", "answerText": "8세"}]
+
+    response = client.post(RESUME, json=_resume_payload(waiting, answers=answers))
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "AI_UNKNOWN_QUESTION_KEY"
+    assert response.json()["data"] == {"questionKeys": ["target_age"]}
+    assert manager.get("p-1") == waiting
+
+
+def test_이번_회차_질문에_모두_답하지_않으면_422로_거절한다(client, manager):
+    questions = [*_QUESTIONS, PublicQuestionDto(question_key="target_age", question_order=2, question_text="몇 세용인가요?")]
+    waiting = _waiting(manager, questions=questions)
+
+    response = client.post(RESUME, json=_resume_payload(waiting))
+
+    assert (response.status_code, response.json()["code"]) == (422, "AI_INVALID_REQUEST")
+    assert manager.get("p-1") == waiting
+
+
+def test_재진단도_대기열이_가득_차면_429를_반환한다(client, manager):
+    waiting = _waiting(manager)
+    client.post(CONTENT, json=_payload("p-2", "p-3", "p-4"))
+
+    response = client.post(RESUME, json=_resume_payload(waiting))
+
+    assert response.status_code == 429
+    assert manager.get("p-1") == waiting
+
+
+def test_형식이_틀린_재진단_요청은_422로_거절한다(client, manager):
+    waiting = _waiting(manager)
+
+    response = client.post(RESUME, json=_resume_payload(waiting, answers=[]))
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "AI_INVALID_REQUEST"
+    assert manager.get("p-1") == waiting
+
+
+def test_답변_대기_상품을_새_진단으로_다시_보내면_409다(client, manager):
+    # 답변 대기는 진행 중 상태. 이어서 진단하려면 resume으로 보내야 함 (#365)
+    _waiting(manager)
+
+    response = client.post(CONTENT, json=_payload("p-1"))
+
+    assert response.status_code == 409
+    assert response.json()["data"] == {"conflictProductIds": ["p-1"]}

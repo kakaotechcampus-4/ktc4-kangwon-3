@@ -62,7 +62,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 도커 이미지 산출물 검증
-        run: docker run --rm ai-server:ci ls app/prompts/extraction.md
+        run: docker run --rm ai-server:ci ls app/agents/extraction/prompt.md
 
   deploy:
     needs: [test, docker-build]

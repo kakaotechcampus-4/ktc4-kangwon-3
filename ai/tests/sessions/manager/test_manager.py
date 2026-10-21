@@ -1,4 +1,4 @@
-"""진단 세션 관리자의 실행 상한·대기열·실패·시간 초과·진행 알림을 확인한다."""
+"""진단 세션 관리자의 실행 상한·대기열·실패·시간 초과·진행 알림·재진단·질문 회차를 확인한다."""
 
 import threading
 import time
@@ -9,15 +9,22 @@ import pytest
 from app.observability.context import PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
+from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import SessionStatus
-from app.sessions.errors import QueueFullError, SessionConflictError
-from app.sessions.events import Completed, StageChanged, Started, ToolProgressed
+from app.sessions.errors import (
+    QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
+    UnknownQuestionKeyError,
+)
+from app.sessions.events import Completed, Resumed, StageChanged, Started, ToolProgressed
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 from app.sessions.manager import SessionManager
+from app.sessions.manager.runner import QUESTION_LIMIT_NOTICE
+from app.sessions.transitions import Start
 from app.sessions.store import SessionStore
 
 START = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+_QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
 
 
 class _Clock:
@@ -38,16 +45,17 @@ class _GatedJob:
         self._raise_error = raise_error
         self._lock = threading.Lock()
 
-    def __call__(self, item, context, progress):
+    def __call__(self, job_input, context, progress):
+        product_id = job_input.source.product_id
         gate = threading.Event()
         with self._lock:
-            self.gates[item.product_id] = gate
-            self.started.append(item.product_id)
+            self.gates[product_id] = gate
+            self.started.append(product_id)
         progress.stage(PipelineStage.EXTRACTION)
         gate.wait(timeout=5)
         if self._raise_error:
             raise RuntimeError("파이프라인 오류")
-        return self._outcome_for(item.product_id)
+        return self._outcome_for(product_id)
 
     def release(self, product_id: str) -> None:
         _wait_until(lambda: product_id in self.gates)
@@ -207,7 +215,7 @@ def test_접수_또는_실행_중인_상품이_섞이면_요청_전체를_거절
 
 
 def test_답변_대기_중인_상품도_새_접수를_막는다(managers):
-    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id)))
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
     manager = _manager(managers, job)
     manager.submit("d-1", _inputs("p-1"))
     job.release("p-1")
@@ -236,7 +244,7 @@ def test_끝난_상품은_새_세션으로_다시_접수한다(managers, outcome
 
 
 def test_답변_대기로_끝나면_실행_자리를_반납한다(managers):
-    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id)))
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
     manager = _manager(managers, job, max_running=1, max_inflight=1)
 
     manager.submit("d-1", _inputs("p-1"))
@@ -277,13 +285,13 @@ def test_시간_초과_뒤_재접수한_세션은_옛_실행이_덮어쓰지_않
     gates = {"old": threading.Event(), "new": threading.Event()}
     started = {"old": threading.Event(), "new": threading.Event()}
 
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         label = "new" if started["old"].is_set() else "old"
         started[label].set()
         gates[label].wait(timeout=5)
         if label == "old":
             progress.stage(PipelineStage.VERIFICATION)
-        result = build_dummy_assessment(item.product_id)
+        result = build_dummy_assessment(job_input.source.product_id)
         return JobDone(result.model_copy(update={"product": result.product.model_copy(update={"product_name": label})}))
 
     manager = _manager(managers, job, clock=clock, max_duration=timedelta(minutes=10))
@@ -321,11 +329,11 @@ def test_구독자_오류는_실행을_멈추지_않는다(managers):
 
 
 def test_Tool_진행은_세션을_바꾸지_않고_이벤트만_낸다(managers):
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         progress.stage(PipelineStage.TOOL_EXECUTION)
         progress.tool(ToolName.ELECTRICAL, "started")
         progress.tool(ToolName.ELECTRICAL, "completed")
-        return JobDone(build_dummy_assessment(item.product_id))
+        return JobDone(build_dummy_assessment(job_input.source.product_id))
 
     manager = _manager(managers, job)
     seen = []
@@ -350,11 +358,11 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않고_경�
     clock = _Clock()
     gate, started = threading.Event(), threading.Event()
 
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         started.set()
         gate.wait(timeout=5)
         progress.tool(ToolName.ELECTRICAL, "completed")
-        return JobDone(build_dummy_assessment(item.product_id))
+        return JobDone(build_dummy_assessment(job_input.source.product_id))
 
     manager = _manager(managers, job, clock=clock, max_duration=timedelta(minutes=10))
     tools = []
@@ -371,9 +379,9 @@ def test_시간_초과로_끝난_실행의_Tool_진행은_알리지_않고_경�
 
 
 def test_Tool_진행_처리_중_구독자_오류는_실행을_멈추지_않는다(managers):
-    def job(item, context, progress):
+    def job(job_input, context, progress):
         progress.tool(ToolName.ELECTRICAL, "started")
-        return JobDone(build_dummy_assessment(item.product_id))
+        return JobDone(build_dummy_assessment(job_input.source.product_id))
 
     def broken(event):
         if isinstance(event, ToolProgressed):
@@ -466,3 +474,251 @@ def test_현황의_자리는_실행이_끝나면_돌아오고_상태별_수에_�
     snapshot = manager.snapshot()
     assert snapshot.status_counts[SessionStatus.COMPLETED] == 1
     assert snapshot.accepted[RunType.PRODUCTION] == 1
+
+
+def _ask(product_id: str) -> JobNeedsInput:
+    return JobNeedsInput(_awaiting_result(product_id), _QUESTIONS)
+
+
+def _question(key: str, order: int) -> PublicQuestionDto:
+    return PublicQuestionDto(question_key=key, question_order=order, question_text=f"{key} 질문")
+
+
+def test_답변_대기로_끝나면_질문과_회차를_세션에_기록한다(managers):
+    job = _GatedJob(outcome_for=_ask)
+    manager = _manager(managers, job)
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+
+    session = manager.get("p-1")
+    assert (session.question_round, session.questions) == (1, _QUESTIONS)
+
+
+class _AnswerJob:
+    """답변이 없으면 질문으로, 답변이 있으면 완료로 끝나는 진단 함수. 받은 입력을 기록."""
+
+    def __init__(self) -> None:
+        self.inputs: list = []
+
+    def __call__(self, job_input, context, progress):
+        self.inputs.append((job_input, context.run_id))
+        product_id = job_input.source.product_id
+        return JobDone(build_dummy_assessment(product_id)) if job_input.answers else _ask(product_id)
+
+
+def _resume(manager: SessionManager, product_id: str = "p-1", **fields):
+    waiting = manager.get(product_id)
+    request = {
+        "diagnosis_id": "d-1", "product_id": product_id, "run_id": waiting.context.run_id,
+        "question_round": waiting.question_round,
+        "answers": {question.question_key: "네" for question in waiting.questions}, **fields,
+    }
+    return manager.resume(**request)
+
+
+def _waiting(managers, job=None, **kwargs) -> SessionManager:
+    """p-1이 1회차 질문으로 답변을 기다리고 실행 자리를 반납한 관리자."""
+    manager = _manager(managers, job or _AnswerJob(), **kwargs)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    return manager
+
+
+def test_재진단은_새_실행으로_이전_결과와_답변을_진단_함수에_넘긴다(managers):
+    job = _AnswerJob()
+    manager = _waiting(managers, job)
+    waiting = manager.get("p-1")
+    seen = []
+    manager.subscribe(lambda e: seen.append(type(e)))
+
+    resumed = _resume(manager)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    (first, first_run), (second, second_run) = job.inputs
+    assert (first.previous, first.answers) == (None, [])
+    assert second.source == first.source
+    assert second.previous == waiting.result
+    assert [(a.question_key, a.answer_text) for a in second.answers] == [("battery_only", "네")]
+    assert (first_run, second_run) == (waiting.context.run_id, resumed.context.run_id)
+    assert first_run != second_run
+    assert seen[:2] == [Resumed, Started]
+    assert manager.snapshot().accepted[RunType.PRODUCTION] == 2
+
+
+def test_세션이_없으면_재진단하지_않는다(managers):
+    manager = _manager(managers, _AnswerJob())
+
+    with pytest.raises(SessionNotFoundError):
+        manager.resume(diagnosis_id="d-1", product_id="p-1", run_id="run-1", question_round=1, answers={"k": "네"})
+
+
+def test_보관_시간이_지난_답변_대기_세션은_재진단할_수_없다(managers):
+    clock = _Clock()
+    manager = _waiting(managers, clock=clock)
+    waiting = manager.get("p-1")
+
+    clock.now = START + timedelta(hours=24)
+    assert manager.purge() == 1
+
+    with pytest.raises(SessionNotFoundError):
+        manager.resume(diagnosis_id="d-1", product_id="p-1", run_id=waiting.context.run_id, question_round=1,
+                       answers={"battery_only": "네"})
+
+
+@pytest.mark.parametrize("outcome_for", [
+    lambda product_id: JobDone(build_dummy_assessment(product_id)),
+    lambda product_id: JobFailed("AI_PIPELINE_ERROR", True),
+])
+def test_답변_대기가_아니면_재진단하지_않는다(managers, outcome_for):
+    job = _GatedJob(outcome_for=outcome_for)
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    before = manager.get("p-1")
+
+    with pytest.raises(ResumeConflictError):
+        manager.resume(diagnosis_id="d-1", product_id="p-1", run_id=before.context.run_id, question_round=1,
+                       answers={"battery_only": "네"})
+
+    assert manager.get("p-1") == before
+
+
+@pytest.mark.parametrize("fields", [{"run_id": "other-run"}, {"question_round": 2}, {"diagnosis_id": "d-2"}])
+def test_맞지_않는_재진단은_실행을_예약하지_않고_대기열도_차지하지_않는다(managers, fields):
+    job = _AnswerJob()
+    manager = _waiting(managers, job, max_inflight=1)
+    waiting = manager.get("p-1")
+
+    with pytest.raises(ResumeConflictError):
+        _resume(manager, **fields)
+
+    assert (manager.get("p-1"), manager.snapshot().inflight, len(job.inputs)) == (waiting, 0, 1)
+    _resume(manager)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+
+def test_같은_답변이_두_번_오면_두_번째는_거절하고_실행은_하나만_생긴다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if len(job.started) == 1 else JobDone(
+        build_dummy_assessment(product_id)))
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+    job.gates.clear()
+
+    first = _resume(manager)
+    with pytest.raises(ResumeConflictError):
+        manager.resume(diagnosis_id="d-1", product_id="p-1", run_id=waiting.context.run_id, question_round=1,
+                       answers={"battery_only": "네"})
+
+    assert manager.get("p-1").context.run_id == first.context.run_id
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+    assert len(job.started) == 2
+
+
+def test_이번_회차에_묻지_않은_질문_키가_있으면_거절한다(managers):
+    manager = _waiting(managers)
+    waiting = manager.get("p-1")
+
+    with pytest.raises(UnknownQuestionKeyError) as caught:
+        _resume(manager, answers={"battery_only": "네", "target_age": "8세"})
+
+    assert caught.value.question_keys == ["target_age"]
+    assert manager.get("p-1") == waiting
+
+
+def test_이번_회차_질문에_모두_답하지_않으면_거절한다(managers):
+    # 2회차는 새 키만 물어서 빠진 질문은 다시 물을 수 없음
+    questions = [_question("battery_only", 1), _question("target_age", 2)]
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), questions))
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+
+    with pytest.raises(UnansweredQuestionError) as caught:
+        _resume(manager, answers={"battery_only": "네"})
+
+    assert caught.value.question_keys == ["target_age"]
+    assert manager.get("p-1") == waiting
+
+
+def test_재진단도_대기열_상한을_지키고_넘치면_세션을_바꾸지_않는다(managers):
+    gated = _GatedJob(outcome_for=_ask)
+    manager = _manager(managers, gated, max_running=1, max_inflight=1)
+    manager.submit("d-1", _inputs("p-1"))
+    gated.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    manager.submit("d-2", _inputs("p-2"))
+    waiting = manager.get("p-1")
+
+    with pytest.raises(QueueFullError):
+        _resume(manager)
+
+    assert manager.get("p-1") == waiting
+    assert manager.snapshot().rejected["queue_full"] == 1
+    gated.release("p-2")
+
+
+def test_재진단_뒤_질문으로_끝난_실행의_늦은_변경은_무시한다(managers):
+    manager = _waiting(managers)
+    waiting = manager.get("p-1")
+    resumed = _resume(manager)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert manager._updater.apply(waiting.context, Start()) is None
+    assert manager.get("p-1").context.run_id == resumed.context.run_id
+
+
+def _always_ask():
+    """부를 때마다 새 키의 질문으로 끝나는 진단 함수. 2회차는 새 키만 (#310)."""
+    asked = []
+
+    def job(job_input, context, progress):
+        asked.append(f"q{len(asked) + 1}")
+        result = _awaiting_result(job_input.source.product_id)
+        return JobNeedsInput(result, [_question(asked[-1], 1)])
+    return job
+
+
+def _answer_round(manager: SessionManager, question_round: int) -> None:
+    """지금 회차 질문에 답하고 다음 실행이 끝날 때까지 기다린다."""
+    _wait_until(lambda: manager.get("p-1").status is SessionStatus.AWAITING_INPUT
+                and manager.get("p-1").question_round == question_round)
+    run_id = _resume(manager).context.run_id
+    _wait_until(lambda: manager.get("p-1").context.run_id == run_id
+                and manager.get("p-1").status in (SessionStatus.AWAITING_INPUT, SessionStatus.COMPLETED))
+
+
+def test_1회차_답변_뒤_다시_질문하면_2회차_질문으로_기다린다(managers):
+    manager = _manager(managers, _always_ask())
+    manager.submit("d-1", _inputs("p-1"))
+
+    _answer_round(manager, 1)
+
+    session = manager.get("p-1")
+    assert (session.status, session.question_round) == (SessionStatus.AWAITING_INPUT, 2)
+    assert [q.question_key for q in session.questions] == ["q2"]
+
+
+def test_2회차_답변_뒤에도_질문이_남으면_질문_대신_미완료_결과로_끝낸다(managers):
+    manager = _manager(managers, _always_ask())
+    manager.submit("d-1", _inputs("p-1"))
+
+    _answer_round(manager, 1)
+    _answer_round(manager, 2)
+
+    session = manager.get("p-1")
+    assert (session.status, session.question_round) == (SessionStatus.COMPLETED, 2)
+    assert session.termination_reason is ExecutionEndReason.QUESTION_LIMIT_EXCEEDED
+    assert session.result.verification_status is FinalVerificationStatus.INCOMPLETE
+    assert session.result.missing_information[-1] == QUESTION_LIMIT_NOTICE
+    assert [a.question_round for a in session.answers] == [1, 2]

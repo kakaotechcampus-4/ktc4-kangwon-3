@@ -7,30 +7,28 @@ import pytest
 from app.callbacks.events import EventBuilder
 from app.observability.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
+from app.schemas.agent import ExtractionInput
 from app.schemas.base import utc_now
 from app.schemas.callback import PublicAssessmentDto, PublicFindingDto, PublicQuestionDto, PublicToolReviewDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession
 from app.sessions.events import SessionEvent, Started, ToolProgressed
-from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, ReportTool, Start, apply
+from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, ReportTool, Resume, Start, apply
+
+
+_QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
 
 
 class _Presenter:
-    """고정 진단서·질문을 돌려주는 가짜 변환기."""
+    """고정 진단서를 돌려주는 가짜 변환기."""
 
     def assessment(self, result):
         return PublicAssessmentDto(status="completed", result_status="DIRECT_IMPORT_CERTIFICATION_REQUIRED",
                                    summary=result.summary)
 
-    def questions(self, result):
-        return 1, [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
-
 
 class _BrokenPresenter(_Presenter):
     def assessment(self, result):
-        raise ValueError("변환 실패")
-
-    def questions(self, result):
         raise ValueError("변환 실패")
 
 
@@ -45,7 +43,10 @@ class _Run:
     def __init__(self, product_id: str = "p-1") -> None:
         now = utc_now()
         self.context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
-        self.session = DiagnosisSession(context=self.context, accepted_at=now, updated_at=now)
+        self.session = DiagnosisSession(
+            context=self.context, source=ExtractionInput(product_id=product_id, text_blocks=["상품 설명"]),
+            accepted_at=now, updated_at=now,
+        )
 
     def __call__(self, change: Change) -> SessionEvent:
         [event] = apply(self.session, change, now=utc_now()).events
@@ -100,13 +101,31 @@ def test_실행_시작과_내부_전용_단계와_같은_단계_반복은_이벤
     assert builder.build(run(ChangeStage(PipelineStage.EXTRACTION))) == []
 
 
-def test_답변_대기는_질문_이벤트로_보낸다():
+def test_답변_대기는_세션에_기록된_회차와_질문으로_질문_이벤트를_보낸다():
     run, context, _ = _running()
 
-    [event] = _builder().build(run(AskUser(_awaiting("p-1"))))
+    [event] = _builder().build(run(AskUser(_awaiting("p-1"), _QUESTIONS)))
 
-    assert (event.event_type, event.question_round, event.questions[0].question_key) == (
-        "product_awaiting_input", 1, "battery_only")
+    assert (event.event_type, event.question_round, event.questions) == ("product_awaiting_input", 1, _QUESTIONS)
+
+
+def _resumed() -> tuple[_Run, SessionEvent]:
+    """답변 대기 뒤 새 실행으로 재접수한 실행과 그 재접수 이벤트."""
+    run, context, _ = _running()
+    run(AskUser(_awaiting("p-1"), _QUESTIONS))
+    new_context = ExecutionContext.start(product_id="p-1", run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+    return run, run(Resume(new_context, []))
+
+
+def test_재접수는_이벤트를_만들지_않고_새_실행은_1번부터_보낸다():
+    run, resumed = _resumed()
+    builder = _builder()
+
+    assert builder.build(resumed) == []
+    builder.build(run(Start()))
+    [event] = builder.build(run(ChangeStage(PipelineStage.EXTRACTION)))
+
+    assert (event.run_id, event.sequence) == (resumed.session.context.run_id, 1)
 
 
 def test_실패와_시간_초과는_마지막_단계와_공개_문구로_보낸다():
@@ -178,14 +197,6 @@ def test_진단서_변환이_실패하면_실패_이벤트로_끝낸다(caplog):
     assert (event.event_type, event.sequence, event.stage) == ("product_failed", 2, "extraction")
     assert (event.error.code, event.error.retryable) == ("AI_PIPELINE_ERROR", False)
     assert "변환 실패" in caplog.text
-
-
-def test_질문_변환이_실패해도_실패_이벤트로_끝낸다():
-    run, context, _ = _running()
-
-    [event] = _builder(_BrokenPresenter()).build(run(AskUser(_awaiting("p-1"))))
-
-    assert (event.event_type, event.error.code, event.error.retryable) == ("product_failed", "AI_PIPELINE_ERROR", False)
 
 
 def test_변환_실패로_끝난_실행의_늦은_변경은_이벤트를_만들지_않는다():
@@ -265,8 +276,9 @@ def _event_examples() -> dict[type[SessionEvent], SessionEvent]:
     run, _, started = _running()
     examples = [started, run(ChangeStage(PipelineStage.TOOL_EXECUTION)), run(ReportTool(ToolName.RADIO, "started"))]
     examples += [_running()[0](change) for change in (
-        Complete(build_dummy_assessment("p-1")), AskUser(_awaiting("p-1")), Fail("AI_TIMEOUT", retryable=True),
+        Complete(build_dummy_assessment("p-1")), AskUser(_awaiting("p-1"), _QUESTIONS), Fail("AI_TIMEOUT", retryable=True),
     )]
+    examples.append(_resumed()[1])
     return {type(event): event for event in examples}
 
 

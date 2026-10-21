@@ -8,7 +8,7 @@
 from typing import Any
 
 from ..base import RegulatoryTool
-from ..common.agent import ToolModelError, ToolStep
+from ..common.agent import ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from .evidence import EvidenceUnavailable, compact, purchase_agent_status
 from .rules import (
@@ -115,7 +115,7 @@ class ElectricalTool(RegulatoryTool):
 
         # ① 조건 추출
         facts_step, review_step = self._get_steps()
-        extracted = facts_step.run({"hints": _hints(product), "evidence": snippets}, subject_id=product.product_id)
+        extracted = facts_step.run(ToolStepInput({"hints": _hints(product), "evidence": snippets}, product.product_id))
         # 원문과 대조되지 않는 조건은 그 항목만 버린다. 하나 때문에 전체를 실패시키면
         # Verification이 재실행을 반복하고, 대조된 나머지 조건까지 잃는다.
         facts = [fact for fact in extracted.facts if self._fact_matches(fact, snippets)]
@@ -196,12 +196,12 @@ class ElectricalTool(RegulatoryTool):
             return self._assemble(decision, facts, [], missing, assumptions, query)
 
         # ④ 품목 선택
-        review = review_step.run({
+        review = review_step.run(ToolStepInput({
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "low_voltage": low, "battery_only": battery_only,
             "common_notes": {scheme.value: note.text for scheme, note in candidates.common_notes.items()},
             "candidates": rows,
-        }, subject_id=product.product_id)
+        }, product.product_id))
 
         # ⑤ 결과 조립: 근거는 코드가 행 원문으로 붙인다
         blocks = {block.block_id: block for block in shortlisted}

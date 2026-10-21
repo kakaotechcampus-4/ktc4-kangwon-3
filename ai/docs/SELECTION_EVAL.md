@@ -109,7 +109,7 @@ B에서는 추출이 정답이 `null`인 다른 필드 6개(`electrical_powered=
 
 **`prompt_sha256`은 추출 정답표에 없는 필드다.** 추출 정답은 페이지 사실이라 프롬프트와 무관하지만,
 선택 정답은 선택 프롬프트의 규칙에서 나온다(4절). 프롬프트가 바뀌면 정답표가 옛 규칙 기준으로
-조용히 남으므로, 정답을 매길 때의 `prompts/selection.md` 지문을 적는다. 지금 프롬프트와 다르면
+조용히 남으므로, 정답을 매길 때의 `agents/selection/prompt.md` 지문을 적는다. 지금 프롬프트와 다르면
 `test_정답을_매긴_선택_프롬프트가_지금과_같다`가 실패한다. **선택 프롬프트를 고치면 정답표를
 다시 검토하고 지문을 갱신해야 한다.** 지문은 줄바꿈을 LF로 맞춰 잰다(추출 러너와 같은 함수).
 
@@ -123,7 +123,7 @@ B에서는 추출이 정답이 `null`인 다른 필드 6개(`electrical_powered=
 
 실제로 기준이 갈리는 곳이 있다. 선택 프롬프트는 `wireless_shield=true`면 전파를 선택하라고 하지만,
 검증 에이전트의 누락 검사는 전파 신호로 `wireless_comm`·`wireless_charging`만 본다
-(`app/agents/verification.py`의 `_check_required_tools`). 이 정답표는 선택 프롬프트를 따라
+(`app/agents/verification/rules.py`의 `check_required_tools`). 이 정답표는 선택 프롬프트를 따라
 `wireless_shield_rfid` 전파를 선택으로 매겼다.
 
 선택 담당과 확인해 **선택 프롬프트 쪽을 고치기로 했다**(#188 리뷰). 선택 담당 설명으로는 서비스 구조

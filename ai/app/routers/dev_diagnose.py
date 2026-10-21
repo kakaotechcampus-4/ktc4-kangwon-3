@@ -97,7 +97,7 @@ async def get_dev_diagnosis(
     Args:
         product_id: 접수 때 받은 dev- 상품 ID.
         manager: 세션 관리자.
-        presenter: 공개 진단서·질문 변환기.
+        presenter: 공개 진단서 변환기.
 
     Returns:
         상태 응답.
@@ -113,14 +113,14 @@ async def get_dev_diagnosis(
 
 
 def _status(session: DiagnosisSession, presenter: AssessmentPresenter) -> DevDiagnosisStatus:
-    """세션을 상태 응답으로. 완료·답변 대기면 콜백과 같은 변환기로 공개 진단서·질문을 만듦."""
+    """세션을 상태 응답으로. 완료면 콜백과 같은 변환기로 공개 진단서, 답변 대기면 세션에 기록된 질문."""
     assessment, question_round, questions, error = None, None, [], None
-    if session.result is not None:
+    # 질문은 실행이 끝날 때 세션에 기록됨. 질문 콜백·재진단 검사와 같은 값
+    if session.status is SessionStatus.AWAITING_INPUT:
+        question_round, questions = session.question_round, session.questions
+    if session.result is not None and session.status is SessionStatus.COMPLETED:
         try:
-            if session.status is SessionStatus.COMPLETED:
-                assessment = presenter.assessment(session.result)
-            elif session.status is SessionStatus.AWAITING_INPUT:
-                question_round, questions = presenter.questions(session.result)
+            assessment = presenter.assessment(session.result)
         except Exception as exc:
             # 운영이라면 실패 콜백으로 끝나는 경우. 개발용은 원인을 보여 줌
             error = f"{type(exc).__name__}: {exc}"

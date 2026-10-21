@@ -20,7 +20,7 @@ import time
 from collections import Counter
 from pathlib import Path
 
-from ..agents.selection import _PROMPT_PATH as SELECTION_PROMPT_PATH
+from ..agents.selection import PROMPT_PATH as SELECTION_PROMPT_PATH
 from ..agents.selection import SelectionAgent, SelectionFailedError
 from ..config import agent_profile
 from ..schemas.product import Product
@@ -71,7 +71,7 @@ def load_extraction_outputs(paths: list[Path]) -> tuple[dict[str, list[dict]], s
 def _select(agent: SelectionAgent, product: dict, product_id: str) -> dict | None:
     """선택 한 번. 실패한 회차는 None으로 남긴다(사용량은 에이전트가 직접 기록한다)."""
     try:
-        response = agent.select(Product.model_validate({**product, "product_id": product_id}))
+        response = agent.run(Product.model_validate({**product, "product_id": product_id}))
     except SelectionFailedError as exc:
         print(f"      선택 실패: {exc}", file=sys.stderr)
         return None

@@ -1,12 +1,13 @@
 """진단 세션 이벤트를 BE 콜백 이벤트로 바꾼다 (#310).
 
 SessionManager.subscribe()로 받은 세션 이벤트마다 보낼 이벤트 목록을 만듦.
-    - 실행 시작 → 없음
+    - 실행 시작·재접수 → 없음
     - 단계 변경 → 진행 이벤트 (앞 단계 completed + 새 단계 started)
     - Tool 진행 → toolName 붙은 진행 이벤트. Tool 실행 단계 안에서만
     - 답변 대기 → 질문 이벤트, 완료 → 결과 이벤트, 실패·시간 초과 → 실패 이벤트
 질문·결과·실패는 그 실행(runId)의 마지막. 이후 같은 실행의 변경은 이벤트를 만들지 않음.
-진단서·질문 변환(result_status 결정, 질문 키)은 주입받은 AssessmentPresenter가 맡음.
+진단서 변환(result_status 결정)은 주입받은 AssessmentPresenter가 맡음.
+질문 회차·질문은 세션에 기록된 값을 그대로 씀 (재진단 답변 검사와 같은 기준).
 변환이 실패하면 실패 이벤트로 끝냄 (마지막 이벤트가 빠지면 BE에서 진행 중으로 남음).
 """
 
@@ -21,31 +22,29 @@ from ..errors import AIResponseCode
 from ..observability.context import PipelineStage
 from ..schemas.callback import (
     ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,
-    PublicErrorDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto,
+    PublicErrorDto, PublicPipelineStage, PublicProductEvent,
 )
 from ..schemas.schemas import FinalAssessment, ToolName
 from ..schemas.session import DiagnosisSession
-from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
+from ..sessions.events import (
+    AwaitingInput, Completed, Failed, Resumed, SessionEvent, StageChanged, Started, ToolProgressed,
+)
 from ..sessions.job import ToolProgressStatus
 
 _PUBLIC_STAGES = {stage.value: stage for stage in PublicPipelineStage}
 _ERROR_MESSAGES = {code.value.code: code.value.message for code in AIResponseCode}
 _DEFAULT_ERROR_MESSAGE = AIResponseCode.PIPELINE_ERROR.value.message
-# 진단서·질문 변환 실패 표시
+# 진단서 변환 실패 표시
 _CONVERSION_FAILED = object()
 
 logger = logging.getLogger(__name__)
 
 
 class AssessmentPresenter(Protocol):
-    """진단 결과를 BE에 공개할 진단서·질문으로 바꾸는 쪽."""
+    """완료 결과를 BE에 공개할 진단서로 바꾸는 쪽."""
 
     def assessment(self, result: FinalAssessment) -> PublicAssessmentDto:
         """완료 결과의 공개 진단서."""
-        ...
-
-    def questions(self, result: FinalAssessment) -> tuple[int, list[PublicQuestionDto]]:
-        """답변 대기 결과의 (질문 회차, 질문 목록)."""
         ...
 
 
@@ -61,7 +60,7 @@ class EventBuilder:
     """세션 이벤트를 콜백 이벤트로 바꾼다. 여러 실행 스레드에서 동시에 불려도 됨.
 
     Args:
-        presenter: 진단서·질문 변환.
+        presenter: 진단서 변환.
         new_event_id: 이벤트 ID 생성 함수. 테스트에서 고정할 때 주입.
     """
 
@@ -80,7 +79,7 @@ class EventBuilder:
 
         Returns:
             list[PublicProductEvent]: 보낼 순서대로. 보낼 게 없으면 빈 목록
-                (진단서 없는 실행, 끝난 실행, 실행 시작, 단계 변화 없음, Tool 실행 단계 시작 전 Tool 진행).
+                (진단서 없는 실행, 끝난 실행, 실행 시작·재접수, 단계 변화 없음, Tool 실행 단계 시작 전 Tool 진행).
 
         Raises:
             TypeError: 처리하지 않는 세션 이벤트 종류인 경우.
@@ -89,14 +88,14 @@ class EventBuilder:
         # 평가·테스트 실행은 BE 진단서가 없어 보내지 않음
         if context.diagnosis_id is None:
             return []
-        # 잠금 밖에서 진단서·질문부터 만듦
+        # 잠금 밖에서 진단서부터 만듦
         content = self._content(event)
         with self._lock:
             if context.run_id in self._finished:
                 return []
             run = self._runs.setdefault(context.run_id, _RunState())
             match event:
-                case Started():
+                case Started() | Resumed():
                     return []
                 case StageChanged(session=session, stage=stage):
                     return self._progress(session, run, stage)
@@ -104,7 +103,7 @@ class EventBuilder:
                     return self._tool(session, run, tool_name, status)
                 case Failed(session=session, error_code=error_code, retryable=retryable):
                     last = self._failed(session, run, error_code, retryable)
-                case Completed() | AwaitingInput() if content is _CONVERSION_FAILED:
+                case Completed() if content is _CONVERSION_FAILED:
                     # 마지막 이벤트가 빠지지 않게 실패로 끝냄. 세션 관리자의 파이프라인 오류와 같게 재시도 불가
                     last = self._failed(event.session, run, AIResponseCode.PIPELINE_ERROR.value.code, False)
                 case Completed(session=session):
@@ -122,18 +121,18 @@ class EventBuilder:
             return [last]
 
     def _content(self, event: SessionEvent) -> object:
-        """완료면 공개 진단서, 답변 대기면 (질문 회차, 질문). 그 외는 None. 변환이 실패하면 _CONVERSION_FAILED."""
-        try:
-            match event:
-                case Completed(result=result):
+        """완료면 공개 진단서, 답변 대기면 세션에 기록된 (질문 회차, 질문). 그 외는 None. 변환이 실패하면 _CONVERSION_FAILED."""
+        match event:
+            case Completed(result=result):
+                try:
                     return self._presenter.assessment(result)
-                case AwaitingInput(result=result):
-                    return self._presenter.questions(result)
-        except Exception:
-            context = event.session.context
-            logger.exception("콜백 진단서·질문 변환 실패 (product_id=%s, run_id=%s)",
-                             context.product_id, context.run_id)
-            return _CONVERSION_FAILED
+                except Exception:
+                    context = event.session.context
+                    logger.exception("콜백 진단서 변환 실패 (product_id=%s, run_id=%s)",
+                                     context.product_id, context.run_id)
+                    return _CONVERSION_FAILED
+            case AwaitingInput(session=session):
+                return session.question_round, session.questions
         return None
 
     def _tool(

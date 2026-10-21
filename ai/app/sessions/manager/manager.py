@@ -18,11 +18,14 @@ from ...errors import AIResponseCode
 from ...observability.context import ExecutionContext, RunType
 from ...schemas.agent import ExtractionInput
 from ...schemas.base import utc_now
-from ...schemas.session import DiagnosisSession
-from ..errors import QueueFullError, SessionConflictError
+from ...schemas.session import DiagnosisSession, SessionAnswer
+from ..errors import (
+    QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
+    UnknownQuestionKeyError,
+)
 from ..job import DiagnosisJob
 from ..store import SessionStore
-from ..transitions import STATUS_TRAITS, Fail
+from ..transitions import STATUS_TRAITS, TRANSITIONS, Fail, Resume, Transition, apply
 from .capacity import SessionCapacity
 from .runner import run_session
 from .snapshot import RejectReason, SessionSnapshot
@@ -64,7 +67,7 @@ class SessionManager:
         self._max_dev_inflight = max_dev_inflight
         self._max_duration = max_duration
         self._clock = clock
-        # 접수 확인(상한·진행 중 상품)부터 세션 추가·자리 차지·접수 집계까지 묶는 잠금
+        # 접수·재진단 확인(상한·진행 중 상품·답변)부터 세션 교체·자리 차지·접수 집계까지 묶는 잠금
         self._lock = Lock()
         self._accepted: dict[RunType, int] = dict.fromkeys(RunType, 0)
         self._rejected: dict[RejectReason, int] = {"queue_full": 0, "conflict": 0}
@@ -121,10 +124,73 @@ class SessionManager:
             QueueFullError: 대기 + 실행 중 세션이 상한을 넘는 경우.
             SessionConflictError: 진행 중인 상품이 섞인 경우.
         """
-        sessions = self._accept(diagnosis_id, [item.product_id for item in inputs], RunType.PRODUCTION)
-        for item, session in zip(inputs, sessions):
-            self._pool.submit(self._run, item, session.context)
+        sessions = self._accept(diagnosis_id, inputs, RunType.PRODUCTION)
+        for session in sessions:
+            self._pool.submit(self._run, session.context)
         return sessions
+
+    def resume(
+        self,
+        *,
+        diagnosis_id: str,
+        product_id: str,
+        run_id: str,
+        question_round: int,
+        answers: dict[str, str],
+    ) -> DiagnosisSession:
+        """답변 대기 세션을 답변과 함께 재접수하고 새 실행을 예약한다. 접수와 같은 대기열·상한 사용.
+
+        Args:
+            diagnosis_id: BE 진단서 ID. 세션과 같아야 함.
+            product_id: 세션 ID (상품 ID).
+            run_id: 질문으로 끝난 실행 ID. 지금 세션의 실행과 같아야 함.
+            question_round: 답하는 질문 회차. 지금 기다리는 회차와 같아야 함.
+            answers: 질문 키 → 답변. 이번 회차 질문에 모두 답해야 함.
+
+        Returns:
+            DiagnosisSession: 재접수된 세션. context.run_id가 새 실행 ID.
+
+        Raises:
+            QueueFullError: 대기 + 실행 중 세션이 상한을 넘는 경우.
+            SessionNotFoundError: 세션이 없는 경우.
+            ResumeConflictError: 답변 대기가 아니거나 실행·회차·진단서가 다른 경우.
+            UnknownQuestionKeyError: 이번 회차에 묻지 않은 질문 키가 있는 경우.
+            UnansweredQuestionError: 이번 회차 질문 중 답하지 않은 질문이 있는 경우.
+        """
+
+        def resume(session: DiagnosisSession) -> Transition:
+            if (session.status, Resume) not in TRANSITIONS:
+                raise ResumeConflictError(f"답변 대기 상태가 아닙니다: {product_id} ({session.status})")
+            expected = (session.context.diagnosis_id, session.context.run_id, session.question_round)
+            if (diagnosis_id, run_id, question_round) != expected:
+                raise ResumeConflictError(f"기다리는 질문과 다른 답변입니다: {product_id}")
+            _check_answers(session, answers)
+            context = ExecutionContext.start(
+                product_id=product_id, run_type=session.context.run_type, diagnosis_id=diagnosis_id,
+            )
+            new_answers = [
+                SessionAnswer(question_round=question_round, question_key=key, answer_text=text)
+                for key, text in answers.items()
+            ]
+            return apply(session, Resume(context, new_answers), now=self._clock())
+
+        with self._lock:
+            try:
+                self._capacity.check(1, dev=False)
+            except QueueFullError:
+                self._rejected["queue_full"] += 1
+                raise
+            session = self._store.get(product_id)
+            # 조회 뒤 정리로 사라져도 없음으로 봄. 같은 상품의 접수·재진단은 이 잠금 안에서만 일어남
+            transition = self._updater.replace(session.context, resume) if session is not None else None
+            if transition is None:
+                raise SessionNotFoundError(f"세션이 없습니다: {product_id}")
+            resumed = transition.session
+            self._capacity.take([resumed.context.run_id], dev=resumed.context.run_type is RunType.TEST)
+            self._accepted[resumed.context.run_type] += 1
+
+        self._pool.submit(self._run, resumed.context)
+        return resumed
 
     def submit_dev(self, item: ExtractionInput) -> DiagnosisSession:
         """개발용 진단 한 건을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
@@ -142,8 +208,8 @@ class SessionManager:
         """
         product_id = f"dev-{uuid4()}"
         item = item.model_copy(update={"product_id": product_id})
-        [session] = self._accept(None, [product_id], RunType.TEST)
-        self._pool.submit(self._run, item, session.context)
+        [session] = self._accept(None, [item], RunType.TEST)
+        self._pool.submit(self._run, session.context)
         return session
 
     def expire_overdue(self) -> int:
@@ -165,7 +231,7 @@ class SessionManager:
         return expired
 
     def purge(self) -> int:
-        """보관 시간이 지난 종료 세션을 지운다. 답변 대기 세션은 남김.
+        """보관 시간이 지난 종료·답변 대기 세션을 지운다.
 
         Returns:
             int: 지운 세션 수.
@@ -180,15 +246,17 @@ class SessionManager:
         """
         self._pool.shutdown(wait=wait, cancel_futures=not wait)
 
-    def _run(self, item: ExtractionInput, context: ExecutionContext) -> None:
+    def _run(self, context: ExecutionContext) -> None:
         """스레드 풀에서 세션 하나를 실행하고 자리를 반납한다."""
         try:
-            run_session(self._job, item, context, self._updater)
+            run_session(self._job, context, self._updater)
         finally:
             # 답변 대기로 끝나도 실행 자리 반납
             self._capacity.release(context.run_id)
 
-    def _accept(self, diagnosis_id: str | None, product_ids: list[str], run_type: RunType) -> list[DiagnosisSession]:
+    def _accept(
+        self, diagnosis_id: str | None, inputs: list[ExtractionInput], run_type: RunType,
+    ) -> list[DiagnosisSession]:
         """자리와 진행 중 상품을 확인하고 새 세션으로 저장소에 넣어 자리를 차지한다.
 
         확인부터 자리 차지·집계까지 잠금 하나로 묶음. 상한을 넘거나 하나라도 진행 중이면
@@ -197,11 +265,11 @@ class SessionManager:
 
         Args:
             diagnosis_id: BE 진단서 ID. 개발용 진단은 None (콜백 대상 아님).
-            product_ids: 접수할 상품 ID 목록.
+            inputs: 접수할 상품별 입력. product_id가 세션 ID. 재진단용으로 세션에 보관.
             run_type: 실행 종류. 개발용 진단은 TEST이고 개발용 상한을 같이 봄.
 
         Returns:
-            list[DiagnosisSession]: 접수된 세션. product_ids 순서와 같음.
+            list[DiagnosisSession]: 접수된 세션. inputs 순서와 같음.
 
         Raises:
             QueueFullError: 개발용 상한 또는 전체 상한을 넘는 경우.
@@ -210,10 +278,10 @@ class SessionManager:
         dev = run_type is RunType.TEST
         with self._lock:
             try:
-                self._capacity.check(len(product_ids), dev=dev)
+                self._capacity.check(len(inputs), dev=dev)
                 conflicts = [
-                    product_id for product_id in product_ids
-                    if (session := self._store.get(product_id)) and STATUS_TRAITS[session.status].blocks_new_accept
+                    item.product_id for item in inputs
+                    if (session := self._store.get(item.product_id)) and STATUS_TRAITS[session.status].blocks_new_accept
                 ]
                 if conflicts:
                     raise SessionConflictError(conflicts)
@@ -227,12 +295,26 @@ class SessionManager:
             now = self._clock()
             sessions = [
                 DiagnosisSession(
-                    context=ExecutionContext.start(product_id=product_id, run_type=run_type, diagnosis_id=diagnosis_id),
-                    accepted_at=now, updated_at=now,
+                    context=ExecutionContext.start(
+                        product_id=item.product_id, run_type=run_type, diagnosis_id=diagnosis_id,
+                    ),
+                    source=item, accepted_at=now, updated_at=now,
                 )
-                for product_id in product_ids
+                for item in inputs
             ]
             self._store.add(sessions)
             self._capacity.take([session.context.run_id for session in sessions], dev=dev)
             self._accepted[run_type] += len(sessions)
             return sessions
+
+
+def _check_answers(session: DiagnosisSession, answers: dict[str, str]) -> None:
+    """답변이 이번 회차 질문과 꼭 맞는지 확인한다. 2회차는 새 키만 물어서 빠진 질문은 다시 물을 수 없음."""
+    asked = {question.question_key for question in session.questions}
+    unknown = [key for key in answers if key not in asked]
+    if unknown:
+        raise UnknownQuestionKeyError(unknown)
+    # BE 답변 제출도 전부 답해야 받음
+    unanswered = [question.question_key for question in session.questions if question.question_key not in answers]
+    if unanswered:
+        raise UnansweredQuestionError(unanswered)
