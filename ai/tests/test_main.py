@@ -1,4 +1,4 @@
-"""서버 lifespan이 진단 실행기에 BE 콜백 발신함을 연결하는지 확인한다.
+"""서버 lifespan이 진단 세션 관리자에 BE 콜백 발신함을 연결하는지 확인한다.
 
 가짜 BE는 httpx.MockTransport. 실제 네트워크 요청은 보내지 않는다.
 """
@@ -102,3 +102,16 @@ def test_개발용_진단은_상태_조회로_결과를_보고_BE로는_콜백�
     assert done["assessment"]["status"] == "completed"
     assert done["result"] is not None
     assert fake_be == []
+
+
+def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be):
+    with TestClient(main.app) as client:
+        client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        _wait_until(lambda: 'ai_session_finished_total{outcome="completed",run_type="production"} 1.0'
+                    in client.get("/metrics").text)
+        text = client.get("/metrics").text
+
+    assert 'ai_sessions{status="completed"} 1.0' in text
+    assert 'ai_session_accepted_total{run_type="production"} 1.0' in text

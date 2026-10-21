@@ -16,21 +16,22 @@ from ..schemas.response import (
     ResumeAcceptedResponse,
     UnknownQuestionKeys,
 )
-from ..sessions.executor import QueueFullError, SessionExecutor
-from ..sessions.store import (
+from ..sessions.errors import (
+    QueueFullError,
     ResumeConflictError,
     SessionConflictError,
     SessionNotFoundError,
     UnansweredQuestionError,
     UnknownQuestionKeyError,
 )
+from ..sessions.manager import SessionManager
 
 router = APIRouter(prefix="/diagnose", tags=["진단"])
 
 
-def get_session_executor(request: Request) -> SessionExecutor:
-    """lifespan에서 만든 세션 실행기를 꺼낸다. 테스트에서 의존성 교체용."""
-    return request.app.state.session_executor
+def get_session_manager(request: Request) -> SessionManager:
+    """lifespan에서 만든 세션 관리자를 꺼낸다. 테스트에서 의존성 교체용."""
+    return request.app.state.session_manager
 
 
 def _to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
@@ -56,7 +57,7 @@ def _to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
 )
 async def diagnose_by_content(
     req: DiagnosisRequest,
-    executor: SessionExecutor = Depends(get_session_executor),
+    manager: SessionManager = Depends(get_session_manager),
 ) -> DiagnosisAcceptedResponse:
     """진단서의 상품들을 세션으로 접수하고 바로 202를 반환한다.
 
@@ -64,7 +65,7 @@ async def diagnose_by_content(
 
     Args:
         req: 진단서 ID와 상품 1~10개.
-        executor: 세션 실행기.
+        manager: 세션 관리자.
 
     Returns:
         202 접수 응답.
@@ -73,7 +74,7 @@ async def diagnose_by_content(
         AIServiceError: 진행 중 상품이 섞이면 409(data.conflictProductIds), 대기열이 차면 429.
     """
     try:
-        sessions = executor.submit(req.diagnosis_id, [_to_extraction_input(p) for p in req.products])
+        sessions = manager.submit(req.diagnosis_id, [_to_extraction_input(p) for p in req.products])
     except SessionConflictError as e:
         raise AIServiceError(
             response_code=AIResponseCode.SESSION_CONFLICT.value,
@@ -112,13 +113,13 @@ async def diagnose_by_content(
 )
 async def resume_diagnosis(
     req: ResumeRequest,
-    executor: SessionExecutor = Depends(get_session_executor),
+    manager: SessionManager = Depends(get_session_manager),
 ) -> ResumeAcceptedResponse:
     """답변 대기 상품을 답변과 함께 재접수하고 바로 202를 반환한다.
 
     Args:
         req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변.
-        executor: 세션 실행기.
+        manager: 세션 관리자.
 
     Returns:
         202 재진단 접수 응답. runId는 새 실행 ID.
@@ -128,7 +129,7 @@ async def resume_diagnosis(
             답변 대기가 아니거나 실행·회차·진단서가 다르면 409, 답하지 않은 질문이 있으면 422, 대기열이 차면 429.
     """
     try:
-        session = executor.resume(
+        session = manager.resume(
             diagnosis_id=req.diagnosis_id,
             product_id=req.product_id,
             run_id=req.run_id,

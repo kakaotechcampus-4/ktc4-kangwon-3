@@ -20,9 +20,10 @@ from ..schemas.response import (
 )
 from ..schemas.schemas import FinalAssessment
 from ..schemas.session import DiagnosisSession, SessionStatus
-from ..sessions.executor import QueueFullError, SessionExecutor
+from ..sessions.errors import QueueFullError
+from ..sessions.manager import SessionManager
 from .dev_auth import require_dev_api_key
-from .diagnose import get_session_executor
+from .diagnose import get_session_manager
 
 DEV_PRODUCT_PREFIX = "dev-"
 
@@ -50,13 +51,13 @@ def get_assessment_presenter(request: Request) -> AssessmentPresenter:
 )
 async def submit_dev_diagnosis(
     req: DevDiagnosisRequest,
-    executor: SessionExecutor = Depends(get_session_executor),
+    manager: SessionManager = Depends(get_session_manager),
 ) -> DevDiagnosisAcceptedResponse:
     """개발용 진단을 접수하고 바로 202를 반환한다.
 
     Args:
         req: 상품 글·이미지.
-        executor: 세션 실행기.
+        manager: 세션 관리자.
 
     Returns:
         202 접수 응답. 발급한 상품 ID·실행 ID.
@@ -69,7 +70,7 @@ async def submit_dev_diagnosis(
         image_urls=req.image_urls,
     )
     try:
-        session = executor.submit_dev(item)
+        session = manager.submit_dev(item)
     except QueueFullError as e:
         raise AIServiceError(response_code=AIResponseCode.QUEUE_FULL.value, retryable=True) from e
     return DevDiagnosisAcceptedResponse(
@@ -88,14 +89,14 @@ async def submit_dev_diagnosis(
 )
 async def get_dev_diagnosis(
     product_id: str,
-    executor: SessionExecutor = Depends(get_session_executor),
+    manager: SessionManager = Depends(get_session_manager),
     presenter: AssessmentPresenter = Depends(get_assessment_presenter),
 ) -> DevDiagnosisStatusResponse:
     """개발용 진단 하나의 상태를 조회한다.
 
     Args:
         product_id: 접수 때 받은 dev- 상품 ID.
-        executor: 세션 실행기.
+        manager: 세션 관리자.
         presenter: 공개 진단서 변환기.
 
     Returns:
@@ -104,7 +105,7 @@ async def get_dev_diagnosis(
     Raises:
         AIServiceError: dev- 상품이 아니거나 없으면(보관 시간이 지나 지워진 경우 포함) 404.
     """
-    session = executor.store.get(product_id) if product_id.startswith(DEV_PRODUCT_PREFIX) else None
+    session = manager.get(product_id) if product_id.startswith(DEV_PRODUCT_PREFIX) else None
     # 운영 상품 상태는 개발용 키로 보이지 않게 dev- 상품만
     if session is None:
         raise AIServiceError(response_code=AIResponseCode.NOT_FOUND.value)
