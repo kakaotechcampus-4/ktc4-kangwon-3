@@ -25,11 +25,13 @@ const truncateProductName = (name: string) =>
 
 function ProductTabs({ productNames, selected, onSelect }: ProductTabsProps) {
     return (
-        <div className="flex flex-wrap items-start gap-2.5">
+        <div role="tablist" className="flex flex-wrap items-start gap-2.5">
             {productNames.map((name, index) => (
                 <button
                     key={index}
                     type="button"
+                    role="tab"
+                    aria-selected={index === selected}
                     onClick={() => onSelect(index)}
                     className={tabVariants({ selected: index === selected })}
                 >

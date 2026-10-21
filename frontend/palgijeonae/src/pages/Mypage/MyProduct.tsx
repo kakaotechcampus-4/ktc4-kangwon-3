@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { SourceType } from "@/api/types.ts"
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
@@ -48,42 +48,44 @@ const SOURCE_TYPE_INFO: Record<SourceType, SourceTypeInfo> = {
 };
 
 function MyProduct({ productName, productImageUrl, sourceType, processingStatus, resultStatus }: MyProductProps) {
-    const navigate = useNavigate();
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
     // 진단 결과가 없을 시 진단서 이동을 막기 위한 boolean 변수.
     const isDiagnosisComplete = resultStatus != null;
 
-    // TODO: Result 페이지 구현 시 경로 파라미터로 id 전달 예정
-    const handleClick = () => {
-        if (isDiagnosisComplete) {
-            navigate("/result");
-        }
-    };
+    const cardContent = (
+        <>
+            <img src={productImageUrl ?? defaultThumbnail}
+                alt="상품 썸네일"
+                className="w-23 h-23 object-cover rounded-lg border border-neutral-border" />
+            <div className="flex flex-col items-start gap-2">
+                <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
+                    {badge.label}
+                </div>
+                <div className="flex gap-2 items-center">
+                    <img src={SOURCE_TYPE_INFO[sourceType].icon}
+                        alt=""
+                        className="w-5 h-5" />
+                    <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
+                </div>
+                <h3 className="text-lg font-semibold pl-1">{productName}</h3>
+            </div>
+        </>
+    );
 
     return (
         <DefaultBox>
-            <div
-                className={cn("flex flex-row w-full gap-4", isDiagnosisComplete && "cursor-pointer")}
-                onClick={handleClick}
-            >
-                <img src={productImageUrl ?? defaultThumbnail}
-                    alt="상품 썸네일"
-                    className="w-23 h-23 object-cover rounded-lg border border-neutral-border" />
-                <div className="flex flex-col items-start gap-2">
-                    <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
-                        {badge.label}
-                    </div>
-                    <div className="flex gap-2 items-center">
-                        <img src={SOURCE_TYPE_INFO[sourceType].icon}
-                            alt={SOURCE_TYPE_INFO[sourceType].label}
-                            className="w-5 h-5" />
-                        <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
-                    </div>
-                    <h3 className="text-lg font-semibold pl-1">{productName}</h3>
+            {isDiagnosisComplete ? (
+                // TODO: Result 페이지 구현 시 경로 파라미터로 id 전달 예정
+                <Link to="/result" className="flex flex-row w-full gap-4 cursor-pointer">
+                    {cardContent}
+                </Link>
+            ) : (
+                <div className="flex flex-row w-full gap-4">
+                    {cardContent}
                 </div>
-            </div>
+            )}
         </DefaultBox>
     );
 }

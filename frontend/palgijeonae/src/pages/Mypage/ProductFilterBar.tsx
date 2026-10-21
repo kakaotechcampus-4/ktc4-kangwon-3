@@ -64,6 +64,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
             <form onSubmit={handleSubmit} className="relative w-full">
                 <input
                     type="text"
+                    aria-label="상품명 검색"
                     placeholder="상품명으로 검색하세요"
                     value={draftSearchTerm}
                     onChange={(event) => handleChange(event.target.value)}
