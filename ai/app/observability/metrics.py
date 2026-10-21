@@ -1,9 +1,11 @@
-"""진단 세션 지표를 Prometheus 형식으로 모음. GET /metrics가 registry를 그대로 내보냄.
+"""진단 세션·에이전트 지표를 Prometheus 형식으로 모음. GET /metrics가 registry를 그대로 내보냄.
 
     - SessionMetrics: 세션 이벤트 구독자. 대기·실행·전체·단계 소요 시간과 결말·Tool 진행 횟수
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
+    - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
 
-라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 실행 종류(run_type)로 운영·개발 구분.
+라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.
+에이전트 지표는 실행 컨텍스트가 없어 기록 이름(평가 호출은 extraction-eval 등)으로만 구분.
 """
 
 from collections.abc import Iterator
@@ -14,11 +16,14 @@ from prometheus_client import CollectorRegistry, Counter, Histogram
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metric
 from prometheus_client.registry import Collector
 
+from ..agents.base.meta import AgentRunMeta
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
 # 세션 소요 시간 구간(초). 세션 최대 시간(SESSION_MAX_DURATION_SECONDS, 600초)까지
 DURATION_BUCKETS = (1, 5, 10, 30, 60, 120, 300, 600)
+# 모델 호출 1건 소요 시간 구간(초)
+AGENT_CALL_BUCKETS = (0.5, 1, 2, 5, 10, 20, 30, 60, 120)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
 
@@ -142,6 +147,52 @@ class SessionSnapshotCollector(Collector):
         for reason, count in snapshot.rejected.items():
             rejected.add_metric([reason], count)
         yield rejected
+
+
+class AgentMetrics:
+    """에이전트 모델 호출 기록으로 호출 수·토큰·비용·시간을 기록한다. agent_sinks에 on_run을 등록해 씀."""
+
+    def __init__(self, registry: CollectorRegistry) -> None:
+        """지표를 registry에 등록한다.
+
+        Args:
+            registry: 지표를 등록할 registry. 테스트마다 새로 만들 수 있게 주입.
+        """
+        self._calls = Counter(
+            "ai_agent_calls", "결과별 모델 호출 수. outcome은 ok 또는 실패 단계(call·parsing·finalize)",
+            ["component", "model", "outcome"], registry=registry,
+        )
+        self._tokens = Counter(
+            "ai_agent_tokens", "종류별 토큰 수. cached는 input에, reasoning은 output에 포함",
+            ["component", "model", "kind"], registry=registry,
+        )
+        self._cost = Counter(
+            "ai_agent_cost_krw", "예상 비용(원). 단가를 모르는 모델은 빠짐", ["component", "model"], registry=registry,
+        )
+        self._call_seconds = Histogram(
+            "ai_agent_call_seconds", "모델 호출 1건 소요 시간",
+            ["component", "outcome"], buckets=AGENT_CALL_BUCKETS, registry=registry,
+        )
+
+    def on_run(self, meta: AgentRunMeta, subject_id: str) -> None:
+        """모델 호출 1건을 기록한다.
+
+        Args:
+            meta: 호출 1건의 실행 정보.
+            subject_id: 기록 대상 ID. 라벨에 넣지 않음.
+        """
+        component = meta.usage_name or meta.component
+        model = meta.model or "none"
+        # 실패 단계를 모르는 실패는 failed
+        outcome = "ok" if meta.error_type is None else meta.failure_phase or "failed"
+        self._calls.labels(component, model, outcome).inc()
+        self._call_seconds.labels(component, outcome).observe(meta.elapsed_ms / 1000)
+        if meta.usage is not None:
+            for kind, count in (("input", meta.usage.input_tokens), ("cached", meta.usage.cached_tokens),
+                                ("output", meta.usage.output_tokens), ("reasoning", meta.usage.reasoning_tokens)):
+                self._tokens.labels(component, model, kind).inc(count)
+        if meta.cost_krw is not None:
+            self._cost.labels(component, model).inc(meta.cost_krw)
 
 
 def _seconds(start: datetime, end: datetime) -> float:

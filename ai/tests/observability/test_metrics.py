@@ -1,16 +1,18 @@
-"""세션 지표: 세션 이벤트로 소요 시간·횟수를 기록하고, 수집 때 세션 관리자 현황을 읽는지 확인한다."""
+"""세션·에이전트 지표: 세션 이벤트로 소요 시간·횟수를 기록하고, 수집 때 세션 관리자 현황을 읽고, 에이전트 호출 기록을 세는지 확인한다."""
 
 from datetime import datetime, timedelta, timezone
 
 from prometheus_client import CollectorRegistry
 
 from app.observability.context import ExecutionContext, PipelineStage, RunType
-from app.observability.metrics import SessionMetrics, SessionSnapshotCollector
+from app.agents.base import AgentRunMeta
+from app.observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession, SessionStatus
+from app.usage import CallUsage
 from app.sessions.events import SessionEvent
 from app.sessions.manager import SessionSnapshot
 from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, ReportTool, Resume, Start, apply
@@ -130,3 +132,47 @@ def test_수집_때_세션_관리자_현황을_지표로_낸다():
     assert value("ai_session_accepted_total", run_type="production") == 7
     assert (value("ai_session_rejected_total", reason="queue_full"),
             value("ai_session_rejected_total", reason="conflict")) == (1, 4)
+
+
+def _agent_value(registry, name, **labels):
+    return registry.get_sample_value(name, labels)
+
+
+def test_에이전트_호출의_수_토큰_비용_시간을_기록_이름과_모델별로_센다():
+    registry = CollectorRegistry()
+    metrics = AgentMetrics(registry)
+    usage = CallUsage("openai/gpt-4.1-mini", input_tokens=100, cached_tokens=40, output_tokens=20, reasoning_tokens=5)
+    meta = AgentRunMeta(component="extraction", usage_name="extraction-eval", model="openai/gpt-4.1-mini",
+                        usage=usage, cost_krw=0.5, elapsed_ms=1500)
+
+    metrics.on_run(meta, "p-1")
+    metrics.on_run(meta, "p-2")
+
+    labels = {"component": "extraction-eval", "model": "openai/gpt-4.1-mini"}
+    assert _agent_value(registry, "ai_agent_calls_total", **labels, outcome="ok") == 2
+    assert [_agent_value(registry, "ai_agent_tokens_total", **labels, kind=kind)
+            for kind in ("input", "cached", "output", "reasoning")] == [200, 80, 40, 10]
+    assert _agent_value(registry, "ai_agent_cost_krw_total", **labels) == 1.0
+    assert _agent_value(registry, "ai_agent_call_seconds_sum", component="extraction-eval", outcome="ok") == 3.0
+
+
+def test_실패한_호출은_실패_단계로_세고_모르는_사용량_비용은_건너뛴다():
+    registry = CollectorRegistry()
+    metrics = AgentMetrics(registry)
+
+    metrics.on_run(AgentRunMeta(component="selection", model="m", error_type="TimeoutError",
+                                failure_phase="call", elapsed_ms=30000), "p-1")
+    metrics.on_run(AgentRunMeta(component="selection", model="m", error_type="ValueError"), "p-1")
+
+    assert _agent_value(registry, "ai_agent_calls_total", component="selection", model="m", outcome="call") == 1
+    assert _agent_value(registry, "ai_agent_calls_total", component="selection", model="m", outcome="failed") == 1
+    assert _agent_value(registry, "ai_agent_tokens_total", component="selection", model="m", kind="input") is None
+    assert _agent_value(registry, "ai_agent_cost_krw_total", component="selection", model="m") is None
+
+
+def test_모델_없는_호출은_none_모델로_센다():
+    registry = CollectorRegistry()
+
+    AgentMetrics(registry).on_run(AgentRunMeta(component="verification"), "p-1")
+
+    assert _agent_value(registry, "ai_agent_calls_total", component="verification", model="none", outcome="ok") == 1
