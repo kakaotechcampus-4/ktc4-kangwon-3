@@ -145,6 +145,7 @@ def test_재진단_답변의_질문_키_중복을_거부한다():
     {"answers": [{"questionKey": "", "answerText": "네"}]},
     {"answers": [{"questionKey": "k" * 51, "answerText": "네"}]},
     {"answers": [{"questionKey": "battery_only", "answerText": ""}]},
+    {"answers": [{"questionKey": "battery_only", "answerText": " \n\t"}]},
     {"answers": [{"questionKey": "battery_only", "answerText": "가" * 501}]},
     {"extra": 1},
 ])

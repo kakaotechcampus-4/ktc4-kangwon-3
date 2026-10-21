@@ -91,8 +91,8 @@ class AnswerInput(ApiRequestModel):
     """
 
     question_key: str = Field(min_length=1, max_length=50)
-    # 사용자가 직접 입력한 글이 LLM 입력으로 들어감. 길이 외 검사는 답변 세이프가드에서
-    answer_text: str = Field(min_length=1, max_length=500)
+    # 사용자가 직접 입력한 글이 LLM 입력으로 들어감. 길이·공백 외 검사는 답변 세이프가드에서
+    answer_text: str = Field(min_length=1, max_length=500, pattern=r"\S")
 
 
 class ResumeRequest(ApiRequestModel):
