@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import { reissueAccessToken } from '@/api/client'
+import LoadingSpinner from '@/components/common/LoadingSpinner'
 
 function OAuthCallbackPage() {
     const [searchParams] = useSearchParams()
@@ -39,12 +40,7 @@ function OAuthCallbackPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams, navigate])
 
-    return (
-        <div role="status" className="flex w-full flex-col items-center justify-center gap-4 py-20">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-primary" />
-            <p className="text-lg text-neutral-text">로그인 처리 중입니다...</p>
-        </div>
-    );
+    return <LoadingSpinner label="로그인 처리 중입니다..." />;
 }
 
 export default OAuthCallbackPage;

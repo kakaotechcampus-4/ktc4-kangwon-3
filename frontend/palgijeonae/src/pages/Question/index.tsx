@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { getQuestions, submitAnswers } from "@/api/question";
 import Button from "@/components/common/Button";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingDiagnosesId } from "@/lib/routeParams";
@@ -122,10 +123,7 @@ function QuestionPage() {
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="상세페이지만으로는 판단이 어려운 부분이에요. 제품마다 답해 주시면 진단서에 반영됩니다." />
             {isQuestionsPending ? (
-                <div className="flex w-full justify-center py-12">
-                    <div role="status" aria-label="로딩 중" className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
-                </div>
-
+                <LoadingSpinner />
             ) : isQuestionsError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
                     <p className="text-sm font-medium text-status-danger">질문을 불러오지 못했어요.</p>
