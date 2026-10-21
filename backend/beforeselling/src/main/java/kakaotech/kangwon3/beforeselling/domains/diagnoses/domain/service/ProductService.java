@@ -9,6 +9,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Question
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -27,6 +28,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -73,18 +75,8 @@ public class ProductService {
      */
     @Transactional
     public void removeProduct(UUID userId, UUID productId) {
-        UUID diagnosesId = productRepository.findDiagnosesIdById(productId)
-                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
-
-        // 소유권은 락 쿼리에서 함께 검증한다. 이유는 DiagnosesRepository의 findByIdAndUserIdForUpdate 참고
-        // 없는 진단서와 남의 진단서 모두 빈 결과라 같은 NOT_FOUND 로 응답한다.
-        Diagnoses diagnoses = diagnosesRepository.findByIdAndUserIdForUpdate(diagnosesId, userId)
-                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
-
-        Product product = diagnoses.getProducts().stream()
-                .filter(candidate -> candidate.getId().equals(productId))
-                .findFirst()
-                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+        Product product = lockOwnedProduct(userId, productId);
+        Diagnoses diagnoses = product.getDiagnoses();
 
         List<String> imageKeys = product.collectImageKeys();
 
@@ -99,6 +91,22 @@ public class ProductService {
 
         log.debug("상품 삭제 완료. productId={}, userId={}, 진단서 함께 삭제={}",
                 productId, userId, diagnosesRemoved);
+    }
+
+    /**
+     * 질문 답변 제출. 답변을 저장하고 상품을 다시 진단 중으로 바꾼 뒤 진단서 전체 상태를 다시 계산한다.
+     * 커밋 뒤에 AI에 재진단을 요청하도록 이벤트를 발행한다.
+     */
+    @Transactional
+    public void answerQuestions(UUID userId, UUID productId, Map<UUID, String> answers) {
+        Product product = lockOwnedProduct(userId, productId);
+
+        product.answerQuestions(answers);
+        product.getDiagnoses().refreshProcessingStatus();
+
+        eventPublisher.publishEvent(toAiResumeRequestedEvent(product));
+        log.debug("질문 답변 저장 완료. productId={}, runId={}, questionRound={}, answerCount={}",
+                productId, product.getRunId(), product.latestQuestionRound(), answers.size());
     }
 
     /**
@@ -232,6 +240,34 @@ public class ProductService {
             return;
         }
         eventPublisher.publishEvent(new S3FileDeleteRequestedEvent(keys));
+    }
+
+    // 사용자 요청으로 상품을 바꿀 때 진단서를 잠그고 상품을 찾는다.
+    private Product lockOwnedProduct(UUID userId, UUID productId) {
+        UUID diagnosesId = productRepository.findDiagnosesIdById(productId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        // 소유권은 락 쿼리에서 함께 검증한다.
+        // 없는 진단서와 남의 진단서 모두 빈 결과라 같은 NOT_FOUND 로 응답한다.
+        Diagnoses diagnoses = diagnosesRepository.findByIdAndUserIdForUpdate(diagnosesId, userId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        return diagnoses.getProducts().stream()
+                .filter(candidate -> candidate.getId().equals(productId))
+                .findFirst()
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+    }
+
+    private AiResumeRequestedEvent toAiResumeRequestedEvent(Product product) {
+        return new AiResumeRequestedEvent(
+                product.getDiagnoses().getId(),
+                product.getId(),
+                product.getRunId(),
+                product.latestQuestionRound(),
+                product.latestRoundQuestions().stream()
+                        .map(question -> new AiResumeRequestedEvent.Answer(
+                                question.getQuestionKey(), question.getAnswerText()))
+                        .toList());
     }
 
     // 진단서를 잠그고 상품을 찾은 뒤, 현재 실행의 콜백인지 확인한다.
