@@ -16,7 +16,7 @@ from app.sessions.errors import (
     QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
     UnknownQuestionKeyError,
 )
-from app.sessions.events import Completed, Resumed, StageChanged, Started, ToolProgressed
+from app.sessions.events import AwaitingInput, Completed, Resumed, StageChanged, Started, ToolProgressed
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 from app.sessions.manager import SessionManager
 from app.sessions.manager.runner import QUESTION_LIMIT_NOTICE
@@ -494,6 +494,27 @@ def test_답변_대기로_끝나면_질문과_회차를_세션에_기록한다(m
 
     session = manager.get("p-1")
     assert (session.question_round, session.questions) == (1, _QUESTIONS)
+
+
+@pytest.mark.parametrize("questions", [
+    [],                                                                  # 질문 없음
+    [_question("battery_only", 1), _question("battery_only", 2)],        # 키 중복
+    [_question("battery_only", 1), _question("target_age", 1)],          # 순서 중복
+])
+def test_질문이_없거나_겹치면_답변_대기_대신_재시도_불가_실패로_기록한다(managers, questions):
+    # 질문 콜백을 못 보낸 채 답변 대기로 두면 BE에서 진행 중으로 남음
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), questions))
+    manager = _manager(managers, job)
+    seen = []
+    manager.subscribe(lambda e: seen.append(type(e)))
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.FAILED)
+
+    session = manager.get("p-1")
+    assert (session.error_code, session.retryable, session.questions) == ("AI_PIPELINE_ERROR", False, [])
+    assert AwaitingInput not in seen
 
 
 class _AnswerJob:
