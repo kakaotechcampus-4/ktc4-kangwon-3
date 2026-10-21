@@ -11,15 +11,8 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import Session, sessionmaker
 
-from .config import ConfigError, get_settings
-
-
-class DatabaseNotConfiguredError(ConfigError):
-    """DATABASE_URL이 비어 있어 DB를 쓸 수 없다.
-
-    개발 단계에서는 DB 없이도 서버를 띄울 수 있게 의도적으로 허용하는 상태라,
-    설정이 틀린 경우(ConfigError)와 구분해서 기동 시 경고만 남긴다.
-    """
+from ..config import ConfigError, get_settings
+from .errors import DatabaseNotConfiguredError
 
 
 @lru_cache(maxsize=1)
