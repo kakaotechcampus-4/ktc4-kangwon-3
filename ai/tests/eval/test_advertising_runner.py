@@ -23,6 +23,8 @@ _REQUIRED_ENV = {
 def settings_env(monkeypatch):
     for name, value in _REQUIRED_ENV.items():
         monkeypatch.setenv(name, value)
+    # 로컬 ai/.env를 읽지 않게 함. 지운 덮어쓰기 설정을 .env 값이 다시 채우지 않도록
+    monkeypatch.setattr("app.config.settings.load_dotenv", lambda **kwargs: False)
     monkeypatch.delenv("MODEL_PROFILE_OVERRIDES", raising=False)
 
 
