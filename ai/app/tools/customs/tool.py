@@ -230,15 +230,28 @@ class CustomsTool(RegulatoryTool):
         # 조회는 됐지만 요건이 0건인 HS. 다른 HS에 요건이 있어도 따로 알린다(결과 서술에서 빠지지 않게).
         empty = [code for code in hs_codes if code not in unresolved and not query["requirements"].get(code)]
         if empty:
-            findings.append(self._finding(
-                subject="세관장확인 대상 법령 — 조회되지 않음",
-                summary=(f"HS 후보 {', '.join(format_hs(code) for code in empty)}에는 세관장확인 대상 법령이 조회되지 "
-                         "않았습니다. 통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제가 없다는 뜻은 아닙니다. "
-                         "HS 분류가 확정되지 않아 단정하지 않습니다."),
-                rationale=rationale, determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.LOW,
-                facts=facts, assumptions=assumptions,
-                sources=[*(self._act_source(evidence) or []), *case_sources],
-            ))
+            act_source = self._act_source(evidence)
+            labels = ", ".join(format_hs(code) for code in empty)
+            notes = [f"HS 후보({labels}) 기준입니다. 다른 HS로 분류되면 세관장확인 요건이 생길 수 있습니다.",
+                     "통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제(제품 안전·전파·식품 등)가 없다는 뜻은 아닙니다."]
+            if act_source:
+                # 조회해서 받은 "요건 없음"은 정보 부족이 아니다. 근거 조문을 붙여 #315 표시·광고 Tool의 "주장 없음"과 같이 낸다.
+                findings.append(self._finding(
+                    subject="세관장확인 대상 법령 — HS 후보 기준 없음",
+                    summary=(f"관세청 세관장확인대상물품 조회 결과 HS 후보 {labels}에는 세관장확인 대상 법령이 "
+                             "없습니다. 통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제가 없다는 뜻은 아닙니다."),
+                    rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
+                    facts=facts, assumptions=[*assumptions, *notes], sources=[*act_source, *case_sources],
+                ))
+            else:
+                # 근거 법령을 읽지 못하면 확정 판단에 붙일 인용이 없어 정보 부족으로 둔다.
+                findings.append(self._finding(
+                    subject="세관장확인 대상 법령 — 조회되지 않음",
+                    summary=(f"HS 후보 {labels}에는 세관장확인 대상 법령이 조회되지 않았습니다. "
+                             "근거 법령을 확인하지 못해 단정하지 않습니다."),
+                    rationale=rationale, determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.LOW,
+                    facts=facts, assumptions=[*assumptions, *notes], sources=case_sources,
+                ))
         if unresolved:
             findings.append(self._finding(
                 subject="세관장확인 요건 — 조회하지 못함",
