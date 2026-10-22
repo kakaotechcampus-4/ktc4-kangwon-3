@@ -70,13 +70,13 @@ class AiDiagnosesRequestEventListenerTest {
         then(aiDiagnosesClient).should().requestDiagnoses(captor.capture());
         assertThat(captor.getValue()).isEqualTo(new AiDiagnosesRequest(DIAGNOSES_ID.toString(), List.of(
                 new AiDiagnosesRequest.Product(TEXT_IMAGE_PRODUCT_ID.toString(), List.of("상세 설명"),
-                        List.of(S3_URL_PREFIX + "product-main/1.jpg", S3_URL_PREFIX + "product-detail/1.jpg")),
-                new AiDiagnosesRequest.Product(URL_PRODUCT_ID.toString(), List.of(), List.of(SOURCE_URL)))));
+                        List.of(S3_URL_PREFIX + "product-main/1.jpg", S3_URL_PREFIX + "product-detail/1.jpg"), null),
+                new AiDiagnosesRequest.Product(URL_PRODUCT_ID.toString(), List.of(), List.of(), SOURCE_URL))));
     }
 
     @Test
-    @DisplayName("텍스트·이미지 없이 상세페이지 URL만 있는 상품은 URL을 이미지 자리에도 담아 AI 입력 조건을 채운다.")
-    void handle_withUrlOnlyProduct_thenPutSourceUrlIntoImages() {
+    @DisplayName("텍스트·이미지 없이 상세페이지 URL만 있는 상품은 URL을 이미지 자리에 넣지 않고 sourceUrl로만 보낸다.")
+    void handle_withUrlOnlyProduct_thenSendSourceUrlWithoutImages() {
         // given
         given(aiDiagnosesClient.requestDiagnoses(any())).willReturn(accepted());
         AiDiagnosesRequestedEvent event = new AiDiagnosesRequestedEvent(DIAGNOSES_ID, List.of(
@@ -89,7 +89,7 @@ class AiDiagnosesRequestEventListenerTest {
         ArgumentCaptor<AiDiagnosesRequest> captor = ArgumentCaptor.forClass(AiDiagnosesRequest.class);
         then(aiDiagnosesClient).should().requestDiagnoses(captor.capture());
         assertThat(captor.getValue().products()).containsExactly(
-                new AiDiagnosesRequest.Product(URL_PRODUCT_ID.toString(), List.of(), List.of(SOURCE_URL)));
+                new AiDiagnosesRequest.Product(URL_PRODUCT_ID.toString(), List.of(), List.of(), SOURCE_URL));
     }
 
     @Test
