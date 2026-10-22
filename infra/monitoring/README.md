@@ -43,8 +43,10 @@ infra/monitoring/
 
 ## 최초 1회 서버 작업
 
-1. 서버 `.env` 작성 — `/home/ubuntu/app/monitoring/.env`에 `.env.example` 항목 작성
+1. `.env` Secret 등록 — `.env.example` 항목을 채운 `.env`를 Base64로 인코딩해 GitHub Secret `MONITORING_ENV_B64`에 등록한다 (`base64 -i .env | pbcopy`). 배포 때마다 이 값으로 서버 `/home/ubuntu/app/monitoring/.env`를 덮어쓰므로 서버 파일을 직접 고치지 않는다.
 2. 배포 순서 — 백엔드 docker compose가 모두 실행된 이후 배포(`be_appnet` 네트워크 필요)
+
+`.env`만 바꿨을 때는 paths 트리거가 걸리지 않으므로 Secret 수정 후 Actions에서 이 워크플로를 수동 실행(`workflow_dispatch`)한다.
 
 ## 수집 지표
 

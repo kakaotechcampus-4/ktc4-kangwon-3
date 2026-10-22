@@ -59,7 +59,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: .env 준비
+        env:
+          ENV_B64: ${{ secrets.MONITORING_ENV_B64 }}
+        run: |
+          [ -n "$ENV_B64" ] || { echo "::error::MONITORING_ENV_B64 Secret이 비어 있습니다"; exit 1; }
+          umask 077
+          printf '%s' "$ENV_B64" | base64 -d > "$RUNNER_TEMP/monitoring.env" || { echo "::error::MONITORING_ENV_B64 Base64 디코딩 실패"; exit 1; }
+          [ -s "$RUNNER_TEMP/monitoring.env" ] || { echo "::error::MONITORING_ENV_B64 디코딩 결과가 비어 있습니다"; exit 1; }
+
       - name: AWS 자격증명 설정
+        id: aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
@@ -70,8 +80,9 @@ jobs:
           aws s3 sync infra/monitoring \
             "s3://${S3_BUCKET}/monitoring/${GITHUB_SHA}/" --delete \
             --exclude ".env" --exclude ".env.*" --exclude "README.md"
+          aws s3 cp "$RUNNER_TEMP/monitoring.env" "s3://${S3_BUCKET}/env/monitoring-${GITHUB_SHA}.env"
 
-      # .env는 서버에서 직접 관리한다 — sync의 --exclude 로 삭제 대상에서도 빠진다.
+      # .env는 설정 파일과 따로 받는다 — sync의 --exclude 가 없으면 --delete 가 방금 받은 .env를 지운다.
       # bind mount된 설정 파일 변경은 compose가 감지하지 못하므로 prometheus/grafana를 재시작한다.
       - name: 배포 실행
         uses: ./.github/actions/ssm-run
@@ -82,7 +93,8 @@ jobs:
           commands: |
             MON_DIR=${{ env.APP_DIR }}/monitoring
             mkdir -p $MON_DIR
-            [ -f $MON_DIR/.env ] || { echo $MON_DIR/.env 가 없습니다 - .env.example 참고해 먼저 작성하세요; exit 1; }
+            (umask 077; aws s3 cp s3://${{ env.S3_BUCKET }}/env/monitoring-${{ github.sha }}.env $MON_DIR/.env)
+            chmod 600 $MON_DIR/.env
             docker network inspect be_appnet >/dev/null || { echo be_appnet 네트워크가 없습니다 - be 스택을 먼저 띄우세요; exit 1; }
             aws s3 sync s3://${{ env.S3_BUCKET }}/monitoring/${{ github.sha }}/ $MON_DIR/ --delete --exclude .env
             cd $MON_DIR
@@ -91,6 +103,10 @@ jobs:
             for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' mon-prometheus)" = healthy ] && [ "$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)" = healthy ] && break; sleep 5; done
             docker compose ps
             [ "$(docker inspect -f '{{.State.Health.Status}}' mon-grafana)" = healthy ] || { docker compose logs --tail 50 grafana; exit 1; }
+
+      - name: .env 정리
+        if: always() && steps.aws.outcome == 'success'
+        run: aws s3 rm "s3://${S3_BUCKET}/env/monitoring-${GITHUB_SHA}.env"
 
       - name: 서비스 확인
         run: |
