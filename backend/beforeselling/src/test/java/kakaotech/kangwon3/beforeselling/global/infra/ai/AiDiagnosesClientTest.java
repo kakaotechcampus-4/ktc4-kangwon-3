@@ -70,9 +70,9 @@ class AiDiagnosesClientTest {
                           "diagnosisId": "diagnosis-1",
                           "products": [
                             {"productId": "product-1", "textBlocks": ["상세 설명"],
-                             "imagesBase64": ["https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1.jpg"]},
+                             "imageUrls": ["https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1.jpg"]},
                             {"productId": "product-2", "textBlocks": [],
-                             "imagesBase64": ["https://bucket.s3.ap-northeast-2.amazonaws.com/product-detail/2.jpg"]}
+                             "imageUrls": ["https://bucket.s3.ap-northeast-2.amazonaws.com/product-detail/2.jpg"]}
                           ]
                         }
                         """, true))

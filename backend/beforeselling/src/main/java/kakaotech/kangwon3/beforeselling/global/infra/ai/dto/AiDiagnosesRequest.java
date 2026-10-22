@@ -12,8 +12,7 @@ public record AiDiagnosesRequest(
     public record Product(
             String productId,
             List<String> textBlocks,
-            // 이름과 달리 base64 data URI뿐 아니라 이미지 URL도 받는다.
-            List<String> imagesBase64
+            List<String> imageUrls
     ) {
     }
 }
