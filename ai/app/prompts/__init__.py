@@ -20,6 +20,8 @@ class PromptName(StrEnum):
     EXTRACTION = "extraction"
     SELECTION = "selection"
     VERIFICATION = "verification"
+    FOOD_DRUG_FACTS = "food_drug/facts"
+    FOOD_DRUG_REVIEW = "food_drug/review"
     ELECTRICAL_FACTS = "electrical/facts"
     ELECTRICAL_REVIEW = "electrical/review"
     CHILDREN_FACTS = "children/facts"

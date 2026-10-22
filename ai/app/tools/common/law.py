@@ -8,6 +8,7 @@
 전기 Tool(#290)에도 같은 역할의 코드가 있다. 전기 Tool 코드는 후속 PR에서 이 모듈로 합친다.
 """
 
+import logging
 import re
 import threading
 import time
@@ -25,6 +26,8 @@ from ...schemas.clients.law_response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
 )
 from ...schemas.schemas import LegalSource
+
+logger = logging.getLogger(__name__)
 
 _BOX_DRAWING = {code: None for code in range(0x2500, 0x2580)}
 
@@ -207,11 +210,16 @@ def select_version(result, *, name: str, identifier: str, id_field: str, name_fi
 
 
 def check_body(body, *, name: str, identifier: str, enforce_date: str) -> None:
-    """본문이 검색에서 고른 문서·버전인지 대조한다(번호가 틀려도 법제처는 다른 문서를 정상 응답한다)."""
+    """본문이 검색에서 고른 문서인지 대조한다(번호가 틀려도 법제처는 다른 문서를 정상 응답한다).
+
+    본문 시행일은 대조하지 않고 다르면 기록만 남긴다. 버전은 검색에서 고른 일련번호로 요청해 정해지고,
+    시행일이 나뉜 개정판은 검색과 본문의 시행일이 다르게 온다(예: 의료기기법 일련번호 291321, 검색 20261020
+    현행, 본문 20271021 — 부칙에 따라 일부 조문이 나중에 시행). 근거 시행일은 검색 값(기준일에 시행 중인 판)을 쓴다.
+    """
     if body.document_id != identifier or compact(body.name or "") != compact(name):
         raise EvidenceUnavailable(f"'{name}' 검색 문서와 본문 식별 정보가 다릅니다.")
     if body.enforce_date != enforce_date:
-        raise EvidenceUnavailable(f"'{name}' 검색 버전과 본문 시행일이 다릅니다.")
+        logger.info("'%s' 검색 시행일 %s와 본문 시행일 %s가 다름 (시행일이 나뉜 개정판)", name, enforce_date, body.enforce_date)
 
 
 def load_law(client: LawLookup, *, name: str, law_id: str, as_of: date) -> LawDocument:

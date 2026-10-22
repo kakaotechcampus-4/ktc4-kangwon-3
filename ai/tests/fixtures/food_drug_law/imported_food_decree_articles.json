@@ -1,0 +1,44 @@
+[
+ {
+  "article_number": "2",
+  "article_branch_number": null,
+  "article_is_exist": "조문",
+  "article_title": "영업의 종류와 범위",
+  "article_content": "제2조(영업의 종류와 범위) 법 제14조제1항 각 호에 따른 영업의 종류와 그 범위는 다음 각 호의 구분과 같다. <개정 2019.5.14, 2025.12.23>",
+  "paragraphs": [
+   {
+    "number": null,
+    "content": null,
+    "items": [
+     {
+      "number": "1.",
+      "branch_number": null,
+      "content": "1. 수입식품등 수입ㆍ판매업: 수입식품등을 수입하여 판매하는 영업. 다만, 법 제2조제1호에 따른 식품등의 채취ㆍ제조 또는 가공에 사용되는 기계를 수입하는 경우는 제외한다.",
+      "sub_items": []
+     },
+     {
+      "number": "2.",
+      "branch_number": null,
+      "content": "2. 수입식품등 신고 대행업: 제1호에 따른 수입식품등 수입ㆍ판매업자(법 제15조제6항에 따라 등록한 것으로 보는 영업자를 포함한다)를 위하여 법 제20조제1항에 따른 수입신고를 대행하는 영업",
+      "sub_items": []
+     },
+     {
+      "number": "3.",
+      "branch_number": null,
+      "content": "3. 수입식품등 인터넷 구매 대행업: 국내 소비자의 요청에 따라 해외 판매자의 사이버몰(컴퓨터 등과 정보통신설비를 이용하여 재화 등을 거래할 수 있도록 설정된 가상의 영업장을 말한다)에서 주문하거나 해외 판매자에게 직접 주문하는 방식 등으로 수입식품등의 구매를 대행하여 수입하는 영업",
+      "sub_items": []
+     },
+     {
+      "number": "4.",
+      "branch_number": null,
+      "content": "4. 수입식품등 보관업: 법 제20조제1항에 따른 수입신고의 대상이 되는 수입식품등을 총리령으로 정하는 시설 또는 장소에 보관하는 영업",
+      "sub_items": []
+     }
+    ]
+   }
+  ],
+  "enforce_date": "20251223",
+  "reference": null,
+  "headings": []
+ }
+]
