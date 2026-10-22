@@ -10,10 +10,8 @@ import { cn } from "@/lib/cn";
 import LawCard from "./LawCard";
 
 // 근거 토글의 펼침 여부에 따른 아이콘/글자색
-const LEGAL_SOURCE_TOGGLE_STYLE: Record<"expanded" | "collapsed", { icon: string, textColorClass: string }> = {
-    expanded: { icon: lawIcon, textColorClass: "text-black" },
-    collapsed: { icon: lawIconGray, textColorClass: "text-neutral-border" },
-};
+const EXPANDED_TOGGLE_STYLE = { icon: lawIcon, textColorClass: "text-black" };
+const COLLAPSED_TOGGLE_STYLE = { icon: lawIconGray, textColorClass: "text-neutral-border" };
 
 interface FindingCardProps {
     finding: Finding
@@ -26,7 +24,7 @@ function FindingCard({ finding }: FindingCardProps) {
     const firstLegalSourceLabel = firstLegalSource
         ? [firstLegalSource.lawName, firstLegalSource.article].filter(Boolean).join(" ") || firstLegalSource.sourceName
         : null;
-    const toggleStyle = LEGAL_SOURCE_TOGGLE_STYLE[isExpanded ? "expanded" : "collapsed"];
+    const toggleStyle = isExpanded ? EXPANDED_TOGGLE_STYLE : COLLAPSED_TOGGLE_STYLE;
 
     return (
         <DefaultBox className="gap-4 rounded-[20px] px-7 py-6">
