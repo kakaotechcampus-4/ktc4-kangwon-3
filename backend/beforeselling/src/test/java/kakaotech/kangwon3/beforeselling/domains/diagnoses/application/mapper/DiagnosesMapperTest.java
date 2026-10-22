@@ -40,7 +40,7 @@ class DiagnosesMapperTest {
             Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg"), null));
 
     private final DiagnosesMapper diagnosesMapper = new DiagnosesMapper(new ProductMapper(s3UrlKeyCodec),
-            new DiagnosesProperties(Duration.ofMinutes(15), Duration.ofSeconds(3)));
+            new DiagnosesProperties(Duration.ofMinutes(15), Duration.ofSeconds(3), Duration.ofMinutes(10)));
 
     @Test
     @DisplayName("진단 요청을 변환하면 상품마다 커맨드가 요청 순서대로 만들어진다.")

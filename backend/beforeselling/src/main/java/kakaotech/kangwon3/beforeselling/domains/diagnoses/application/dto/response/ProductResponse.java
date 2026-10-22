@@ -32,7 +32,8 @@ public record ProductResponse(
         @ArraySchema(schema = @Schema(example = "https://beforeselling.s3.ap-northeast-2.amazonaws.com/product-detail/1/0b9f3c2e_detail1.jpg"))
         List<String> imageUrls,
 
-        @Schema(example = "COMPLETED")
+        @Schema(description = "PENDING은 AI 서버가 요청을 받지 못해 다시 요청을 기다리는 중. 진단 중(IN_PROGRESS)과 같게 보여주면 됨",
+                example = "COMPLETED")
         ProcessingStatus processingStatus,
 
         @Schema(description = "현재 실행의 단계·Tool별 진행 상태. 단계 순서, 같은 단계에서는 toolName 없는 행이 먼저. 진행 이벤트를 받기 전에는 빈 목록")

@@ -794,6 +794,17 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("재요청할 진단서 ID는 대기 상태와 요청한 개수로 조회한다.")
+    void findPendingDiagnosesIds_thenQueryPendingWithLimit() {
+        // given
+        given(productRepository.findDiagnosesIdsByStatus(ProcessingStatus.PENDING, PageRequest.of(0, 100)))
+                .willReturn(List.of(DIAGNOSES_ID));
+
+        // when & then
+        assertThat(productService.findPendingDiagnosesIds(100)).containsExactly(DIAGNOSES_ID);
+    }
+
+    @Test
     @DisplayName("기준 시각보다 오래 멈춘 진단은 BE 실패 코드로 실패 처리하고 진단서 상태를 다시 계산한다.")
     void failStuckDiagnoses_whenStuck_thenFailAndRefreshDiagnoses() {
         // given
