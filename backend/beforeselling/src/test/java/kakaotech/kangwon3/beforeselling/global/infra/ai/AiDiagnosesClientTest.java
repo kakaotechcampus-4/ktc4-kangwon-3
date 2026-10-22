@@ -50,9 +50,9 @@ class AiDiagnosesClientTest {
         // given
         AiDiagnosesRequest request = new AiDiagnosesRequest("diagnosis-1", List.of(
                 new AiDiagnosesRequest.Product("product-1", List.of("상세 설명"),
-                        List.of("https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1.jpg")),
-                new AiDiagnosesRequest.Product("product-2", List.of(),
-                        List.of("https://bucket.s3.ap-northeast-2.amazonaws.com/product-detail/2.jpg"))));
+                        List.of("https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1.jpg"), null),
+                new AiDiagnosesRequest.Product("product-2", List.of(), List.of(),
+                        "https://ko.aliexpress.com/item/100500628491")));
 
         server.expect(requestTo(DIAGNOSE_URL))
                 .andExpect(method(HttpMethod.POST))
@@ -61,9 +61,10 @@ class AiDiagnosesClientTest {
                           "diagnosisId": "diagnosis-1",
                           "products": [
                             {"productId": "product-1", "textBlocks": ["상세 설명"],
-                             "imageUrls": ["https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1.jpg"]},
-                            {"productId": "product-2", "textBlocks": [],
-                             "imageUrls": ["https://bucket.s3.ap-northeast-2.amazonaws.com/product-detail/2.jpg"]}
+                             "imageUrls": ["https://bucket.s3.ap-northeast-2.amazonaws.com/product-main/1.jpg"],
+                             "sourceUrl": null},
+                            {"productId": "product-2", "textBlocks": [], "imageUrls": [],
+                             "sourceUrl": "https://ko.aliexpress.com/item/100500628491"}
                           ]
                         }
                         """, true))
