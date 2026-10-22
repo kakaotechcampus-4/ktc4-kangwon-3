@@ -3,6 +3,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { ProductResult } from "@/api/product";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
@@ -16,7 +17,7 @@ import { ResultTabKey } from "./types";
 import { useProductResults } from "./useProductResults";
 
 
-// data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
+// data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스 재사용.
 const EMPTY_PRODUCT_RESULTS: ProductResult[] = [];
 
 function ResultPage() {
@@ -38,8 +39,10 @@ function ResultPage() {
     }, [isInvalidAccess, navigate]);
 
     const { data, isPending, isError, error, refetch } = useProductResults(productId, diagnosesId, isInvalidAccess);
+    // product undefined error 방지
     const products = data ?? EMPTY_PRODUCT_RESULTS;
 
+    // 탭에 전달할 productName 배열
     const productNames = products.map((product) => product.productName)
 
     // 존재하지 않는 id로 접근한 경우(404)는 재시도를 띄우지 않고 메인으로 돌려보낸다.
@@ -52,14 +55,15 @@ function ResultPage() {
         }
     }, [isNotFoundError, navigate]);
 
+    const handleNextStepsClick = () => {
+        setSelectedTab(ResultTabKey.NextSteps);
+    };
+
     // 선택된 탭에 따라 보여줄 패널
     const tabPanels: Record<ResultTabKey, ReactNode> = {
-        [ResultTabKey.DiagnosisResult]: (
-            <DiagnosisResultTab
-                product={products[selectedProductIndex]}
-                onNextStepsClick={() => setSelectedTab(ResultTabKey.NextSteps)}
-            />
-        ),
+        [ResultTabKey.DiagnosisResult]: <DiagnosisResultTab
+                                            product={products[selectedProductIndex]}
+                                            onNextStepsClick={handleNextStepsClick} />,
         [ResultTabKey.NextSteps]: <NextStepTab />,
         [ResultTabKey.ProductInfo]: <ProductInfoTab />,
     };
@@ -68,9 +72,7 @@ function ResultPage() {
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단 결과" description={`${products.length}개 상품에 대한 판정입니다. 상품을 눌러 각각의 근거를 확인하세요.`} />
             {isNotFoundError ? null : isPending ? (
-                <div className="flex w-full justify-center py-12">
-                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
-                </div>
+                <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
                     <p className="text-sm font-medium text-status-danger">결과를 불러오지 못했어요.</p>
