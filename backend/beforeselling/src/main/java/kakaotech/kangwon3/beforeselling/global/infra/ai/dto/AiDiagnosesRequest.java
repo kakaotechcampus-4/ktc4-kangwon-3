@@ -8,11 +8,12 @@ public record AiDiagnosesRequest(
         List<Product> products
 ) {
 
-    // 상품 하나. 텍스트·이미지 중 하나 이상이 있어야 AI가 받는다.
+    // 텍스트·이미지 또는 sourceUrl이 있어야 한다.
     public record Product(
             String productId,
             List<String> textBlocks,
-            List<String> imageUrls
+            List<String> imageUrls,
+            String sourceUrl
     ) {
     }
 }

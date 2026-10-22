@@ -47,7 +47,7 @@ public class AiDiagnosesRequestEventListener {
         }
     }
 
-    // 상품의 텍스트·이미지를 보낸다. 상세페이지 URL은 URL만 있는 상품일 때만 이미지 자리로 보낸다(toProduct).
+    // 상품의 텍스트·이미지·상세페이지 URL을 보낸다.
     private AiDiagnosesRequest toRequest(AiDiagnosesRequestedEvent event) {
         return new AiDiagnosesRequest(event.diagnosesId().toString(),
                 event.products().stream().map(this::toProduct).toList());
@@ -56,15 +56,7 @@ public class AiDiagnosesRequestEventListener {
     private AiDiagnosesRequest.Product toProduct(AiDiagnosesRequestedEvent.ProductInput product) {
         List<String> textBlocks = StringUtils.hasText(product.sourceText()) ? List.of(product.sourceText()) : List.of();
         List<String> imageUrls = product.imageKeys().stream().map(s3UrlKeyCodec::toUrl).toList();
-
-        // AI는 상품마다 텍스트나 이미지 중 하나가 있어야 받고, 하나라도 어긋나면 진단서 요청 전체를 422로 거절한다.
-        // URL만 있는 상품은 상세페이지 URL을 이미지 자리에 넣어 조건을 채운다.
-        // TODO: AI가 URL 수집을 연결하면 제거.
-        if (textBlocks.isEmpty() && imageUrls.isEmpty() && StringUtils.hasText(product.sourceUrl())) {
-            imageUrls = List.of(product.sourceUrl());
-        }
-
-        return new AiDiagnosesRequest.Product(product.productId().toString(), textBlocks, imageUrls);
+        return new AiDiagnosesRequest.Product(product.productId().toString(), textBlocks, imageUrls, product.sourceUrl());
     }
 
     private Map<UUID, String> toRunIds(AiDiagnosesAccepted accepted) {
