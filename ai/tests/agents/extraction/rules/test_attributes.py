@@ -11,7 +11,7 @@ def test_인증코드와_전압과_용량과_주파수를_각각_뽑는다():
     names_and_values = {(a.name, a.value) for a in attributes}
     assert ("인증정보", "CE-RoHS") in names_and_values
     assert ("인증정보", "CE-EMC") in names_and_values
-    assert ("정격전압", "220V") in names_and_values
+    assert ("전압 표기", "220V") in names_and_values
     assert ("배터리 용량", "1460mAh") in names_and_values
     assert ("통신 주파수", "2.4GHz") in names_and_values
 
