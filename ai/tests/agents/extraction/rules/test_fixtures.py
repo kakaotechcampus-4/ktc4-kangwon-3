@@ -57,7 +57,7 @@ def test_전압_상한_표기가_정격으로_둔갑하지_않는다():
         value
         for name, value in _rule_attributes("toy_weapon_shaped.txt")
         | _rule_attributes("wireless_charging_pad.txt")
-        if name == "정격전압"
+        if name == "전압 표기"
     }
 
     assert upper_bounds == {"36V 이하", "≤36V"}
