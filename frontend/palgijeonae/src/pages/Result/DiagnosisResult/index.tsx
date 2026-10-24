@@ -1,6 +1,6 @@
 import type { ProductResult } from "@/api/product";
 import { ResultStatus } from "@/api/types";
-import { RESULT_STATUS_BADGES } from "@/constants/statusBadges";
+import { FALLBACK_BADGE, RESULT_STATUS_BADGES } from "@/constants/statusBadges";
 
 import ResultBanner from "./ResultBanner";
 import ToolReviewCard from "./ToolReviewCard";
@@ -12,22 +12,20 @@ interface DiagnosisResultTabProps {
 
 function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabProps) {
     const { resultStatus, summary, requiredActions, toolReviews } = product;
-    const isSuccess = resultStatus === ResultStatus.PurchasingAgentAllowed;
+    const statusLabel = resultStatus ? RESULT_STATUS_BADGES[resultStatus].label : FALLBACK_BADGE.label;
+
+    // 성공했거나, 진단 결과가 없을 때는 해야할 일 건수를 숨김
+    const hideRequiredActionsCount = resultStatus === ResultStatus.PurchasingAgentAllowed || !resultStatus;
+    const title = hideRequiredActionsCount ? statusLabel : `${statusLabel} · 해야 할 일 ${requiredActions.length}건`;
 
     return (
         <div className="flex w-full flex-col gap-6">
-            {resultStatus && (
-                <ResultBanner
-                    resultStatus={resultStatus}
-                    title={
-                        isSuccess
-                            ? RESULT_STATUS_BADGES[resultStatus].label
-                            : `${RESULT_STATUS_BADGES[resultStatus].label} · 해야 할 일 ${requiredActions.length}건`
-                    }
-                    description={summary ?? ""}
-                    onNextStepsClick={onNextStepsClick}
-                />
-            )}
+            <ResultBanner
+                resultStatus={resultStatus}
+                title={title}
+                description={summary ?? ""}
+                onNextStepsClick={onNextStepsClick}
+            />
             {toolReviews.map((toolReview) => (
                 <ToolReviewCard key={toolReview.productToolReviewId} toolReview={toolReview} />
             ))}
