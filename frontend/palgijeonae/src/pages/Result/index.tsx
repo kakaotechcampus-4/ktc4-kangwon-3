@@ -45,6 +45,8 @@ function ResultPage() {
     // 탭에 전달할 productName 배열
     const productNames = products.map((product) => product.productName)
 
+    const currentProduct = products[selectedProductIndex];
+
     // 존재하지 않는 id로 접근한 경우(404)는 재시도를 띄우지 않고 메인으로 돌려보낸다.
     const isNotFoundError = axios.isAxiosError(error) && error.response?.status === 404;
 
@@ -60,13 +62,13 @@ function ResultPage() {
     };
 
     // 선택된 탭에 따라 보여줄 패널
-    const tabPanels: Record<ResultTabKey, ReactNode> = {
+    const tabPanels: Record<ResultTabKey, ReactNode> | null = currentProduct ? {
         [ResultTabKey.DiagnosisResult]: <DiagnosisResultTab
-                                            product={products[selectedProductIndex]}
+                                            product={currentProduct}
                                             onNextStepsClick={handleNextStepsClick} />,
         [ResultTabKey.NextSteps]: <NextStepTab />,
         [ResultTabKey.ProductInfo]: <ProductInfoTab />,
-    };
+    } : null;
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -84,10 +86,14 @@ function ResultPage() {
                         다시 시도
                     </button>
                 </div>
+            ) : !currentProduct || !tabPanels ? (
+                <p className="w-full py-12 text-center text-sm font-medium text-neutral-border">
+                    표시할 상품이 없어요.
+                </p>
             ) : (
                 <div className="flex w-full flex-col gap-6">
                     <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
-                    <ProductCard productName={products[selectedProductIndex].productName} productImageUrl={products[selectedProductIndex].productImageUrl} resultStatus={products[selectedProductIndex].resultStatus} processingStatus={products[selectedProductIndex].processingStatus} sourceType={products[selectedProductIndex].sourceType} />
+                    <ProductCard productName={currentProduct.productName} productImageUrl={currentProduct.productImageUrl} resultStatus={currentProduct.resultStatus} processingStatus={currentProduct.processingStatus} sourceType={currentProduct.sourceType} />
                     <ResultTabs selected={selectedTab} onSelect={setSelectedTab} />
                     {tabPanels[selectedTab]}
                 </div>
