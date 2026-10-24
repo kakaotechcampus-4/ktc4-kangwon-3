@@ -153,7 +153,7 @@ def test_에이전트_호출의_수_토큰_비용_시간을_기록_이름과_모
     assert [_agent_value(registry, "ai_agent_tokens_total", **labels, kind=kind)
             for kind in ("input", "cached", "output", "reasoning")] == [200, 80, 40, 10]
     assert _agent_value(registry, "ai_agent_cost_krw_total", **labels) == 1.0
-    assert _agent_value(registry, "ai_agent_call_seconds_sum", component="extraction-eval", outcome="ok") == 3.0
+    assert _agent_value(registry, "ai_agent_call_seconds_sum", **labels, outcome="ok") == 3.0
 
 
 def test_실패한_호출은_실패_단계로_세고_모르는_사용량_비용은_건너뛴다():
