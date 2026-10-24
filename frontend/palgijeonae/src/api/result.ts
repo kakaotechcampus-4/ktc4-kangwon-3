@@ -287,7 +287,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
 ];
 
-// TODO: UI 구현 끝나면 아래 주석 풀고 목업 대신 실제 API를 쓸 것
+// TODO: AI 파이프라인이 연결되면 아래 주석 풀고 목업 대신 실제 API를 쓸 것
 // 상품 단건 조회
 export async function getProduct(_productId: string) {
     // const response = await apiClient.get(`/api/v1/products/${productId}`);
@@ -295,7 +295,7 @@ export async function getProduct(_productId: string) {
     return MOCK_PRODUCT_RESULTS[0];
 }
 
-// TODO: UI 구현 끝나면 아래 주석 풀고 목업 대신 실제 API를 쓸 것
+// TODO: AI 파이프라인이 연결되면 아래 주석 풀고 목업 대신 실제 API를 쓸 것
 // 진단서 조회 (진단서 단위, 여러 상품 결과를 한 번에 조회)
 export const getDiagnosesDetail = async (_diagnosesId: string) => {
     // const response = await apiClient.get(`/api/v1/diagnoses/${diagnosesId}`);
