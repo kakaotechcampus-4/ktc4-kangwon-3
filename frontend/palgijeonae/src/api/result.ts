@@ -1,3 +1,5 @@
+// TODO: AI 파이프라인이 연결되면 아래 import문의 주석을 풀기
+// import apiClient from "@/api/client";
 import {
     AssessmentStatus,
     Determination,
