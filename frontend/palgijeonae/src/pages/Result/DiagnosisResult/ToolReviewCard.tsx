@@ -1,18 +1,10 @@
-import { ToolName, type ToolReview, ToolReviewStatus } from "@/api/product";
+import { type ToolReview, ToolReviewStatus } from "@/api/product";
 import SectionIntro from "@/components/common/SectionIntro";
 import { type Badge } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";
 
+import { TOOL_NAME_LABELS } from "./constants";
 import FindingCard from "./FindingCard";
-
-const TOOL_NAME_LABELS: Record<ToolName, string> = {
-    [ToolName.Customs]: "통관",
-    [ToolName.Children]: "어린이 제품",
-    [ToolName.Electrical]: "전기 안전",
-    [ToolName.Radio]: "전파",
-    [ToolName.FoodDrug]: "식약",
-    [ToolName.LabelAd]: "표시 광고",
-};
 
 // 분야별 검토 진행 상태 배지. Skipped는 하단에 따로 노출하므로 매핑하지 않는다.
 const TOOL_REVIEW_STATUS_BADGES: Partial<Record<ToolReviewStatus, Badge>> = {
