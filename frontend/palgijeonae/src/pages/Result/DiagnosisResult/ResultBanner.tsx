@@ -1,12 +1,13 @@
 import { ResultStatus } from "@/api/types";
 import dangerIcon from "@/assets/result-danger.svg";
+import noResultIcon from "@/assets/result-noResult.svg";
 import successIcon from "@/assets/result-success.svg";
 import warningIcon from "@/assets/result-warning.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
 
 interface BannerStyle {
-    tone: "success" | "warning" | "danger"
+    tone: "success" | "warning" | "danger" | "neutral"
     icon: string
     textColorClass: string
     buttonColorClass: string
@@ -38,23 +39,32 @@ const BANNER_STYLE: Record<ResultStatus, BannerStyle> = {
     },
 };
 
+// 결과 상태 값이 없는 스타일
+const DEFAULT_BANNER_STYLE: BannerStyle = {
+    tone: "neutral",
+    icon: noResultIcon,
+    textColorClass: "text-neutral-border",
+    buttonColorClass: "bg-neutral-border",
+    showNextStepsButton: false,
+};
+
 interface ResultBannerProps {
-    resultStatus: ResultStatus
+    resultStatus: ResultStatus | null
     title: string
     description: string
     onNextStepsClick: () => void
 }
 
 function ResultBanner({ resultStatus, title, description, onNextStepsClick }: ResultBannerProps) {
-    const style = BANNER_STYLE[resultStatus];
+    const style = resultStatus ? BANNER_STYLE[resultStatus] : DEFAULT_BANNER_STYLE;
 
     return (
         <DefaultBox tone={style.tone}>
             <div className={cn("flex flex-row items-center gap-4", style.textColorClass)}>
                 <img src={style.icon} alt="" className="h-10 w-10 shrink-0" />
                 <div className="flex flex-col gap-2">
-                    <p className="text-lg font-bold">{title}</p>
-                    <p className="whitespace-pre-line text-base font-medium">{description}</p>
+                    <p className="text-lg font-bold">{title || "진단 결과가 없어요"}</p>
+                    <p className="whitespace-pre-line text-base font-medium">{description || "아직 진단이 완료되지 않았거나, 진단에 실패했어요."}</p>
                 </div>
             </div>
             {style.showNextStepsButton && (
