@@ -2,22 +2,28 @@
 
 import json
 
+from app.agents.base import AgentRunMeta
 from app.eval.collect_runner import (
     MAX_ALL_IMAGES,
+    UsageTotals,
     compare_fields,
     image_sourced_attributes,
     mode_input,
     product_key,
     run_product,
-    usage_of,
     write_summary,
 )
-from app import usage
+from app.observability.agent_sinks import agent_sinks
 from app.pipeline.url_source import UrlSource
 from app.schemas.agent import ExtractionInput, ImageTriageResponse
 from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from app.usage import CallUsage
 
 URL = "https://seller.en.made-in-china.com/product/jZbflYzyZctU/China-Power-Bank.html"
+
+
+def _usage(input_tokens: int, output_tokens: int) -> CallUsage:
+    return CallUsage(reported_model="m", input_tokens=input_tokens, cached_tokens=0, output_tokens=output_tokens)
 
 
 def _source(image_count: int = 3) -> UrlSource:
@@ -73,16 +79,16 @@ def test_값이_하나라도_다른_판단_칸만_모은다():
     ]
 
 
-def test_대상_ID별로_사용량을_합친다(tmp_path):
-    log = tmp_path / "usage.jsonl"
-    log.write_text("\n".join([
-        json.dumps({"subject_id": "s-1", "input_tokens": 100, "output_tokens": 10, "estimated_cost_krw": 0.5}),
-        json.dumps({"subject_id": "s-2", "input_tokens": 999}),
-        "깨진 줄",
-        json.dumps({"subject_id": "s-1", "input_tokens": 50, "output_tokens": None, "estimated_cost_krw": 0.25}),
-    ]), encoding="utf-8")
+def test_대상_ID별로_사용량을_합친다():
+    totals = UsageTotals()
+    totals.on_run(AgentRunMeta(component="a", usage=_usage(100, 10), cost_krw=0.5), "s-1")
+    totals.on_run(AgentRunMeta(component="a", usage=_usage(999, 0)), "s-2")
+    # 호출 실패로 사용량을 모르는 호출도 횟수에는 셈
+    totals.on_run(AgentRunMeta(component="a", error_type="TimeoutError"), "s-1")
+    totals.on_run(AgentRunMeta(component="a", usage=_usage(50, 0), cost_krw=0.25), "s-1")
 
-    assert usage_of("s-1", log) == {"calls": 2, "input_tokens": 150, "output_tokens": 10, "estimated_cost_krw": 0.75}
+    assert totals.of("s-1") == {"calls": 3, "input_tokens": 150, "output_tokens": 10, "estimated_cost_krw": 0.75}
+    assert totals.of("없음") == {"calls": 0, "input_tokens": 0, "output_tokens": 0, "estimated_cost_krw": 0}
 
 
 def test_저장된_결과로_요약을_만든다(tmp_path):
@@ -115,8 +121,7 @@ def test_같은_상품을_다시_돌려도_앞_실행_비용이_섞이지_않는
     html.write_text("<html></html>", encoding="utf-8")
 
     def _record(subject_id):
-        usage.record("test", usage.CallUsage(reported_model="m", input_tokens=100, cached_tokens=0, output_tokens=10),
-                     subject_id=subject_id)
+        agent_sinks.publish(AgentRunMeta(component="test", usage=_usage(100, 10)), subject_id)
 
     class _Builder:
         def build_from_html(self, url, raw_html, *, product_id):

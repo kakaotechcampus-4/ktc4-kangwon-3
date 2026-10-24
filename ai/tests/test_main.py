@@ -13,6 +13,8 @@ from fastapi.testclient import TestClient
 
 from app import config, database, main
 from app.callbacks import HttpCallbackSender
+from app.agents.base import AgentRunMeta
+from app.observability.agent_sinks import agent_sinks
 from app.routers import _dummy
 
 TOKEN = "test-internal-token-0123456789abcdef"
@@ -115,3 +117,18 @@ def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be
 
     assert 'ai_sessions{status="completed"} 1.0' in text
     assert 'ai_session_accepted_total{run_type="production"} 1.0' in text
+
+
+def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인다(fake_be):
+    meta = AgentRunMeta(component="extraction", model="m", elapsed_ms=100)
+    sample = {"component": "extraction", "model": "m", "outcome": "ok"}
+
+    with TestClient(main.app) as client:
+        agent_sinks.publish(meta, "p-1")
+        registry = main.app.state.metrics_registry
+        text = client.get("/metrics").text
+    agent_sinks.publish(meta, "p-2")
+
+    assert 'ai_agent_calls_total{component="extraction",model="m",outcome="ok"} 1.0' in text
+    # 종료 때 해제돼 이후 호출은 옛 registry에 쌓이지 않음
+    assert registry.get_sample_value("ai_agent_calls_total", sample) == 1.0
