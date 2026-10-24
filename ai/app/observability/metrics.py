@@ -171,7 +171,7 @@ class AgentMetrics:
         )
         self._call_seconds = Histogram(
             "ai_agent_call_seconds", "모델 호출 1건 소요 시간",
-            ["component", "outcome"], buckets=AGENT_CALL_BUCKETS, registry=registry,
+            ["component", "model", "outcome"], buckets=AGENT_CALL_BUCKETS, registry=registry,
         )
 
     def on_run(self, meta: AgentRunMeta, subject_id: str) -> None:
@@ -186,7 +186,7 @@ class AgentMetrics:
         # 실패 단계를 모르는 실패는 failed
         outcome = "ok" if meta.error_type is None else meta.failure_phase or "failed"
         self._calls.labels(component, model, outcome).inc()
-        self._call_seconds.labels(component, outcome).observe(meta.elapsed_ms / 1000)
+        self._call_seconds.labels(component, model, outcome).observe(meta.elapsed_ms / 1000)
         if meta.usage is not None:
             for kind, count in (("input", meta.usage.input_tokens), ("cached", meta.usage.cached_tokens),
                                 ("output", meta.usage.output_tokens), ("reasoning", meta.usage.reasoning_tokens)):
