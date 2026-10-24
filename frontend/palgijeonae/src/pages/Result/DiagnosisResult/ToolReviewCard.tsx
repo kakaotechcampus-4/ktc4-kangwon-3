@@ -5,11 +5,11 @@ import FindingCard from "./FindingCard";
 
 const TOOL_NAME_LABELS: Record<ToolName, string> = {
     [ToolName.Customs]: "통관",
-    [ToolName.Children]: "어린이제품",
-    [ToolName.Electrical]: "전기안전",
+    [ToolName.Children]: "어린이 제품",
+    [ToolName.Electrical]: "전기 안전",
     [ToolName.Radio]: "전파",
     [ToolName.FoodDrug]: "식약",
-    [ToolName.LabelAd]: "표시광고",
+    [ToolName.LabelAd]: "표시 광고",
 };
 
 interface ToolReviewCardProps {
