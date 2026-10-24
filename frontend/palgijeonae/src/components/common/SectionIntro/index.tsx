@@ -17,7 +17,7 @@ const descriptionVariants = cva("whitespace-pre-line text-neutral-text", {
     variants: {
         size: {
             '3xl': 'text-xl leading-8.75',
-            '2xl': 'text-xl leading-8.75',
+            '2xl': 'text-lg leading-8.75',
             'xl': 'text-sm leading-4.25',
         },
     },

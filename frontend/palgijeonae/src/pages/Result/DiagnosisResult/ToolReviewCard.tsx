@@ -19,10 +19,7 @@ interface ToolReviewCardProps {
 function ToolReviewCard({ toolReview }: ToolReviewCardProps) {
     return (
         <div className="flex w-full flex-col gap-3.5">
-            <SectionIntro title={TOOL_NAME_LABELS[toolReview.toolName]} size="2xl" />
-            {toolReview.message && (
-                <p className="text-sm leading-relaxed text-neutral-muted">{toolReview.message}</p>
-            )}
+            <SectionIntro title={TOOL_NAME_LABELS[toolReview.toolName]} description={toolReview.message ?? ""} size="2xl" />
             {toolReview.findings.map((finding) => (
                 <FindingCard key={finding.productFindingId} finding={finding} />
             ))}
