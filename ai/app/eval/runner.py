@@ -26,6 +26,7 @@ from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..config import ModelProfile, agent_profile
 from ..prompts import fingerprint
 from ..schemas.agent import ExtractionInput
+from .errors import RawFixtureMissing
 from .grading import Grade, Stability
 from .scoring import FixtureReport, load_truth, score
 
@@ -33,10 +34,6 @@ _AI_ROOT = Path(__file__).resolve().parent.parent.parent
 RAW_DIR = _AI_ROOT / "tests" / "fixtures" / "_raw"
 TRUTH_DIR = _AI_ROOT / "tests" / "eval_truth"
 RESULT_DIR = _AI_ROOT / "logs" / "eval"
-
-
-class RawFixtureMissing(FileNotFoundError):
-    """원문 픽스처가 로컬에 없다. 저장소에는 축약본만 커밋된다."""
 
 
 def prompt_fingerprint(path: Path | None = None) -> str:

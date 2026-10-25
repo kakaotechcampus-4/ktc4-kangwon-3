@@ -7,16 +7,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
-from ..base import AgentError, BaseAgent
+from ..base import BaseAgent
+from .errors import ExtractionFailedError
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.EXTRACTION).path
-
-
-class ExtractionFailedError(AgentError):
-    """추출 모델 호출·파싱 실패. 원인 예외는 ``__cause__``."""
 
 
 class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):

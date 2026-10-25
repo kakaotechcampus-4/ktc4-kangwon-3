@@ -2,7 +2,8 @@
 
 import pytest
 
-from app import config, database
+from app import config
+from app.repositories import database
 
 
 def _settings(database_url: str) -> config.Settings:

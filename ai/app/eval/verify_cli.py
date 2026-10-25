@@ -1,8 +1,8 @@
 """검증 에이전트 단독 실행.
 
     cd ai
-    python -m app.verify_cli examples/verification_draft.json --rules-only
-    python -m app.verify_cli examples/verification_draft.json
+    python -m app.eval.verify_cli examples/verification_draft.json --rules-only
+    python -m app.eval.verify_cli examples/verification_draft.json
 """
 
 import argparse
@@ -10,8 +10,8 @@ import json
 import sys
 from pathlib import Path
 
-from .agents.verification import VerificationAgent, VerificationError
-from .schemas.schemas import DraftAssessment, TraceEvent
+from ..agents.verification import VerificationAgent, VerificationError
+from ..schemas.schemas import DraftAssessment, TraceEvent
 
 
 def main() -> int:

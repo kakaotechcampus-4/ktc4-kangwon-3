@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from threading import Lock
 
 from ..config import AWAITING_INPUT_RETENTION_SECONDS, SESSION_RETENTION_SECONDS
-from ..observability.context import ExecutionContext
+from ..domain.context import ExecutionContext
 from ..schemas.base import utc_now
 from ..schemas.session import DiagnosisSession, SessionStatus
 from .transitions import STATUS_TRAITS, Retention, Transition

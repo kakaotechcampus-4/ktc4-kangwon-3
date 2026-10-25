@@ -1,6 +1,7 @@
-"""AI 서버 공통 응답 코드와 예외 (#171 §6).
+"""AI 서버 공통 예외 뿌리·응답 코드 (#171 §6).
 
-API 경계에서 ApiResponse{code, message, details, data}로 변환. 내부 원인·stack trace는 비공개.
+AIError: AI 서버가 만든 예외의 공통 부모. 각 패키지 errors.py의 예외가 상속함.
+AIServiceError: API 경계에서 ApiResponse{code, message, details, data}로 변환. 내부 원인·stack trace는 비공개.
 """
 
 from dataclasses import dataclass
@@ -8,7 +9,14 @@ from enum import Enum
 
 from pydantic import BaseModel
 
-from .observability.context import PipelineStage
+from .context import PipelineStage
+
+
+class AIError(Exception):
+    """AI 서버가 만든 예외의 공통 부모. 예상한 실패를 라이브러리 오류·버그와 구분하는 데 씀.
+
+    하위 예외는 기존 ``except``가 계속 잡도록 원래 내장 예외(RuntimeError·ValueError 등)도 함께 상속.
+    """
 
 
 @dataclass(frozen=True)
@@ -49,7 +57,7 @@ class AIResponseCode(Enum):
     TIMEOUT = ResponseCode(500, "AI_TIMEOUT", "진단 시간이 초과되었습니다.")
 
 
-class AIServiceError(RuntimeError):
+class AIServiceError(AIError, RuntimeError):
     """AI 서버 공통 예외. API 경계에서 응답 코드로 변환됨.
 
     원인 예외는 ``raise AIServiceError(...) from exc``로 보존.
