@@ -140,6 +140,7 @@ class SessionManager:
         run_id: str,
         question_round: int,
         answers: dict[str, str],
+        run_type: RunType = RunType.PRODUCTION,
     ) -> DiagnosisSession:
         """답변 대기 세션을 답변과 함께 재접수하고 새 실행을 예약한다. 접수와 같은 대기열·상한 사용.
 
@@ -149,13 +150,14 @@ class SessionManager:
             run_id: 질문으로 끝난 실행 ID. 지금 세션의 실행과 같아야 함.
             question_round: 답하는 질문 회차. 지금 기다리는 회차와 같아야 함.
             answers: 질문 키 → 답변. 이번 회차 질문에 모두 답해야 함.
+            run_type: 재진단 경로의 실행 종류. 세션의 실행 종류와 같아야 함.
 
         Returns:
             DiagnosisSession: 재접수된 세션. context.run_id가 새 실행 ID.
 
         Raises:
             QueueFullError: 대기 + 실행 중 세션이 상한을 넘는 경우.
-            SessionNotFoundError: 세션이 없는 경우.
+            SessionNotFoundError: 세션이 없거나 실행 종류가 다른 경우.
             ResumeConflictError: 답변 대기가 아니거나 실행·회차·진단서가 다른 경우.
             UnknownQuestionKeyError: 이번 회차에 묻지 않은 질문 키가 있는 경우.
             UnansweredQuestionError: 이번 회차 질문 중 답하지 않은 질문이 있는 경우.
@@ -184,6 +186,9 @@ class SessionManager:
                 self._rejected["queue_full"] += 1
                 raise
             session = self._store.get(product_id)
+            # 다른 경로(운영·더미)로 접수된 세션은 없음으로 봄
+            if session is not None and session.context.run_type is not run_type:
+                session = None
             # 조회 뒤 정리로 사라져도 없음으로 봄. 같은 상품의 접수·재진단은 이 잠금 안에서만 일어남
             transition = self._updater.replace(session.context, resume) if session is not None else None
             if transition is None:

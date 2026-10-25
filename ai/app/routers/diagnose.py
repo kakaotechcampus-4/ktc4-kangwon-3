@@ -100,18 +100,19 @@ def submit_diagnosis(
     )
 
 
-def resume_session(manager: SessionManager, req: ResumeRequest) -> ResumeAcceptedResponse:
+def resume_session(manager: SessionManager, req: ResumeRequest, run_type: RunType) -> ResumeAcceptedResponse:
     """답변 대기 상품을 재접수하고 202 응답 본문을 만든다. 세션 예외는 응답 코드로 바꿈.
 
     Args:
         manager: 세션 관리자.
         req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변.
+        run_type: 재진단 경로의 실행 종류. 다른 경로로 접수된 세션은 없음으로 봄.
 
     Returns:
         ResumeAcceptedResponse: 새 실행 ID.
 
     Raises:
-        AIServiceError: 묻지 않은 질문 키면 400(data.questionKeys), 세션이 없으면 404,
+        AIServiceError: 묻지 않은 질문 키면 400(data.questionKeys), 세션이 없거나 실행 종류가 다르면 404,
             답변 대기가 아니거나 실행·회차·진단서가 다르면 409, 답하지 않은 질문이 있으면 422, 대기열이 차면 429.
     """
     try:
@@ -121,6 +122,7 @@ def resume_session(manager: SessionManager, req: ResumeRequest) -> ResumeAccepte
             run_id=req.run_id,
             question_round=req.question_round,
             answers={answer.question_key: answer.answer_text for answer in req.answers},
+            run_type=run_type,
         )
     except UnknownQuestionKeyError as e:
         raise AIServiceError(
@@ -199,7 +201,7 @@ async def resume_diagnosis(
         AIServiceError: 묻지 않은 질문 키면 400(data.questionKeys), 세션이 없으면 404,
             답변 대기가 아니거나 실행·회차·진단서가 다르면 409, 답하지 않은 질문이 있으면 422, 대기열이 차면 429.
     """
-    return resume_session(manager, req)
+    return resume_session(manager, req, RunType.PRODUCTION)
 
 
 @router.post("/url", response_model=DiagnoseResponse, summary="URL 진단", description="상품 URL로 크롤링 후 규제 진단을 실행한다.")
