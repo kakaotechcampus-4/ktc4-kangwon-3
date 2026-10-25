@@ -1,0 +1,352 @@
+{
+ "description": "표시·광고 Tool 홀드아웃. 개발 평가셋(dev.json)·추출 홀드아웃(ali_holdout_*)과 겹치지 않는 _raw 원문 9개. 입력은 서비스 추출 모델(gpt-4.1-mini)로 원문을 한 번 추출한 listing_text를 고정했다. 프롬프트 e39d15ab로 한 번 재고, 이 결과를 보고 프롬프트를 고치면 더 이상 홀드아웃이 아니다.",
+ "inputs_file": "tests/fixtures/_raw/advertising_holdout_inputs.json",
+ "inputs_sha256_12": "ae640a9b1c97",
+ "reviewed_by": "gityhb (2026-10-13). 초안은 Claude가 dev.json과 같은 기준으로 작성. e2e_page_01 미분류 17건은 2026-10-14 측정 결과를 본 뒤 dev와 같은 원칙으로 추가(gityhb 위임)",
+ "law_versions": "tests/fixtures/advertising_law/README.md",
+ "scoring": "dev.json과 같다.",
+ "cases": [
+  {
+   "fixture": "e2e_page_01.txt",
+   "product_id": "e2e_page_01",
+   "must_flag": [
+    {
+     "text": "완벽한 스타일을 선사합니다",
+     "risk_type": "ranking_absolute",
+     "basis": "절대적 표현 '완벽'(dev '요리와 베이킹에 완벽'과 같은 기준)"
+    },
+    {
+     "text": "모발 건강을 개선",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1(인체 효과)"
+    },
+    {
+     "text": "열 손상을 방지",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1"
+    },
+    {
+     "text": "2억 개 이상의 음이온이 모발의 곱슬거림을 완화하는 데 도움을 줍니다",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1, 수치 주장"
+    },
+    {
+     "text": "팔의 피로를 줄여줍니다",
+     "risk_type": "body_effect",
+     "basis": "실증 고시 Ⅲ 1(신체 기능)"
+    },
+    {
+     "text": "국제 표준을 충족하는",
+     "risk_type": "safety_certification",
+     "basis": "실증 고시 Ⅲ 2(안전·규격 충족 주장)"
+    },
+    {
+     "text": "머리카락과 두피를 태우는 것을 방지",
+     "risk_type": "safety_certification",
+     "basis": "소비자 안전 지침 1 나(안전 기능 주장)"
+    },
+    {
+     "text": "머리카락의 정전기를 중화시켜 줍니다",
+     "risk_type": "body_effect",
+     "basis": "모발 효과 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "모발 큐티클을 밀봉하는 역할을 합니다",
+     "risk_type": "body_effect",
+     "basis": "모발 효과 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "일관된 보호 효과와 윤기를 제공합니다",
+     "risk_type": "body_effect",
+     "basis": "모발 효과 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "윤기 있고 촉촉한 머릿결을 만들어 줍니다",
+     "risk_type": "body_effect",
+     "basis": "모발 효과 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "부드럽고 매끄러운 결과를 얻는 데 도움을 줍니다",
+     "risk_type": "body_effect",
+     "basis": "'도움' 효과 주장 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "머리카락에 묻은 수분을 빠르게 제거하고, 빠른 건조 효과를 제공합니다",
+     "risk_type": "performance_quality",
+     "basis": "수치 성능 문장(dev '2000곡'과 같은 기준) (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "과도한 열 없이도 머리를 빠르게 말릴 수 있습니다",
+     "risk_type": "performance_quality",
+     "basis": "평가하는 말이 붙은 성능 주장 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "스타일링 시간을 크게 단축할 수 있어",
+     "risk_type": "performance_quality",
+     "basis": "평가하는 말이 붙은 성능 주장 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "빠른 건조",
+     "risk_type": "performance_quality",
+     "basis": "성능 수준 평가(dev '고효율'과 같은 기준) (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "온도를 정확히 파악하고",
+     "risk_type": "performance_quality",
+     "basis": "성능 수준 평가('정확히') (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "참고: 이 제품의 정격 전압은 220V입니다.",
+     "why": "사용 안내"
+    },
+    {
+     "text": "1.7미터 길이의 코드",
+     "why": "사양"
+    },
+    {
+     "text": "헤어 드라이어 본체 * 1",
+     "why": "구성품"
+    },
+    {
+     "text": "파란색: 찬 공기",
+     "why": "사양"
+    },
+    {
+     "text": "고속 건조: 느껴지는 풍속 > 초당 62미터",
+     "why": "항목: 값 사양(dev '배터리 수명' 줄과 같은 기준)"
+    },
+    {
+     "text": "하늘과 구름에서 영감을 받아",
+     "why": "디자인에 대한 주관적 표현"
+    },
+    {
+     "text": "음이온 발생",
+     "why": "기능 사양(dev '3색 조광 기능'과 같은 기준) (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "훌륭한 선택이 될 것입니다",
+     "why": "주관적 표현 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "음이온이 머릿결에 가져다주는 변화를 직접 경험해 보세요",
+     "why": "구매 권유·주관 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "최고의 헤어 드라이 경험",
+     "why": "'최고'지만 경험(느낌)이라 주관적 판단과 경계"
+    },
+    {
+     "text": "전문가 수준의 성능",
+     "why": "막연한 성능 주장"
+    },
+    {
+     "text": "곱슬거림이 줄어들어",
+     "why": "모발 효과. 다른 정답과 같은 주장"
+    },
+    {
+     "text": "장시간 사용해도 피로감이 없습니다",
+     "why": "'팔의 피로'와 같은 주장"
+    },
+    {
+     "text": "과열 방지 기능이 탑재",
+     "why": "기능 사양이자 안전 주장 경계"
+    },
+    {
+     "text": "초당 100회 실시간으로 온도를 감지",
+     "why": "수치 기술 설명"
+    },
+    {
+     "text": "최대 110,000 RPM",
+     "why": "수치 사양"
+    },
+    {
+     "text": "더욱 조용한 사용 환경",
+     "why": "소음 성능 주장(수치 없음)"
+    },
+    {
+     "text": "헤어 케어 루틴을 혁신적으로 변화시켜",
+     "why": "진위를 판단할 수 없는 막연한 평가 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "전문가 수준의 결과를 얻을 수 있도록",
+     "why": "'전문가 수준의 성능'과 같은 기준 (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    },
+    {
+     "text": "고온 건조를 줄입니다",
+     "why": "수치 없는 효과 서술(dev 'RFID 차단'과 같은 기준) (측정 결과를 본 뒤 개발셋과 같은 원칙으로 추가)"
+    }
+   ]
+  },
+  {
+   "fixture": "age_label_vs_target_mismatch.txt",
+   "product_id": "age_label_vs_target_mismatch",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "인증정보: CE-Toy; CPC",
+     "why": "인증 이름만 나열(5절 ③)"
+    },
+    {
+     "text": "사용연령: 2년 이상",
+     "why": "사양"
+    },
+    {
+     "text": "이 제품을 가열하거나, 전자레인지에 넣거나",
+     "why": "경고 문구"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "부드럽고 몰드가 잘 되는",
+     "why": "촉감(주관)과 성질 설명 경계"
+    }
+   ]
+  },
+  {
+   "fixture": "chemical_product_diffuser.txt",
+   "product_id": "chemical_product_diffuser",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "흰색 PE 로즈 향 장식 꽃",
+     "why": "상품 설명"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "오래 지속되는 향기",
+     "why": "수치 없는 성능 주장(팀 논의 중, #295)"
+    }
+   ]
+  },
+  {
+   "fixture": "chinese_material_labels.txt",
+   "product_id": "chinese_material_labels",
+   "must_flag": [],
+   "must_not_flag": [],
+   "acceptable": [
+    {
+     "text": "爽脆手感",
+     "why": "촉감에 대한 표현(중국어). 주관적 판단 경계"
+    }
+   ]
+  },
+  {
+   "fixture": "heating_device_no_claim.txt",
+   "product_id": "heating_device_no_claim",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "재사용 가능한",
+     "why": "기능 설명"
+    },
+    {
+     "text": "조절식 스트랩",
+     "why": "사양"
+    }
+   ],
+   "acceptable": []
+  },
+  {
+   "fixture": "kc_certified_fan.txt",
+   "product_id": "kc_certified_fan",
+   "must_flag": [
+    {
+     "text": "KC인증",
+     "risk_type": "safety_certification",
+     "basis": "국내 인증을 받았다는 주장(실증 고시 Ⅲ 2 ②, 5절 ③의 국내 인증 표기)"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "USB선풍기",
+     "why": "상품 종류"
+    }
+   ],
+   "acceptable": []
+  },
+  {
+   "fixture": "plant_material_basket.txt",
+   "product_id": "plant_material_basket",
+   "must_flag": [
+    {
+     "text": "강력하고 오래 지속됩니다",
+     "risk_type": "performance_quality",
+     "basis": "막연한 내구성 주장(실증 고시 Ⅲ 3)"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "DIY 프로젝트에 이상적입니다",
+     "why": "용도·주관"
+    },
+    {
+     "text": "자연스러운 소박한 매력",
+     "why": "주관적 표현"
+    },
+    {
+     "text": "젖은 천으로 닦아주면",
+     "why": "관리 안내"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "고품질 직조와 깔끔한 스티칭",
+     "why": "막연한 품질 주장 경계"
+    }
+   ]
+  },
+  {
+   "fixture": "toy_weapon_shaped.txt",
+   "product_id": "toy_weapon_shaped",
+   "must_flag": [],
+   "must_not_flag": [
+    {
+     "text": "저전압(36V 이하)",
+     "why": "사양"
+    },
+    {
+     "text": "인증정보: CE-Toy; CE-RoHS; CE-EMC(Electric); CPC",
+     "why": "인증 이름만 나열(5절 ③)"
+    },
+    {
+     "text": "본체재질 플라스틱",
+     "why": "사양"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "리얼리스틱 사격 소리",
+     "why": "기능 묘사. 주관적 표현 경계"
+    }
+   ]
+  },
+  {
+   "fixture": "wireless_charging_pad.txt",
+   "product_id": "wireless_charging_pad",
+   "must_flag": [
+    {
+     "text": "15W 고속 충전",
+     "risk_type": "performance_quality",
+     "basis": "수치와 '고속' 성능 주장(dev '고효율'과 같은 기준)"
+    }
+   ],
+   "must_not_flag": [
+    {
+     "text": "3-in-1 접이식 무선 충전 스탠드",
+     "why": "상품 종류"
+    }
+   ],
+   "acceptable": [
+    {
+     "text": "동시 충전",
+     "why": "기능 설명"
+    }
+   ]
+  }
+ ]
+}

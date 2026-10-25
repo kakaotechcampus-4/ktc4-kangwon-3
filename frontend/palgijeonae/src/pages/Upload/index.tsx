@@ -3,8 +3,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/client";
+import { SourceType } from "@/api/types.ts"
 import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
+import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import { cn } from "@/lib/cn";
 
@@ -15,14 +17,14 @@ import type { Product } from "./types.ts";
 import { validateProduct } from "./validation.ts";
 
 const INPUT_TYPE_TABS = [
-    { key: "url", label: "URL" },
-    { key: "text/image", label: "텍스트 / 이미지" },
+    { key: SourceType.Url, label: "URL" },
+    { key: SourceType.TextImage, label: "텍스트 / 이미지" },
 ] as const;
 
 type InputType = typeof INPUT_TYPE_TABS[number]["key"];
 
 function UploadPage() {
-    const [inputType, setInputType] = useState<InputType>("url");
+    const [inputType, setInputType] = useState<InputType>(SourceType.Url);
     const [products, setProducts] = useState<Product[]>([]);
     const navigate = useNavigate();
 
@@ -65,10 +67,7 @@ function UploadPage() {
             <SectionIntro title="상품 업로드" description="상세페이지를 붙여넣거나 이미지·URL로 추가하세요.
 최대 10개까지의 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다." />
             {isPending ? (
-                <div className="flex w-full flex-col items-center justify-center gap-4 py-12">
-                    <div className="h-16 w-16 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
-                    <p className="text-lg text-neutral-text">진단 요청을 보내는 중...</p>
-                </div>
+                <LoadingSpinner label="진단 요청을 보내는 중..." />
             ) : (
                 <>
                     {products.length < 10 ? (

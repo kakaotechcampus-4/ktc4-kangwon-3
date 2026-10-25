@@ -1,0 +1,166 @@
+"""콜백 이벤트·공개 진단서 스키마의 camelCase 경계와 검증 규칙을 확인한다 (#310)."""
+
+from typing import get_args
+
+import pytest
+from pydantic import TypeAdapter, ValidationError
+
+from app.schemas.callback import (
+    ProductAwaitingInputEvent, ProductFailedEvent, ProductProgressEvent, ProductResultEvent, PublicAssessmentDto,
+    PublicErrorDto, PublicFindingDto, PublicLegalSourceDto, PublicPipelineStage, PublicProductEvent, PublicQuestionDto,
+    PublicToolName, PublicToolReviewDto,
+)
+from app.schemas.schemas import ToolName
+
+_BASE = {"event_id": "e-1", "diagnosis_id": "d-1", "product_id": "p-1", "run_id": "run-1", "sequence": 1}
+
+
+def _assessment(**fields) -> PublicAssessmentDto:
+    values = {"status": "completed", "result_status": "DIRECT_IMPORT_CERTIFICATION_REQUIRED", "summary": "요약"}
+    return PublicAssessmentDto(**{**values, **fields})
+
+
+def _question(key: str = "battery_only", order: int = 1) -> PublicQuestionDto:
+    return PublicQuestionDto(question_key=key, question_order=order, question_text="내장 배터리로만 동작하나요?")
+
+
+def test_이벤트는_camelCase로_나가고_eventType이_붙는다():
+    event = ProductProgressEvent(**_BASE, stage=PublicPipelineStage.TOOL_EXECUTION, stage_status="started",
+                                 tool_name="ELECTRICAL")
+
+    assert event.model_dump(mode="json", by_alias=True) == {
+        "eventId": "e-1", "diagnosisId": "d-1", "productId": "p-1", "runId": "run-1", "sequence": 1,
+        "eventType": "product_progress", "stage": "tool_execution", "stageStatus": "started",
+        "toolName": "ELECTRICAL",
+    }
+
+
+@pytest.mark.parametrize("event", [
+    ProductProgressEvent(**_BASE, stage=PublicPipelineStage.EXTRACTION, stage_status="started"),
+    ProductAwaitingInputEvent(**_BASE, question_round=1, questions=[_question()]),
+    ProductResultEvent(**_BASE, assessment=_assessment()),
+    ProductFailedEvent(**_BASE, error=PublicErrorDto(code="AI-TIMEOUT", message="시간 초과", retryable=True)),
+])
+def test_eventType으로_4종을_구분해_읽는다(event):
+    adapter = TypeAdapter(PublicProductEvent)
+
+    payload = event.model_dump(mode="json", by_alias=True)
+
+    assert adapter.validate_python(payload) == event
+
+
+def test_toolName은_Tool_실행_단계에서만_받는다():
+    with pytest.raises(ValidationError, match="Tool 실행 단계"):
+        ProductProgressEvent(**_BASE, stage=PublicPipelineStage.SELECTION, stage_status="started",
+                             tool_name="ELECTRICAL")
+
+
+@pytest.mark.parametrize("sequence", [0, "1"])
+def test_sequence는_1부터_정수만(sequence):
+    with pytest.raises(ValidationError):
+        ProductProgressEvent(**{**_BASE, "sequence": sequence}, stage=PublicPipelineStage.EXTRACTION,
+                             stage_status="started")
+
+
+@pytest.mark.parametrize("questions", [
+    [_question("battery_only", 1), _question("battery_only", 2)],
+    [_question("battery_only", 1), _question("target_age", 1)],
+])
+def test_질문_키와_순서는_중복될_수_없다(questions):
+    with pytest.raises(ValidationError, match="중복"):
+        ProductAwaitingInputEvent(**_BASE, question_round=1, questions=questions)
+
+
+@pytest.mark.parametrize("question_round", [0, 3])
+def test_질문은_2회차까지(question_round):
+    with pytest.raises(ValidationError):
+        ProductAwaitingInputEvent(**_BASE, question_round=question_round, questions=[_question()])
+
+
+def test_질문_키는_BE_칸_길이_50자까지():
+    with pytest.raises(ValidationError):
+        _question(key="k" * 51)
+
+
+@pytest.mark.parametrize(("build", "limit"), [
+    (lambda text: PublicFindingDto(subject=text, determination="required", risk_level="high", summary="요약",
+                                   rationale="근거"), 255),
+    (lambda text: PublicLegalSourceDto(source_name=text), 255),
+    (lambda text: PublicLegalSourceDto(source_name="법제처", law_name=text), 255),
+    (lambda text: PublicLegalSourceDto(source_name="법제처", article=text), 255),
+    (lambda text: PublicLegalSourceDto(source_name="법제처", effective_date=text), 50),
+    (lambda text: PublicErrorDto(code=text, message="오류"), 50),
+])
+def test_문자열은_BE_수신_DTO_길이까지만_받는다(build, limit):
+    # 넘으면 BE가 400으로 거절해 재시도 없이 버려짐 (#331)
+    build("가" * limit)
+    with pytest.raises(ValidationError):
+        build("가" * (limit + 1))
+
+
+def test_미완료_결과는_안내가_필요하고_재확인_필요로만_낸다():
+    with pytest.raises(ValidationError, match="공개 안내"):
+        _assessment(status="incomplete", result_status="RECHECK_REQUIRED")
+    with pytest.raises(ValidationError, match="재확인 필요"):
+        _assessment(status="incomplete", result_status="PURCHASING_AGENT_ALLOWED", notices=["안내"])
+
+    assert _assessment(status="incomplete", result_status="RECHECK_REQUIRED", notices=["안내"]).notices == ["안내"]
+
+
+def test_같은_분야_카드는_한_번만():
+    review = PublicToolReviewDto(tool_name="ELECTRICAL", status="COMPLETED")
+
+    with pytest.raises(ValidationError, match="중복"):
+        _assessment(tool_reviews=[review, review])
+
+
+def test_분야_카드_상태는_BE_값만():
+    with pytest.raises(ValidationError):
+        PublicToolReviewDto(tool_name="ELECTRICAL", status="reviewed")
+
+
+def test_정의하지_않은_필드는_받지_않는다():
+    with pytest.raises(ValidationError):
+        ProductResultEvent(**_BASE, assessment=_assessment(), status="finished")
+
+
+@pytest.mark.parametrize("value", ["electrical_safety", "INTAKE", "electrical"])
+def test_분야_이름은_BE_ToolName_값만(value):
+    # 내부 ToolName 값("electrical_safety")은 BE enum에 없어 받지 못함 (#310 2026-10-15)
+    with pytest.raises(ValidationError):
+        ProductProgressEvent(**_BASE, stage=PublicPipelineStage.TOOL_EXECUTION, stage_status="started", tool_name=value)
+    with pytest.raises(ValidationError):
+        PublicToolReviewDto(tool_name=value, status="COMPLETED")
+
+
+def test_분야_카드는_tool_name으로_나간다():
+    review = PublicToolReviewDto(tool_name="CHILDREN", status="INCOMPLETE")
+
+    assert review.model_dump(mode="json", by_alias=True) == {
+        "toolName": "CHILDREN", "status": "INCOMPLETE", "message": None, "findings": []}
+
+
+
+def test_내부_Tool_이름의_멤버_이름이_공개_분야_이름과_같다():
+    # 진행 콜백은 ToolName.name을 그대로 보냄. 한쪽만 바뀌면 여기서 잡힘
+    assert {tool_name.name for tool_name in ToolName} == set(get_args(PublicToolName))
+
+
+@pytest.mark.parametrize("build", [
+    lambda blank: ProductProgressEvent(**{**_BASE, "run_id": blank}, stage="extraction", stage_status="started"),
+    lambda blank: _question(key=blank),
+    lambda blank: PublicQuestionDto(question_key="battery_only", question_order=1, question_text=blank),
+    lambda blank: PublicFindingDto(subject=blank, determination="required", risk_level="high", summary="요약",
+                                   rationale="근거"),
+    lambda blank: PublicFindingDto(subject="주제", determination="required", risk_level="high", summary=blank,
+                                   rationale="근거"),
+    lambda blank: PublicLegalSourceDto(source_name=blank),
+    lambda blank: _assessment(summary=blank),
+    lambda blank: _assessment(required_actions=["인증 받기", blank]),
+    lambda blank: _assessment(notices=[blank]),
+    lambda blank: PublicErrorDto(code="AI_TIMEOUT", message=blank),
+])
+def test_BE에서_NotBlank인_문자열은_공백만으로_보낼_수_없다(build):
+    # 공백뿐이면 BE가 400으로 거절해 재시도 없이 버려짐 (#331)
+    with pytest.raises(ValidationError):
+        build(" \t\n")

@@ -62,7 +62,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: 도커 이미지 산출물 검증
-        run: docker run --rm ai-server:ci ls app/prompts/extraction.md
+        run: docker run --rm ai-server:ci ls app/agents/extraction/prompt.md
 
   deploy:
     needs: [test, docker-build]
@@ -94,6 +94,7 @@ jobs:
             tar xzf /tmp/ai-app.tar.gz -C ${{ env.APP_DIR }}/release
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
             cd ${{ env.APP_DIR }}/release
+            docker network inspect be-ai-net >/dev/null 2>&1 || docker network create be-ai-net
             docker compose up -d --build --remove-orphans --wait --wait-timeout 120
             curl -sf http://localhost:8000/api/ai/v1/health/ready || exit 1
             docker compose ps

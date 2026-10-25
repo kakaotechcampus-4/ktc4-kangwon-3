@@ -1,5 +1,15 @@
 """개발용 더미 FinalAssessment 팩토리. 파이프라인 연결 후 제거한다."""
 
+import time
+
+from ..observability.context import ExecutionContext, PipelineStage
+from ..schemas.callback import (
+    PublicAssessmentDto,
+    PublicFindingDto,
+    PublicLegalSourceDto,
+    PublicQuestionDto,
+    PublicToolReviewDto,
+)
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import (
     AdvertisingAssessment,
@@ -22,6 +32,8 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus,
 )
+from ..schemas.session import DiagnosisInput
+from ..sessions.job import JobDone, ProgressReporter
 
 
 def build_dummy_assessment(product_id: str) -> FinalAssessment:
@@ -263,4 +275,109 @@ def build_dummy_assessment(product_id: str) -> FinalAssessment:
             review_summary="주요 규제 3건 식별 완료. HS 분류 미확정으로 세관 요건은 재확인 필요.",
             checked_finding_ids=[f.finding_id for f in all_findings],
         ),
+    )
+
+
+# 더미 진단 단계별 지연. BE가 진행 이벤트 순서 확인용
+DUMMY_STAGE_SECONDS = 1.0
+DUMMY_STAGES = (
+    PipelineStage.EXTRACTION,
+    PipelineStage.SELECTION,
+    PipelineStage.TOOL_EXECUTION,
+    PipelineStage.AGGREGATION,
+    PipelineStage.VERIFICATION,
+    PipelineStage.FINALIZATION,
+)
+
+
+def run_dummy_diagnosis(
+    job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter,
+) -> JobDone:
+    """파이프라인 러너 연결 전까지 세션 관리자에 넣는 더미 진단 함수.
+
+    단계 진행만 흉내 내고 고정 결과로 완료. LLM·외부 API 호출 없음.
+    질문으로 끝나지 않아 재진단도 같은 완료 결과.
+
+    Args:
+        job_input: 실행 입력. 원래 입력의 product_id만 사용.
+        context: 실행 컨텍스트. 사용하지 않음.
+        progress: 단계 진행 알림.
+
+    Returns:
+        JobDone: RC 보트 기반 더미 FinalAssessment를 담은 완료.
+    """
+    for stage in DUMMY_STAGES:
+        progress.stage(stage)
+        time.sleep(DUMMY_STAGE_SECONDS)
+    return JobDone(build_dummy_assessment(job_input.source.product_id))
+
+
+# 실행 상태 → 분야 카드 상태. 나머지(부분 성공·실패)는 미완료
+_DUMMY_CARD_STATUS = {ToolStatus.SUCCESS: "COMPLETED", ToolStatus.SKIPPED: "SKIPPED"}
+
+
+class DummyAssessmentPresenter:
+    """가짜 진단 결과를 공개 진단서·질문으로 바꾸는 임시 변환기. 실제 변환기([콜백 5/5]) 전까지 사용.
+
+    result_status 결정·질문 키 생성 없이 고정값. 분야 카드·판단·법령 근거는 결과에서 그대로 옮김.
+    """
+
+    def assessment(self, result: FinalAssessment) -> PublicAssessmentDto:
+        """완료 결과의 공개 진단서.
+
+        Args:
+            result: 가짜 진단 결과.
+
+        Returns:
+            PublicAssessmentDto: 결과 상태는 직구 인증 필요로 고정.
+        """
+        return PublicAssessmentDto(
+            status="completed",
+            result_status="DIRECT_IMPORT_CERTIFICATION_REQUIRED",
+            summary=result.summary,
+            tool_reviews=[
+                PublicToolReviewDto(
+                    tool_name=tool_result.tool_name.name,
+                    status=_DUMMY_CARD_STATUS.get(tool_result.status, "INCOMPLETE"),
+                    findings=[_public_finding(finding, tool_result) for finding in tool_result.findings],
+                )
+                for tool_result in result.tool_results
+            ],
+            required_actions=result.required_actions,
+            notices=result.missing_information,
+        )
+
+    def questions(self, result: FinalAssessment) -> list[PublicQuestionDto]:
+        """답변 대기 결과의 질문. 가짜 진단은 질문으로 끝나지 않아 고정 질문 하나. 회차는 세션이 셈.
+
+        Args:
+            result: 가짜 진단 결과.
+
+        Returns:
+            list[PublicQuestionDto]: 고정 질문.
+        """
+        return [PublicQuestionDto(
+            question_key="battery_only", question_order=1, question_text="내장 배터리로만 동작하나요?",
+            help_text="배터리 전용이면 안전인증 대상에서 빠질 수 있어요.",
+        )]
+
+
+def _public_finding(finding: RegulatoryFinding, tool_result: ToolResult) -> PublicFindingDto:
+    """판단 하나를 공개 형식으로. 내부 전용 값(is_mock 등)은 빼고 옮김.
+
+    가짜 판단엔 법령 근거가 없어 분야 결과의 근거를 붙임 (BE 근거 저장 확인용).
+    """
+    sources = finding.legal_sources or getattr(tool_result.result, "legal_sources", [])
+    return PublicFindingDto(
+        subject=finding.subject,
+        determination=finding.determination,
+        risk_level=finding.risk_level,
+        summary=finding.summary,
+        rationale=finding.rationale,
+        legal_sources=[
+            PublicLegalSourceDto(**source.model_dump(include={
+                "source_name", "law_name", "article", "quoted_text", "source_url", "effective_date",
+            }))
+            for source in sources
+        ],
     )

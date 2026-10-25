@@ -11,6 +11,7 @@ import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
@@ -57,7 +58,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DiagnosesController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
-@EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
+@EnableConfigurationProperties({AppProperties.class, JwtProperties.class, InternalApiProperties.class})
 class DiagnosesControllerTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
@@ -137,6 +138,39 @@ class DiagnosesControllerTest {
     }
 
     @Test
+    @DisplayName("제품명이 200자이면 진단을 요청할 수 있다.")
+    void createDiagnoses_withProductNameOf200Chars_thenReturnDiagnosesId() throws Exception {
+        given(diagnosesUseCase.createDiagnoses(any(UUID.class), any()))
+                .willReturn(new DiagnosesCreateResponse(DIAGNOSES_ID));
+        Map<String, Object> product = urlTypeProduct();
+        product.put("productName", "가".repeat(200));
+        Map<String, Object> request = wrap(product);
+
+        mockMvc.perform(post(BASE_URL)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()));
+    }
+
+    @Test
+    @DisplayName("제품명이 200자를 넘으면 400과 COMMON-002 코드를 응답한다.")
+    void createDiagnoses_withProductNameOver200Chars_thenBadRequest() throws Exception {
+        Map<String, Object> product = urlTypeProduct();
+        product.put("productName", "가".repeat(201));
+        Map<String, Object> request = wrap(product);
+
+        mockMvc.perform(post(BASE_URL)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].message").value("제품명은 200자를 넘을 수 없습니다."));
+    }
+
+    @Test
     @DisplayName("URL 등록 방식인데 상세페이지 URL이 없으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withUrlTypeAndNoSourceUrl_thenBadRequest() throws Exception {
         Map<String, Object> product = urlTypeProduct();
@@ -203,7 +237,11 @@ class DiagnosesControllerTest {
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()))
                 .andExpect(jsonPath("$.data.processingStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.pollIntervalMs").value(3000))
                 .andExpect(jsonPath("$.data.products.length()").value(1))
+                .andExpect(jsonPath("$.data.products[0].progresses").isEmpty())
+                .andExpect(jsonPath("$.data.products[0].questions").isEmpty())
+                .andExpect(jsonPath("$.data.products[0].failure").doesNotExist())
                 .andExpect(jsonPath("$.data.products[0].productName").value("대나무 헬리콥터"))
                 .andExpect(jsonPath("$.data.products[0].resultStatus").doesNotExist())
                 .andExpect(jsonPath("$.data.products[0].imageUrls.length()").value(2));
@@ -251,13 +289,13 @@ class DiagnosesControllerTest {
 
     private DiagnosesDetailResponse detailResponse() {
         ProductResponse product = new ProductResponse(
-                PRODUCT_ID, 0, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg", S3_URL_PREFIX + "product-detail/1/uuid_a2.jpg"),
-                ProcessingStatus.PENDING, null, null);
+                ProcessingStatus.PENDING, List.of(), List.of(), null, null, null, null, List.of(), List.of(), List.of());
 
         return new DiagnosesDetailResponse(
-                DIAGNOSES_ID, ProcessingStatus.PENDING, List.of(product),
+                DIAGNOSES_ID, ProcessingStatus.PENDING, 3000L, List.of(product),
                 LocalDateTime.now(), LocalDateTime.now());
     }
 

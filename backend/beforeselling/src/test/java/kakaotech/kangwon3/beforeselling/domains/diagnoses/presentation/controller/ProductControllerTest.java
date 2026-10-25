@@ -1,18 +1,28 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductAnswerRequest;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.FindingLegalSourceResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.ProductUseCase;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLevel;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolReviewStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller.ProductController;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.common.PageInfo;
 import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
@@ -25,6 +35,8 @@ import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -32,6 +44,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -49,24 +62,31 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ProductController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
-@EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
+@EnableConfigurationProperties({AppProperties.class, JwtProperties.class, InternalApiProperties.class})
 class ProductControllerTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID PRODUCT_ID = UUID.randomUUID();
     private static final UUID DIAGNOSES_ID = UUID.randomUUID(); // 추가
+    private static final UUID TOOL_REVIEW_ID = UUID.randomUUID();
+    private static final UUID FINDING_ID = UUID.randomUUID();
+    private static final UUID LEGAL_SOURCE_ID = UUID.randomUUID();
+    private static final UUID QUESTION_ID = UUID.randomUUID();
     private static final String BASE_URL = "/api/v1/products";
+    private static final String ANSWERS_URL = BASE_URL + "/{productId}/answers";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
     @Autowired
@@ -275,7 +295,17 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.data.sourceType").value("URL"))
                 .andExpect(jsonPath("$.data.imageUrls[0]").value(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"))
                 .andExpect(jsonPath("$.data.resultStatus").value("RECHECK_REQUIRED"))
-                .andExpect(jsonPath("$.data.summary").value("배터리 표시 항목 재확인이 필요합니다."));
+                .andExpect(jsonPath("$.data.summary").value("배터리 표시 항목 재확인이 필요합니다."))
+                .andExpect(jsonPath("$.data.assessmentStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.toolReviews[0].productToolReviewId").value(TOOL_REVIEW_ID.toString()))
+                .andExpect(jsonPath("$.data.toolReviews[0].toolName").value("CHILDREN"))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].productFindingId").value(FINDING_ID.toString()))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].determination").value("POSSIBLY_REQUIRED"))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].legalSources[0].findingLegalSourceId")
+                        .value(LEGAL_SOURCE_ID.toString()))
+                .andExpect(jsonPath("$.data.toolReviews[0].findings[0].legalSources[0].article").value("별표 2"))
+                .andExpect(jsonPath("$.data.requiredActions[0]").value("배터리 표시 보완"))
+                .andExpect(jsonPath("$.data.notices[0]").value("구매대행 상품은 이 조문의 적용을 받지 않습니다."));
     }
 
     @Test
@@ -298,6 +328,112 @@ class ProductControllerTest {
         mockMvc.perform(get(BASE_URL + "/{productId}", "not-a-uuid")
                         .with(authentication(loginUser())))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("인증 없이 답변을 제출하면 401과 COMMON-004 코드를 응답한다.")
+    void answerQuestions_withoutAuthentication_thenUnauthorized() throws Exception {
+        mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(answersBody(QUESTION_ID, "구매대행")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON-004"));
+    }
+
+    @Test
+    @DisplayName("질문에 답하면 성공 응답을 받고 답변이 그대로 전달된다.")
+    void answerQuestions_thenSuccess() throws Exception {
+        mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(answersBody(QUESTION_ID, "구매대행")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+
+        then(productUseCase).should().answerQuestions(USER_ID, PRODUCT_ID,
+                new ProductAnswerRequest(List.of(new ProductAnswerRequest.Answer(QUESTION_ID, "구매대행"))));
+    }
+
+    @Test
+    @DisplayName("같은 질문에 두 번 답하면 400과 COMMON-002 코드를 응답하고 답변을 처리하지 않는다.")
+    void answerQuestions_withDuplicateQuestionId_thenBadRequest() throws Exception {
+        String body = """
+                {"answers": [
+                  {"questionId": "%s", "answerText": "구매대행"},
+                  {"questionId": "%s", "answerText": "사입"}
+                ]}
+                """.formatted(QUESTION_ID, QUESTION_ID);
+
+        mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].field").value("questionIdsUnique"));
+
+        then(productUseCase).should(never()).answerQuestions(any(), any(), any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{\"answers\": []}",
+            "{\"answers\": [{\"questionId\": null, \"answerText\": \"구매대행\"}]}",
+            "{\"answers\": [{\"questionId\": \"0199f4e2-6b3a-7c00-8000-000000000001\", \"answerText\": \" \"}]}"
+    })
+    @DisplayName("답변이 없거나 질문 ID·답변 내용이 비어 있으면 400과 COMMON-002 코드를 응답한다.")
+    void answerQuestions_withInvalidBody_thenBadRequest(String body) throws Exception {
+        mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"));
+
+        then(productUseCase).should(never()).answerQuestions(any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("답변이 500자를 넘으면 400과 COMMON-002 코드를 응답한다.")
+    void answerQuestions_withTooLongAnswer_thenBadRequest() throws Exception {
+        mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(answersBody(QUESTION_ID, "가".repeat(501))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"));
+    }
+
+    @Test
+    @DisplayName("답변 대기가 아닌 상품에 답하면 409와 COMMON-010 코드를 응답한다.")
+    void answerQuestions_whenNotAwaitingInput_thenConflict() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.CONFLICT))
+                .given(productUseCase).answerQuestions(any(), any(), any());
+
+        // when & then
+        mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(answersBody(QUESTION_ID, "구매대행")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COMMON-010"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품에 답하면 404와 COMMON-006 코드를 응답한다.")
+    void answerQuestions_withUnknownId_thenNotFound() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
+                .given(productUseCase).answerQuestions(any(), any(), any());
+
+        // when & then
+        mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(answersBody(QUESTION_ID, "구매대행")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMMON-006"));
     }
 
     @Test
@@ -325,6 +461,12 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON-006"));
     }
 
+    private String answersBody(UUID questionId, String answerText) {
+        return """
+                {"answers": [{"questionId": "%s", "answerText": "%s"}]}
+                """.formatted(questionId, answerText);
+    }
+
     private Authentication loginUser() {
         return UsernamePasswordAuthenticationToken.authenticated(
                 new UserPrincipal(USER_ID, Role.USER),
@@ -343,9 +485,18 @@ class ProductControllerTest {
 
     private ProductResponse productResponse() {
         return new ProductResponse(
-                PRODUCT_ID, 0, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"),
-                ProcessingStatus.COMPLETED, ResultStatus.RECHECK_REQUIRED, "배터리 표시 항목 재확인이 필요합니다.");
+                ProcessingStatus.COMPLETED, List.of(), List.of(), null,
+                AssessmentStatus.COMPLETED, ResultStatus.RECHECK_REQUIRED,
+                "배터리 표시 항목 재확인이 필요합니다.",
+                List.of(new ProductToolReviewResponse(TOOL_REVIEW_ID, ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null,
+                        List.of(new ProductFindingResponse(FINDING_ID, "표시사항", Determination.POSSIBLY_REQUIRED,
+                                RiskLevel.MEDIUM, "배터리 표시를 확인해야 합니다.", "상세페이지에 배터리 표기가 없습니다.",
+                                List.of(new FindingLegalSourceResponse(LEGAL_SOURCE_ID, "국가법령정보센터",
+                                        "어린이제품 안전 특별법 시행규칙", "별표 2", null, null, "2026-09-03")))))),
+                List.of("배터리 표시 보완"),
+                List.of("구매대행 상품은 이 조문의 적용을 받지 않습니다."));
     }
 }

@@ -1,9 +1,13 @@
+import { SourceType } from "@/api/types.ts"
+import { countGraphemes } from "@/lib/text";
+
 import {
     ALLOWED_IMAGE_EXTENSIONS_LABEL,
     ALLOWED_IMAGE_MIME_TYPES,
     MAX_FILE_SIZE_BYTES,
     MAX_FILE_SIZE_MB,
     MAX_PRODUCT_IMAGE_COUNT,
+    MAX_PRODUCT_NAME_CODE_UNIT_LENGTH,
     MAX_PRODUCT_NAME_LENGTH,
 } from "./constraints.ts";
 import type { Product } from "./types.ts";
@@ -28,8 +32,13 @@ export const validateProduct = (product: Product): string | null => {
     if (!product.title.trim()) {
         return "제품명을 입력해주세요.";
     }
-    if (product.title.length > MAX_PRODUCT_NAME_LENGTH) {
+
+    if (countGraphemes(product.title) > MAX_PRODUCT_NAME_LENGTH) {
         return `제품명은 ${MAX_PRODUCT_NAME_LENGTH}자를 넘을 수 없습니다.`;
+    }
+
+    if (product.title.length > MAX_PRODUCT_NAME_CODE_UNIT_LENGTH) {
+        return "이모지를 너무 많이 사용했습니다. 이모지 개수를 줄여주세요.";
     }
 
     if (product.productImageFile) {
@@ -39,7 +48,7 @@ export const validateProduct = (product: Product): string | null => {
         }
     }
 
-    if (product.type === "url") {
+    if (product.type === SourceType.Url) {
         return product.link?.trim() ? null : "상세페이지 링크를 입력해주세요.";
     }
 

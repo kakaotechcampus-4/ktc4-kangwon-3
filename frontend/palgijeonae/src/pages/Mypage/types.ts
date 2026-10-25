@@ -1,33 +1,30 @@
-/** 상품 등록 방식. URL 입력 / 텍스트·이미지 입력 */
-export type SourceType =
-    | "URL"
-    | "TEXT_IMAGE"
+import { SourceType } from "@/api/types.ts"
 
-/**
- * 진단 처리 상태.
- * - PENDING: 대기 중
- * - IN_PROGRESS: 진단 중
- * - AWAITING_INPUT: 입력 대기 중
- * - COMPLETED: 진단 완료(결과는 resultStatus에 따로 담김)
- * - FAILED: 진단 실패
- */
-export type ProcessingStatusType =
-    | "PENDING"
-    | "IN_PROGRESS"
-    | "AWAITING_INPUT"
-    | "COMPLETED"
-    | "FAILED";
+/** 진단 처리 상태 
+ * - Pending: 진단 대기 중
+ * - InProgress: 진단 진행 중
+ * - AwaitingInput: 진단 진행 중, 추가 입력(질문) 필요
+ * - Completed: 진단 완료
+ * - Failed: 진단 실패
+*/
+export enum ProcessingStatusType {
+    Pending = "PENDING",
+    InProgress = "IN_PROGRESS",
+    AwaitingInput = "AWAITING_INPUT",
+    Completed = "COMPLETED",
+    Failed = "FAILED",
+}
 
-/**
- * 진단이 완료된 상품의 결과 상태.
- * - PURCHASING_AGENT_ALLOWED: 구매 대행 가능
- * - DIRECT_IMPORT_CERTIFICATION_REQUIRED: 사입 인증 필요
- * - RECHECK_REQUIRED: 재확인 필요
- */
-export type ResultStatus =
-    | "PURCHASING_AGENT_ALLOWED"
-    | "DIRECT_IMPORT_CERTIFICATION_REQUIRED"
-    | "RECHECK_REQUIRED";
+/** 진단이 완료된 상품의 결과 상태 
+ * - PurchasingAgentAllowed: 구매대행 허용
+ * - DirectImportCertificationRequired: 직수입 인증 필요
+ * - RecheckRequired: 재검토 필요 (개정됨)
+*/
+export enum ResultStatus {
+    PurchasingAgentAllowed = "PURCHASING_AGENT_ALLOWED",
+    DirectImportCertificationRequired = "DIRECT_IMPORT_CERTIFICATION_REQUIRED",
+    RecheckRequired = "RECHECK_REQUIRED",
+}
 
 /**
  * 목록 조회에서 상품 하나의 정보를 담은 타입.

@@ -3,9 +3,11 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.api;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductAnswerRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.SortType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
@@ -54,9 +56,20 @@ public interface ProductApi {
             summary = "상품 단건 조회",
             description = """
                     상품 하나의 진단 결과를 조회합니다. (마이페이지 → 상품 클릭)
-                    응답은 진단서 단건 조회의 `products[]` 항목과 같은 형태입니다.
+                    응답은 진단서 단건 조회의 `products[]` 항목과 같은 형태입니다. 진행 중인 진단을 갱신할 때는 진단서 단건 조회를 폴링합니다.
                     저장은 S3 key로 하지만 응답의 `imageUrls`와 `productImageUrl`은 접근 가능한 URL로 조립되어 내려갑니다.
-                    진단이 완료되지 않은 경우 `resultStatus`와 `summary`는 `null`입니다.
+
+                    **진행 정보**
+                    - `progresses`: 현재 실행의 단계·Tool별 진행 상태(단계 순서, 같은 단계에서는 단계 자체의 행이 먼저, Tool은 `toolName` 순서)
+                    - `questions`: 진단 중 받은 질문과 답변(회차·순서대로 모든 회차)
+                    - `failure`: 상품이 `FAILED`일 때만 실패 단계·오류 코드·메시지·재시도 가능 여부, 그 외에는 `null`
+
+                    **진단 결과**
+                    진단이 완료되면 분야별 카드(`toolReviews`)와 그 안의 판단 항목(`findings`)·법령 근거(`legalSources`),
+                    필요한 조치(`requiredActions`), 안내 사항(`notices`)이 함께 내려갑니다. 분야별 카드는 `toolName` 순서
+                    (CUSTOMS → CHILDREN → ELECTRICAL → RADIO → FOOD_DRUG → LABEL_AD)로 정렬됩니다.
+                    진단이 완료되지 않은 경우 `assessmentStatus`, `resultStatus`, `summary`는 `null`이고
+                    `toolReviews`, `requiredActions`, `notices`는 빈 배열입니다.
                     없는 상품과 다른 사용자의 상품은 모두 `NOT_FOUND`로 응답합니다.
                     """)
     @ApiResponseExplanations(
@@ -68,6 +81,37 @@ public interface ProductApi {
     ResponseEntity<ApiResponse<ProductResponse>> getProduct(
             @Parameter(hidden = true) UserPrincipal principal,
             UUID productId);
+
+    @Operation(
+            summary = "질문 답변 제출",
+            description = """
+                    진단 중 AI가 보낸 질문에 답하고 진단을 이어서 진행합니다.
+                    상품이 답변 대기(`AWAITING_INPUT`)일 때만 제출할 수 있고, 제출하면 다시 진행 중(`IN_PROGRESS`)이 됩니다.
+
+                    **답변 규칙**
+                    - 지금 기다리는 회차(가장 최근 `questionRound`)의 질문 **전체**에 한 번에 답해야 합니다. 일부만 보내면 `BAD_REQUEST`입니다.
+                    - `questionId`는 진단서·상품 조회 응답의 `questions[].questionId`를 그대로 보냅니다.
+                    - 지난 회차 질문이나 다른 상품의 질문이 섞이면 `BAD_REQUEST`입니다.
+                    - 답변 대기가 아니거나 이미 답한 경우는 `CONFLICT`입니다.
+
+                    **제출 후**
+                    - 진단서 단건 조회 폴링을 다시 시작합니다(`pollIntervalMs`에 값이 생깁니다).
+                    - 이어진 진단에서 질문이 한 번 더 올 수 있습니다(최대 2회차).
+                    - 진단을 이어 갈 수 없으면 상품이 `FAILED`가 되고 `failure`에 사유가 담깁니다.
+                    """)
+    @ApiResponseExplanations(
+            success = @ApiSuccessResponseExplanation(description = "답변 제출 성공"),
+            errors = {
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "INVALID_METHOD_ARGUMENT"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "BAD_REQUEST"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "CONFLICT"),
+            }
+    )
+    ResponseEntity<ApiResponse<Void>> answerQuestions(
+            @Parameter(hidden = true) UserPrincipal principal,
+            UUID productId,
+            @Valid ProductAnswerRequest request);
 
     @Operation(
             summary = "상품 단건 삭제",

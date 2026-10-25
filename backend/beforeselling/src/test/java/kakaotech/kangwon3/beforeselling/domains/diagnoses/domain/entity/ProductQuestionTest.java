@@ -4,6 +4,9 @@ import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 
@@ -41,11 +44,27 @@ class ProductQuestionTest {
         assertThat(question.getAnswerText()).isEqualTo("재고를 미리 들여와서 팔아요.");
     }
 
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", " "})
+    @DisplayName("빈 답변을 저장하면 BAD_REQUEST 예외가 발생하고 답변하지 않은 질문으로 남는다.")
+    void answer_withBlankAnswer_thenThrowBadRequest(String answerText) {
+        // given
+        ProductQuestion question = createQuestion();
+
+        // when & then
+        assertThatThrownBy(() -> question.answer(answerText))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.BAD_REQUEST);
+        assertThat(question.isAnswered()).isFalse();
+    }
+
     private ProductQuestion createQuestion() {
         Product product = Product.pending("대나무 헬리콥터", null, SourceType.URL,
                 "https://ko.aliexpress.com/item/100500628491", null);
-        product.startDiagnosis();
-        product.askQuestions(List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
+        product.startDiagnoses();
+        product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요, 사입해서 파나요?", null)));
         return product.getQuestions().getFirst();
     }
 }

@@ -264,11 +264,14 @@ class VerificationIssue(StrictModel):
 
 # 검증 후 다음 단계의 판단. 실제 분기와 재시도 제한은 파이프라인의 책임이다.
 # REVISION_REQUIRED는 보완 필요, USER_INPUT_REQUIRED는 사용자 답변이 필요한 상태이다.
+# TOOLS_REQUIRED는 추가 Tool 실행으로 보완할 수 있는 상태이다.
+# REVISION_REQUIRED는 Tool 재실행만으로 해결할 수 없는 수정 필요 상태이다.
 class VerificationStatus(StrEnum):
     APPROVED = "approved"
     APPROVED_WITH_WARNINGS = "approved_with_warnings"
     REVISION_REQUIRED = "revision_required"
     USER_INPUT_REQUIRED = "user_input_required"
+    TOOLS_REQUIRED = "tools_required"
 
 
 # 검증 결과와 후속 요청. additional_tools_required는 추가·재실행할 툴 목록이다.
@@ -308,6 +311,8 @@ class ExecutionEndReason(StrEnum):
     NO_PROGRESS = "no_progress"
     # 비용 제한 종료 계약. 누적 비용 계산과 호출 전 예산 확인은 후속 구현한다.
     COST_LIMIT_EXCEEDED = "cost_limit_exceeded"
+    # 질문 회차(최대 2회, #310)를 다 쓰고도 질문이 남은 경우. 질문 대신 미완료 결과로 끝낸다.
+    QUESTION_LIMIT_EXCEEDED = "question_limit_exceeded"
 
 # 검증 결과까지 포함한 최종 결과
 # 최종 응답이라도 INCOMPLETE일 수 있다. 검증 완료 여부와 종합 판단을 함께 확인한다.

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.FileResponseCode;
@@ -49,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(S3PresignController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
-@EnableConfigurationProperties({AppProperties.class, JwtProperties.class})
+@EnableConfigurationProperties({AppProperties.class, JwtProperties.class, InternalApiProperties.class})
 class S3PresignControllerTest {
 
     private static final UUID USER_ID = UUID.randomUUID();

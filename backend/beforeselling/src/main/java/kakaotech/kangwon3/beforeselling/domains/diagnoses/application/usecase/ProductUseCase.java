@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductAnswerRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.mapper.ProductMapper;
@@ -30,5 +31,9 @@ public class ProductUseCase {
     public ProductResponse getProduct(UUID userId, UUID productId) {
         return productMapper.toResponse(
                 productService.getProduct(userId, productId));
+    }
+
+    public void answerQuestions(UUID userId, UUID productId, ProductAnswerRequest request) {
+        productService.answerQuestions(userId, productId, productMapper.toAnswers(request));
     }
 }

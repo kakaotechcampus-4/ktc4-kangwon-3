@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment
 
 CONTENT_ROUTE = "/api/ai/v1/dummy/diagnose/content"
 URL_ROUTE = "/api/ai/v1/dummy/diagnose/url"
@@ -44,3 +45,14 @@ def test_텍스트_진단의_잘못된_요청은_422를_반환한다(client, pay
 
 def test_URL_진단은_URL이_없으면_422를_반환한다(client):
     assert client.post(URL_ROUTE, json={"product_id": "p-2"}).status_code == 422
+
+
+def test_임시_변환기는_가짜_진단_결과를_분야_카드와_법령_근거가_있는_공개_진단서로_바꾼다():
+    assessment = DummyAssessmentPresenter().assessment(build_dummy_assessment("p-1"))
+
+    cards = {review.tool_name: review for review in assessment.tool_reviews}
+    assert set(cards) == {"CUSTOMS", "RADIO", "FOOD_DRUG", "ELECTRICAL", "CHILDREN", "LABEL_AD"}
+    # 건너뛴 Tool은 SKIPPED 카드, 판단마다 법령 근거 하나 이상
+    assert (cards["FOOD_DRUG"].status, cards["FOOD_DRUG"].findings) == ("SKIPPED", [])
+    assert all(finding.legal_sources for review in assessment.tool_reviews for finding in review.findings)
+    assert assessment.required_actions and assessment.notices

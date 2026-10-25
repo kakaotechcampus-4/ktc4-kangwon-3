@@ -114,3 +114,120 @@ def test_사용량이_없는_응답은_None이다():
     # 테스트 스텁처럼 실제 호출이 없었던 경우다.
     assert usage.from_response(SimpleNamespace()) is None
     assert usage.from_response(SimpleNamespace(usage_metadata={})) is None
+
+
+def test_추론_토큰과_추론_강도를_함께_남긴다(tmp_path, monkeypatch):
+    # 추론 토큰은 출력 토큰 안에 포함되어 보고됨. 비용은 출력으로 계산하고 강도별 비교용으로 따로 남김
+    target = tmp_path / "usage.jsonl"
+    monkeypatch.setattr(usage, "USAGE_LOG", target)
+    raw = SimpleNamespace(
+        usage_metadata={"input_tokens": 69, "output_tokens": 44, "output_token_details": {"reasoning": 17}},
+        response_metadata={"model_name": "gpt-6-luna"},
+    )
+    handler = SimpleNamespace(usage_metadata={"gpt-6-luna": {
+        "input_tokens": 1, "output_tokens": 30, "output_token_details": {"reasoning": 20}}})
+
+    call = usage.from_response(raw)
+    usage.record("extraction", call, configured_model="openai/gpt-6-luna", reasoning_effort="low")
+    row = json.loads(target.read_text(encoding="utf-8"))
+
+    assert (call.output_tokens, call.reasoning_tokens) == (44, 17)
+    assert usage.from_handler(handler).reasoning_tokens == 20
+    assert (row["reasoning_effort"], row["reasoning_tokens"]) == ("low", 17)
+
+
+
+def test_LangChain이_놓친_Claude_캐시_토큰은_게이트웨이_원본_사용량에서_읽는다():
+    # Claude는 캐시를 공통 필드로만 보내 usage_metadata의 input_token_details가 빔 (2026-10-14 실호출)
+    raw = SimpleNamespace(
+        usage_metadata={"input_tokens": 6468, "output_tokens": 33, "input_token_details": {}},
+        response_metadata={"model_name": "claude-haiku-4-5", "token_usage": {
+            "prompt_tokens": 6468, "cached_prompt_tokens": 6446, "cache_write_tokens": 0}},
+    )
+    first = SimpleNamespace(
+        usage_metadata={"input_tokens": 8080, "output_tokens": 33, "input_token_details": {}},
+        response_metadata={"token_usage": {"cached_prompt_tokens": 0, "cache_write_tokens": 6434}},
+    )
+
+    assert usage.from_response(raw).cached_tokens == 6446
+    assert usage.from_response(first).cache_write_tokens == 6434
+
+
+def test_OpenAI_형식_캐시_쓰기_토큰도_읽는다():
+    raw = SimpleNamespace(
+        usage_metadata={"input_tokens": 4285, "output_tokens": 53,
+                        "input_token_details": {"cache_read": 0, "cache_creation": 3425},
+                        "output_token_details": {"reasoning": 36}},
+        response_metadata={"model_name": "gpt-6-luna"},
+    )
+
+    call = usage.from_response(raw)
+
+    assert (call.cached_tokens, call.cache_write_tokens, call.reasoning_tokens) == (0, 3425, 36)
+
+
+def test_호출과_집계에_캐시_적중률을_남긴다(tmp_path, monkeypatch):
+    target = tmp_path / "usage.jsonl"
+    monkeypatch.setattr(usage, "USAGE_LOG", target)
+    usage.record("extraction", usage.CallUsage("m", 1000, 750, 10, reasoning_tokens=4, cache_write_tokens=0))
+    usage.record("extraction", usage.CallUsage("m", 1000, 0, 10, cache_write_tokens=800))
+    usage.record("selection", usage.CallUsage("m", 0, 0, 0))
+
+    rows = [json.loads(line) for line in target.read_text(encoding="utf-8").splitlines()]
+    totals = usage.summarize(target)
+
+    assert [row["cache_hit_rate"] for row in rows] == [0.75, 0.0, None]
+    assert rows[1]["cache_write_tokens"] == 800
+    assert (totals["cache_hit_rate"], totals["cache_write"], totals["reasoning"]) == (0.375, 800, 4)
+    assert totals["by_agent"]["extraction"]["cache_hit_rate"] == 0.375
+    assert totals["by_agent"]["selection"]["cache_hit_rate"] is None
+
+
+def test_실패를_단계별로_기록하고_집계한다(tmp_path, monkeypatch):
+    target = tmp_path / "usage.jsonl"
+    monkeypatch.setattr(usage, "USAGE_LOG", target)
+    usage.record("image_triage", usage.CallUsage("m", 10, 0, 1))
+    usage.record("image_triage", usage.CallUsage("m", 10, 0, 1), ok=False, error_type="ImageTriageFailedError",
+                 failure_phase="finalize")
+    usage.record("extraction", None, ok=False, error_type="TimeoutError", failure_phase="call")
+    # 단계 필드가 없던 옛 기록의 실패
+    usage.record("electrical-facts", None, ok=False, error_type="ValueError")
+
+    rows = [json.loads(line) for line in target.read_text(encoding="utf-8").splitlines()]
+    totals = usage.summarize(target)
+
+    assert [row["failure_phase"] for row in rows] == [None, "finalize", "call", None]
+    assert totals["failed"] == 3
+    assert totals["failed_by_phase"] == {"finalize": 1, "call": 1, "unknown": 1}
+    assert totals["by_agent"]["image_triage"]["failed_by_phase"] == {"finalize": 1}
+    assert (totals["by_agent"]["image_triage"]["calls"], totals["by_agent"]["image_triage"]["failed"]) == (2, 1)
+
+
+def test_LangChain이_사용량을_놓쳐도_게이트웨이_최종_사용량으로_남긴다():
+    # Gemini는 조각마다 누적 사용량을 보내 usage_metadata가 None이 됨 (2026-10-14 실호출)
+    raw = SimpleNamespace(
+        usage_metadata=None,
+        response_metadata={"model_name": "gemini-2.5-flash", "token_usage": {
+            "prompt_tokens": 1963, "completion_tokens": 1773, "prompt_tokens_details": None,
+            "completion_tokens_details": {"reasoning_tokens": 902}, "cached_prompt_tokens": 0, "cache_write_tokens": 0}},
+    )
+
+    call = usage.from_response(raw)
+
+    assert (call.input_tokens, call.output_tokens, call.reasoning_tokens, call.cached_tokens) == (1963, 1773, 902, 0)
+
+
+def test_게이트웨이_최종_사용량을_LangChain_값보다_먼저_쓴다():
+    # OpenAI 형식 상세(prompt_tokens_details)가 있으면 그 값을 씀
+    raw = SimpleNamespace(
+        usage_metadata={"input_tokens": 1, "output_tokens": 1},
+        response_metadata={"token_usage": {
+            "prompt_tokens": 4285, "completion_tokens": 53,
+            "prompt_tokens_details": {"cached_tokens": 0, "cache_write_tokens": 3425},
+            "completion_tokens_details": {"reasoning_tokens": 36}}},
+    )
+
+    call = usage.from_response(raw)
+
+    assert (call.input_tokens, call.cache_write_tokens, call.reasoning_tokens) == (4285, 3425, 36)
+
