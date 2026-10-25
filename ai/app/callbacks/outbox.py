@@ -29,7 +29,7 @@ RETRYABLE_CONFLICT_CODES = frozenset({"COMMON-009"})
 
 
 class CallbackSender(Protocol):
-    """이벤트 하나를 BE로 보내는 쪽. 실제 HTTP 전송은 clients.backend.HttpCallbackSender."""
+    """이벤트 하나를 BE로 보내는 쪽. 실제 HTTP 전송은 clients.backend.BackendCallbackClient."""
 
     def send(self, event: PublicProductEvent) -> SendResult:
         """이벤트를 보내고 BE 응답(상태 코드·응답 코드)을 돌려준다.

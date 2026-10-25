@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import config, main
-from app.clients.backend import HttpCallbackSender
+from app.clients.backend import BackendCallbackClient
 from app.agents.base import AgentRunMeta
 from app.observability.agent_sinks import agent_sinks
 from app.repositories import database
@@ -59,7 +59,7 @@ def fake_be(monkeypatch):
             received.append(request)
         return httpx.Response(200, json={"code": "OK", "message": "", "data": None})
 
-    monkeypatch.setattr(main, "HttpCallbackSender", lambda base_url, token: HttpCallbackSender(
+    monkeypatch.setattr(main, "BackendCallbackClient", lambda base_url, token: BackendCallbackClient(
         base_url, token, transport=httpx.MockTransport(handler)))
     yield received
     for cached in (config.get_settings, database.get_engine, database.get_session_factory):
