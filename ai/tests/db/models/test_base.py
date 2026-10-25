@@ -1,7 +1,7 @@
 """모든 ORM 모델에 공통으로 적용되는 규칙을 DB 없이 검증한다."""
 
 import pytest
-from pgvector.sqlalchemy import Vector
+from pgvector.sqlalchemy import HALFVEC, Vector
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
@@ -30,7 +30,7 @@ def test_모든_테이블은_수집_시각을_DB가_채운다(table):
 
 def test_벡터_컬럼은_임베딩_모델과_같은_차원이다():
     vector_columns = [
-        column for table in TABLES for column in table.columns if isinstance(column.type, Vector)
+        column for table in TABLES for column in table.columns if isinstance(column.type, (Vector, HALFVEC))
     ]
 
     assert vector_columns
