@@ -1,4 +1,4 @@
-"""더미 진단 라우터: 시나리오 표시를 붙여 더미로 접수하고, 다른 경로 세션의 재진단은 404로 거절하는지 확인한다."""
+"""더미 진단 라우터: 케이스 표시를 붙여 더미로 접수하고, 다른 경로 세션의 재진단은 404로 거절하는지 확인한다."""
 
 from threading import Event
 
@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.domain.context import ExecutionContext, RunType
-from app.dummy import DummyFlow, DummyResult, DummyScenario, read_scenario
+from app.dummy import DummyCaseName, read_case
 from app.main import app
 from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment
 from app.routers.diagnose import get_session_manager
@@ -76,27 +76,27 @@ def _resume_payload(waiting: DiagnosisSession) -> dict:
     }
 
 
-def test_지정한_시나리오를_입력에_남겨_더미로_접수한다(client, manager):
-    response = client.post(f"{CONTENT}?flow=two_rounds&result=recheck", json=_payload("p-1", "p-2"))
+def test_지정한_케이스를_입력에_남겨_더미로_접수한다(client, manager):
+    response = client.post(f"{CONTENT}?case=tumbler", json=_payload("p-1", "p-2"))
 
     assert response.status_code == 202
     assert [product["productId"] for product in response.json()["data"]["products"]] == ["p-1", "p-2"]
     for product_id in ("p-1", "p-2"):
         session = manager.get(product_id)
         assert session.context.run_type is RunType.DUMMY
-        assert read_scenario(session.source) == DummyScenario(DummyFlow.TWO_ROUNDS, DummyResult.RECHECK)
+        assert read_case(session.source) is DummyCaseName.TUMBLER
         assert session.source.text_blocks[0] == "상품 설명"
 
 
-def test_시나리오를_빼면_상품마다_골라_남긴다(client, manager):
-    response = client.post(f"{CONTENT}?result=allowed", json=_payload("p-1"))
+def test_케이스를_빼면_상품마다_골라_남긴다(client, manager):
+    response = client.post(CONTENT, json=_payload("p-1", "p-2"))
 
     assert response.status_code == 202
-    assert read_scenario(manager.get("p-1").source).result is DummyResult.ALLOWED
+    assert all(read_case(manager.get(product_id).source) in DummyCaseName for product_id in ("p-1", "p-2"))
 
 
-def test_없는_시나리오_값은_422로_거절하고_접수하지_않는다(client, manager):
-    response = client.post(f"{CONTENT}?flow=three_rounds", json=_payload("p-1"))
+def test_없는_케이스_값은_422로_거절하고_접수하지_않는다(client, manager):
+    response = client.post(f"{CONTENT}?case=unknown", json=_payload("p-1"))
 
     assert response.status_code == 422
     assert manager.get("p-1") is None

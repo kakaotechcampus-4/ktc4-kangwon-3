@@ -1,13 +1,14 @@
-"""시나리오 더미 진단 함수. LLM·외부 API 호출 없이 단계 진행만 흉내 냄."""
+"""케이스 더미 진단 함수. LLM·외부 API 호출 없이 단계 진행만 흉내 냄."""
 
 import time
 
 from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIResponseCode
-from ..schemas.session import DiagnosisInput
+from ..schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerificationStatus
+from ..schemas.session import DiagnosisInput, SessionAnswer
 from ..sessions.job import JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
-from .results import QUESTIONS, awaiting_result, final_result
-from .scenario import DummyFlow, read_scenario
+from .cases import CASES, DummyCase
+from .scenario import read_case
 
 # 단계별 지연. BE가 진행 이벤트 순서 확인용
 STAGE_SECONDS = 1.0
@@ -20,47 +21,55 @@ _DONE_STAGES = (
     PipelineStage.VERIFICATION,
     PipelineStage.FINALIZATION,
 )
-# 흐름별 질문 회차 수
-_ROUNDS = {
-    DummyFlow.NONE: 0,
-    DummyFlow.ONE_ROUND: 1,
-    DummyFlow.TWO_ROUNDS: 2,
-    DummyFlow.FAILED: 0,
-    DummyFlow.FAILED_AFTER_ANSWER: 1,
-}
-_FAILS = {DummyFlow.FAILED, DummyFlow.FAILED_AFTER_ANSWER}
 
 
 def run_scenario_diagnosis(
     job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter,
 ) -> Outcome:
-    """입력에 표시된 시나리오대로 질문·실패·완료를 돌려준다.
+    """입력에 표시된 케이스대로 질문·실패·완료를 돌려준다.
 
-    회차는 받은 답변의 마지막 회차로 셈. 흐름의 질문 회차를 다 채우면 실패 흐름은 실패, 나머지는 완료.
+    회차는 받은 답변의 마지막 회차로 셈. 케이스의 질문 회차를 다 채우면 실패 케이스는 실패, 나머지는 완료.
+    질문이 3회차 이상인 케이스는 세션이 2회차 뒤 질문을 미완료 결과로 바꿈.
 
     Args:
-        job_input: 실행 입력. source에 시나리오 표시가 있어야 함.
+        job_input: 실행 입력. source에 케이스 표시가 있어야 함.
         context: 실행 컨텍스트. 사용하지 않음.
         progress: 단계 진행 알림.
 
     Returns:
-        Outcome: 다음 회차 질문, 파이프라인 오류 실패, 또는 결과 종류에 맞는 완료.
+        Outcome: 다음 회차 질문, 파이프라인 오류 실패, 또는 케이스 결과로 완료.
 
     Raises:
-        ValueError: 입력에 시나리오 표시가 없는 경우.
+        ValueError: 입력에 케이스 표시가 없는 경우.
     """
-    scenario = read_scenario(job_input.source)
-    product_id = job_input.source.product_id
+    case = CASES[read_case(job_input.source)]
+    result = case.build(job_input.source.product_id)
     answered = max((answer.question_round for answer in job_input.answers), default=0)
 
-    if answered < _ROUNDS[scenario.flow]:
+    if answered < len(case.rounds):
         _run_stages(progress, _ASK_STAGES)
-        return JobNeedsInput(awaiting_result(product_id), QUESTIONS[answered + 1])
-    if scenario.flow in _FAILS:
+        return JobNeedsInput(_awaiting(result), case.rounds[answered])
+    if case.fails:
         _run_stages(progress, _ASK_STAGES)
         return JobFailed(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False)
     _run_stages(progress, _DONE_STAGES)
-    return JobDone(final_result(product_id, scenario.result, job_input.answers))
+    if job_input.answers:
+        summary = f"{result.summary}\n\n{_answer_summary(case, job_input.answers)}"
+        result = result.model_copy(update={"summary": summary})
+    return JobDone(result)
+
+
+def _awaiting(result: FinalAssessment) -> FinalAssessment:
+    return result.model_copy(update={
+        "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+    })
+
+
+def _answer_summary(case: DummyCase, answers: list[SessionAnswer]) -> str:
+    texts = {question.question_key: question.question_text for questions in case.rounds for question in questions}
+    lines = [f"- {texts.get(answer.question_key, answer.question_key)} → {answer.answer_text}" for answer in answers]
+    return "받은 답변:\n" + "\n".join(lines)
 
 
 def _run_stages(progress: ProgressReporter, stages: tuple[PipelineStage, ...]) -> None:

@@ -87,7 +87,7 @@ def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_
     assert len(result["assessment"]["toolReviews"]) == 6
 
 
-def test_더미_경로는_시나리오_더미로_진단하고_운영_경로는_고정_더미로_진단한다(fake_be):
+def test_더미_경로는_케이스_더미로_진단하고_운영_경로는_고정_더미로_진단한다(fake_be):
     def results():
         return {
             event["productId"]: event["assessment"]["resultStatus"]
@@ -96,7 +96,7 @@ def test_더미_경로는_시나리오_더미로_진단하고_운영_경로는_�
         }
 
     with TestClient(main.app) as client:
-        client.post("/api/ai/v1/dummy/diagnose/content?flow=none&result=allowed", json={
+        client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-dummy", "textBlocks": ["상품 설명"]}],
         })
         client.post("/api/ai/v1/diagnose/content", json={
