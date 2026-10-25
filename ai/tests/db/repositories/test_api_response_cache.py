@@ -46,3 +46,13 @@ def test_만료_정리는_만료_시각이_지난_행만_지우고_지운_수를
     assert deleted == 3
     assert "DELETE FROM api_response_cache WHERE api_response_cache.expires_at < %(expires_at_1)s" in session.last_sql()
     assert session.statements[-1].compile().params["expires_at_1"] == now
+
+
+def test_클라이언트별_삭제는_그_클라이언트_행만_지우고_지운_수를_돌려준다(session):
+    session.execute = lambda stmt: session.statements.append(stmt) or SimpleNamespace(rowcount=4)
+
+    deleted = ApiResponseCacheRepository(session).delete_by_client("law.text")
+
+    assert deleted == 4
+    assert "DELETE FROM api_response_cache WHERE api_response_cache.client = %(client_1)s" in session.last_sql()
+    assert session.statements[-1].compile().params["client_1"] == "law.text"

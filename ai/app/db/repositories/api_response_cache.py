@@ -65,3 +65,15 @@ class ApiResponseCacheRepository:
         """
         stmt = delete(ApiResponseCache).where(ApiResponseCache.expires_at < now)
         return self.session.execute(stmt).rowcount
+
+    def delete_by_client(self, client: str) -> int:
+        """한 클라이언트의 캐시를 모두 지운다. 응답 스키마가 바뀌어 옛 값을 버릴 때 쓴다.
+
+        Args:
+            client: 클라이언트 이름(예: "law.text").
+
+        Returns:
+            int: 지운 행 수.
+        """
+        stmt = delete(ApiResponseCache).where(ApiResponseCache.client == client)
+        return self.session.execute(stmt).rowcount
