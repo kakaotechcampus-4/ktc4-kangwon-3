@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import config, main
-from app.callbacks import HttpCallbackSender
+from app.clients.backend import HttpCallbackSender
 from app.agents.base import AgentRunMeta
 from app.observability.agent_sinks import agent_sinks
 from app.repositories import database

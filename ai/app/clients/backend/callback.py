@@ -4,18 +4,31 @@ POST {BE_BASE_URL}/internal/v1/ai/products/{productId}, 헤더 X-Internal-Token 
 응답 분류·재시도는 발신함(outbox)이 맡음. 여기서는 상태 코드와 응답 본문의 code만 돌려줌.
 """
 
+from dataclasses import dataclass
 from urllib.parse import quote
 
 import httpx
 
-from ..schemas.callback import PublicProductEvent
+from ...schemas.callback import PublicProductEvent
 from .errors import CallbackTransportError
-from .outbox import SendResult
 
 CALLBACK_PATH = "/internal/v1/ai/products/{product_id}"
 TOKEN_HEADER = "X-Internal-Token"
 # 연결·응답 대기 상한. 넘으면 발신함이 재시도
 TIMEOUT_SECONDS = 5.0
+
+
+@dataclass(frozen=True)
+class SendResult:
+    """BE 응답 하나.
+
+    Attributes:
+        status: HTTP 상태 코드.
+        code: 응답 본문의 code (BE ApiResponse, 예: COMMON-009). 없으면 None.
+    """
+
+    status: int
+    code: str | None = None
 
 
 class HttpCallbackSender:

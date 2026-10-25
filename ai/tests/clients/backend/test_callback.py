@@ -8,7 +8,7 @@ import json
 import httpx
 import pytest
 
-from app.callbacks import CallbackTransportError, HttpCallbackSender, SendResult
+from app.clients.backend import CallbackTransportError, HttpCallbackSender, SendResult
 from app.schemas.callback import ProductProgressEvent, PublicPipelineStage
 
 TOKEN = "test-internal-token-0123456789abcdef"

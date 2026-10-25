@@ -13,12 +13,11 @@ import random
 import threading
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass
 from queue import Queue
 from typing import Protocol
 
+from ..clients.backend import CallbackTransportError, SendResult
 from ..schemas.callback import PublicProductEvent
-from .errors import CallbackTransportError
 
 logger = logging.getLogger(__name__)
 
@@ -27,19 +26,6 @@ BASE_DELAY_SECONDS = 1.0
 MAX_DELAY_SECONDS = 30.0
 # 409라도 다시 보내면 되는 BE 응답 코드. COMMON-010(상태 전이 불가)은 재시도 안 함
 RETRYABLE_CONFLICT_CODES = frozenset({"COMMON-009"})
-
-
-@dataclass(frozen=True)
-class SendResult:
-    """BE 응답 하나.
-
-    Attributes:
-        status: HTTP 상태 코드.
-        code: 응답 본문의 code (BE ApiResponse, 예: COMMON-009). 없으면 None.
-    """
-
-    status: int
-    code: str | None = None
 
 
 class CallbackSender(Protocol):
