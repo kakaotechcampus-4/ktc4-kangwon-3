@@ -6,7 +6,7 @@ from xml.etree.ElementTree import Element
 
 import httpx
 
-from ..base import BaseClient, ResponseT
+from ..request import RequestClient, ResponseT
 from ...schemas.clients.radio_request import RadioAuthRequest
 
 _BROWSER_UA = (
@@ -16,7 +16,7 @@ _BROWSER_UA = (
 )
 
 
-class RadioBaseClient(BaseClient[RadioAuthRequest, ResponseT]):
+class RadioBaseClient(RequestClient[RadioAuthRequest, ResponseT]):
     """국립전파연구원(emsit) 적합성평가 클라이언트 공통 베이스.
 
     방식 : GET/XML

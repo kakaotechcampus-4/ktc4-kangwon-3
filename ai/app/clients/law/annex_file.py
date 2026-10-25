@@ -15,7 +15,7 @@ from urllib.parse import unquote
 
 import httpx
 
-from ..base import BaseClient
+from ..request import RequestClient
 from ...schemas.clients.law_request import AnnexFileRequest
 from ...schemas.clients.law_response import AnnexFileResponse
 
@@ -26,7 +26,7 @@ _FILE_SEQ_RE = re.compile(r"flSeq=(\d+)")
 _FILENAME_RE = re.compile(r"filename\*=(?:UTF-8'')?([^;]+)|filename=\"?([^\";]+)\"?", re.IGNORECASE)
 
 
-class AnnexFileClient(BaseClient[AnnexFileRequest, AnnexFileResponse]):
+class AnnexFileClient(RequestClient[AnnexFileRequest, AnnexFileResponse]):
     """별표·첨부 원본 파일 내려받기 클라이언트.
 
     Args:
