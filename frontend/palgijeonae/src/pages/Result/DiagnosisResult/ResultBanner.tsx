@@ -72,7 +72,7 @@ function ResultBanner({ resultStatus, title, description, onNextStepsClick }: Re
                     <button
                         type="button"
                         onClick={onNextStepsClick}
-                        className={cn("cursor-pointer rounded-full px-5 py-2 text-sm font-semibold text-white", style.buttonColorClass)}
+                        className={cn("cursor-pointer rounded-full px-5 py-3 text-sm font-semibold text-white", style.buttonColorClass)}
                     >
                         다음 단계 보기 →
                     </button>

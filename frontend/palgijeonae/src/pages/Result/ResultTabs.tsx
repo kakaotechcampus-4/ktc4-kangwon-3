@@ -41,7 +41,7 @@ interface ResultTabsProps {
 
 function ResultTabs({ selected, onSelect }: ResultTabsProps) {
     return (
-        <div className="flex items-start gap-7.5 border-b border-neutral-border px-2.5">
+        <div role="tablist" className="flex items-start gap-7.5 border-b border-neutral-border px-2.5">
             {TAB_ORDER.map((tab) => {
                 const isSelected = tab === selected;
                 const info = TAB_INFO[tab];
@@ -49,6 +49,8 @@ function ResultTabs({ selected, onSelect }: ResultTabsProps) {
                     <button
                         key={tab}
                         type="button"
+                        role="tab"
+                        aria-selected={isSelected}
                         onClick={() => onSelect(tab)}
                         className={cn(tabVariants({ selected: isSelected }), "cursor-pointer")}
                     >

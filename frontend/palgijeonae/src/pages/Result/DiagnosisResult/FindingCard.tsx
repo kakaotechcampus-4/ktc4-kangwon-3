@@ -31,6 +31,7 @@ function FindingCard({ finding }: FindingCardProps) {
         : null;
     const toggleStyle = isExpanded ? EXPANDED_TOGGLE_STYLE : COLLAPSED_TOGGLE_STYLE;
     const showRiskMeter = !DETERMINATIONS_WITHOUT_RISK.includes(finding.determination);
+    const legalSourcesId = `legal-sources-${finding.productFindingId}`;
 
     return (
         <DefaultBox>
@@ -50,6 +51,8 @@ function FindingCard({ finding }: FindingCardProps) {
                     <button
                         type="button"
                         onClick={() => setIsExpanded((prev) => !prev)}
+                        aria-expanded={isExpanded}
+                        aria-controls={legalSourcesId}
                         className="flex w-full cursor-pointer flex-wrap items-center gap-2"
                     >
                         <img src={toggleStyle.icon} alt="" className="h-6 w-6" />
@@ -61,7 +64,7 @@ function FindingCard({ finding }: FindingCardProps) {
                         <img src={toggleIcon} alt="" className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
                     </button>
                     {isExpanded && (
-                        <div className="flex w-full flex-col gap-3">
+                        <div id={legalSourcesId} className="flex w-full flex-col gap-3">
                             {legalSources.map((legalSource) => (
                                 <LawCard key={legalSource.findingLegalSourceId} legalSource={legalSource} />
                             ))}
