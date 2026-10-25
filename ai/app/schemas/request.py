@@ -23,7 +23,7 @@ class DiagnosisProductInput(ApiRequestModel):
     Args:
         product_id: BE 상품 ID (UUID v7). 세션 ID로 사용.
         text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
-        image_urls: 이미지 URL 목록. base64 data URI도 받음 (#310).
+        image_urls: 이미지 URL 목록. base64 data URI도 받음 (#389).
         source_url: 출처 표시용 URL (선택).
     """
 
