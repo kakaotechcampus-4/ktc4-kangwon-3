@@ -41,9 +41,7 @@ class ApiResponseCacheRepository:
             "client": entry.client,
             "request_key": entry.request_key,
             "request": entry.request,
-            "status_code": entry.status_code,
-            "content_type": entry.content_type,
-            "body": entry.body,
+            "response": entry.response,
             "expires_at": entry.expires_at,
         }
         stmt = insert(ApiResponseCache).values(**values)

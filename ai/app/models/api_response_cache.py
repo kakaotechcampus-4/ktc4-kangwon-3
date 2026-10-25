@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Index, LargeBinary, String
+from sqlalchemy import DateTime, Index, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -8,9 +8,10 @@ from app.models.base import Base
 
 
 class ApiResponseCache(Base):
-    """외부 API 응답 원문 캐시. 클라이언트 이름과 요청 해시로 한 건을 찾는다.
+    """외부 API 응답 캐시. 클라이언트 이름과 요청 해시로 한 건을 찾는다.
 
-    원문만 저장해 파서가 바뀌어도 다시 조회하지 않고 해석만 다시 한다.
+    클라이언트가 해석까지 끝낸 응답 스키마를 JSON으로 저장한다. 꺼낼 때 같은 스키마로 되돌리면
+    클라이언트를 직접 부른 결과와 같다.
     """
 
     __tablename__ = "api_response_cache"
@@ -22,8 +23,6 @@ class ApiResponseCache(Base):
     client: Mapped[str] = mapped_column(String(50), primary_key=True)
     request_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     request: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    status_code: Mapped[int] = mapped_column(nullable=False)
-    content_type: Mapped[str | None] = mapped_column(String(200))
-    body: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    response: Mapped[dict] = mapped_column(JSONB, nullable=False)
     # None이면 영구 보관 (버전이 고정된 본문)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
