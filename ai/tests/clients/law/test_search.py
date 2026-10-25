@@ -30,6 +30,16 @@ def test_검색은_target과_검색어와_건수를_보낸다(wire, client_cls, 
     params = sent[0].url.params
     assert sent[0].url.path == "/DRF/lawSearch.do"
     assert (params["target"], params["query"], params["display"]) == (target, "전파법", "5")
+    assert "nw" not in params
+
+
+def test_시행법령_검색은_연혁을_빼면_현행·시행예정_조건을_붙인다(wire):
+    client = EflawSearchClient(oc="my-oc", include_history=False)
+    sent = wire(client, _xml("<LawSearch><totalCnt>0</totalCnt></LawSearch>"))
+
+    client.fetch_raw(LawSearchRequest(query="식품위생법", display=100))
+
+    assert sent[0].url.params["nw"] == "2,3"
 
 
 def test_시행법령_검색은_버전마다_현행·연혁·시행예정을_구분한다(wire):
