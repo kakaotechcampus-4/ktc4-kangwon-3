@@ -4,17 +4,17 @@ import logging
 
 from langchain_core.messages import AIMessage
 
+from app.agents.base import AgentRunMeta
 from app.agents.base.usage_log import log_token_usage, record_call
+from app.observability.agent_sinks import agent_sinks
 from app.usage import CallUsage
 
 _USAGE = CallUsage("openai/gpt-4.1-mini", input_tokens=100, cached_tokens=40, output_tokens=20)
 
 
 def test_성공·실패_여부는_오류_타입으로_정해진다(records):
-    options = {"configured_model": "m", "reasoning_effort": None, "subject_id": "p-1", "elapsed_ms": 5}
-
-    record_call("fake", _USAGE, **options)
-    record_call("fake", None, **options, error_type="TimeoutError")
+    record_call(AgentRunMeta(component="fake", model="m", usage=_USAGE, elapsed_ms=5), "p-1")
+    record_call(AgentRunMeta(component="fake", model="m", elapsed_ms=5, error_type="TimeoutError"), "p-1")
 
     assert [(row["ok"], row["error_type"]) for row in records] == [(True, None), (False, "TimeoutError")]
     assert (records[0]["usage"], records[1]["usage"]) == (_USAGE, None)
@@ -22,9 +22,22 @@ def test_성공·실패_여부는_오류_타입으로_정해진다(records):
 
 def test_기록은_app_usage_record를_거친다(records):
     # 테스트·평가 러너(전기 Tool)가 이 이름을 바꿔치기해 사용량을 캡처함
-    record_call("fake", _USAGE, configured_model="m", reasoning_effort=None, subject_id="p-1", elapsed_ms=0)
+    record_call(AgentRunMeta(component="fake", model="m", usage=_USAGE), "p-1")
 
     assert [row["agent"] for row in records] == ["fake"]
+
+
+def test_기록_이름이_있으면_에이전트_이름_대신_쓴다(records):
+    # 평가 호출(extraction-eval 등)이 운영 사용량과 섞이지 않게
+    record_call(AgentRunMeta(component="fake", usage_name="fake-eval", usage=_USAGE), "p-1")
+
+    assert [row["agent"] for row in records] == ["fake-eval"]
+
+
+def test_사용량_로그_sink는_기본으로_등록돼_있다(records):
+    agent_sinks.publish(AgentRunMeta(component="fake", usage=_USAGE), "p-1")
+
+    assert [(row["agent"], row["subject_id"]) for row in records] == [("fake", "p-1")]
 
 
 def test_콘솔_로그에_토큰·캐시_적중률을_남기고_게이트웨이_원본은_디버그로_남긴다(caplog):
