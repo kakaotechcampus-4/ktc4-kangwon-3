@@ -24,7 +24,7 @@ function ToolReviewCard({ toolReview }: ToolReviewCardProps) {
             <div className="relative w-full">
                 <SectionIntro title={TOOL_NAME_LABELS[toolReview.toolName]} description={toolReview.message ?? ""} size="2xl" />
                 {badge && (
-                    <div className={cn("absolute top-3 right-3 rounded-full border px-2.5 py-1 text-sm font-semibold", badge.className)}>
+                    <div className={cn("absolute top-3 right-0 rounded-full border px-2.5 py-1 text-sm font-semibold", badge.className)}>
                         {badge.label}
                     </div>
                 )}
