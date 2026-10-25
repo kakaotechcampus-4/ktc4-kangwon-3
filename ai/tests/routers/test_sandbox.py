@@ -115,6 +115,14 @@ def test_이미지_URL만_보내도_추출_입력으로_넘긴다(manager):
     assert manager.received[0].image_urls == urls
 
 
+def test_URL만_보내도_추출_입력으로_넘긴다(manager):
+    response = _client(manager).post(ROUTE, json={"sourceUrl": "https://example.com/1"}, headers=HEADERS)
+
+    assert response.status_code == 202, response.text
+    _wait_until(lambda: manager.received)
+    assert manager.received[0].source_url == "https://example.com/1"
+
+
 def test_끝나면_공개_진단서와_내부_결과를_함께_조회한다(manager, gate):
     client = _client(manager)
     data = _submit(client)
@@ -211,7 +219,7 @@ def test_개발용_상한을_넘으면_429(manager):
 
 
 @pytest.mark.parametrize("body", [
-    {}, {"textBlocks": [], "imageUrls": []}, {"productId": "p-1", "textBlocks": ["x"]},
+    {}, {"textBlocks": [], "imageUrls": [], "sourceUrl": None}, {"productId": "p-1", "textBlocks": ["x"]},
     {"imagesBase64": ["https://example.com/a.jpg"]},
 ])
 def test_입력이_없거나_정의하지_않은_필드를_보내면_422(manager, body):
