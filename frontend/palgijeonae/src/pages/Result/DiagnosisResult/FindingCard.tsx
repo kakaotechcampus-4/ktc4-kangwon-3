@@ -33,13 +33,15 @@ function FindingCard({ finding }: FindingCardProps) {
     const showRiskMeter = !DETERMINATIONS_WITHOUT_RISK.includes(finding.determination);
 
     return (
-        <DefaultBox className="relative gap-4 rounded-[20px] px-7 py-6">
-            <div className="absolute top-6 right-7 flex items-center gap-3">
-                {showRiskMeter && <RiskMeter riskLevel={finding.riskLevel} />}
-                <DeterminationBadge determination={finding.determination} />
-            </div>
-            <div className="flex flex-col gap-2.5">
-                <p className="pr-56 text-xl font-bold text-black">{finding.subject}</p>
+        <DefaultBox>
+            <div className="flex w-full flex-col gap-2.5">
+                <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
+                    <p className="text-xl font-bold text-black">{finding.subject}</p>
+                    <div className="flex items-center gap-2.5">
+                        {showRiskMeter && <RiskMeter riskLevel={finding.riskLevel} />}
+                        <DeterminationBadge determination={finding.determination} />
+                    </div>
+                </div>
                 <p className="text-base font-medium text-black">{finding.summary}</p>
                 <p className="text-sm leading-relaxed text-neutral-text">{finding.rationale}</p>
             </div>
