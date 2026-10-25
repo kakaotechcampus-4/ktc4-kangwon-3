@@ -585,10 +585,22 @@ def test_재진단은_세션의_실행_종류를_그대로_쓴다(managers):
     manager.submit("d-1", _inputs("p-1"), run_type=RunType.DUMMY)
     _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
 
-    resumed = _resume(manager)
+    resumed = _resume(manager, run_type=RunType.DUMMY)
 
     assert resumed.context.run_type is RunType.DUMMY
     assert manager.snapshot().accepted[RunType.DUMMY] == 2
+
+
+def test_실행_종류가_다른_재진단은_세션이_없는_것으로_보고_세션을_바꾸지_않는다(managers):
+    manager = _manager(managers, _AnswerJob())
+    manager.submit("d-1", _inputs("p-1"), run_type=RunType.DUMMY)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+
+    with pytest.raises(SessionNotFoundError):
+        _resume(manager)
+
+    assert manager.get("p-1") == waiting
 
 
 def test_세션이_없으면_재진단하지_않는다(managers):
