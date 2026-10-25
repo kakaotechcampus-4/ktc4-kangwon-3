@@ -152,3 +152,69 @@ def test_clear_cache는_캐시_이름이_없으면_사용법_오류로_끝난다
         cli.main(["clear-cache"])
 
     assert exc_info.value.code == 2
+
+
+class _Client:
+    closed = False
+
+    def close(self):
+        self.closed = True
+
+
+def _clip_ingest(monkeypatch, report=None, error=None) -> dict:
+    """DB 준비·클라이언트·적재 루틴을 가짜로 바꾸고, 적재 루틴이 받은 인자를 기록한다."""
+    from app.db.clip_ingest import ClipIngestReport
+
+    called = {"search": _Client(), "detail": _Client()}
+    monkeypatch.setattr(cli, "init_db", lambda: [])
+    monkeypatch.setattr(cli, "get_session_factory", lambda: "session-factory")
+    monkeypatch.setattr(cli, "CLIPClient", lambda: called["search"])
+    monkeypatch.setattr(cli, "CLIPDetailClient", lambda: called["detail"])
+    settings = type("Settings", (), {"embedding_model": "openai/text-embedding-3-small"})()
+    monkeypatch.setattr(cli, "get_settings", lambda: settings)
+
+    def ingest(**kwargs):
+        called["kwargs"] = kwargs
+        if error is not None:
+            raise error
+        return report or ClipIngestReport(listed=54303, existing=13679, saved=40624)
+    monkeypatch.setattr(cli, "ingest_clip_cases", ingest)
+    return called
+
+
+def test_clip_ingest는_적재_결과를_출력하고_클라이언트를_닫는다(monkeypatch, capsys):
+    called = _clip_ingest(monkeypatch)
+
+    assert cli.main(["clip-ingest"]) == 0
+    assert "CLIP 적재 — 목록 54303건, 이미 있음 13679건, 새로 저장 40624건, 실패 없음" in capsys.readouterr().out
+    kwargs = called["kwargs"]
+    assert (kwargs["search"], kwargs["detail"]) == (called["search"], called["detail"])
+    assert (kwargs["workers"], kwargs["limit"], kwargs["embedding_model"]) == (4, None, "openai/text-embedding-3-small")
+    assert kwargs["session_factory"] == "session-factory"
+    assert called["search"].closed and called["detail"].closed
+
+
+def test_clip_ingest는_동시_요청_수와_시험_적재_건수를_받는다(monkeypatch):
+    called = _clip_ingest(monkeypatch)
+
+    cli.main(["clip-ingest", "--workers", "2", "--limit", "200"])
+
+    assert (called["kwargs"]["workers"], called["kwargs"]["limit"]) == (2, 200)
+
+
+def test_clip_ingest는_실패한_사례가_있으면_앞_10건만_보이고_1로_끝난다(monkeypatch, capsys):
+    from app.db.clip_ingest import ClipIngestReport
+
+    failed = [str(n) for n in range(12)]
+    _clip_ingest(monkeypatch, report=ClipIngestReport(listed=12, saved=0, failed=failed))
+
+    assert cli.main(["clip-ingest"]) == 1
+    assert "실패 12건 (0, 1, 2, 3, 4, 5, 6, 7, 8, 9 …)" in capsys.readouterr().out
+
+
+def test_clip_ingest_도중_예외가_나도_클라이언트를_닫는다(monkeypatch):
+    called = _clip_ingest(monkeypatch, error=RuntimeError("CLIP 목록 3페이지가 비어 있습니다."))
+
+    with pytest.raises(RuntimeError):
+        cli.main(["clip-ingest"])
+    assert called["search"].closed and called["detail"].closed
