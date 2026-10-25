@@ -65,6 +65,10 @@ class UnansweredQuestionError(SessionError, ValueError):
         self.question_keys = question_keys
 
 
+class UnsupportedRunTypeError(SessionError, LookupError):
+    """실행 종류에 연결된 진단 함수가 없는 경우. 세션 관리자가 파이프라인 오류로 기록."""
+
+
 class InvalidTransitionError(SessionError, ValueError):
     """규칙표에 없는 전이를 요청한 경우. 시간 초과 뒤 늦게 온 결과 등.
 
