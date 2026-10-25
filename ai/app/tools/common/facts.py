@@ -34,6 +34,14 @@ def quote_matches(fact: QuotedFact, snippets: dict[str, str], *, value_in_quote:
     return not value_in_quote or (bool(compact(fact.value)) and compact(fact.value) in quote)
 
 
+def object_particle(word: str) -> str:
+    """목적격 조사. 마지막 글자에 받침이 있으면 "을", 없으면 "를"."""
+    last = word.rstrip()[-1:]
+    if not ("가" <= last <= "힣"):
+        return "를"
+    return "을" if (ord(last) - ord("가")) % 28 else "를"
+
+
 def group_facts(facts: list) -> dict[str, list]:
     grouped: dict[str, list] = {}
     for fact in facts:

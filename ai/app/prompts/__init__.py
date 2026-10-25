@@ -24,6 +24,8 @@ class PromptName(StrEnum):
     ELECTRICAL_REVIEW = "electrical/review"
     CHILDREN_FACTS = "children/facts"
     CHILDREN_REVIEW = "children/review"
+    RADIO_FACTS = "radio/facts"
+    RADIO_REVIEW = "radio/review"
     ADVERTISING = "advertising"
     IMAGE_TRIAGE = "image_triage"
 
