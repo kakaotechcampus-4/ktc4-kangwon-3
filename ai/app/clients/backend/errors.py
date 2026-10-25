@@ -1,7 +1,7 @@
-"""콜백 전송 예외."""
+"""BE 클라이언트 예외."""
 
-from ...domain.errors import AIError
+from ..errors import ClientError
 
 
-class CallbackTransportError(AIError, RuntimeError):
+class CallbackTransportError(ClientError, RuntimeError):
     """응답을 받지 못한 전송 실패(타임아웃·연결 실패). 재시도 대상."""
