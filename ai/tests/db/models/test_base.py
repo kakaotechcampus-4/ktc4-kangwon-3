@@ -5,7 +5,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateTable
 
-from app.models import Base
+from app.db.models import Base
 
 TABLES = list(Base.metadata.sorted_tables)
 

@@ -12,7 +12,7 @@ from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
-from .repositories.database import DatabaseNotConfiguredError, init_db
+from .db import DatabaseNotConfiguredError, init_db
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers

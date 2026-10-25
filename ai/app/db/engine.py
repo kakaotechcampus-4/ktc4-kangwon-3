@@ -88,7 +88,7 @@ def init_db() -> list[str]:
         ConfigError: 엔진을 만들 수 없는 경우.
         sqlalchemy.exc.OperationalError: DB에 연결할 수 없는 경우.
     """
-    from app.models import Base
+    from app.db.models import Base
 
     with get_engine().begin() as conn:
         # docker-entrypoint-initdb.d는 볼륨을 처음 만들 때만 돎

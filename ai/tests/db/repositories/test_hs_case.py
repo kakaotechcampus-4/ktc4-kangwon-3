@@ -1,6 +1,6 @@
 """결정사례 Repository가 만드는 SQL을 DB 없이 검증한다."""
 
-from app.repositories.customs import HsCaseRepository
+from app.db.repositories.hs_case import HsCaseRepository
 
 
 def test_결정사례_벡터_검색은_임베딩_없는_행을_빼고_코사인_거리순으로_top_k만_가져온다(session):

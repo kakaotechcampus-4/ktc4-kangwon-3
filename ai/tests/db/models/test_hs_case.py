@@ -3,7 +3,7 @@
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
-from app.models import HsCase
+from app.db.models import HsCase
 
 
 def test_결정사례는_문서_ID로_중복_적재되지_않는다():

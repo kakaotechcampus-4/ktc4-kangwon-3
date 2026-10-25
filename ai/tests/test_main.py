@@ -16,7 +16,7 @@ from app import config, main
 from app.callbacks import HttpCallbackSender
 from app.agents.base import AgentRunMeta
 from app.observability.agent_sinks import agent_sinks
-from app.repositories import database
+from app.db import engine as database
 from app.routers import _dummy
 
 TOKEN = "test-internal-token-0123456789abcdef"

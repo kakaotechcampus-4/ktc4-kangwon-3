@@ -1,10 +1,10 @@
-"""DB 관리 명령(python -m app.repositories.cli)의 출력과 종료 코드를 DB 없이 검증한다."""
+"""DB 관리 명령(python -m app.db.cli)의 출력과 종료 코드를 DB 없이 검증한다."""
 
 import pytest
 from sqlalchemy.exc import OperationalError
 
-from app.repositories import cli
-from app.repositories.errors import DatabaseNotConfiguredError
+from app.db import cli
+from app.db.errors import DatabaseNotConfiguredError
 
 
 def _raise(exc):

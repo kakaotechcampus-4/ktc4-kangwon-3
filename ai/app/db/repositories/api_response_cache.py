@@ -4,7 +4,7 @@ from sqlalchemy import delete, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models.api_response_cache import ApiResponseCache
+from app.db.models.api_response_cache import ApiResponseCache
 
 
 class ApiResponseCacheRepository:

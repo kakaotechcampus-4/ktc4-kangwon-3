@@ -1,7 +1,7 @@
 """AI DB 관리 명령.
 
     cd ai
-    python -m app.repositories.cli init
+    python -m app.db.cli init
 """
 
 import argparse
@@ -10,7 +10,7 @@ import sys
 from sqlalchemy.exc import OperationalError
 
 from ..config import ConfigError
-from .database import init_db
+from .engine import init_db
 
 
 def _init() -> int:
@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         int: 종료 코드.
     """
-    parser = argparse.ArgumentParser(prog="python -m app.repositories.cli", description="AI DB 관리 명령")
+    parser = argparse.ArgumentParser(prog="python -m app.db.cli", description="AI DB 관리 명령")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init", help="vector 확장과 테이블 생성 (이미 있으면 건너뜀)")
     args = parser.parse_args(argv)

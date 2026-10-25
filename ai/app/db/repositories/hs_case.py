@@ -1,8 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.hs_case import HsCase
-from app.repositories.base import BaseRepository
+from app.db.models.hs_case import HsCase
+from app.db.repositories.base import BaseRepository
 
 
 class HsCaseRepository(BaseRepository[HsCase]):
