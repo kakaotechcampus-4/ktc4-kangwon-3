@@ -292,6 +292,64 @@ class ProductRepositoryTest {
         assertThat(stuckIds).containsExactly(ids.get(1), ids.get(2));
     }
 
+    @Test
+    @DisplayName("재요청 대상 조회는 대기 상품이 있는 진단서 id를 한 번씩, 가장 오래 기다린 순으로 반환한다.")
+    void findDiagnosesIdsByStatus_thenReturnDiagnosesWithPendingOldestFirst() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        UUID recentDiagnosesId = saveDiagnosesWithStates(
+                new ProductState(ProcessingStatus.PENDING, now.minusMinutes(5)),
+                new ProductState(ProcessingStatus.PENDING, now.minusMinutes(1)));
+        UUID oldDiagnosesId = saveDiagnosesWithStates(
+                new ProductState(ProcessingStatus.PENDING, now.minusMinutes(9)),
+                new ProductState(ProcessingStatus.IN_PROGRESS, now.minusMinutes(20)));
+        saveDiagnosesWithStates(
+                new ProductState(ProcessingStatus.IN_PROGRESS, now.minusMinutes(30)),
+                new ProductState(ProcessingStatus.FAILED, now.minusMinutes(30)));
+
+        // when
+        List<UUID> diagnosesIds = productRepository.findDiagnosesIdsByStatus(
+                ProcessingStatus.PENDING, PageRequest.of(0, 10));
+
+        // then
+        assertThat(diagnosesIds).containsExactly(oldDiagnosesId, recentDiagnosesId);
+    }
+
+    @Test
+    @DisplayName("재요청 대상 조회는 요청한 개수만큼만 반환한다.")
+    void findDiagnosesIdsByStatus_withLimit_thenReturnOldestOnly() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        saveDiagnosesWithStates(new ProductState(ProcessingStatus.PENDING, now.minusMinutes(1)));
+        UUID oldDiagnosesId = saveDiagnosesWithStates(new ProductState(ProcessingStatus.PENDING, now.minusMinutes(9)));
+
+        // when
+        List<UUID> diagnosesIds = productRepository.findDiagnosesIdsByStatus(
+                ProcessingStatus.PENDING, PageRequest.of(0, 1));
+
+        // then
+        assertThat(diagnosesIds).containsExactly(oldDiagnosesId);
+    }
+
+    private record ProductState(ProcessingStatus status, LocalDateTime updatedAt) {
+    }
+
+    // 상품마다 상태와 마지막 상태 변경 시각을 지정해 진단서 하나를 저장한다.
+    private UUID saveDiagnosesWithStates(ProductState... states) {
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        for (int i = 0; i < states.length; i++) {
+            diagnoses.addProducts(List.of(createProduct("상품 " + i, null)));
+        }
+        Diagnoses saved = diagnosesRepository.save(diagnoses);
+        List<UUID> productIds = saved.getProducts().stream().map(Product::getId).toList();
+        flushAndClear();
+
+        for (int i = 0; i < states.length; i++) {
+            changeStatus(productIds.get(i), states[i].status(), states[i].updatedAt());
+        }
+        return saved.getId();
+    }
+
     private List<UUID> saveProducts(int count) {
         Diagnoses diagnoses = Diagnoses.pending(USER_ID);
         for (int i = 0; i < count; i++) {
