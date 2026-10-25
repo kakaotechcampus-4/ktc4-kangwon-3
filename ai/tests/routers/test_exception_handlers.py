@@ -199,7 +199,7 @@ def test_Swagger의_422는_요청_본문이_있는_API만_공통_응답_형식�
     paths = main_app.openapi()["paths"]
     body_routes = [
         ("/api/ai/v1/diagnose/content", "post"),
-        ("/api/ai/v1/diagnose/url", "post"),
+        ("/api/ai/v1/diagnose/resume", "post"),
         ("/api/ai/v1/dummy/diagnose/content", "post"),
         ("/api/ai/v1/dummy/diagnose/resume", "post"),
     ]

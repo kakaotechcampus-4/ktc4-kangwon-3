@@ -22,7 +22,6 @@ from app.sessions.transitions import AskUser, Start, apply
 
 CONTENT = "/api/ai/v1/dummy/diagnose/content"
 RESUME = "/api/ai/v1/dummy/diagnose/resume"
-PRODUCTION_RESUME = "/api/ai/v1/diagnose/resume"
 _QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
 
 
@@ -120,11 +119,11 @@ def test_더미_세션은_더미_경로로_재진단한다(client, manager):
     assert manager.get("p-1").context.run_type is RunType.DUMMY
 
 
-@pytest.mark.parametrize(("run_type", "route"), [(RunType.PRODUCTION, RESUME), (RunType.DUMMY, PRODUCTION_RESUME)])
-def test_다른_경로로_접수한_세션의_재진단은_404로_거절한다(client, manager, run_type, route):
+@pytest.mark.parametrize("run_type", [RunType.PRODUCTION, RunType.TEST])
+def test_다른_경로로_접수한_세션의_재진단은_404로_거절한다(client, manager, run_type):
     waiting = _waiting(manager, run_type)
 
-    response = client.post(route, json=_resume_payload(waiting))
+    response = client.post(RESUME, json=_resume_payload(waiting))
 
     assert response.status_code == 404
     assert manager.get("p-1") == waiting

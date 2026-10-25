@@ -1,15 +1,17 @@
-"""진단 라우터. 진단서 단위 접수(content), 답변 후 재진단(resume), URL 진단(미구현) 엔드포인트를 제공한다."""
+"""진단 라우터. 진단서 단위 접수(content)와 답변 후 재진단(resume) 엔드포인트를 제공한다.
 
-from fastapi import APIRouter, Depends, Request, status
+실제 파이프라인 연결 전까지 두 경로 모두 501. BE 연동은 같은 처리를 쓰는 더미 경로(/dummy/diagnose)로 함.
+"""
+
+from fastapi import APIRouter, Request, status
 
 from ..domain.context import RunType
 from ..domain.errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
-from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, ResumeRequest, UrlDiagnoseRequest
+from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, ResumeRequest
 from ..schemas.response import (
     AcceptedProduct,
     ApiResponse,
-    DiagnoseResponse,
     DiagnosisAccepted,
     DiagnosisAcceptedResponse,
     DiagnosisConflict,
@@ -57,6 +59,10 @@ RESUME_RESPONSES = {
     status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ApiResponse,
                                            "description": "형식 오류, 또는 이번 회차 질문 중 답하지 않은 질문 있음"},
     status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse, "description": "진단 대기열 초과"},
+}
+# 실제 파이프라인 연결 전 /diagnose 응답
+_NOT_IMPLEMENTED_RESPONSES = {
+    status.HTTP_501_NOT_IMPLEMENTED: {"model": ApiResponse, "description": "실제 파이프라인 연결 전. 더미 경로 사용"},
 }
 
 
@@ -150,69 +156,43 @@ def resume_session(manager: SessionManager, req: ResumeRequest, run_type: RunTyp
     "/content",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=DiagnosisAcceptedResponse,
-    responses=SUBMIT_RESPONSES,
+    responses={**SUBMIT_RESPONSES, **_NOT_IMPLEMENTED_RESPONSES},
     summary="진단서 단위 진단 접수",
-    description="진단서 한 건의 상품들을 상품별 세션으로 접수한다. 결과는 상품별 콜백으로 전달 (#263).",
+    description=(
+        "진단서 한 건의 상품들을 상품별 세션으로 접수한다. 결과는 상품별 콜백으로 전달 (#263). "
+        "실제 파이프라인 연결 전까지 501."
+    ),
 )
-async def diagnose_by_content(
-    req: DiagnosisRequest,
-    manager: SessionManager = Depends(get_session_manager),
-) -> DiagnosisAcceptedResponse:
-    """진단서의 상품들을 세션으로 접수하고 바로 202를 반환한다.
-
-    하나라도 진행 중이면 전체를 거절함 (#263).
+async def diagnose_by_content(req: DiagnosisRequest) -> DiagnosisAcceptedResponse:
+    """진단서의 상품들을 접수한다. 실제 파이프라인 연결 전까지 접수하지 않음.
 
     Args:
-        req: 진단서 ID와 상품 1~10개.
-        manager: 세션 관리자.
-
-    Returns:
-        202 접수 응답.
+        req: 진단서 ID와 상품 1~10개. 형식은 검사함.
 
     Raises:
-        AIServiceError: 진행 중 상품이 섞이면 409(data.conflictProductIds), 대기열이 차면 429.
+        AIServiceError: 항상 501.
     """
-    inputs = [to_extraction_input(p) for p in req.products]
-    return submit_diagnosis(manager, req.diagnosis_id, inputs, RunType.PRODUCTION)
+    raise AIServiceError(response_code=AIResponseCode.NOT_IMPLEMENTED.value)
 
 
 @router.post(
     "/resume",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=ResumeAcceptedResponse,
-    responses=RESUME_RESPONSES,
+    responses={**RESUME_RESPONSES, **_NOT_IMPLEMENTED_RESPONSES},
     summary="답변 후 재진단 접수",
-    description="답변 대기 상품에 이번 회차 답변을 더해 새 실행으로 접수한다. 결과는 새 runId의 콜백으로 전달 (#310).",
+    description=(
+        "답변 대기 상품에 이번 회차 답변을 더해 새 실행으로 접수한다. 결과는 새 runId의 콜백으로 전달 (#310). "
+        "실제 파이프라인 연결 전까지 501."
+    ),
 )
-async def resume_diagnosis(
-    req: ResumeRequest,
-    manager: SessionManager = Depends(get_session_manager),
-) -> ResumeAcceptedResponse:
-    """답변 대기 상품을 답변과 함께 재접수하고 바로 202를 반환한다.
+async def resume_diagnosis(req: ResumeRequest) -> ResumeAcceptedResponse:
+    """답변 대기 상품을 재접수한다. 실제 파이프라인 연결 전까지 접수하지 않음.
 
     Args:
-        req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변.
-        manager: 세션 관리자.
-
-    Returns:
-        202 재진단 접수 응답. runId는 새 실행 ID.
+        req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변. 형식은 검사함.
 
     Raises:
-        AIServiceError: 묻지 않은 질문 키면 400(data.questionKeys), 세션이 없으면 404,
-            답변 대기가 아니거나 실행·회차·진단서가 다르면 409, 답하지 않은 질문이 있으면 422, 대기열이 차면 429.
+        AIServiceError: 항상 501.
     """
-    return resume_session(manager, req, RunType.PRODUCTION)
-
-
-@router.post("/url", response_model=DiagnoseResponse, summary="URL 진단", description="상품 URL로 크롤링 후 규제 진단을 실행한다.")
-async def diagnose_by_url(req: UrlDiagnoseRequest) -> DiagnoseResponse:
-    """URL 입력으로 상품을 진단한다. 서버가 직접 크롤링한다.
-
-    Args:
-        req: 크롤링할 URL과 식별자를 담은 요청.
-
-    Returns:
-        진단 파이프라인 실행 결과.
-    """
-    # TODO: 크롤링 구현 후 파이프라인 연결
     raise AIServiceError(response_code=AIResponseCode.NOT_IMPLEMENTED.value)
