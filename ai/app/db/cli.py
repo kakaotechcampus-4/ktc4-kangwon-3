@@ -4,17 +4,22 @@
     python -m app.db.cli init
     python -m app.db.cli law-refresh
     python -m app.db.cli clear-cache law.text
+    python -m app.db.cli clip-ingest [--workers 4] [--limit N]
 
 종료 코드: 0 성공, 1 일부 실패, 2 설정 오류, 3 DB 연결 실패.
 """
 
 import argparse
+import logging
 import sys
 from collections.abc import Callable
 
 from sqlalchemy.exc import OperationalError
 
+from ..clients.customs import CLIPClient, CLIPDetailClient
 from ..config import ConfigError, get_settings
+from ..utils.embedding import embed_texts_sync
+from .clip_ingest import ingest_clip_cases
 from .engine import get_session_factory, init_db
 from .law_cache import build_law_fetchers, refresh_laws
 from .repositories.api_response_cache import ApiResponseCacheRepository
@@ -88,6 +93,36 @@ def _clear_cache(client: str) -> int:
     return 0
 
 
+def _clip_ingest(workers: int, limit: int | None) -> int:
+    """CLIP 결정사례 중 DB에 없는 것을 받아 임베딩해 저장한다. 멈춰도 다시 돌리면 이어서 받는다.
+
+    Args:
+        workers: 동시 요청 수.
+        limit: 새로 받을 최대 사례 수. None이면 전부.
+
+    Returns:
+        int: 종료 코드. 상세를 못 받은 사례가 있으면 1.
+    """
+    # 진행 상황(묶음마다)을 화면에 보임
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    init_db()
+    settings = get_settings()
+    search, detail = CLIPClient(), CLIPDetailClient()
+    try:
+        report = ingest_clip_cases(
+            search=search, detail=detail, embed=lambda texts: embed_texts_sync(texts, settings),
+            embedding_model=settings.embedding_model, session_factory=get_session_factory(),
+            workers=workers, limit=limit)
+    finally:
+        search.close()
+        detail.close()
+    failed = f"{len(report.failed)}건 ({', '.join(report.failed[:10])}{' …' if len(report.failed) > 10 else ''})"
+    print(f"CLIP 적재 — 목록 {report.listed}건, 이미 있음 {report.existing}건, 새로 저장 {report.saved}건, "
+          f"실패 {failed if report.failed else '없음'}")
+    return 1 if report.failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """명령을 해석해 실행한다.
 
@@ -103,6 +138,9 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("law-refresh", help="근거 법령·행정규칙의 현행·시행예정 버전을 지금 새로 받음")
     clear = commands.add_parser("clear-cache", help="한 클라이언트의 응답 캐시를 모두 삭제")
     clear.add_argument("client", help='캐시 이름 (예: "law.text", "law.eflaw_search", "admrul.search")')
+    clip = commands.add_parser("clip-ingest", help="CLIP 결정사례 중 DB에 없는 것을 받아 임베딩해 저장")
+    clip.add_argument("--workers", type=int, default=4, help="동시 요청 수 (기본 4)")
+    clip.add_argument("--limit", type=int, default=None, help="새로 받을 최대 사례 수 (시험 적재용)")
     args = parser.parse_args(argv)
 
     if args.command == "init":
@@ -111,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
         return _with_db(_law_refresh)
     if args.command == "clear-cache":
         return _with_db(lambda: _clear_cache(args.client))
+    if args.command == "clip-ingest":
+        return _with_db(lambda: _clip_ingest(args.workers, args.limit))
     parser.error("알 수 없는 명령")
 
 
