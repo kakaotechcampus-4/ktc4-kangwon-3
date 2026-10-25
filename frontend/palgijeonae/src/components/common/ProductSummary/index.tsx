@@ -22,16 +22,16 @@ function ProductSummary({ productName, productImageUrl, resultStatus, processing
                 alt="상품 썸네일"
                 className="w-23 h-23 object-cover rounded-lg border border-neutral-border" />
             <div className="flex flex-col items-start gap-2">
-                <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
-                    {badge.label}
-                </div>
-                <div className="flex gap-2 items-center">
+                <div className="flex items-center gap-2">
+                    <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
+                        {badge.label}
+                    </div>
                     <img src={SOURCE_TYPE_INFO[sourceType].icon}
                         alt={SOURCE_TYPE_INFO[sourceType].label}
                         className="w-5 h-5" />
                     <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
                 </div>
-                <h3 className="text-lg font-semibold pl-1">{productName}</h3>
+                <h3 className="text-xl font-bold text-black">{productName}</h3>
             </div>
         </div>
     );
