@@ -85,7 +85,7 @@ def test_상품별_세션을_만들고_202를_반환한다(client, manager):
 
 
 def test_이미지는_추출_입력의_image_urls로_넘긴다(client, manager, gate):
-    product = {"productId": "p-1", "imagesBase64": ["data:image/png;base64,AAA"], "sourceUrl": "https://example.com/1"}
+    product = {"productId": "p-1", "imageUrls": ["data:image/png;base64,AAA"], "sourceUrl": "https://example.com/1"}
 
     client.post(CONTENT, json={"diagnosisId": "d-1", "products": [product]})
     gate.set()

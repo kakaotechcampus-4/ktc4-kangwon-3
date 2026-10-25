@@ -20,12 +20,12 @@ def _product(product_id: str = "p-1", **fields) -> dict:
 def test_camelCase_요청을_snake_case_필드로_읽는다():
     request = DiagnosisRequest.model_validate({
         "diagnosisId": "d-1",
-        "products": [_product(imagesBase64=["data:image/png;base64,AAA"], sourceUrl="https://example.com/1")],
+        "products": [_product(imageUrls=["data:image/png;base64,AAA"], sourceUrl="https://example.com/1")],
     })
 
     product = request.products[0]
     assert request.diagnosis_id == "d-1"
-    assert (product.product_id, product.text_blocks, product.images_base64, product.source_url) == (
+    assert (product.product_id, product.text_blocks, product.image_urls, product.source_url) == (
         "p-1", ["상품 설명"], ["data:image/png;base64,AAA"], "https://example.com/1",
     )
 
@@ -44,9 +44,9 @@ def test_같은_요청_안의_상품_ID_중복을_거부한다():
 
 
 def test_상품마다_텍스트나_이미지가_하나는_있어야_한다():
-    empty = {"productId": "p-2", "textBlocks": [], "imagesBase64": []}
+    empty = {"productId": "p-2", "textBlocks": [], "imageUrls": []}
 
-    with pytest.raises(ValidationError, match="textBlocks 또는 imagesBase64"):
+    with pytest.raises(ValidationError, match="textBlocks 또는 imageUrls"):
         DiagnosisRequest.model_validate({"diagnosisId": "d-1", "products": [_product(), empty]})
 
 
