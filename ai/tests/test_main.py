@@ -10,6 +10,7 @@ import time
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
 from app import config, main
 from app.callbacks import HttpCallbackSender
@@ -133,3 +134,32 @@ def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인�
     assert 'ai_agent_calls_total{component="extraction",model="m",outcome="ok"} 1.0' in text
     # 종료 때 해제돼 이후 호출은 옛 registry에 쌓이지 않음
     assert registry.get_sample_value("ai_agent_calls_total", sample) == 1.0
+
+
+def test_기동_때_DB_테이블을_만들고_새로_만든_테이블을_로그로_남긴다(fake_be, monkeypatch, caplog):
+    calls = []
+    monkeypatch.setattr(main, "init_db", lambda: calls.append(1) or ["api_response_cache", "hs_cases"])
+
+    with caplog.at_level("INFO", logger="app.main"), TestClient(main.app):
+        pass
+
+    assert calls == [1]
+    assert "DB 준비 완료 (새로 만든 테이블: api_response_cache, hs_cases)" in caplog.text
+
+
+def test_DATABASE_URL이_없으면_DB_없이_기동한다(fake_be, caplog):
+    with caplog.at_level("WARNING", logger="app.main"), TestClient(main.app) as client:
+        assert client.get("/api/ai/v1/health").status_code == 200
+
+    assert "DATABASE_URL 미설정" in caplog.text
+
+
+def test_DB_준비에_실패해도_경고만_남기고_기동한다(fake_be, monkeypatch, caplog):
+    def fail():
+        raise OperationalError("connect", {}, ConnectionRefusedError("거부됨"))
+    monkeypatch.setattr(main, "init_db", fail)
+
+    with caplog.at_level("WARNING", logger="app.main"), TestClient(main.app) as client:
+        assert client.get("/api/ai/v1/health").status_code == 200
+
+    assert "DB 준비 실패" in caplog.text

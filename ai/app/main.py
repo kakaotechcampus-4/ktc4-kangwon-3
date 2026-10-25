@@ -6,14 +6,13 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
 from prometheus_client import CollectorRegistry
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect_callbacks
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
-from .repositories.database import DatabaseNotConfiguredError, get_engine
+from .repositories.database import DatabaseNotConfiguredError, init_db
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
@@ -55,17 +54,15 @@ async def lifespan(app: FastAPI):
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
+    # 연결 확인 겸 vector 확장·테이블 생성 (이미 있으면 건너뜀)
     try:
-        engine = get_engine()
+        created = init_db()
     except DatabaseNotConfiguredError:
         logger.warning("DATABASE_URL 미설정 — DB 기능 없이 기동합니다")
+    except SQLAlchemyError as e:
+        logger.warning("DB 준비 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     else:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            logger.info("DB 연결 확인 완료")
-        except SQLAlchemyError as e:
-            logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
+        logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
