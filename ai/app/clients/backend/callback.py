@@ -10,6 +10,7 @@ from urllib.parse import quote
 import httpx
 
 from ...schemas.callback import PublicProductEvent
+from ..request import RequestClient
 from .errors import CallbackTransportError
 
 CALLBACK_PATH = "/internal/v1/ai/products/{product_id}"
@@ -31,7 +32,7 @@ class SendResult:
     code: str | None = None
 
 
-class HttpCallbackSender:
+class HttpCallbackSender(RequestClient[PublicProductEvent, SendResult]):
     """BE 콜백 수신부로 이벤트를 보낸다. 연결은 재사용하고, 여러 전송 스레드가 같이 써도 됨.
 
     Args:
@@ -45,12 +46,12 @@ class HttpCallbackSender:
         self, base_url: str, token: str, *, timeout: float = TIMEOUT_SECONDS,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        self._client = httpx.Client(
-            base_url=base_url.rstrip("/"), headers={TOKEN_HEADER: token}, timeout=timeout, transport=transport,
+        super().__init__(
+            base_url=base_url.rstrip("/"), timeout=timeout, headers={TOKEN_HEADER: token}, transport=transport,
         )
 
     def send(self, event: PublicProductEvent) -> SendResult:
-        """이벤트 하나를 보내고 BE 응답을 돌려준다.
+        """이벤트 하나를 보내고 BE 응답을 돌려준다. 발신함(CallbackSender)이 부르는 입구.
 
         Args:
             event: 보낼 콜백 이벤트.
@@ -61,18 +62,39 @@ class HttpCallbackSender:
         Raises:
             CallbackTransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우.
         """
-        path = CALLBACK_PATH.format(product_id=quote(event.product_id, safe=""))
+        return self.fetch_parsed(event)
+
+    def _send(self, request: PublicProductEvent) -> httpx.Response:
+        """이벤트를 POST로 보낸다. 4xx·5xx도 예외 없이 응답을 돌려줌 (발신함이 재시도 판단).
+
+        Args:
+            request: 보낼 콜백 이벤트.
+
+        Returns:
+            httpx.Response: BE 응답.
+
+        Raises:
+            CallbackTransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우.
+        """
+        path = CALLBACK_PATH.format(product_id=quote(request.product_id, safe=""))
         # 기본값으로 채워지는 eventType이 빠지지 않게 exclude_unset·exclude_defaults 쓰지 않음 (BE #329)
-        body = event.model_dump(mode="json", by_alias=True)
+        body = request.model_dump(mode="json", by_alias=True)
         try:
-            response = self._client.post(path, json=body)
+            # _post는 4xx·5xx에서 예외를 내므로 직접 보냄
+            return self._client.post(path, json=body)
         except httpx.TransportError as exc:
             raise CallbackTransportError(f"콜백 전송 실패: {type(exc).__name__}: {exc}") from exc
-        return SendResult(response.status_code, _response_code(response))
 
-    def close(self) -> None:
-        """연결을 닫는다. 발신함을 닫은 뒤 부름."""
-        self._client.close()
+    def _parse(self, raw: httpx.Response) -> SendResult:
+        """BE 응답을 상태 코드와 응답 본문의 code로 바꾼다.
+
+        Args:
+            raw: BE 응답.
+
+        Returns:
+            SendResult: 전송 결과.
+        """
+        return SendResult(raw.status_code, _response_code(raw))
 
 
 def _response_code(response: httpx.Response) -> str | None:

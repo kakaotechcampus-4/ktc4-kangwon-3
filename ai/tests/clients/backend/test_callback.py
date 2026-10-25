@@ -81,6 +81,12 @@ def test_응답_본문의_code를_SendResult에_담는다(status, body, expected
     assert _sender(lambda request: httpx.Response(status, json=body)).send(_event()) == expected
 
 
+def test_원문_조회는_4xx도_예외_없이_BE_응답을_그대로_돌려준다():
+    raw = _sender(lambda request: httpx.Response(409, json={"code": "COMMON-010"})).fetch_raw(_event())
+
+    assert (raw.status_code, raw.json()) == (409, {"code": "COMMON-010"})
+
+
 def test_JSON이_아닌_응답은_code_없이_상태만_돌려준다():
     # nginx 502 같은 HTML 응답
     sender = _sender(lambda request: httpx.Response(502, text="<html>Bad Gateway</html>"))
