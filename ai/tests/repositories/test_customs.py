@@ -1,12 +1,6 @@
-"""세관장확인·결정사례 Repository가 만드는 SQL을 DB 없이 검증한다."""
+"""결정사례 Repository가 만드는 SQL을 DB 없이 검증한다."""
 
-from app.repositories.customs import CustomsConfirmationRepository, HsCaseRepository
-
-
-def test_세관장확인은_HS_코드로_조회한다(session):
-    CustomsConfirmationRepository(session).get_by_hs_code("8414599000")
-
-    assert "WHERE customs_confirmations.hs_code = %(hs_code_1)s" in session.last_sql()
+from app.repositories.customs import HsCaseRepository
 
 
 def test_결정사례_벡터_검색은_임베딩_없는_행을_빼고_코사인_거리순으로_top_k만_가져온다(session):
