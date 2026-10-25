@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from app import config, main
 from app.callbacks import HttpCallbackSender
 from app.agents.base import AgentRunMeta
+from app.dummy import job as dummy_job
 from app.observability.agent_sinks import agent_sinks
 from app.repositories import database
 from app.routers import _dummy
@@ -48,6 +49,7 @@ def fake_be(monkeypatch):
     for name in ("DATABASE_URL", "MODEL_PROFILE_OVERRIDES", "AI_DEV_API_ENABLED", "AI_DEV_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
+    monkeypatch.setattr(dummy_job, "STAGE_SECONDS", 0)
     for cached in (config.get_settings, database.get_engine, database.get_session_factory):
         cached.cache_clear()
 
@@ -83,6 +85,29 @@ def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_
     result = events[-1]
     assert result["eventType"] == "product_result"
     assert len(result["assessment"]["toolReviews"]) == 6
+
+
+def test_더미_경로는_시나리오_더미로_진단하고_운영_경로는_고정_더미로_진단한다(fake_be):
+    def results():
+        return {
+            event["productId"]: event["assessment"]["resultStatus"]
+            for event in (json.loads(request.content) for request in fake_be)
+            if event["eventType"] == "product_result"
+        }
+
+    with TestClient(main.app) as client:
+        client.post("/api/ai/v1/dummy/diagnose/content?flow=none&result=allowed", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-dummy", "textBlocks": ["상품 설명"]}],
+        })
+        client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-2", "products": [{"productId": "p-real", "textBlocks": ["상품 설명"]}],
+        })
+        _wait_until(lambda: len(results()) == 2)
+
+    assert results() == {
+        "p-dummy": "PURCHASING_AGENT_ALLOWED",
+        "p-real": "DIRECT_IMPORT_CERTIFICATION_REQUIRED",
+    }
 
 
 def test_개발용_진단은_상태_조회로_결과를_보고_BE로는_콜백을_보내지_않는다(fake_be, monkeypatch):
