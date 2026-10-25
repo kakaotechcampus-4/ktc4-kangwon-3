@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from ...observability.context import RunType
+from ...domain.context import RunType
 from ...schemas.session import SessionStatus
 
 # 접수 거절 사유. 대기열 가득(429) / 진행 중 상품 섞임(409)

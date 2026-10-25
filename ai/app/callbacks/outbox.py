@@ -18,6 +18,7 @@ from queue import Queue
 from typing import Protocol
 
 from ..schemas.callback import PublicProductEvent
+from .errors import CallbackTransportError
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,6 @@ BASE_DELAY_SECONDS = 1.0
 MAX_DELAY_SECONDS = 30.0
 # 409라도 다시 보내면 되는 BE 응답 코드. COMMON-010(상태 전이 불가)은 재시도 안 함
 RETRYABLE_CONFLICT_CODES = frozenset({"COMMON-009"})
-
-
-class CallbackTransportError(RuntimeError):
-    """응답을 받지 못한 전송 실패(타임아웃·연결 실패). 재시도 대상."""
 
 
 @dataclass(frozen=True)

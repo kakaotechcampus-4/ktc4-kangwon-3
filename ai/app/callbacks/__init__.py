@@ -4,9 +4,10 @@ from threading import Lock
 
 from ..sessions.events import SessionEvent
 from ..sessions.manager import SessionManager
+from .errors import CallbackTransportError
 from .events import AssessmentPresenter, EventBuilder
 from .http import HttpCallbackSender
-from .outbox import CallbackOutbox, CallbackSender, CallbackTransportError, SendResult
+from .outbox import CallbackOutbox, CallbackSender, SendResult
 
 __all__ = [
     "AssessmentPresenter", "CallbackOutbox", "CallbackSender", "CallbackTransportError", "EventBuilder",

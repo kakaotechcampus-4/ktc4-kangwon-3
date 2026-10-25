@@ -2,7 +2,7 @@
 
 import time
 
-from ..observability.context import ExecutionContext, PipelineStage
+from ..domain.context import ExecutionContext, PipelineStage
 from ..schemas.callback import (
     PublicAssessmentDto,
     PublicFindingDto,

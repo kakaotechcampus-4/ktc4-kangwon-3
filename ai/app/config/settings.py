@@ -10,6 +10,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .errors import ConfigError
 from .profiles import AGENT_PROFILES, MODEL_PROFILES, TOOL_PROFILES
 
 # 실행 위치와 관계없이 이 프로젝트의 ai/.env만 읽는다.
@@ -36,10 +37,6 @@ DEV_API_KEY_ENV = "AI_DEV_API_KEY"
 DEV_API_KEY_MIN_LENGTH = 32
 _TRUE_VALUES = ("true", "1", "yes", "on")
 _FALSE_VALUES = ("false", "0", "no", "off", "")
-
-
-class ConfigError(RuntimeError):
-    """AI 서버 설정이 없거나 허용 범위를 벗어났다."""
 
 
 # 프로필 표 종류. 덮어쓰기 값의 "종류.이름" 앞부분

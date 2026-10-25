@@ -9,6 +9,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .errors import InputsMismatch
+
 
 def normalize(text: str) -> str:
     """대조용 정규화. Tool의 인용 대조와 같은 규칙(공백·영문 대소문자 무시)이다."""
@@ -67,10 +69,6 @@ def inputs_digest(text: str) -> str:
     """입력 파일 지문. 줄바꿈을 LF로 맞춘 SHA-256 앞 12자(_raw MANIFEST와 같은 규칙)."""
     normalized = text.replace("\r\n", "\n").replace("\r", "\n")
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
-
-
-class InputsMismatch(ValueError):
-    """로컬 입력 파일이 평가셋에 적힌 지문과 다르다. 다른 입력으로 잰 수치를 섞지 않게 막는다."""
 
 
 def load_eval_set(truth_path: Path, ai_root: Path) -> tuple[dict, dict[str, list[str]]]:

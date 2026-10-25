@@ -230,6 +230,13 @@ public class ProductService {
                 ProcessingStatus.IN_PROGRESS, threshold, PageRequest.of(0, limit));
     }
 
+    /**
+     * AI 요청 재시도용. 대기 상품(AI가 요청을 받지 않아 되돌린 상품)이 있는 진단서 ID를 오래 기다린 순으로 가져온다.
+     */
+    public List<UUID> findPendingDiagnosesIds(int limit) {
+        return productRepository.findDiagnosesIdsByStatus(ProcessingStatus.PENDING, PageRequest.of(0, limit));
+    }
+
     // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.
     private String normalizeKeyword(String keyword) {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;

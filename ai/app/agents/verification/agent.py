@@ -14,7 +14,8 @@ from ...schemas.schemas import (
     VerificationStatus as Status,
 )
 from ...usage import CallUsage
-from ..base import AgentError, AgentResult, BaseAgent, ModelFailurePhase
+from ..base import AgentResult, BaseAgent, ModelFailurePhase
+from .errors import VerificationError
 from .rules import run_rule_checks
 from .schemas import _Review
 
@@ -24,13 +25,6 @@ _TOOL_RECOVERABLE_ISSUES = frozenset(
         IssueType.MISSING_EVIDENCE,
     }
 )
-
-
-class VerificationError(AgentError):
-    """모델 검증 미완료. ``partial_result``는 규칙 검사 결과(VerificationResult).
-
-    파이프라인은 이를 ``FinalVerificationStatus.INCOMPLETE``로 처리하고 검증 완료로 보지 않아야 함.
-    """
 
 
 class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult]):

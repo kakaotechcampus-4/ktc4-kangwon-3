@@ -22,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -319,6 +320,165 @@ class DiagnosesServiceTest {
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("AI가 요청을 받지 않은 상품들만 대기 상태로 되돌리고 진단서는 진행 중으로 유지한다.")
+    void returnToPending_thenOnlyRequestedProductsPending() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(3);
+        List<Product> products = diagnoses.getProducts();
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.returnToPending(DIAGNOSES_ID, List.of(products.get(0).getId(), products.get(1).getId()));
+
+        // then
+        assertThat(products)
+                .extracting(Product::getProcessingStatus)
+                .containsExactly(ProcessingStatus.PENDING, ProcessingStatus.PENDING, ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("이미 실행 식별자를 받았거나 진행 중이 아닌 상품은 건너뛰고 나머지 상품만 대기로 되돌린다.")
+    void returnToPending_whenRunAssignedOrNotInProgress_thenSkipIt() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(3);
+        List<Product> products = diagnoses.getProducts();
+        products.get(0).assignRun("run-1");
+        products.get(1).fail(null, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", true);
+        List<UUID> productIds = products.stream().map(Product::getId).toList();
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.returnToPending(DIAGNOSES_ID, productIds);
+
+        // then
+        assertThat(products)
+                .extracting(Product::getProcessingStatus)
+                .containsExactly(ProcessingStatus.IN_PROGRESS, ProcessingStatus.FAILED, ProcessingStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("AI가 거절한 상품들은 다시 진단해도 같은 결과라 재시도 불가 실패로 끝내고 진단서 상태를 다시 계산한다.")
+    void failRejectedRequest_thenFailAsNotRetryable() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(2);
+        List<UUID> productIds = diagnoses.getProducts().stream().map(Product::getId).toList();
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.failRejectedRequest(DIAGNOSES_ID, productIds);
+
+        // then
+        assertThat(diagnoses.getProducts())
+                .extracting(Product::getProcessingStatus, Product::getErrorCode, Product::getErrorRetryable)
+                .containsOnly(tuple(ProcessingStatus.FAILED, DiagnosesService.REQUEST_REJECTED_ERROR_CODE, false));
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("이미 실행 식별자를 받은 상품은 실패 처리하지 않는다.")
+    void failRejectedRequest_whenRunAssigned_thenSkip() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(1);
+        Product product = diagnoses.getProducts().getFirst();
+        product.assignRun("run-1");
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.failRejectedRequest(DIAGNOSES_ID, List.of(product.getId()));
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("재요청하면 대기 상품만 진행 중으로 바꾸고 그 상품들의 AI 요청 내용을 돌려준다.")
+    void restartPendingProducts_thenStartPendingAndReturnEvent() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Diagnoses diagnoses = createInProgressDiagnoses(2);
+        Product pending = diagnoses.getProducts().get(0);
+        pending.returnToPending();
+        diagnoses.getProducts().forEach(product -> ReflectionTestUtils.setField(product, "createdAt", now));
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        Optional<AiDiagnosesRequestedEvent> event =
+                diagnosesService.restartPendingProducts(DIAGNOSES_ID, now.minusMinutes(10));
+
+        // then
+        assertThat(event).hasValueSatisfying(requested -> {
+            assertThat(requested.diagnosesId()).isEqualTo(DIAGNOSES_ID);
+            assertThat(requested.products())
+                    .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
+                    .containsExactly(pending.getId());
+        });
+        assertThat(pending.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("재요청 기한을 넘긴 대기 상품은 다시 보내지 않고 재시도 가능한 실패로 끝낸다.")
+    void restartPendingProducts_whenPastDeadline_thenFailAsRetryable() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Diagnoses diagnoses = createInProgressDiagnoses(2);
+        Product expired = diagnoses.getProducts().get(0);
+        Product waiting = diagnoses.getProducts().get(1);
+        expired.returnToPending();
+        waiting.returnToPending();
+        ReflectionTestUtils.setField(expired, "createdAt", now.minusMinutes(11));
+        ReflectionTestUtils.setField(waiting, "createdAt", now.minusMinutes(9));
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        Optional<AiDiagnosesRequestedEvent> event =
+                diagnosesService.restartPendingProducts(DIAGNOSES_ID, now.minusMinutes(10));
+
+        // then
+        assertThat(event).hasValueSatisfying(requested -> assertThat(requested.products())
+                .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
+                .containsExactly(waiting.getId()));
+        assertThat(expired.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(expired.getErrorCode()).isEqualTo(DiagnosesService.REQUEST_UNAVAILABLE_ERROR_CODE);
+        assertThat(expired.getErrorRetryable()).isTrue();
+        assertThat(waiting.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("다시 보낼 대기 상품이 없으면 재요청하지 않는다.")
+    void restartPendingProducts_whenNoPending_thenEmpty() {
+        // given: 기한을 넘긴 상품뿐인 경우
+        LocalDateTime now = LocalDateTime.now();
+        Diagnoses diagnoses = createInProgressDiagnoses(1);
+        Product expired = diagnoses.getProducts().getFirst();
+        expired.returnToPending();
+        ReflectionTestUtils.setField(expired, "createdAt", now.minusMinutes(11));
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        Optional<AiDiagnosesRequestedEvent> event =
+                diagnosesService.restartPendingProducts(DIAGNOSES_ID, now.minusMinutes(10));
+
+        // then
+        assertThat(event).isEmpty();
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("재요청하려던 진단서가 그 사이 삭제됐으면 재요청하지 않는다.")
+    void restartPendingProducts_whenDiagnosesDeleted_thenEmpty() {
+        // given
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.empty());
+
+        // when
+        Optional<AiDiagnosesRequestedEvent> event =
+                diagnosesService.restartPendingProducts(DIAGNOSES_ID, LocalDateTime.now());
+
+        // then
+        assertThat(event).isEmpty();
     }
 
     // 진단을 시작한 상품 n개를 가진 진단서. 상품마다 id를 부여한다.

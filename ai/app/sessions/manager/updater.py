@@ -4,11 +4,12 @@ import logging
 from collections.abc import Callable
 from datetime import datetime
 
-from ...observability.context import ExecutionContext
+from ...domain.context import ExecutionContext
 from ...schemas.session import DiagnosisSession
+from ..errors import InvalidTransitionError
 from ..events import SessionEvent
 from ..store import SessionStore
-from ..transitions import Change, InvalidTransitionError, Transition, apply
+from ..transitions import Change, Transition, apply
 
 logger = logging.getLogger(__name__)
 

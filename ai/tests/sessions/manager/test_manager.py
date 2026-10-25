@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.observability.context import PipelineStage, RunType
+from app.domain.context import PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
