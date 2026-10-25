@@ -110,12 +110,15 @@ class SessionManager:
             rejected=rejected,
         )
 
-    def submit(self, diagnosis_id: str, inputs: list[ExtractionInput]) -> list[DiagnosisSession]:
+    def submit(
+        self, diagnosis_id: str, inputs: list[ExtractionInput], run_type: RunType = RunType.PRODUCTION,
+    ) -> list[DiagnosisSession]:
         """상품들을 세션으로 접수하고 백그라운드 실행을 예약한다.
 
         Args:
             diagnosis_id: BE 진단서 ID.
             inputs: 상품별 입력. product_id가 세션 ID.
+            run_type: 실행 종류. 운영 진단은 PRODUCTION, BE 연동 더미는 DUMMY. 둘 다 전체 상한만 봄.
 
         Returns:
             list[DiagnosisSession]: 접수된 세션.
@@ -124,7 +127,7 @@ class SessionManager:
             QueueFullError: 대기 + 실행 중 세션이 상한을 넘는 경우.
             SessionConflictError: 진행 중인 상품이 섞인 경우.
         """
-        sessions = self._accept(diagnosis_id, inputs, RunType.PRODUCTION)
+        sessions = self._accept(diagnosis_id, inputs, run_type)
         for session in sessions:
             self._pool.submit(self._run, session.context)
         return sessions

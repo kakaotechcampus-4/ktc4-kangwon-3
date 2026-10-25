@@ -10,6 +10,8 @@ class RunType(StrEnum):
     PRODUCTION = "production"
     EVALUATION = "evaluation"
     TEST = "test"
+    # BE 연동용 시나리오 더미 (/dummy/diagnose). 운영과 같은 상한·콜백 사용
+    DUMMY = "dummy"
 
 
 class PipelineStage(StrEnum):
@@ -28,7 +30,7 @@ class ExecutionContext(BaseModel):
     Attributes:
         run_id: 진입점이 생성. 하위 구성 요소에서 재생성 금지.
         product_id: 상품 요청 ID. 평가에서는 Fixture의 상품 ID.
-        run_type: production / evaluation / test.
+        run_type: production / evaluation / test / dummy.
         diagnosis_id: 운영 진단서 요청은 BE ID. 단독 평가·테스트는 None.
         retry_round: 업무적 재실행 회차. 0부터 시작.
     """

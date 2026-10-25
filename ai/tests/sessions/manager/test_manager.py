@@ -170,6 +170,17 @@ def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):
     assert all((s.status, s.accepted_at) == (SessionStatus.ACCEPTED, START) for s in sessions)
 
 
+def test_더미_접수는_실행_종류만_다르고_개발용_자리는_쓰지_않는다(managers):
+    manager = _manager(managers, _GatedJob(), max_dev_inflight=1)
+
+    sessions = manager.submit("d-1", _inputs("p-1", "p-2"), run_type=RunType.DUMMY)
+
+    assert all(s.context.run_type is RunType.DUMMY for s in sessions)
+    snapshot = manager.snapshot()
+    assert (snapshot.inflight, snapshot.dev_inflight) == (2, 0)
+    assert (snapshot.accepted[RunType.DUMMY], snapshot.accepted[RunType.PRODUCTION]) == (2, 0)
+
+
 def test_대기열이_가득_차면_접수를_거절하고_세션을_만들지_않는다(managers):
     job = _GatedJob()
     manager = _manager(managers, job, max_running=1, max_inflight=2)
@@ -567,6 +578,17 @@ def test_재진단은_새_실행으로_이전_결과와_답변을_진단_함수�
     assert first_run != second_run
     assert seen[:2] == [Resumed, Started]
     assert manager.snapshot().accepted[RunType.PRODUCTION] == 2
+
+
+def test_재진단은_세션의_실행_종류를_그대로_쓴다(managers):
+    manager = _manager(managers, _AnswerJob())
+    manager.submit("d-1", _inputs("p-1"), run_type=RunType.DUMMY)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+
+    resumed = _resume(manager)
+
+    assert resumed.context.run_type is RunType.DUMMY
+    assert manager.snapshot().accepted[RunType.DUMMY] == 2
 
 
 def test_세션이_없으면_재진단하지_않는다(managers):
