@@ -1,13 +1,18 @@
 import { useState } from "react";
 
-import type { Finding } from "@/api/product";
+import { Determination, type Finding } from "@/api/product";
 import lawIcon from "@/assets/result-law.svg";
 import lawIconGray from "@/assets/result-law-gray.svg";
 import toggleIcon from "@/assets/upload-toggle.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
 
+import DeterminationBadge from "./DeterminationBadge";
 import LawCard from "./LawCard";
+import RiskMeter from "./RiskMeter";
+
+// 판정이 '불필요'/'해당 없음'이면 위험도를 같이 보여주지 않는다. 중복 정보이기 때문이다.
+const DETERMINATIONS_WITHOUT_RISK = [Determination.NotRequired, Determination.NotApplicable];
 
 // 근거 토글의 펼침 여부에 따른 아이콘/글자색
 const EXPANDED_TOGGLE_STYLE = { icon: lawIcon, textColorClass: "text-black" };
@@ -25,11 +30,16 @@ function FindingCard({ finding }: FindingCardProps) {
         ? [firstLegalSource.lawName, firstLegalSource.article].filter(Boolean).join(" ") || firstLegalSource.sourceName
         : null;
     const toggleStyle = isExpanded ? EXPANDED_TOGGLE_STYLE : COLLAPSED_TOGGLE_STYLE;
+    const showRiskMeter = !DETERMINATIONS_WITHOUT_RISK.includes(finding.determination);
 
     return (
-        <DefaultBox className="gap-4 rounded-[20px] px-7 py-6">
+        <DefaultBox className="relative gap-4 rounded-[20px] px-7 py-6">
+            <div className="absolute top-6 right-7 flex items-center gap-3">
+                {showRiskMeter && <RiskMeter riskLevel={finding.riskLevel} />}
+                <DeterminationBadge determination={finding.determination} />
+            </div>
             <div className="flex flex-col gap-2.5">
-                <p className="text-xl font-bold text-black">{finding.subject}</p>
+                <p className="pr-56 text-xl font-bold text-black">{finding.subject}</p>
                 <p className="text-base font-medium text-black">{finding.summary}</p>
                 <p className="text-sm leading-relaxed text-neutral-text">{finding.rationale}</p>
             </div>
