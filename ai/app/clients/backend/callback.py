@@ -32,7 +32,7 @@ class SendResult:
     code: str | None = None
 
 
-class HttpCallbackSender(RequestClient[PublicProductEvent, SendResult]):
+class BackendCallbackClient(RequestClient[PublicProductEvent, SendResult]):
     """BE 콜백 수신부로 이벤트를 보낸다. 연결은 재사용하고, 여러 전송 스레드가 같이 써도 됨.
 
     Args:

@@ -10,7 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
-from .clients.backend import HttpCallbackSender
+from .clients.backend import BackendCallbackClient
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
     # 진단 세션 (#264). 파이프라인 러너 연결 전까지 더미 진단으로 실행
     manager = SessionManager(SessionStore(), run_dummy_diagnosis)
     # BE 콜백 (#317)
-    sender = HttpCallbackSender(settings.be_base_url, settings.internal_api_token)
+    sender = BackendCallbackClient(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
     connect_callbacks(manager, EventBuilder(presenter), outbox)
     # 세션 지표. 앱마다 registry를 따로 둬 테스트에서 lifespan을 여러 번 띄워도 이름이 겹치지 않음

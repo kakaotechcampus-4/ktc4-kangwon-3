@@ -8,7 +8,7 @@ import json
 import httpx
 import pytest
 
-from app.clients.backend import CallbackTransportError, HttpCallbackSender, SendResult
+from app.clients.backend import BackendCallbackClient, CallbackTransportError, SendResult
 from app.schemas.callback import ProductProgressEvent, PublicPipelineStage
 
 TOKEN = "test-internal-token-0123456789abcdef"
@@ -21,8 +21,8 @@ def _event(product_id: str = "01990000-0000-7000-8000-000000000001") -> ProductP
     )
 
 
-def _sender(handler, base_url: str = "http://be-server:8080") -> HttpCallbackSender:
-    return HttpCallbackSender(base_url, TOKEN, transport=httpx.MockTransport(handler))
+def _sender(handler, base_url: str = "http://be-server:8080") -> BackendCallbackClient:
+    return BackendCallbackClient(base_url, TOKEN, transport=httpx.MockTransport(handler))
 
 
 def test_BE_수신_경로로_토큰_헤더와_camelCase_본문을_보낸다():
