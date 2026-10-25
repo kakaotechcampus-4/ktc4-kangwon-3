@@ -3,11 +3,11 @@
 from typing import TYPE_CHECKING
 
 from ...config import ModelProfile, Settings, agent_profile, load_settings, tool_profile
+from .client import TIMEOUT_SECONDS, get_llm_client
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
 
-TIMEOUT_SECONDS = 45.0
 MAX_RETRIES = 1
 
 
@@ -15,7 +15,7 @@ def build_chat_model(profile: ModelProfile, settings: Settings | None = None) ->
     """공통 설정과 모델 프로필로 LangChain ``ChatOpenAI`` 모델을 만든다.
 
     세 회사 모델 모두 게이트웨이의 OpenAI 호환 엔드포인트로 부르므로 ChatOpenAI 하나로 만듦.
-    프로필에서 None인 옵션(temperature·reasoning_effort)은 보내지 않음.
+    프로필에서 None인 옵션(temperature·reasoning_effort)은 보내지 않음. 연결은 공유 LlmClient를 씀.
 
     Args:
         profile: 모델 프로필 (agent_profile·tool_profile 결과).
@@ -41,6 +41,7 @@ def build_chat_model(profile: ModelProfile, settings: Settings | None = None) ->
         **options,
         timeout=TIMEOUT_SECONDS,
         max_retries=MAX_RETRIES,
+        http_client=get_llm_client(resolved.base_url).http_client,
         # ML API 게이트웨이는 스트리밍이 아닌 응답을 출력 2,000토큰에서 끊는다. 판매자 설명이 긴
         # 페이지는 추출 출력이 이를 넘어 JSON이 잘리고 파싱에 실패한다. 게이트웨이 안내대로 스트리밍으로
         # 받으면 이 한도에 걸리지 않는다(헤어드라이어 페이지 추출 출력 2,364토큰으로 확인).

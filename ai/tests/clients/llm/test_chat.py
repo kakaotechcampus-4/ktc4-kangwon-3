@@ -4,7 +4,7 @@ import langchain_openai
 import pytest
 
 from app import config
-from app.clients.llm import chat
+from app.clients.llm import chat, close_llm_clients, get_llm_client
 
 _SETTINGS = config.Settings(
     api_key="test-key",
@@ -24,7 +24,8 @@ def captured(monkeypatch) -> dict:
     """ChatOpenAI 대신 생성 인자만 기록함."""
     kwargs_seen: dict = {}
     monkeypatch.setattr(langchain_openai, "ChatOpenAI", lambda **kwargs: kwargs_seen.update(kwargs))
-    return kwargs_seen
+    yield kwargs_seen
+    close_llm_clients()
 
 
 @pytest.mark.parametrize(("profile_name", "model", "options"), [
@@ -42,6 +43,7 @@ def test_build_chat_model은_프로필에_있는_옵션만_보낸다(captured, p
         **options,
         "timeout": chat.TIMEOUT_SECONDS,
         "max_retries": chat.MAX_RETRIES,
+        "http_client": get_llm_client(_SETTINGS.base_url).http_client,
         # 게이트웨이의 비스트리밍 출력 한도(2,000토큰)를 피한다. 빠지면 긴 페이지 추출이 실패한다.
         "streaming": True,
         "stream_usage": True,
