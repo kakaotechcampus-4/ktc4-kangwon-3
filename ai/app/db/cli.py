@@ -107,7 +107,9 @@ def _clip_ingest(workers: int, limit: int | None, raw_dir: Path | None) -> int:
     """
     # 진행 상황(묶음마다)을 화면에 보임
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    # 임베딩 요청 줄 (openai SDK는 httpx2 사용)
+    for name in ("httpx", "httpx2"):
+        logging.getLogger(name).setLevel(logging.WARNING)
     init_db()
     settings = get_settings()
     search, detail = CLIPClient(), CLIPDetailClient()
