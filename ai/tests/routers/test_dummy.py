@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment
+from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, OverallStatus
 
 CONTENT_ROUTE = "/api/ai/v1/dummy/diagnose/content"
 URL_ROUTE = "/api/ai/v1/dummy/diagnose/url"
@@ -56,3 +57,22 @@ def test_임시_변환기는_가짜_진단_결과를_분야_카드와_법령_근
     assert (cards["FOOD_DRUG"].status, cards["FOOD_DRUG"].findings) == ("SKIPPED", [])
     assert all(finding.legal_sources for review in assessment.tool_reviews for finding in review.findings)
     assert assessment.required_actions and assessment.notices
+
+
+@pytest.mark.parametrize(("update", "expected"), [
+    ({}, ("completed", "DIRECT_IMPORT_CERTIFICATION_REQUIRED")),
+    ({"overall_status": OverallStatus.LIKELY_COMPLIANT}, ("completed", "PURCHASING_AGENT_ALLOWED")),
+    (
+        {
+            "verification_status": FinalVerificationStatus.INCOMPLETE,
+            "termination_reason": ExecutionEndReason.QUESTION_LIMIT_EXCEEDED,
+        },
+        ("incomplete", "RECHECK_REQUIRED"),
+    ),
+])
+def test_임시_변환기는_검증_상태와_종합_판단으로_결과_상태를_정한다(update, expected):
+    result = build_dummy_assessment("p-1").model_copy(update=update)
+
+    assessment = DummyAssessmentPresenter().assessment(result)
+
+    assert (assessment.status, assessment.result_status) == expected

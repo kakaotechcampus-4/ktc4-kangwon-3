@@ -319,7 +319,7 @@ _DUMMY_CARD_STATUS = {ToolStatus.SUCCESS: "COMPLETED", ToolStatus.SKIPPED: "SKIP
 class DummyAssessmentPresenter:
     """가짜 진단 결과를 공개 진단서·질문으로 바꾸는 임시 변환기. 실제 변환기([콜백 5/5]) 전까지 사용.
 
-    result_status 결정·질문 키 생성 없이 고정값. 분야 카드·판단·법령 근거는 결과에서 그대로 옮김.
+    result_status는 검증 상태·종합 판단으로만 정함. 분야 카드·판단·법령 근거는 결과에서 그대로 옮김.
     """
 
     def assessment(self, result: FinalAssessment) -> PublicAssessmentDto:
@@ -329,11 +329,17 @@ class DummyAssessmentPresenter:
             result: 가짜 진단 결과.
 
         Returns:
-            PublicAssessmentDto: 결과 상태는 직구 인증 필요로 고정.
+            PublicAssessmentDto: 검증 미완료면 재확인 필요, 문제없음 판단이면 대행 구매 가능, 나머지는 직구 인증 필요.
         """
+        if result.verification_status is FinalVerificationStatus.INCOMPLETE:
+            status, result_status = "incomplete", "RECHECK_REQUIRED"
+        elif result.overall_status is OverallStatus.LIKELY_COMPLIANT:
+            status, result_status = "completed", "PURCHASING_AGENT_ALLOWED"
+        else:
+            status, result_status = "completed", "DIRECT_IMPORT_CERTIFICATION_REQUIRED"
         return PublicAssessmentDto(
-            status="completed",
-            result_status="DIRECT_IMPORT_CERTIFICATION_REQUIRED",
+            status=status,
+            result_status=result_status,
             summary=result.summary,
             tool_reviews=[
                 PublicToolReviewDto(
