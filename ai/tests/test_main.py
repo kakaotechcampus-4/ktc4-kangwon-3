@@ -136,15 +136,51 @@ def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인�
     assert registry.get_sample_value("ai_agent_calls_total", sample) == 1.0
 
 
+class _LawFetchers:
+    closed = False
+
+    def close(self):
+        self.closed = True
+
+
+def _db_ready(monkeypatch, created=()) -> tuple[_LawFetchers, list]:
+    """init_db 성공 상태로 만들고, 법령 점검은 실제 조회 대신 호출만 기록한다."""
+    fetchers = _LawFetchers()
+    refreshed = []
+    monkeypatch.setattr(main, "init_db", lambda: list(created))
+    monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
+    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory: fetchers)
+    monkeypatch.setattr(main, "refresh_laws", lambda f, sources: refreshed.append((f, sources)))
+    return fetchers, refreshed
+
+
 def test_기동_때_DB_테이블을_만들고_새로_만든_테이블을_로그로_남긴다(fake_be, monkeypatch, caplog):
-    calls = []
-    monkeypatch.setattr(main, "init_db", lambda: calls.append(1) or ["api_response_cache", "hs_cases"])
+    _db_ready(monkeypatch, created=["api_response_cache", "hs_cases"])
 
     with caplog.at_level("INFO", logger="app.main"), TestClient(main.app):
         pass
 
-    assert calls == [1]
     assert "DB 준비 완료 (새로 만든 테이블: api_response_cache, hs_cases)" in caplog.text
+
+
+def test_DB가_준비되면_기동_직후_법령_점검을_돌리고_종료_때_조회_객체를_닫는다(fake_be, monkeypatch):
+    fetchers, refreshed = _db_ready(monkeypatch)
+
+    with TestClient(main.app):
+        _wait_until(lambda: refreshed)
+
+    assert refreshed == [(fetchers, main.LAW_SOURCES)]
+    assert fetchers.closed is True
+
+
+def test_DB가_없으면_법령_점검을_돌리지_않는다(fake_be, monkeypatch):
+    built = []
+    monkeypatch.setattr(main, "build_law_fetchers", lambda *args: built.append(args))
+
+    with TestClient(main.app):
+        pass
+
+    assert built == []
 
 
 def test_DATABASE_URL이_없으면_DB_없이_기동한다(fake_be, caplog):

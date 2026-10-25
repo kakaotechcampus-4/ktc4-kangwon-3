@@ -12,12 +12,14 @@ from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
-from .db import DatabaseNotConfiguredError, init_db
+from .db import (DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db, refresh_laws,
+                 run_law_refresh)
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
+from .tools.common.law_sources import LAW_SOURCES
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,7 @@ async def lifespan(app: FastAPI):
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
     # 연결 확인 겸 vector 확장·테이블 생성 (이미 있으면 건너뜀)
+    law_fetchers = None
     try:
         created = init_db()
     except DatabaseNotConfiguredError:
@@ -63,6 +66,10 @@ async def lifespan(app: FastAPI):
         logger.warning("DB 준비 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     else:
         logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
+        # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
+        law_fetchers = build_law_fetchers(settings.law_oc, get_session_factory())
+    law_refresher = None if law_fetchers is None else asyncio.create_task(
+        run_law_refresh(lambda: refresh_laws(law_fetchers, LAW_SOURCES)))
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
@@ -90,6 +97,12 @@ async def lifespan(app: FastAPI):
         sweeper.cancel()
         with suppress(asyncio.CancelledError):
             await sweeper
+        if law_refresher is not None:
+            # 실행 중인 점검 스레드는 끝까지 돎. 닫힌 클라이언트 오류는 그 문서 실패로만 남음
+            law_refresher.cancel()
+            with suppress(asyncio.CancelledError):
+                await law_refresher
+            law_fetchers.close()
         # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드는 프로세스 종료 때 끝까지 돌지만
         # 발신함이 먼저 닫혀 이후 콜백은 버려짐. BE는 멈춤 감지(15분)로 실패 처리
         manager.shutdown(wait=False)
