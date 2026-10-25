@@ -183,6 +183,32 @@ class ProductTest {
     }
 
     @Test
+    @DisplayName("진행 중인 상품은 대기 상태로 되돌린다.")
+    void returnToPending_whenInProgress_thenPending() {
+        // given: AI가 요청을 받지 않은 경우(429, 5xx, 연결 실패)
+        Product product = createInProgressProduct();
+
+        // when
+        product.returnToPending();
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = ProcessingStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "IN_PROGRESS")
+    @DisplayName("진행 중이 아닌 상품을 대기 상태로 되돌리면 CONFLICT 예외가 발생하고 상태가 유지된다.")
+    void returnToPending_whenNotInProgress_thenThrowConflict(ProcessingStatus status) {
+        // given
+        Product product = createProduct();
+        ReflectionTestUtils.setField(product, "processingStatus", status);
+
+        // when & then
+        assertConflict(product::returnToPending);
+        assertThat(product.getProcessingStatus()).isEqualTo(status);
+    }
+
+    @Test
     @DisplayName("처음 받은 단계의 진행 상태는 새로 추가된다.")
     void recordProgress_whenNew_thenAdd() {
         // given
@@ -342,6 +368,20 @@ class ProductTest {
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
                 .containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("재요청을 기다리던 상품도 실패로 끝낼 수 있다.")
+    void fail_whenPending_thenFailed() {
+        // given: AI가 재요청 기한까지 요청을 받지 못한 경우
+        Product product = createProduct();
+
+        // when
+        product.fail(null, ERROR_CODE, ERROR_MESSAGE, true);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(product.getErrorCode()).isEqualTo(ERROR_CODE);
     }
 
     @Test

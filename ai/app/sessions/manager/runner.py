@@ -3,8 +3,8 @@
 import logging
 from typing import assert_never
 
-from ...errors import AIResponseCode
-from ...observability.context import ExecutionContext, PipelineStage
+from ...domain.errors import AIResponseCode
+from ...domain.context import ExecutionContext, PipelineStage
 from ...schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerificationStatus, ToolName
 from ...schemas.session import DiagnosisInput
 from ..job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, ToolProgressStatus

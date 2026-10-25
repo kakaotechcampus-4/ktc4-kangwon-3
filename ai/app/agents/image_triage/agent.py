@@ -8,14 +8,11 @@ from typing import Any
 
 from ...prompts import PromptName
 from ...schemas.agent import ImageTriageResponse
-from ..base import AgentError, BaseAgent
+from ..base import BaseAgent
+from .errors import ImageTriageFailedError
 from .schemas import ImageTriageInput
 
 MAX_IMAGES = 50
-
-
-class ImageTriageFailedError(AgentError):
-    """이미지 분류 모델 호출·파싱 실패, 또는 입력에 없는 이미지 번호를 돌려준 경우."""
 
 
 class ImageTriageAgent(BaseAgent[ImageTriageInput, ImageTriageResponse, ImageTriageResponse]):

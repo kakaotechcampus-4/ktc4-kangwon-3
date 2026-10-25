@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from pydantic import AwareDatetime, Field, field_validator
 
-from ..observability.context import ExecutionContext, PipelineStage
+from ..domain.context import ExecutionContext, PipelineStage
 from .agent import ExtractionInput
 from .base import StrictModel, utc_now
 from .callback import PublicQuestionDto

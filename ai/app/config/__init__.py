@@ -5,16 +5,18 @@
     - profiles: 에이전트별 모델 프로필
     - chat: 채팅 모델 생성
     - session: 진단 세션 실행 한도
+    - errors: 설정 예외(ConfigError)
 """
 
 from .catalog import CHAT_MODELS, ChatModel, Price
 from .chat import (MAX_RETRIES, TIMEOUT_SECONDS, agent_profile, build_agent_model, build_chat_model, build_tool_model,
                    tool_profile)
+from .errors import ConfigError
 from .profiles import AGENT_PROFILES, MODEL_PROFILES, TOOL_PROFILES, ModelProfile
 from .session import (AWAITING_INPUT_RETENTION_SECONDS, MAX_DEV_INFLIGHT_SESSIONS, MAX_INFLIGHT_SESSIONS,
                       MAX_RUNNING_SESSIONS, SESSION_MAX_DURATION_SECONDS, SESSION_RETENTION_SECONDS,
                       SESSION_SWEEP_SECONDS)
-from .settings import ENV_FILE, REQUIRED_ENV, ConfigError, Settings, get_settings, load_settings
+from .settings import ENV_FILE, REQUIRED_ENV, Settings, get_settings, load_settings
 
 __all__ = [
     "AGENT_PROFILES", "AWAITING_INPUT_RETENTION_SECONDS", "CHAT_MODELS", "ENV_FILE", "MAX_DEV_INFLIGHT_SESSIONS",

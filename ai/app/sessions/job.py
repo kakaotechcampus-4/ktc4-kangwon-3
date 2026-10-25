@@ -10,7 +10,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from ..observability.context import ExecutionContext, PipelineStage
+from ..domain.context import ExecutionContext, PipelineStage
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment, ToolName
 from ..schemas.session import DiagnosisInput

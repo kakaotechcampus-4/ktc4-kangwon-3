@@ -36,8 +36,10 @@ from time import perf_counter
 from dotenv import load_dotenv
 
 from .. import usage as usage_module
-from ..config import ENV_FILE, MAX_RETRIES, MODEL_PROFILES, TIMEOUT_SECONDS, TOOL_PROFILES
-from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_overrides
+from ..agents.base import AgentRunMeta
+from ..config import ENV_FILE, MAX_RETRIES, MODEL_PROFILES, TIMEOUT_SECONDS, TOOL_PROFILES, ConfigError
+from ..config.settings import OVERRIDES_ENV, parse_profile_overrides
+from ..observability.agent_sinks import agent_sinks
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Attribute, Product
 from ..schemas.schemas import ToolName, ToolResult
@@ -159,7 +161,7 @@ def default_spec(default_temperature: list[str]) -> str:
 
 
 class UsageCapture:
-    """Tool이 남기는 사용량 기록을 가로채 회차별로 모은다. 원래 로그(usage.jsonl)에도 그대로 쓴다.
+    """Tool의 모델 호출 기록을 sink로 받아 회차별로 모은다. 원래 로그(usage.jsonl)는 사용량 로그 sink가 그대로 씀.
 
     모델이 낸 원래 출력(버리기 전 조건·후보)도 함께 남겨, 무엇을 왜 버렸는지 --out 파일에서 볼 수 있게 한다.
     """
@@ -169,7 +171,22 @@ class UsageCapture:
         self.outputs: dict[str, dict] = {}
         self._tool = tool
         self._steps = tool._get_steps()
-        self._original = usage_module.record
+
+    def _capture(self, meta: AgentRunMeta, subject_id: str) -> None:
+        """호출 1건을 회차 기록에 더한다. 키는 예전 원자료와 같게 둠(--rescore 호환)."""
+        usage = meta.usage
+        self.calls.append({
+            "agent": meta.usage_name or meta.component,
+            "reported_model": usage.reported_model if usage else None,
+            "input_tokens": usage.input_tokens if usage else None,
+            "cached_tokens": usage.cached_tokens if usage else None,
+            "output_tokens": usage.output_tokens if usage else None,
+            "cost_krw": meta.cost_krw,
+            "latency_ms": meta.elapsed_ms,
+            "ok": meta.error_type is None,
+            "error_type": meta.error_type,
+            "failure_phase": meta.failure_phase,
+        })
 
     def __enter__(self):
         for step in self._steps:
@@ -183,27 +200,12 @@ class UsageCapture:
 
             step.run = run
 
-        def capture(agent, usage, **kw):
-            self.calls.append({
-                "agent": agent,
-                "reported_model": usage.reported_model if usage else None,
-                "input_tokens": usage.input_tokens if usage else None,
-                "cached_tokens": usage.cached_tokens if usage else None,
-                "output_tokens": usage.output_tokens if usage else None,
-                "cost_krw": usage_module.estimate_krw(usage, kw.get("configured_model")) if usage else None,
-                "latency_ms": kw.get("elapsed_ms"),
-                "ok": kw.get("ok", True),
-                "error_type": kw.get("error_type"),
-                "failure_phase": kw.get("failure_phase"),
-            })
-            self._original(agent, usage, **kw)
-
-        # 모델 호출·사용량 기록은 공통 BaseAgent가 한다(app.usage.record).
-        usage_module.record = capture
+        # 모델 호출 기록은 공통 BaseAgent가 sink 등록표로 넘김
+        agent_sinks.add(self._capture)
         return self
 
     def __exit__(self, *exc):
-        usage_module.record = self._original
+        agent_sinks.remove(self._capture)
         for step in self._steps:
             del step.run
 

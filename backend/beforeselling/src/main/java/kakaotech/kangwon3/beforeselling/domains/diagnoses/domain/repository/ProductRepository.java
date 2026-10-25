@@ -46,4 +46,13 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<UUID> findIdsByStatusUpdatedBefore(@Param("status") ProcessingStatus status,
                                             @Param("threshold") LocalDateTime threshold,
                                             Pageable pageable);
+
+    // 재요청용. 대기 상품이 있는 진단서 ID를 가장 오래 기다린 순으로 가져온다.
+    @Query("""
+        select p.diagnoses.id from Product p
+        where p.processingStatus = :status
+        group by p.diagnoses.id
+        order by min(p.updatedAt) asc
+        """)
+    List<UUID> findDiagnosesIdsByStatus(@Param("status") ProcessingStatus status, Pageable pageable);
 }
