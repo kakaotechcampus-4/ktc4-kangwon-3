@@ -9,7 +9,8 @@ from prometheus_client import CollectorRegistry
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect_callbacks
+from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
+from .clients.backend import HttpCallbackSender
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector

@@ -7,7 +7,7 @@ from app.agents.extraction import ExtractionFailedError
 from app.agents.image_triage import ImageTriageFailedError
 from app.agents.selection import SelectionFailedError
 from app.agents.verification import VerificationError
-from app.callbacks.errors import CallbackTransportError
+from app.clients.backend import CallbackTransportError
 from app.clients.errors import ClientError
 from app.clients.marketplace.errors import BlockedUrlError, PageTooLargeError
 from app.config.errors import ConfigError

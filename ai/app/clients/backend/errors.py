@@ -1,6 +1,6 @@
 """콜백 전송 예외."""
 
-from ..domain.errors import AIError
+from ...domain.errors import AIError
 
 
 class CallbackTransportError(AIError, RuntimeError):
