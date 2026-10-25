@@ -10,7 +10,7 @@ from app.repositories.api_response_cache import ApiResponseCacheRepository
 def _entry(**overrides) -> ApiResponseCache:
     fields = {
         "client": "law.text", "request_key": "a" * 64, "request": {"mst": "273575"},
-        "status_code": 200, "content_type": "application/xml", "body": b"<Law/>", "expires_at": None,
+        "response": {"law_id": "008044", "articles": []}, "expires_at": None,
     }
     return ApiResponseCache(**{**fields, **overrides})
 
@@ -31,7 +31,7 @@ def test_저장은_같은_키면_응답과_수집_시각을_덮어쓴다(session
     sql = session.last_sql()
     assert sql.startswith("INSERT INTO api_response_cache")
     assert "ON CONFLICT (client, request_key) DO UPDATE SET" in sql
-    assert "body = excluded.body" in sql
+    assert "response = excluded.response" in sql
     assert "expires_at = excluded.expires_at" in sql
     assert "fetched_at = now()" in sql
     assert "client = excluded.client" not in sql

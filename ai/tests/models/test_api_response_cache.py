@@ -16,7 +16,7 @@ def test_요청_해시는_sha256_16진수_길이다():
 
 def test_만료_시각이_없으면_영구_보관이라_비워_둘_수_있다():
     assert ApiResponseCache.__table__.c.expires_at.nullable is True
-    assert ApiResponseCache.__table__.c.body.nullable is False
+    assert ApiResponseCache.__table__.c.response.nullable is False
 
 
 def test_만료_행_정리용_인덱스가_있다():
