@@ -2,14 +2,18 @@
 
 국내 결정사례 전체(검색어 공백 " "로 전체 목록이 나옴)의 문서 ID를 모으고, DB에 없는 사례만
 상세 전문을 받아 임베딩해 hs_cases에 저장한다. 묶음마다 커밋하므로 중간에 멈춰도 다시 돌리면 이어서 받는다.
+raw_dir을 주면 상세 원문도 문서마다 raw.html·parsed.json·meta.json으로 남긴다.
 """
 
+import json
 import logging
 import math
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -26,6 +30,8 @@ ALL_CASES_QUERY = " "
 PAGE_SIZE = 100
 # CLIP은 간헐적으로 빈 페이지·오류를 줘서 다시 받음
 RETRIES = 3
+# 목록 진행 상황을 남기는 간격(페이지)
+LOG_EVERY_PAGES = 50
 
 
 @dataclass
@@ -92,10 +98,47 @@ def collect_doc_ids(search: CLIPClient, *, workers: int, sleep: Callable[[float]
 
     first = page(1)
     pages = math.ceil(first.total_count / PAGE_SIZE)
+    logger.info("CLIP 목록 받는 중 — 전체 %d건, %d페이지", first.total_count, pages)
+    rest = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        rest = list(pool.map(page, range(2, pages + 1)))
+        for number, result in enumerate(pool.map(page, range(2, pages + 1)), start=2):
+            rest.append(result)
+            if number % LOG_EVERY_PAGES == 0:
+                logger.info("CLIP 목록 %d/%d페이지", number, pages)
     doc_ids = [item.doc_id for result in (first, *rest) for item in result.items if item.doc_id]
     return list(dict.fromkeys(doc_ids))
+
+
+def fetch_detail(detail: CLIPDetailClient, doc_id: str, raw_dir: Path | None) -> CLIPCase:
+    """결정사례 상세를 받는다. raw_dir이 있으면 원문을 먼저 저장해 파싱이 실패해도 남긴다.
+
+    Args:
+        detail: CLIP 상세 클라이언트.
+        doc_id: 문서 ID.
+        raw_dir: 원문 저장 폴더. None이면 저장 안 함.
+
+    Returns:
+        CLIPCase: 결정사례.
+
+    Raises:
+        RuntimeError: 상세가 비어 있는 경우.
+        httpx.HTTPError: 요청 실패.
+    """
+    request = CLIPDetailRequest(doc_id=doc_id)
+    if raw_dir is None:
+        return detail.fetch_parsed(request)
+    raw = detail.fetch_raw(request)
+    case_dir = raw_dir / doc_id
+    case_dir.mkdir(parents=True, exist_ok=True)
+    (case_dir / "raw.html").write_text(raw.text, encoding="utf-8")
+    (case_dir / "meta.json").write_text(json.dumps({
+        "request": request.model_dump(), "url": str(raw.request.url), "status_code": raw.status_code,
+        "collected_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # BaseClient.parse 공개 전까지 내부 변환 메서드 사용
+    case = detail._parse(raw)
+    (case_dir / "parsed.json").write_text(case.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    return case
 
 
 def ingest_clip_cases(
@@ -108,6 +151,7 @@ def ingest_clip_cases(
     workers: int = 4,
     chunk_size: int = 100,
     limit: int | None = None,
+    raw_dir: Path | None = None,
     sleep: Callable[[float], None] = time.sleep,
 ) -> ClipIngestReport:
     """DB에 없는 결정사례를 받아 임베딩해 저장한다.
@@ -121,6 +165,7 @@ def ingest_clip_cases(
         workers: 동시 요청 수.
         chunk_size: 한 번에 임베딩·커밋하는 사례 수.
         limit: 새로 받을 최대 사례 수(시험 적재용). None이면 전부.
+        raw_dir: 상세 원문 저장 폴더. None이면 저장 안 함.
         sleep: 재시도 대기 함수.
 
     Returns:
@@ -137,11 +182,12 @@ def ingest_clip_cases(
 
     def fetch(doc_id: str) -> CLIPCase | None:
         try:
-            return _retry(lambda: detail.fetch_parsed(CLIPDetailRequest(doc_id=doc_id)), sleep=sleep)
+            return _retry(lambda: fetch_detail(detail, doc_id, raw_dir), sleep=sleep)
         except Exception as exc:
             logger.warning("CLIP 상세 실패 %s (%s)", doc_id, type(exc).__name__)
             return None
 
+    started = time.monotonic()
     with ThreadPoolExecutor(max_workers=workers) as pool:
         for start in range(0, len(todo), chunk_size):
             chunk = todo[start:start + chunk_size]
@@ -160,5 +206,8 @@ def ingest_clip_cases(
                     for case, vector in zip(cases, vectors)])
                 session.commit()
             report.saved += len(cases)
-            logger.info("CLIP 적재 %d/%d (실패 %d)", start + len(chunk), len(todo), len(report.failed))
+            done = start + len(chunk)
+            rate = done / (time.monotonic() - started)
+            logger.info("CLIP 적재 %d/%d (실패 %d) — %.1f건/초, 남은 시간 약 %d분", done, len(todo),
+                        len(report.failed), rate, (len(todo) - done) / rate / 60)
     return report

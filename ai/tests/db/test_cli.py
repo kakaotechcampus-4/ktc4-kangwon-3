@@ -189,17 +189,18 @@ def test_clip_ingest는_적재_결과를_출력하고_클라이언트를_닫는�
     assert "CLIP 적재 — 목록 54303건, 이미 있음 13679건, 새로 저장 40624건, 실패 없음" in capsys.readouterr().out
     kwargs = called["kwargs"]
     assert (kwargs["search"], kwargs["detail"]) == (called["search"], called["detail"])
-    assert (kwargs["workers"], kwargs["limit"], kwargs["embedding_model"]) == (4, None, "openai/text-embedding-3-small")
+    assert (kwargs["workers"], kwargs["limit"], kwargs["raw_dir"]) == (4, None, None)
+    assert kwargs["embedding_model"] == "openai/text-embedding-3-small"
     assert kwargs["session_factory"] == "session-factory"
     assert called["search"].closed and called["detail"].closed
 
 
-def test_clip_ingest는_동시_요청_수와_시험_적재_건수를_받는다(monkeypatch):
+def test_clip_ingest는_동시_요청_수·시험_적재_건수·원문_폴더를_받는다(monkeypatch, tmp_path):
     called = _clip_ingest(monkeypatch)
 
-    cli.main(["clip-ingest", "--workers", "2", "--limit", "200"])
+    cli.main(["clip-ingest", "--workers", "2", "--limit", "200", "--raw-dir", str(tmp_path)])
 
-    assert (called["kwargs"]["workers"], called["kwargs"]["limit"]) == (2, 200)
+    assert (called["kwargs"]["workers"], called["kwargs"]["limit"], called["kwargs"]["raw_dir"]) == (2, 200, tmp_path)
 
 
 def test_clip_ingest는_실패한_사례가_있으면_앞_10건만_보이고_1로_끝난다(monkeypatch, capsys):

@@ -1,9 +1,12 @@
 """CLIP 결정사례 적재 루틴을 DB·네트워크 없이 검증한다."""
 
+import json
+
+import httpx
 import pytest
 
 from app.db import clip_ingest
-from app.db.clip_ingest import ALL_CASES_QUERY, case_text, collect_doc_ids, ingest_clip_cases
+from app.db.clip_ingest import ALL_CASES_QUERY, case_text, collect_doc_ids, fetch_detail, ingest_clip_cases
 from app.schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 
 
@@ -152,3 +155,48 @@ def test_limit만큼만_새로_받는다(db):
 
     assert sorted(detail.requested) == ["1", "2"]
     assert report.saved == 2
+
+
+class _RawDetail:
+    """원문을 돌려주는 가짜 상세. 빈 표 문서는 변환에서 실패함."""
+
+    def __init__(self, empty: set[str] = frozenset()):
+        self.empty = empty
+
+    def fetch_raw(self, request):
+        return httpx.Response(200, text=f"<table>{request.doc_id}</table>",
+                              request=httpx.Request("POST", "https://unipass.customs.go.kr/clip/dtl.do"))
+
+    def _parse(self, raw):
+        doc_id = raw.text.removeprefix("<table>").removesuffix("</table>")
+        if doc_id in self.empty:
+            raise RuntimeError("CLIP 결정사례 상세가 비어 있습니다 (없는 문서 ID).")
+        return _case(doc_id)
+
+
+def test_원문_폴더를_주면_문서마다_raw·parsed·meta를_남긴다(tmp_path):
+    case = fetch_detail(_RawDetail(), "1", tmp_path)
+
+    case_dir = tmp_path / "1"
+    assert (case_dir / "raw.html").read_text(encoding="utf-8") == "<table>1</table>"
+    assert json.loads((case_dir / "parsed.json").read_text(encoding="utf-8")) == case.model_dump()
+    meta = json.loads((case_dir / "meta.json").read_text(encoding="utf-8"))
+    assert (meta["request"], meta["status_code"]) == ({"doc_id": "1"}, 200)
+
+
+def test_변환이_실패해도_원문은_남긴다(tmp_path):
+    with pytest.raises(RuntimeError):
+        fetch_detail(_RawDetail(empty={"9"}), "9", tmp_path)
+
+    assert (tmp_path / "9" / "raw.html").exists()
+    assert not (tmp_path / "9" / "parsed.json").exists()
+
+
+def test_적재에_원문_폴더를_주면_받은_사례마다_원문이_남는다(db, tmp_path):
+    report = ingest_clip_cases(
+        search=_Search([["1", "2"]], total=2), detail=_RawDetail(),
+        embed=lambda texts: [[0.1] * 1536 for _ in texts], embedding_model="m", session_factory=_Session,
+        raw_dir=tmp_path, sleep=_no_sleep)
+
+    assert report.saved == 2
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["1", "2"]

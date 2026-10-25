@@ -4,7 +4,7 @@
     python -m app.db.cli init
     python -m app.db.cli law-refresh
     python -m app.db.cli clear-cache law.text
-    python -m app.db.cli clip-ingest [--workers 4] [--limit N]
+    python -m app.db.cli clip-ingest [--workers 4] [--limit N] [--raw-dir DIR]
 
 종료 코드: 0 성공, 1 일부 실패, 2 설정 오류, 3 DB 연결 실패.
 """
@@ -13,6 +13,7 @@ import argparse
 import logging
 import sys
 from collections.abc import Callable
+from pathlib import Path
 
 from sqlalchemy.exc import OperationalError
 
@@ -93,12 +94,13 @@ def _clear_cache(client: str) -> int:
     return 0
 
 
-def _clip_ingest(workers: int, limit: int | None) -> int:
+def _clip_ingest(workers: int, limit: int | None, raw_dir: Path | None) -> int:
     """CLIP 결정사례 중 DB에 없는 것을 받아 임베딩해 저장한다. 멈춰도 다시 돌리면 이어서 받는다.
 
     Args:
         workers: 동시 요청 수.
         limit: 새로 받을 최대 사례 수. None이면 전부.
+        raw_dir: 상세 원문 저장 폴더. None이면 저장 안 함.
 
     Returns:
         int: 종료 코드. 상세를 못 받은 사례가 있으면 1.
@@ -113,7 +115,7 @@ def _clip_ingest(workers: int, limit: int | None) -> int:
         report = ingest_clip_cases(
             search=search, detail=detail, embed=lambda texts: embed_texts_sync(texts, settings),
             embedding_model=settings.embedding_model, session_factory=get_session_factory(),
-            workers=workers, limit=limit)
+            workers=workers, limit=limit, raw_dir=raw_dir)
     finally:
         search.close()
         detail.close()
@@ -141,6 +143,8 @@ def main(argv: list[str] | None = None) -> int:
     clip = commands.add_parser("clip-ingest", help="CLIP 결정사례 중 DB에 없는 것을 받아 임베딩해 저장")
     clip.add_argument("--workers", type=int, default=4, help="동시 요청 수 (기본 4)")
     clip.add_argument("--limit", type=int, default=None, help="새로 받을 최대 사례 수 (시험 적재용)")
+    clip.add_argument("--raw-dir", type=Path, default=None,
+                      help="상세 원문 저장 폴더 (문서마다 raw.html·parsed.json·meta.json)")
     args = parser.parse_args(argv)
 
     if args.command == "init":
@@ -150,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "clear-cache":
         return _with_db(lambda: _clear_cache(args.client))
     if args.command == "clip-ingest":
-        return _with_db(lambda: _clip_ingest(args.workers, args.limit))
+        return _with_db(lambda: _clip_ingest(args.workers, args.limit, args.raw_dir))
     parser.error("알 수 없는 명령")
 
 
