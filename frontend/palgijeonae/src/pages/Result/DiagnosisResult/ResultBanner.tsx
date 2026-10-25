@@ -64,7 +64,7 @@ function ResultBanner({ resultStatus, title, description, onNextStepsClick }: Re
                 <img src={style.icon} alt="" className="h-10 w-10 shrink-0" />
                 <div className="flex flex-col gap-2">
                     <p className="text-lg font-bold">{title || "진단 결과가 없어요"}</p>
-                    <p className="whitespace-pre-line text-base font-medium">{description || "아직 진단이 완료되지 않았거나, 진단에 실패했어요."}</p>
+                    <p className="whitespace-pre-line text-base font-medium">{description}</p>
                 </div>
             </div>
             {style.showNextStepsButton && (
