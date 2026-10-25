@@ -76,6 +76,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: .env 준비
+        env:
+          ENV_B64: ${{ secrets.BE_ENV_B64 }}
+        run: |
+          [ -n "$ENV_B64" ] || { echo "::error::BE_ENV_B64 Secret이 비어 있습니다"; exit 1; }
+          umask 077
+          printf '%s' "$ENV_B64" | base64 -d > "$RUNNER_TEMP/be.env" || { echo "::error::BE_ENV_B64 Base64 디코딩 실패"; exit 1; }
+          [ -s "$RUNNER_TEMP/be.env" ] || { echo "::error::BE_ENV_B64 디코딩 결과가 비어 있습니다"; exit 1; }
+
       - name: 빌드 산출물(jar) 내려받기
         uses: actions/download-artifact@v4
         with:
@@ -83,6 +92,7 @@ jobs:
           path: backend/beforeselling/build/libs
 
       - name: AWS 자격증명 설정
+        id: aws
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
@@ -105,6 +115,7 @@ jobs:
             "s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml"
           aws s3 cp backend/beforeselling/deploy/blue-green.sh \
             "s3://${S3_BUCKET}/blue-green-${GITHUB_SHA}.sh"
+          aws s3 cp "$RUNNER_TEMP/be.env" "s3://${S3_BUCKET}/env/be-${GITHUB_SHA}.env"
 
       # Blue-Green 전환은 blue-green.sh가 한다 (backend/beforeselling/deploy/README.md).
       # release 디렉터리 교체까지 같은 락 안에서 해야 진행 중인 배포/롤백의 파일을 덮어쓰지 않는다.
@@ -124,12 +135,18 @@ jobs:
             aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.yml
             aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-prod-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.prod.yml
             aws s3 cp s3://${{ env.S3_BUCKET }}/blue-green-${{ github.sha }}.sh ${{ env.APP_DIR }}/release/blue-green.sh
+            (umask 077; aws s3 cp s3://${{ env.S3_BUCKET }}/env/be-${{ github.sha }}.env ${{ env.APP_DIR }}/.env)
+            chmod 600 ${{ env.APP_DIR }}/.env
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
             cd ${{ env.APP_DIR }}/release
             docker network inspect be-ai-net >/dev/null 2>&1 || docker network create be-ai-net
             bash blue-green.sh deploy ${{ github.sha }}
             docker ps -a --filter name=be-server --format '{{.Names}} {{.Image}} {{.Status}}'
             docker image prune -a -f
+
+      - name: .env 정리
+        if: always() && steps.aws.outcome == 'success'
+        run: aws s3 rm "s3://${S3_BUCKET}/env/be-${GITHUB_SHA}.env"
 
       # 전환 후 외부 경로(Cloudflare → nginx → 새 색)까지 확인한다. 실패하면 README의 rollback 절차를 따른다.
       - name: 서비스 확인
