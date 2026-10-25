@@ -75,9 +75,20 @@ def test_구성품별로_분류된_결정세번은_코드_목록으로_나눈다
     assert case.hs_codes == ["8477202000", "8419899020"]
 
 
+def test_품명만_있고_설명·결정사유가_빈_사례도_받는다(wire):
+    client = CLIPDetailClient()
+    wire(client, _responding(_page(description="", reason="")))
+
+    case = client.fetch_parsed(CLIPDetailRequest(doc_id="0002000807497"))
+
+    assert (case.product_name, case.description, case.decision_reason) == ("Skin care cosmetic (SBS-44)", "", "")
+    assert case.hs_codes == ["3304991000"]
+
+
 def test_없는_문서_ID는_빈_표로_오므로_오류로_알린다(wire):
     client = CLIPDetailClient()
-    wire(client, _responding(_page(hs="", enforce="", description="", reason="")))
+    page = _page(hs="", enforce="", description="", reason="").replace("Skin care cosmetic (SBS-44)", "")
+    wire(client, _responding(page))
 
     with pytest.raises(RuntimeError, match="비어 있습니다"):
         client.fetch_parsed(CLIPDetailRequest(doc_id="0000000000000"))

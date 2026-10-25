@@ -68,7 +68,8 @@ class CLIPDetailClient(BaseClient[CLIPDetailRequest, CLIPCase]):
             field = _FIELDS.get(re.sub(r"<[^>]+>|\s", "", header))
             if field:
                 values[field] = self._cell_text(cell)
-        if not values.get("description") and not values.get("decision_reason"):
+        # 품명만 있고 설명·결정사유가 빈 사례도 있음 (2026-10-25 전체 적재 중 2건)
+        if not any(values.values()):
             raise RuntimeError("CLIP 결정사례 상세가 비어 있습니다 (없는 문서 ID).")
         return CLIPCase(
             hs_codes=parse_hs_codes(self._hidden(page, "txtDtrmHsSgn")),  # 결정 HS 코드 목록
