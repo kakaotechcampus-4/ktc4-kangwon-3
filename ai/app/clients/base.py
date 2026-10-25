@@ -27,6 +27,7 @@ class BaseClient:
         base_url: API 도메인 주소. 서브클래스에서 지정한다.
         timeout: 요청 제한 시간(초). 기본 10초.
         headers: 모든 요청에 포함할 공통 헤더.
+        transport: httpx 전송 계층. 없으면 httpx 기본. 테스트에서 가짜 응답을 붙일 때 주입.
     """
 
     def __init__(
@@ -34,11 +35,13 @@ class BaseClient:
         base_url: str,
         timeout: float = 10.0,
         headers: dict[str, str] | None = None,
+        transport: httpx.BaseTransport | None = None,
     ):
         self._client = httpx.Client(
             base_url=base_url,
             timeout=timeout,
             headers=headers or {},
+            transport=transport,
         )
 
     # -- 정리 --
