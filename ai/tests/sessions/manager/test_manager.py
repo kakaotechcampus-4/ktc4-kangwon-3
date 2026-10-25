@@ -410,7 +410,7 @@ def test_개발용_진단은_dev_상품_ID로_진단서_없이_접수한다(mana
     job = _GatedJob()
     manager = _manager(managers, job)
 
-    session = manager.submit_dev(ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"]))
+    [session] = manager.submit_dev([ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"])])
 
     # 입력의 상품 ID는 쓰지 않고 운영 상품과 겹치지 않게 새로 발급
     assert session.context.product_id.startswith("dev-")
@@ -422,14 +422,27 @@ def test_개발용_진단은_dev_상품_ID로_진단서_없이_접수한다(mana
     _wait_until(lambda: _status(manager,session.context.product_id) is SessionStatus.COMPLETED)
 
 
+def test_개발용_진단은_여러_상품을_받아_상품마다_dev_ID를_발급하고_상한을_넘으면_전체를_거절한다(managers):
+    manager = _manager(managers, _GatedJob(), max_dev_inflight=3)
+    items = [ExtractionInput(product_id="x", text_blocks=[f"상품 {i}"]) for i in range(2)]
+
+    sessions = manager.submit_dev(items)
+
+    assert [s.source.text_blocks for s in sessions] == [["상품 0"], ["상품 1"]]
+    assert len({s.context.product_id for s in sessions}) == 2
+    with pytest.raises(QueueFullError):
+        manager.submit_dev(items)
+    assert manager.snapshot().dev_inflight == 2
+
+
 def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운영_접수는_막지_않는다(managers):
     job = _GatedJob()
     manager = _manager(managers, job, max_dev_inflight=2)
-    first = manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    [first] = manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
     with pytest.raises(QueueFullError, match="개발용"):
-        manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+        manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     # 운영 진단은 개발용 상한과 관계없이 접수
     manager.submit("d-1", _inputs("p-1"))
 
@@ -437,16 +450,16 @@ def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운�
     job.release(first.context.product_id)
     _wait_until(lambda: _status(manager,first.context.product_id) is SessionStatus.COMPLETED)
     _wait_until(lambda: manager._capacity.dev_inflight == 1)
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
 
 def test_개발용_진단도_전체_상한에_같이_센다(managers):
     manager = _manager(managers, _GatedJob(), max_inflight=2, max_dev_inflight=3)
     manager.submit("d-1", _inputs("p-1"))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
     with pytest.raises(QueueFullError):
-        manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+        manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     with pytest.raises(QueueFullError):
         manager.submit("d-2", _inputs("p-2"))
 
@@ -455,7 +468,7 @@ def test_현황은_상태별_수와_자리_상한_누적_접수_거절을_담는
     job = _GatedJob()
     manager = _manager(managers, job, max_running=1, max_inflight=4, max_dev_inflight=1)
     manager.submit("d-1", _inputs("p-1", "p-2"))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     _wait_until(lambda: "p-1" in job.started)
     with pytest.raises(SessionConflictError):
         manager.submit("d-2", _inputs("p-1"))

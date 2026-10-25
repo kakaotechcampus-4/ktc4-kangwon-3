@@ -200,25 +200,26 @@ class SessionManager:
         self._pool.submit(self._run, resumed.context)
         return resumed
 
-    def submit_dev(self, item: ExtractionInput) -> DiagnosisSession:
-        """개발용 진단 한 건을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
+    def submit_dev(self, items: list[ExtractionInput]) -> list[DiagnosisSession]:
+        """개발용 진단 상품들을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
 
         상품 ID는 운영 상품과 겹치지 않게 dev- 접두어로 새로 발급하고, 입력의 product_id는 쓰지 않음.
+        상한을 넘으면 전체를 거절함.
 
         Args:
-            item: 상품 입력.
+            items: 상품별 입력.
 
         Returns:
-            DiagnosisSession: 접수된 세션. 상품 ID는 발급한 dev- ID.
+            list[DiagnosisSession]: 접수된 세션. items 순서와 같고 상품 ID는 발급한 dev- ID.
 
         Raises:
             QueueFullError: 개발용 상한 또는 전체 상한을 넘는 경우.
         """
-        product_id = f"dev-{uuid4()}"
-        item = item.model_copy(update={"product_id": product_id})
-        [session] = self._accept(None, [item], RunType.TEST)
-        self._pool.submit(self._run, session.context)
-        return session
+        items = [item.model_copy(update={"product_id": f"dev-{uuid4()}"}) for item in items]
+        sessions = self._accept(None, items, RunType.TEST)
+        for session in sessions:
+            self._pool.submit(self._run, session.context)
+        return sessions
 
     def expire_overdue(self) -> int:
         """접수부터 최대 시간을 넘긴 세션을 시간 초과 실패로 끝낸다.

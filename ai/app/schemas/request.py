@@ -89,8 +89,8 @@ class ResumeRequest(ApiRequestModel):
         return self
 
 
-class DevDiagnosisRequest(ApiRequestModel):
-    """샌드박스 진단 요청 (#318). 상품 하나, 텍스트·이미지·URL 중 하나 이상 필수 (#371). 상품 ID는 서버가 발급.
+class DevDiagnosisProductInput(ApiRequestModel):
+    """샌드박스 진단 상품 하나. 텍스트·이미지·URL 중 하나 이상 필수 (#371). 상품 ID는 서버가 발급.
 
     이미지는 #310 합의대로 URL로 받음(base64 data URI도 호환).
 
@@ -109,3 +109,13 @@ class DevDiagnosisRequest(ApiRequestModel):
         if not self.text_blocks and not self.image_urls and not self.source_url:
             raise ValueError("textBlocks, imageUrls, sourceUrl 중 하나는 필수입니다.")
         return self
+
+
+class DevDiagnosisRequest(ApiRequestModel):
+    """샌드박스 진단 요청 (#318). 실제 진단 접수처럼 상품을 목록으로 받음.
+
+    Args:
+        products: 진단할 상품 목록. 1~10개.
+    """
+
+    products: list[DevDiagnosisProductInput] = Field(min_length=1, max_length=10)

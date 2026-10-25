@@ -117,10 +117,20 @@ def fail(code: str, message: str, details: list[FieldErrorDetail] | None = None)
     return ApiResponse(code=code, message=message, details=details)
 
 
-class DevDiagnosisAcceptedResponse(ApiResponse):
-    """개발용 진단 접수 응답 (202). data에 발급한 상품 ID·실행 ID."""
+class DevDiagnosisAccepted(ApiModel):
+    """샌드박스 진단 접수 결과. 요청 순서대로 발급한 상품 ID·실행 ID.
 
-    data: AcceptedProduct | None = None
+    Attributes:
+        products: 접수된 상품별 상품 ID·실행 ID.
+    """
+
+    products: list[AcceptedProduct] = Field(min_length=1)
+
+
+class DevDiagnosisAcceptedResponse(ApiResponse):
+    """샌드박스 진단 접수 응답 (202). data에 DevDiagnosisAccepted."""
+
+    data: DevDiagnosisAccepted | None = None
 
 
 class DevDiagnosisStatus(ApiModel):

@@ -14,6 +14,7 @@ from ..schemas.request import DevDiagnosisRequest
 from ..schemas.response import (
     AcceptedProduct,
     ApiResponse,
+    DevDiagnosisAccepted,
     DevDiagnosisAcceptedResponse,
     DevDiagnosisStatus,
     DevDiagnosisStatusResponse,
@@ -47,7 +48,7 @@ def get_assessment_presenter(request: Request) -> AssessmentPresenter:
     responses={**_AUTH_RESPONSES, status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse,
                                                                      "description": "샌드박스 진단 대기열 초과"}},
     summary="샌드박스 진단 접수",
-    description="상품 하나를 진단으로 접수한다. 결과는 콜백 대신 상태 조회로 확인한다.",
+    description="상품 1~10개를 진단으로 접수한다. 결과는 콜백 대신 상품별 상태 조회로 확인한다.",
 )
 async def submit_sandbox_diagnosis(
     req: DevDiagnosisRequest,
@@ -56,27 +57,33 @@ async def submit_sandbox_diagnosis(
     """샌드박스 진단을 접수하고 바로 202를 반환한다.
 
     Args:
-        req: 상품 글·이미지.
+        req: 상품 1~10개의 글·이미지·URL.
         manager: 세션 관리자.
 
     Returns:
-        202 접수 응답. 발급한 상품 ID·실행 ID.
+        202 접수 응답. 요청 순서대로 발급한 상품 ID·실행 ID.
 
     Raises:
-        AIServiceError: 샌드박스 또는 전체 대기열이 차면 429.
+        AIServiceError: 샌드박스 또는 전체 대기열이 차면 429 (전체 거절).
     """
-    item = ExtractionInput(
-        product_id=DEV_PRODUCT_PREFIX, source_url=req.source_url, text_blocks=req.text_blocks,
-        image_urls=req.image_urls,
-    )
+    items = [
+        ExtractionInput(
+            product_id=DEV_PRODUCT_PREFIX, source_url=product.source_url, text_blocks=product.text_blocks,
+            image_urls=product.image_urls,
+        )
+        for product in req.products
+    ]
     try:
-        session = manager.submit_dev(item)
+        sessions = manager.submit_dev(items)
     except QueueFullError as e:
         raise AIServiceError(response_code=AIResponseCode.QUEUE_FULL.value, retryable=True) from e
     return DevDiagnosisAcceptedResponse(
         code="OK",
         message="샌드박스 진단이 접수되었습니다.",
-        data=AcceptedProduct(product_id=session.context.product_id, run_id=session.context.run_id),
+        data=DevDiagnosisAccepted(products=[
+            AcceptedProduct(product_id=session.context.product_id, run_id=session.context.run_id)
+            for session in sessions
+        ]),
     )
 
 
