@@ -9,7 +9,7 @@
     - errors: 설정 예외(ConfigError)
 """
 
-from .cache import CACHE_DB_RETRY_SECONDS, LAW_REFRESH_AT, LAW_SEARCH_RECHECK_SECONDS
+from .cache import CACHE_DB_RETRY_SECONDS, CUSTOMS_GW_TTL_SECONDS, LAW_REFRESH_AT, LAW_SEARCH_RECHECK_SECONDS
 from .catalog import CHAT_MODELS, ChatModel, Price
 from .chat import (MAX_RETRIES, TIMEOUT_SECONDS, agent_profile, build_agent_model, build_chat_model, build_tool_model,
                    tool_profile)
@@ -22,7 +22,7 @@ from .settings import ENV_FILE, REQUIRED_ENV, Settings, get_settings, load_setti
 
 __all__ = [
     "AGENT_PROFILES", "AWAITING_INPUT_RETENTION_SECONDS", "CACHE_DB_RETRY_SECONDS", "CHAT_MODELS", "ENV_FILE",
-    "LAW_REFRESH_AT", "LAW_SEARCH_RECHECK_SECONDS", "MAX_DEV_INFLIGHT_SESSIONS",
+    "CUSTOMS_GW_TTL_SECONDS", "LAW_REFRESH_AT", "LAW_SEARCH_RECHECK_SECONDS", "MAX_DEV_INFLIGHT_SESSIONS",
     "MAX_INFLIGHT_SESSIONS", "MAX_RETRIES", "MAX_RUNNING_SESSIONS",
     "MODEL_PROFILES", "REQUIRED_ENV", "SESSION_MAX_DURATION_SECONDS", "SESSION_RETENTION_SECONDS",
     "SESSION_SWEEP_SECONDS", "TIMEOUT_SECONDS", "TOOL_PROFILES", "ChatModel", "ConfigError", "ModelProfile", "Price", "Settings",
