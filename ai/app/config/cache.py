@@ -7,3 +7,5 @@ CACHE_DB_RETRY_SECONDS = 60
 LAW_SEARCH_RECHECK_SECONDS = 2 * 24 * 3600
 # 법령 점검 시각 (KST, 시·분). 시행 예정 본문은 미리 받아 두므로 0시 직후면 충분
 LAW_REFRESH_AT = (0, 5)
+# 관세청 세관장확인대상물품 GW 응답 보관 시간. 고시 개정 반영이 늦어도 하루
+CUSTOMS_GW_TTL_SECONDS = 24 * 3600
