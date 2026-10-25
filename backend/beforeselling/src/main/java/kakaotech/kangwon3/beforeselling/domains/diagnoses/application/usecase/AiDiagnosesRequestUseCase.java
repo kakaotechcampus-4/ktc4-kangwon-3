@@ -106,8 +106,8 @@ public class AiDiagnosesRequestUseCase {
 
     private AiDiagnosesRequest.Product toProduct(ProductInput product) {
         List<String> textBlocks = StringUtils.hasText(product.sourceText()) ? List.of(product.sourceText()) : List.of();
-        List<String> images = product.imageKeys().stream().map(s3UrlKeyCodec::toUrl).toList();
-        return new AiDiagnosesRequest.Product(product.productId().toString(), textBlocks, images, product.sourceUrl());
+        List<String> imageUrls = product.imageKeys().stream().map(s3UrlKeyCodec::toUrl).toList();
+        return new AiDiagnosesRequest.Product(product.productId().toString(), textBlocks, imageUrls, product.sourceUrl());
     }
 
     private Map<UUID, String> toRunIds(AiDiagnosesAccepted accepted) {
