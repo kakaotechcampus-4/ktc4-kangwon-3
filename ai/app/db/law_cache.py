@@ -20,6 +20,8 @@ from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
 from ..schemas.clients.law_response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
 )
+from .engine import get_session_factory
+from .errors import DatabaseNotConfiguredError
 from .fetchers import ScheduledFetcher
 
 logger = logging.getLogger(__name__)
@@ -69,6 +71,25 @@ def build_law_fetchers(oc: str, session_factory: Callable[[], Session] | None) -
             AdmrulTextClient(oc), name="admrul.text",
             response_type=AdmrulTextResponse, recheck_after=None, session_factory=session_factory),
     )
+
+
+def open_law_fetchers(oc: str) -> LawFetchers:
+    """Tool이 쓰는 법제처 조회 객체를 공용 DB에 연결해 만든다. 다 쓰면 close()로 닫는다.
+
+    Args:
+        oc: 법제처 OC.
+
+    Returns:
+        LawFetchers: DATABASE_URL이 없으면 캐시 없이 클라이언트만 쓰는 조회 객체.
+
+    Raises:
+        ConfigError: DB 엔진을 만들 수 없는 경우.
+    """
+    try:
+        session_factory = get_session_factory()
+    except DatabaseNotConfiguredError:
+        session_factory = None
+    return build_law_fetchers(oc, session_factory)
 
 
 class LawSourceLike(Protocol):
