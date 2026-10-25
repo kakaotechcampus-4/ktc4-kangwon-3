@@ -35,12 +35,6 @@ class ApiResponse(StrictModel):
     data: Any = None
 
 
-class DiagnoseResponse(ApiResponse):
-    """진단 파이프라인 응답. data에 FinalAssessment가 담긴다."""
-
-    data: FinalAssessment | None = None
-
-
 class AcceptedProduct(ApiModel):
     """접수된 상품 하나 (#310).
 

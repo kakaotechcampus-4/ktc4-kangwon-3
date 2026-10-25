@@ -2,19 +2,7 @@
 
 from pydantic import Field, model_validator
 
-from .base import ApiRequestModel, StrictModel
-
-
-class UrlDiagnoseRequest(StrictModel):
-    """URL 기반 진단 요청. 서버가 직접 크롤링한다.
-
-    Args:
-        product_id: 상품 식별자.
-        source_url: 크롤링할 상품 페이지 URL.
-    """
-
-    product_id: str = Field(min_length=1)
-    source_url: str = Field(min_length=1)
+from .base import ApiRequestModel
 
 
 class DiagnosisProductInput(ApiRequestModel):

@@ -70,7 +70,7 @@ def fake_be(monkeypatch):
 
 def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_be):
     with TestClient(main.app) as client:
-        response = client.post("/api/ai/v1/diagnose/content", json={
+        response = client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
         [accepted] = response.json()["data"]["products"]
@@ -84,30 +84,19 @@ def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_
     assert [event["sequence"] for event in events] == list(range(1, len(events) + 1))
     result = events[-1]
     assert result["eventType"] == "product_result"
-    assert len(result["assessment"]["toolReviews"]) == 6
+    assert result["assessment"]["resultStatus"] == "PURCHASING_AGENT_ALLOWED"
 
 
-def test_더미_경로는_케이스_더미로_진단하고_운영_경로는_고정_더미로_진단한다(fake_be):
-    def results():
-        return {
-            event["productId"]: event["assessment"]["resultStatus"]
-            for event in (json.loads(request.content) for request in fake_be)
-            if event["eventType"] == "product_result"
-        }
-
+def test_운영_경로는_파이프라인_연결_전까지_접수하지_않고_콜백도_없다(fake_be):
     with TestClient(main.app) as client:
-        client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
-            "diagnosisId": "d-1", "products": [{"productId": "p-dummy", "textBlocks": ["상품 설명"]}],
+        response = client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
-        client.post("/api/ai/v1/diagnose/content", json={
-            "diagnosisId": "d-2", "products": [{"productId": "p-real", "textBlocks": ["상품 설명"]}],
-        })
-        _wait_until(lambda: len(results()) == 2)
+        session = main.app.state.session_manager.get("p-1")
 
-    assert results() == {
-        "p-dummy": "PURCHASING_AGENT_ALLOWED",
-        "p-real": "DIRECT_IMPORT_CERTIFICATION_REQUIRED",
-    }
+    assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert session is None
+    assert fake_be == []
 
 
 def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜백을_보내지_않는다(fake_be, monkeypatch):
@@ -134,15 +123,15 @@ def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜�
 
 def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be):
     with TestClient(main.app) as client:
-        client.post("/api/ai/v1/diagnose/content", json={
+        client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
-        _wait_until(lambda: 'ai_session_finished_total{outcome="completed",run_type="production"} 1.0'
+        _wait_until(lambda: 'ai_session_finished_total{outcome="completed",run_type="dummy"} 1.0'
                     in client.get("/metrics").text)
         text = client.get("/metrics").text
 
     assert 'ai_sessions{status="completed"} 1.0' in text
-    assert 'ai_session_accepted_total{run_type="production"} 1.0' in text
+    assert 'ai_session_accepted_total{run_type="dummy"} 1.0' in text
 
 
 def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인다(fake_be):
