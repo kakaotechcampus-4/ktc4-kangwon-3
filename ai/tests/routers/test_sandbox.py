@@ -1,4 +1,4 @@
-"""개발용 진단 라우터: 키 검사, 접수(202·429·422), 상태 조회(공개 진단서·질문·내부 결과, dev- 상품만)."""
+"""샌드박스 진단 라우터: 키 검사, 접수(202·429·422), 상태 조회(공개 진단서·질문·내부 결과, dev- 상품만)."""
 
 import threading
 import time
@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app import config
 from app.main import app
 from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment
-from app.routers.dev_diagnose import get_assessment_presenter
+from app.routers.sandbox import get_assessment_presenter
 from app.routers.diagnose import get_session_manager
 from app.schemas.agent import ExtractionInput
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
@@ -17,7 +17,7 @@ from app.sessions.manager import SessionManager
 from app.sessions.job import JobDone, JobNeedsInput
 from app.sessions.store import SessionStore
 
-ROUTE = "/api/ai/v1/dev/diagnose"
+ROUTE = "/api/ai/v1/sandbox/diagnose"
 KEY = "test-dev-api-key-0123456789abcdefgh"
 HEADERS = {"X-Dev-Api-Key": KEY}
 _BASE = {
