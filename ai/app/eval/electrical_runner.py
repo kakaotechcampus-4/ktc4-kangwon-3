@@ -37,7 +37,8 @@ from dotenv import load_dotenv
 
 from .. import usage as usage_module
 from ..agents.base import AgentRunMeta
-from ..config import ENV_FILE, MAX_RETRIES, MODEL_PROFILES, TIMEOUT_SECONDS, TOOL_PROFILES, ConfigError
+from ..clients.llm import MAX_RETRIES, TIMEOUT_SECONDS
+from ..config import ENV_FILE, MODEL_PROFILES, TOOL_PROFILES, ConfigError
 from ..config.settings import OVERRIDES_ENV, parse_profile_overrides
 from ..observability.agent_sinks import agent_sinks
 from ..schemas.agent import ToolSelectionItem

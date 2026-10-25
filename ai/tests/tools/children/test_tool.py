@@ -410,7 +410,7 @@ def test_조회_오류는_Tool_오류로_전파한다():
 
 def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
     names = []
-    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
+    monkeypatch.setattr("app.clients.llm.build_tool_model", lambda name: names.append(name) or Model(None))
     ChildrenTool(item_search=Search())._get_steps()
     assert names == [ToolName.CHILDREN]
 

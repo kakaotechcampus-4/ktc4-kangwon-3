@@ -108,7 +108,7 @@ class DatabaseItemSearch:
       별표 3의 "2. 개별 안전기준이 없는 …"(공통안전기준) 문장은 notes에서 찾는다.
     - 운용요령 별표 3~5(적용범위)는 #307 대상에 없다. 적재 대상에 추가하거나 법제처 경로를 함께 쓴다.
     - 법 제2조 제1호·제12호는 법령 조문 테이블(LawArticleRepository)에서 읽는다.
-    - 벡터 조회는 app.utils.embedding을 쓴다. Tool은 동기라 비동기 embed_text를 그대로 부를 수 없다.
+    - 벡터 조회는 app.clients.llm.embedding을 쓴다. Tool은 동기라 비동기 embed_text를 그대로 부를 수 없다.
     LawApiItemSearch의 표 읽기는 DB 적재 전까지 쓰는 임시 경로다. 구현하면 같은 ChildrenCandidates를
     돌려주므로 ChildrenTool은 바꾸지 않는다.
 
