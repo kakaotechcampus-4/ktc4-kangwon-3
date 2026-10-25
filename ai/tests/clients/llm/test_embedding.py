@@ -1,4 +1,4 @@
-"""임베딩 유틸 테스트. 가짜 임베딩 모델로 바꿔 실제 API는 호출하지 않는다."""
+"""임베딩 모델 생성 테스트. 가짜 임베딩 모델로 바꿔 실제 API는 호출하지 않는다."""
 
 import asyncio
 
@@ -6,7 +6,7 @@ import langchain_openai
 import pytest
 
 from app import config
-from app.utils import embedding
+from app.clients.llm import embedding
 
 _SETTINGS = config.Settings(
     api_key="test-key",

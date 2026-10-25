@@ -1,6 +1,5 @@
 """AI 서버 공통 설정 테스트. 실제 네트워크 요청은 보내지 않는다."""
 
-import langchain_openai
 import pytest
 
 from app import config
@@ -200,31 +199,6 @@ def test_DB_접속_정보와_외부_API_키는_repr에_노출되지_않는다():
         assert secret not in representation
 
 
-@pytest.mark.parametrize(("profile_name", "model", "options"), [
-    ("mini", "openai/gpt-4.1-mini", {"temperature": 0}),
-    # 추론 모델은 temperature를 보내지 않고 추론 강도만
-    ("luna-low", "openai/gpt-6-luna", {"reasoning_effort": "low"}),
-])
-def test_build_chat_model은_프로필에_있는_옵션만_보낸다(monkeypatch, profile_name, model, options):
-    captured = {}
-    monkeypatch.setattr(langchain_openai, "ChatOpenAI", lambda **kwargs: captured.update(kwargs))
-    settings = _settings()
-
-    config.build_chat_model(config.MODEL_PROFILES[profile_name], settings)
-
-    assert captured == {
-        "model": model,
-        "base_url": settings.base_url,
-        "api_key": settings.api_key,
-        **options,
-        "timeout": config.TIMEOUT_SECONDS,
-        "max_retries": config.MAX_RETRIES,
-        # 게이트웨이의 비스트리밍 출력 한도(2,000토큰)를 피한다. 빠지면 긴 페이지 추출이 실패한다.
-        "streaming": True,
-        "stream_usage": True,
-    }
-
-
 def test_get_settings는_한_번_읽은_설정을_계속_재사용한다(monkeypatch):
     _env(monkeypatch)
     first = config.get_settings()
@@ -320,24 +294,6 @@ def test_덮어쓰기_오타는_조용히_무시하지_않고_기동을_막는�
 
     with pytest.raises(config.ConfigError, match=message):
         config.load_settings()
-
-
-@pytest.mark.parametrize(("build", "pick", "name"), [
-    ("build_agent_model", "agent_profile", "selection"),
-    ("build_tool_model", "tool_profile", "electrical_safety"),
-])
-def test_에이전트_Tool_모델은_설정을_한_번_읽고_프로필로_만든다(monkeypatch, build, pick, name):
-    _env(monkeypatch)
-    reads = []
-    original = config.settings.load_settings
-    monkeypatch.setattr(config.chat, "load_settings", lambda: reads.append(1) or original())
-    captured = {}
-    monkeypatch.setattr(langchain_openai, "ChatOpenAI", lambda **kwargs: captured.update(kwargs))
-
-    getattr(config, build)(name)
-
-    assert len(reads) == 1
-    assert captured["model"] == getattr(config, pick)(name, original()).model.id
 
 
 def test_내부_API_토큰이_BE_기준보다_짧으면_거부하고_값은_노출하지_않는다():

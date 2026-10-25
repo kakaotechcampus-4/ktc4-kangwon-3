@@ -4,7 +4,7 @@
 API 키·base_url·임베딩 모델 이름은 공통 설정(config.Settings)에서 가져온다.
 """
 
-from ..config import Settings, get_settings
+from ...config import Settings, get_settings
 
 
 def build_embedding_model(
