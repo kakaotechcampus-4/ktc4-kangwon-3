@@ -8,7 +8,7 @@ from ..schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerifica
 from ..schemas.session import DiagnosisInput, SessionAnswer
 from ..sessions.job import JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
 from .cases import CASES, DummyCase
-from .scenario import read_case
+from .marker import read_case
 
 # 단계별 지연. BE가 진행 이벤트 순서 확인용
 STAGE_SECONDS = 1.0
@@ -23,7 +23,7 @@ _DONE_STAGES = (
 )
 
 
-def run_scenario_diagnosis(
+def run_case_diagnosis(
     job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter,
 ) -> Outcome:
     """입력에 표시된 케이스대로 질문·실패·완료를 돌려준다.

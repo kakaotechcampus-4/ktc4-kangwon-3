@@ -12,7 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect_callbacks
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .domain.context import RunType
-from .dummy import run_scenario_diagnosis
+from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
 from .repositories.database import DatabaseNotConfiguredError, get_engine
@@ -72,11 +72,11 @@ async def lifespan(app: FastAPI):
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
-    # 진단 세션 (#264). 운영·개발용은 파이프라인 러너 연결 전까지 고정 더미, BE 연동용(/dummy)은 시나리오 더미
+    # 진단 세션 (#264). 운영·개발용은 파이프라인 러너 연결 전까지 고정 더미, BE 연동용(/dummy)은 케이스 더미
     job = by_run_type({
         RunType.PRODUCTION: run_dummy_diagnosis,
         RunType.TEST: run_dummy_diagnosis,
-        RunType.DUMMY: run_scenario_diagnosis,
+        RunType.DUMMY: run_case_diagnosis,
     })
     manager = SessionManager(SessionStore(), job)
     # BE 콜백 (#317)
