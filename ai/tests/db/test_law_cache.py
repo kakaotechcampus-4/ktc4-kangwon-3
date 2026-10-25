@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.config import LAW_SEARCH_RECHECK_SECONDS
+from app.db import law_cache
+from app.db.errors import DatabaseNotConfiguredError
 from app.db.law_cache import KST, LawFetchers, build_law_fetchers, refresh_laws, run_law_refresh, seconds_until
 from app.schemas.clients.law_response import (
     AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse,
@@ -140,3 +142,24 @@ def test_기동_직후_한_번_점검하고_이후_매일_시각까지_기다린
 
     assert len(calls) == 2
     assert waits == [pytest.approx((12 + 5 / 60) * 3600)] * 2
+
+
+def test_Tool용_조회_객체는_공용_DB_세션을_쓴다(monkeypatch):
+    factory = object()
+    monkeypatch.setattr(law_cache, "get_session_factory", lambda: factory)
+
+    fetchers = law_cache.open_law_fetchers("test-oc")
+
+    assert {f._session_factory for f in fetchers} == {factory}
+    fetchers.close()
+
+
+def test_DATABASE_URL이_없으면_Tool용_조회_객체는_클라이언트만_쓴다(monkeypatch):
+    def not_configured():
+        raise DatabaseNotConfiguredError("DATABASE_URL이 설정되지 않음")
+    monkeypatch.setattr(law_cache, "get_session_factory", not_configured)
+
+    fetchers = law_cache.open_law_fetchers("test-oc")
+
+    assert {f._session_factory for f in fetchers} == {None}
+    fetchers.close()

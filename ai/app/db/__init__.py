@@ -12,7 +12,9 @@
 from .engine import get_session_factory, init_db
 from .errors import DatabaseNotConfiguredError
 from .fetchers import CachedFetcherBase, OnDemandFetcher, ScheduledFetcher
-from .law_cache import LawFetchers, LawRefreshReport, build_law_fetchers, refresh_laws, run_law_refresh
+from .law_cache import (
+    LawFetchers, LawRefreshReport, build_law_fetchers, open_law_fetchers, refresh_laws, run_law_refresh,
+)
 
 __all__ = [
     "CachedFetcherBase",
@@ -24,6 +26,7 @@ __all__ = [
     "build_law_fetchers",
     "get_session_factory",
     "init_db",
+    "open_law_fetchers",
     "refresh_laws",
     "run_law_refresh",
 ]
