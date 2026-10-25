@@ -16,7 +16,7 @@ from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
 from .repositories.database import DatabaseNotConfiguredError, get_engine
-from .routers import dev_diagnose, diagnose, dummy, health, metrics
+from .routers import diagnose, dummy, health, metrics, sandbox
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .sessions.job import by_run_type
@@ -92,7 +92,7 @@ async def lifespan(app: FastAPI):
     agent_sinks.add(agent_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
-    # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
+    # 샌드박스 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
     app.state.assessment_presenter = presenter
     sweeper = asyncio.create_task(_sweep_sessions(manager))
     try:
@@ -123,8 +123,8 @@ api_v1.include_router(health.router)
 # 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
 api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
 api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
-# 개발용 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
-api_v1.include_router(dev_diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
+# 샌드박스 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
+api_v1.include_router(sandbox.router, responses=VALIDATION_ERROR_RESPONSES)
 
 app.include_router(api_v1)
 # Prometheus 수집 경로 (BE /actuator/prometheus 대응). 외부 공개 경로(/api/ai/) 밖에 둠

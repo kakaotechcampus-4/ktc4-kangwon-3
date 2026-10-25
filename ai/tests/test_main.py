@@ -110,18 +110,18 @@ def test_더미_경로는_케이스_더미로_진단하고_운영_경로는_고�
     }
 
 
-def test_개발용_진단은_상태_조회로_결과를_보고_BE로는_콜백을_보내지_않는다(fake_be, monkeypatch):
+def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜백을_보내지_않는다(fake_be, monkeypatch):
     key = "test-dev-api-key-0123456789abcdefgh"
     monkeypatch.setenv("AI_DEV_API_ENABLED", "true")
     monkeypatch.setenv("AI_DEV_API_KEY", key)
     headers = {"X-Dev-Api-Key": key}
 
     with TestClient(main.app) as client:
-        accepted = client.post("/api/ai/v1/dev/diagnose", json={"textBlocks": ["상품 설명"]}, headers=headers)
+        accepted = client.post("/api/ai/v1/sandbox/diagnose", json={"textBlocks": ["상품 설명"]}, headers=headers)
         product_id = accepted.json()["data"]["productId"]
 
         def status():
-            return client.get(f"/api/ai/v1/dev/diagnose/{product_id}", headers=headers).json()["data"]
+            return client.get(f"/api/ai/v1/sandbox/diagnose/{product_id}", headers=headers).json()["data"]
 
         _wait_until(lambda: status()["status"] == "completed")
         done = status()
