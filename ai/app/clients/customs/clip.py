@@ -12,6 +12,23 @@ from ...schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 _HS_CODE_RE = re.compile(r"\d{4}\.?\d{2}(?:-?\d{4})?")
 
 
+def parse_hs_codes(text: str) -> list[str]:
+    """결정 HS 코드 문자열에서 코드를 하나씩 꺼낸다. 검색·상세 응답이 함께 쓴다.
+
+    구성품별로 분리 분류된 사례는 여러 코드가 번호·줄바꿈·쉼표로 섞여 옴
+    (예: ①8509.80-9000\\r\\n②8506.10-2000). 세관장확인은 숫자 10자리만 받으므로 점·하이픈은 지움.
+
+    Args:
+        text: 태그를 지운 결정 HS 코드 문자열.
+
+    Returns:
+        list[str]: 숫자만 남긴 HS 코드 목록. 6단위까지만 결정된 사례는 6자리.
+    """
+    codes = [re.sub(r"\D", "", code) for code in _HS_CODE_RE.findall(text)]
+    # 구성품마다 같은 코드를 따로 적은 경우 대비 중복 제거 (순서 유지)
+    return list(dict.fromkeys(codes))
+
+
 class CLIPClient(BaseClient[CLIPSearchRequest, CLIPSearchResponse]):
     """CLIP 국내 품목분류 결정사례 클라이언트.
 
@@ -100,20 +117,15 @@ class CLIPClient(BaseClient[CLIPSearchRequest, CLIPSearchResponse]):
         )
 
     def _parse_hs_codes(self, text: str) -> list[str]:
-        """결정 HS 코드 문자열에서 코드를 하나씩 꺼낸다.
-
-        구성품별로 분리 분류된 사례는 여러 코드가 번호·줄바꿈·쉼표로 섞여 옴
-        (예: ①8509.80-9000\\r\\n②8506.10-2000). 세관장확인은 숫자 10자리만 받으므로 점·하이픈은 지움.
+        """결정 HS 코드 문자열에서 코드를 하나씩 꺼낸다(parse_hs_codes).
 
         Args:
             text: 원본 DTRM_HS_SGN 값.
 
         Returns:
-            list[str]: 숫자만 남긴 HS 코드 목록. 6단위까지만 결정된 사례는 6자리.
+            list[str]: 숫자만 남긴 HS 코드 목록.
         """
-        codes = [re.sub(r"\D", "", code) for code in _HS_CODE_RE.findall(self._strip_html(text))]
-        # 구성품마다 같은 코드를 따로 적은 경우 대비 중복 제거 (순서 유지)
-        return list(dict.fromkeys(codes))
+        return parse_hs_codes(self._strip_html(text))
 
     @staticmethod
     def _strip_html(text: str) -> str:

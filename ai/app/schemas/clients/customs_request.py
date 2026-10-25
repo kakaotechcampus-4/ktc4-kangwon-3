@@ -17,6 +17,16 @@ class CLIPSearchRequest(BaseModel):
     page_size: int = Field(default=10, ge=1, le=100)
 
 
+class CLIPDetailRequest(BaseModel):
+    """CLIP 품목분류 결정사례 상세 조회 요청.
+
+    Args:
+        doc_id: 결정사례 문서 ID(검색 응답의 doc_id, 숫자 13자리).
+    """
+
+    doc_id: str = Field(pattern=r"^\d+$")
+
+
 class CustomsGwConfirmationRequest(BaseModel):
     """세관장확인대상물품 조회 요청.
 
