@@ -13,7 +13,7 @@ function SkippedToolReviews({ toolReviews }: SkippedToolReviewsProps) {
     }
 
     return (
-        <DefaultBox>
+        <DefaultBox variant="dashed">
             <p className="text-base font-bold text-black">검토하지 않은 분야</p>
             {toolReviews.map((toolReview) => (
                 <div key={toolReview.productToolReviewId} className="flex w-full items-start gap-3">
