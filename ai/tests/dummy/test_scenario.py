@@ -1,37 +1,31 @@
-"""더미 시나리오 표시를 입력에 남기고 다시 읽는지, 무작위 선택이 모든 값을 내는지 확인한다."""
+"""더미 케이스 표시를 입력에 남기고 다시 읽는지, 무작위 선택이 모든 케이스를 내는지 확인한다."""
 
 import random
 
 import pytest
 
-from app.dummy import DummyFlow, DummyResult, DummyScenario, mark_scenario, random_scenario, read_scenario
+from app.dummy import DummyCaseName, mark_case, random_case, read_case
 from app.schemas.agent import ExtractionInput
 
-_ITEM = ExtractionInput(product_id="p-1", text_blocks=["RC 보트"])
+_ITEM = ExtractionInput(product_id="p-1", text_blocks=["상품 설명"])
 
 
-@pytest.mark.parametrize("flow", list(DummyFlow))
-@pytest.mark.parametrize("result", list(DummyResult))
-def test_남긴_시나리오를_그대로_읽는다(flow, result):
-    scenario = DummyScenario(flow=flow, result=result)
+@pytest.mark.parametrize("case", list(DummyCaseName))
+def test_남긴_케이스를_그대로_읽는다(case):
+    marked = mark_case(_ITEM, case)
 
-    marked = mark_scenario(_ITEM, scenario)
-
-    assert read_scenario(marked) == scenario
-    assert marked.text_blocks[0] == "RC 보트"
-    assert _ITEM.text_blocks == ["RC 보트"]
+    assert read_case(marked) is case
+    assert marked.text_blocks[0] == "상품 설명"
+    assert _ITEM.text_blocks == ["상품 설명"]
 
 
-@pytest.mark.parametrize("blocks", [["RC 보트"], ["[dummy:flow=unknown,result=allowed]"]])
+@pytest.mark.parametrize("blocks", [["상품 설명"], ["[dummy:case=unknown]"]])
 def test_표시가_없거나_값이_잘못되면_거절한다(blocks):
     with pytest.raises(ValueError):
-        read_scenario(ExtractionInput(product_id="p-1", text_blocks=blocks))
+        read_case(ExtractionInput(product_id="p-1", text_blocks=blocks))
 
 
-def test_무작위_선택은_흐름과_결과를_모두_낸다():
+def test_무작위_선택은_모든_케이스를_낸다():
     rng = random.Random(0)
 
-    picked = [random_scenario(rng) for _ in range(200)]
-
-    assert {scenario.flow for scenario in picked} == set(DummyFlow)
-    assert {scenario.result for scenario in picked} == set(DummyResult)
+    assert {random_case(rng) for _ in range(300)} == set(DummyCaseName)

@@ -1,9 +1,9 @@
-"""시나리오 더미 진단 함수가 흐름별로 질문·실패·완료를, 결과 종류별로 공개 진단서 상태를 맞게 내는지 확인한다."""
+"""케이스 더미 진단 함수가 케이스별로 질문·실패·완료를 내고, 케이스들이 화면 경우를 골고루 덮는지 확인한다."""
 
 import pytest
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
-from app.dummy import DummyFlow, DummyResult, DummyScenario, job, mark_scenario, run_scenario_diagnosis
+from app.dummy import CASES, DummyCaseName, job, mark_case, run_scenario_diagnosis
 from app.routers._dummy import DummyAssessmentPresenter
 from app.schemas.agent import ExtractionInput
 from app.schemas.session import DiagnosisInput, SessionAnswer
@@ -26,87 +26,95 @@ def _no_delay(monkeypatch):
     monkeypatch.setattr(job, "STAGE_SECONDS", 0)
 
 
-def _run(flow: DummyFlow, result: DummyResult = DummyResult.CERTIFICATION, answered_rounds: int = 0):
-    source = mark_scenario(ExtractionInput(product_id="p-1"), DummyScenario(flow=flow, result=result))
-    answers = [
-        SessionAnswer(question_round=round_, question_key=f"k{round_}", answer_text="네")
-        for round_ in range(1, answered_rounds + 1)
-    ]
+def _run(case: DummyCaseName, answers: list[SessionAnswer] | None = None):
+    source = mark_case(ExtractionInput(product_id="p-1"), case)
     recorder = _Recorder()
     context = ExecutionContext.start(product_id="p-1", run_type=RunType.DUMMY)
-    outcome = run_scenario_diagnosis(DiagnosisInput(source=source, answers=answers), context, recorder)
+    outcome = run_scenario_diagnosis(DiagnosisInput(source=source, answers=answers or []), context, recorder)
     return outcome, recorder.stages
 
 
-@pytest.mark.parametrize(("flow", "answered_rounds", "expected"), [
-    (DummyFlow.NONE, 0, JobDone),
-    (DummyFlow.ONE_ROUND, 0, JobNeedsInput),
-    (DummyFlow.ONE_ROUND, 1, JobDone),
-    (DummyFlow.TWO_ROUNDS, 0, JobNeedsInput),
-    (DummyFlow.TWO_ROUNDS, 1, JobNeedsInput),
-    (DummyFlow.TWO_ROUNDS, 2, JobDone),
-    (DummyFlow.FAILED, 0, JobFailed),
-    (DummyFlow.FAILED_AFTER_ANSWER, 0, JobNeedsInput),
-    (DummyFlow.FAILED_AFTER_ANSWER, 1, JobFailed),
-])
-def test_흐름과_답한_회차로_결말을_정한다(flow, answered_rounds, expected):
-    outcome, stages = _run(flow, answered_rounds=answered_rounds)
-
-    assert type(outcome) is expected
-    # 완료만 모든 단계, 질문·실패는 Tool 실행 전에 멈춤
-    assert len(stages) == (6 if expected is JobDone else 2)
+def _play(case: DummyCaseName):
+    """질문에 모두 '네'로 답하며 끝까지 돌려 회차별 질문과 마지막 결말을 돌려준다."""
+    answers, asked = [], []
+    outcome, _ = _run(case)
+    while isinstance(outcome, JobNeedsInput):
+        asked.append(outcome.questions)
+        answers += [
+            SessionAnswer(question_round=len(asked), question_key=question.question_key, answer_text="네")
+            for question in outcome.questions
+        ]
+        outcome, _ = _run(case, answers)
+    return asked, outcome
 
 
-def test_2회차_질문은_1회차와_키가_겹치지_않는다():
-    first, _ = _run(DummyFlow.TWO_ROUNDS)
-    second, _ = _run(DummyFlow.TWO_ROUNDS, answered_rounds=1)
+def _assessment(case: DummyCaseName):
+    return DummyAssessmentPresenter().assessment(CASES[case].build("p-1"))
 
-    first_keys = {question.question_key for question in first.questions}
-    second_keys = {question.question_key for question in second.questions}
-    assert first_keys and second_keys and not first_keys & second_keys
+
+@pytest.mark.parametrize("case", list(DummyCaseName))
+def test_케이스의_질문을_다_답하면_완료하거나_실패한다(case):
+    asked, outcome = _play(case)
+
+    assert len(asked) == len(CASES[case].rounds)
+    assert type(outcome) is (JobFailed if CASES[case].fails else JobDone)
+
+
+@pytest.mark.parametrize("case", list(DummyCaseName))
+def test_질문은_회차마다_새_키이고_회차_안에서_순서가_겹치지_않는다(case):
+    rounds = CASES[case].rounds
+    keys = [question.question_key for questions in rounds for question in questions]
+
+    assert len(keys) == len(set(keys))
+    for questions in rounds:
+        assert sorted(question.question_order for question in questions) == list(range(1, len(questions) + 1))
+
+
+@pytest.mark.parametrize("case", [case for case in DummyCaseName if not CASES[case].fails])
+def test_완료_케이스는_콜백_검사를_통과하는_공개_진단서가_된다(case):
+    assessment = _assessment(case)
+
+    assert {review.tool_name for review in assessment.tool_reviews} == {
+        "CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD",
+    }
+
+
+def test_케이스들이_질문_회차_선택_Tool_수_분야_카드_결과_상태를_골고루_덮는다():
+    done = [case for case in DummyCaseName if not CASES[case].fails]
+    assessments = [_assessment(case) for case in done]
+
+    assert {len(CASES[case].rounds) for case in DummyCaseName} == {0, 1, 2, 3}
+    assert {min(len(CASES[case].build("p-1").selected_tools), 2) for case in done} == {0, 1, 2}
+    assert {review.status for a in assessments for review in a.tool_reviews} == {"COMPLETED", "SKIPPED", "INCOMPLETE"}
+    assert {a.result_status for a in assessments} == {
+        "PURCHASING_AGENT_ALLOWED", "DIRECT_IMPORT_CERTIFICATION_REQUIRED", "RECHECK_REQUIRED",
+    }
+    assert {CASES[case].rounds != [] for case in DummyCaseName if CASES[case].fails} == {True, False}
+
+
+def test_질문·실패는_Tool_실행_전에_멈추고_완료만_모든_단계를_지난다():
+    _, asked_stages = _run(DummyCaseName.POWER_BANK)
+    _, failed_stages = _run(DummyCaseName.FAILED)
+    _, done_stages = _run(DummyCaseName.KC_FAN)
+
+    assert (len(asked_stages), len(failed_stages), len(done_stages)) == (2, 2, 6)
 
 
 def test_실패는_재시도_불가_파이프라인_오류다():
-    outcome, _ = _run(DummyFlow.FAILED)
+    outcome, _ = _run(DummyCaseName.FAILED)
 
     assert (outcome.error_code, outcome.retryable) == ("AI_PIPELINE_ERROR", False)
 
 
-@pytest.mark.parametrize(("result", "expected"), [
-    (DummyResult.ALLOWED, ("completed", "PURCHASING_AGENT_ALLOWED")),
-    (DummyResult.CERTIFICATION, ("completed", "DIRECT_IMPORT_CERTIFICATION_REQUIRED")),
-    (DummyResult.RECHECK, ("incomplete", "RECHECK_REQUIRED")),
-])
-def test_결과_종류마다_공개_진단서_상태가_다르다(result, expected):
-    outcome, _ = _run(DummyFlow.NONE, result)
-
-    assessment = DummyAssessmentPresenter().assessment(outcome.result)
-
-    assert (assessment.status, assessment.result_status) == expected
-
-
-def test_대행_구매_가능_결과는_인증_분야를_건너뛴다():
-    outcome, _ = _run(DummyFlow.NONE, DummyResult.ALLOWED)
-
-    assessment = DummyAssessmentPresenter().assessment(outcome.result)
-
-    cards = {review.tool_name: review.status for review in assessment.tool_reviews}
-    assert cards["RADIO"] == cards["ELECTRICAL"] == cards["CHILDREN"] == "SKIPPED"
-
-
 def test_재진단_결과_요약에_받은_답변을_붙인다():
-    source = mark_scenario(
-        ExtractionInput(product_id="p-1"), DummyScenario(flow=DummyFlow.ONE_ROUND, result=DummyResult.CERTIFICATION),
-    )
-    answers = [SessionAnswer(question_round=1, question_key="battery_only", answer_text="아니요, 어댑터도 씀")]
-    context = ExecutionContext.start(product_id="p-1", run_type=RunType.DUMMY)
+    answers = [SessionAnswer(question_round=1, question_key="rated_wh", answer_text="37Wh")]
 
-    outcome = run_scenario_diagnosis(DiagnosisInput(source=source, answers=answers), context, _Recorder())
+    outcome, _ = _run(DummyCaseName.POWER_BANK, answers)
 
-    assert "내장 배터리로만 동작하나요? → 아니요, 어댑터도 씀" in outcome.result.summary
+    assert "배터리 정격 용량(Wh)이 표기돼 있나요? → 37Wh" in outcome.result.summary
 
 
 def test_답변이_없으면_요약을_바꾸지_않는다():
-    outcome, _ = _run(DummyFlow.NONE)
+    outcome, _ = _run(DummyCaseName.KC_FAN)
 
     assert "받은 답변" not in outcome.result.summary
