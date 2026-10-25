@@ -6,7 +6,7 @@ import langchain_openai
 import pytest
 
 from app import config
-from app.clients.llm import embedding
+from app.clients.llm import close_llm_clients, embedding, get_llm_client
 
 _SETTINGS = config.Settings(
     api_key="test-key",
@@ -44,6 +44,8 @@ class _FakeEmbeddings:
 def fake_embeddings(monkeypatch):
     _FakeEmbeddings.instances = []
     monkeypatch.setattr(langchain_openai, "OpenAIEmbeddings", _FakeEmbeddings)
+    yield
+    close_llm_clients()
 
 
 def test_임베딩_모델은_설정의_모델명과_접속정보로_만든다():
@@ -53,6 +55,7 @@ def test_임베딩_모델은_설정의_모델명과_접속정보로_만든다():
         "model": "openai/text-embedding-3-small",
         "base_url": "https://mlapi.run/example/v1",
         "api_key": "test-key",
+        "http_client": get_llm_client("https://mlapi.run/example/v1").http_client,
     }
 
 
