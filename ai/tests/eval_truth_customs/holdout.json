@@ -1,0 +1,213 @@
+{
+ "description": "통관 Tool 홀드아웃 평가셋. 내장 상품·프롬프트·테스트 픽스처와 겹치지 않는 상품. expected_hs는 HS 앞자리(4·6자리)이며 사람 검토 전이다(관세청 품목분류표·결정사례 대조 필요). 이 셋을 보고 코드·프롬프트를 고치지 않는다.",
+ "cases": [
+  {
+   "product": {
+    "product_id": "c01",
+    "product_name": "무선 광마우스",
+    "category": "컴퓨터 주변기기",
+    "listing_text": [
+     "2.4GHz 무선 광마우스, USB 수신기 포함, AA 건전지 1개 사용"
+    ]
+   },
+   "expected_hs": [
+    "8471.60"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c02",
+    "product_name": "리튬이온 보조배터리 10000mAh",
+    "category": "휴대폰 액세서리",
+    "listing_text": [
+     "리튬이온 보조배터리 10000mAh, USB-C 입출력, 휴대폰 충전용"
+    ]
+   },
+   "expected_hs": [
+    "8507.60"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c03",
+    "product_name": "접이식 헤어드라이어",
+    "category": "미용가전",
+    "listing_text": [
+     "1200W 접이식 헤어드라이어, AC 220V, 머리를 말리는 전기 드라이어"
+    ]
+   },
+   "expected_hs": [
+    "8516.31"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c04",
+    "product_name": "스테인리스 양수 냄비 20cm",
+    "category": "주방용품",
+    "listing_text": [
+     "스테인리스 스틸 양수 냄비 20cm, 인덕션 사용 가능, 유리 뚜껑 포함"
+    ]
+   },
+   "expected_hs": [
+    "7323.93"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c05",
+    "product_name": "내열 유리 머그컵 350ml",
+    "category": "주방용품",
+    "listing_text": [
+     "내열 유리 머그컵 350ml, 손잡이 일체형, 음료용"
+    ]
+   },
+   "expected_hs": [
+    "7013"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c06",
+    "product_name": "소가죽 반지갑",
+    "category": "패션잡화",
+    "listing_text": [
+     "천연 소가죽 반지갑, 카드 6칸, 지폐 보관"
+    ]
+   },
+   "expected_hs": [
+    "4202.31"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c07",
+    "product_name": "러닝화",
+    "category": "신발",
+    "listing_text": [
+     "메쉬 섬유 갑피, 고무 밑창 러닝화, 남녀공용 운동화"
+    ]
+   },
+   "expected_hs": [
+    "6404"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c08",
+    "product_name": "3단 자동 우산",
+    "category": "생활잡화",
+    "listing_text": [
+     "3단 자동 접이식 우산, 폴리에스터 원단, 강철 우산살"
+    ]
+   },
+   "expected_hs": [
+    "6601"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c09",
+    "product_name": "매트 립스틱",
+    "category": "화장품",
+    "listing_text": [
+     "매트 립스틱 3.5g, 입술 색조 화장품"
+    ]
+   },
+   "expected_hs": [
+    "3304.10"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c10",
+    "product_name": "수분 시트 마스크팩 10매",
+    "category": "화장품",
+    "listing_text": [
+     "수분 시트 마스크팩 10매, 얼굴에 붙이는 기초 화장품"
+    ]
+   },
+   "expected_hs": [
+    "3304.99"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c11",
+    "product_name": "정밀 드라이버 세트 24pcs",
+    "category": "공구",
+    "listing_text": [
+     "크롬바나듐 강철 정밀 드라이버 세트 24pcs, 수공구, 교체 비트 포함"
+    ]
+   },
+   "expected_hs": [
+    "8205"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c12",
+    "product_name": "곰 봉제 인형 30cm",
+    "category": "완구",
+    "listing_text": [
+     "폴리에스터 솜이 든 곰 봉제 인형 30cm, 만 3세 이상"
+    ]
+   },
+   "expected_hs": [
+    "9503"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c13",
+    "product_name": "플라스틱 밀폐 용기 3종",
+    "category": "주방용품",
+    "listing_text": [
+     "PP 플라스틱 밀폐 용기 3종 세트, 음식 보관용, 전자레인지 사용 가능"
+    ]
+   },
+   "expected_hs": [
+    "3924.10"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c14",
+    "product_name": "음파 전동 칫솔",
+    "category": "생활가전",
+    "listing_text": [
+     "충전식 음파 전동 칫솔, 칫솔모 2개 포함, 전동기로 칫솔모를 진동"
+    ]
+   },
+   "expected_hs": [
+    "8509.80"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c15",
+    "product_name": "유아 면 내의 상하 세트",
+    "category": "유아의류",
+    "listing_text": [
+     "면 100% 편직 유아 내의 상하 세트, 6~12개월용"
+    ]
+   },
+   "expected_hs": [
+    "6111"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "c16",
+    "product_name": "스마트워치",
+    "category": "웨어러블",
+    "listing_text": [
+     "블루투스 스마트워치, 심박 측정, 스마트폰 알림 수신, 충전식"
+    ]
+   },
+   "expected_hs": [
+    "8517.62"
+   ]
+  }
+ ]
+}
