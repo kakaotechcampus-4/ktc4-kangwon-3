@@ -35,7 +35,7 @@ def get_session_manager(request: Request) -> SessionManager:
     return request.app.state.session_manager
 
 
-def _to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
+def to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
     """API 입력을 추출 에이전트 입력으로 변환한다."""
     return ExtractionInput(
         product_id=product.product_id,
@@ -172,7 +172,7 @@ async def diagnose_by_content(
     Raises:
         AIServiceError: 진행 중 상품이 섞이면 409(data.conflictProductIds), 대기열이 차면 429.
     """
-    inputs = [_to_extraction_input(p) for p in req.products]
+    inputs = [to_extraction_input(p) for p in req.products]
     return submit_diagnosis(manager, req.diagnosis_id, inputs, RunType.PRODUCTION)
 
 
