@@ -7,7 +7,7 @@ import만으로는 DB에 접근하지 않는다. 엔진은 처음 필요할 때 
 from collections.abc import Generator
 from functools import lru_cache
 
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.exc import ArgumentError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -77,13 +77,23 @@ def get_db_session() -> Generator[Session, None, None]:
         db.close()
 
 
-def init_db() -> None:
-    """ORM 모델 기반 테이블 생성.
+def init_db() -> list[str]:
+    """vector 확장과 ORM 모델 테이블을 만든다. 이미 있는 확장·테이블은 건너뛴다.
 
-    Base.metadata에 등록된 모든 ORM 모델의 테이블을 생성한다.
-    이미 존재하는 테이블은 건너뛴다.
+    Returns:
+        list[str]: 새로 만든 테이블 이름.
+
+    Raises:
+        DatabaseNotConfiguredError: DATABASE_URL이 비어 있는 경우.
+        ConfigError: 엔진을 만들 수 없는 경우.
+        sqlalchemy.exc.OperationalError: DB에 연결할 수 없는 경우.
     """
     from app.models import Base
 
-    Base.metadata.create_all(bind=get_engine())
+    with get_engine().begin() as conn:
+        # docker-entrypoint-initdb.d는 볼륨을 처음 만들 때만 돎
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        existing = set(inspect(conn).get_table_names())
+        Base.metadata.create_all(bind=conn)
+    return [table.name for table in Base.metadata.sorted_tables if table.name not in existing]
 
