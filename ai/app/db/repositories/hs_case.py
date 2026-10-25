@@ -92,3 +92,11 @@ class HsCaseRepository(BaseRepository[HsCase]):
             set_={**{name: stmt.excluded[name] for name in columns if name != "doc_id"}, "fetched_at": func.now()},
         )
         self.session.execute(stmt)
+
+    def list_doc_ids(self) -> set[str]:
+        """저장된 결정사례의 문서 ID를 모두 돌려준다. 적재 때 이미 받은 사례를 건너뛰는 데 쓴다.
+
+        Returns:
+            set[str]: 문서 ID 집합.
+        """
+        return set(self.session.scalars(select(HsCase.doc_id)).all())

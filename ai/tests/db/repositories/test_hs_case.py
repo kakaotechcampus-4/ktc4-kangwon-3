@@ -57,3 +57,8 @@ def test_일괄_저장은_같은_문서_ID면_내용과_임베딩을_덮어쓴�
     assert "embedding = excluded.embedding" in sql
     assert "fetched_at = now()" in sql
     assert "doc_id = excluded.doc_id" not in sql
+
+
+def test_문서_ID_전체_조회는_문서_ID_칸만_읽는다(session):
+    assert HsCaseRepository(session).list_doc_ids() == set()
+    assert " ".join(session.last_sql().split()) == "SELECT hs_cases.doc_id FROM hs_cases"
