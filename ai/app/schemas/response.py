@@ -118,11 +118,6 @@ def ok(data: Any = None, message: str = "요청이 성공적으로 처리되었�
     return ApiResponse(code="OK", message=message, data=data)
 
 
-def ok_diagnose(data: FinalAssessment, message: str = "진단이 성공적으로 처리되었습니다.") -> DiagnoseResponse:
-    """진단 성공 응답을 생성한다."""
-    return DiagnoseResponse(code="OK", message=message, data=data)
-
-
 def fail(code: str, message: str, details: list[FieldErrorDetail] | None = None) -> ApiResponse:
     """실패 응답을 생성한다."""
     return ApiResponse(code=code, message=message, details=details)
