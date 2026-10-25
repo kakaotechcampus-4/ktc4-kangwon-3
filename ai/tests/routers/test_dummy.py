@@ -95,6 +95,15 @@ def test_케이스를_빼면_상품마다_골라_남긴다(client, manager):
     assert all(read_case(manager.get(product_id).source) in DummyCaseName for product_id in ("p-1", "p-2"))
 
 
+def test_URL만_있는_상품도_더미로_접수한다(client, manager):
+    product = {"productId": "p-1", "textBlocks": [], "imageUrls": [], "sourceUrl": "https://example.com/1"}
+
+    response = client.post(f"{CONTENT}?case=kc_fan", json={"diagnosisId": "d-1", "products": [product]})
+
+    assert response.status_code == 202, response.text
+    assert read_case(manager.get("p-1").source) is DummyCaseName.KC_FAN
+
+
 def test_없는_케이스_값은_422로_거절하고_접수하지_않는다(client, manager):
     response = client.post(f"{CONTENT}?case=unknown", json=_payload("p-1"))
 

@@ -43,11 +43,21 @@ def test_같은_요청_안의_상품_ID_중복을_거부한다():
         DiagnosisRequest.model_validate({"diagnosisId": "d-1", "products": [_product("p-1"), _product("p-1")]})
 
 
-def test_상품마다_텍스트나_이미지가_하나는_있어야_한다():
-    empty = {"productId": "p-2", "textBlocks": [], "imageUrls": []}
+@pytest.mark.parametrize("source_url", [None, ""])
+def test_상품마다_텍스트_이미지_URL_중_하나는_있어야_한다(source_url):
+    empty = {"productId": "p-2", "textBlocks": [], "imageUrls": [], "sourceUrl": source_url}
 
-    with pytest.raises(ValidationError, match="textBlocks 또는 imageUrls"):
+    with pytest.raises(ValidationError, match="textBlocks, imageUrls, sourceUrl"):
         DiagnosisRequest.model_validate({"diagnosisId": "d-1", "products": [_product(), empty]})
+
+
+def test_URL만_있는_상품도_받는다():
+    # URL만 있으면 수집해서 진단 (#371)
+    url_only = {"productId": "p-1", "textBlocks": [], "imageUrls": [], "sourceUrl": "https://example.com/1"}
+
+    request = DiagnosisRequest.model_validate({"diagnosisId": "d-1", "products": [url_only]})
+
+    assert request.products[0].source_url == "https://example.com/1"
 
 
 @pytest.mark.parametrize("payload", [
