@@ -39,6 +39,14 @@ class _FakeEmbeddings:
         self.inputs = texts
         return [[0.1] * 1536 for _ in texts]
 
+    def embed_query(self, text):
+        self.inputs = text
+        return [0.2] * 1536
+
+    def embed_documents(self, texts):
+        self.inputs = texts
+        return [[0.2] * 1536 for _ in texts]
+
 
 @pytest.fixture(autouse=True)
 def fake_embeddings(monkeypatch):
@@ -75,4 +83,18 @@ def test_여러_텍스트는_document_임베딩으로_순서대로_변환한다(
     vectors = asyncio.run(embedding.embed_texts(["전기용품", "생활용품"], _SETTINGS))
 
     assert len(vectors) == 2
+    assert _FakeEmbeddings.instances[-1].inputs == ["전기용품", "생활용품"]
+
+
+def test_동기판_단일_텍스트는_query_임베딩으로_변환한다():
+    vector = embedding.embed_text_sync("헤어드라이어", _SETTINGS)
+
+    assert vector == [0.2] * 1536
+    assert _FakeEmbeddings.instances[-1].inputs == "헤어드라이어"
+
+
+def test_동기판_여러_텍스트는_document_임베딩으로_순서대로_변환한다():
+    vectors = embedding.embed_texts_sync(["전기용품", "생활용품"], _SETTINGS)
+
+    assert vectors == [[0.2] * 1536] * 2
     assert _FakeEmbeddings.instances[-1].inputs == ["전기용품", "생활용품"]
