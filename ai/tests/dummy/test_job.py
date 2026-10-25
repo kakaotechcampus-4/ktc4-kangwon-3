@@ -3,7 +3,7 @@
 import pytest
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
-from app.dummy import CASES, DummyCaseName, job, mark_case, run_scenario_diagnosis
+from app.dummy import CASES, DummyCaseName, job, mark_case, run_case_diagnosis
 from app.routers._dummy import DummyAssessmentPresenter
 from app.schemas.agent import ExtractionInput
 from app.schemas.session import DiagnosisInput, SessionAnswer
@@ -30,7 +30,7 @@ def _run(case: DummyCaseName, answers: list[SessionAnswer] | None = None):
     source = mark_case(ExtractionInput(product_id="p-1"), case)
     recorder = _Recorder()
     context = ExecutionContext.start(product_id="p-1", run_type=RunType.DUMMY)
-    outcome = run_scenario_diagnosis(DiagnosisInput(source=source, answers=answers or []), context, recorder)
+    outcome = run_case_diagnosis(DiagnosisInput(source=source, answers=answers or []), context, recorder)
     return outcome, recorder.stages
 
 

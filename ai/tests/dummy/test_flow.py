@@ -7,7 +7,7 @@ import pytest
 
 from app.callbacks import CallbackOutbox, EventBuilder, SendResult, connect_callbacks
 from app.domain.context import RunType
-from app.dummy import DummyCaseName, job, mark_case, run_scenario_diagnosis
+from app.dummy import DummyCaseName, job, mark_case, run_case_diagnosis
 from app.routers._dummy import DummyAssessmentPresenter
 from app.schemas.agent import ExtractionInput
 from app.sessions.manager import SessionManager
@@ -36,7 +36,7 @@ class _Sender:
 def flow(monkeypatch):
     monkeypatch.setattr(job, "STAGE_SECONDS", 0)
     sender = _Sender()
-    manager = SessionManager(SessionStore(), run_scenario_diagnosis)
+    manager = SessionManager(SessionStore(), run_case_diagnosis)
     outbox = CallbackOutbox(sender)
     connect_callbacks(manager, EventBuilder(DummyAssessmentPresenter()), outbox)
     yield manager, sender

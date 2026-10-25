@@ -10,7 +10,7 @@ class RunType(StrEnum):
     PRODUCTION = "production"
     EVALUATION = "evaluation"
     TEST = "test"
-    # BE 연동용 시나리오 더미 (/dummy/diagnose). 운영과 같은 상한·콜백 사용
+    # BE 연동용 케이스 더미 (/dummy/diagnose). 운영과 같은 상한·콜백 사용
     DUMMY = "dummy"
 
 
