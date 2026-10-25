@@ -106,8 +106,11 @@ def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜�
     headers = {"X-Dev-Api-Key": key}
 
     with TestClient(main.app) as client:
-        accepted = client.post("/api/ai/v1/sandbox/diagnose", json={"textBlocks": ["상품 설명"]}, headers=headers)
-        product_id = accepted.json()["data"]["productId"]
+        accepted = client.post(
+            "/api/ai/v1/sandbox/diagnose", json={"products": [{"textBlocks": ["상품 설명"]}]}, headers=headers,
+        )
+        [product] = accepted.json()["data"]["products"]
+        product_id = product["productId"]
 
         def status():
             return client.get(f"/api/ai/v1/sandbox/diagnose/{product_id}", headers=headers).json()["data"]

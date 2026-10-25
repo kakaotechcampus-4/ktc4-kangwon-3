@@ -75,22 +75,28 @@ def _clear_overrides():
     app.dependency_overrides.clear()
 
 
+def _body(*products: dict) -> dict:
+    return {"products": list(products)}
+
+
 def _submit(client) -> dict:
-    response = client.post(ROUTE, json={"textBlocks": ["무선 RC 보트 2.4GHz"]}, headers=HEADERS)
+    """상품 하나를 접수하고 그 상품의 접수 결과를 돌려준다."""
+    response = client.post(ROUTE, json=_body({"textBlocks": ["무선 RC 보트 2.4GHz"]}), headers=HEADERS)
     assert response.status_code == 202, response.text
-    return response.json()["data"]
+    [product] = response.json()["data"]["products"]
+    return product
 
 
 def test_꺼져_있으면_접수도_조회도_404(manager):
     client = _client(manager, enabled=False)
 
-    assert client.post(ROUTE, json={"textBlocks": ["x"]}, headers=HEADERS).status_code == 404
+    assert client.post(ROUTE, json=_body({"textBlocks": ["x"]}), headers=HEADERS).status_code == 404
     assert client.get(f"{ROUTE}/dev-x", headers=HEADERS).status_code == 404
     assert manager.received == []
 
 
 def test_키가_없으면_접수하지_않는다(manager):
-    response = _client(manager).post(ROUTE, json={"textBlocks": ["x"]})
+    response = _client(manager).post(ROUTE, json=_body({"textBlocks": ["x"]}))
 
     assert (response.status_code, response.json()["code"]) == (401, "AI_UNAUTHORIZED")
     assert manager.received == []
@@ -106,9 +112,24 @@ def test_접수하면_dev_상품_ID와_실행_ID를_돌려주고_진단서_없�
     assert manager.received[0].text_blocks == ["무선 RC 보트 2.4GHz"]
 
 
+def test_여러_상품을_요청_순서대로_접수한다():
+    manager = SessionManager(SessionStore(), lambda *args: JobDone(build_dummy_assessment("x")), max_dev_inflight=10)
+    try:
+        body = _body(*({"textBlocks": [f"상품 {i}"]} for i in range(10)))
+        response = _client(manager).post(ROUTE, json=body, headers=HEADERS)
+        products = response.json()["data"]["products"]
+        sources = [manager.get(product["productId"]).source.text_blocks for product in products]
+    finally:
+        manager.shutdown(wait=True)
+
+    assert response.status_code == 202, response.text
+    assert sources == [[f"상품 {i}"] for i in range(10)]
+    assert len({product["productId"] for product in products}) == 10
+
+
 def test_이미지_URL만_보내도_추출_입력으로_넘긴다(manager):
     urls = ["https://example.com/a.jpg", "data:image/png;base64,AAA"]
-    response = _client(manager).post(ROUTE, json={"imageUrls": urls}, headers=HEADERS)
+    response = _client(manager).post(ROUTE, json=_body({"imageUrls": urls}), headers=HEADERS)
 
     assert response.status_code == 202, response.text
     _wait_until(lambda: manager.received)
@@ -116,7 +137,7 @@ def test_이미지_URL만_보내도_추출_입력으로_넘긴다(manager):
 
 
 def test_URL만_보내도_추출_입력으로_넘긴다(manager):
-    response = _client(manager).post(ROUTE, json={"sourceUrl": "https://example.com/1"}, headers=HEADERS)
+    response = _client(manager).post(ROUTE, json=_body({"sourceUrl": "https://example.com/1"}), headers=HEADERS)
 
     assert response.status_code == 202, response.text
     _wait_until(lambda: manager.received)
@@ -213,17 +234,18 @@ def test_개발용_상한을_넘으면_429(manager):
     client = _client(manager)
     _submit(client)
 
-    response = client.post(ROUTE, json={"textBlocks": ["또 하나"]}, headers=HEADERS)
+    response = client.post(ROUTE, json=_body({"textBlocks": ["또 하나"]}), headers=HEADERS)
 
     assert (response.status_code, response.json()["code"]) == (429, "AI_QUEUE_FULL")
 
 
 @pytest.mark.parametrize("body", [
-    {}, {"textBlocks": [], "imageUrls": [], "sourceUrl": None}, {"productId": "p-1", "textBlocks": ["x"]},
-    {"imagesBase64": ["https://example.com/a.jpg"]},
+    {}, {"products": []}, _body(*({"textBlocks": ["x"]} for _ in range(11))),
+    _body({"textBlocks": [], "imageUrls": [], "sourceUrl": None}), _body({"productId": "p-1", "textBlocks": ["x"]}),
+    _body({"imagesBase64": ["https://example.com/a.jpg"]}), {"textBlocks": ["x"]},
 ])
 def test_입력이_없거나_정의하지_않은_필드를_보내면_422(manager, body):
-    # 상품 ID는 서버가 발급. 옛 이름(imagesBase64) 등 정의하지 않은 필드는 받지 않음
+    # 상품 ID는 서버가 발급. 옛 이름(imagesBase64)·목록 없는 단일 상품 등 정의하지 않은 형식은 받지 않음
     response = _client(manager).post(ROUTE, json=body, headers=HEADERS)
 
     assert response.status_code == 422
