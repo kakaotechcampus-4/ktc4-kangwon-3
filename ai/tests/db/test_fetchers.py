@@ -7,8 +7,8 @@ import pytest
 from pydantic import BaseModel
 from sqlalchemy.exc import OperationalError
 
-from app.tools.common import cached_fetcher
-from app.tools.common.cached_fetcher import OnDemandFetcher, ScheduledFetcher, request_key
+from app.db import fetchers
+from app.db.fetchers import OnDemandFetcher, ScheduledFetcher, request_key
 
 NOW = datetime(2026, 10, 25, 12, tzinfo=timezone.utc)
 
@@ -88,7 +88,7 @@ class _Repository:
 
 @pytest.fixture
 def db(monkeypatch) -> _Db:
-    monkeypatch.setattr(cached_fetcher, "ApiResponseCacheRepository", _Repository)
+    monkeypatch.setattr(fetchers, "ApiResponseCacheRepository", _Repository)
     return _Db()
 
 
@@ -267,7 +267,7 @@ def test_DB가_없으면_클라이언트만_쓴다():
 
 
 def test_DB_실패_뒤_일정_시간은_DB를_건너뛰고_지나면_다시_쓴다(db, monkeypatch):
-    monkeypatch.setattr(cached_fetcher, "CACHE_DB_RETRY_SECONDS", 60)
+    monkeypatch.setattr(fetchers, "CACHE_DB_RETRY_SECONDS", 60)
     clock = _Clock()
     client = _Client()
     fetcher = _on_demand(client, db, clock)

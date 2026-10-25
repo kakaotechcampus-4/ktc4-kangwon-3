@@ -17,7 +17,7 @@ from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
-from .repositories.database import DatabaseNotConfiguredError, init_db
+from .db import DatabaseNotConfiguredError, init_db
 from .routers import diagnose, dummy, health, metrics, sandbox
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers

@@ -21,9 +21,9 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from ...config import CACHE_DB_RETRY_SECONDS
-from ...models import ApiResponseCache
-from ...repositories.api_response_cache import ApiResponseCacheRepository
+from ..config import CACHE_DB_RETRY_SECONDS
+from .models import ApiResponseCache
+from .repositories.api_response_cache import ApiResponseCacheRepository
 
 logger = logging.getLogger(__name__)
 

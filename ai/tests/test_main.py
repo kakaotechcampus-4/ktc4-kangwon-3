@@ -17,7 +17,7 @@ from app.clients.backend import BackendCallbackClient
 from app.agents.base import AgentRunMeta
 from app.dummy import job as dummy_job
 from app.observability.agent_sinks import agent_sinks
-from app.repositories import database
+from app.db import engine as database
 from app.routers import _dummy
 
 TOKEN = "test-internal-token-0123456789abcdef"

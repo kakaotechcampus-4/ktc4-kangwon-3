@@ -3,7 +3,7 @@
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
-from app.models import ApiResponseCache
+from app.db.models import ApiResponseCache
 
 
 def test_캐시는_클라이언트와_요청_해시_두_칸으로_찾는다():

@@ -2,11 +2,11 @@
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.repositories.base import BaseRepository
+from app.db.repositories.base import BaseRepository
 
 
 class _TestBase(DeclarativeBase):
-    """앱 모델 목록(app.models.Base)과 섞이지 않는 테스트 전용 메타데이터."""
+    """앱 모델 목록(app.db.models.Base)과 섞이지 않는 테스트 전용 메타데이터."""
 
 
 class _Row(_TestBase):

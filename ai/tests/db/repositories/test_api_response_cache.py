@@ -3,8 +3,8 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from app.models import ApiResponseCache
-from app.repositories.api_response_cache import ApiResponseCacheRepository
+from app.db.models import ApiResponseCache
+from app.db.repositories.api_response_cache import ApiResponseCacheRepository
 
 
 def _entry(**overrides) -> ApiResponseCache:
