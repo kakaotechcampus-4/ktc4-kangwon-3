@@ -1,0 +1,353 @@
+{
+ "description": "식약 Tool 홀드아웃 평가셋. 내장 상품·프롬프트·테스트와 겹치지 않는 상품. categories는 기대 분류(food_contact=식품용 기구·용기, food=식품·건강기능식품, cosmetic=화장품, functional=기능성화장품, device=의료기기, 빈 목록=해당 없음), device_items는 의료기기면 맞는 품목 분류번호(하나만 맞아도 정답). 사람 검토 전이다(마사지 건·찜질기는 의료기기 해당 여부가 표방 효능에 따라 갈린다). 이 셋을 보고 코드·프롬프트를 고치지 않는다. f17~f24(식품·화장품)는 2026-10-15 영역 확장 때 추가했다.",
+ "cases": [
+  {
+   "product": {
+    "product_id": "f01",
+    "product_name": "유리 밀폐용기 3종",
+    "category": "주방용품",
+    "listing_text": [
+     "내열 유리 밀폐용기 3종, 반찬·음식 보관, 전자레인지 사용 가능"
+    ]
+   },
+   "categories": [
+    "food_contact"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f02",
+    "product_name": "원목 도마",
+    "category": "주방용품",
+    "listing_text": [
+     "원목 도마 30cm, 채소·고기 손질용"
+    ]
+   },
+   "categories": [
+    "food_contact"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f03",
+    "product_name": "스테인리스 빨대 세트",
+    "category": "주방용품",
+    "listing_text": [
+     "스테인리스 빨대 4개와 세척솔, 음료 마실 때 사용"
+    ]
+   },
+   "categories": [
+    "food_contact"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f04",
+    "product_name": "유아 이유식 스푼",
+    "category": "유아용품",
+    "listing_text": [
+     "실리콘 유아 이유식 스푼 2개, 아기 이유식 먹일 때 사용"
+    ]
+   },
+   "categories": [
+    "food_contact"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f05",
+    "product_name": "핸드드립 커피 드리퍼",
+    "category": "주방용품",
+    "listing_text": [
+     "세라믹 커피 드리퍼, 원두를 내려 마시는 핸드드립 도구"
+    ]
+   },
+   "categories": [
+    "food_contact"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f06",
+    "product_name": "실리콘 얼음 틀",
+    "category": "주방용품",
+    "listing_text": [
+     "실리콘 얼음 틀, 음료용 얼음을 얼리는 트레이"
+    ]
+   },
+   "categories": [
+    "food_contact"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f07",
+    "product_name": "손목 혈압계",
+    "category": "건강",
+    "listing_text": [
+     "손목형 자동 혈압계, 혈압과 맥박을 측정, 측정값 메모리 저장"
+    ]
+   },
+   "categories": [
+    "device"
+   ],
+   "device_items": [
+    "A23010.04",
+    "A23010.05"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "f08",
+    "product_name": "손가락 산소포화도 측정기",
+    "category": "건강",
+    "listing_text": [
+     "손가락에 끼워 산소포화도와 맥박을 측정하는 펄스옥시미터"
+    ]
+   },
+   "categories": [
+    "device"
+   ],
+   "device_items": [
+    "A17190.01",
+    "A90050.01"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "f09",
+    "product_name": "1일 소프트 콘택트렌즈",
+    "category": "건강",
+    "listing_text": [
+     "1일 착용 소프트 콘택트렌즈 30매, 근시 교정용"
+    ]
+   },
+   "categories": [
+    "device"
+   ],
+   "device_items": [
+    "A77030.01"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "f10",
+    "product_name": "귀걸이형 보청기",
+    "category": "건강",
+    "listing_text": [
+     "귀걸이형 디지털 보청기, 난청인의 소리를 증폭"
+    ]
+   },
+   "categories": [
+    "device"
+   ],
+   "device_items": [
+    "A78010.02"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "f11",
+    "product_name": "마사지 건",
+    "category": "건강",
+    "listing_text": [
+     "근육 마사지 건, 진동으로 근육통 완화"
+    ]
+   },
+   "categories": [
+    "device"
+   ],
+   "device_items": [
+    "A82010.01",
+    "A83080.02",
+    "A83090.01"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "f12",
+    "product_name": "온열 찜질기",
+    "category": "건강",
+    "listing_text": [
+     "전기 온열 찜질기, 허리 통증 완화, 온도 3단계"
+    ]
+   },
+   "categories": [
+    "device"
+   ],
+   "device_items": [
+    "A83060.01",
+    "A83060.02"
+   ]
+  },
+  {
+   "product": {
+    "product_id": "f13",
+    "product_name": "수면 안대",
+    "category": "생활잡화",
+    "listing_text": [
+     "실크 수면 안대, 빛 차단, 끈 길이 조절"
+    ]
+   },
+   "categories": [],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f14",
+    "product_name": "요가 매트",
+    "category": "스포츠",
+    "listing_text": [
+     "TPE 요가 매트 6mm, 미끄럼 방지"
+    ]
+   },
+   "categories": [],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f15",
+    "product_name": "블루투스 스피커",
+    "category": "음향기기",
+    "listing_text": [
+     "방수 블루투스 스피커, 20W 출력, 12시간 재생"
+    ]
+   },
+   "categories": [],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f16",
+    "product_name": "소이 향초",
+    "category": "생활잡화",
+    "listing_text": [
+     "소이 왁스 향초 200g, 라벤더 향"
+    ]
+   },
+   "categories": [],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f17",
+    "product_name": "비타민C 1000 영양제",
+    "category": "건강식품",
+    "listing_text": [
+     "비타민C 1000mg 정제 60정, 하루 1정 물과 함께 섭취"
+    ]
+   },
+   "categories": [
+    "food"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f18",
+    "product_name": "홍삼 스틱",
+    "category": "건강식품",
+    "listing_text": [
+     "6년근 홍삼 농축액 스틱 30포, 하루 1포 드세요"
+    ]
+   },
+   "categories": [
+    "food"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f19",
+    "product_name": "그래놀라",
+    "category": "식품",
+    "listing_text": [
+     "귀리 그래놀라 500g, 우유나 요거트에 곁들여 먹는 시리얼"
+    ]
+   },
+   "categories": [
+    "food"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f20",
+    "product_name": "선크림 SPF50+",
+    "category": "화장품",
+    "listing_text": [
+     "선크림 SPF50+ PA++++, 외출 전 얼굴에 발라 자외선 차단"
+    ]
+   },
+   "categories": [
+    "cosmetic",
+    "functional"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f21",
+    "product_name": "새치 염색약",
+    "category": "화장품",
+    "listing_text": [
+     "새치 커버 염모제, 모발에 발라 흑갈색으로 염색"
+    ]
+   },
+   "categories": [
+    "cosmetic",
+    "functional"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f22",
+    "product_name": "바디로션",
+    "category": "화장품",
+    "listing_text": [
+     "시어버터 바디로션 400ml, 샤워 후 몸에 발라 보습"
+    ]
+   },
+   "categories": [
+    "cosmetic"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f23",
+    "product_name": "립밤",
+    "category": "화장품",
+    "listing_text": [
+     "무향 립밤 4.5g, 건조한 입술에 바르는 보습 립밤"
+    ]
+   },
+   "categories": [
+    "cosmetic"
+   ],
+   "device_items": []
+  },
+  {
+   "product": {
+    "product_id": "f24",
+    "product_name": "탈모 완화 샴푸",
+    "category": "화장품",
+    "listing_text": [
+     "탈모 증상 완화 기능성 샴푸 500ml, 두피와 모발을 세정"
+    ]
+   },
+   "categories": [
+    "cosmetic",
+    "functional"
+   ],
+   "device_items": []
+  }
+ ]
+}

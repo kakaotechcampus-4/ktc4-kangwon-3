@@ -40,14 +40,14 @@ def test_규칙_값이_다른_속성값의_부분문자열이어도_버려지지
     result = _run(stub_model, reply, "정격전압 220V, 모델번호 AC-220V-A1")
 
     assert any(a.name == "모델번호" and a.value == "AC-220V-A1" for a in result.attributes)
-    assert any(a.name == "정격전압" and a.value == "220V" for a in result.attributes)
+    assert any(a.name == "전압 표기" and a.value == "220V" for a in result.attributes)
 
 
 def test_모델이_다른_항목에_같은_값을_담아도_규칙_결과가_사라지지_않는다(stub_model, records):
     result = _run(stub_model, ProductAttributes(attributes=[_attribute("모델명", "220V")]), "정격전압 220V")
 
     assert any(a.name == "모델명" and a.value == "220V" for a in result.attributes)
-    assert any(a.name == "정격전압" and a.value == "220V" for a in result.attributes)
+    assert any(a.name == "전압 표기" and a.value == "220V" for a in result.attributes)
 
 
 def test_모델이_이미_뽑은_값과_겹치는_규칙_결과는_중복으로_안_넣는다(stub_model, records):

@@ -79,3 +79,23 @@ feature/fe/login-ui ─────────────●
 - **예시:**
     - `feature: Refresh Token 재발급 API 추가`
 
+---
+
+## 🔌 파트 간 API 필드 규칙
+파트 간 JSON 통신의 필드 이름은 **camelCase**로 통일합니다. 각 파트 내부 코드는 언어별 표준 스타일을 그대로 사용합니다. (논의: #71)
+
+| 구간 | JSON 필드 | 내부 코드 |
+|:--|:--|:--|
+| FE ↔ BE | camelCase | FE·BE 모두 camelCase |
+| BE ↔ AI | camelCase | BE camelCase / AI snake_case |
+| AI 내부·LLM 스키마 | - | snake_case |
+
+- **예시:** `{"productId": "...", "textBlocks": [...], "imageUrls": [...], "sourceUrl": "..."}`
+- 파트 사이에서 snake_case ↔ camelCase를 바꿔주는 변환 DTO는 만들지 않습니다.
+- **AI(FastAPI) 적용 방법** (`ai/app/schemas/base.py`)
+  - BE와 주고받는 모델만 경계 전용 베이스를 상속합니다.
+    - 응답·콜백: `ApiModel` (camelCase alias)
+    - BE 요청: `ApiRequestModel` (camelCase 키만 허용, snake_case 키는 422로 거부)
+  - 내부·LLM용 모델은 `StrictModel`을 그대로 씁니다. 여기에 alias를 걸면 `model_dump()`와 LLM에 전달되는 스키마 필드명까지 변경됩니다.
+  - 내부 결과(예: `FinalAssessment`)를 그대로 내보내지 않고, 경계 모델(`Public*Dto` 등)로 변환해서 보냅니다.
+  - FastAPI 응답이 아닌 곳에서 직접 직렬화해 BE로 보낼 때는 `model_dump(by_alias=True)`를 씁니다. 빠뜨리면 snake_case로 반환됩니다.
