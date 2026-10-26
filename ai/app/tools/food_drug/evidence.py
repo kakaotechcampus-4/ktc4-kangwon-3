@@ -339,7 +339,10 @@ def load_food_drug_evidence(client: LawLookup, as_of: date) -> FoodDrugEvidence:
         device_import=_article(device, 15, " 제1항·제2항", "① 의료기기의 수입을 업으로", "③"),
         device_sale=_article(device, 17, " 제1항·제2항", "① 의료기기의 판매를 업으로", "③"),
         device_unapproved=_article(device, 26, " 제1항", "① 누구든지", "② 누구든지"),
-        device_misleading=_article(device, 26, " 제7항", "⑦ 누구든지"),
+        # 시행일이 나뉜 개정판(2026-10-20 의료기기법)은 본문에 아직 시행 전인 ⑧이 들어 있어 ⑦까지만 자른다.
+        # ⑧이 없는 판은 조문 끝까지. 근본 해결(현행판 본문 받기)은 공용 법령 조회 후속 작업.
+        device_misleading=_article(device, 26, " 제7항", "⑦ 누구든지",
+                                   "⑧" if "⑧" in article_text(device.body, 26) else None),
         device_exemption=_article(rule, 32, " 제1항", "① 법 제15조제6항", "②"),
         device_notice=notice.ref,
         devices=tuple(parse_device_items(annex_text(notice.body, 1, title="품목"))),
