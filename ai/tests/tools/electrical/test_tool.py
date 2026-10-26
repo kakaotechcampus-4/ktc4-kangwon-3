@@ -10,8 +10,9 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.electrical import ElectricalTool, ElectricalToolError
+from app.tools.common.facts import object_particle
 from app.tools.common.law import compact
-from app.tools.electrical.rules import low_voltage, object_particle
+from app.tools.electrical.rules import low_voltage
 from app.tools.electrical.evidence import CachedLoader, EvidenceUnavailable, LawApiEvidenceSource
 from app.tools.electrical.search import LawApiItemSearch
 

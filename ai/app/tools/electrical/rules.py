@@ -9,6 +9,7 @@ import re
 
 from ...schemas.electrical import ElectricalFact
 from ...schemas.product import Product
+from ..common.facts import object_particle
 from .evidence import AnnexBlock, compact
 
 _VOLTAGE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*[Vv](?![A-Za-z])")
@@ -117,14 +118,6 @@ PURCHASE_SUMMARY = {
     "similar_clause": "구매대행 특례의 '그 밖에 유사한 기기' 해당 여부는 확인이 필요합니다.",
     "unknown": "판매 방식별 의무는 확인이 필요합니다.",
 }
-
-
-def object_particle(word: str) -> str:
-    """목적격 조사. 마지막 글자에 받침이 있으면 "을", 없으면 "를"."""
-    last = word.rstrip()[-1:]
-    if not ("가" <= last <= "힣"):
-        return "를"
-    return "을" if (ord(last) - ord("가")) % 28 else "를"
 
 
 def sale_actions(block: AnnexBlock, status: str, listed_as: str) -> list[str]:
