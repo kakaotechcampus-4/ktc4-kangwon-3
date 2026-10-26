@@ -7,19 +7,19 @@
 
 from typing import Any
 
-from ...prompts import PromptName
 from ...schemas.agent import ToolSelectionItem
 from ...schemas.product import Product
-from ...schemas.radio import RadioFacts, RadioReview
 from ...schemas.schemas import (
     Determination, LegalSource, RadioAssessment, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
-from ..base import RegulatoryTool, ToolModelError, ToolStep, ToolStepInput
+from ..base import RegulatoryTool, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
+from .errors import RadioToolError
 from .evidence import RadioItem
 from .rules import ASSESSMENT_PARAGRAPH, band_label, normalized_bands, sale_actions
 from .search import RadioCandidates, RadioItemSearch, default_item_search
+from .steps import RadioFactsStep, RadioReviewStep
 
 _FIELDS = {
     "product_type": "제품 종류", "wireless_feature": "무선 기능", "frequency": "사용 주파수",
@@ -34,26 +34,6 @@ _QUESTION_FIELDS = _REQUIRED_FIELDS
 _SEARCH_TERMS_LIMIT = 3
 _SELECTIONS_LIMIT = 3
 _NOTE_LIMIT = 1500
-
-
-class RadioToolError(ToolModelError):
-    """모델·외부 자료 실패. 원본 오류는 예외 체인에만 보존한다."""
-
-
-class _FactsStep(ToolStep[RadioFacts]):
-    component_name = "radio-facts"
-    prompt_name = PromptName.RADIO_FACTS
-    output_schema = RadioFacts
-    error_class = RadioToolError
-    failure_label = "전파 Tool 조건 추출"
-
-
-class _ReviewStep(ToolStep[RadioReview]):
-    component_name = "radio-review"
-    prompt_name = PromptName.RADIO_REVIEW
-    output_schema = RadioReview
-    error_class = RadioToolError
-    failure_label = "전파 Tool 기자재 선택"
 
 
 class RadioTool(RegulatoryTool):
@@ -76,16 +56,16 @@ class RadioTool(RegulatoryTool):
         self._search = item_search
         self._configured_model = configured_model
         self._top_k = top_k
-        self._steps: tuple[_FactsStep, _ReviewStep] | None = None
+        self._steps: tuple[RadioFactsStep, RadioReviewStep] | None = None
 
-    def _get_steps(self) -> tuple[_FactsStep, _ReviewStep]:
+    def _get_steps(self) -> tuple[RadioFactsStep, RadioReviewStep]:
         if self._steps is None:
             if self._model is None:
                 # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
                 from ...config import build_tool_model
                 self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
-            self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))
+            self._steps = (RadioFactsStep(self._model, **options), RadioReviewStep(self._model, **options))
         return self._steps
 
     def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
