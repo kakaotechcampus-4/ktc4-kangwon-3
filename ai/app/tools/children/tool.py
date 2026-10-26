@@ -16,7 +16,7 @@ from ..common.law import compact
 from .errors import ChildrenToolError
 from .evidence import SCHEME_ANNEXES, SHORT_SCOPE_LIMIT, ChildrenItem
 from .rules import EXCLUDED_KINDS, age_text, age_value_bounded, combined_child_state, sale_action
-from .search import ChildrenCandidates, ChildrenItemSearch, default_item_search
+from .search import ChildrenCandidates, ChildrenItemSearch
 from .steps import ChildrenFactsStep, ChildrenReviewStep
 
 _FIELDS = {
@@ -53,7 +53,7 @@ class ChildrenTool(EvidenceSearchTool):
 
     Args:
         model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 설정으로 만든다.
-        item_search: 품목 조회 경로. None이면 법제처 API 경로(프로세스 공용 캐시)를 쓴다.
+        item_search: 품목 조회 경로.
         configured_model: 사용량 기록용 모델 이름.
         top_k: 품목 선택 모델에 넘길 후보 행 수.
     """
@@ -74,17 +74,14 @@ class ChildrenTool(EvidenceSearchTool):
     tracks_conflicts = True
     run_type = ChildrenRun
 
-    def __init__(self, model=None, *, item_search: ChildrenItemSearch | None = None,
-                 configured_model: str | None = None, top_k: int = 6):
+    def __init__(self, model=None, *, item_search: ChildrenItemSearch, configured_model: str | None = None,
+                 top_k: int = 6):
         super().__init__(model, configured_model=configured_model, top_k=top_k)
         self._search = item_search
 
-    def _item_search(self) -> ChildrenItemSearch:
-        return self._search or default_item_search()
-
     def _prepare(self, run: ChildrenRun) -> None:
         """품목 이름 목록을 읽는다. 근거를 확인할 수 없으면 목록 없이 추출."""
-        run.catalog = self._lookup(run, self._item_search().catalog, failure=_SEARCH_FAILED) or []
+        run.catalog = self._lookup(run, self._search.catalog, failure=_SEARCH_FAILED) or []
 
     def _facts_payload(self, run: ChildrenRun) -> dict[str, Any]:
         return {**super()._facts_payload(run), "item_names": run.catalog, "excluded_kinds": list(EXCLUDED_KINDS)}
@@ -128,8 +125,8 @@ class ChildrenTool(EvidenceSearchTool):
         skip_items = (any(name not in by_field for name in _REQUIRED_FIELDS) or state is False
                       or "excluded_kind" in by_field)
         candidates = self._lookup(
-            run, lambda: self._item_search().search([] if skip_items else self._terms(run.terms, by_field, product),
-                                                    top_k=self._top_k),
+            run, lambda: self._search.search([] if skip_items else self._terms(run.terms, by_field, product),
+                                             top_k=self._top_k),
             failure=_SEARCH_FAILED, unavailable="법령 품목표의 시행 버전·본문을 확인하지 못해 품목을 대조하지 않았습니다.")
         if candidates is None:
             return []
