@@ -1,0 +1,18 @@
+[
+  {
+    "targets": ["perf-app:8081"],
+    "labels": {"job": "be-perf", "__metrics_path__": "/actuator/prometheus"}
+  },
+  {
+    "targets": ["perf-mock-ai:8000"],
+    "labels": {"job": "mock-ai"}
+  },
+  {
+    "targets": ["perf-pg-exporter:9187"],
+    "labels": {"job": "perf-postgres"}
+  },
+  {
+    "targets": ["perf-redis-exporter:9121"],
+    "labels": {"job": "perf-redis"}
+  }
+]
