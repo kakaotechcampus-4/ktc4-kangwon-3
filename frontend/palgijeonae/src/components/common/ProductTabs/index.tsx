@@ -2,7 +2,7 @@ import { cva } from "class-variance-authority";
 
 import { countGraphemes, truncateGraphemes } from "@/lib/text";
 
-const tabVariants = cva("shrink-0 rounded-[20px] border px-[15px] py-2.5 text-base font-medium", {
+const tabVariants = cva("shrink-0 rounded-[20px] border px-[15px] py-[7px] text-base font-medium", {
     variants: {
         selected: {
             true: "border-primary bg-primary/10 text-primary",
