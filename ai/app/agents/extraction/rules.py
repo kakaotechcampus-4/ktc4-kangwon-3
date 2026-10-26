@@ -58,9 +58,14 @@ _VOLTAGE_QUALIFIER_AFTER = r"(?:\s*(?:이하|이상|미만|초과|까지|이내|
 # 숫자·소수점도 함께 막는다. ±만 막으면 "±0.5V"의 앞자리를 건너뛴 "5V"가 잡혀서
 # 원문에 없던 전압이 새로 생긴다.
 _NOT_TOLERANCE_BEFORE = r"(?<![±+\d.])"
+# "110-240V"·"0~5V"처럼 앞 숫자에 V가 없는 범위는 앞 숫자까지 원문 그대로 한 값으로 담는다.
+# 뒤 숫자만 잡으면 "240V"가 단일 전압처럼 넘어간다. 앞 숫자에 V가 있으면("110V-240V") 지금처럼 두 값.
+# 앞 숫자는 세 자리까지만 본다. "18650-3.7V"(전지 규격)·"2023-12V"를 범위로 묶지 않게.
+_UNITLESS_LOWER_BOUND = r"(?:\d{1,3}(?:\.\d+)?\s*[-~]\s*)?"
 _VOLTAGE_PATTERN = re.compile(
     _VOLTAGE_QUALIFIER_BEFORE
     + _NOT_TOLERANCE_BEFORE
+    + _UNITLESS_LOWER_BOUND
     + r"\d+(?:\.\d+)?\s*V"
     + _NOT_LETTER_AFTER
     + _VOLTAGE_QUALIFIER_AFTER
