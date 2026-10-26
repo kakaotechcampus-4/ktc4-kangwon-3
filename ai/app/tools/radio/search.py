@@ -5,7 +5,6 @@
 - DatabaseItemSearch: 적재 단계 파싱 에이전트가 고시 별표 1을 DB에 넣으면 쓸 경로(스텁).
 """
 
-import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Protocol
@@ -79,17 +78,13 @@ def _load_on_demand(as_of: date) -> RadioEvidence:
         clients.close()
 
 
-_default_lock = threading.Lock()
-_default_search: LawApiItemSearch | None = None
+def law_api_item_search() -> LawApiItemSearch:
+    """법제처 API 조회 경로를 만든다. 기준일별 캐시는 객체 안에 있어 조립하는 쪽이 한 번 만들어 공유함.
 
-
-def default_item_search() -> LawApiItemSearch:
-    """조립 코드가 주입하지 않았을 때 쓰는 프로세스 공용 조회 경로."""
-    global _default_search
-    with _default_lock:
-        if _default_search is None:
-            _default_search = LawApiItemSearch(CachedLoader(_load_on_demand).load)
-        return _default_search
+    Returns:
+        LawApiItemSearch: 조회할 때 법제처 클라이언트를 열고 닫는 조회 경로.
+    """
+    return LawApiItemSearch(CachedLoader(_load_on_demand).load)
 
 
 class DatabaseItemSearch:
