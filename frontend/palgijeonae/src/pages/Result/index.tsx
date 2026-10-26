@@ -3,14 +3,15 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { ProductResult } from "@/api/product";
+import DefaultBox from "@/components/common/DefaultBox";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
+import ProductPreview from "@/components/common/ProductPreview";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
 import DiagnosisResultTab from "./DiagnosisResult";
 import NextStepTab from "./NextSteps";
-import ProductCard from "./ProductCard";
 import ProductInfoTab from "./ProductInfo";
 import ResultTabs from "./ResultTabs";
 import { ResultTabKey } from "./types";
@@ -93,7 +94,15 @@ function ResultPage() {
             ) : (
                 <div className="flex w-full flex-col gap-6">
                     <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
-                    <ProductCard productName={currentProduct.productName} productImageUrl={currentProduct.productImageUrl} resultStatus={currentProduct.resultStatus} processingStatus={currentProduct.processingStatus} sourceType={currentProduct.sourceType} />
+                    <DefaultBox>
+                        <ProductPreview
+                            productName={currentProduct.productName}
+                            productImageUrl={currentProduct.productImageUrl}
+                            resultStatus={currentProduct.resultStatus}
+                            processingStatus={currentProduct.processingStatus}
+                            sourceType={currentProduct.sourceType}
+                        />
+                    </DefaultBox>
                     <ResultTabs selected={selectedTab} onSelect={setSelectedTab} />
                     {tabPanels[selectedTab]}
                 </div>
