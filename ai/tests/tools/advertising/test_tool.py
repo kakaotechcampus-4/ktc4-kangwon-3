@@ -18,11 +18,11 @@ from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination, DraftAssessment, LegalSource, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
-from app.tools import advertising
+from app.tools.advertising import tool as advertising
 from app.schemas.advertising import AdvertisingReview
 from app.tools.advertising import AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool
 
-LAW_DIR = Path(__file__).parents[1] / "fixtures" / "advertising_law"
+LAW_DIR = Path(__file__).parents[2] / "fixtures" / "advertising_law"
 DECISION = ToolSelectionItem(tool_name=ToolName.LABEL_AD, selected=True, reason="효능 표방 문구가 있다.")
 
 
