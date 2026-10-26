@@ -62,6 +62,7 @@ function ResultPage() {
         setSelectedTab(ResultTabKey.NextSteps);
     };
 
+    // TODO: 추후 탭 컴포넌트 props 구현에 따라 수정 필요
     // 선택된 탭에 따라 보여줄 패널
     const tabPanels: Record<ResultTabKey, ReactNode> | null = currentProduct ? {
         [ResultTabKey.DiagnosisResult]: <DiagnosisResultTab
