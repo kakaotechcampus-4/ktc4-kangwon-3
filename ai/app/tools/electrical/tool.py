@@ -13,7 +13,7 @@ from .rules import (
     BATTERY_SEARCH_TERMS, ESS_WORDS, PURCHASE_SUMMARY, battery_only_state, excluded_by_low_voltage,
     is_battery_or_supply, is_ess_component, item_name, low_voltage, mentions_battery, power_conflicts, sale_actions,
 )
-from .search import ElectricalItemSearch, default_item_search
+from .search import ElectricalItemSearch
 from .steps import ElectricalFactsStep, ElectricalReviewStep
 from ...schemas.electrical import ElectricalFact
 from ...schemas.schemas import Determination, ElectricalAssessment, RegulatoryFinding, RiskLevel, ToolName
@@ -43,12 +43,11 @@ _SEARCH_FAILED = "전기안전 법령 품목표 조회에 실패했습니다."
 class ElectricalTool(EvidenceSearchTool):
     """특정 상품에 고정하지 않는 전기용품 검토.
 
-    생성 시 설정·모델·API 연결을 만들지 않아 레지스트리 생성 계약을 유지한다.
-    model과 item_search를 주입하면 네트워크 없는 테스트를 작성할 수 있다.
+    생성 시 설정·모델·API 연결을 만들지 않는다. 조회 경로는 조립하는 쪽이 넣음.
 
     Args:
         model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 설정으로 만든다.
-        item_search: 품목 조회 경로. None이면 법제처 API 경로(프로세스 공용 캐시)를 쓴다.
+        item_search: 품목 조회 경로.
         configured_model: 사용량 기록용 모델 이름.
         top_k: 품목 선택 모델에 넘길 후보 행 수.
     """
@@ -70,13 +69,10 @@ class ElectricalTool(EvidenceSearchTool):
     # 원문 없는 속성도 조회어를 정하는 데 참고됨
     hints_with_attributes = True
 
-    def __init__(self, model=None, *, item_search: ElectricalItemSearch | None = None,
-                 configured_model: str | None = None, top_k: int = 8):
+    def __init__(self, model=None, *, item_search: ElectricalItemSearch, configured_model: str | None = None,
+                 top_k: int = 8):
         super().__init__(model, configured_model=configured_model, top_k=top_k)
         self._search = item_search
-
-    def _item_search(self) -> ElectricalItemSearch:
-        return self._search or default_item_search()
 
     def _fact_matches(self, fact: ElectricalFact, run: ToolRun) -> bool:
         """인용이 지정한 상품 원문 안에, 값이 인용 안에 그대로 있는지.
@@ -112,7 +108,7 @@ class ElectricalTool(EvidenceSearchTool):
         terms += [value for value in (product.product_name, product.category, product.intended_use) if value]
         query["search_terms"] = list(run.extracted.search_terms)
         candidates = self._lookup(
-            run, lambda: self._item_search().search(terms, top_k=self._top_k), failure=_SEARCH_FAILED,
+            run, lambda: self._search.search(terms, top_k=self._top_k), failure=_SEARCH_FAILED,
             unavailable="법령 품목표의 시행 버전·본문을 확인하지 못해 품목을 대조하지 않았습니다.")
         if candidates is None:
             return []
@@ -138,7 +134,7 @@ class ElectricalTool(EvidenceSearchTool):
             query["battery_only_excluded"] = [block.block_id for block in shortlisted if block not in kept]
             # 본체 행이 빠지면 검토할 것은 내장 전지와 충전기. 상품명으로는 이 행들이 잘 조회되지 않아 따로 찾음
             try:
-                extra = self._item_search().search(list(BATTERY_SEARCH_TERMS), top_k=self._top_k)
+                extra = self._search.search(list(BATTERY_SEARCH_TERMS), top_k=self._top_k)
             except Exception as exc:
                 raise ElectricalToolError(_SEARCH_FAILED) from exc
             for block in extra.blocks:

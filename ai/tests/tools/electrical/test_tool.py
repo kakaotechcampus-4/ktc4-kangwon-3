@@ -230,7 +230,7 @@ def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkey
 
 
 def test_boolean만_있으면_조건을_추측하지_않는다():
-    result = ElectricalTool().execute(Product(product_id="p1", electrical_powered=True), decision())
+    result = ElectricalTool(item_search=Search()).execute(Product(product_id="p1", electrical_powered=True), decision())
     assert result.status is ToolStatus.SUCCESS
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
     assert len(result.missing_information) == 3
@@ -574,8 +574,8 @@ def test_모델_호출과_파싱_실패는_공통_Tool_예외로_알린다(mode)
 
 def test_다른_Tool의_선택정보는_실행하지_않는다():
     with pytest.raises(ValueError, match="이름"):
-        ElectricalTool().execute(Product(product_id="p1"),
-                                 ToolSelectionItem(tool_name=ToolName.RADIO, selected=True, reason="전파"))
+        ElectricalTool(item_search=Search()).execute(
+            Product(product_id="p1"), ToolSelectionItem(tool_name=ToolName.RADIO, selected=True, reason="전파"))
 
 
 def test_DB_조회는_아직_스텁이다():
@@ -619,6 +619,6 @@ def test_결과는_Verification_규칙_검사를_통과한다(case):
 def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어간다():
     from app.schemas.product import Attribute
     product = Product(product_id="p1", listing_text=["포트"], attributes=[Attribute(name="품목", value="전기포트")])
-    hints = ElectricalTool()._hints(product)
+    hints = ElectricalTool(item_search=Search())._hints(product)
     assert hints["attributes"] == [{"name": "품목", "value": "전기포트"}]
     assert "listing_text" not in hints
