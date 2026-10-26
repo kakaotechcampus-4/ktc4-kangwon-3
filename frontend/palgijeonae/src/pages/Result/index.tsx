@@ -66,6 +66,7 @@ function ResultPage() {
     const tabPanels: Record<ResultTabKey, ReactNode> | null = currentProduct ? {
         [ResultTabKey.DiagnosisResult]: <DiagnosisResultTab
                                             product={currentProduct}
+                                            diagnosesId={diagnosesId}
                                             onNextStepsClick={handleNextStepsClick} />,
         [ResultTabKey.NextSteps]: <NextStepTab />,
         [ResultTabKey.ProductInfo]: <ProductInfoTab />,
