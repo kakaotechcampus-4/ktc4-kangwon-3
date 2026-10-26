@@ -80,20 +80,44 @@ class ChildrenTool(EvidenceSearchTool):
         self._search = item_search
 
     def _prepare(self, run: ChildrenRun) -> None:
-        """품목 이름 목록을 읽는다. 근거를 확인할 수 없으면 목록 없이 추출."""
+        """품목 이름 목록을 읽는다. 근거를 확인할 수 없으면 목록 없이 추출.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         run.catalog = self._lookup(run, self._search.catalog, failure=_SEARCH_FAILED) or []
 
     def _facts_payload(self, run: ChildrenRun) -> dict[str, Any]:
+        """조건 추출 입력에 품목명 목록과 제외 물품 이름을 더한다.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            dict[str, Any]: 조건 추출 단계 입력.
+        """
         return {**super()._facts_payload(run), "item_names": run.catalog, "excluded_kinds": list(EXCLUDED_KINDS)}
 
     def _fact_matches(self, fact, run: ChildrenRun) -> bool:
-        """원문 대조에 더해 제외 물품은 정해진 이름, 연령은 원문 범위 안의 값인지 확인한다."""
+        """원문 대조에 더해 제외 물품은 정해진 이름, 연령은 원문 범위 안의 값인지 확인한다.
+
+        Args:
+            fact: 모델이 뽑은 조건.
+            run: 이번 실행 상태.
+
+        Returns:
+            bool: 원문과 맞으면 True.
+        """
         return (quote_matches(fact, run.snippets, value_in_quote=fact.field != "excluded_kind")
                 and (fact.field != "excluded_kind" or _excluded_kind(fact.value) is not None)
                 and (fact.field != "target_age" or age_value_bounded(fact.value, fact.quote)))
 
     def _read_facts(self, run: ChildrenRun) -> None:
-        """조회어와 사용 연령을 읽고 만 13세 이하 대상 여부와 연령 충돌을 기록한다."""
+        """조회어와 사용 연령을 읽고 만 13세 이하 대상 여부와 연령 충돌을 기록한다.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         product, by_field, query = run.product, run.by_field, run.query
         run.terms = [term for term in run.extracted.search_terms if term.strip()][:_SEARCH_TERMS_LIMIT]
         query["search_terms"] = run.terms
@@ -120,7 +144,14 @@ class ChildrenTool(EvidenceSearchTool):
             run.assumptions.append("사용 대상 연령 정보가 서로 달라 어린이제품 해당 여부를 정하지 않았습니다.")
 
     def _judge(self, run: ChildrenRun) -> list[RegulatoryFinding]:
-        """품목 조회 → 제외 물품·연령 규칙 → 품목 선택 → 후보 판단 (맞는 품목이 없으면 공급자적합성확인)."""
+        """품목 조회 → 제외 물품·연령 규칙 → 품목 선택 → 후보 판단 (맞는 품목이 없으면 공급자적합성확인).
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            list[RegulatoryFinding]: 고른 품목별 후보 판단. 근거가 부족하면 빈 목록.
+        """
         product, by_field, query, state = run.product, run.by_field, run.query, run.state
         skip_items = (any(name not in by_field for name in _REQUIRED_FIELDS) or state is False
                       or "excluded_kind" in by_field)
@@ -215,12 +246,35 @@ class ChildrenTool(EvidenceSearchTool):
 
     @staticmethod
     def _terms(terms: list[str], by_field: dict, product: Product) -> list[str]:
+        """조회에 쓸 상품 용어를 모은다.
+
+        Args:
+            terms: 모델이 고른 조회어.
+            by_field: 필드별 조건.
+            product: 검토할 상품.
+
+        Returns:
+            list[str]: 조회어 → 제품 종류·용도 값 → 상품명·카테고리·용도 순.
+        """
         values = [fact.value for field in ("product_type", "intended_use") for fact in by_field.get(field, [])]
         hints = [value for value in (product.product_name, product.category, product.intended_use) if value]
         return [*terms, *values, *hints]
 
     def _candidate(self, item: ChildrenItem, rationale: str, used: list[str], run: ChildrenRun,
                    candidates: ChildrenCandidates, action: str) -> RegulatoryFinding:
+        """고른 품목 하나의 후보 판단을 만든다.
+
+        Args:
+            item: 고른 품목 행.
+            rationale: 모델의 선택 이유.
+            used: 판단에 쓴 필드.
+            run: 이번 실행 상태.
+            candidates: 조회 결과 (근거 문서).
+            action: 판매 전에 할 일.
+
+        Returns:
+            RegulatoryFinding: 어린이제품 대상 후보 판단.
+        """
         definitions = candidates.definitions
         sources = [_rule_source(candidates, item)]
         if item.scopes:
@@ -240,6 +294,15 @@ class ChildrenTool(EvidenceSearchTool):
         )
 
     def _detail(self, run: ChildrenRun, findings: list[RegulatoryFinding]) -> ChildrenAssessment:
+        """결과에 붙일 어린이제품 상세.
+
+        Args:
+            run: 이번 실행 상태.
+            findings: 이번 실행의 판단.
+
+        Returns:
+            ChildrenAssessment: 연령·제품 종류·제도 요약.
+        """
         ages = run.query.get("age_texts") or [fact.value for fact in run.facts if fact.field == "target_age"]
         types = [fact.value for fact in run.facts if fact.field == "product_type"]
         schemes = list(dict.fromkeys(
@@ -256,14 +319,39 @@ class ChildrenTool(EvidenceSearchTool):
 
 
 def _excluded_kind(value: str) -> str | None:
-    """제외 물품 값을 정해진 이름으로 맞춘다. 공백·가운뎃점(·, ㆍ, ?) 차이는 무시한다."""
+    """제외 물품 값을 정해진 이름으로 맞춘다. 공백·가운뎃점(·, ㆍ, ?) 차이는 무시한다.
+
+    Args:
+        value: 모델이 낸 제외 물품 값.
+
+    Returns:
+        str | None: 정해진 제외 물품 이름. 맞는 것이 없으면 None.
+    """
     key = compact(value).translate(_DOTS)
     return next((kind for kind in EXCLUDED_KINDS if compact(kind).translate(_DOTS) == key), None)
 
 
 def _rule_source(candidates: ChildrenCandidates, item: ChildrenItem) -> LegalSource:
+    """품목 행의 시행규칙 별표 근거.
+
+    Args:
+        candidates: 조회 결과 (근거 문서).
+        item: 품목 행.
+
+    Returns:
+        LegalSource: 시행규칙 별표 근거.
+    """
     return candidates.rule.source(f"별표 {SCHEME_ANNEXES[item.scheme][0]}", item.row_text)
 
 
 def _notice_source(candidates: ChildrenCandidates, item: ChildrenItem) -> LegalSource:
+    """품목 행의 운용요령 적용범위 근거.
+
+    Args:
+        candidates: 조회 결과 (근거 문서).
+        item: 적용범위를 이은 품목 행.
+
+    Returns:
+        LegalSource: 운용요령 별표 근거.
+    """
     return candidates.notice.source(f"별표 {SCHEME_ANNEXES[item.scheme][1]}", " ".join(item.scopes))
