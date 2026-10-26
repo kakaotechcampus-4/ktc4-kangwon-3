@@ -8,7 +8,7 @@ from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Attribute, Product
 from app.schemas.schemas import Determination, RadioAssessment, RiskLevel, ToolName, ToolStatus
 from app.tools.base import EvidenceSearchTool, ToolModelError, ToolStep, ToolStepInput
-from app.tools.base.tool import NO_SNIPPETS, SCOPE_NOTE
+from app.tools.base.evidence_search import NO_SNIPPETS, SCOPE_NOTE
 from app.tools.common.law import EvidenceUnavailable
 
 TEXT = "무선 선풍기, 블루투스 연결"
