@@ -16,8 +16,7 @@ from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
 from .rules import format_hs, omission_status, related_tool, sale_actions
 from .search import (
-    CaseSearch, HsCase, Requirement, RequirementLookup, default_case_search, default_evidence_loader,
-    default_requirement_lookup,
+    CaseSearch, HsCase, Requirement, RequirementLookup,
 )
 from .steps import CustomsFactsStep, CustomsReviewStep
 
@@ -55,9 +54,9 @@ class CustomsTool(EvidenceSearchTool):
 
     Args:
         model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 Tool 프로필(`TOOL_PROFILES`)로 만든다.
-        case_search: 결정사례 조회 경로. None이면 CLIP API.
-        requirements: HS별 세관장확인 요건 조회 경로. None이면 세관장확인 GW(공공데이터포털 키).
-        evidence: 근거 법령을 돌려주는 함수. None이면 법제처 API(기준일별 공용 캐시).
+        case_search: 결정사례 조회 경로.
+        requirements: HS별 세관장확인 요건 조회 경로.
+        evidence: 근거 법령을 돌려주는 함수.
         configured_model: 사용량 기록용 모델 이름.
         top_k: 결정사례 선택 모델에 넘길 후보 수.
     """
@@ -79,10 +78,8 @@ class CustomsTool(EvidenceSearchTool):
     hints_with_attributes = True
     run_type = CustomsRun
 
-    def __init__(self, model=None, *, case_search: CaseSearch | None = None,
-                 requirements: RequirementLookup | None = None,
-                 evidence: Callable[[], CustomsEvidence] | None = None,
-                 configured_model: str | None = None, top_k: int = 8):
+    def __init__(self, model=None, *, case_search: CaseSearch, requirements: RequirementLookup,
+                 evidence: Callable[[], CustomsEvidence], configured_model: str | None = None, top_k: int = 8):
         super().__init__(model, configured_model=configured_model, top_k=top_k)
         self._case_search = case_search
         self._requirements = requirements
@@ -104,7 +101,7 @@ class CustomsTool(EvidenceSearchTool):
                  *(value for value in (product.product_name, product.category) if value)]
         query["search_terms"] = queries
         try:
-            candidates = (self._case_search or default_case_search()).search(queries, terms, top_k=self._top_k)
+            candidates = self._case_search.search(queries, terms, top_k=self._top_k)
         except Exception as exc:
             raise CustomsToolError("품목분류 결정사례 조회에 실패했습니다.") from exc
         query["failed_terms"] = list(candidates.failed_terms)
@@ -139,7 +136,7 @@ class CustomsTool(EvidenceSearchTool):
 
         # ③ 근거 법령과 HS별 세관장확인 요건
         evidence = self._lookup(
-            run, lambda: (self._evidence or default_evidence_loader())(), failure="통관 근거 법령 조회에 실패했습니다.",
+            run, self._evidence, failure="통관 근거 법령 조회에 실패했습니다.",
             unavailable="관세법·세관장확인 고시의 시행 버전·본문을 확인하지 못해 근거 조문 없이 안내했습니다.")
         if evidence is not None:
             query["documents"] = evidence.documents()
@@ -223,7 +220,6 @@ class CustomsTool(EvidenceSearchTool):
     def _lookup_requirements(self, hs_codes: list[str], assumptions: list[str]
                              ) -> tuple[list[Requirement], list[str]]:
         """HS 10자리마다 세관장확인 요건을 조회한다. 6자리 HS와 조회할 수 없는 경우는 미확인으로 돌려준다."""
-        lookup = self._requirements or default_requirement_lookup()
         requirements: list[Requirement] = []
         unresolved: list[str] = []
         for code in hs_codes:
@@ -231,7 +227,7 @@ class CustomsTool(EvidenceSearchTool):
                 unresolved.append(code)
                 continue
             try:
-                requirements.extend(lookup.lookup(code))
+                requirements.extend(self._requirements.lookup(code))
             except EvidenceUnavailable as exc:
                 unresolved.append(code)
                 if str(exc) not in assumptions:

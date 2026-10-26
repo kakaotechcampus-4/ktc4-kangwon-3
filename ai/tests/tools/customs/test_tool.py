@@ -95,6 +95,12 @@ def run(product, facts, chosen=None, *, requirements=None, evidence=None, clip_e
     return tool.execute(product, decision()), model, calls, requirements
 
 
+def bare_tool(model=None):
+    """조회까지 가지 않는 테스트용. 조회 객체는 가짜."""
+    return CustomsTool(model, case_search=ClipCaseSearch(lambda: FakeClip([], {})),
+                       requirements=FakeRequirements(), evidence=lambda: _EVIDENCE)
+
+
 # -- 정상 경로 --
 
 def test_결정사례로_HS_후보를_찾고_그_HS의_세관장확인_요건을_후보로_낸다():
@@ -327,14 +333,14 @@ def test_모델_실패는_공통_Tool_예외로_알린다():
 def test_미선택은_모델과_조회를_호출하지_않는다():
     product, facts = product_and_facts()
     model = Model(facts)
-    result = CustomsTool(model).execute(product, decision(selected=False))
+    result = bare_tool(model).execute(product, decision(selected=False))
     assert result.status is ToolStatus.SKIPPED and model.calls == []
 
 
 def test_다른_Tool의_선택정보는_실행하지_않는다():
     with pytest.raises(ValueError, match="이름"):
-        CustomsTool().execute(Product(product_id="p1"),
-                              ToolSelectionItem(tool_name=ToolName.RADIO, selected=True, reason="전파"))
+        bare_tool().execute(Product(product_id="p1"),
+                            ToolSelectionItem(tool_name=ToolName.RADIO, selected=True, reason="전파"))
 
 
 # -- Verification 소비 계약 (파이프라인 연결 전) --
@@ -418,7 +424,7 @@ def test_문서_ID가_없는_사례는_물품명과_HS로_구분한다():
 def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어간다():
     from app.schemas.product import Attribute
     product = Product(product_id="p1", listing_text=["주전자"], attributes=[Attribute(name="품목", value="전기포트")])
-    hints = CustomsTool()._hints(product)
+    hints = bare_tool()._hints(product)
     assert hints["attributes"] == [{"name": "품목", "value": "전기포트"}]
     assert "listing_text" not in hints
 
@@ -426,5 +432,5 @@ def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어�
 def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
     names = []
     monkeypatch.setattr("app.clients.llm.build_tool_model", lambda name: names.append(name) or Model(None))
-    CustomsTool()._get_steps()
+    bare_tool()._get_steps()
     assert names == [ToolName.CUSTOMS]
