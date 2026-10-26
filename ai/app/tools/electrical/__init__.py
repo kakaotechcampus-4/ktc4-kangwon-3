@@ -4,7 +4,7 @@
 - steps.py: 모델 호출 단계(조건 추출, 품목 선택)
 - errors.py: ElectricalToolError
 - rules.py: 코드 규칙과 판매 안내 문구
-- search.py: 품목표 조회 인터페이스와 구현(법제처 API / DB 스텁)
+- search.py: 품목표 조회 인터페이스와 구현(법제처 API)
 - evidence.py: 법령 버전 선택, 품목표·공통 비고·별표 13 파서
 """
 

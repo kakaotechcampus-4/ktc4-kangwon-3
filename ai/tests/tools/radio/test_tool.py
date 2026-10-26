@@ -12,7 +12,7 @@ from app.schemas.schemas import (
 from app.tools.common.law import EvidenceUnavailable
 from app.tools.radio import RadioTool, RadioToolError
 from app.tools.radio.evidence import load_radio_evidence
-from app.tools.radio.search import DatabaseItemSearch, LawApiItemSearch
+from app.tools.radio.search import LawApiItemSearch
 
 from .conftest import AS_OF, FakeLaw
 
@@ -252,13 +252,6 @@ def test_조회_오류는_Tool_오류로_전파한다():
     product, facts = product_and_facts()
     with pytest.raises(RadioToolError):
         run(product, facts, review(select()), Search(RuntimeError("API 실패")))
-
-
-def test_DB_조회는_아직_자리만_있다():
-    with pytest.raises(NotImplementedError):
-        DatabaseItemSearch(session_factory=None).search(["블루투스"], top_k=8)
-    with pytest.raises(NotImplementedError):
-        DatabaseItemSearch(session_factory=None).catalog()
 
 
 def test_모델_호출_실패는_Tool_오류로_감싼다():

@@ -13,7 +13,7 @@ from app.tools.electrical import ElectricalTool, ElectricalToolError
 from app.tools.common.law import compact
 from app.tools.electrical.rules import low_voltage, object_particle
 from app.tools.electrical.evidence import CachedLoader, EvidenceUnavailable, LawApiEvidenceSource
-from app.tools.electrical.search import DatabaseItemSearch, LawApiItemSearch
+from app.tools.electrical.search import LawApiItemSearch
 
 from .conftest import AS_OF, FakeLaw
 
@@ -576,11 +576,6 @@ def test_다른_Tool의_선택정보는_실행하지_않는다():
     with pytest.raises(ValueError, match="이름"):
         ElectricalTool(item_search=Search()).execute(
             Product(product_id="p1"), ToolSelectionItem(tool_name=ToolName.RADIO, selected=True, reason="전파"))
-
-
-def test_DB_조회는_아직_스텁이다():
-    with pytest.raises(NotImplementedError):
-        DatabaseItemSearch(session_factory=None).search(["전기포트"], top_k=8)
 
 
 def test_표_테두리와_공백을_무시하고_대조한다():

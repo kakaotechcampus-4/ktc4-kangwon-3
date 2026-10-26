@@ -5,8 +5,7 @@
 "품목 묶음 + 그 묶음에 걸리는 비고"인 검토 단위(AnnexBlock)로 삼는다.
 구간 단위로 자르면 비고가 어느 품목까지 적용되는지가 원문 그대로 유지된다.
 
-근거 조회 경로는 ElectricalEvidenceSource로 추상화한다. 지금은 법제처 API(LawApiEvidenceSource)만
-구현돼 있고, 적재 DB 경로(DatabaseEvidenceSource)는 테이블이 생긴 뒤 채울 자리만 둔다.
+근거 조회 경로는 ElectricalEvidenceSource로 추상화한다. 구현은 법제처 API(LawApiEvidenceSource).
 """
 
 import re
@@ -511,27 +510,3 @@ class LawApiEvidenceSource:
         return ElectricalEvidence(as_of=as_of, rule_scope=rule_scope, notice_scope=notice_scope,
                                   blocks=tuple(blocks), common_notes=common,
                                   purchase_agent=parse_purchase_agent(rule_body, rule_base))
-
-
-class DatabaseEvidenceSource:
-    """적재 DB에서 근거를 읽는 경로. 아직 테이블이 없어 자리만 둔다.
-
-    현재 DB(laws, law_articles)에는 조문만 있고 행정규칙·별표가 없다. 이 경로를 쓰려면 다음이 먼저 필요하다.
-
-    - 행정규칙(운용요령) 메타 테이블: 문서 ID, 일련번호, 시행일, 현행 여부
-    - 별표 테이블: 문서 버전 FK, 별표번호·가지번호·구분·제목, 본문 원문
-    - 위 테이블을 채우는 적재 작업(AdmrulTextClient 조회 결과 저장)
-
-    구현 후에는 같은 ElectricalEvidence를 만들어 돌려주면 ElectricalTool을 바꾸지 않고 교체할 수 있다.
-    파싱은 parse_annex, 버전 선택은 select_version을 그대로 쓴다.
-
-    Args:
-        session_factory: app.repositories.database.get_session_factory()가 돌려주는 세션 팩토리.
-    """
-
-    def __init__(self, session_factory):
-        self._session_factory = session_factory
-
-    def load(self, as_of: date) -> ElectricalEvidence:
-        # TODO: 별표·행정규칙 테이블과 적재 작업이 생기면 구현한다.
-        raise NotImplementedError("DB 근거 경로는 별표·행정규칙 테이블 적재 후 구현합니다.")

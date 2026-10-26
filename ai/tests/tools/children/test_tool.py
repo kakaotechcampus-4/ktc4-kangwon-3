@@ -10,7 +10,7 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.children import ChildrenTool, ChildrenToolError
-from app.tools.children.search import DatabaseItemSearch, LawApiItemSearch
+from app.tools.children.search import LawApiItemSearch
 from app.tools.common.law import EvidenceUnavailable
 
 from .conftest import AS_OF, FakeLaw
@@ -413,13 +413,6 @@ def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkey
     monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
     ChildrenTool(item_search=Search())._get_steps()
     assert names == [ToolName.CHILDREN]
-
-
-def test_DB_조회는_아직_자리만_있다():
-    with pytest.raises(NotImplementedError):
-        DatabaseItemSearch(session_factory=None).search(["완구"], top_k=6)
-    with pytest.raises(NotImplementedError):
-        DatabaseItemSearch(session_factory=None).catalog()
 
 
 def test_모델_호출_실패는_Tool_오류로_감싼다():
