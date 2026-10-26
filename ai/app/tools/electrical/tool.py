@@ -7,17 +7,18 @@
 
 from typing import Any
 
-from ..base import RegulatoryTool, ToolModelError, ToolStep, ToolStepInput
+from ..base import RegulatoryTool, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
+from .errors import ElectricalToolError
 from .evidence import EvidenceUnavailable, compact, purchase_agent_status
 from .rules import (
     BATTERY_SEARCH_TERMS, ESS_WORDS, PURCHASE_SUMMARY, battery_only_state, excluded_by_low_voltage,
     is_battery_or_supply, is_ess_component, item_name, low_voltage, mentions_battery, power_conflicts, sale_actions,
 )
 from .search import ElectricalItemSearch, default_item_search
-from ...prompts import PromptName
+from .steps import ElectricalFactsStep, ElectricalReviewStep
 from ...schemas.agent import ToolSelectionItem
-from ...schemas.electrical import ElectricalFact, ElectricalFacts, ElectricalReview
+from ...schemas.electrical import ElectricalFact
 from ...schemas.product import Product
 from ...schemas.schemas import (
     Determination, ElectricalAssessment, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
@@ -44,26 +45,6 @@ _QUESTIONS = {
 }
 
 
-class ElectricalToolError(ToolModelError):
-    """모델·외부 자료 실패. 원본 오류는 예외 체인에만 보존한다."""
-
-
-class _FactsStep(ToolStep[ElectricalFacts]):
-    component_name = "electrical-facts"
-    prompt_name = PromptName.ELECTRICAL_FACTS
-    output_schema = ElectricalFacts
-    error_class = ElectricalToolError
-    failure_label = "전기 Tool 조건 추출"
-
-
-class _ReviewStep(ToolStep[ElectricalReview]):
-    component_name = "electrical-review"
-    prompt_name = PromptName.ELECTRICAL_REVIEW
-    output_schema = ElectricalReview
-    error_class = ElectricalToolError
-    failure_label = "전기 Tool 품목 선택"
-
-
 class ElectricalTool(RegulatoryTool):
     """특정 상품에 고정하지 않는 전기용품 검토.
 
@@ -87,16 +68,16 @@ class ElectricalTool(RegulatoryTool):
         self._search = item_search
         self._configured_model = configured_model
         self._top_k = top_k
-        self._steps: tuple[_FactsStep, _ReviewStep] | None = None
+        self._steps: tuple[ElectricalFactsStep, ElectricalReviewStep] | None = None
 
-    def _get_steps(self) -> tuple[_FactsStep, _ReviewStep]:
+    def _get_steps(self) -> tuple[ElectricalFactsStep, ElectricalReviewStep]:
         if self._steps is None:
             if self._model is None:
                 # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
                 from ...clients.llm import build_tool_model
                 self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
-            self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))
+            self._steps = (ElectricalFactsStep(self._model, **options), ElectricalReviewStep(self._model, **options))
         return self._steps
 
     def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
