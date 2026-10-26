@@ -8,10 +8,10 @@ interface DeterminationStyle {
 
 // 판정 결과별 라벨/색
 const DETERMINATION_STYLE: Record<Determination, DeterminationStyle> = {
-    [Determination.Required]: { label: "필요", className: "text-status-danger bg-status-danger-bg border-status-danger" },
-    [Determination.PossiblyRequired]: { label: "필요할 수 있음", className: "text-status-warning bg-status-warning-bg border-status-warning" },
+    [Determination.Required]: { label: "조치 필요", className: "text-status-danger bg-status-danger-bg border-status-danger" },
+    [Determination.PossiblyRequired]: { label: "확인 필요", className: "text-status-warning bg-status-warning-bg border-status-warning" },
     [Determination.InsufficientInformation]: { label: "정보 부족", className: "text-status-warning bg-status-warning-bg border-status-warning" },
-    [Determination.NotRequired]: { label: "불필요", className: "text-status-success bg-status-success-bg border-status-success" },
+    [Determination.NotRequired]: { label: "통과", className: "text-status-success bg-status-success-bg border-status-success" },
     [Determination.NotApplicable]: { label: "해당 없음", className: "text-status-success bg-status-success-bg border-status-success" },
 };
 
