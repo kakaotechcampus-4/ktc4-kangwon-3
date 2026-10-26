@@ -26,6 +26,18 @@ _CONSUMER_SAFETY = "소비자 안전에 관한 표시·광고 심사지침"
 
 
 def _source(law_name: str, article: str, quoted_text: str, url: str, effective_date: str) -> LegalSource:
+    """고정 근거 조문 하나를 만든다.
+
+    Args:
+        law_name: 법령·고시 이름.
+        article: 조문 위치 (예: "제3조 제1항").
+        quoted_text: 인용 원문.
+        url: 버전을 고정한 공개 열람 주소.
+        effective_date: 시행일 (YYYY-MM-DD).
+
+    Returns:
+        LegalSource: 근거 조문.
+    """
     return LegalSource(
         source_name=_SOURCE_NAME, law_name=law_name, article=article, quoted_text=quoted_text,
         source_url=url, effective_date=effective_date, is_mock=False,
@@ -106,12 +118,26 @@ RISK_ORDER = (RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH)
 
 
 def normalize(text: str) -> str:
-    """대조용 정규화. 공백 차이와 영문 대소문자만 무시한다. 글자를 바꾼 인용은 그대로 다르게 본다."""
+    """대조용 정규화. 공백 차이와 영문 대소문자만 무시한다. 글자를 바꾼 인용은 그대로 다르게 본다.
+
+    Args:
+        text: 원문 또는 인용.
+
+    Returns:
+        str: 공백을 하나로 모으고 소문자로 바꾼 글.
+    """
     return re.sub(r"\s+", " ", text).strip().casefold()
 
 
 def find_kc_claims(lines: list[str]) -> list[AdvertisingClaim]:
-    """국내 인증(KC) 표기를 찾는다. 같은 표기는 한 번만 돌려준다."""
+    """국내 인증(KC) 표기를 찾는다. 같은 표기는 한 번만 돌려준다.
+
+    Args:
+        lines: 판매자 문구.
+
+    Returns:
+        list[AdvertisingClaim]: 안전·인증 유형의 KC 표기 주장.
+    """
     found: dict[str, AdvertisingClaim] = {}
     for line in lines:
         for match in _KC_MARK.finditer(line):
@@ -122,17 +148,42 @@ def find_kc_claims(lines: list[str]) -> list[AdvertisingClaim]:
 
 
 def _is_certification(claim: AdvertisingClaim) -> bool:
+    """인증 표기 주장인지 본다.
+
+    Args:
+        claim: 검토한 주장.
+
+    Returns:
+        bool: 안전·인증 유형이고 인용에 "인증"이나 KC 표기가 있으면 True.
+    """
     return claim.risk_type is AdvertisingRiskType.SAFETY_CERTIFICATION and (
         "인증" in claim.quote or _KC_MARK.search(claim.quote) is not None)
 
 
 def claim_risk(claim: AdvertisingClaim) -> RiskLevel:
+    """주장의 위험도. 의약품 효능처럼 읽히는 인체 효능 주장만 높게 본다.
+
+    Args:
+        claim: 검토한 주장.
+
+    Returns:
+        RiskLevel: HIGH 또는 MEDIUM.
+    """
     if claim.risk_type is AdvertisingRiskType.BODY_EFFECT and any(word in claim.quote for word in _MEDICINAL_WORDS):
         return RiskLevel.HIGH
     return RiskLevel.MEDIUM
 
 
 def sources_for(claim: AdvertisingClaim, risk_level: RiskLevel) -> list[LegalSource]:
+    """주장 하나에 붙일 근거 조문을 모은다.
+
+    Args:
+        claim: 검토한 주장.
+        risk_level: 주장의 위험도. HIGH면 소비자 안전 심사지침을 더함.
+
+    Returns:
+        list[LegalSource]: 법 제3조·제5조 → 실증 대상 → 유형별 지침 순.
+    """
     sources = [LAW_ARTICLE_3, LAW_ARTICLE_5, SUBSTANTIATION_TARGETS[claim.risk_type], TYPE_SOURCES[claim.risk_type]]
     if risk_level is RiskLevel.HIGH:
         sources.append(MEDICINAL_EFFECT_SOURCE)
@@ -140,6 +191,15 @@ def sources_for(claim: AdvertisingClaim, risk_level: RiskLevel) -> list[LegalSou
 
 
 def claim_action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
+    """주장 하나에 대해 판매 전에 할 일.
+
+    Args:
+        claim: 검토한 주장.
+        risk_level: 주장의 위험도.
+
+    Returns:
+        str: 인증 확인, 의약품 효능 문구 수정, 실증자료 준비 중 하나의 안내.
+    """
     if _is_certification(claim):
         return (f"'{claim.quote}' 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
                 "확인되지 않으면 표기를 빼세요.")
