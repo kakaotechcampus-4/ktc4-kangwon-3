@@ -5,8 +5,27 @@
 - 상태: `Review Ready`
 - 적용 범위: Agent, 모델 호출, Tool, Client, Repository, Pipeline, 평가 실행
 - 근거: [#171](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pull/171), [#231](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/issues/231)
-- 이 문서의 Python 코드는 **마이그레이션 목표 인터페이스**다. 현재 저장소에 구현되어 있다는 의미가 아니다.
+- 이 문서의 Python 코드는 **마이그레이션 목표 인터페이스**다. 이미 구현된 절은 코드를 지우고 구현 위치와 문서와 달라진 점만 남긴다. 코드를 문서에 복사해 두지 않는다(코드가 기준).
 - 팀 리뷰 후 승인된 버전을 구현 기준으로 사용한다. 새로 구체화한 스키마의 타입·필수 여부도 이 문서 리뷰 대상이다.
+
+### 구현 현황 (2026-10-26, develop 기준)
+
+| 절 | 상태 | 구현 위치 |
+| --- | --- | --- |
+| §2 실행 컨텍스트 | 구현됨 (세션 계층까지만 전달) | `app/domain/context.py` |
+| §3 프롬프트 로더 | 구현됨 | `app/prompts/__init__.py` |
+| §4.2 BaseAgent | 구현됨 (#364) | `app/agents/base/`, Tool 안 모델 호출은 `app/tools/common/agent.py` |
+| §4.3 context 인자 | 미구현. 공개 메서드는 `run(input)` | — |
+| §5 UsageRecord·Sink | 미구현. 평탄한 JSONL `record()` 유지 + 지표 sink 등록표(#379) | `app/usage.py`, `app/observability/` |
+| §6.1 예외·응답 코드 | 구현됨 (#382) | `app/domain/errors.py` |
+| §6.2 Client·Tool 오류 경계 | 일부. ToolExecutor 구분·Client 예외 변환은 미구현 | — |
+| §6.3 API 경계 | 구현됨 | `app/routers/exception_handlers.py` |
+| §7.1 ExecutionEvent | 미구현. 세션 이벤트가 상품 단위 진행을 대신함 | `app/sessions/events.py` |
+| §7.1.2 콜백 이벤트 | 구현됨 (#310·#317) | `app/schemas/callback.py`, `app/callbacks/` |
+| §7.1.3 공개 진단서 | 형식 구현됨. 결과 배지 결정 규칙은 결과 종합 작업에서 구현 | `app/schemas/callback.py` |
+| §7.1.4 진단 접수·재진단 요청 | 구현됨. 입력 조건 변경은 #402 | `app/schemas/request.py`, `app/routers/diagnose.py` |
+
+- 실제 진단은 아직 더미로 실행한다(`main.py`의 `run_dummy_diagnosis`). 파이프라인 연결은 #320.
 - 기존 [제안 문서](OBSERVABILITY_AND_ERROR_HANDLING.md)는 논의 이력으로 보존한다. 구현 시 이 문서와 제안 문서를 섞어 적용하지 않는다.
 - 내부 Python 필드명은 snake_case를 사용한다. BE API DTO의 alias 규칙은 별도 API 계약을 따른다.
 
@@ -54,62 +73,12 @@ M1~M4는 AI 코드의 이관 단위이며, 계약을 합의하는 순서가 아�
 
 ## 2. 공통 실행 컨텍스트 — M2
 
-### 2.1 목표 스키마
+### 2.1 스키마 — 구현됨
 
-예정 위치: `app/observability/context.py`
+위치: `app/domain/context.py` (`RunType`, `PipelineStage`, `ExecutionContext.start()`·`next_round()`). 필드·불변 조건은 아래 표와 같다.
 
-```python
-from enum import StrEnum
-from uuid import uuid4
-
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class RunType(StrEnum):
-    PRODUCTION = "production"
-    EVALUATION = "evaluation"
-    TEST = "test"
-
-
-class PipelineStage(StrEnum):
-    PIPELINE = "pipeline"
-    EXTRACTION = "extraction"
-    SELECTION = "selection"
-    TOOL_EXECUTION = "tool_execution"
-    AGGREGATION = "aggregation"
-    VERIFICATION = "verification"
-    FINALIZATION = "finalization"
-
-
-class ExecutionContext(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    run_id: str = Field(min_length=1)
-    product_id: str = Field(min_length=1)
-    run_type: RunType
-    diagnosis_id: str | None = None
-    retry_round: int = Field(default=0, ge=0, strict=True)
-
-    @classmethod
-    def start(
-        cls,
-        *,
-        product_id: str,
-        run_type: RunType,
-        diagnosis_id: str | None = None,
-    ) -> "ExecutionContext":
-        return cls(
-            run_id=str(uuid4()),
-            diagnosis_id=diagnosis_id,
-            product_id=product_id,
-            run_type=run_type,
-        )
-
-    def next_round(self) -> "ExecutionContext":
-        values = self.model_dump()
-        values["retry_round"] = self.retry_round + 1
-        return type(self).model_validate(values)
-```
+- 컨텍스트는 지금 **세션 계층에만** 있다(`DiagnosisSession.context`). Pipeline·Agent·Tool에는 넘기지 않는다(§4.3 미구현).
+- `next_round()`를 부르는 곳은 아직 없다. 파이프라인은 지역 변수로 재실행 회차를 센다(`pipeline/runner.py`).
 
 ### 2.2 필드와 불변 조건
 
@@ -125,7 +94,7 @@ class ExecutionContext(BaseModel):
 - 재실행은 새로운 컨텍스트 스냅샷을 만들되 run_id·diagnosis_id·product_id·run_type은 유지한다.
 - 동시 실행 사이에 변경 가능한 컨텍스트를 공유하지 않는다.
 - SDK·Client의 내부 재시도는 retry_round를 변경하지 않는다.
-- 사용자 답변 이후 재개할 때 기존 run_id 유지 여부는 이 계약 범위 밖이다.
+- 사용자 답변 이후 재개(재진단)하면 **run_id를 새로 발급**한다(`ExecutionContext.start()`, #310). diagnosis_id·product_id·run_type은 유지한다. 콜백의 `sequence`도 실행마다 1부터 다시 센다.
 - `next_round()`는 회차 값만 생성한다. 실행 가능 횟수는 Pipeline 정책이 검증한다.
 
 ### 기존 RetryRequest·ToolResult와 회차 일치
@@ -136,74 +105,22 @@ class ExecutionContext(BaseModel):
 - 이번에 실행하지 않은 Tool 결과와 `tool_result_history`의 과거 회차는 변경하지 않는다. 모든 최신 결과를 현재 회차로 덮어쓰지 않는다.
 - ToolExecutor 경계에서 요청 회차와 컨텍스트가 일치하는지 검사한다. SDK 내부 retry는 어느 필드의 업무 회차도 올리지 않는다.
 
-### 2.3 호출 예시
+### 2.3 생성 위치
 
-```python
-context = ExecutionContext.start(
-    diagnosis_id="diagnosis-001",
-    product_id="product-001",
-    run_type=RunType.PRODUCTION,
-)
-
-# 최초 실행
-product = extractor.extract(source, context=context)
-selection = selector.select(product, context=context)
-verification = verifier.verify(draft, context=context)
-
-# 업무적 재실행을 시작할 때
-retry_context = context.next_round()
-# 실제 loop에서는 현재 context를 갱신하여 1, 2, 3으로 증가시킨다.
-```
+- 진단 접수: 세션 관리자가 상품마다 `ExecutionContext.start(run_type=PRODUCTION)`로 만든다.
+- 재진단: 답변 검사 후 새 컨텍스트를 만든다(`sessions/manager/manager.py`의 `resume`).
+- 개발용 진단·평가: 각 진입점이 만든다.
 
 ## 3. 프롬프트 로더 — M1
 
-예정 위치: 기존 `app/prompts/__init__.py`
+### 3.1 접근 인터페이스 — 구현됨
 
-### 3.1 접근 인터페이스
+위치: `app/prompts/__init__.py` (`PromptName`, `PromptSnapshot`, `get_prompt`, `clear_prompt_cache`, `load_prompt`). 처음 제안과 다른 점:
 
-```python
-from dataclasses import dataclass
-from enum import StrEnum
-from functools import lru_cache
-from hashlib import sha256
-from pathlib import Path
-
-
-class PromptName(StrEnum):
-    EXTRACTION = "extraction"
-    SELECTION = "selection"
-    VERIFICATION = "verification"
-
-
-@dataclass(frozen=True)
-class PromptSnapshot:
-    name: PromptName
-    path: Path
-    text: str
-    sha256: str
-
-
-@lru_cache(maxsize=3)
-def get_prompt(name: PromptName) -> PromptSnapshot:
-    path = Path(__file__).with_name(f"{name.value}.md")
-    text = path.read_text(encoding="utf-8")
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
-    return PromptSnapshot(
-        name=name,
-        path=path,
-        text=normalized,
-        sha256=sha256(normalized.encode("utf-8")).hexdigest(),
-    )
-
-
-def clear_prompt_cache() -> None:
-    get_prompt.cache_clear()
-
-
-def load_prompt(name: str) -> str:
-    # 기존 health 등의 호출을 위한 호환 인터페이스.
-    return get_prompt(PromptName(name)).text
-```
+- `PromptName`: 3개 → 15개. Tool의 facts·review(`customs/facts` 등 10개), `advertising`, `image_triage` 추가
+- 파일 위치: `agents/<name>/prompt.md`를 먼저 찾고, `prompts/<name>.md`와 두 곳에 다 있으면 오류
+- 캐시: `lru_cache(maxsize=None)`
+- 공용 헬퍼 `normalize_newlines`·`fingerprint` 추가. `load_prompt`는 등록 안 된 이름이면 ValueError
 
 ### 3.2 계약
 
@@ -212,7 +129,7 @@ def load_prompt(name: str) -> str:
 - 파일 경로만 버전으로 사용하지 않는다.
 - SHA-256 전체 문자열을 기록하고 화면 표시만 짧게 줄일 수 있다.
 - 기존 평가의 LF 정규화·지문과 호환되는지 테스트한다.
-- 평가 러너가 Agent의 `PROMPT_PATH` / `_PROMPT_PATH`를 import하지 않도록 이관한다.
+- 평가 러너가 Agent의 `PROMPT_PATH` / `_PROMPT_PATH`를 import하지 않도록 이관한다. (미완료: `eval/runner.py`·`selection_runner.py`·`collect_runner.py`가 아직 import함. 값은 로더에서 가져온 경로라 지문은 같음)
 - 캐시 갱신 시점은 미결정이다. 운영 중 자동 갱신은 이번 인터페이스로 보장하지 않는다. 개발·평가에서 초기화할 수 있는 명시적 함수만 제공한다.
 - 기존 `prompt_fingerprint(path)`의 임의 파일 평가 기능이 필요하면 유지하되, 해시 계산 규칙은 같은 함수를 공유한다.
 
@@ -230,102 +147,23 @@ def load_prompt(name: str) -> str:
 | 호출·파싱 예외 변환 | 검증 규칙·범위 검사·결과 병합 |
 | 공통 기록 실패 경고 | 기존 검증 내부 Trace |
 
-### 4.2 M1 인터페이스
+### 4.2 BaseAgent — 구현됨 (#364)
 
-예정 위치: `app/agents/base.py`
+위치: `app/agents/base/` 패키지 (`agent`·`errors`·`meta`·`parsing`·`protocols`·`usage_log`). 처음 제안과 다른 점:
 
-```python
-from enum import StrEnum
-from typing import Any, ClassVar, Generic, NoReturn, TypeVar
+- `BaseAgent[InputT, OutputT, ResultT]`(ABC). 공개 메서드는 `run(input)`·`run_with_meta(input)` 두 개
+- 하위 클래스 구현: `_build_messages`·`_subject_id` (필요하면 `_finalize`·`_skip`)
+- ClassVar 추가: `task_name`·`output_label`·`structured_output_options`·`creates_default_model`·`model_profile`
+- `AgentError(AIError, RuntimeError)`에 `meta: AgentRunMeta` 추가. `ModelFailurePhase`에 `FINALIZE` 추가
+- 실행 정보 `AgentRunMeta`·`AgentResult` 신설 (`base/meta.py`)
+- Tool 안의 모델 호출도 BaseAgent를 상속: `ToolStep` + `ToolStepInput(payload, subject_id)` (`app/tools/common/agent.py`)
+- 콘솔 토큰 로그는 `base/usage_log.py`의 `log_token_usage`
+- 모델 생성: `build_agent_model(name)`·`build_tool_model(name)` (`app/clients/llm`, #311·#401). 프로필은 `config/profiles.py`
 
-from pydantic import BaseModel
+기존 Agent별 예외(`ExtractionFailedError` 등)는 각 Agent 모듈에 남기고 부모만 `AgentError`로 바꿨다.
 
-OutputT = TypeVar("OutputT", bound=BaseModel)
-
-
-class AgentError(RuntimeError):
-    def __init__(
-        self,
-        message: str,
-        *,
-        partial_result: object | None = None,
-    ) -> None:
-        super().__init__(message)
-        self.partial_result = partial_result
-
-
-class ModelFailurePhase(StrEnum):
-    CALL = "call"
-    PARSING = "parsing"
-
-
-class BaseAgent(Generic[OutputT]):
-    component_name: ClassVar[str]
-    prompt_name: ClassVar[PromptName]
-    output_schema: ClassVar[type[BaseModel]]
-    error_class: ClassVar[type[AgentError]]
-
-    def __init__(
-        self,
-        model: Any = None,
-        *,
-        configured_model: str | None = None,
-        usage_agent: str | None = None,
-    ) -> None:
-        # usage_agent 미지정 시 component_name으로 기록한다.
-        # 모델 자동 생성 여부는 Agent의 기존 생성 동작을 유지한다.
-        raise NotImplementedError
-
-    def _invoke(
-        self,
-        messages: list[Any],
-        *,
-        subject_id: str,
-        partial_result: object | None = None,
-    ) -> OutputT:
-        # 공통 호출·파싱 확인·사용량 기록을 구현한다.
-        # 실패 기록 후 _raise_model_error()로 Agent별 예외를 발생시킨다.
-        raise NotImplementedError
-
-    def _failure_message(
-        self,
-        phase: ModelFailurePhase,
-        cause: Exception,
-    ) -> str:
-        # 각 Agent가 기존 호출·파싱 실패 문구를 반환한다.
-        raise NotImplementedError
-
-    def _raise_model_error(
-        self,
-        phase: ModelFailurePhase,
-        cause: Exception,
-        *,
-        partial_result: object | None = None,
-    ) -> NoReturn:
-        raise self.error_class(
-            self._failure_message(phase, cause),
-            partial_result=partial_result,
-        ) from cause
-```
-
-기존 예외는 각 Agent 모듈에 남기고 부모 클래스만 변경한다.
-
-```python
-class ExtractionFailedError(AgentError):
-    pass
-
-
-class SelectionFailedError(AgentError):
-    pass
-
-
-class VerificationError(AgentError):
-    pass
-```
-
-- 위 Base는 책임과 시그니처 정의다. 생성자 전체의 완성 구현은 아니다.
 - 기존 예외 import 경로·메시지·cause·partial_result를 유지한다.
-- 모델 생성은 `build_chat_model()`의 공통 설정 경로를 사용한다. 모델 stub 주입을 유지한다.
+- 모델 생성은 `build_agent_model()`·`build_tool_model()`의 공통 설정 경로를 사용한다. 모델 stub 주입을 유지한다.
 - 검증의 규칙 전용 실행에서는 모델을 자동 생성하지 않는다. 다른 Agent와 생성 시점을 맞추려고 이 동작을 변경하지 않는다.
 - `include_raw=True`를 세 Agent에 적용한다. `strict`는 Agent별 기존 설정을 유지한다.
 - 생성자의 `configured_model` / `usage_agent` 등 기존 인자를 임의로 삭제하지 않는다.
@@ -381,40 +219,12 @@ def _review_with_trace(
 - 로컬 실행 스크립트의 로그 확인 기능을 유지한다. 출력 여부는 Logger 레벨·Handler 설정으로 제어한다.
 - Prompt·응답 전문은 출력하지 않는다. 콘솔 출력 실패가 판정 결과나 원래 모델 예외를 바꾸지 않게 한다.
 
-### 4.3 M2 공개 메서드
+### 4.3 context 전달 — 미구현
 
-아래는 기존 인자에 추가할 키워드 전용 인자를 보여준다. 기존 선택 인자가 있다면 유지한다.
-
-```python
-def extract(
-    self,
-    source: ExtractionInput,
-    *,
-    context: ExecutionContext,
-) -> Product: ...
-
-
-def select(
-    self,
-    product: Product,
-    *,
-    context: ExecutionContext,
-) -> ToolSelectionResponse: ...
-
-
-def verify(
-    self,
-    draft: DraftAssessment,
-    *,
-    context: ExecutionContext,
-) -> VerificationResult: ...
-```
-
-- 이 인자 추가는 M2의 명시적인 호출 계약 변경이다. Pipeline Protocol·구현·CLI·평가 Runner·stub을 같은 PR에서 갱신한다.
-- Base의 `_invoke()`도 M2에서는 `subject_id`에서 `context`로 이관한다. `partial_result`와 메시지 hook·Trace 보존 경계는 유지한다.
+- 공개 메서드는 `run(input)` 하나로 통일됐다(#364). 처음 제안한 `extract/select/verify(..., *, context)`는 쓰지 않는다.
+- 컨텍스트를 Agent까지 넘길 때는 메서드 인자 대신 입력 스키마 또는 `run`의 키워드 인자로 넘기는 방향으로 다시 정한다. Pipeline Protocol·구현·CLI·평가 Runner·stub을 같은 PR에서 갱신한다.
 - 규칙만 실행하는 `verify_rules()`는 모델 사용량을 기록하지 않는다.
 - 검증의 범위 검사·결과 병합을 Base로 옮기지 않는다.
-- `usage_agent` 삭제는 호출부·집계 호환을 이관한 M2에서 수행한다.
 
 ### 4.4 모델 호출 순서
 
@@ -438,11 +248,18 @@ def verify(
 - 검증의 범위 검사는 모델 응답 후 별도 처리다. 모델 호출 성공과 검증 전체 성공을 같은 지표로 취급하지 않는다.
 - 범위 검사 실패는 운영 로그·Trace에 기록하고, 같은 모델 호출의 UsageRecord를 추가하지 않는다.
 - 검증 실패 시 규칙 검사 결과를 VerificationError.partial_result에 보존하는 책임은 VerificationAgent에 남긴다.
+- 구현(#364): 지금은 UsageRecord 대신 `usage.record()`로 한 번 기록한다. 성공 기록은 `_finalize`까지 끝난 뒤 남기며, `_finalize` 실패는 `failure_phase=finalize`. 길이 초과·콘텐츠 필터는 `from_completion`으로 사용량을 살려 PARSING 실패로 기록한다.
 
 ## 5. 사용량 스키마 — M2
 
 예정 위치: `app/observability/usage.py`
 기존 `app/usage.py`는 이관 중 호환 진입점으로 사용할 수 있다.
+
+> **현재 상태 (미구현)**: UsageRecord·UsageSink·record_usage는 없다. 지금은 아래처럼 동작한다.
+> - `app/usage.py`의 `record(agent, usage, *, configured_model, reasoning_effort, subject_id, ok, elapsed_ms, error_type, failure_phase)`가 평탄한 JSONL 한 줄을 쓴다. 쓰기 실패는 그대로 무시(`pass`).
+> - `CallUsage`는 dataclass. `cached_tokens`(모르면 0), `reasoning_tokens`·`cache_write_tokens` 추가. 수집 함수는 `from_response`·`from_handler`·`from_completion`.
+> - 에이전트 실행 결과는 sink 등록표(`app/observability/agent_sinks.py`, #379)로 나간다. 사용량 JSONL과 Prometheus 지표(`ai_agent_*`, `observability/metrics.py`)가 그 sink다. sink 오류는 WARNING만 남기고 판정을 바꾸지 않는다.
+> - 아래 5.1~5.3은 M2 목표로 남긴다.
 
 ### 5.1 정규화된 사용량
 
@@ -561,41 +378,32 @@ def record_usage(record: UsageRecord, *, sink: UsageSink) -> None:
 
 ## 6. 예외 스키마 — M3
 
-예정 위치: `app/errors.py`
+위치: `app/domain/errors.py` — 구현됨 (#382)
 
-### 6.1 응답 코드와 공통 예외 인터페이스
+### 6.1 응답 코드와 공통 예외 — 구현됨
 
-```python
-from dataclasses import dataclass
+- 공통 뿌리 `AIError(Exception)`. 이를 상속: `AIServiceError`, `AgentError`, `ClientError`(`clients/errors.py`), `ConfigError`(`config/errors.py`), 세션 예외(`sessions/errors.py`) 등
+- `AgentError`는 `AIServiceError`의 하위가 아니라 **형제**다(처음 제안과 다름). 둘 다 `RuntimeError`도 상속해 기존 catch 호환을 유지한다.
+- `AIServiceError(response_code, stage, retryable, partial_result, data)` — `data`가 추가됨(예: 409의 `conflictProductIds`)
+- `AIResponseCode`는 BE와 합의해 확정했다:
 
+| 코드 | HTTP | 쓰는 곳 |
+| --- | --- | --- |
+| `AI_INVALID_REQUEST` | 422 | 요청 형식 오류, 이번 회차 질문에 다 답하지 않음 |
+| `AI_UNKNOWN_QUESTION_KEY` | 400 | 묻지 않은 질문의 답변 |
+| `AI_UNAUTHORIZED` | 401 | 내부 토큰 없음·불일치 |
+| `AI_NOT_FOUND` / `AI_SESSION_NOT_FOUND` | 404 | 경로 없음 / 세션 없음 |
+| `AI_METHOD_NOT_ALLOWED` | 405 | |
+| `AI_SESSION_CONFLICT` | 409 | 진행 중인 상품 포함 |
+| `AI_RESUME_CONFLICT` | 409 | 기다리는 질문과 다른 답변·중복 답변 |
+| `AI_QUEUE_FULL` | 429 | 진단 대기열 초과 |
+| `AI_INTERNAL_ERROR` | 500 | 처리 못 한 예외 |
+| `AI_NOT_IMPLEMENTED` | 501 | |
+| `AI_PIPELINE_ERROR` | 500 | 실패 콜백: 진단 중 처리 못 한 예외 (retryable=false) |
+| `AI_TIMEOUT` | 500 | 실패 콜백: 진단 시간 초과 (retryable=true) |
 
-@dataclass(frozen=True)
-class ResponseCode:
-    http_status: int
-    code: str
-    message: str
+정확한 목록·문구는 `AIResponseCode`가 기준이다.
 
-
-class AIServiceError(RuntimeError):
-    def __init__(
-        self,
-        *,
-        response_code: ResponseCode,
-        stage: PipelineStage | None = None,
-        retryable: bool = False,
-        partial_result: object | None = None,
-    ) -> None:
-        super().__init__(response_code.message)
-        self.response_code = response_code
-        self.stage = stage
-        self.retryable = retryable
-        self.partial_result = partial_result
-```
-
-- `AIResponseCode` enum의 각 항목은 ResponseCode 값을 보유한다.
-- 실제 코드 번호·HTTP 상태·공개 문구 목록은 BE 합의 후 확정한다. #171의 AI-001 등은 예시이며 이 문서에서 채번하지 않는다.
-- M1의 AgentError를 M3에서 AIServiceError 계열로 이관한다. 기존 Agent별 예외 이름·AgentError·RuntimeError로 잡는 호환을 유지한다. 이를 위해 AIServiceError도 RuntimeError를 상속하고 AgentError를 그 하위 계층에 유지한다.
-- 생성자는 M1의 `message` 방식에서 응답 코드 방식으로 바뀌므로 기존 생성 호출부를 같은 PR에서 수정한다. 이름·catch 호환이 생성자 인자까지 무변경이라는 의미는 아니다.
 - `raise ... from exc`로 내부 cause를 보존한다. 공개 message에 원본 exc를 넣지 않는다.
 - retryable은 재시도 가능성이며 즉시 재시도하라는 명령이 아니다.
 - partial_result는 내부 부분 결과다. FinalAssessment나 ApiResponse.data로 무조건 변환하지 않는다.
@@ -619,7 +427,9 @@ class AIServiceError(RuntimeError):
 
 SDK → Agent → Tool → Pipeline에서 같은 오류를 각각 retry하지 않는다. SDK / Client 설정과 Pipeline 재실행 상한을 구분해 관리한다.
 
-### 6.3 API 경계
+> **미구현**: ToolExecutor는 아직 계약 위반·코드 결함까지 `except Exception` 하나로 FAILED 처리한다. 외부 API Client도 아직 `httpx.HTTPStatusError`·`RuntimeError`를 그대로 던진다(ClientError로 감싸지 않음).
+
+### 6.3 API 경계 — 구현됨 (`app/routers/exception_handlers.py`)
 
 | 내부 | 외부 |
 | --- | --- |
@@ -630,13 +440,15 @@ SDK → Agent → Tool → Pipeline에서 같은 오류를 각각 retry하지 �
 | partial_result | API 계약으로 정의한 안전한 DTO만 |
 | retryable | 공개 여부를 BE와 별도 합의 |
 
-`ApiResponse{code, message, details, data}`를 유지한다. `details`에 내부 stack trace를 넣지 않는다.
+`ApiResponse{code, message, details, data}`를 유지한다. `details`에는 요청 필드 오류만 넣고 내부 stack trace를 넣지 않는다.
 
 ## 7. Trace·운영 로그 — M4
 
 ### 7.1 목표 이벤트 스키마
 
-예정 위치: `app/observability/trace.py`
+예정 위치: `app/observability/trace.py` — **미구현**
+
+> 지금은 상품 단위 진행을 세션 이벤트(`app/sessions/events.py`: Started·StageChanged·ToolProgressed·AwaitingInput·Completed·Failed·Resumed)와 상태 전이표(`app/sessions/transitions.py`)가 맡고, 콜백(§7.1.2)으로 BE에 나간다. 구성 요소 단위 ExecutionEvent는 아래 목표로 남긴다.
 
 ```python
 from datetime import timezone
@@ -707,241 +519,81 @@ class ExecutionEvent(BaseModel):
 | `RETRY_LIMIT_EXCEEDED` | `retry_limit_exceeded` | `incomplete` |
 | `NO_PROGRESS` | `no_progress` | `incomplete` |
 | `COST_LIMIT_EXCEEDED` | `cost_limit_exceeded` | `incomplete` |
+| `QUESTION_LIMIT_EXCEEDED` | `question_limit_exceeded` | `incomplete` |
 
 - `FinalAssessment.termination_reason`은 필수이며, 해당 실행의 Pipeline 종료 이벤트에는 응답과 같은 Enum 값을 기록한다. 응답과 Trace의 종료 사유는 Runner가 결정한 동일한 값에서 생성한다.
 - `ExecutionEvent.termination_reason`은 선택 필드다. 시작·진행·개별 구성 요소 완료 이벤트에는 Pipeline 종료 사유가 없을 수 있으므로 `None`을 허용한다. `EventStatus.COMPLETED`만으로 `ExecutionEndReason.COMPLETED`를 자동 지정하지 않는다.
 - `COMPLETED`는 검증 흐름 완료이지 상품의 규제상 적합이나 기관 인증을 뜻하지 않는다.
 - `USER_INPUT_REQUIRED`는 이번 실행이 종료됐다는 뜻이며 진단 전체의 완료가 아니다. 사용자 답변 이후 저장 상태를 사용한 재개는 별도 API 계약으로 정의한다.
-- 현재 처리되지 않은 예외는 `FinalAssessment`를 생성하지 않는다. 이때 `pipeline_failed` 이벤트는 `status=FAILED`와 오류 코드·실패 단계를 기록하며, 여섯 종료 사유 중 하나로 강제 변환하지 않는다. 예외의 `partial_result`도 자동으로 최종 응답이 되지 않는다.
+- 현재 처리되지 않은 예외는 `FinalAssessment`를 생성하지 않는다. 이때 `pipeline_failed` 이벤트는 `status=FAILED`와 오류 코드·실패 단계를 기록하며, 일곱 종료 사유 중 하나로 강제 변환하지 않는다. 예외의 `partial_result`도 자동으로 최종 응답이 되지 않는다.
+- `QUESTION_LIMIT_EXCEEDED`: 질문 회차(최대 2회, #310)를 다 쓰고도 질문이 남으면 질문 대신 미완료 결과로 끝낸다(`sessions/manager/runner.py`).
+- 세션에서 처리 못 한 예외는 실패 콜백 `AI_PIPELINE_ERROR`(retryable=false), 시간 초과(600초)는 `AI_TIMEOUT`(retryable=true)으로 끝낸다.
 - 비용 제한은 Enum 값이 정의됐다고 구현된 것이 아니다. 실제 예산 계산·확인·중단 정책은 별도 작업이다. 신규 종료 사유가 필요하면 공통 Enum과 응답·Trace 소비 계약을 함께 갱신한다.
 
-### 7.1.2 BE 전달용 상품 실행 이벤트 DTO
+### 7.1.2 BE 전달용 상품 실행 이벤트(콜백) — 구현됨
 
-상태: **Proposed / BE 합의 전**. 아래는 API 계약 후보이며 실제 모듈·전송 경로는 아직 구현하지 않았다.
-예정 위치: `app/schemas/api/pipeline_events.py`. SSE·콜백·최종 응답 중 전달 방식은 이 DTO가 결정하지 않는다.
+위치: `app/schemas/callback.py`(DTO), `app/callbacks/`(이벤트 변환·발신함), `app/clients/backend/callback.py`(전송, #401).
+전달 방식: AI → BE `POST /internal/v1/ai/products/{productId}`, 헤더 `X-Internal-Token` (#305·#332). 응답 분류·재시도는 발신함이 맡는다.
 
 | 내부 기록 | BE 전달 |
 | --- | --- |
-| Agent·Tool·Client·Repository의 모든 ExecutionEvent | 상품 실행의 공개 단계·상태 변화만 선별 |
+| 세션 이벤트 | 상품 실행의 공개 단계·상태 변화만 선별 |
 | 전체 ExecutionContext | diagnosis_id / product_id / run_id만 전달 |
-| call_id, 내부 execution_id, component_name, run_type | 기본적으로 비공개 |
+| call_id, 내부 execution_id, component_name, run_type | 비공개 |
 | 원본 예외, stack trace, 원문 응답·query | 비공개 |
-| Runner가 결정한 종료 사유 | 공통 ExecutionEndReason을 재사용 |
 
-별도 ApiModel을 사용한다. 내부 StrictModel·LLM 스키마에 API alias를 적용하지 않는다.
-아래는 camelCase 직렬화를 제안하며, 실제 외부 필드명은 BE와 확인한다.
+별도 `ApiModel`(`app/schemas/base.py`, camelCase alias)을 쓴다. 내부 StrictModel·LLM 스키마에 API alias를 적용하지 않는다.
 
-```python
-from datetime import timezone
-from enum import StrEnum
-from typing import Annotated, Literal
+| 이벤트 (`eventType`) | 필드 | 비고 |
+| --- | --- | --- |
+| 공통 | `eventId`, `diagnosisId`, `productId`, `runId`, `sequence` | eventId는 BE 중복 수신 키. runId는 재진단마다 새로 발급, sequence는 실행마다 1부터 |
+| `product_progress` | `stage`, `stageStatus`(started·completed·skipped), `toolName` | toolName은 Tool 실행 단계에서만. BE는 저장하지 않고 표시만 |
+| `product_awaiting_input` | `questionRound`(1~2), `questions[]` | 실행의 마지막. 질문 키·순서 중복 금지 |
+| `product_result` | `assessment` (§7.1.3) | 실행의 마지막. 진단서를 콜백에 바로 담음 |
+| `product_failed` | `stage`, `error{code(≤50자), message, retryable}` | 실행의 마지막 |
 
-from pydantic import (
-    AwareDatetime, BaseModel, ConfigDict, Field, model_validator,
-)
-from pydantic.alias_generators import to_camel
+질문 `PublicQuestionDto`: `questionKey`(≤50자), `questionOrder`(1부터), `questionText`, `helpText`.
 
-from app.schemas.schemas import (
-    ExecutionEndReason, FinalVerificationStatus, OverallStatus, ToolName,
-)
+- 질문은 최대 2회차. 2회차에는 1회차에 없던 새 키만 묻는다. 재진단 요청은 이번 회차 질문에 **모두** 답해야 한다(아니면 422).
+- `toolName`·카드의 분야 이름은 BE `ToolName` 값: `CUSTOMS`, `CHILDREN`, `ELECTRICAL`, `RADIO`, `FOOD_DRUG`, `LABEL_AD`.
+- 처음 제안과 달라진 점: 이벤트별 `status`·`retryRound`·`assessmentId`·`terminationReason`·`verificationStatus` 삭제, `runId` 추가, 질문 형식이 키·순서 기반으로 바뀜, 결과 콜백이 진단서를 직접 담음.
 
+### 7.1.3 BE·FE 전달용 공개 진단서 — 형식 구현됨
 
-class ApiModel(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid", frozen=True,
-        alias_generator=to_camel, populate_by_name=True,
-    )
+위치: `app/schemas/callback.py`의 `PublicAssessmentDto`. 내부 FinalAssessment와 LLM 스키마는 바꾸지 않고 변환기(`AssessmentPresenter`)가 만든다.
 
+| 필드 | 의미 |
+| --- | --- |
+| `status` | `completed` / `incomplete`. 입력 대기는 질문 콜백으로 따로 나감 |
+| `resultStatus` | 결과 배지. `PURCHASING_AGENT_ALLOWED`(구매대행 가능) / `DIRECT_IMPORT_CERTIFICATION_REQUIRED`(사입 인증 필요) / `RECHECK_REQUIRED`(재확인 필요) |
+| `summary` | AI가 만드는 공개 요약 |
+| `toolReviews[]` | 분야 카드: `toolName`, `status`(COMPLETED·SKIPPED·INCOMPLETE), `message`, `findings[]` |
+| `requiredActions[]` | 상품 전체의 할 일 목록. 카드에 나눠 담지 않음 |
+| `notices[]` | 미완료 사유·정보 부족·참고 안내 |
 
-class PublicPipelineStage(StrEnum):
-    EXTRACTION = "extraction"
-    SELECTION = "selection"
-    TOOL_EXECUTION = "tool_execution"
-    AGGREGATION = "aggregation"
-    VERIFICATION = "verification"
-    FINALIZATION = "finalization"
+판단 `PublicFindingDto`: `subject`(≤255), `determination`, `riskLevel`, `summary`, `rationale`, `legalSources[]`.
+근거 `PublicLegalSourceDto`: `sourceName`·`lawName`·`article`(≤255), `quotedText`, `sourceUrl`, `effectiveDate`(≤50). 길이는 BE 수신 DTO·DB 칸과 같고(#331), 넘으면 AI가 잘라서 보낸다.
 
-# 부모 클래스
-class ProductEventBase(ApiModel):
-    event_id: str = Field(min_length=1)
-    diagnosis_id: str = Field(min_length=1)
-    product_id: str = Field(min_length=1)
-    sequence: int = Field(ge=1, strict=True)
-
-
-# 사용자 질문 형식
-class PublicQuestionDto(ApiModel):
-    question_id: str = Field(min_length=1)
-    question: str = Field(min_length=1)
-    reason: str | None = None
-    required: bool
-    related_tools: list[ToolName] = Field(default_factory=list)
-    answer_type: Literal["text"] | None = None
-
-
-# 진행 중
-class ProductProgressEvent(ProductEventBase):
-    event_type: Literal["product_progress"] = "product_progress"
-    status: Literal["running"] = "running"
-    stage: PublicPipelineStage
-    stage_status: Literal["started", "completed", "skipped"]
-    tool_name: ToolName | None = None
-
-    @model_validator(mode="after")
-    def validate_tool_stage(self):
-        if self.tool_name is not None and self.stage is not PublicPipelineStage.TOOL_EXECUTION:
-            raise ValueError("tool_name은 Tool 실행 단계에서만 전달합니다.")
-        return self
-
-
-# 사용자 답변 대기
-class ProductAwaitingInputEvent(ProductEventBase):
-    event_type: Literal["product_awaiting_input"] = "product_awaiting_input"
-    status: Literal["awaiting_input"] = "awaiting_input"
-    assessment_id: str = Field(min_length=1)
-    termination_reason: Literal[ExecutionEndReason.USER_INPUT_REQUIRED]
-    verification_status: Literal[FinalVerificationStatus.INCOMPLETE]
-    questions: list[PublicQuestionDto] = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def require_required_question(self):
-        if not any(question.required for question in self.questions):
-            raise ValueError("사용자 입력 대기에는 필수 질문이 있어야 합니다.")
-        return self
-
-
-# 파이프라인 결과 반환
-class ProductResultEvent(ProductEventBase):
-    event_type: Literal["product_result"] = "product_result"
-    status: Literal["finished"] = "finished"
-    assessment_id: str = Field(min_length=1)
-
-
-class PublicErrorDto(ApiModel):
-    code: str = Field(min_length=1)
-    message: str = Field(min_length=1)
-    retryable: bool | None = None
-
-
-class ProductFailedEvent(ProductEventBase):
-    event_type: Literal["product_failed"] = "product_failed"
-    status: Literal["failed"] = "failed"
-    stage: PublicPipelineStage | None = None
-    error: PublicErrorDto
-
-
-PublicProductEvent = Annotated[
-    ProductProgressEvent | ProductAwaitingInputEvent | ProductResultEvent | ProductFailedEvent,
-    Field(discriminator="event_type"),
-]
-```
-
-### 7.1.3 BE·FE 전달용 상품 진단 결과 
-
-상태: **Proposed / BE·FE 합의 전**. 이 절은 공개 데이터와 표시 기준만 정의한다.
-내부 판단 선별·재시도·이슈 분류 알고리즘은 이 API 계약의 범위가 아니다.
-실제 DTO 모듈·변환·전송 코드는 아직 구현하지 않았다. 아래는 BE의 현재 저장 모델과 동일한 형식이 아니며, 마지막의 세 가지 확인 사항을 합의한 뒤 적용한다.
-
-- 종료 콜백 ProductResultEvent는 실행 종료와 assessment_id만 알린다.
-- 아래 PublicAssessmentDto는 콜백과 별도로 전달하는 상품 하나의 결과다.
-- BE는 합의한 방식으로 결과를 저장·전달한다. 상품명·이미지는 기존 BE 상품 정보를 사용한다.
+- 미완료(`incomplete`)는 `notices`가 반드시 있고 `resultStatus`는 `RECHECK_REQUIRED`만 쓴다.
+- 같은 분야 카드를 두 번 보내지 않는다. 문자열 칸은 공백만 있으면 안 된다(BE `@NotBlank`).
+- 카드 상태: COMPLETED = 해당 분야를 검토함(규제 비대상·안전·인증을 뜻하지 않음), SKIPPED = 이 상품에 해당하지 않아 검토하지 않음, INCOMPLETE = 근거 조회 실패 등으로 검토를 마치지 못함.
+- `resultStatus`는 AI가 정해진 규칙으로 정한다(#310). 규칙(미완료 → 인증 필요 판단 → tool 실패·정보 부족 → 그 밖, 표시·광고는 배지 계산 제외)과 구현은 결과 종합 작업에서 다룬다. 지금 더미 변환기는 고정값을 보낸다.
 - 공개 가능한 판단·안내를 결정하는 책임은 AI에 있다. BE·FE가 원본 검증 이슈로 판단의 유효성을 재검사하지 않는다.
 
-#### 목표 스키마
+### 7.1.4 진단 접수·재진단 요청 (BE → AI) — 구현됨
 
-ApiModel은 §7.1.2의 공용 API 모델을 사용한다. 질문은 입력 대기 콜백에서만 전달한다.
-내부 FinalAssessment와 LLM 스키마는 변경하지 않는다.
+위치: `app/schemas/request.py`, `app/routers/diagnose.py`. 경로 앞부분은 `/api/ai/v1/diagnose`.
 
-```python
-from typing import Literal
+| 경로 | 요청 | 응답 |
+| --- | --- | --- |
+| `POST /content` | `diagnosisId`, `products[]`(1~10개, productId 중복 불가): `productId`, `textBlocks[]`, `imageUrls[]`, `sourceUrl` | 202. 결과는 상품별 콜백 |
+| `POST /resume` | `diagnosisId`, `productId`, `runId`(질문으로 끝난 실행), `questionRound`(1~2), `answers[]`: `questionKey`, `answerText`(≤500자) | 202. 새 runId로 다시 실행 |
 
-from pydantic import Field, model_validator
-
-from app.schemas.schemas import Determination, OverallStatus, RiskLevel
-
-
-class PublicLegalSourceDto(ApiModel):
-    source_name: str = Field(min_length=1)
-    law_name: str | None = None
-    article: str | None = None
-    quoted_text: str | None = None
-    source_url: str | None = None
-    effective_date: str | None = None
-
-
-class PublicFindingDto(ApiModel):
-    finding_id: str = Field(min_length=1)
-    subject: str = Field(min_length=1)
-    determination: Determination
-    risk_level: RiskLevel
-    summary: str = Field(min_length=1)
-    rationale: str = Field(min_length=1)
-    legal_sources: list[PublicLegalSourceDto] = Field(default_factory=list)
-
-
-class PublicToolReviewDto(ApiModel):
-    # BE AgentType의 6개 규제 분야 이름을 사용.
-    agent_type: Literal[
-        "CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD",
-    ]
-    # 내부 ToolStatus가 아닌 공개 검토 상태
-    status: Literal["reviewed", "skipped", "incomplete"]
-    message: str | None = None
-    findings: list[PublicFindingDto] = Field(default_factory=list)
-
-
-class PublicAssessmentDto(ApiModel):
-    diagnosis_id: str = Field(min_length=1)
-    product_id: str = Field(min_length=1)
-    assessment_id: str = Field(min_length=1)
-    status: Literal["completed", "incomplete"]
-    overall_status: OverallStatus | None
-    summary: str = Field(min_length=1)
-    tool_reviews: list[PublicToolReviewDto] = Field(default_factory=list)
-    required_actions: list[str] = Field(default_factory=list)
-    notices: list[str] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def validate_display_state(self):
-        if self.status == "completed" and self.overall_status is None:
-            raise ValueError("완료 결과에는 종합 판단이 필요합니다.")
-        if self.status != "completed" and self.overall_status is not None:
-            raise ValueError("미완료에는 종합 결론을 넣지 않습니다.")
-        if self.status == "incomplete" and not self.notices:
-            raise ValueError("미완료 결과에는 공개 안내가 필요합니다.")
-        names = [review.agent_type for review in self.tool_reviews]
-        if len(names) != len(set(names)):
-            raise ValueError("같은 분야의 검토 카드를 중복 전달하지 않습니다.")
-        return self
-```
-
-#### 필드 의미
-
-| 필드 | 의미 / BE·FE 사용 |
-| --- | --- |
-| diagnosis_id / product_id | 진단서와 상품 연결. 요청 식별자를 유지 |
-| assessment_id | 같은 ID의 종료 콜백과 결과 연결 |
-| status | 결과의 완료 / 미완료. 입력 대기는 별도 콜백 |
-| overall_status | 완료 결과의 종합 판단. 그 외에는 null이므로 결론 배지를 만들지 않음 |
-| summary | AI가 제공하는 공개 요약·상태 안내 |
-| tool_reviews | agent_type별 카드 데이터. INTAKE는 결과 분야가 아니라 진행 카드 |
-| required_actions | 상품 전체의 후속 조치 목록. Tool 카드에 임의 배분하지 않음 |
-| notices | 검토 범위·정보 부족·제외된 내용 등의 공개 한계 안내 |
-
-Tool 카드의 status는 다음 뜻이다.
-
-| 값 | 뜻 |
-| --- | --- |
-| reviewed | 해당 분야의 공개 검토 내용을 반환함. 규제 비대상·안전·기관 인증을 뜻하지 않음 |
-| skipped | 검토하지 않은 분야. 규제 비대상 판단과 구분 |
-| incomplete | 일부 또는 전부를 확인하지 못함. 공개 가능한 부분 판단은 함께 표시할 수 있음 |
-
-기록이 누락된 분야는 AI가 incomplete와 안내 문구로 표현하거나 notices에 명시한다.
-이는 공개 검토 상태의 표현이지 원본 ToolResult를 보충·수정하는 것이 아니다.
-FE가 내부 ToolStatus·기록 개수·선택 목록을 조합해 이 상태를 추론하지 않는다.
-BE의 COMPLETED/SKIPPED/FAILED와는 별도 의미다. reviewed→COMPLETED, skipped→SKIPPED를 제안하되,
-정보 부족인 incomplete를 FAILED로 자동 변환하지 않는다. FAILED에는 FE 재호출 버튼이 연결돼 있어 별도 합의가 필요하다.
-
+- **상품 입력 조건(#310 합의)**: 텍스트(`textBlocks`)·이미지(`imageUrls`)·URL(`sourceUrl`) 중 **하나 이상** 있으면 접수한다.
+  - 지금 코드는 아직 "텍스트·이미지 중 하나 이상"만 받는다. URL만 있는 상품 접수와 `/diagnose/url` 정리는 #402에서 반영한다.
+  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)도 #402에서 정한다.
+- 이미지는 URL로 받는다(#389·#403). base64 data URI도 호환으로 받는다.
+- 원래 입력·추출 결과·이전 질문과 답변은 AI 세션이 보관한다. BE는 재진단 때 ID와 이번 회차 답변만 보낸다.
 
 ### 7.2 운영 로그 규칙
 
@@ -958,27 +610,27 @@ BE의 COMPLETED/SKIPPED/FAILED와는 별도 의미다. reviewed→COMPLETED, ski
 
 ## 8. 마이그레이션 대응표
 
-| 현재 | 이관 대상 | 단계 | 함께 수정할 대상 |
-| --- | --- | --- | --- |
-| Agent별 모델 invoke·parse 처리 | BaseAgent._invoke | M1 | 세 Agent, stub, patch 대상 |
-| 기존 Agent 예외의 RuntimeError 상속 | AgentError 상속 | M1 | 생성자 호환, cause, partial_result 테스트 |
-| 검증 Callback 수집 | include_raw=True + from_response | M1 | parsing_error 검사, 검증 stub, 실패 기록 |
-| 개별 PROMPT_PATH / lru_cache | get_prompt / PromptSnapshot | M1 | 평가 Runner, health, 캐시 테스트 |
-| eval.runner의 Agent PROMPT_PATH import | 공용 로더 snapshot.path | M1 | prompt_fingerprint, 평가 metadata |
-| 검증 from_env의 load_settings 경로 | get_settings 공통 경로 | M1 | 설정 cache 테스트. 규칙 전용 생성 유지 |
-| Agent별 콘솔 `_log_token_usage()` | Base 공통 출력 유지 | M1 | 로컬 실행 스크립트·Logger 설정·중복 기록 검사 |
-| Verification 고정 기록 이름 `verification` | 선택적 usage_agent, 기본값 verification | M1 | 생성자·평가 실행·기본 이름 호환 테스트 |
-| record(agent, usage, ...) | record_usage(UsageRecord, sink=...) | M2 | 전체 Agent, 평가, 집계, 기록 테스트 |
-| record의 agent | component_name | M2 | 과거 로그 읽기 호환 |
-| usage_agent="extraction-eval" | component_name="extraction", run_type=evaluation | M2 | 평가 Runner·과거 집계 호환 |
-| record의 subject_id | context.product_id | M2 | CLI·Pipeline·평가 호출부 |
-| record의 ok / elapsed_ms | success / latency_ms | M2 | 사용량 adapter·테스트 |
-| CallUsage.cached_tokens | cached_input_tokens | M2 | estimate_krw, from_response, from_handler, summary |
-| RetryRequest·ToolResult의 retry_round | ExecutionContext 기준으로 이번 실행 회차 일치 | M2 | Runner·ToolExecutor·기존 회차 검증·과거 이력 보존 |
-| context 인자 없음 | 필수 keyword context | M2 | Protocol, Runner, CLI, 평가, stub |
-| 개별 예외 | response_code + stage + retryable | M3 | 오류 목록, API handler, ToolExecutor |
-| 검증 에이전트 Trace | Pipeline 이벤트 + 내부 Trace 연결 | M4 | Runner, Agent 이벤트, 종료 사유 |
-| 저장 예외 pass | 독립 logger WARNING | 기록 공통화 시 | Handler 설정, Sink 실패 테스트 |
+| 현재 | 이관 대상 | 단계 | 함께 수정할 대상 | 상태 (10/26) |
+| --- | --- | --- | --- | --- |
+| Agent별 모델 invoke·parse 처리 | BaseAgent._invoke | M1 | 세 Agent, stub, patch 대상 | 완료 (#364) |
+| 기존 Agent 예외의 RuntimeError 상속 | AgentError 상속 | M1 | 생성자 호환, cause, partial_result 테스트 | 완료 (AIError도 상속, #382) |
+| 검증 Callback 수집 | include_raw=True + from_response | M1 | parsing_error 검사, 검증 stub, 실패 기록 | 완료 |
+| 개별 PROMPT_PATH / lru_cache | get_prompt / PromptSnapshot | M1 | 평가 Runner, health, 캐시 테스트 | 완료 |
+| eval.runner의 Agent PROMPT_PATH import | 공용 로더 snapshot.path | M1 | prompt_fingerprint, 평가 metadata | 남음 |
+| 검증 from_env의 load_settings 경로 | 공통 모델 생성 경로 | M1 | 설정 cache 테스트. 규칙 전용 생성 유지 | 완료 (`build_agent_model`) |
+| Agent별 콘솔 `_log_token_usage()` | Base 공통 출력 유지 | M1 | 로컬 실행 스크립트·Logger 설정·중복 기록 검사 | 완료 (`base/usage_log.py`) |
+| Verification 고정 기록 이름 `verification` | 선택적 usage_agent, 기본값 verification | M1 | 생성자·평가 실행·기본 이름 호환 테스트 | 완료 |
+| record(agent, usage, ...) | record_usage(UsageRecord, sink=...) | M2 | 전체 Agent, 평가, 집계, 기록 테스트 | 남음 (sink 등록표만 추가, #379) |
+| record의 agent | component_name | M2 | 과거 로그 읽기 호환 | 남음 |
+| usage_agent="extraction-eval" | component_name="extraction", run_type=evaluation | M2 | 평가 Runner·과거 집계 호환 | 남음 |
+| record의 subject_id | context.product_id | M2 | CLI·Pipeline·평가 호출부 | 남음 |
+| record의 ok / elapsed_ms | success / latency_ms | M2 | 사용량 adapter·테스트 | 남음 |
+| CallUsage.cached_tokens | cached_input_tokens | M2 | estimate_krw, from_response, from_handler, summary | 남음 |
+| RetryRequest·ToolResult의 retry_round | ExecutionContext 기준으로 이번 실행 회차 일치 | M2 | Runner·ToolExecutor·기존 회차 검증·과거 이력 보존 | 남음 (컨텍스트는 세션까지만) |
+| context 인자 없음 | context 전달 (§4.3) | M2 | Protocol, Runner, CLI, 평가, stub | 남음 |
+| 개별 예외 | response_code + stage + retryable | M3 | 오류 목록, API handler, ToolExecutor | API·세션 완료. ToolExecutor·Client 남음 |
+| 검증 에이전트 Trace | Pipeline 이벤트 + 내부 Trace 연결 | M4 | Runner, Agent 이벤트, 종료 사유 | 남음 (상품 단위는 세션 이벤트·콜백) |
+| 저장 예외 pass | 독립 logger WARNING | 기록 공통화 시 | Handler 설정, Sink 실패 테스트 | 일부 (sink 오류만 WARNING) |
 
 **선행 상태 주의:** #231은 #224 반영 후를 전제한다. 반면 조회 당시 develop의 SelectionAgent에는 사용량 record 처리가 없다. M1은 선행 변경을 반영한 코드를 기준으로 작업해 기록 유실·중복 추가를 방지한다.
 
@@ -1019,9 +671,9 @@ BE의 COMPLETED/SKIPPED/FAILED와는 별도 의미다. reviewed→COMPLETED, ski
 | --- | --- |
 | 비용 상한 중단 | 상품 / 진단서 단위 상한, 호출 전 추정, 병렬 예약, 실제 중단·결과 반환 정책. 종료 사유 값은 COST_LIMIT_EXCEEDED로 정의됨 |
 | 동일 결과 조기 중단 | 비교 대상, 의미적 동일성, 실패 원인별 복구 가능성 |
-| 재개 API | 답변 후 run_id, 이전·새 실행 연결, 저장·복원 |
-| AIResponseCode 목록 | 채번·HTTP 상태·공개 문구·BE retry |
-| Trace 목록 | 이벤트 이름·BE/FE 공개 범위. 종료 사유는 §7.1.1의 공통 Enum 사용 |
+| 재개 API | ~~답변 후 run_id~~ 새로 발급으로 결정(§2.2, §7.1.4). 세션 영속화(재시작에도 유지)는 남음 |
+| AIResponseCode 목록 | ~~채번·HTTP 상태·공개 문구~~ 확정(§6.1). 새 코드(URL 미지원 등)는 추가 시 갱신 |
+| Trace 목록 | 구성 요소 단위 이벤트 이름. BE 공개 범위는 콜백(§7.1.2)으로 결정됨 |
 | 운영 저장소 | JSONL / stdout / DB, 수집·보관, 다중 process 원자성 |
 | Prompt 캐시 갱신 | 재시작 반영 / 명시적 갱신 / 평가 시 처리 |
 | SDK retry 측정 | 실제 요청별 usage·비용 수집 범위 |
