@@ -6,8 +6,8 @@ export const TOOL_NAME_LABELS: Record<ToolName, string> = {
     [ToolName.Children]: "어린이 제품",
     [ToolName.Electrical]: "전기 안전",
     [ToolName.Radio]: "전파",
-    [ToolName.FoodDrug]: "식약",
-    [ToolName.LabelAd]: "표시 광고",
+    [ToolName.FoodDrug]: "식품·의약품",
+    [ToolName.LabelAd]: "표시·광고",
 };
 
 // 판정 결과에 따른 라벨.
