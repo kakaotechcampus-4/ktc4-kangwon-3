@@ -40,7 +40,7 @@ interface FindingFilterBarProps {
 
 function FindingFilterBar({ counts, selected, onSelect }: FindingFilterBarProps) {
     return (
-        <div className="flex w-full flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
             {FILTER_OPTIONS.map(({ key, label }) => {
                 const count = counts.get(key) ?? 0;
                 if (key !== null && count === 0) {
