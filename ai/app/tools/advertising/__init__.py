@@ -1,8 +1,13 @@
 """표시·광고 Tool 패키지.
 
-- tool.py: 문구 검토 모델(AdvertisingReviewer), 인용 대조·위험도·근거 조문·할 일, 결과 조립
+- tool.py: 흐름(문구 검토 → 인용 대조 → KC 표기 보충 → 결과 조립)
+- steps.py: 모델 호출 단계(판매자 문구 검토, AdvertisingReviewer)
+- rules.py: 근거 조문, KC 표기 찾기, 위험도·할 일 문구
+- errors.py: AdvertisingReviewError
 """
 
-from .tool import AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool
+from .errors import AdvertisingReviewError
+from .steps import AdvertisingReviewer
+from .tool import AdvertisingTool
 
 __all__ = ["AdvertisingReviewError", "AdvertisingReviewer", "AdvertisingTool"]
