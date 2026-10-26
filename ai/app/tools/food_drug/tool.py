@@ -88,7 +88,11 @@ class FoodDrugTool(EvidenceSearchTool):
         self._evidence = evidence
 
     def _prepare(self, run: FoodDrugRun) -> None:
-        """근거를 먼저 읽는다. 기능성화장품 범위(시행규칙 제2조)를 조건 추출 모델에 함께 줌."""
+        """근거를 먼저 읽는다. 기능성화장품 범위(시행규칙 제2조)를 조건 추출 모델에 함께 줌.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         run.evidence = self._lookup(
             run, self._evidence, failure="식약 근거 법령 조회에 실패했습니다.",
             unavailable="식약 근거 법령의 시행 버전·본문을 확인하지 못해 근거 조문 없이 안내했습니다.")
@@ -96,20 +100,52 @@ class FoodDrugTool(EvidenceSearchTool):
             run.query["documents"] = run.evidence.documents()
 
     def _facts_payload(self, run: FoodDrugRun) -> dict[str, Any]:
+        """조건 추출 입력에 기능성화장품 범위를 더한다.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            dict[str, Any]: 조건 추출 단계 입력.
+        """
         functional_types = ([{"number": item.number, "text": item.text} for item in run.evidence.functional_types]
                             if run.evidence is not None else [])
         return {**super()._facts_payload(run), "functional_types": functional_types}
 
     def _raw_facts(self, run: FoodDrugRun) -> list:
+        """모델이 뽑은 조건에 필수 판단(예·아니오)을 조건 모양으로 더한다.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            list: 원문 대조 전 조건.
+        """
         return [*run.extracted.facts, *_judged_facts(run.extracted)]
 
     def _fact_matches(self, fact: FoodDrugFact, run: FoodDrugRun) -> bool:
+        """인용이 원문에 있는지 본다. 판단 칸은 값이 "예"/"아니오"이고 인용은 그 판단의 근거다.
+
+        Args:
+            fact: 모델이 뽑은 조건.
+            run: 이번 실행 상태.
+
+        Returns:
+            bool: 원문과 맞으면 True.
+        """
         if fact.field in _JUDGED_FIELDS:
             return fact.value.strip() in ("예", "아니오") and quote_matches(fact, run.snippets, value_in_quote=False)
         return quote_matches(fact, run.snippets)
 
     def _judge(self, run: FoodDrugRun) -> list[RegulatoryFinding]:
-        """판단 칸 상태 → 의료기기 품목 조회·선택 → 영역별 규칙(식품용 기구·식품·화장품)."""
+        """판단 칸 상태 → 의료기기 품목 조회·선택 → 영역별 규칙(식품용 기구·식품·화장품).
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            list[RegulatoryFinding]: 영역별 후보 판단.
+        """
         product, facts, by_field, query = run.product, run.facts, run.by_field, run.query
         evidence, assumptions, categories = run.evidence, run.assumptions, run.categories
         # 모델은 "예"라고 했지만 근거 인용이 원문과 맞지 않아 버린 판단. 답에 따라 판단이 바뀌므로 물음
@@ -163,8 +199,19 @@ class FoodDrugTool(EvidenceSearchTool):
 
     @staticmethod
     def _judged(field: str, run: FoodDrugRun, unverified: bool) -> bool | None:
-        """판단 칸의 상태. 예·아니오가 엇갈리거나, "예"의 근거를 원문에서 확인하지 못했거나,
-        추출 단계만 음식 접촉으로 보고 근거가 없으면 묻는다."""
+        """판단 칸의 상태를 정하고, 정하지 못하면 재질문으로 기록한다.
+
+        예·아니오가 엇갈리거나, "예"의 근거를 원문에서 확인하지 못했거나,
+        추출 단계만 음식 접촉으로 보고 근거가 없으면 묻는다.
+
+        Args:
+            field: 판단 칸 이름.
+            run: 이번 실행 상태.
+            unverified: 모델이 "예"라고 했지만 인용을 원문에서 확인하지 못했는지.
+
+        Returns:
+            bool | None: "예"만 있으면 True, "아니오"만 있으면 False, 그 밖에는 None.
+        """
         values = {fact.value.strip() for fact in run.by_field.get(field, [])}
         if values == {"예", "아니오"}:
             run.missing.append(field)
@@ -179,6 +226,18 @@ class FoodDrugTool(EvidenceSearchTool):
 
     def _food_contact(self, label: str, facts: list[FoodDrugFact], by_field: dict,
                       evidence: FoodDrugEvidence | None, assumptions: list[str]):
+        """음식에 직접 닿는 상품: 식품용 기구 후보(수입신고).
+
+        Args:
+            label: 안내 꼬리표에 쓸 상품 이름.
+            facts: 원문과 대조된 조건.
+            by_field: 필드별 조건.
+            evidence: 식약 근거. 확인하지 못했으면 None.
+            assumptions: 결과에 남길 가정.
+
+        Returns:
+            tuple[list[RegulatoryFinding], list[str]]: (후보 판단, 판매 전에 할 일).
+        """
         notes = ["상품 원문의 쓰임으로 본 후보이며 식품용 기구 해당을 확정하지 않았습니다."]
         if "material" not in by_field:
             notes.append("재질이 확인되지 않아 적용할 기구 기준·규격(재질별)을 정하지 않았습니다.")
@@ -199,6 +258,16 @@ class FoodDrugTool(EvidenceSearchTool):
         """먹거나 마시는 상품. 건강기능식품도 수입식품등이라(수입식품법 제2조 제1호) 수입신고·영업등록은 같다.
 
         먹는 상품의 효능 문구는 몸 기능이든 피부 효과든(예: "피부 보습에 도움") 건강기능식품 확인 대상이다.
+
+        Args:
+            label: 안내 꼬리표에 쓸 상품 이름.
+            facts: 원문과 대조된 조건.
+            by_field: 필드별 조건.
+            evidence: 식약 근거. 확인하지 못했으면 None.
+            assumptions: 결과에 남길 가정.
+
+        Returns:
+            tuple[list[RegulatoryFinding], list[str]]: (후보 판단, 판매 전에 할 일).
         """
         claims = list(dict.fromkeys(fact.value for field in ("health_claim", "beauty_claim")
                                     for fact in by_field.get(field, [])))
@@ -228,6 +297,18 @@ class FoodDrugTool(EvidenceSearchTool):
         """바르는 상품: 화장품 후보(책임판매업), 기능성 표방(심사·보고), 사용할 수 없는 원료(이름 대조).
 
         기능성 대응·성분 대조의 안내(notes)를 먼저 계산해 화장품 판단의 가정에 함께 넣는다.
+
+        Args:
+            label: 안내 꼬리표에 쓸 상품 이름.
+            facts: 원문과 대조된 조건.
+            by_field: 필드별 조건.
+            extracted: 조건 추출 단계의 모델 출력 (기능성 범위 대응).
+            evidence: 식약 근거. 확인하지 못했으면 None.
+            assumptions: 결과에 남길 가정.
+            query: 결과 query. 대응한 기능성 범위·금지 원료를 기록함.
+
+        Returns:
+            tuple[list[RegulatoryFinding], list[str]]: (후보 판단, 판매 전에 할 일).
         """
         # 바르는 상품의 효과 문구는 어느 효능 칸에 들어왔든(모델이 미백을 health_claim에 넣는 일이 있다) 기능성 대응의 근거로 쓴다.
         claim_facts = [*by_field.get("beauty_claim", []), *by_field.get("health_claim", [])]
@@ -311,6 +392,14 @@ class FoodDrugTool(EvidenceSearchTool):
         return findings, todo
 
     def _devices(self, run: FoodDrugRun) -> tuple[list[RegulatoryFinding], list[str]]:
+        """의료기기 품목 조회 → 품목 선택 → 후보 판단. 품목을 정하지 못하고 효능 문구가 있으면 미확인 판단.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            tuple[list[RegulatoryFinding], list[str]]: (후보 판단, 판매 전에 할 일).
+        """
         facts, by_field, evidence = run.facts, run.by_field, run.evidence
         assumptions, query = run.assumptions, run.query
         claims = [fact.value for fact in by_field.get("health_claim", [])]
@@ -369,7 +458,18 @@ class FoodDrugTool(EvidenceSearchTool):
 
     def _unmatched(self, claims: list[str], facts: list[FoodDrugFact], assumptions: list[str],
                    evidence: FoodDrugEvidence | None, reason: str) -> RegulatoryFinding:
-        """효능 문구는 있는데 의료기기 품목을 정하지 못한 경우. 비대상 판단이 아니다."""
+        """효능 문구는 있는데 의료기기 품목을 정하지 못한 경우. 비대상 판단이 아니다.
+
+        Args:
+            claims: 효능 표방 문구.
+            facts: 원문과 대조된 조건.
+            assumptions: 결과에 남길 가정.
+            evidence: 식약 근거. 확인하지 못했으면 None.
+            reason: 품목을 정하지 못한 이유.
+
+        Returns:
+            RegulatoryFinding: 정보 부족 판단.
+        """
         sources = [] if evidence is None else [evidence.device_definition.source(), evidence.device_misleading.source()]
         return self._finding(
             subject="의료기기 해당 여부 — 품목 미확인",
@@ -382,6 +482,15 @@ class FoodDrugTool(EvidenceSearchTool):
         )
 
     def _detail(self, run: FoodDrugRun, findings: list[RegulatoryFinding]) -> FoodDrugAssessment:
+        """결과에 붙일 식약 상세.
+
+        Args:
+            run: 이번 실행 상태.
+            findings: 이번 실행의 판단.
+
+        Returns:
+            FoodDrugAssessment: 영역·효능 문구·성분·요건 법령 요약.
+        """
         return FoodDrugAssessment(
             regulatory_categories=list(run.categories),
             regulated=None,
@@ -395,22 +504,55 @@ class FoodDrugTool(EvidenceSearchTool):
 
 
 def _judged_facts(extracted: FoodDrugFacts) -> list[FoodDrugFact]:
-    """필수 판단 세 개 중 "모름"이 아닌 것을 조건(값 "예"/"아니오" + 원문 근거)으로 바꾼다."""
+    """필수 판단 세 개 중 "모름"이 아닌 것을 조건(값 "예"/"아니오" + 원문 근거)으로 바꾼다.
+
+    Args:
+        extracted: 조건 추출 단계의 모델 출력.
+
+    Returns:
+        list[FoodDrugFact]: 판단을 옮긴 조건.
+    """
     return [FoodDrugFact(field=field, value=judgment.answer, evidence_id=judgment.evidence_id, quote=judgment.quote)
             for field in _JUDGED_FIELDS if (judgment := getattr(extracted.judgments, field)).answer != "모름"]
 
 
 def _import_sources(evidence: FoodDrugEvidence) -> list[LegalSource]:
+    """수입식품등 영업등록·수입신고 근거.
+
+    Args:
+        evidence: 식약 근거.
+
+    Returns:
+        list[LegalSource]: 수입식품안전관리 특별법·시행령 근거.
+    """
     return [evidence.import_business.source(), evidence.import_business_scope.source(),
             evidence.import_registration.source(), evidence.import_report.source()]
 
 
 def _device_sources(evidence: FoodDrugEvidence, item: DeviceItem) -> list[LegalSource]:
+    """의료기기 품목 후보의 근거.
+
+    Args:
+        evidence: 식약 근거.
+        item: 고른 의료기기 품목.
+
+    Returns:
+        list[LegalSource]: 정의·품목 별표·수입·판매·면제 근거.
+    """
     return [evidence.device_definition.source(), evidence.device_notice.source("별표 1", item.row_text),
             evidence.device_import.source(), evidence.device_sale.source(), evidence.device_unapproved.source(),
             evidence.device_exemption.source()]
 
 
 def _label(by_field: dict, product: Product) -> str:
+    """안내 꼬리표에 쓸 상품 이름.
+
+    Args:
+        by_field: 필드별 조건.
+        product: 검토할 상품.
+
+    Returns:
+        str: 첫 제품 종류 값. 없으면 상품명, 그것도 없으면 "상품".
+    """
     types = [fact.value for fact in by_field.get("product_type", [])]
     return types[0] if types else (product.product_name or "상품")
