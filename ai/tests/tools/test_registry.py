@@ -1,5 +1,7 @@
 """Tool 레지스트리 테스트. 각 Tool의 심사 로직이 아니라 등록 계약만 확인한다."""
 
+import inspect
+
 import pytest
 
 from app.schemas.schemas import ToolName
@@ -20,9 +22,9 @@ def test_등록된_구현의_tool_name이_등록_키와_같다(name):
 
 
 @pytest.mark.parametrize("name", list(ToolName))
-def test_등록된_구현은_인스턴스로_만들_수_있다(name):
-    # 추상 메서드 execute를 구현하지 않으면 생성 단계에서 TypeError
-    assert isinstance(TOOL_REGISTRY[name](), RegulatoryTool)
+def test_등록된_구현에_구현하지_않은_추상_메서드가_없다(name):
+    # 조회 객체는 생성자 필수 인자라 인자 없이 만들지 않음. 조립은 파이프라인 연결 때
+    assert not inspect.isabstract(TOOL_REGISTRY[name])
 
 
 def test_등록된_모든_Tool은_모델_프로필이_있다():
