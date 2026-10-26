@@ -14,6 +14,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -181,6 +183,32 @@ class ProductTest {
     }
 
     @Test
+    @DisplayName("진행 중인 상품은 대기 상태로 되돌린다.")
+    void returnToPending_whenInProgress_thenPending() {
+        // given: AI가 요청을 받지 않은 경우(429, 5xx, 연결 실패)
+        Product product = createInProgressProduct();
+
+        // when
+        product.returnToPending();
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.PENDING);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(value = ProcessingStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "IN_PROGRESS")
+    @DisplayName("진행 중이 아닌 상품을 대기 상태로 되돌리면 CONFLICT 예외가 발생하고 상태가 유지된다.")
+    void returnToPending_whenNotInProgress_thenThrowConflict(ProcessingStatus status) {
+        // given
+        Product product = createProduct();
+        ReflectionTestUtils.setField(product, "processingStatus", status);
+
+        // when & then
+        assertConflict(product::returnToPending);
+        assertThat(product.getProcessingStatus()).isEqualTo(status);
+    }
+
+    @Test
     @DisplayName("처음 받은 단계의 진행 상태는 새로 추가된다.")
     void recordProgress_whenNew_thenAdd() {
         // given
@@ -340,6 +368,20 @@ class ProductTest {
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
                 .containsOnlyNulls();
+    }
+
+    @Test
+    @DisplayName("재요청을 기다리던 상품도 실패로 끝낼 수 있다.")
+    void fail_whenPending_thenFailed() {
+        // given: AI가 재요청 기한까지 요청을 받지 못한 경우
+        Product product = createProduct();
+
+        // when
+        product.fail(null, ERROR_CODE, ERROR_MESSAGE, true);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(product.getErrorCode()).isEqualTo(ERROR_CODE);
     }
 
     @Test
@@ -655,6 +697,108 @@ class ProductTest {
         assertThat(product.isRunAssigned()).isTrue();
     }
 
+    @Test
+    @DisplayName("현재 회차 질문 전체에 답하면 답변이 저장되고 진행 중 상태가 된다.")
+    void answerQuestions_whenAllAnswered_thenSaveAnswersAndInProgress() {
+        // given
+        Product product = createAwaitingInputProduct(question("sales_type", 1), question("battery_only", 2));
+        List<ProductQuestion> questions = product.getQuestions();
+
+        // when
+        product.answerQuestions(Map.of(
+                questions.get(0).getId(), "구매대행",
+                questions.get(1).getId(), "네"));
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(questions)
+                .extracting(ProductQuestion::getQuestionKey, ProductQuestion::getAnswerText)
+                .containsExactly(tuple("sales_type", "구매대행"), tuple("battery_only", "네"));
+    }
+
+    @Test
+    @DisplayName("현재 회차 질문 중 일부에만 답하면 BAD_REQUEST 예외가 발생하고 아무것도 저장되지 않는다.")
+    void answerQuestions_whenPartiallyAnswered_thenThrowBadRequestAndKeepState() {
+        // given
+        Product product = createAwaitingInputProduct(question("sales_type", 1), question("battery_only", 2));
+        UUID firstQuestionId = product.getQuestions().getFirst().getId();
+
+        // when & then
+        assertBadRequest(() -> product.answerQuestions(Map.of(firstQuestionId, "구매대행")));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+        assertThat(product.getQuestions()).noneMatch(ProductQuestion::isAnswered);
+    }
+
+    @Test
+    @DisplayName("이 상품에 없는 질문 ID가 섞이면 BAD_REQUEST 예외가 발생한다.")
+    void answerQuestions_withUnknownQuestionId_thenThrowBadRequest() {
+        // given
+        Product product = createAwaitingInputProduct(question("sales_type", 1));
+        UUID questionId = product.getQuestions().getFirst().getId();
+
+        // when & then
+        assertBadRequest(() -> product.answerQuestions(Map.of(
+                questionId, "구매대행",
+                UUID.randomUUID(), "네")));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+    }
+
+    @Test
+    @DisplayName("2회차 질문을 기다리는 중에 1회차 질문에 답하면 BAD_REQUEST 예외가 발생한다.")
+    void answerQuestions_withPreviousRoundQuestion_thenThrowBadRequest() {
+        // given
+        Product product = createSecondRoundAwaitingProduct();
+        UUID firstRoundQuestionId = product.getQuestions().getFirst().getId();
+
+        // when & then
+        assertBadRequest(() -> product.answerQuestions(Map.of(firstRoundQuestionId, "사입")));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.AWAITING_INPUT);
+    }
+
+    @Test
+    @DisplayName("2회차 질문에 답하면 2회차 질문에만 답변이 저장되고 1회차 답변은 유지된다.")
+    void answerQuestions_inSecondRound_thenAnswerOnlySecondRound() {
+        // given
+        Product product = createSecondRoundAwaitingProduct();
+        UUID secondRoundQuestionId = product.getQuestions().getLast().getId();
+
+        // when
+        product.answerQuestions(Map.of(secondRoundQuestionId, "만 8세 이상"));
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getQuestions())
+                .extracting(ProductQuestion::getQuestionRound, ProductQuestion::getAnswerText)
+                .containsExactly(tuple(1, "구매대행"), tuple(2, "만 8세 이상"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ProcessingStatus.class, names = "AWAITING_INPUT", mode = EnumSource.Mode.EXCLUDE)
+    @DisplayName("답변 대기가 아닌 상품에 답하면 CONFLICT 예외가 발생한다.")
+    void answerQuestions_whenNotAwaitingInput_thenThrowConflict(ProcessingStatus status) {
+        // given
+        Product product = createAwaitingInputProduct(question("sales_type", 1));
+        UUID questionId = product.getQuestions().getFirst().getId();
+        ReflectionTestUtils.setField(product, "processingStatus", status);
+
+        // when & then
+        assertConflict(() -> product.answerQuestions(Map.of(questionId, "구매대행")));
+        assertThat(product.getQuestions().getFirst().isAnswered()).isFalse();
+    }
+
+    @Test
+    @DisplayName("가장 최근 회차의 질문만 순서대로 반환한다.")
+    void latestRoundQuestions_thenOnlyLatestRound() {
+        // given
+        Product product = createSecondRoundAwaitingProduct();
+
+        // when & then
+        assertThat(product.latestQuestionRound()).isEqualTo(2);
+        assertThat(product.latestRoundQuestions())
+                .extracting(ProductQuestion::getQuestionKey)
+                .containsExactly("target_age");
+    }
+
     private AssessmentContent completedContent(List<AssessmentContent.ToolReviewContent> toolReviews) {
         return new AssessmentContent(AssessmentStatus.COMPLETED, ResultStatus.PURCHASING_AGENT_ALLOWED,
                 "구매대행으로 판매할 수 있습니다.", toolReviews, List.of(), List.of());
@@ -689,6 +833,33 @@ class ProductTest {
         Product product = createInProgressProduct();
         product.askQuestions(1, List.of(new QuestionContent("sales_type", 1, "구매대행으로 파나요?", null)));
         return product;
+    }
+
+    // 답변 대기 상태. 엔티티 테스트라 저장하지 않으므로 질문 ID를 직접 넣는다.
+    private Product createAwaitingInputProduct(QuestionContent... questions) {
+        Product product = createInProgressProduct();
+        product.askQuestions(1, List.of(questions));
+        assignQuestionIds(product);
+        return product;
+    }
+
+    // 1회차에 답한 뒤 2회차 질문을 기다리는 상태
+    private Product createSecondRoundAwaitingProduct() {
+        Product product = createAwaitingInputProduct(question("sales_type", 1));
+        product.answerQuestions(Map.of(product.getQuestions().getFirst().getId(), "구매대행"));
+        product.askQuestions(2, List.of(new QuestionContent("target_age", 1, "권장 연령이 어떻게 되나요?", null)));
+        assignQuestionIds(product);
+        return product;
+    }
+
+    private void assignQuestionIds(Product product) {
+        product.getQuestions().stream()
+                .filter(question -> question.getId() == null)
+                .forEach(question -> ReflectionTestUtils.setField(question, "id", UUID.randomUUID()));
+    }
+
+    private QuestionContent question(String questionKey, int questionOrder) {
+        return new QuestionContent(questionKey, questionOrder, questionKey + " 질문", null);
     }
 
     private void assertConflict(ThrowingCallable action) {

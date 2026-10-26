@@ -9,7 +9,8 @@ from urllib.parse import quote
 import httpx
 
 from ..schemas.callback import PublicProductEvent
-from .outbox import CallbackTransportError, SendResult
+from .errors import CallbackTransportError
+from .outbox import SendResult
 
 CALLBACK_PATH = "/internal/v1/ai/products/{product_id}"
 TOKEN_HEADER = "X-Internal-Token"

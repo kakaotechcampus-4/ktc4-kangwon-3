@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import deleteIcon from "@/assets/delete-gray.svg";
 import { cn } from "@/lib/cn";
@@ -13,6 +14,8 @@ interface ImageLightboxProps {
 }
 
 function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClose, onRemove }: ImageLightboxProps) {
+    const dialogRef = useRef<HTMLDivElement>(null);
+
     const goToPrev = useCallback(() => {
         onIndexChange((currentIndex - 1 + files.length) % files.length);
     }, [currentIndex, files.length, onIndexChange]);
@@ -43,13 +46,38 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
         };
     }, []);
 
+    useEffect(() => {
+        const previouslyFocusedElement = document.activeElement as HTMLElement | null;
+        dialogRef.current?.focus();
+        return () => {
+            previouslyFocusedElement?.focus();
+        };
+    }, []);
+
+    // 뒤에 가려진 페이지 콘텐츠가 Tab으로 접근되지 않도록 비활성화한다.
+    useEffect(() => {
+        const root = document.getElementById("root");
+        if (!root) {
+            return;
+        }
+        root.inert = true;
+        return () => {
+            root.inert = false;
+        };
+    }, []);
+
     const currentFile = files[currentIndex];
     if (!currentFile) {
         return null;
     }
 
-    return (
+    return createPortal(
         <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="이미지 미리보기"
+            tabIndex={-1}
             className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white/20 p-6 backdrop-blur-xs"
             onClick={onClose}
         >
@@ -129,7 +157,8 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                     ))}
                 </div>
             )}
-        </div>
+        </div>,
+        document.body,
     );
 }
 

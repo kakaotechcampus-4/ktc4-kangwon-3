@@ -12,6 +12,9 @@ import org.hibernate.annotations.BatchSize;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.hibernate.annotations.UuidGenerator;
 import java.util.UUID;
 
@@ -163,6 +166,11 @@ public class Product extends BaseEntity {
         transition(ProcessingStatus.AWAITING_INPUT, ProcessingStatus.IN_PROGRESS);
     }
 
+    // AI가 요청을 받지 않아(429, 5xx, 연결 실패) 다시 보낼 상품을 대기로 되돌린다.
+    public void returnToPending() {
+        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.PENDING);
+    }
+
     public void assignRun(String runId) {
         if (runId == null || runId.isBlank()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
@@ -231,13 +239,44 @@ public class Product extends BaseEntity {
         return questions.stream().anyMatch(question -> question.getQuestionRound() == questionRound);
     }
 
+    // 사용자 답변을 저장하고 다시 진단 중으로 바꾼다.
+    public void answerQuestions(Map<UUID, String> answers) {
+        if (!isAwaitingInput()) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
+        List<ProductQuestion> waitingQuestions = latestRoundQuestions();
+        Set<UUID> waitingQuestionIds = waitingQuestions.stream()
+                .map(ProductQuestion::getId)
+                .collect(Collectors.toSet());
+        // 일부만 답했거나, 지난 회차·다른 상품의 질문이 섞이면 거절한다.
+        if (!waitingQuestionIds.equals(answers.keySet())) {
+            throw new BaseException(CommonResponseCode.BAD_REQUEST);
+        }
+
+        waitingQuestions.forEach(question -> question.answer(answers.get(question.getId())));
+        resume();
+    }
+
+    // 지금 기다리는(또는 마지막으로 답한) 회차의 질문
+    public List<ProductQuestion> latestRoundQuestions() {
+        int latestRound = latestQuestionRound();
+        return questions.stream()
+                .filter(question -> question.getQuestionRound() == latestRound)
+                .toList();
+    }
+
     // 진단을 실패로 끝내고 실패 정보를 남긴다.
     public void fail(PipelineStage failedStage, String errorCode, String errorMessage, Boolean errorRetryable) {
         if (errorCode == null || errorCode.isBlank() || errorMessage == null || errorMessage.isBlank()) {
             throw new BaseException(CommonResponseCode.BAD_REQUEST);
         }
 
-        transition(ProcessingStatus.IN_PROGRESS, ProcessingStatus.FAILED);
+        // 재요청을 기다리던 상품(PENDING)도 AI 요청 기한을 넘기면 실패로 끝난다.
+        if (processingStatus != ProcessingStatus.IN_PROGRESS && processingStatus != ProcessingStatus.PENDING) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        this.processingStatus = ProcessingStatus.FAILED;
         this.failedStage = failedStage;
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
@@ -294,7 +333,7 @@ public class Product extends BaseEntity {
     }
 
     // 아직 질문을 받은 적이 없으면 0
-    private int latestQuestionRound() {
+    public int latestQuestionRound() {
         return questions.stream().mapToInt(ProductQuestion::getQuestionRound).max().orElse(0);
     }
 

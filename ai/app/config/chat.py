@@ -3,7 +3,8 @@
 from typing import TYPE_CHECKING
 
 from .profiles import MODEL_PROFILES, ModelProfile
-from .settings import ConfigError, Settings, load_settings
+from .errors import ConfigError
+from .settings import Settings, load_settings
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel

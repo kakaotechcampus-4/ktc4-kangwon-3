@@ -35,7 +35,7 @@ interface LoginButtonProps {
 function LoginButton({ provider, label, image, onClick }: LoginButtonProps) {
     return (
         <button className={buttonVariants({ provider })} onClick={onClick}>
-            <img src={image} alt={`${label} logo`} className="h-9 w-9 shrink-0 rounded-[10px] object-cover" />
+            <img src={image} alt="" className="h-9 w-9 shrink-0 rounded-[10px] object-cover" />
             <span className={labelVariants({ provider })}>{label} 계정으로 로그인</span>
         </button>
     )

@@ -526,7 +526,7 @@ class DatabaseEvidenceSource:
     파싱은 parse_annex, 버전 선택은 select_version을 그대로 쓴다.
 
     Args:
-        session_factory: app.database.get_session_factory()가 돌려주는 세션 팩토리.
+        session_factory: app.repositories.database.get_session_factory()가 돌려주는 세션 팩토리.
     """
 
     def __init__(self, session_factory):

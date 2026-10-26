@@ -2,10 +2,11 @@
 
 from enum import StrEnum
 
+from ...domain.errors import AIError
 from .meta import AgentRunMeta
 
 
-class AgentError(RuntimeError):
+class AgentError(AIError, RuntimeError):
     """에이전트 모델 호출·파싱 실패의 공통 부모.
 
     Attributes:
@@ -32,7 +33,7 @@ class AgentError(RuntimeError):
         self.meta = meta
 
 
-class MissingParsedOutput(RuntimeError):
+class MissingParsedOutput(AIError, RuntimeError):
     """구조화 출력이 오류 없이 비어 온 경우의 원인 예외."""
 
 

@@ -1,3 +1,4 @@
+import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 
@@ -21,9 +22,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
         <div className="flex w-full flex-col gap-6">
             <SectionIntro title="전체 상품" size="xl" />
             {isLoading ? (
-                <div className="flex w-full justify-center py-12">
-                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-border border-t-white" />
-                </div>
+                <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
                     <p className="text-sm font-medium text-status-danger">상품 목록을 불러오지 못했어요.</p>

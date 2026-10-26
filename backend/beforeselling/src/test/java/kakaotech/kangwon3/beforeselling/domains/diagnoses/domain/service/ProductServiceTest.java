@@ -13,6 +13,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultSt
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -36,7 +37,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -330,6 +333,81 @@ class ProductServiceTest {
 
         assertThat(diagnoses.getProducts()).hasSize(1);
         then(diagnosesRepository).should(never()).delete(any());
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("질문에 답하면 상품과 진단서가 다시 진행 중 상태가 된다.")
+    void answerQuestions_thenProductAndDiagnosesInProgress() {
+        // given
+        Diagnoses diagnoses = createAwaitingInputDiagnoses();
+        givenLockedDiagnoses(diagnoses);
+        Product product = diagnoses.getProducts().getFirst();
+
+        // when
+        productService.answerQuestions(USER_ID, PRODUCT_ID, answersOf(product, "구매대행", "네"));
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("질문에 답하면 질문으로 끝난 실행 ID와 회차, 질문 키별 답변을 담은 재진단 요청 이벤트를 발행한다.")
+    void answerQuestions_thenPublishResumeEvent() {
+        // given
+        Diagnoses diagnoses = createAwaitingInputDiagnoses();
+        givenLockedDiagnoses(diagnoses);
+        Product product = diagnoses.getProducts().getFirst();
+
+        // when
+        productService.answerQuestions(USER_ID, PRODUCT_ID, answersOf(product, "구매대행", "네"));
+
+        // then
+        ArgumentCaptor<AiResumeRequestedEvent> captor = ArgumentCaptor.forClass(AiResumeRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue()).isEqualTo(new AiResumeRequestedEvent(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1, List.of(
+                new AiResumeRequestedEvent.Answer("sales_type", "구매대행"),
+                new AiResumeRequestedEvent.Answer("battery_only", "네"))));
+    }
+
+    @Test
+    @DisplayName("답변이 거절되면 재진단 요청 이벤트를 발행하지 않는다.")
+    void answerQuestions_whenRejected_thenNotPublishEvent() {
+        // given
+        Diagnoses diagnoses = createAwaitingInputDiagnoses();
+        givenLockedDiagnoses(diagnoses);
+        Product product = diagnoses.getProducts().getFirst();
+        Map<UUID, String> partialAnswers = Map.of(product.getQuestions().getFirst().getId(), "구매대행");
+
+        // when & then
+        assertResponseCode(() -> productService.answerQuestions(USER_ID, PRODUCT_ID, partialAnswers),
+                CommonResponseCode.BAD_REQUEST);
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품에 답하면 진단서를 잠그지 않고 NOT_FOUND 예외가 발생한다.")
+    void answerQuestions_withUnknownId_thenThrowNotFound() {
+        // given
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertResponseCode(() -> productService.answerQuestions(USER_ID, PRODUCT_ID, Map.of()),
+                CommonResponseCode.NOT_FOUND);
+        then(diagnosesRepository).should(never()).findByIdAndUserIdForUpdate(any(), any());
+    }
+
+    @Test
+    @DisplayName("남의 상품에 답하면 락 조회 결과가 없어 NOT_FOUND 예외가 발생한다.")
+    void answerQuestions_withOthersProduct_thenThrowNotFound() {
+        // given
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.of(DIAGNOSES_ID));
+        given(diagnosesRepository.findByIdAndUserIdForUpdate(DIAGNOSES_ID, USER_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertResponseCode(() -> productService.answerQuestions(USER_ID, PRODUCT_ID, Map.of()),
+                CommonResponseCode.NOT_FOUND);
         then(eventPublisher).should(never()).publishEvent(any());
     }
 
@@ -716,6 +794,17 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("재요청할 진단서 ID는 대기 상태와 요청한 개수로 조회한다.")
+    void findPendingDiagnosesIds_thenQueryPendingWithLimit() {
+        // given
+        given(productRepository.findDiagnosesIdsByStatus(ProcessingStatus.PENDING, PageRequest.of(0, 100)))
+                .willReturn(List.of(DIAGNOSES_ID));
+
+        // when & then
+        assertThat(productService.findPendingDiagnosesIds(100)).containsExactly(DIAGNOSES_ID);
+    }
+
+    @Test
     @DisplayName("기준 시각보다 오래 멈춘 진단은 BE 실패 코드로 실패 처리하고 진단서 상태를 다시 계산한다.")
     void failStuckDiagnoses_whenStuck_thenFailAndRefreshDiagnoses() {
         // given
@@ -837,6 +926,27 @@ class ProductServiceTest {
         // then
         assertThat(failed).isFalse();
         assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    // 첫 번째 상품(PRODUCT_ID)이 1회차 질문 2개를 받아 답변을 기다리는 상태. 저장하지 않으므로 질문 ID를 직접 넣는다.
+    private Diagnoses createAwaitingInputDiagnoses() {
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        Product product = diagnoses.getProducts().getFirst();
+        product.askQuestions(1, List.of(question("sales_type", "구매대행으로 파나요?"),
+                new QuestionContent("battery_only", 2, "내장 배터리로만 동작하나요?", null)));
+        product.getQuestions().forEach(question -> ReflectionTestUtils.setField(question, "id", UUID.randomUUID()));
+        diagnoses.refreshProcessingStatus();
+        return diagnoses;
+    }
+
+    // 질문 순서대로 답변을 짝짓는다.
+    private Map<UUID, String> answersOf(Product product, String... answerTexts) {
+        List<ProductQuestion> questions = product.getQuestions();
+        Map<UUID, String> answers = new HashMap<>();
+        for (int i = 0; i < answerTexts.length; i++) {
+            answers.put(questions.get(i).getId(), answerTexts[i]);
+        }
+        return answers;
     }
 
     private void givenStuckLookup(Diagnoses diagnoses) {

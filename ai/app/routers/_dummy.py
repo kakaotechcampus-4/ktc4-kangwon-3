@@ -2,8 +2,7 @@
 
 import time
 
-from ..observability.context import ExecutionContext, PipelineStage
-from ..schemas.agent import ExtractionInput
+from ..domain.context import ExecutionContext, PipelineStage
 from ..schemas.callback import (
     PublicAssessmentDto,
     PublicFindingDto,
@@ -33,7 +32,8 @@ from ..schemas.schemas import (
     VerificationResult,
     VerificationStatus,
 )
-from ..sessions.executor import ProgressReporter
+from ..schemas.session import DiagnosisInput
+from ..sessions.job import JobDone, ProgressReporter
 
 
 def build_dummy_assessment(product_id: str) -> FinalAssessment:
@@ -291,24 +291,25 @@ DUMMY_STAGES = (
 
 
 def run_dummy_diagnosis(
-    item: ExtractionInput, context: ExecutionContext, progress: ProgressReporter,
-) -> FinalAssessment:
-    """파이프라인 러너 연결 전까지 세션 실행기에 넣는 더미 진단 함수.
+    job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter,
+) -> JobDone:
+    """파이프라인 러너 연결 전까지 세션 관리자에 넣는 더미 진단 함수.
 
-    단계 진행만 흉내 내고 고정 결과 반환. LLM·외부 API 호출 없음.
+    단계 진행만 흉내 내고 고정 결과로 완료. LLM·외부 API 호출 없음.
+    질문으로 끝나지 않아 재진단도 같은 완료 결과.
 
     Args:
-        item: 상품 입력. product_id만 사용.
+        job_input: 실행 입력. 원래 입력의 product_id만 사용.
         context: 실행 컨텍스트. 사용하지 않음.
         progress: 단계 진행 알림.
 
     Returns:
-        RC 보트 기반 더미 FinalAssessment.
+        JobDone: RC 보트 기반 더미 FinalAssessment를 담은 완료.
     """
     for stage in DUMMY_STAGES:
         progress.stage(stage)
         time.sleep(DUMMY_STAGE_SECONDS)
-    return build_dummy_assessment(item.product_id)
+    return JobDone(build_dummy_assessment(job_input.source.product_id))
 
 
 # 실행 상태 → 분야 카드 상태. 나머지(부분 성공·실패)는 미완료
@@ -346,16 +347,16 @@ class DummyAssessmentPresenter:
             notices=result.missing_information,
         )
 
-    def questions(self, result: FinalAssessment) -> tuple[int, list[PublicQuestionDto]]:
-        """답변 대기 결과의 질문. 가짜 진단은 질문으로 끝나지 않아 고정 질문 하나.
+    def questions(self, result: FinalAssessment) -> list[PublicQuestionDto]:
+        """답변 대기 결과의 질문. 가짜 진단은 질문으로 끝나지 않아 고정 질문 하나. 회차는 세션이 셈.
 
         Args:
             result: 가짜 진단 결과.
 
         Returns:
-            tuple[int, list[PublicQuestionDto]]: (질문 회차 1, 고정 질문).
+            list[PublicQuestionDto]: 고정 질문.
         """
-        return 1, [PublicQuestionDto(
+        return [PublicQuestionDto(
             question_key="battery_only", question_order=1, question_text="내장 배터리로만 동작하나요?",
             help_text="배터리 전용이면 안전인증 대상에서 빠질 수 있어요.",
         )]

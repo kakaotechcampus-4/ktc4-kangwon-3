@@ -4,6 +4,9 @@ import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.List;
 
@@ -39,6 +42,22 @@ class ProductQuestionTest {
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.CONFLICT);
         assertThat(question.getAnswerText()).isEqualTo("재고를 미리 들여와서 팔아요.");
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", " "})
+    @DisplayName("빈 답변을 저장하면 BAD_REQUEST 예외가 발생하고 답변하지 않은 질문으로 남는다.")
+    void answer_withBlankAnswer_thenThrowBadRequest(String answerText) {
+        // given
+        ProductQuestion question = createQuestion();
+
+        // when & then
+        assertThatThrownBy(() -> question.answer(answerText))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.BAD_REQUEST);
+        assertThat(question.isAnswered()).isFalse();
     }
 
     private ProductQuestion createQuestion() {

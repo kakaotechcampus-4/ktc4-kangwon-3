@@ -17,6 +17,7 @@ from bs4 import BeautifulSoup
 from ..base import BaseClient
 from ...schemas.clients.marketplace_request import ProductPageRequest
 from ...schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from .errors import BlockedUrlError, PageTooLargeError
 
 _BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -36,14 +37,6 @@ MAX_TEXT_CHARS = 20000
 _INVISIBLE_RE = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]")
 
 T = TypeVar("T")
-
-
-class BlockedUrlError(ValueError):
-    """사이트 도메인 밖 주소로 요청하려 한 경우 (처음 주소·리다이렉트 모두). 요청은 보내지 않음."""
-
-
-class PageTooLargeError(ValueError):
-    """상품 페이지 응답이 크기 상한을 넘은 경우."""
 
 
 def matches_domain(host: str | None, domains: Iterable[str]) -> bool:

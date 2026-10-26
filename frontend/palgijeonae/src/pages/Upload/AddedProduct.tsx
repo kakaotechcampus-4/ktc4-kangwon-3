@@ -47,7 +47,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-2 items-center">
                         <img src={type === SourceType.Url ? urlIcon : imageIcon}
-                            alt={type === SourceType.Url ? "URL 아이콘" : "이미지 아이콘"}
+                            alt=""
                             className="w-5 h-5" />
                         <p className="text-base text-neutral-border font-bold">{type === SourceType.Url ? "URL" : "이미지 / 텍스트"}</p>
                     </div>
@@ -63,12 +63,13 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                 <button
                     type="button"
                     onClick={() => setExpanded((prev) => !prev)}
+                    aria-expanded={expanded}
                     className="absolute bottom-0 right-0 flex cursor-pointer items-center gap-1"
                 >
                     <p className="text-base font-semibold text-neutral-border">{expanded ? "접기" : "자세히 보기"}</p>
                     <img
                         src={toggleIcon}
-                        alt="토글 아이콘"
+                        alt=""
                         className={cn("h-5 w-5 transition-transform", expanded && "rotate-180")}
                     />
                 </button>

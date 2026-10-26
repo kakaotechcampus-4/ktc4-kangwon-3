@@ -20,17 +20,19 @@ import re
 import sys
 import time
 from pathlib import Path
+from threading import Lock
 from urllib.parse import urlparse
 from uuid import uuid4
 
+from ..agents.base import AgentRunMeta
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..agents.image_triage import ImageTriageAgent
 from ..config import agent_profile
+from ..observability.agent_sinks import agent_sinks
 from ..pipeline.url_source import MAX_ALL_IMAGES, UrlSource, UrlSourceBuilder, client_for
 from ..schemas.agent import ExtractionInput
 from ..schemas.clients.marketplace_request import ProductPageRequest
-from .. import usage
 from .runner import _AI_ROOT, describe_metadata, run_metadata
 
 OUT_DIR = _AI_ROOT / "data" / "collect_probe"
@@ -57,32 +59,40 @@ def mode_input(source: UrlSource, mode: str, product_id: str) -> ExtractionInput
     return source.extraction_input.model_copy(update={"product_id": product_id, "image_urls": images})
 
 
-def usage_of(subject_id: str, log: Path | None = None) -> dict:
-    """사용량 로그에서 이 대상의 호출을 합친다. 대상 ID는 실행마다 다르게 붙임.
+class UsageTotals:
+    """모델 호출 기록을 대상 ID별로 합친다. agent_sinks.added(totals.on_run)로 실행하는 동안만 받음."""
 
-    Args:
-        subject_id: 사용량 기록 대상 ID.
-        log: 사용량 로그. None이면 지금 설정된 공용 로그 (테스트에서 바꾼 경로도 따름).
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._runs: dict[str, list[AgentRunMeta]] = {}
 
-    Returns:
-        dict: 호출 수·입력·출력 토큰·추정 비용 합.
-    """
-    log = log or usage.USAGE_LOG
-    rows = []
-    if log.exists():
-        for line in log.read_text(encoding="utf-8").splitlines():
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if row.get("subject_id") == subject_id:
-                rows.append(row)
-    return {
-        "calls": len(rows),
-        "input_tokens": sum(row.get("input_tokens") or 0 for row in rows),
-        "output_tokens": sum(row.get("output_tokens") or 0 for row in rows),
-        "estimated_cost_krw": round(sum(row.get("estimated_cost_krw") or 0 for row in rows), 2),
-    }
+    def on_run(self, meta: AgentRunMeta, subject_id: str) -> None:
+        """호출 1건을 대상 ID 아래에 모은다.
+
+        Args:
+            meta: 호출 1건의 실행 정보.
+            subject_id: 기록 대상 ID.
+        """
+        with self._lock:
+            self._runs.setdefault(subject_id, []).append(meta)
+
+    def of(self, subject_id: str) -> dict:
+        """이 대상의 호출을 합친다.
+
+        Args:
+            subject_id: 기록 대상 ID.
+
+        Returns:
+            dict: 호출 수·입력·출력 토큰·추정 비용 합.
+        """
+        with self._lock:
+            runs = list(self._runs.get(subject_id, []))
+        return {
+            "calls": len(runs),
+            "input_tokens": sum(meta.usage.input_tokens for meta in runs if meta.usage),
+            "output_tokens": sum(meta.usage.output_tokens for meta in runs if meta.usage),
+            "estimated_cost_krw": round(sum(meta.cost_krw or 0 for meta in runs), 2),
+        }
 
 
 def _normalize(text: str) -> str:
@@ -120,7 +130,7 @@ def run_product(
 ) -> Path:
     """상품 하나: 수집·분류 한 번, 방식마다 runs번 추출하고 저장한다. html을 주면 페이지를 받지 않음."""
     key = product_key(url)
-    # 사용량을 대상 ID로 모으므로 실행마다 다른 ID. 같은 상품을 다시 돌려도 앞 실행 비용이 섞이지 않음
+    # 사용량 로그(usage.jsonl)에서도 실행끼리 구분되게 실행마다 다른 ID
     prefix = f"collect:{key}:{uuid4().hex[:8]}"
     if html is None:
         client = client_for(url)
@@ -130,9 +140,11 @@ def run_product(
             client.close()
     else:
         raw_html = html.read_text(encoding="utf-8")
+    totals = UsageTotals()
     started = time.monotonic()
     # 받은 HTML 하나로 저장·파싱을 같이 해 두 번 요청하지 않음
-    source = builder.build_from_html(url, raw_html, product_id=f"{prefix}:triage")
+    with agent_sinks.added(totals.on_run):
+        source = builder.build_from_html(url, raw_html, product_id=f"{prefix}:triage")
     triage_seconds = round(time.monotonic() - started, 1)
 
     directory = out / source.page.site / key
@@ -145,7 +157,7 @@ def run_product(
         "selected": [image.url for image in source.selected],
     })
     meta = {"url": url, "input": str(html) if html else "live", "final_url": source.page.source_url,
-            "triage": {"seconds": triage_seconds, **usage_of(f"{prefix}:triage")}, "modes": {}}
+            "triage": {"seconds": triage_seconds, **totals.of(f"{prefix}:triage")}, "modes": {}}
 
     for mode in MODES:
         for run in range(1, runs + 1):
@@ -156,13 +168,14 @@ def run_product(
             _dump(run_dir / "extraction_input.json", extraction_input.model_dump(mode="json"))
             started = time.monotonic()
             try:
-                product = extractor.run(extraction_input).model_dump(mode="json")
+                with agent_sinks.added(totals.on_run):
+                    product = extractor.run(extraction_input).model_dump(mode="json")
             except ExtractionFailedError as exc:
                 product = {"_failed": type(exc.__cause__ or exc).__name__}
             _dump(run_dir / "product.json", product)
             meta["modes"].setdefault(mode, []).append({
                 "run": run, "images": len(extraction_input.image_urls),
-                "seconds": round(time.monotonic() - started, 1), **usage_of(subject)})
+                "seconds": round(time.monotonic() - started, 1), **totals.of(subject)})
             last = meta["modes"][mode][-1]
             print(f"  {mode:<8} {run}회: 이미지 {last['images']}장, {last['seconds']}s, "
                   f"{last['estimated_cost_krw']}원", flush=True)
