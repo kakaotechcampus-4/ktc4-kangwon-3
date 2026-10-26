@@ -541,6 +541,6 @@ def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어�
 
 def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
     names = []
-    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
+    monkeypatch.setattr("app.clients.llm.build_tool_model", lambda name: names.append(name) or Model(None))
     FoodDrugTool()._get_steps()
     assert names == [ToolName.FOOD_DRUG]
