@@ -215,7 +215,7 @@ def test_개발용_상한을_넘으면_429(manager):
     {"imagesBase64": ["https://example.com/a.jpg"]},
 ])
 def test_입력이_없거나_정의하지_않은_필드를_보내면_422(manager, body):
-    # 상품 ID는 서버가 발급. 운영용 이름(imagesBase64) 등 정의하지 않은 필드는 받지 않음
+    # 상품 ID는 서버가 발급. 예전 이름(imagesBase64) 등 정의하지 않은 필드는 받지 않음
     response = _client(manager).post(ROUTE, json=body, headers=HEADERS)
 
     assert response.status_code == 422
