@@ -14,7 +14,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Generic, Protocol, TypeVar
 from xml.etree.ElementTree import ParseError
 
@@ -28,6 +28,9 @@ from ...schemas.clients.law_response import (
 from ...schemas.schemas import LegalSource
 
 logger = logging.getLogger(__name__)
+
+# 근거 기준일은 한국 날짜
+KST = timezone(timedelta(hours=9))
 
 _BOX_DRAWING = {code: None for code in range(0x2500, 0x2580)}
 

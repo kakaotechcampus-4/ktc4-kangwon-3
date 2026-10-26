@@ -9,10 +9,10 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Protocol
 
-from ..common.law import CachedLoader
+from ..common.law import KST, CachedLoader
 from ..common.ranking import rank_rows
 from .evidence import (
     AnnexBlock,
@@ -23,8 +23,6 @@ from .evidence import (
     LawApiEvidenceSource,
     Scheme,
 )
-
-KST = timezone(timedelta(hours=9))
 
 
 @dataclass(frozen=True)
