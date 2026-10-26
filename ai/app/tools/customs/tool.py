@@ -9,22 +9,23 @@ HS 분류는 관세청이 정하므로 후보로만 낸다. 모델은 확정 판
 from collections.abc import Callable
 from typing import Any
 
-from ...prompts import PromptName
 from ...schemas.agent import ToolSelectionItem
-from ...schemas.customs import CustomsFact, CustomsFacts, CustomsReview
+from ...schemas.customs import CustomsFact
 from ...schemas.product import Product
 from ...schemas.schemas import (
     CustomsAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
-from ..base import RegulatoryTool, ToolModelError, ToolStep, ToolStepInput
+from ..base import RegulatoryTool, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
+from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
 from .rules import format_hs, omission_status, related_tool, sale_actions
 from .search import (
     CaseSearch, HsCase, Requirement, RequirementLookup, default_case_search, default_evidence_loader,
     default_requirement_lookup,
 )
+from .steps import CustomsFactsStep, CustomsReviewStep
 
 _FIELDS = {
     "product_type": "제품 종류", "material": "재질", "function": "기능", "intended_use": "용도",
@@ -39,26 +40,6 @@ _CASE_SOURCE = "관세청 품목분류 결정사례(CLIP)"
 _TOOL_LABELS = {
     ToolName.ELECTRICAL: "전기안전", ToolName.RADIO: "전파", ToolName.CHILDREN: "어린이제품", ToolName.FOOD_DRUG: "식약",
 }
-
-
-class CustomsToolError(ToolModelError):
-    """모델·외부 자료 실패. 원본 오류는 예외 체인에만 보존한다."""
-
-
-class _FactsStep(ToolStep[CustomsFacts]):
-    component_name = "customs-facts"
-    prompt_name = PromptName.CUSTOMS_FACTS
-    output_schema = CustomsFacts
-    error_class = CustomsToolError
-    failure_label = "통관 Tool 조건 추출"
-
-
-class _ReviewStep(ToolStep[CustomsReview]):
-    component_name = "customs-review"
-    prompt_name = PromptName.CUSTOMS_REVIEW
-    output_schema = CustomsReview
-    error_class = CustomsToolError
-    failure_label = "통관 Tool 결정사례 선택"
 
 
 class CustomsTool(RegulatoryTool):
@@ -89,16 +70,16 @@ class CustomsTool(RegulatoryTool):
         self._evidence = evidence
         self._configured_model = configured_model
         self._top_k = top_k
-        self._steps: tuple[_FactsStep, _ReviewStep] | None = None
+        self._steps: tuple[CustomsFactsStep, CustomsReviewStep] | None = None
 
-    def _get_steps(self) -> tuple[_FactsStep, _ReviewStep]:
+    def _get_steps(self) -> tuple[CustomsFactsStep, CustomsReviewStep]:
         if self._steps is None:
             if self._model is None:
                 # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
                 from ...config import build_tool_model
                 self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
-            self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))
+            self._steps = (CustomsFactsStep(self._model, **options), CustomsReviewStep(self._model, **options))
         return self._steps
 
     def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
