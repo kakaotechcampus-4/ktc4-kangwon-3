@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { type ProcessingStatusType, type ResultStatus, type SourceType } from "@/api/types";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
+import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES, SOURCE_TYPE_INFO } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";
 
@@ -40,18 +41,18 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
         </>
     );
 
-    if (to) {
-        return (
-            <Link to={to} className="flex w-full cursor-pointer flex-row gap-4">
-                {content}
-            </Link>
-        );
-    }
-
     return (
-        <div className="flex w-full flex-row gap-4">
-            {content}
-        </div>
+        <DefaultBox>
+            {to ? (
+                <Link to={to} className="flex w-full cursor-pointer flex-row gap-4">
+                    {content}
+                </Link>
+            ) : (
+                <div className="flex w-full flex-row gap-4">
+                    {content}
+                </div>
+            )}
+        </DefaultBox>
     );
 }
 
