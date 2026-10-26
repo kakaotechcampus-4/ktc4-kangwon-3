@@ -99,6 +99,7 @@ class BaseClient:
         transport: httpx.BaseTransport | None = None,
         dead_connection_seconds: int | None = DEAD_CONNECTION_SECONDS,
     ):
+        # transport를 직접 넘기면 httpx가 환경 프록시(HTTP_PROXY/HTTPS_PROXY)를 읽지 않음. 프록시 필요 시 transport에 지정
         if transport is None and dead_connection_seconds is not None:
             transport = httpx.HTTPTransport(
                 socket_options=keepalive_socket_options(dead_connection_seconds), limits=_CONNECTION_LIMITS,
