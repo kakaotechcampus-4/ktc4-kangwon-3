@@ -5,7 +5,8 @@ import time
 
 import pytest
 
-from app.callbacks import CallbackOutbox, EventBuilder, SendResult, connect_callbacks
+from app.callbacks import CallbackOutbox, EventBuilder, connect_callbacks
+from app.clients.backend import SendResult
 from app.domain.context import RunType
 from app.dummy import DummyCaseName, job, mark_case, run_case_diagnosis
 from app.routers._dummy import DummyAssessmentPresenter
