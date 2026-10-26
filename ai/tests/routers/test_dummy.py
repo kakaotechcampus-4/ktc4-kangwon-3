@@ -5,11 +5,13 @@ from threading import Event
 import pytest
 from fastapi.testclient import TestClient
 
+from app import config
 from app.domain.context import ExecutionContext, RunType
 from app.dummy import DummyCaseName, read_case
 from app.main import app
 from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment
 from app.routers.diagnose import get_session_manager
+from app.routers.internal_auth import INTERNAL_TOKEN_HEADER
 from app.schemas.agent import ExtractionInput
 from app.schemas.base import utc_now
 from app.schemas.callback import PublicQuestionDto
@@ -20,6 +22,12 @@ from app.sessions.manager import SessionManager
 from app.sessions.store import SessionStore
 from app.sessions.transitions import AskUser, Start, apply
 
+TOKEN = "test-internal-token-0123456789abcdef"
+_SETTINGS = config.Settings(
+    api_key="test-key", base_url="https://mlapi.run/example/v1", embedding_model="openai/text-embedding-3-small",
+    data_go_kr_key="k", safetykorea_key="k", law_oc="oc", internal_api_token=TOKEN,
+    be_base_url="http://be-server:8080", database_url="",
+)
 CONTENT = "/api/ai/v1/dummy/diagnose/content"
 RESUME = "/api/ai/v1/dummy/diagnose/resume"
 _QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
@@ -48,8 +56,9 @@ def manager():
 
 @pytest.fixture
 def client(manager) -> TestClient:
+    app.dependency_overrides[config.get_settings] = lambda: _SETTINGS
     app.dependency_overrides[get_session_manager] = lambda: manager
-    yield TestClient(app)
+    yield TestClient(app, headers={INTERNAL_TOKEN_HEADER: TOKEN})
     app.dependency_overrides.clear()
 
 
