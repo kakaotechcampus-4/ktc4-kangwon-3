@@ -618,7 +618,7 @@ def test_결과는_Verification_규칙_검사를_통과한다(case):
 
 def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어간다():
     from app.schemas.product import Attribute
-    from app.tools.electrical.tool import _hints
     product = Product(product_id="p1", listing_text=["포트"], attributes=[Attribute(name="품목", value="전기포트")])
-    assert _hints(product)["attributes"] == [{"name": "품목", "value": "전기포트"}]
-    assert "listing_text" not in _hints(product)
+    hints = ElectricalTool()._hints(product)
+    assert hints["attributes"] == [{"name": "품목", "value": "전기포트"}]
+    assert "listing_text" not in hints
