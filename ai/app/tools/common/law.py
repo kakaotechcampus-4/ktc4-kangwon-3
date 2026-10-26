@@ -4,8 +4,6 @@
 - 기준일에 시행 중인 버전을 고르고(select_version), 받은 본문이 그 문서인지 다시 대조한다(check_body).
 - 조문·별표 원문을 꺼내고(article_text, annex_text), 버전을 고정한 공개 열람 주소를 만든다.
 - 기준일별로 근거를 캐시한다(CachedLoader).
-
-전기 Tool(#290)에도 같은 역할의 코드가 있다. 전기 Tool 코드는 후속 PR에서 이 모듈로 합친다.
 """
 
 import logging
