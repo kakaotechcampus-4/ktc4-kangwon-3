@@ -24,7 +24,7 @@ from .rules import (
     banned_action, claim_action, cosmetic_actions, device_actions, functional_action, health_food_action,
     imported_food_actions,
 )
-from .search import default_evidence_loader, rank_devices
+from .search import rank_devices
 from .steps import FoodDrugFactsStep, FoodDrugReviewStep
 
 _FIELDS = {
@@ -63,7 +63,7 @@ class FoodDrugTool(EvidenceSearchTool):
 
     Args:
         model: 구조화 출력을 지원하는 채팅 모델. None이면 실행할 때 Tool 프로필(`TOOL_PROFILES`)로 만든다.
-        evidence: 근거(법령 조문 + 의료기기 품목·등급 + 화장품 금지 원료)를 돌려주는 함수. None이면 법제처 API(기준일별 공용 캐시).
+        evidence: 근거(법령 조문 + 의료기기 품목·등급 + 화장품 금지 원료)를 돌려주는 함수.
         configured_model: 사용량 기록용 모델 이름.
         top_k: 품목 선택 모델에 넘길 의료기기 후보 수.
     """
@@ -84,7 +84,7 @@ class FoodDrugTool(EvidenceSearchTool):
     hints_with_attributes = True
     run_type = FoodDrugRun
 
-    def __init__(self, model=None, *, evidence: Callable[[], FoodDrugEvidence] | None = None,
+    def __init__(self, model=None, *, evidence: Callable[[], FoodDrugEvidence],
                  configured_model: str | None = None, top_k: int = 8):
         super().__init__(model, configured_model=configured_model, top_k=top_k)
         self._evidence = evidence
@@ -92,7 +92,7 @@ class FoodDrugTool(EvidenceSearchTool):
     def _prepare(self, run: FoodDrugRun) -> None:
         """근거를 먼저 읽는다. 기능성화장품 범위(시행규칙 제2조)를 조건 추출 모델에 함께 줌."""
         run.evidence = self._lookup(
-            run, lambda: (self._evidence or default_evidence_loader())(), failure="식약 근거 법령 조회에 실패했습니다.",
+            run, self._evidence, failure="식약 근거 법령 조회에 실패했습니다.",
             unavailable="식약 근거 법령의 시행 버전·본문을 확인하지 못해 근거 조문 없이 안내했습니다.")
         if run.evidence is not None:
             run.query["documents"] = run.evidence.documents()
