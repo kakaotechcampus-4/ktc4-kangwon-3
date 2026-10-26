@@ -41,7 +41,14 @@ logger = logging.getLogger(__name__)
 
 
 def without_includes(name: str) -> str:
-    """품목명에서 포함 문구를 뗀 이름. 조회어·순위에 "포함한다" 같은 글자가 섞이지 않게 한다."""
+    """품목명에서 포함 문구를 뗀 이름. 조회어·순위에 "포함한다" 같은 글자가 섞이지 않게 한다.
+
+    Args:
+        name: 품목명.
+
+    Returns:
+        str: 포함 문구를 뗀 이름.
+    """
     return _INCLUDES_RE.sub("", name).strip()
 
 
@@ -74,16 +81,31 @@ class ChildrenItem:
 
     @property
     def short_name(self) -> str:
-        """포함 문구를 뗀 품목명. 조회·순위·품목명 목록에 쓴다(근거 원문과 판단 제목은 name 그대로)."""
+        """포함 문구를 뗀 품목명. 조회·순위·품목명 목록에 쓴다(근거 원문과 판단 제목은 name 그대로).
+
+        Returns:
+            str: 포함 문구를 뗀 이름.
+        """
         return without_includes(self.name)
 
     @property
     def includes(self) -> tuple[str, ...]:
-        """품목명에 붙은 포함 문구. 예: ("선글라스를 포함한다",)."""
+        """품목명에 붙은 포함 문구. 예: ("선글라스를 포함한다",).
+
+        Returns:
+            tuple[str, ...]: 포함 문구.
+        """
         return tuple(match.group(1).strip() for match in _INCLUDES_RE.finditer(self.name))
 
     def as_candidate(self, scope_limit: int = _SCOPE_LIMIT) -> dict:
-        """품목 선택 모델에 넘기는 모양. 적용범위는 길어서 잘라 넘긴다(근거는 코드가 원문을 붙인다)."""
+        """품목 선택 모델에 넘기는 모양. 적용범위는 길어서 잘라 넘긴다(근거는 코드가 원문을 붙인다).
+
+        Args:
+            scope_limit: 적용범위 최대 글자 수.
+
+        Returns:
+            dict: 행 ID·제도·품목명·적용 안전기준·적용범위.
+        """
         scope = " ".join(self.scopes)
         return {"item_id": self.item_id, "scheme": self.scheme.value, "item": self.name,
                 "standards": list(self.standards),
@@ -110,12 +132,29 @@ class ChildrenEvidence:
     unlinked_scopes: tuple[str, ...]
 
     def documents(self) -> list[dict[str, str]]:
+        """결과 query에 남길 문서 식별 정보.
+
+        Returns:
+            list[dict[str, str]]: 법·시행규칙·운용요령 순.
+        """
         return [self.definitions.law.describe(), self.rule.describe(), self.notice.describe()]
 
 
 
 def _law_item(body, article: int, label: str) -> str:
-    """조문의 호(목 포함) 원문. 예: 제2조 제1호."""
+    """조문의 호(목 포함) 원문. 예: 제2조 제1호.
+
+    Args:
+        body: 법 본문 응답.
+        article: 조 번호.
+        label: 호 번호 글자 (예: "1.").
+
+    Returns:
+        str: 호 원문 (공백 정리).
+
+    Raises:
+        EvidenceUnavailable: 호를 찾지 못한 경우.
+    """
     for candidate in body.articles:
         if str(candidate.article_number or "").lstrip("0") != str(article) or candidate.article_branch_number:
             continue
@@ -129,7 +168,14 @@ def _law_item(body, article: int, label: str) -> str:
 
 
 def _cells(line: str) -> list[str] | None:
-    """세로선으로 칸을 나눈다. 칸 줄이 아니면 None."""
+    """세로선으로 칸을 나눈다.
+
+    Args:
+        line: 별표 한 줄.
+
+    Returns:
+        list[str] | None: 칸 내용. 칸 줄이 아니면 None.
+    """
     stripped = line.strip()
     if not stripped.startswith("│"):
         return None
@@ -137,7 +183,14 @@ def _cells(line: str) -> list[str] | None:
 
 
 def _is_separator(line: str) -> bool:
-    """가로선 줄. 세로로 쓴 병합 셀 글자(예: "│호├───")가 한두 자 섞여도 구분선으로 본다."""
+    """가로선 줄인지 본다. 세로로 쓴 병합 셀 글자(예: "│호├───")가 한두 자 섞여도 구분선으로 본다.
+
+    Args:
+        line: 별표 한 줄.
+
+    Returns:
+        bool: 가로선 줄이면 True.
+    """
     return bool(re.search(r"[─━]", line)) and len(compact(line)) <= 2
 
 
@@ -145,6 +198,16 @@ def parse_rule_annex(text: str, scheme: Scheme) -> list[ChildrenItem]:
     """시행규칙 별표 1~3(품목 | 적용 안전기준)을 품목 행으로 나눈다. 삭제된 품목은 뺀다.
 
     칸 폭 때문에 줄이 끊긴 품목명·기준명("…(보" + "호 장구…)")은 공백 없이 잇는다.
+
+    Args:
+        text: 시행규칙 별표 원문.
+        scheme: 이 별표가 정하는 제도.
+
+    Returns:
+        list[ChildrenItem]: 품목 행.
+
+    Raises:
+        EvidenceUnavailable: 품목을 하나도 찾지 못한 경우.
     """
     prefix = SCHEME_ANNEXES[scheme][2]
     rows: list[dict] = []
@@ -187,6 +250,12 @@ def parse_scope_annex(text: str) -> list[tuple[str, str]]:
 
     가로선 사이가 한 덩어리다. 품목 칸이 둘 이상으로 나뉜 곳(예: 스포츠보호용품 > 보호장구)은
     적용범위 바로 왼쪽 칸을 품목명으로 쓴다.
+
+    Args:
+        text: 운용요령 별표 원문.
+
+    Returns:
+        list[tuple[str, str]]: (품목명, 적용범위 원문).
     """
     blocks: list[list[list[str]]] = [[]]
     for line in text.splitlines():
@@ -210,6 +279,15 @@ def parse_scope_annex(text: str) -> list[tuple[str, str]]:
 
 
 def _similarity(left: str, right: str) -> float:
+    """글자 2개 조각 집합의 자카드 유사도.
+
+    Args:
+        left: 비교할 이름.
+        right: 비교할 이름.
+
+    Returns:
+        float: 0~1 유사도. 한쪽이 비면 0.
+    """
     a, b = set(bigrams(left)), set(bigrams(right))
     return len(a & b) / len(a | b) if a and b else 0.0
 
@@ -222,6 +300,13 @@ def link_scopes(items: list[ChildrenItem], scopes: list[tuple[str, str]]) -> tup
     2. 운용요령 품목명이 시행규칙 품목명 안에 들어 있으면 잇는다(예: 보호장구 → "스포츠 보호용품(보호 장구 및 안전모)").
     3. 남은 것은 글자 유사도가 높은 쌍부터 하나씩 짝짓는다(시행규칙 품목 하나에 하나). 기준에 못 미치면 잇지 않고
        이름을 따로 돌려준다(사람 확인용).
+
+    Args:
+        items: 시행규칙 품목 행.
+        scopes: 운용요령 (품목명, 적용범위 원문).
+
+    Returns:
+        tuple[list[ChildrenItem], list[str]]: (적용범위를 이은 품목 행, 잇지 못한 운용요령 품목명).
     """
     attached: dict[str, list[tuple[str, str]]] = {item.item_id: [] for item in items}
     remaining: list[tuple[str, str]] = []
@@ -254,6 +339,17 @@ def link_scopes(items: list[ChildrenItem], scopes: list[tuple[str, str]]) -> tup
 
 
 def common_standard_item(text: str) -> ChildrenItem:
+    """시행규칙 별표 3 비고에서 개별 안전기준이 없는 품목의 기준을 행으로 만든다.
+
+    Args:
+        text: 시행규칙 별표 3 원문.
+
+    Returns:
+        ChildrenItem: 공통안전기준을 적용하는 공급자적합성확인 행.
+
+    Raises:
+        EvidenceUnavailable: 비고 문장을 찾지 못한 경우.
+    """
     lines = [cells[0] for line in text.splitlines() if (cells := _cells(line)) is not None and len(cells) == 1]
     match = _COMMON_STANDARD_RE.search(join_wrapped(lines))
     if match is None:
@@ -266,7 +362,18 @@ def common_standard_item(text: str) -> ChildrenItem:
 
 
 def load_children_evidence(client: LawLookup, as_of: date) -> ChildrenEvidence:
-    """법제처 API로 법·시행규칙·운용요령을 기준일 버전으로 받아 품목 행을 만든다(요청 6회)."""
+    """법제처 API로 법·시행규칙·운용요령을 기준일 버전으로 받아 품목 행을 만든다(요청 6회).
+
+    Args:
+        client: 법제처 조회.
+        as_of: 기준일.
+
+    Returns:
+        ChildrenEvidence: 기준일 근거 묶음.
+
+    Raises:
+        EvidenceUnavailable: 정의 조문이나 별표를 확인하지 못한 경우.
+    """
     law = load_law(client, name=LAW_NAME, law_id=LAW_ID, as_of=as_of)
     rule = load_law(client, name=RULE_NAME, law_id=RULE_ID, as_of=as_of)
     notice = load_admrul(client, name=NOTICE_NAME, rule_id=NOTICE_ID, as_of=as_of)
