@@ -3,9 +3,9 @@
 from abc import ABC, abstractmethod
 from typing import ClassVar
 
-from ..schemas.agent import ToolSelectionItem
-from ..schemas.product import Product
-from ..schemas.schemas import ToolName, ToolResult
+from ...schemas.agent import ToolSelectionItem
+from ...schemas.product import Product
+from ...schemas.schemas import ToolName, ToolResult
 
 
 class RegulatoryTool(ABC):
