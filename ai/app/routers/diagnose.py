@@ -1,9 +1,10 @@
 """진단 라우터. 진단서 단위 접수(content)와 답변 후 재진단(resume) 엔드포인트를 제공한다.
 
-실제 파이프라인 연결 전까지 두 경로 모두 501. BE 연동은 같은 처리를 쓰는 더미 경로(/dummy/diagnose)로 함.
+실제 파이프라인 연결 전까지 접수는 501, 재진단은 접수된 세션이 없어 404.
+BE 연동은 같은 처리를 쓰는 더미 경로(/dummy/diagnose)로 함.
 """
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 
 from ..domain.context import RunType
 from ..domain.errors import AIResponseCode, AIServiceError
@@ -60,7 +61,7 @@ RESUME_RESPONSES = {
                                            "description": "형식 오류, 또는 이번 회차 질문 중 답하지 않은 질문 있음"},
     status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse, "description": "진단 대기열 초과"},
 }
-# 실제 파이프라인 연결 전 /diagnose 응답
+# 실제 파이프라인 연결 전 /diagnose/content 응답
 _NOT_IMPLEMENTED_RESPONSES = {
     status.HTTP_501_NOT_IMPLEMENTED: {"model": ApiResponse, "description": "실제 파이프라인 연결 전. 더미 경로 사용"},
 }
@@ -179,20 +180,30 @@ async def diagnose_by_content(req: DiagnosisRequest) -> DiagnosisAcceptedRespons
     "/resume",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=ResumeAcceptedResponse,
-    responses={**RESUME_RESPONSES, **_NOT_IMPLEMENTED_RESPONSES},
+    responses=RESUME_RESPONSES,
     summary="답변 후 재진단 접수",
     description=(
         "답변 대기 상품에 이번 회차 답변을 더해 새 실행으로 접수한다. 결과는 새 runId의 콜백으로 전달 (#310). "
-        "실제 파이프라인 연결 전까지 501."
+        "실제 파이프라인 연결 전에는 /diagnose로 접수한 세션이 없어 404."
     ),
 )
-async def resume_diagnosis(req: ResumeRequest) -> ResumeAcceptedResponse:
-    """답변 대기 상품을 재접수한다. 실제 파이프라인 연결 전까지 접수하지 않음.
+async def resume_diagnosis(
+    req: ResumeRequest,
+    manager: SessionManager = Depends(get_session_manager),
+) -> ResumeAcceptedResponse:
+    """답변 대기 상품을 답변과 함께 재접수하고 바로 202를 반환한다.
+
+    실제 파이프라인 연결 전에는 접수(/diagnose/content)가 501이라 세션이 없어 항상 404.
+    더미로 접수한 상품도 실행 종류가 달라 404.
 
     Args:
-        req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변. 형식은 검사함.
+        req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변.
+        manager: 세션 관리자.
+
+    Returns:
+        202 재진단 접수 응답. runId는 새 실행 ID.
 
     Raises:
-        AIServiceError: 항상 501.
+        AIServiceError: 세션이 없거나 /diagnose로 접수한 상품이 아니면 404. 그 밖은 RESUME_RESPONSES와 같음.
     """
-    raise AIServiceError(response_code=AIResponseCode.NOT_IMPLEMENTED.value)
+    return resume_session(manager, req, RunType.PRODUCTION)
