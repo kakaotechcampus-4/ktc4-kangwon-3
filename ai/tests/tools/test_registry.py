@@ -27,6 +27,12 @@ def test_등록된_구현에_구현하지_않은_추상_메서드가_없다(name
     assert not inspect.isabstract(TOOL_REGISTRY[name])
 
 
+@pytest.mark.parametrize("name", list(ToolName))
+def test_등록된_구현은_선택된_경우의_실행을_구현한다(name):
+    # RegulatoryTool._run은 추상 메서드가 아니라 구현을 빠뜨려도 생성은 됨. 등록된 Tool은 여기서 막음
+    assert TOOL_REGISTRY[name]._run is not RegulatoryTool._run
+
+
 def test_등록된_모든_Tool은_모델_프로필이_있다():
     # 프로필이 없으면 모델을 주입하지 않은 실제 실행에서 build_tool_model이 ConfigError를 낸다.
     # 테스트는 대부분 가짜 모델을 넣어 이 경로를 지나지 않으므로 여기서 따로 막는다.
