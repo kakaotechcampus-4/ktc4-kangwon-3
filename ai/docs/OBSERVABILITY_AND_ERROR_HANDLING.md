@@ -2,9 +2,18 @@
 
 ## 문서 상태
 
-- 상태: `Proposed`
+- 상태: `Proposed` → **논의 이력으로 보존** (2026-10-26)
 - 목적: AI 파트의 observability와 예외 처리 기준을 합의한다.
 - 적용 범위: Model 호출, Agent, Tool, 외부 API Client, Repository, Pipeline
+
+> 이 문서는 처음 제안과 논의 과정을 남긴 것이다. 확정된 계약과 구현 현황은 [AI_COMMON_CONTRACT.md](AI_COMMON_CONTRACT.md)를 기준으로 한다.
+> 이후 결정·구현된 항목:
+> - §2.1 사용량 수집: 모든 Agent가 Base의 `include_raw` 하나로 수집 (#364) → 계약 §4.2
+> - §4 식별자: 답변 후 재개 시 run_id 새로 발급 → 계약 §2.2
+> - §5.1 CallUsage: `reasoning_tokens`·`cache_write_tokens`·`from_completion` 추가 → 계약 §5
+> - §6.1 예외: `AIError` 계층, `AIResponseCode` 확정(`AI_INVALID_REQUEST` 등, 예시의 `AI-001` 형식은 쓰지 않음) → 계약 §6.1
+> - §7 Trace 공개 범위: BE 콜백 이벤트로 결정 → 계약 §7.1.2
+> - 아직 남은 것: UsageRecord·Sink(§5.2~5.4), ToolExecutor 오류 구분(§6.3), 구성 요소 단위 Trace(§7)
 
 ## 1. 배경
 
