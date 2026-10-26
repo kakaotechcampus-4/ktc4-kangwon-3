@@ -78,13 +78,24 @@ class ElectricalTool(EvidenceSearchTool):
         """인용이 지정한 상품 원문 안에, 값이 인용 안에 그대로 있는지.
 
         battery_only만 값이 "예"/"아니오"이고, 인용은 그 판단의 원문 근거다.
+
+        Args:
+            fact: 모델이 뽑은 조건.
+            run: 이번 실행 상태.
+
+        Returns:
+            bool: 원문과 맞으면 True.
         """
         if fact.field in _JUDGED_FIELDS:
             return fact.value.strip() in ("예", "아니오") and quote_matches(fact, run.snippets, value_in_quote=False)
         return quote_matches(fact, run.snippets)
 
     def _read_facts(self, run: ToolRun) -> None:
-        """판단을 바꾸는 조건의 충돌과 부족한 조건을 기록한다."""
+        """판단을 바꾸는 조건의 충돌과 부족한 조건을 기록한다.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         # 판단을 바꾸는 조건만 충돌로 봄. 전원·전압은 글자가 아니라 뜻으로 비교(USB/DC, "0~5V"/"5V"는 같음),
         # 전지 전용 여부는 예·아니오가 함께 나올 때만 충돌. 제품 종류·용도는 값이 여러 개여도 모두 조회어로 씀
         run.conflicted.extend(power_conflicts(run.by_field))
@@ -97,7 +108,17 @@ class ElectricalTool(EvidenceSearchTool):
                                    + ")은 판정하지 않았습니다.")
 
     def _judge(self, run: ToolRun) -> list[RegulatoryFinding]:
-        """품목 조회 → 저전압·전지 전용 규칙 → 품목 선택 → 후보 판단."""
+        """품목 조회 → 저전압·전지 전용 규칙 → 품목 선택 → 후보 판단.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            list[RegulatoryFinding]: 고른 품목별 후보 판단. 근거가 부족하면 빈 목록.
+
+        Raises:
+            ElectricalToolError: 전지·충전기 행 추가 조회에 실패한 경우.
+        """
         product, by_field, query = run.product, run.by_field, run.query
         if any(name not in by_field for name in _REQUIRED_FIELDS):
             return []
@@ -215,13 +236,26 @@ class ElectricalTool(EvidenceSearchTool):
 
     @staticmethod
     def _skip_electrical_questions(run: ToolRun) -> None:
-        """맞는 품목도, 전기 관련 조건도 없는 상품(예: 실리콘 주걱)에는 전원·전압을 묻지 않는다."""
+        """맞는 품목도, 전기 관련 조건도 없는 상품(예: 실리콘 주걱)에는 전원·전압을 묻지 않는다.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         if any(name in run.by_field for name in _ELECTRICAL_FIELDS):
             return
         run.assumptions.append("상품 원문에 전기 관련 조건이 없어 전원·전압을 묻지 않았습니다.")
         run.missing = [name for name in run.missing if name not in _ASKED_FIELDS]
 
     def _detail(self, run: ToolRun, findings: list[RegulatoryFinding]) -> ElectricalAssessment:
+        """결과에 붙일 전기 상세.
+
+        Args:
+            run: 이번 실행 상태.
+            findings: 이번 실행의 판단.
+
+        Returns:
+            ElectricalAssessment: 전원·정격 요약.
+        """
         # 후보만으로 상품 전체의 안전관리 의무를 확정하지 않음.
         # 긴 근거는 findings에만 둠(Verification 입력에 같은 원문이 두 번 들어가지 않게)
         return ElectricalAssessment(

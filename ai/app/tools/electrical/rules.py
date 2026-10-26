@@ -19,7 +19,14 @@ POWER_FIELDS = ("power_source", "rated_voltage")
 
 
 def _current_of(text: str) -> str | None:
-    """값 하나의 전류 종류. USB는 직류로 본다. 둘 다 적혀 있거나 없으면 None."""
+    """값 하나의 전류 종류. USB는 직류로 본다.
+
+    Args:
+        text: 전원·전압 값.
+
+    Returns:
+        str | None: "AC" 또는 "DC". 둘 다 적혀 있거나 없으면 None.
+    """
     upper = text.upper()
     is_ac = "AC" in upper or "교류" in upper
     is_dc = "DC" in upper or "직류" in upper or "USB" in upper
@@ -27,6 +34,14 @@ def _current_of(text: str) -> str | None:
 
 
 def _power_profile(facts: dict[str, list[ElectricalFact]]) -> tuple[set[str], list[float]]:
+    """전원·전압 조건에서 전류 종류와 전압 값을 모은다.
+
+    Args:
+        facts: 필드별 조건.
+
+    Returns:
+        tuple[set[str], list[float]]: (전류 종류, 전압 값).
+    """
     texts = [fact.value for field in POWER_FIELDS for fact in facts.get(field, [])]
     currents = {current for text in texts if (current := _current_of(text))}
     # "0~5V", "100-240V"처럼 범위로 적힌 값은 V가 붙은 끝값(최댓값)만 잡힌다.
@@ -35,6 +50,15 @@ def _power_profile(facts: dict[str, list[ElectricalFact]]) -> tuple[set[str], li
 
 
 def _low_sides(current: str, volts: list[float]) -> set[bool]:
+    """전압 값마다 저전압 기준 이하인지 본다.
+
+    Args:
+        current: "AC" 또는 "DC".
+        volts: 전압 값.
+
+    Returns:
+        set[bool]: 나온 판정 (기준 양쪽에 걸치면 {True, False}).
+    """
     limit = 30 if current == "AC" else 42
     return {volt <= limit for volt in volts}
 
@@ -45,8 +69,12 @@ def low_voltage(facts: dict[str, list[ElectricalFact]]) -> tuple[bool | None, st
     표기가 달라도 뜻이 같으면 함께 본다(USB와 DC, "0~5V"와 "5V", 입력 5V와 출력 5V).
     적힌 전압이 모두 기준 이하면 저전압, 모두 초과면 저전압 아님이다.
 
+    Args:
+        facts: 필드별 조건.
+
     Returns:
-        (저전압 여부, "AC"/"DC"). 전류 종류가 섞이거나 없거나, 전압이 기준 양쪽에 걸치면 (None, …).
+        tuple[bool | None, str | None]: (저전압 여부, "AC"/"DC").
+            전류 종류가 섞이거나 없거나, 전압이 기준 양쪽에 걸치면 (None, …).
     """
     currents, volts = _power_profile(facts)
     current = next(iter(currents)) if len(currents) == 1 else None
@@ -61,6 +89,12 @@ def power_conflicts(facts: dict[str, list[ElectricalFact]]) -> list[str]:
 
     교류와 직류가 함께 적힌 경우(예: 어댑터 입력 AC 220V와 본체 DC 12V)도 여기서는 충돌로 둔다.
     본체·부품 조건을 나눠 받지 않는 현재 구조의 한계다.
+
+    Args:
+        facts: 필드별 조건.
+
+    Returns:
+        list[str]: 충돌한 필드 ("power_source" 또는 "rated_voltage"). 없으면 빈 목록.
     """
     currents, volts = _power_profile(facts)
     if len(currents) > 1:
@@ -71,7 +105,16 @@ def power_conflicts(facts: dict[str, list[ElectricalFact]]) -> list[str]:
 
 
 def excluded_by_low_voltage(block: AnnexBlock, low: bool | None, current: str | None) -> bool:
-    """저전압 제품인데 그 행의 비고가 저전압을 포함한다고 정하지 않았으면 제외 대상이다."""
+    """저전압 제품인데 그 행의 비고가 저전압을 포함한다고 정하지 않았으면 제외 대상이다.
+
+    Args:
+        block: 후보 검토 단위.
+        low: 저전압 여부.
+        current: "AC" 또는 "DC".
+
+    Returns:
+        bool: 저전압 제외 대상이면 True.
+    """
     if low is not True:
         return False
     return not (block.includes_low_voltage_ac if current == "AC" else block.includes_low_voltage_dc)
@@ -81,6 +124,14 @@ ESS_WORDS = ("전기저장장치", "에너지저장장치", "ESS", "전지시스
 
 
 def is_ess_component(block: AnnexBlock) -> bool:
+    """전기저장장치 분류의 행인지 본다.
+
+    Args:
+        block: 검토 단위.
+
+    Returns:
+        bool: 전기저장장치 분류면 True.
+    """
     return "전기저장장치" in compact(block.category)
 
 
@@ -91,16 +142,41 @@ BATTERY_SEARCH_TERMS = ("충전지 전지", "전지 충전기", "직류전원장
 
 
 def battery_only_state(facts: dict[str, list[ElectricalFact]]) -> bool | None:
+    """전지로만 동작하는 구조인지 읽는다.
+
+    Args:
+        facts: 필드별 조건.
+
+    Returns:
+        bool | None: 값이 모두 "예"면 True, 모두 "아니오"면 False, 그 밖에는 None.
+    """
     values = {fact.value.strip() for fact in facts.get("battery_only", [])}
     return True if values == {"예"} else False if values == {"아니오"} else None
 
 
 def is_battery_or_supply(block: AnnexBlock) -> bool:
+    """전지 전용 구조 제외가 적용되지 않는 행(전지·충전기·전원장치 등)인지 본다.
+
+    Args:
+        block: 검토 단위.
+
+    Returns:
+        bool: 해당하면 True.
+    """
     names = compact(" ".join((*block.items, *block.sub_items)))
     return any(word in names for word in BATTERY_OR_SUPPLY_WORDS)
 
 
 def mentions_battery(facts: dict[str, list[ElectricalFact]], product: Product) -> bool:
+    """상품에 전지가 들어 있다는 근거가 있는지 본다.
+
+    Args:
+        facts: 필드별 조건.
+        product: 검토할 상품.
+
+    Returns:
+        bool: 전지 포함 표시나 전지 관련 낱말이 있으면 True.
+    """
     texts = compact(" ".join(f.value + f.quote for field in ("power_source", "product_type")
                              for f in facts.get(field, [])))
     return product.battery_included is True or any(word in texts for word in BATTERY_HINT_WORDS)
@@ -121,7 +197,16 @@ PURCHASE_SUMMARY = {
 
 
 def sale_actions(block: AnnexBlock, status: str, listed_as: str) -> list[str]:
-    """후보 품목 기준으로 판매 전에 해야 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다."""
+    """후보 품목 기준으로 판매 전에 해야 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다.
+
+    Args:
+        block: 후보 검토 단위.
+        status: 구매대행 특례 상태 (purchase_agent_status 결과).
+        listed_as: 특례 목록의 해당 문구.
+
+    Returns:
+        list[str]: 구매대행·사입 판매 안내.
+    """
     scheme = block.scheme.value
     label = f"[{item_name(block)} · {scheme} 후보]"
     kc = "KC 안전인증" if scheme == "안전인증" else "KC 안전확인 신고" if scheme == "안전확인" else "공급자적합성확인"
@@ -155,4 +240,12 @@ def sale_actions(block: AnnexBlock, status: str, listed_as: str) -> list[str]:
 
 
 def item_name(block: AnnexBlock) -> str:
+    """사람이 읽을 품목명.
+
+    Args:
+        block: 검토 단위.
+
+    Returns:
+        str: 번호를 뗀 첫 품목명. 품목이 없으면 분류명.
+    """
     return re.sub(r"^[가-힣]\s*\.\s*", "", block.items[0]) if block.items else block.category
