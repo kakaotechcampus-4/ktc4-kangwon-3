@@ -46,6 +46,9 @@ class RegulatoryTool(ABC):
 
         Returns:
             ToolResult: 심사 결과.
+
+        Raises:
+            NotImplementedError: 하위 Tool이 구현하지 않은 경우.
         """
         # execute를 통째로 덮어쓰는 테스트용 가짜 Tool이 있어 추상 메서드로 두지 않음
         raise NotImplementedError
