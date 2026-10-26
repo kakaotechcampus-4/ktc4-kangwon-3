@@ -14,7 +14,7 @@ from langchain_core.messages import AIMessage
 from pydantic import BaseModel
 
 from app.prompts import PromptName
-from app.tools.common.agent import ToolModelError, ToolStep, ToolStepInput
+from app.tools.base import ToolModelError, ToolStep, ToolStepInput
 
 
 _EMPTY = ToolStepInput({}, "p-1")

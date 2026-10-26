@@ -7,8 +7,7 @@
 
 from typing import Any
 
-from ..base import RegulatoryTool
-from ..common.agent import ToolModelError, ToolStep, ToolStepInput
+from ..base import RegulatoryTool, ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from .evidence import EvidenceUnavailable, compact, purchase_agent_status
 from .rules import (

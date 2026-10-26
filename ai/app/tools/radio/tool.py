@@ -14,8 +14,7 @@ from ...schemas.radio import RadioFacts, RadioReview
 from ...schemas.schemas import (
     Determination, LegalSource, RadioAssessment, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
-from ..base import RegulatoryTool
-from ..common.agent import ToolModelError, ToolStep, ToolStepInput
+from ..base import RegulatoryTool, ToolModelError, ToolStep, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
 from .evidence import RadioItem

@@ -7,13 +7,9 @@ from typing import Any, TypeVar
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel
 
-from ...agents.base import AgentError, BaseAgent, ModelFailurePhase
+from ...agents.base import BaseAgent, ModelFailurePhase
 
 _Output = TypeVar("_Output", bound=BaseModel)
-
-
-class ToolModelError(AgentError):
-    """규제 Tool의 모델 호출·구조화 출력 실패. 원인은 예외 체인에 보존한다."""
 
 
 @dataclass(frozen=True)
