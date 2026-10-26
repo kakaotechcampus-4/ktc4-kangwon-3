@@ -16,13 +16,13 @@ from dataclasses import dataclass
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from .base import RegulatoryTool
-from ..agents.base import AgentError, BaseAgent, ModelFailurePhase, ModelLike
-from ..prompts import PromptName
-from ..schemas.advertising import AdvertisingClaim, AdvertisingReview, AdvertisingRiskType
-from ..schemas.agent import ToolSelectionItem
-from ..schemas.product import Product
-from ..schemas.schemas import (
+from ..base import RegulatoryTool
+from ...agents.base import AgentError, BaseAgent, ModelFailurePhase, ModelLike
+from ...prompts import PromptName
+from ...schemas.advertising import AdvertisingClaim, AdvertisingReview, AdvertisingRiskType
+from ...schemas.agent import ToolSelectionItem
+from ...schemas.product import Product
+from ...schemas.schemas import (
     AdvertisingAssessment,
     AdvertisingPhrase,
     Determination,
