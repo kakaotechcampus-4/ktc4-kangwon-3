@@ -51,7 +51,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
         Raises:
             ConfigError: 모델 설정이 없거나 잘못된 경우.
         """
-        from ...config import build_agent_model
+        from ...clients.llm import build_agent_model
 
         return cls(build_agent_model(cls.component_name))
 

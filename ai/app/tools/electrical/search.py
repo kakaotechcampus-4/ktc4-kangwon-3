@@ -121,7 +121,7 @@ class DatabaseItemSearch:
     필요한 것(현재 DB에는 조문 테이블 law_articles만 있다):
     - 행정규칙(운용요령) 문서·버전 테이블
     - 품목표 행 테이블: 문서 버전 FK, 제도, 분류, 품목, 세부품목, 비고, 저전압 포함 여부, 행 원문, 임베딩
-    - 적재 작업: 법제처 조회 → parse_annex → 임베딩(app.utils.embedding.embed_texts) → 저장
+    - 적재 작업: 법제처 조회 → parse_annex → 임베딩(app.clients.llm.embedding.embed_texts) → 저장
     구현하면 같은 ItemCandidates를 돌려주므로 ElectricalTool은 바꾸지 않는다.
 
     Args:

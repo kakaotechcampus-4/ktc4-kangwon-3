@@ -83,7 +83,7 @@ class RadioTool(RegulatoryTool):
         if self._steps is None:
             if self._model is None:
                 # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
-                from ...config import build_tool_model
+                from ...clients.llm import build_tool_model
                 self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
             self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))

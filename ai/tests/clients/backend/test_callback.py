@@ -8,7 +8,7 @@ import json
 import httpx
 import pytest
 
-from app.callbacks import CallbackTransportError, HttpCallbackSender, SendResult
+from app.clients.backend import BackendCallbackClient, CallbackTransportError, SendResult
 from app.schemas.callback import ProductProgressEvent, PublicPipelineStage
 
 TOKEN = "test-internal-token-0123456789abcdef"
@@ -21,8 +21,8 @@ def _event(product_id: str = "01990000-0000-7000-8000-000000000001") -> ProductP
     )
 
 
-def _sender(handler, base_url: str = "http://be-server:8080") -> HttpCallbackSender:
-    return HttpCallbackSender(base_url, TOKEN, transport=httpx.MockTransport(handler))
+def _sender(handler, base_url: str = "http://be-server:8080") -> BackendCallbackClient:
+    return BackendCallbackClient(base_url, TOKEN, transport=httpx.MockTransport(handler))
 
 
 def test_BE_수신_경로로_토큰_헤더와_camelCase_본문을_보낸다():
@@ -79,6 +79,12 @@ def test_상품_ID는_경로_한_칸으로만_들어간다():
 ])
 def test_응답_본문의_code를_SendResult에_담는다(status, body, expected):
     assert _sender(lambda request: httpx.Response(status, json=body)).send(_event()) == expected
+
+
+def test_원문_조회는_4xx도_예외_없이_BE_응답을_그대로_돌려준다():
+    raw = _sender(lambda request: httpx.Response(409, json={"code": "COMMON-010"})).fetch_raw(_event())
+
+    assert (raw.status_code, raw.json()) == (409, {"code": "COMMON-010"})
 
 
 def test_JSON이_아닌_응답은_code_없이_상태만_돌려준다():
