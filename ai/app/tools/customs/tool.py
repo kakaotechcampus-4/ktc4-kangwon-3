@@ -86,10 +86,25 @@ class CustomsTool(EvidenceSearchTool):
         self._evidence = evidence
 
     def _read_facts(self, run: CustomsRun) -> None:
+        """제품 종류가 없으면 부족한 조건으로 기록한다.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         run.missing = [name for name in ("product_type",) if name not in run.by_field]
 
     def _judge(self, run: CustomsRun) -> list[RegulatoryFinding]:
-        """결정사례 조회 → 결정사례 선택 → 세관장확인 요건 조회 → 법령별 요건 후보."""
+        """결정사례 조회 → 결정사례 선택 → 세관장확인 요건 조회 → 법령별 요건 후보.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            list[RegulatoryFinding]: 법령별 요건 후보와 미확인 HS 안내. 근거가 부족하면 빈 목록.
+
+        Raises:
+            CustomsToolError: 결정사례 조회나 요건 조회에 실패한 경우.
+        """
         product, by_field, query, facts = run.product, run.by_field, run.query, run.facts
         if run.missing:
             return []
@@ -219,7 +234,18 @@ class CustomsTool(EvidenceSearchTool):
 
     def _lookup_requirements(self, hs_codes: list[str], assumptions: list[str]
                              ) -> tuple[list[Requirement], list[str]]:
-        """HS 10자리마다 세관장확인 요건을 조회한다. 6자리 HS와 조회할 수 없는 경우는 미확인으로 돌려준다."""
+        """HS 10자리마다 세관장확인 요건을 조회한다. 6자리 HS와 조회할 수 없는 경우는 미확인으로 돌려준다.
+
+        Args:
+            hs_codes: 고른 결정사례의 HS.
+            assumptions: 결과에 남길 가정. 조회할 수 없던 이유를 여기에 더함.
+
+        Returns:
+            tuple[list[Requirement], list[str]]: (요건, 미확인 HS).
+
+        Raises:
+            CustomsToolError: 요건 조회에 실패한 경우.
+        """
         requirements: list[Requirement] = []
         unresolved: list[str] = []
         for code in hs_codes:
@@ -240,12 +266,31 @@ class CustomsTool(EvidenceSearchTool):
 
     @staticmethod
     def _act_source(evidence: CustomsEvidence | None) -> list[LegalSource] | None:
+        """관세법 제226조 근거.
+
+        Args:
+            evidence: 통관 근거. 확인하지 못했으면 None.
+
+        Returns:
+            list[LegalSource] | None: 근거 한 건. 근거가 없으면 None.
+        """
         if evidence is None:
             return None
         return [evidence.act.source("제226조", evidence.act_article)]
 
     def _sources(self, evidence: CustomsEvidence | None, row, omission, case_sources: list[LegalSource]
                  ) -> list[LegalSource]:
+        """요건 법령 하나의 근거를 모은다.
+
+        Args:
+            evidence: 통관 근거. 확인하지 못했으면 None.
+            row: 고시 별표 2의 해당 행. 없으면 None.
+            omission: 고시 제7조 제2항의 생략 판단. 없으면 None.
+            case_sources: 결정사례 근거.
+
+        Returns:
+            list[LegalSource]: 관세법·고시·대외무역법 시행령·결정사례 순.
+        """
         sources = list(self._act_source(evidence) or [])
         if evidence is not None:
             if row is not None:
@@ -256,6 +301,15 @@ class CustomsTool(EvidenceSearchTool):
         return [*sources, *case_sources]
 
     def _detail(self, run: CustomsRun, findings: list[RegulatoryFinding]) -> CustomsAssessment:
+        """결과에 붙일 통관 상세.
+
+        Args:
+            run: 이번 실행 상태.
+            findings: 이번 실행의 판단.
+
+        Returns:
+            CustomsAssessment: HS 후보·요건 법령·서류 요약.
+        """
         return CustomsAssessment(
             hs_code_candidates=[format_hs(code) for code in run.hs_codes],
             customs_confirmation_required=None,
@@ -269,6 +323,12 @@ def _queries(terms: list[str]) -> list[str]:
     """결정사례 검색어. CLIP은 검색어를 구절 그대로 찾아 두 낱말 이상이면 결과가 거의 없다(실측).
 
     그래서 여러 낱말 검색어는 마지막 낱말(중심 명사)도 함께 찾는다. 상품별 동의어 사전은 두지 않는다.
+
+    Args:
+        terms: 조회어와 제품 종류.
+
+    Returns:
+        list[str]: 중복을 뺀 검색어 (개수 제한까지).
     """
     ordered: list[str] = []
     for query in (" ".join(term.split()) for term in terms if term.strip()):
@@ -281,7 +341,14 @@ def _queries(terms: list[str]) -> list[str]:
 
 
 def _case_source(case: HsCase) -> LegalSource:
-    """결정사례를 근거로 붙인다. 공개 열람 주소가 없어 URL은 비운다(확정 판단 근거로 쓰지 않는다)."""
+    """결정사례를 근거로 붙인다. 공개 열람 주소가 없어 URL은 비운다(확정 판단 근거로 쓰지 않는다).
+
+    Args:
+        case: 고른 결정사례.
+
+    Returns:
+        LegalSource: 결정사례 근거.
+    """
     codes = ", ".join(format_hs(code) for code in case.hs_codes)
     return LegalSource(
         source_name=_CASE_SOURCE, law_name=None, article=f"결정사례 {case.case_id} (HS {codes})",
