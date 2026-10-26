@@ -5,14 +5,14 @@
   - DatabaseCaseSearch: hs_cases 테이블(결정사례 + 임베딩) 적재 후 벡터 조회로 바꿀 자리(스텁).
 - RequirementLookup: HS 10자리로 세관장확인 대상 법령·요건확인기관·제출 서류를 조회한다.
   - GwRequirementLookup: 관세청 세관장확인대상물품 GW(공공데이터포털 키 필요).
-- 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(default_evidence_loader).
+- 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(law_api_evidence_loader).
 """
 
 import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Protocol
 
@@ -204,45 +204,6 @@ class GwRequirementLookup:
         return requirements
 
 
-@dataclass
-class _Defaults:
-    lock: threading.Lock = field(default_factory=threading.Lock)
-    cases: ClipCaseSearch | None = None
-    requirements: GwRequirementLookup | None = None
-    evidence: CachedLoader | None = None
-
-
-_defaults = _Defaults()
-
-
-def default_case_search() -> ClipCaseSearch:
-    with _defaults.lock:
-        if _defaults.cases is None:
-            _defaults.cases = ClipCaseSearch()
-        return _defaults.cases
-
-
-def _service_key() -> str | None:
-    from ...config import ConfigError, get_settings
-
-    try:
-        return get_settings().data_go_kr_key
-    except ConfigError:
-        return None
-
-
-def default_requirement_lookup() -> GwRequirementLookup:
-    """설정의 공공데이터포털 키로 GW를 조회한다. 키가 없으면 조회 때 EvidenceUnavailable."""
-    with _defaults.lock:
-        if _defaults.requirements is not None:
-            return _defaults.requirements
-        lookup = GwRequirementLookup(_service_key())
-        # 키가 없을 때는 캐시하지 않는다. 설정을 고치면 재시작 없이 다음 요청부터 조회한다.
-        if lookup._service_key:
-            _defaults.requirements = lookup
-        return lookup
-
-
 def _load_on_demand(as_of: date) -> CustomsEvidence:
     """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다."""
     from ...config import get_settings
@@ -254,10 +215,13 @@ def _load_on_demand(as_of: date) -> CustomsEvidence:
         clients.close()
 
 
-def default_evidence_loader() -> Callable[[], CustomsEvidence]:
-    """기준일(한국 날짜)의 통관 근거를 돌려주는 함수. 프로세스 공용 캐시를 쓴다."""
-    with _defaults.lock:
-        if _defaults.evidence is None:
-            _defaults.evidence = CachedLoader(_load_on_demand)
-        loader = _defaults.evidence
+def law_api_evidence_loader() -> Callable[[], CustomsEvidence]:
+    """기준일(한국 날짜)의 통관 근거를 법제처 API로 돌려주는 함수를 만든다.
+
+    기준일별 캐시는 함수마다 따로 있어 조립하는 쪽이 한 번 만들어 공유함.
+
+    Returns:
+        Callable[[], CustomsEvidence]: 부를 때 오늘 기준 근거를 돌려주는 함수.
+    """
+    loader = CachedLoader(_load_on_demand)
     return lambda: loader.load(datetime.now(KST).date())
