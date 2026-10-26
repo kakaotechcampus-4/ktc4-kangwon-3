@@ -14,7 +14,7 @@ from openai import ContentFilterFinishReasonError, LengthFinishReasonError
 from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
-from ...config import build_agent_model, build_tool_model
+from ...clients.llm import build_agent_model, build_tool_model
 from ...observability.agent_sinks import agent_sinks
 from ...prompts import PromptName, PromptSnapshot, get_prompt
 from ...usage import CallUsage, estimate_krw, from_completion, from_response

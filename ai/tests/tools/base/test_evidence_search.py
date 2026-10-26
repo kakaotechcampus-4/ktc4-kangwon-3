@@ -260,7 +260,7 @@ def test_top_k가_양의_정수가_아니면_ValueError(top_k):
 def test_모델을_주지_않으면_실행할_때_Tool_프로필로_한_번_만들어_두_단계가_같이_쓴다(monkeypatch):
     names = []
     model = _Model(FACTS)
-    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or model)
+    monkeypatch.setattr("app.clients.llm.build_tool_model", lambda name: names.append(name) or model)
 
     tool = _Tool(configured_model="test-model")
     assert names == []

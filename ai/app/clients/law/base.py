@@ -4,7 +4,7 @@ from xml.etree.ElementTree import Element, ParseError
 
 import httpx
 
-from ..base import BaseClient, RequestT, ResponseT
+from ..request import RequestClient, RequestT, ResponseT
 
 _BASE_URL = "https://www.law.go.kr"
 
@@ -13,7 +13,7 @@ _BASE_URL = "https://www.law.go.kr"
 _FILE_TYPE_PRIORITY = ("hwpx", "hwp", "xlsx", "pdf", "gif", "png", "jpg", "jpeg", "zip")
 
 
-class LawGoKrClient(BaseClient[RequestT, ResponseT]):
+class LawGoKrClient(RequestClient[RequestT, ResponseT]):
     """법제처 국가법령정보 공동활용 API 공통 베이스.
 
     방식 : GET/XML

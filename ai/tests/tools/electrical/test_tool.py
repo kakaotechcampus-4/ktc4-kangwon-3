@@ -225,7 +225,7 @@ def test_미선택은_모델과_조회를_호출하지_않는다():
 
 def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
     names = []
-    monkeypatch.setattr("app.config.build_tool_model", lambda name: names.append(name) or Model(None))
+    monkeypatch.setattr("app.clients.llm.build_tool_model", lambda name: names.append(name) or Model(None))
     ElectricalTool(item_search=Search())._get_steps()
     assert names == [ToolName.ELECTRICAL]
 
