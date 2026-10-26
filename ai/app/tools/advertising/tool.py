@@ -80,7 +80,15 @@ class AdvertisingTool(RegulatoryTool):
     def _verify_quotes(
         claims: list[AdvertisingClaim], lines: list[str]
     ) -> tuple[list[AdvertisingClaim], list[str]]:
-        """listing_text에 없는 인용을 버리고, 같은 인용은 한 번만 남긴다."""
+        """listing_text에 없는 인용을 버리고, 같은 인용은 한 번만 남긴다.
+
+        Args:
+            claims: 모델이 인용한 주장.
+            lines: 판매자 문구.
+
+        Returns:
+            tuple[list[AdvertisingClaim], list[str]]: (남긴 주장, 버린 인용).
+        """
         source = [normalize(line) for line in lines]
         kept: list[AdvertisingClaim] = []
         dropped: list[str] = []
@@ -106,6 +114,20 @@ class AdvertisingTool(RegulatoryTool):
         prompt_sha256: str,
         kc_added: int = 0,
     ) -> ToolResult:
+        """주장마다 위험도·근거·할 일을 붙여 결과를 만든다. 주장이 없으면 '실증이 필요한 주장 없음'을 남긴다.
+
+        Args:
+            decision: 이 툴의 선택 결정.
+            lines: 판매자 문구.
+            claims: 원문과 대조한 주장 (KC 표기 포함).
+            dropped: 원문에 없어 버린 인용.
+            review: 모델 응답.
+            prompt_sha256: 쓴 프롬프트의 해시.
+            kc_added: 코드가 더한 KC 표기 주장 수.
+
+        Returns:
+            ToolResult: SUCCESS 결과.
+        """
         phrases: list[AdvertisingPhrase] = []
         findings: list[RegulatoryFinding] = []
         actions: list[str] = []
@@ -148,7 +170,11 @@ class AdvertisingTool(RegulatoryTool):
         )
 
     def _no_claim_finding(self) -> RegulatoryFinding:
-        """검토한 문구에서 실증이 필요한 주장을 찾지 못한 판단. 모델이 놓쳤을 수 있어 가정에 남긴다."""
+        """검토한 문구에서 실증이 필요한 주장을 찾지 못한 판단. 모델이 놓쳤을 수 있어 가정에 남긴다.
+
+        Returns:
+            RegulatoryFinding: NOT_REQUIRED 판단.
+        """
         return RegulatoryFinding(
             tool_name=self.tool_name, subject="판매자 상품 문구",
             determination=Determination.NOT_REQUIRED, risk_level=RiskLevel.LOW,
@@ -159,7 +185,14 @@ class AdvertisingTool(RegulatoryTool):
         )
 
     def _no_listing_result(self, decision: ToolSelectionItem) -> ToolResult:
-        """검토할 문구가 없으면 모델을 부르지 않고 정보 부족으로 돌려준다. '문제 없음'으로 보지 않는다."""
+        """검토할 문구가 없으면 모델을 부르지 않고 정보 부족으로 돌려준다. '문제 없음'으로 보지 않는다.
+
+        Args:
+            decision: 이 툴의 선택 결정.
+
+        Returns:
+            ToolResult: 정보 부족 판단과 재질문을 담은 SUCCESS 결과.
+        """
         return ToolResult(
             tool_name=self.tool_name,
             status=ToolStatus.SUCCESS,
