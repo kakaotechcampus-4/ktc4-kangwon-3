@@ -7,19 +7,19 @@
 
 from typing import Any
 
-from ...prompts import PromptName
 from ...schemas.agent import ToolSelectionItem
-from ...schemas.children import ChildrenFacts, ChildrenReview
 from ...schemas.product import Product
 from ...schemas.schemas import (
     ChildrenAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
-from ..base import RegulatoryTool, ToolModelError, ToolStep, ToolStepInput
+from ..base import RegulatoryTool, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable, compact
+from .errors import ChildrenToolError
 from .evidence import SCHEME_ANNEXES, SHORT_SCOPE_LIMIT, ChildrenItem, Definitions
 from .rules import EXCLUDED_KINDS, age_text, age_value_bounded, combined_child_state, sale_action
 from .search import ChildrenCandidates, ChildrenItemSearch, default_item_search
+from .steps import ChildrenFactsStep, ChildrenReviewStep
 
 _FIELDS = {
     "product_type": "제품 종류", "target_age": "사용 대상 연령", "intended_use": "제품 용도",
@@ -33,26 +33,6 @@ _SEARCH_TERMS_LIMIT = 3
 _SELECTIONS_LIMIT = 3
 _LAW_REF = "제2조"
 _DOTS = str.maketrans("", "", "·ㆍ?・")
-
-
-class ChildrenToolError(ToolModelError):
-    """모델·외부 자료 실패. 원본 오류는 예외 체인에만 보존한다."""
-
-
-class _FactsStep(ToolStep[ChildrenFacts]):
-    component_name = "children-facts"
-    prompt_name = PromptName.CHILDREN_FACTS
-    output_schema = ChildrenFacts
-    error_class = ChildrenToolError
-    failure_label = "어린이제품 Tool 조건 추출"
-
-
-class _ReviewStep(ToolStep[ChildrenReview]):
-    component_name = "children-review"
-    prompt_name = PromptName.CHILDREN_REVIEW
-    output_schema = ChildrenReview
-    error_class = ChildrenToolError
-    failure_label = "어린이제품 Tool 품목 선택"
 
 
 class ChildrenTool(RegulatoryTool):
@@ -75,16 +55,16 @@ class ChildrenTool(RegulatoryTool):
         self._search = item_search
         self._configured_model = configured_model
         self._top_k = top_k
-        self._steps: tuple[_FactsStep, _ReviewStep] | None = None
+        self._steps: tuple[ChildrenFactsStep, ChildrenReviewStep] | None = None
 
-    def _get_steps(self) -> tuple[_FactsStep, _ReviewStep]:
+    def _get_steps(self) -> tuple[ChildrenFactsStep, ChildrenReviewStep]:
         if self._steps is None:
             if self._model is None:
                 # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
                 from ...config import build_tool_model
                 self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
-            self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))
+            self._steps = (ChildrenFactsStep(self._model, **options), ChildrenReviewStep(self._model, **options))
         return self._steps
 
     def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
