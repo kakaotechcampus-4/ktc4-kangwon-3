@@ -47,26 +47,19 @@ class AdvertisingTool(RegulatoryTool):
         self._model = model
         self._reviewer = reviewer
 
-    def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
-        """판매자 문구를 검토해 ToolResult를 돌려준다.
+    def _run(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
+        """판매자 문구를 검토해 ToolResult를 돌려준다. 선택 확인·SKIPPED는 RegulatoryTool.execute가 맡음.
 
         Args:
             product: 추출 에이전트가 만든 상품 정보. listing_text만 검토 대상이다.
-            decision: 이 툴의 선택 결정.
+            decision: 이 툴의 선택 결정 (selected=True).
 
         Returns:
-            ToolResult: 미선택이면 SKIPPED, 그 밖에는 SUCCESS.
+            ToolResult: SUCCESS 결과.
 
         Raises:
-            ValueError: 다른 툴의 선택 결정을 받은 경우.
             AdvertisingReviewError: 모델 호출 또는 파싱 실패. 실행기가 FAILED로 기록한다.
         """
-        if decision.tool_name is not self.tool_name:
-            raise ValueError("표시·광고 Tool에 다른 툴의 선택 결정이 들어왔습니다.")
-        if not decision.selected:
-            return ToolResult(tool_name=self.tool_name, status=ToolStatus.SKIPPED, selected=False,
-                              selection_reason=decision.reason)
-
         lines = [line.strip() for line in product.listing_text if line.strip()]
         if not lines:
             return self._no_listing_result(decision)
