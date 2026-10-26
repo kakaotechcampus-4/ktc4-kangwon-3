@@ -14,12 +14,11 @@ from datetime import date
 from enum import StrEnum
 from typing import Protocol
 
-from ...schemas.clients.law_request import LawSearchRequest, LawTextRequest
 from ...schemas.clients.law_response import LawTextResponse
 from ...schemas.schemas import LegalSource
 from ..common.law import (
     CachedLoader, EvidenceUnavailable, LawApiClients, LawLookup, LawLookupError, annex_text, article_text,
-    check_body, lookup, select_version,
+    load_admrul, load_law, select_version,
 )
 
 __all__ = [
@@ -466,27 +465,14 @@ class LawApiEvidenceSource:
         self._client = law_client
 
     def load(self, as_of: date) -> ElectricalEvidence:
-        rule = select_version(
-            lookup(self._client.search_law, LawSearchRequest(query=RULE_NAME, display=100)),
-            name=RULE_NAME, identifier=RULE_ID, id_field="law_id", name_field="law_name",
-            version_field="mst", as_of=as_of,
-        )
-        rule_body = lookup(self._client.get_law_text, LawTextRequest(mst=rule.mst))
-        check_body(rule_body, name=RULE_NAME, identifier=RULE_ID, enforce_date=rule.enforce_date)
-        notice = select_version(
-            lookup(self._client.search_admrul, LawSearchRequest(query=NOTICE_NAME, display=100)),
-            name=NOTICE_NAME, identifier=NOTICE_ID, id_field="rule_id", name_field="name",
-            version_field="serial_number", as_of=as_of,
-        )
-        notice_body = lookup(self._client.get_admrul_text, LawTextRequest(mst=notice.serial_number))
-        check_body(notice_body, name=NOTICE_NAME, identifier=NOTICE_ID, enforce_date=notice.enforce_date)
-
-        # 법령 링크는 버전(MST)을 고정한 공개 열람 주소다. 요청 URL(OC 포함)은 쓰지 않는다.
-        rule_url = f"https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq={rule.mst}"
-        notice_url = f"https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq={notice.serial_number}"
-        rule_scope = EvidenceSection("rule-art3", RULE_NAME, RULE_ID, rule.mst, rule.enforce_date,
+        rule = load_law(self._client, name=RULE_NAME, law_id=RULE_ID, as_of=as_of)
+        notice = load_admrul(self._client, name=NOTICE_NAME, rule_id=NOTICE_ID, as_of=as_of)
+        rule_body, notice_body = rule.body, notice.body
+        # 법령 링크는 버전을 고정한 공개 열람 주소. 요청 URL(OC 포함)은 쓰지 않음
+        rule_url, notice_url = rule.ref.url, notice.ref.url
+        rule_scope = EvidenceSection("rule-art3", RULE_NAME, RULE_ID, rule.version_id, rule.enforce_date,
                                      "제3조", article_text(rule_body, 3), rule_url)
-        notice_scope = EvidenceSection("notice-art3", NOTICE_NAME, NOTICE_ID, notice.serial_number,
+        notice_scope = EvidenceSection("notice-art3", NOTICE_NAME, NOTICE_ID, notice.version_id,
                                        notice.enforce_date, "제3조", article_text(notice_body, 3), notice_url)
         # 범위 조문에 판단에 쓰는 조건이 실제로 있는지 확인한다(빈 본문·다른 조문 방어).
         if not all(token in compact(rule_scope.text) for token in ("1천볼트", "별표3", "별표4", "별표5")):
@@ -497,7 +483,7 @@ class LawApiEvidenceSource:
         blocks: list[AnnexBlock] = []
         common: dict[Scheme, EvidenceSection] = {}
         for scheme, (number, title) in SCHEME_ANNEXES.items():
-            base = EvidenceSection(f"{_SCHEME_CODES[scheme]}", NOTICE_NAME, NOTICE_ID, notice.serial_number,
+            base = EvidenceSection(f"{_SCHEME_CODES[scheme]}", NOTICE_NAME, NOTICE_ID, notice.version_id,
                                    notice.enforce_date, f"별표 {int(number)}", "", notice_url)
             parsed, note = parse_annex(annex_text(notice_body, int(number), title=title), scheme, base)
             if not any(block.sub_items for block in parsed):
@@ -505,7 +491,7 @@ class LawApiEvidenceSource:
             blocks.extend(parsed)
             if note is not None:
                 common[scheme] = note
-        rule_base = EvidenceSection("rule-annex13", RULE_NAME, RULE_ID, rule.mst, rule.enforce_date,
+        rule_base = EvidenceSection("rule-annex13", RULE_NAME, RULE_ID, rule.version_id, rule.enforce_date,
                                     "별표 13", "", rule_url)
         return ElectricalEvidence(as_of=as_of, rule_scope=rule_scope, notice_scope=notice_scope,
                                   blocks=tuple(blocks), common_notes=common,
