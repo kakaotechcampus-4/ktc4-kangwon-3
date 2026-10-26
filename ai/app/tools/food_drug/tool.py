@@ -11,22 +11,23 @@
 from collections.abc import Callable
 from typing import Any
 
-from ...prompts import PromptName
 from ...schemas.agent import ToolSelectionItem
-from ...schemas.food_drug import DeviceReview, FoodDrugFact, FoodDrugFacts
+from ...schemas.food_drug import FoodDrugFact, FoodDrugFacts
 from ...schemas.product import Product
 from ...schemas.schemas import (
     Determination, FoodDrugAssessment, LegalSource, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
-from ..base import RegulatoryTool, ToolModelError, ToolStep, ToolStepInput
+from ..base import RegulatoryTool, ToolStepInput
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
+from .errors import FoodDrugToolError
 from .evidence import DeviceItem, FoodDrugEvidence
 from .rules import (
     banned_action, claim_action, cosmetic_actions, device_actions, functional_action, health_food_action,
     imported_food_actions,
 )
 from .search import default_evidence_loader, rank_devices
+from .steps import FoodDrugFactsStep, FoodDrugReviewStep
 
 _FIELDS = {
     "product_type": "제품 종류", "material": "재질", "intended_use": "용도", "food_contact": "음식 접촉 용도",
@@ -45,26 +46,6 @@ _QUESTION_FIELDS = ("food_contact", "edible", "skin_applied", "intended_use")
 _TERMS_LIMIT = 3
 _SELECTIONS_LIMIT = 3
 FOOD_CONTACT, FOOD, COSMETIC, FUNCTIONAL, DEVICE = "식품용 기구·용기", "식품·건강기능식품", "화장품", "기능성화장품", "의료기기"
-
-
-class FoodDrugToolError(ToolModelError):
-    """모델·외부 자료 실패. 원본 오류는 예외 체인에만 보존한다."""
-
-
-class _FactsStep(ToolStep[FoodDrugFacts]):
-    component_name = "food-drug-facts"
-    prompt_name = PromptName.FOOD_DRUG_FACTS
-    output_schema = FoodDrugFacts
-    error_class = FoodDrugToolError
-    failure_label = "식약 Tool 조건 추출"
-
-
-class _ReviewStep(ToolStep[DeviceReview]):
-    component_name = "food-drug-review"
-    prompt_name = PromptName.FOOD_DRUG_REVIEW
-    output_schema = DeviceReview
-    error_class = FoodDrugToolError
-    failure_label = "식약 Tool 의료기기 품목 선택"
 
 
 class FoodDrugTool(RegulatoryTool):
@@ -87,16 +68,16 @@ class FoodDrugTool(RegulatoryTool):
         self._evidence = evidence
         self._configured_model = configured_model
         self._top_k = top_k
-        self._steps: tuple[_FactsStep, _ReviewStep] | None = None
+        self._steps: tuple[FoodDrugFactsStep, FoodDrugReviewStep] | None = None
 
-    def _get_steps(self) -> tuple[_FactsStep, _ReviewStep]:
+    def _get_steps(self) -> tuple[FoodDrugFactsStep, FoodDrugReviewStep]:
         if self._steps is None:
             if self._model is None:
                 # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
                 from ...config import build_tool_model
                 self._model = build_tool_model(self.tool_name)
             options = {"configured_model": self._configured_model}
-            self._steps = (_FactsStep(self._model, **options), _ReviewStep(self._model, **options))
+            self._steps = (FoodDrugFactsStep(self._model, **options), FoodDrugReviewStep(self._model, **options))
         return self._steps
 
     def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
@@ -335,7 +316,7 @@ class FoodDrugTool(RegulatoryTool):
         return findings, todo
 
     def _devices(self, product: Product, facts: list[FoodDrugFact], by_field: dict, extracted: FoodDrugFacts,
-                 evidence: FoodDrugEvidence | None, review_step: "_ReviewStep", assumptions: list[str],
+                 evidence: FoodDrugEvidence | None, review_step: FoodDrugReviewStep, assumptions: list[str],
                  missing: list[str], query: dict[str, Any]) -> tuple[list[RegulatoryFinding], list[str]]:
         claims = [fact.value for fact in by_field.get("health_claim", [])]
 
