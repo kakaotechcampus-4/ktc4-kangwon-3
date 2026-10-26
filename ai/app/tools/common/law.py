@@ -46,12 +46,26 @@ class LawLookupError(RuntimeError):
 
 
 def compact(text: str) -> str:
-    """공백과 표 테두리 문자를 지운다. 원문 대조·이름 비교에 쓴다."""
+    """공백과 표 테두리 문자를 지운다. 원문 대조·이름 비교에 쓴다.
+
+    Args:
+        text: 원문. None이면 빈 글로 봄.
+
+    Returns:
+        str: 공백·테두리 문자를 지운 글.
+    """
     return "".join((text or "").translate(_BOX_DRAWING).split())
 
 
 def normalize_text(text: str) -> str:
-    """표 테두리 문자를 지우고 공백을 하나로 모은다. 사람이 읽을 원문용."""
+    """표 테두리 문자를 지우고 공백을 하나로 모은다. 사람이 읽을 원문용.
+
+    Args:
+        text: 원문. None이면 빈 글로 봄.
+
+    Returns:
+        str: 정리한 글.
+    """
     return " ".join((text or "").translate(_BOX_DRAWING).split())
 
 
@@ -63,6 +77,12 @@ def join_wrapped(fragments: list[str]) -> str:
 
     줄 끝이 문장부호나 흔한 조사·어미로 끝나면 띄어 쓰고, 아니면 단어 중간에서 끊긴 것으로 보고 붙인다
     ("인라인스" + "케이트" → "인라인스케이트", "유아용의" + "의류" → "유아용의 의류"). 표 줄 끝 여백으로는 구분되지 않는다.
+
+    Args:
+        fragments: 줄마다 나뉜 칸 글자.
+
+    Returns:
+        str: 이어 붙인 글.
     """
     text = ""
     for fragment in (normalize_text(part) for part in fragments):
@@ -77,17 +97,59 @@ def join_wrapped(fragments: list[str]) -> str:
 class LawLookup(Protocol):
     """근거 조회에 필요한 법제처 조회 4가지. 운영은 LawApiClients, 테스트는 Fake를 쓴다."""
 
-    def search_law(self, request: LawSearchRequest) -> LawSearchResponse: ...
-    def get_law_text(self, request: LawTextRequest) -> LawTextResponse: ...
-    def search_admrul(self, request: LawSearchRequest) -> AdmrulSearchResponse: ...
-    def get_admrul_text(self, request: LawTextRequest) -> AdmrulTextResponse: ...
+    def search_law(self, request: LawSearchRequest) -> LawSearchResponse:
+        """법령을 검색한다.
+
+        Args:
+            request: 검색 요청.
+
+        Returns:
+            LawSearchResponse: 검색 결과.
+        """
+        ...
+
+    def get_law_text(self, request: LawTextRequest) -> LawTextResponse:
+        """법령 본문을 받는다.
+
+        Args:
+            request: 본문 요청 (일련번호).
+
+        Returns:
+            LawTextResponse: 법령 본문.
+        """
+        ...
+
+    def search_admrul(self, request: LawSearchRequest) -> AdmrulSearchResponse:
+        """행정규칙을 검색한다.
+
+        Args:
+            request: 검색 요청.
+
+        Returns:
+            AdmrulSearchResponse: 검색 결과.
+        """
+        ...
+
+    def get_admrul_text(self, request: LawTextRequest) -> AdmrulTextResponse:
+        """행정규칙 본문을 받는다.
+
+        Args:
+            request: 본문 요청 (일련번호).
+
+        Returns:
+            AdmrulTextResponse: 행정규칙 본문.
+        """
+        ...
 
 
 class LawApiClients:
     """조회별로 나뉜 법제처 클라이언트(#293) 4개를 LawLookup 모양으로 묶는다. 다 쓰면 close()로 닫는다.
 
     Args:
-        law_search, law_text, admrul_search, admrul_text: 각 조회 클라이언트(fetch_parsed·close를 가진 객체).
+        law_search: 법령 검색 클라이언트 (fetch_parsed·close를 가진 객체).
+        law_text: 법령 본문 클라이언트.
+        admrul_search: 행정규칙 검색 클라이언트.
+        admrul_text: 행정규칙 본문 클라이언트.
     """
 
     def __init__(self, law_search, law_text, admrul_search, admrul_text):
@@ -98,21 +160,62 @@ class LawApiClients:
 
     @classmethod
     def from_oc(cls, oc: str) -> "LawApiClients":
+        """OC 하나로 조회 클라이언트 4개를 만든다.
+
+        Args:
+            oc: 법제처 OC.
+
+        Returns:
+            LawApiClients: 묶은 클라이언트.
+        """
         return cls(LawSearchClient(oc), LawTextClient(oc), AdmrulSearchClient(oc), AdmrulTextClient(oc))
 
     def search_law(self, request: LawSearchRequest) -> LawSearchResponse:
+        """법령을 검색한다.
+
+        Args:
+            request: 검색 요청.
+
+        Returns:
+            LawSearchResponse: 검색 결과.
+        """
         return self._law_search.fetch_parsed(request)
 
     def get_law_text(self, request: LawTextRequest) -> LawTextResponse:
+        """법령 본문을 받는다.
+
+        Args:
+            request: 본문 요청 (일련번호).
+
+        Returns:
+            LawTextResponse: 법령 본문.
+        """
         return self._law_text.fetch_parsed(request)
 
     def search_admrul(self, request: LawSearchRequest) -> AdmrulSearchResponse:
+        """행정규칙을 검색한다.
+
+        Args:
+            request: 검색 요청.
+
+        Returns:
+            AdmrulSearchResponse: 검색 결과.
+        """
         return self._admrul_search.fetch_parsed(request)
 
     def get_admrul_text(self, request: LawTextRequest) -> AdmrulTextResponse:
+        """행정규칙 본문을 받는다.
+
+        Args:
+            request: 본문 요청 (일련번호).
+
+        Returns:
+            AdmrulTextResponse: 행정규칙 본문.
+        """
         return self._admrul_text.fetch_parsed(request)
 
     def close(self) -> None:
+        """클라이언트 4개를 모두 닫는다."""
         for client in (self._law_search, self._law_text, self._admrul_search, self._admrul_text):
             client.close()
 
@@ -121,7 +224,18 @@ _R = TypeVar("_R")
 
 
 def lookup(call: Callable[..., _R], request) -> _R:
-    """클라이언트 호출 하나를 실행한다. httpx 오류는 그대로 올려 호출자가 HTTP 상태별로 분류한다."""
+    """클라이언트 호출 하나를 실행한다. httpx 오류는 그대로 올려 호출자가 HTTP 상태별로 분류한다.
+
+    Args:
+        call: 클라이언트 조회 메서드.
+        request: 요청.
+
+    Returns:
+        _R: 조회 응답.
+
+    Raises:
+        LawLookupError: 법제처가 유효한 응답을 주지 않은 경우.
+    """
     try:
         return call(request)
     except (RuntimeError, ParseError, ValidationError) as exc:
@@ -140,18 +254,36 @@ class DocRef:
 
     @property
     def url(self) -> str:
-        """버전을 고정한 공개 열람 주소. 요청 URL(OC 포함)은 쓰지 않는다."""
+        """버전을 고정한 공개 열람 주소. 요청 URL(OC 포함)은 쓰지 않는다.
+
+        Returns:
+            str: 법령·행정규칙 열람 주소.
+        """
         if self.is_admrul:
             return f"https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq={self.version_id}"
         return f"https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq={self.version_id}"
 
     def source(self, article: str, quoted_text: str) -> LegalSource:
+        """이 문서의 근거 하나를 만든다.
+
+        Args:
+            article: 조문·별표 위치 (예: "제3조", "별표 1").
+            quoted_text: 인용 원문.
+
+        Returns:
+            LegalSource: 결과에 붙일 근거.
+        """
         return LegalSource(
             source_name="법제처 국가법령정보", law_name=self.name, article=article,
             quoted_text=quoted_text, source_url=self.url, effective_date=self.enforce_date, is_mock=False,
         )
 
     def describe(self) -> dict[str, str]:
+        """결과 query에 남길 문서 식별 정보.
+
+        Returns:
+            dict[str, str]: 이름·문서 ID·버전 ID·시행일·열람 주소.
+        """
         return {"name": self.name, "document_id": self.document_id, "version_id": self.version_id,
                 "enforce_date": self.enforce_date, "url": self.url}
 
@@ -169,10 +301,26 @@ class LawDocument:
 
     @property
     def ref(self) -> DocRef:
+        """본문을 뺀 식별 정보.
+
+        Returns:
+            DocRef: 이 문서 버전의 식별 정보.
+        """
         return DocRef(self.name, self.document_id, self.version_id, self.enforce_date, self.is_admrul)
 
 
 def _day(value: str | None) -> date:
+    """법제처 시행일(YYYYMMDD)을 날짜로 바꾼다.
+
+    Args:
+        value: 시행일 글자.
+
+    Returns:
+        date: 시행일.
+
+    Raises:
+        EvidenceUnavailable: 형식이 맞지 않는 경우.
+    """
     try:
         return datetime.strptime(value or "", "%Y%m%d").date()
     except ValueError as exc:
@@ -185,6 +333,18 @@ def select_version(result, *, name: str, identifier: str, id_field: str, name_fi
 
     문서 ID와 이름이 정확히 일치하는 항목 중 시행일이 기준일 이하인 최신 버전을 쓴다.
     검색 첫 행·미래 시행 버전에 의존하지 않으며, 판단할 수 없으면 임의로 고르지 않는다.
+
+    Args:
+        result: 법령·행정규칙 검색 응답.
+        name: 문서 이름.
+        identifier: 문서 ID (법령 ID 또는 행정규칙 ID).
+        id_field: 검색 항목의 문서 ID 필드 이름.
+        name_field: 검색 항목의 이름 필드 이름.
+        version_field: 검색 항목의 버전(일련번호) 필드 이름.
+        as_of: 기준일.
+
+    Returns:
+        고른 검색 항목.
 
     Raises:
         EvidenceUnavailable: 목록 불완전, 후보 없음, 같은 시행일에 버전이 둘 이상, 버전 번호 이상.
@@ -216,6 +376,15 @@ def check_body(body, *, name: str, identifier: str, enforce_date: str) -> None:
     본문 시행일은 대조하지 않고 다르면 기록만 남긴다. 버전은 검색에서 고른 일련번호로 요청해 정해지고,
     시행일이 나뉜 개정판은 검색과 본문의 시행일이 다르게 온다(예: 의료기기법 일련번호 291321, 검색 20261020
     현행, 본문 20271021 — 부칙에 따라 일부 조문이 나중에 시행). 근거 시행일은 검색 값(기준일에 시행 중인 판)을 쓴다.
+
+    Args:
+        body: 법령·행정규칙 본문 응답.
+        name: 검색에서 고른 문서 이름.
+        identifier: 검색에서 고른 문서 ID.
+        enforce_date: 검색에서 고른 버전의 시행일.
+
+    Raises:
+        EvidenceUnavailable: 본문의 문서 ID나 이름이 검색 결과와 다른 경우.
     """
     if body.document_id != identifier or compact(body.name or "") != compact(name):
         raise EvidenceUnavailable(f"'{name}' 검색 문서와 본문 식별 정보가 다릅니다.")
@@ -224,7 +393,17 @@ def check_body(body, *, name: str, identifier: str, enforce_date: str) -> None:
 
 
 def load_law(client: LawLookup, *, name: str, law_id: str, as_of: date) -> LawDocument:
-    """법령(법률·시행령·시행규칙)을 기준일 버전으로 받는다."""
+    """법령(법률·시행령·시행규칙)을 기준일 버전으로 받는다.
+
+    Args:
+        client: 법제처 조회.
+        name: 법령 이름.
+        law_id: 법령 ID.
+        as_of: 기준일.
+
+    Returns:
+        LawDocument: 고른 버전과 본문.
+    """
     selected = select_version(
         lookup(client.search_law, LawSearchRequest(query=name, display=100)),
         name=name, identifier=law_id, id_field="law_id", name_field="law_name", version_field="mst", as_of=as_of,
@@ -235,7 +414,17 @@ def load_law(client: LawLookup, *, name: str, law_id: str, as_of: date) -> LawDo
 
 
 def load_admrul(client: LawLookup, *, name: str, rule_id: str, as_of: date) -> LawDocument:
-    """행정규칙(고시·훈령·예규)을 기준일 버전으로 받는다."""
+    """행정규칙(고시·훈령·예규)을 기준일 버전으로 받는다.
+
+    Args:
+        client: 법제처 조회.
+        name: 행정규칙 이름.
+        rule_id: 행정규칙 ID.
+        as_of: 기준일.
+
+    Returns:
+        LawDocument: 고른 버전과 본문.
+    """
     selected = select_version(
         lookup(client.search_admrul, LawSearchRequest(query=name, display=100)),
         name=name, identifier=rule_id, id_field="rule_id", name_field="name", version_field="serial_number",
@@ -248,6 +437,13 @@ def load_admrul(client: LawLookup, *, name: str, rule_id: str, as_of: date) -> L
 
 def article_text(body, number: int) -> str:
     """조문 하나의 전문을 원문 순서로 모은다. 항 아래 호·목이 중첩된 응답과 평평한 응답 모두 처리한다.
+
+    Args:
+        body: 법령·행정규칙 본문 응답.
+        number: 조 번호.
+
+    Returns:
+        str: 조문 전문 (공백 정리).
 
     Raises:
         EvidenceUnavailable: 조문을 유일하게 찾지 못한 경우.
@@ -276,6 +472,15 @@ def article_text(body, number: int) -> str:
 def law_paragraph(body, article: int, paragraph: str, *, branch: int = 0) -> str:
     """조문의 항 하나(호·목 포함) 원문. 예: 제58조의2 제1항 → law_paragraph(body, 58, "①", branch=2).
 
+    Args:
+        body: 법령 본문 응답.
+        article: 조 번호.
+        paragraph: 항 번호 글자 (예: "①").
+        branch: 가지 번호. 0이면 가지 없음.
+
+    Returns:
+        str: 항 원문 (공백 정리).
+
     Raises:
         EvidenceUnavailable: 조문이나 항을 유일하게 찾지 못한 경우.
     """
@@ -299,6 +504,15 @@ def law_paragraph(body, article: int, paragraph: str, *, branch: int = 0) -> str
 def annex_text(body, number: int, *, branch: int = 0, title: str | None = None) -> str:
     """별표 하나의 원문(표 테두리 포함)을 꺼낸다. 표 파싱은 호출자가 한다.
 
+    Args:
+        body: 법령·행정규칙 본문 응답.
+        number: 별표 번호.
+        branch: 가지 번호. 0이면 가지 없음.
+        title: 별표 제목에 들어 있어야 할 글자. None이면 보지 않음.
+
+    Returns:
+        str: 별표 원문.
+
     Raises:
         EvidenceUnavailable: 별표를 유일하게 찾지 못했거나 본문이 비어 있는 경우.
     """
@@ -321,6 +535,11 @@ class CachedLoader(Generic[_T]):
 
     법령은 하루에도 개정·시행될 수 있으므로 기준일을 키로 쓰고, ttl_seconds가 지나면 다시 조회한다.
     실패는 캐시하지 않는다.
+
+    Args:
+        load: 기준일을 받아 근거를 조회하는 함수.
+        ttl_seconds: 캐시 유지 시간(초).
+        clock: 현재 시각 함수. 테스트에서 시간을 흘릴 때 주입.
     """
 
     def __init__(self, load: Callable[[date], _T], *, ttl_seconds: float = 6 * 3600,
@@ -333,6 +552,14 @@ class CachedLoader(Generic[_T]):
         self.loads = 0
 
     def load(self, as_of: date) -> _T:
+        """기준일 근거를 돌려준다. 캐시가 없거나 만료됐으면 조회한다.
+
+        Args:
+            as_of: 기준일.
+
+        Returns:
+            _T: 조회한 근거.
+        """
         with self._lock:
             cached = self._cache.get(as_of)
             if cached is not None and self._clock() - cached[0] < self._ttl:

@@ -10,7 +10,11 @@ from ...schemas.product import Product
 
 
 def _initial_query() -> dict[str, Any]:
-    """결과 query의 기본 카운터. 5개 Tool이 모두 남기는 값."""
+    """결과 query의 기본 카운터. 5개 Tool이 모두 남기는 값.
+
+    Returns:
+        dict[str, Any]: 버린 조건·후보, 해당 없음 수를 0으로 둔 카운터.
+    """
     return {"dropped_facts": 0, "dropped_candidates": 0, "not_applicable": 0}
 
 

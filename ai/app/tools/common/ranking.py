@@ -12,7 +12,14 @@ _T = TypeVar("_T")
 
 
 def bigrams(text: str) -> Counter:
-    """한글·영문·숫자만 남겨 글자 2개 단위로 센다."""
+    """한글·영문·숫자만 남겨 글자 2개 단위로 센다.
+
+    Args:
+        text: 셀 글.
+
+    Returns:
+        Counter: 글자 2개 조각 → 개수. 남은 글자가 1자 이하면 그 글자 하나.
+    """
     chars = re.sub(r"[^0-9A-Za-z가-힣]", "", text)
     return Counter(chars[i:i + 2] for i in range(len(chars) - 1)) if len(chars) > 1 else Counter([chars])
 
@@ -31,7 +38,10 @@ def rank_rows(rows: Iterable[_T], terms: list[str], *, text: Callable[[_T], str]
         text: 행에서 유사도를 잴 글.
         names: 행 이름 목록(포함 가산용).
         key: 같은 점수일 때 순서를 정할 행 ID.
-        top_k: 돌려줄 최대 행 수. 점수가 0인 행은 빼는다.
+        top_k: 돌려줄 최대 행 수.
+
+    Returns:
+        list[_T]: 점수 높은 순 행. 점수가 0인 행은 뺌.
     """
     rows = list(rows)
     documents = [bigrams(text(row)) for row in rows]
