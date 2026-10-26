@@ -18,8 +18,10 @@ from .diagnose import (
     submit_diagnosis,
     to_extraction_input,
 )
+from .internal_auth import INTERNAL_AUTH_RESPONSES, require_internal_token
 
-router = APIRouter(prefix="/dummy/diagnose", tags=["더미 진단"])
+router = APIRouter(prefix="/dummy/diagnose", tags=["더미 진단"], dependencies=[Depends(require_internal_token)],
+                   responses=INTERNAL_AUTH_RESPONSES)
 
 
 @router.post(

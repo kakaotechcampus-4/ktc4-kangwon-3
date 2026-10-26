@@ -15,7 +15,8 @@ from ..domain.errors import AIResponseCode, AIServiceError
 DEV_API_KEY_HEADER = "X-Dev-Api-Key"
 
 # Swagger의 Authorize 버튼으로 키를 넣을 수 있게 보안 방식으로 등록. 검사는 아래 함수가 직접 함
-_dev_api_key = APIKeyHeader(name=DEV_API_KEY_HEADER, auto_error=False, description="개발용 진단 API 키")
+_dev_api_key = APIKeyHeader(name=DEV_API_KEY_HEADER, scheme_name="DevApiKey", auto_error=False,
+                            description="개발용 진단 API 키")
 
 
 def require_dev_api_key(

@@ -69,7 +69,7 @@ def fake_be(monkeypatch):
 
 
 def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_be):
-    with TestClient(main.app) as client:
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
         response = client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
@@ -95,6 +95,22 @@ def test_운영_경로는_파이프라인_연결_전까지_접수하지_않고_�
         session = main.app.state.session_manager.get("p-1")
 
     assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert session is None
+    assert fake_be == []
+
+
+def test_더미_경로는_내부_토큰이_없으면_401이고_접수하지_않는다(fake_be):
+    # 형식이 틀린 요청도 422보다 401이 먼저 (토큰 없이 요청 형식을 떠보지 못하게)
+    path = "/api/ai/v1/dummy/diagnose/content"
+    with TestClient(main.app) as client:
+        response = client.post(path, json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        malformed = client.post(path, json={"diagnosisId": "d-1"})
+        session = main.app.state.session_manager.get("p-1")
+
+    assert (response.status_code, response.json()["code"]) == (401, "AI_UNAUTHORIZED")
+    assert malformed.status_code == 401
     assert session is None
     assert fake_be == []
 
@@ -125,7 +141,7 @@ def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜�
 
 
 def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be):
-    with TestClient(main.app) as client:
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
         client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
