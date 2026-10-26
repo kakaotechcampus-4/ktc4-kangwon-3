@@ -5,13 +5,11 @@
 """
 
 from collections.abc import Callable, Iterable
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 
-from ..common.law import CachedLoader, LawApiClients
+from ..common.law import KST, CachedLoader, LawApiClients
 from ..common.ranking import rank_rows
 from .evidence import DeviceItem, FoodDrugEvidence, load_food_drug_evidence
-
-KST = timezone(timedelta(hours=9))
 
 
 def rank_devices(items: Iterable[DeviceItem], terms: list[str], *, top_k: int) -> list[DeviceItem]:

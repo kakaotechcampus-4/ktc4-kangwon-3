@@ -12,17 +12,16 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Protocol
 
 from ...clients.customs import CLIPClient, CustomsGwClient
 from ...schemas.clients.customs_request import CLIPSearchRequest, CustomsGwConfirmationRequest
 from ...schemas.clients.customs_response import CLIPCase
-from ..common.law import CachedLoader, EvidenceUnavailable, LawApiClients
+from ..common.law import KST, CachedLoader, EvidenceUnavailable, LawApiClients
 from ..common.ranking import rank_rows
 from .evidence import CustomsEvidence, load_customs_evidence
 
-KST = timezone(timedelta(hours=9))
 _DESCRIPTION_LIMIT = 300
 _REASON_LIMIT = 200
 

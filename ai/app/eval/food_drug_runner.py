@@ -17,7 +17,7 @@ import argparse
 import json
 import os
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 
@@ -29,7 +29,7 @@ from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_override
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Product
 from ..schemas.schemas import ToolName
-from ..tools.common.law import CachedLoader, LawApiClients
+from ..tools.common.law import KST, CachedLoader, LawApiClients
 from ..tools.food_drug import FoodDrugTool
 from ..tools.food_drug.evidence import load_food_drug_evidence
 from .electrical_runner import _env, build_model
@@ -188,7 +188,7 @@ def main() -> int:
 
     law_client = LawApiClients.from_oc(_env("LAW_GO_KR_OC"))
     evidence = CachedLoader(lambda as_of: load_food_drug_evidence(law_client, as_of))
-    today = datetime.now(timezone(timedelta(hours=9))).date()
+    today = datetime.now(KST).date()
     results: dict[str, list[tuple[str, dict]]] = {}
     try:
         started = perf_counter()

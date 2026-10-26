@@ -5,14 +5,12 @@
 """
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Protocol
 
-from ..common.law import CachedLoader, DocRef, LawApiClients
+from ..common.law import KST, CachedLoader, DocRef, LawApiClients
 from ..common.ranking import rank_rows
 from .evidence import Exemption, RadioEvidence, RadioItem, load_radio_evidence
-
-KST = timezone(timedelta(hours=9))
 
 
 @dataclass(frozen=True)
