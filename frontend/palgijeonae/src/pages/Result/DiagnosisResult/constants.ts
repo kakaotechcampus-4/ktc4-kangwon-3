@@ -10,16 +10,11 @@ export const TOOL_NAME_LABELS: Record<ToolName, string> = {
     [ToolName.LabelAd]: "표시 광고",
 };
 
-export interface DeterminationStyle {
-    label: string
-    className: string
-}
-
-// 판정 결과별 라벨/색
-export const DETERMINATION_STYLE: Record<Determination, DeterminationStyle> = {
-    [Determination.Required]: { label: "조치 필요", className: "text-status-danger bg-status-danger-bg border-status-danger" },
-    [Determination.PossiblyRequired]: { label: "확인 필요", className: "text-status-warning bg-status-warning-bg border-status-warning" },
-    [Determination.InsufficientInformation]: { label: "정보 부족", className: "text-neutral-dark bg-white border-neutral-border" },
-    [Determination.NotRequired]: { label: "통과", className: "text-status-success bg-status-success-bg border-status-success" },
-    [Determination.NotApplicable]: { label: "해당 없음", className: "text-status-success bg-status-success-bg border-status-success" },
+// 판정 결과에 따른 라벨.
+export const DETERMINATION_LABELS: Record<Determination, string> = {
+    [Determination.Required]: "조치 필요",
+    [Determination.PossiblyRequired]: "확인 필요",
+    [Determination.InsufficientInformation]: "정보 부족",
+    [Determination.NotRequired]: "통과",
+    [Determination.NotApplicable]: "해당 없음",
 };

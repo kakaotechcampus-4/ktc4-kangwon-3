@@ -24,19 +24,19 @@ interface DiagnosisResultTabProps {
 
 function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabProps) {
     const { resultStatus, processingStatus, summary, requiredActions, toolReviews } = product;
-    const [findingFilter, setFindingFilter] = useState<FindingFilter>("all");
+    const [findingFilter, setFindingFilter] = useState<FindingFilter>(null);
     const visibleToolReviews = toolReviews.filter((toolReview) => toolReview.status !== ToolReviewStatus.Skipped);
     const skippedToolReviews = toolReviews.filter((toolReview) => toolReview.status === ToolReviewStatus.Skipped);
-    
+
     // 필터 탭에 전달한 각 Determination 상태 별 FindingCard 개수
     const allFindings = visibleToolReviews.flatMap((toolReview) => toolReview.findings);
-    const findingCounts: Record<FindingFilter, number> = {
-        all: allFindings.length,
-        [Determination.Required]: allFindings.filter((finding) => finding.determination === Determination.Required).length,
-        [Determination.PossiblyRequired]: allFindings.filter((finding) => finding.determination === Determination.PossiblyRequired).length,
-        [Determination.NotRequired]: allFindings.filter((finding) => finding.determination === Determination.NotRequired).length,
-        [Determination.InsufficientInformation]: allFindings.filter((finding) => finding.determination === Determination.InsufficientInformation).length,
-    };
+    const findingCounts = new Map<FindingFilter, number>([
+        [null, allFindings.length],
+        [Determination.Required, allFindings.filter((finding) => finding.determination === Determination.Required).length],
+        [Determination.PossiblyRequired, allFindings.filter((finding) => finding.determination === Determination.PossiblyRequired).length],
+        [Determination.NotRequired, allFindings.filter((finding) => finding.determination === Determination.NotRequired).length],
+        [Determination.InsufficientInformation, allFindings.filter((finding) => finding.determination === Determination.InsufficientInformation).length],
+    ]);
 
     // 결과가 아직 없으면 진행 상태(대기/진행중/입력대기/실패)별로 다른 문구를 보여준다.
     const statusLabel = resultStatus

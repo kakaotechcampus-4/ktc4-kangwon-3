@@ -27,7 +27,7 @@ function ToolReviewCard({ toolReview, findingFilter }: ToolReviewCardProps) {
 
     // determination으로 finding을 필터링
     const visibleFindings = toolReview.findings.filter(
-        (finding) => findingFilter === "all" || finding.determination === findingFilter,
+        (finding) => findingFilter === null || finding.determination === findingFilter,
     );
 
     // 필터링된 finding 항목이 없다면 표시하지 않음
