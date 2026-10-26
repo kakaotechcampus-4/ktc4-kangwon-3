@@ -417,10 +417,10 @@ def test_문서_ID가_없는_사례는_물품명과_HS로_구분한다():
 
 def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어간다():
     from app.schemas.product import Attribute
-    from app.tools.customs.tool import _hints
     product = Product(product_id="p1", listing_text=["주전자"], attributes=[Attribute(name="품목", value="전기포트")])
-    assert _hints(product)["attributes"] == [{"name": "품목", "value": "전기포트"}]
-    assert "listing_text" not in _hints(product)
+    hints = CustomsTool()._hints(product)
+    assert hints["attributes"] == [{"name": "품목", "value": "전기포트"}]
+    assert "listing_text" not in hints
 
 
 def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
