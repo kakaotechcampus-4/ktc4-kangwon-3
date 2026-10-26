@@ -64,6 +64,8 @@ def test_URL만_있는_상품도_받는다():
     {"diagnosisId": "", "products": [_product()]},
     {"diagnosisId": "d-1", "products": [_product("")]},
     {"diagnosisId": "d-1", "products": [_product()], "extra": 1},
+    # 예전 이름은 받지 않음 (#389·#391에서 imageUrls로 변경, BE #392와 함께)
+    {"diagnosisId": "d-1", "products": [_product(imagesBase64=["https://example.com/a.jpg"])]},
 ])
 def test_빈_ID와_정의하지_않은_필드를_거부한다(payload):
     with pytest.raises(ValidationError):
