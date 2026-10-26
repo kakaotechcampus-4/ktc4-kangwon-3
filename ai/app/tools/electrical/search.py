@@ -5,8 +5,7 @@
 후보가 비거나 맞는 행이 없으면 Tool은 정보 부족으로 처리하고 비대상으로 바꾸지 않는다.
 
 조회 경로는 ElectricalItemSearch로 추상화한다.
-- LawApiItemSearch: 법제처 API로 받은 품목표를 메모리에서 찾는다(현재 사용, DB 적재 전 임시 경로).
-- DatabaseItemSearch: 품목표 행 테이블·임베딩 적재 후 벡터 조회로 바꿀 자리(스텁).
+- LawApiItemSearch: 법제처 API로 받은 품목표를 메모리에서 찾는다.
 """
 
 from dataclasses import dataclass, field
@@ -108,24 +107,3 @@ def law_api_item_search() -> LawApiItemSearch:
         LawApiItemSearch: 조회할 때 법제처 클라이언트를 열고 닫는 조회 경로.
     """
     return LawApiItemSearch(CachedLoader(_load_on_demand))
-
-
-class DatabaseItemSearch:
-    """품목표 행을 DB 벡터 조회로 찾는 경로. 테이블이 없어 자리만 둔다.
-
-    필요한 것(현재 DB에는 조문 테이블 law_articles만 있다):
-    - 행정규칙(운용요령) 문서·버전 테이블
-    - 품목표 행 테이블: 문서 버전 FK, 제도, 분류, 품목, 세부품목, 비고, 저전압 포함 여부, 행 원문, 임베딩
-    - 적재 작업: 법제처 조회 → parse_annex → 임베딩(app.clients.llm.embedding.embed_texts) → 저장
-    구현하면 같은 ItemCandidates를 돌려주므로 ElectricalTool은 바꾸지 않는다.
-
-    Args:
-        session_factory: app.repositories.database.get_session_factory()가 돌려주는 세션 팩토리.
-    """
-
-    def __init__(self, session_factory):
-        self._session_factory = session_factory
-
-    def search(self, terms: list[str], *, top_k: int) -> ItemCandidates:
-        # TODO: 품목표 행 테이블과 적재 작업이 생기면 embed_text(" ".join(terms))로 벡터 조회한다.
-        raise NotImplementedError("DB 품목 조회는 품목표 행 테이블 적재 후 구현합니다.")

@@ -8,7 +8,7 @@ import pytest
 
 from app.schemas.clients.law_response import AdmrulSearchResponse
 from app.tools.electrical.evidence import (
-    NOTICE_ID, NOTICE_NAME, CachedLoader, DatabaseEvidenceSource, EvidenceUnavailable,
+    NOTICE_ID, NOTICE_NAME, CachedLoader, EvidenceUnavailable,
     LawApiClients, LawApiEvidenceSource, LawLookupError, Scheme, article_text, compact, purchase_agent_status, select_version,
 )
 
@@ -278,8 +278,3 @@ def test_별표13이_없으면_목록을_비우고_품목표는_그대로_쓴다
     evidence = LawApiEvidenceSource(fake_law).load(AS_OF)
     assert evidence.purchase_agent == {}
     assert len(evidence.blocks) == 184
-
-
-def test_DB_근거_경로는_구현_전까지_명시적으로_실패한다():
-    with pytest.raises(NotImplementedError):
-        DatabaseEvidenceSource(session_factory=None).load(AS_OF)

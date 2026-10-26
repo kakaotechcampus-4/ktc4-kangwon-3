@@ -2,8 +2,6 @@
 
 - 근거(법령 조문 + 품목·등급 별표)는 법제처에서 기준일별로 받아 캐시한다(law_api_evidence_loader).
 - rank_devices: 품목·등급 별표의 품목 행을 상품 용어와의 글자 유사도로 고른다.
-  DB의 medical_devices 테이블은 개별 제품의 허가 정보(품목명·분류번호·등급)다. 적재되면 "같은 분류번호로
-  허가된 제품이 있는지" 보조 근거로 쓸 수 있지만, 품목 분류 자체는 이 별표가 기준이다.
 """
 
 from collections.abc import Callable, Iterable

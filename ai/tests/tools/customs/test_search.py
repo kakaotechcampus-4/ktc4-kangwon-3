@@ -5,7 +5,7 @@ import pytest
 
 from app.schemas.clients.customs_response import CustomsGwConfirmation, CustomsGwConfirmationResponse
 from app.tools.common.law import EvidenceUnavailable
-from app.tools.customs.search import ClipCaseSearch, DatabaseCaseSearch, GwRequirementLookup
+from app.tools.customs.search import ClipCaseSearch, GwRequirementLookup
 
 from .conftest import FakeClip
 
@@ -49,11 +49,6 @@ def test_검색어가_없으면_조회하지_않는다():
     search, calls, _ = clip()
     assert search.search([" ", ""], ["주걱"], top_k=5).cases == ()
     assert calls == []
-
-
-def test_결정사례_DB_조회는_아직_스텁이다():
-    with pytest.raises(NotImplementedError):
-        DatabaseCaseSearch(session_factory=None).search(["주걱"], ["주걱"], top_k=5)
 
 
 class _Gw:

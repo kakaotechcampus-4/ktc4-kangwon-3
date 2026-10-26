@@ -39,8 +39,6 @@ _QUESTIONS = {
 }
 # 값이 판단 결과("예"/"아니오")인 조건. 값은 인용 안에 그대로 있지 않아도 된다(인용은 판단의 원문 근거).
 _JUDGED_FIELDS = ("food_contact", "edible", "skin_applied")
-# 답에 따라 판단이 바뀌는 조건만 묻는다(판단 칸이 엇갈릴 때, 의료기기 품목 확정에 필요한 용도).
-_QUESTION_FIELDS = ("food_contact", "edible", "skin_applied", "intended_use")
 _TERMS_LIMIT = 3
 FOOD_CONTACT, FOOD, COSMETIC, FUNCTIONAL, DEVICE = "식품용 기구·용기", "식품·건강기능식품", "화장품", "기능성화장품", "의료기기"
 

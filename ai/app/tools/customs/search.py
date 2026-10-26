@@ -2,7 +2,6 @@
 
 - CaseSearch: Tool이 쓰는 결정사례 조회 인터페이스.
   - ClipCaseSearch: 지금 쓰는 경로. 관세청 CLIP 결정사례를 검색어별로 받아 상품 용어와의 글자 유사도로 순위를 매긴다.
-  - DatabaseCaseSearch: hs_cases 테이블(결정사례 + 임베딩) 적재 후 벡터 조회로 바꿀 자리(스텁).
 - RequirementLookup: HS 10자리로 세관장확인 대상 법령·요건확인기관·제출 서류를 조회한다.
   - GwRequirementLookup: 관세청 세관장확인대상물품 GW(공공데이터포털 키 필요).
 - 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(law_api_evidence_loader).
@@ -128,23 +127,6 @@ class ClipCaseSearch:
             names=lambda case: [case.product_name],
         )
         return CaseCandidates(cases=tuple(ranked), failed_terms=tuple(failed))
-
-
-class DatabaseCaseSearch:
-    """hs_cases 테이블(CLIP 결정사례 + 임베딩)에서 벡터 조회하는 경로. 적재가 끝나면 쓴다(스텁).
-
-    HsCaseRepository.search_by_vector(app/repositories/customs.py)와 app.utils.embedding을 쓴다.
-    Tool은 동기라 비동기 embed_text를 그대로 부를 수 없다. 같은 CaseCandidates를 돌려주면 CustomsTool은 바꾸지 않는다.
-
-    Args:
-        session_factory: app.database.get_session_factory()가 돌려주는 세션 팩토리.
-    """
-
-    def __init__(self, session_factory):
-        self._session_factory = session_factory
-
-    def search(self, queries: list[str], terms: list[str], *, top_k: int) -> CaseCandidates:
-        raise NotImplementedError("DB 결정사례 조회는 hs_cases 적재 후 구현합니다.")
 
 
 @dataclass(frozen=True)

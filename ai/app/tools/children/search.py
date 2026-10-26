@@ -2,7 +2,6 @@
 
 - ChildrenItemSearch: Tool이 쓰는 조회 인터페이스.
 - LawApiItemSearch: 지금 쓰는 경로. 법제처 응답을 직접 읽어 품목 행을 만들고 기준일별로 캐시한다.
-- DatabaseItemSearch: 별표 규칙 파서(#307) 결과를 DB에 적재하면 쓸 경로(스텁).
 """
 
 from dataclasses import dataclass, field
@@ -91,31 +90,3 @@ def law_api_item_search() -> LawApiItemSearch:
         LawApiItemSearch: 조회할 때 법제처 클라이언트를 열고 닫는 조회 경로.
     """
     return LawApiItemSearch(CachedLoader(_load_on_demand).load)
-
-
-class DatabaseItemSearch:
-    """품목 행을 DB에서 조회하는 경로. 적재 테이블이 없어 자리만 둔다.
-
-    자료 출처는 별표 규칙 파서(#307)의 AnnexParseRecord(app/schemas/annex.py)다.
-    - 시행규칙 별표 1~3: AnnexItem 하나가 품목 행 하나.
-      item_label → 번호, item_name → 품목명, category_path → 제도,
-      attributes["적용 안전기준"] → standards, source_text → 근거 원문, skipped → 삭제된 품목.
-      별표 3의 "2. 개별 안전기준이 없는 …"(공통안전기준) 문장은 notes에서 찾는다.
-    - 운용요령 별표 3~5(적용범위)는 #307 대상에 없다. 적재 대상에 추가하거나 법제처 경로를 함께 쓴다.
-    - 법 제2조 제1호·제12호는 법령 조문 테이블(LawArticleRepository)에서 읽는다.
-    - 벡터 조회는 app.clients.llm.embedding을 쓴다. Tool은 동기라 비동기 embed_text를 그대로 부를 수 없다.
-    LawApiItemSearch의 표 읽기는 DB 적재 전까지 쓰는 임시 경로다. 구현하면 같은 ChildrenCandidates를
-    돌려주므로 ChildrenTool은 바꾸지 않는다.
-
-    Args:
-        session_factory: app.repositories.database.get_session_factory()가 돌려주는 세션 팩토리.
-    """
-
-    def __init__(self, session_factory):
-        self._session_factory = session_factory
-
-    def catalog(self) -> list[str]:
-        raise NotImplementedError("DB 품목 조회는 어린이제품 품목표 적재 후 구현합니다.")
-
-    def search(self, terms: list[str], *, top_k: int) -> ChildrenCandidates:
-        raise NotImplementedError("DB 품목 조회는 어린이제품 품목표 적재 후 구현합니다.")
