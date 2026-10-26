@@ -52,17 +52,29 @@ class RadioItem:
 
     @property
     def name(self) -> str:
-        """사람이 읽을 기자재명. 맨 바깥 분류를 뺀 경로(번호 제외). 분류가 하나뿐이면 그 분류."""
+        """사람이 읽을 기자재명. 맨 바깥 분류를 뺀 경로(번호 제외). 분류가 하나뿐이면 그 분류.
+
+        Returns:
+            str: " > "로 이은 기자재명.
+        """
         parts = self.plain_path[1:] or self.plain_path or (self.section,)
         return " > ".join(parts)
 
     @property
     def plain_path(self) -> tuple[str, ...]:
-        """번호(가., 1), 가))를 뗀 분류 경로. 조회·분류명 목록에 쓴다."""
+        """번호(가., 1), 가))를 뗀 분류 경로. 조회·분류명 목록에 쓴다.
+
+        Returns:
+            tuple[str, ...]: 번호를 뗀 분류 경로.
+        """
         return tuple(_LABEL_RE.sub("", part).strip() for part in self.path)
 
     def as_candidate(self) -> dict:
-        """품목 선택 모델에 넘기는 모양."""
+        """품목 선택 모델에 넘기는 모양.
+
+        Returns:
+            dict: 행 ID·절·분류 경로·평가 유형·적용 분야·대역(MHz)·비고.
+        """
         return {"item_id": self.item_id, "section": self.section, "path": list(self.path),
                 "assessment": list(self.assessment), "applied_fields": list(self.applied_fields),
                 "bands_mhz": [list(band) for band in self.bands], "remark": self.remark}
@@ -80,6 +92,11 @@ class Exemption:
 
     @property
     def text(self) -> str:
+        """근거 인용에 쓸 목 한 줄.
+
+        Returns:
+            str: "가. 면제대상 (면제 수량: …, 면제 내용: …)" 모양의 글.
+        """
         return f"{self.label}. {self.target} (면제 수량: {self.quantity}, 면제 내용: {self.content})"
 
 
@@ -95,12 +112,24 @@ class RadioEvidence:
     personal_use: Exemption | None = None
 
     def documents(self) -> list[dict[str, str]]:
+        """결과 query에 남길 문서 식별 정보.
+
+        Returns:
+            list[dict[str, str]]: 전파법·시행령·고시 순.
+        """
         return [self.law.describe(), self.decree.describe(), self.notice.describe()]
 
 
 
 def parse_bands(text: str) -> list[tuple[float, float]]:
-    """주파수 표기를 MHz 범위로 읽는다. "5150∼5350㎒", "2.4GHz", "13.56㎒" 등. 단일 값은 (값, 값)."""
+    """주파수 표기를 MHz 범위로 읽는다. "5150∼5350㎒", "2.4GHz", "13.56㎒" 등. 단일 값은 (값, 값).
+
+    Args:
+        text: 주파수 표기가 든 글.
+
+    Returns:
+        list[tuple[float, float]]: (하한, 상한) MHz 범위. 소수 넷째 자리까지.
+    """
     bands: list[tuple[float, float]] = []
     taken: list[tuple[int, int]] = []
     for match in _BAND_RANGE_RE.finditer(text):
@@ -117,15 +146,34 @@ def parse_bands(text: str) -> list[tuple[float, float]]:
 
 
 class _Label:
+    """여러 줄에 걸친 분류 칸 글자를 모은다.
+
+    Args:
+        text: 첫 줄 글자.
+    """
+
     def __init__(self, text: str):
         self.parts = [text]
 
     @property
     def text(self) -> str:
+        """모은 글자를 이은 분류명.
+
+        Returns:
+            str: 공백 정리한 분류명.
+        """
         return normalize_text("".join(self.parts))
 
 
 def _is_full_separator(stripped: str) -> bool:
+    """표 왼쪽 끝부터 그은 가로선 줄인지 본다.
+
+    Args:
+        stripped: 앞뒤 공백을 뗀 줄.
+
+    Returns:
+        bool: 가로선 줄이면 True.
+    """
     return stripped[:1] in "├┝└┌┟┞"
 
 
@@ -134,6 +182,14 @@ def _section_rows(number: int, title: str, lines: list[str]) -> tuple[list[Radio
 
     한 행 = 가로선 사이의 줄들. 바깥 분류 칸은 여러 행에 걸쳐 있어, 빈 칸은 위 행의 분류를 잇고
     부분 가로선 줄("│ │시스템용 ├──")의 왼쪽 글자도 그 분류에 이어 붙인다.
+
+    Args:
+        number: 절 번호.
+        title: 절 제목.
+        lines: 절 제목 다음 줄들.
+
+    Returns:
+        tuple[list[RadioItem], str]: (행, 절 비고). 표가 없으면 ([], "").
     """
     start = next((i for i, line in enumerate(lines) if "┝" in line), None)
     if start is None:
@@ -214,7 +270,17 @@ def _section_rows(number: int, title: str, lines: list[str]) -> tuple[list[Radio
 
 
 def parse_radio_annex(text: str) -> tuple[list[RadioItem], dict[str, str]]:
-    """고시 별표 1의 1~10절(무선설비 기기)을 행으로 나눈다. Returns: (행, 절별 비고)."""
+    """고시 별표 1의 1~10절(무선설비 기기)을 행으로 나눈다.
+
+    Args:
+        text: 고시 별표 1 원문.
+
+    Returns:
+        tuple[list[RadioItem], dict[str, str]]: (행, 절별 비고).
+
+    Raises:
+        EvidenceUnavailable: 1~10절을 모두 찾지 못했거나 기기부호가 비었거나 겹치는 경우.
+    """
     sections: list[tuple[int, str, list[str]]] = []
     for line in text.splitlines():
         match = _SECTION_RE.match(line)
@@ -243,6 +309,12 @@ def parse_exemptions(text: str) -> list[Exemption]:
     """시행령 별표 6의2(면제대상 | 면제 수량 | 면제 내용)를 목 단위로 나눈다.
 
     면제 내용 칸은 여러 목에 걸친 병합 칸이라, 표 하나의 면제 내용을 이어 붙여 그 표의 모든 목에 쓴다.
+
+    Args:
+        text: 시행령 별표 6의2 원문.
+
+    Returns:
+        list[Exemption]: 면제대상 목.
     """
     parts: list[tuple[str, list[list[list[str]]]]] = []
     for line in text.splitlines():
@@ -279,7 +351,18 @@ def parse_exemptions(text: str) -> list[Exemption]:
 
 
 def load_radio_evidence(client: LawLookup, as_of: date) -> RadioEvidence:
-    """법제처 API로 전파법·시행령·고시를 기준일 버전으로 받아 대상기자재 행을 만든다(요청 6회)."""
+    """법제처 API로 전파법·시행령·고시를 기준일 버전으로 받아 대상기자재 행을 만든다(요청 6회).
+
+    Args:
+        client: 법제처 조회.
+        as_of: 기준일.
+
+    Returns:
+        RadioEvidence: 기준일 근거 묶음.
+
+    Raises:
+        EvidenceUnavailable: 적합성평가 의무 조문이나 개인 사용 반입 면제를 확인하지 못한 경우.
+    """
     law = load_law(client, name=LAW_NAME, law_id=LAW_ID, as_of=as_of)
     decree = load_law(client, name=DECREE_NAME, law_id=DECREE_ID, as_of=as_of)
     notice = load_admrul(client, name=NOTICE_NAME, rule_id=NOTICE_ID, as_of=as_of)

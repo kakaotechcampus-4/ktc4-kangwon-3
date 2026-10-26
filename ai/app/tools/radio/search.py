@@ -28,8 +28,25 @@ class RadioCandidates:
 
 
 class RadioItemSearch(Protocol):
-    def catalog(self) -> list[str]: ...
-    def search(self, terms: list[str], *, top_k: int) -> RadioCandidates: ...
+    def catalog(self) -> list[str]:
+        """대상기자재 분류명 목록.
+
+        Returns:
+            list[str]: 조건 추출 모델에 줄 분류명.
+        """
+        ...
+
+    def search(self, terms: list[str], *, top_k: int) -> RadioCandidates:
+        """상품 용어와 비슷한 대상기자재 행을 찾는다.
+
+        Args:
+            terms: 상품 용어.
+            top_k: 돌려줄 최대 행 수.
+
+        Returns:
+            RadioCandidates: 후보 행과 근거 문서.
+        """
+        ...
 
 
 class LawApiItemSearch:
@@ -45,13 +62,31 @@ class LawApiItemSearch:
         self._as_of = as_of
 
     def evidence(self) -> RadioEvidence:
+        """기준일 근거를 읽는다.
+
+        Returns:
+            RadioEvidence: 기준일 근거 묶음.
+        """
         return self._loader(self._as_of or datetime.now(KST).date())
 
     def catalog(self) -> list[str]:
-        """대상기자재 분류명 목록(바깥 두 단계, 번호 제외). 조건 추출 모델이 조회어를 고를 때 쓴다."""
+        """대상기자재 분류명 목록(바깥 두 단계, 번호 제외). 조건 추출 모델이 조회어를 고를 때 쓴다.
+
+        Returns:
+            list[str]: 중복을 뺀 분류명.
+        """
         return list(dict.fromkeys(" > ".join(item.plain_path[:2]) for item in self.evidence().items if item.path))
 
     def search(self, terms: list[str], *, top_k: int) -> RadioCandidates:
+        """상품 용어와 비슷한 대상기자재 행을 찾는다.
+
+        Args:
+            terms: 상품 용어. 비면 후보 없이 근거만 돌려줌.
+            top_k: 돌려줄 최대 행 수.
+
+        Returns:
+            RadioCandidates: 후보 행과 근거 문서.
+        """
         evidence = self.evidence()
         items = rank_rows(
             evidence.items, terms, top_k=top_k, key=lambda item: item.item_id,
@@ -66,6 +101,14 @@ class LawApiItemSearch:
 
 
 def _load_on_demand(as_of: date) -> RadioEvidence:
+    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
+
+    Args:
+        as_of: 기준일.
+
+    Returns:
+        RadioEvidence: 기준일 근거 묶음.
+    """
     from ...config import get_settings
 
     clients = LawApiClients.from_oc(get_settings().law_oc)
