@@ -13,7 +13,16 @@ from .evidence import DeviceItem, FoodDrugEvidence, load_food_drug_evidence
 
 
 def rank_devices(items: Iterable[DeviceItem], terms: list[str], *, top_k: int) -> list[DeviceItem]:
-    """품목명·중분류·정의와 상품 용어의 글자 2개 단위 유사도로 정렬한다. 품목명이 용어에 그대로 있으면 가산한다."""
+    """품목명·중분류·정의와 상품 용어의 글자 2개 단위 유사도로 정렬한다. 품목명이 용어에 그대로 있으면 가산한다.
+
+    Args:
+        items: 의료기기 품목 행.
+        terms: 상품 용어.
+        top_k: 돌려줄 최대 행 수.
+
+    Returns:
+        list[DeviceItem]: 점수 높은 순 품목 행.
+    """
     return rank_rows(
         items, terms, top_k=top_k, key=lambda item: item.item_id,
         text=lambda item: f"{item.name} {item.group} {item.definition}",
@@ -22,7 +31,14 @@ def rank_devices(items: Iterable[DeviceItem], terms: list[str], *, top_k: int) -
 
 
 def _load_on_demand(as_of: date) -> FoodDrugEvidence:
-    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다."""
+    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
+
+    Args:
+        as_of: 기준일.
+
+    Returns:
+        FoodDrugEvidence: 기준일 근거 묶음.
+    """
     from ...config import get_settings
 
     clients = LawApiClients.from_oc(get_settings().law_oc)
