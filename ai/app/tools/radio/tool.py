@@ -78,14 +78,30 @@ class RadioTool(EvidenceSearchTool):
         self._search = item_search
 
     def _prepare(self, run: RadioRun) -> None:
-        """대상기자재 분류명 목록을 읽는다. 근거를 확인할 수 없으면 목록 없이 추출."""
+        """대상기자재 분류명 목록을 읽는다. 근거를 확인할 수 없으면 목록 없이 추출.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         run.catalog = self._lookup(run, self._search.catalog, failure=_SEARCH_FAILED) or []
 
     def _facts_payload(self, run: RadioRun) -> dict[str, Any]:
+        """조건 추출 입력에 분류명 목록을 더한다.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            dict[str, Any]: 조건 추출 단계 입력.
+        """
         return {**super()._facts_payload(run), "categories": run.catalog}
 
     def _read_facts(self, run: RadioRun) -> None:
-        """조회어와 주파수를 읽고 필수 조건 부족을 기록한다."""
+        """조회어와 주파수를 읽고 필수 조건 부족을 기록한다.
+
+        Args:
+            run: 이번 실행 상태.
+        """
         run.terms = [term for term in run.extracted.search_terms if term.strip()][:_SEARCH_TERMS_LIMIT]
         run.query["search_terms"] = run.terms
         # 주파수가 무선 기능 값 안에만 있는 경우(예: "Bluetooth 5.0 (2.4GHz)")도 읽음
@@ -97,7 +113,14 @@ class RadioTool(EvidenceSearchTool):
             run.assumptions.append("상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.")
 
     def _judge(self, run: RadioRun) -> list[RegulatoryFinding]:
-        """무선 기능 근거 → 대상기자재 조회 → 기자재 선택 → 후보 판단."""
+        """무선 기능 근거 → 대상기자재 조회 → 기자재 선택 → 후보 판단.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            list[RegulatoryFinding]: 고른 기자재별 후보 판단. 근거가 부족하면 빈 목록.
+        """
         by_field = run.by_field
         if "wireless_feature" not in by_field:
             run.assumptions.append("상품 원문에서 무선 기능 근거를 찾지 못해 무선기기 후보를 내지 않았습니다. "
@@ -150,6 +173,16 @@ class RadioTool(EvidenceSearchTool):
 
     @staticmethod
     def _terms(terms: list[str], by_field: dict, product: Product) -> list[str]:
+        """조회에 쓸 상품 용어를 모은다.
+
+        Args:
+            terms: 모델이 고른 조회어.
+            by_field: 필드별 조건.
+            product: 검토할 상품.
+
+        Returns:
+            list[str]: 조회어 → 무선 기능·제품 종류·용도 값 → 상품명·카테고리 순.
+        """
         values = [fact.value for field in ("wireless_feature", "product_type", "intended_use")
                   for fact in by_field.get(field, [])]
         hints = [value for value in (product.product_name, product.category) if value]
@@ -157,6 +190,20 @@ class RadioTool(EvidenceSearchTool):
 
     def _candidate(self, item: RadioItem, rationale: str, used: list[str], by_field: dict,
                    candidates: RadioCandidates, assumptions: list[str], actions: list[str]) -> RegulatoryFinding:
+        """고른 기자재 하나의 후보 판단을 만든다.
+
+        Args:
+            item: 고른 대상기자재 행.
+            rationale: 모델의 선택 이유.
+            used: 판단에 쓴 필드.
+            by_field: 필드별 조건.
+            candidates: 조회 결과 (근거 문서).
+            assumptions: 결과에 남길 가정.
+            actions: 판매 전에 할 일.
+
+        Returns:
+            RegulatoryFinding: 적합성평가 대상 후보 판단.
+        """
         kind = "·".join(item.assessment) or "적합성평가"
         sources = [candidates.notice.source("별표 1", item.row_text)]
         for assessment in item.assessment:
@@ -179,6 +226,15 @@ class RadioTool(EvidenceSearchTool):
         )
 
     def _detail(self, run: RadioRun, findings: list[RegulatoryFinding]) -> RadioAssessment:
+        """결과에 붙일 전파 상세.
+
+        Args:
+            run: 이번 실행 상태.
+            findings: 이번 실행의 판단.
+
+        Returns:
+            RadioAssessment: 무선 기능·주파수·평가 유형 요약.
+        """
         return RadioAssessment(
             wireless_features=list(dict.fromkeys(fact.value for fact in run.facts if fact.field == "wireless_feature")),
             frequency_bands=list(run.query.get("frequency_bands", [])),
