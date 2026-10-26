@@ -36,6 +36,7 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
         [Determination.PossiblyRequired, allFindings.filter((finding) => finding.determination === Determination.PossiblyRequired).length],
         [Determination.NotRequired, allFindings.filter((finding) => finding.determination === Determination.NotRequired).length],
         [Determination.InsufficientInformation, allFindings.filter((finding) => finding.determination === Determination.InsufficientInformation).length],
+        [Determination.NotApplicable, allFindings.filter((finding) => finding.determination === Determination.NotApplicable).length],
     ]);
 
     // 결과가 아직 없으면 진행 상태(대기/진행중/입력대기/실패)별로 다른 문구를 보여준다.

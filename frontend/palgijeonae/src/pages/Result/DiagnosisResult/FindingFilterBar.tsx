@@ -12,6 +12,7 @@ const FILTER_OPTIONS: { key: FindingFilter; label: string }[] = [
     { key: Determination.PossiblyRequired, label: DETERMINATION_LABELS[Determination.PossiblyRequired] },
     { key: Determination.NotRequired, label: DETERMINATION_LABELS[Determination.NotRequired] },
     { key: Determination.InsufficientInformation, label: DETERMINATION_LABELS[Determination.InsufficientInformation] },
+    { key: Determination.NotApplicable, label: DETERMINATION_LABELS[Determination.NotApplicable] },
 ];
 
 // 선택된 필터 칩 색. 매핑에 없는 판정(정보 부족 등)과 "전체"는 중립색으로 통일한다.
@@ -40,16 +41,23 @@ interface FindingFilterBarProps {
 function FindingFilterBar({ counts, selected, onSelect }: FindingFilterBarProps) {
     return (
         <div className="flex w-full flex-wrap items-center gap-2.5">
-            {FILTER_OPTIONS.map(({ key, label }) => (
-                <button
-                    key={key ?? "all"}
-                    type="button"
-                    onClick={() => onSelect(key)}
-                    className={filterChipClassName(key, key === selected)}
-                >
-                    {label} {counts.get(key) ?? 0}
-                </button>
-            ))}
+            {FILTER_OPTIONS.map(({ key, label }) => {
+                const count = counts.get(key) ?? 0;
+                if (key !== null && count === 0) {
+                    return null;
+                }
+
+                return (
+                    <button
+                        key={key ?? "all"}
+                        type="button"
+                        onClick={() => onSelect(key)}
+                        className={filterChipClassName(key, key === selected)}
+                    >
+                        {label} {count}
+                    </button>
+                );
+            })}
         </div>
     );
 }
