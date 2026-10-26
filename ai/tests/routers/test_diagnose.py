@@ -1,6 +1,6 @@
-"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422), 재진단(202·400·404·409·429·422), /diagnose 501을 확인한다.
+"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422), 재진단(202·400·404·409·429·422), /diagnose 501·404를 확인한다.
 
-/diagnose는 실제 파이프라인 연결 전까지 501이라, 접수·재진단 처리는 같은 처리를 쓰는 더미 경로로 확인함.
+/diagnose 접수는 실제 파이프라인 연결 전까지 501이라, 접수·재진단 처리는 같은 처리를 쓰는 더미 경로로 확인함.
 """
 
 from threading import Event
@@ -234,20 +234,22 @@ def test_답변_대기_상품을_새_runId로_재접수하고_202를_반환한�
     assert [(a.question_key, a.answer_text) for a in session.answers] == [("battery_only", "네")]
 
 
-def test_실제_재진단은_파이프라인_연결_전까지_501이고_세션을_바꾸지_않는다(client, manager):
+def test_실제_재진단은_더미로_접수한_상품이면_404이고_세션을_바꾸지_않는다(client, manager):
+    # 파이프라인 연결 전에는 /diagnose 접수가 501이라 실제 세션이 없음. BE는 404를 받아 바로 실패 처리
     waiting = _waiting(manager)
 
     response = client.post(PRODUCTION_RESUME, json=_resume_payload(waiting))
 
-    assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert (response.status_code, response.json()["code"]) == (404, "AI_SESSION_NOT_FOUND")
     assert manager.get("p-1") == waiting
 
 
-def test_세션이_없으면_404를_반환한다(client):
+@pytest.mark.parametrize("path", [RESUME, PRODUCTION_RESUME])
+def test_세션이_없으면_404를_반환한다(client, path):
     payload = {"diagnosisId": "d-1", "productId": "p-1", "runId": "run-1", "questionRound": 1,
                "answers": [{"questionKey": "battery_only", "answerText": "네"}]}
 
-    response = client.post(RESUME, json=payload)
+    response = client.post(path, json=payload)
 
     assert response.status_code == 404
     assert response.json()["code"] == "AI_SESSION_NOT_FOUND"
