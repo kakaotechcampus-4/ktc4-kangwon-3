@@ -9,17 +9,15 @@
 """
 
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
-from ...schemas.agent import ToolSelectionItem
 from ...schemas.food_drug import FoodDrugFact, FoodDrugFacts
 from ...schemas.product import Product
-from ...schemas.schemas import (
-    Determination, FoodDrugAssessment, LegalSource, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus,
-)
-from ..base import RegulatoryTool, ToolStepInput
-from ..common.facts import group_facts, product_snippets, quote_matches
-from ..common.law import EvidenceUnavailable
+from ...schemas.schemas import Determination, FoodDrugAssessment, LegalSource, RegulatoryFinding, RiskLevel, ToolName
+from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
+from ..base.evidence_search import SELECTIONS_LIMIT
+from ..common.facts import quote_matches
 from .errors import FoodDrugToolError
 from .evidence import DeviceItem, FoodDrugEvidence
 from .rules import (
@@ -44,11 +42,23 @@ _JUDGED_FIELDS = ("food_contact", "edible", "skin_applied")
 # 답에 따라 판단이 바뀌는 조건만 묻는다(판단 칸이 엇갈릴 때, 의료기기 품목 확정에 필요한 용도).
 _QUESTION_FIELDS = ("food_contact", "edible", "skin_applied", "intended_use")
 _TERMS_LIMIT = 3
-_SELECTIONS_LIMIT = 3
 FOOD_CONTACT, FOOD, COSMETIC, FUNCTIONAL, DEVICE = "식품용 기구·용기", "식품·건강기능식품", "화장품", "기능성화장품", "의료기기"
 
 
-class FoodDrugTool(RegulatoryTool):
+@dataclass
+class FoodDrugRun(ToolRun):
+    """식약 Tool 실행 상태. 근거 법령과 해당 영역을 더 가짐.
+
+    Attributes:
+        evidence: 식약 근거 법령. 확인하지 못하면 None.
+        categories: 후보를 낸 영역 (식품용 기구·식품·화장품·기능성화장품·의료기기).
+    """
+
+    evidence: FoodDrugEvidence | None = None
+    categories: list[str] = field(default_factory=list)
+
+
+class FoodDrugTool(EvidenceSearchTool):
     """식품용 기구·식품·건강기능식품(수입신고), 화장품(책임판매업·기능성·금지 원료), 의료기기(수입허가) 후보를 찾는다.
 
     Args:
@@ -59,80 +69,67 @@ class FoodDrugTool(RegulatoryTool):
     """
 
     tool_name = ToolName.FOOD_DRUG
+    facts_step = FoodDrugFactsStep
+    review_step = FoodDrugReviewStep
+    error_class = FoodDrugToolError
+    field_labels = _FIELDS
+    questions = _QUESTIONS
+    conflict_note = ". 용도·효능과 관련된 모순이면 결과가 달라질 수 있습니다."
+    insufficient = (
+        "식품·화장품·의료기기 해당 여부",
+        "상품 원문에서 음식에 닿거나 먹거나 바르는 쓰임, 질병·신체 기능에 관한 효능 문구를 찾지 못했습니다. 비대상 판단이 아닙니다.",
+        "식약 관련 분류로 볼 원문 근거가 없습니다. 근거가 없다는 것을 비대상의 근거로 사용하지 않습니다.",
+    )
+    # 원문 없는 속성도 조회어를 정하는 데 참고됨
+    hints_with_attributes = True
+    run_type = FoodDrugRun
 
     def __init__(self, model=None, *, evidence: Callable[[], FoodDrugEvidence] | None = None,
                  configured_model: str | None = None, top_k: int = 8):
-        if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 1:
-            raise ValueError("top_k는 양의 정수여야 합니다.")
-        self._model = model
+        super().__init__(model, configured_model=configured_model, top_k=top_k)
         self._evidence = evidence
-        self._configured_model = configured_model
-        self._top_k = top_k
-        self._steps: tuple[FoodDrugFactsStep, FoodDrugReviewStep] | None = None
 
-    def _get_steps(self) -> tuple[FoodDrugFactsStep, FoodDrugReviewStep]:
-        if self._steps is None:
-            if self._model is None:
-                # 모델 프로필(#311)의 Tool 표(TOOL_PROFILES)에서 이 Tool의 모델을 고른다.
-                from ...config import build_tool_model
-                self._model = build_tool_model(self.tool_name)
-            options = {"configured_model": self._configured_model}
-            self._steps = (FoodDrugFactsStep(self._model, **options), FoodDrugReviewStep(self._model, **options))
-        return self._steps
+    def _prepare(self, run: FoodDrugRun) -> None:
+        """근거를 먼저 읽는다. 기능성화장품 범위(시행규칙 제2조)를 조건 추출 모델에 함께 줌."""
+        run.evidence = self._lookup(
+            run, lambda: (self._evidence or default_evidence_loader())(), failure="식약 근거 법령 조회에 실패했습니다.",
+            unavailable="식약 근거 법령의 시행 버전·본문을 확인하지 못해 근거 조문 없이 안내했습니다.")
+        if run.evidence is not None:
+            run.query["documents"] = run.evidence.documents()
 
-    def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
-        """미선택은 조회 없이 생략한다. 모델·자료 조회 실패는 예외로 전파해 Executor가 기록한다."""
-        if decision.tool_name is not self.tool_name:
-            raise ValueError("식약 Tool과 선택된 Tool 이름이 다릅니다.")
-        if not decision.selected:
-            return ToolResult(tool_name=self.tool_name, selected=False, selection_reason=decision.reason,
-                              status=ToolStatus.SKIPPED)
-        query: dict[str, Any] = {"dropped_facts": 0, "dropped_candidates": 0, "not_applicable": 0}
-        snippets = product_snippets(product)
-        if not snippets:
-            return self._assemble(decision, [], [], [], ["입력에 인용 가능한 상품 설명이 없습니다."], query)
+    def _facts_payload(self, run: FoodDrugRun) -> dict[str, Any]:
+        functional_types = ([{"number": item.number, "text": item.text} for item in run.evidence.functional_types]
+                            if run.evidence is not None else [])
+        return {**super()._facts_payload(run), "functional_types": functional_types}
 
-        # 근거를 먼저 읽는다. 기능성화장품 범위(시행규칙 제2조)를 조건 추출 모델에 함께 준다.
-        assumptions = ["전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."]
-        evidence = self._load_evidence(assumptions)
-        if evidence is not None:
-            query["documents"] = evidence.documents()
+    def _raw_facts(self, run: FoodDrugRun) -> list:
+        return [*run.extracted.facts, *_judged_facts(run.extracted)]
 
-        # ① 조건 추출
-        facts_step, review_step = self._get_steps()
-        functional_types = ([{"number": item.number, "text": item.text} for item in evidence.functional_types]
-                            if evidence is not None else [])
-        extracted = facts_step.run(ToolStepInput({"hints": _hints(product), "evidence": snippets,
-                                                  "functional_types": functional_types}, product.product_id))
-        raw = [*extracted.facts, *_judged_facts(extracted)]
-        facts = [fact for fact in raw if _fact_matches(fact, snippets)]
-        query["dropped_facts"] = len(raw) - len(facts)
-        by_field = group_facts(facts)
-        if query["dropped_facts"]:
-            assumptions.append(f"원문과 대조되지 않은 상품 조건 {query['dropped_facts']}개를 제외했습니다.")
-        if product.conflicts:
-            assumptions.append("추출 단계가 상품 정보의 모순을 표시했습니다: " + "; ".join(product.conflicts)
-                               + ". 용도·효능과 관련된 모순이면 결과가 달라질 수 있습니다.")
-        missing: list[str] = []
-        # 모델은 "예"라고 했지만 근거 인용이 원문과 맞지 않아 버린 판단. 답에 따라 판단이 바뀌므로 묻는다.
-        unverified = {fact.field for fact in raw if fact.field in _JUDGED_FIELDS and fact.value.strip() == "예"
-                      and fact not in facts}
-        state = {field: self._judged(field, by_field, product, missing, assumptions, field in unverified)
-                 for field in _JUDGED_FIELDS}
+    def _fact_matches(self, fact: FoodDrugFact, run: FoodDrugRun) -> bool:
+        if fact.field in _JUDGED_FIELDS:
+            return fact.value.strip() in ("예", "아니오") and quote_matches(fact, run.snippets, value_in_quote=False)
+        return quote_matches(fact, run.snippets)
+
+    def _judge(self, run: FoodDrugRun) -> list[RegulatoryFinding]:
+        """판단 칸 상태 → 의료기기 품목 조회·선택 → 영역별 규칙(식품용 기구·식품·화장품)."""
+        product, facts, by_field, query = run.product, run.facts, run.by_field, run.query
+        evidence, assumptions, categories = run.evidence, run.assumptions, run.categories
+        # 모델은 "예"라고 했지만 근거 인용이 원문과 맞지 않아 버린 판단. 답에 따라 판단이 바뀌므로 물음
+        unverified = {fact.field for fact in self._raw_facts(run)
+                      if fact.field in _JUDGED_FIELDS and fact.value.strip() == "예" and fact not in facts}
+        state = {name: self._judged(name, run, name in unverified) for name in _JUDGED_FIELDS}
         query.update(state)
         label = _label(by_field, product)
         findings: list[RegulatoryFinding] = []
-        actions: list[str] = []
-        categories: list[str] = []
 
         def add(category: str, items: list[RegulatoryFinding], new_actions: list[str]) -> None:
             if items:
                 categories.append(category)
                 findings.extend(items)
-                actions.extend(new_actions)
+                run.actions.extend(new_actions)
 
-        # 먹거나 바르는 상품의 질병 효능 표방은 의약품 오인 문제라 의료기기 품목으로 보지 않는다.
-        # 판단은 만들 때의 가정을 복사하므로, 이 안내는 판단을 만들기 전에 남긴다.
+        # 먹거나 바르는 상품의 질병 효능 표방은 의약품 오인 문제라 의료기기 품목으로 보지 않음.
+        # 판단은 만들 때의 가정을 복사하므로, 이 안내는 판단을 만들기 전에 남김
         claims = [fact.value for fact in by_field.get("health_claim", [])]
         query["health_claims"] = claims
         ingested_or_applied = state["edible"] is True or state["skin_applied"] is True
@@ -140,47 +137,46 @@ class FoodDrugTool(RegulatoryTool):
             assumptions.append("먹거나 바르는 상품의 질병·신체 기능 효능 문구(" + ", ".join(claims) + ")는 의약품으로 오인될 수 "
                                "있습니다. 표시·광고 Tool 결과와 함께 봐야 합니다.")
 
-        # ③④ 의료기기: 먹거나 바르는 상품이 아니고, 효능 문구가 있거나 품목 명칭이 나왔을 때 품목표를 조회한다.
-        # 다른 영역 판단보다 먼저 실행해, 여기서 남긴 안내(품목 미대응·버린 선택)가 뒤에 만드는 판단에도 들어가게 한다.
+        # ③④ 의료기기: 먹거나 바르는 상품이 아니고, 효능 문구가 있거나 품목 명칭이 나왔을 때 품목표를 조회.
+        # 다른 영역 판단보다 먼저 실행해, 여기서 남긴 안내(품목 미대응·버린 선택)가 뒤에 만드는 판단에도 들어가게 함
         device_findings: list[RegulatoryFinding] = []
         device_todo: list[str] = []
-        if not ingested_or_applied and (claims or any(term.strip() for term in extracted.device_terms)):
-            device_findings, device_todo = self._devices(
-                product, facts, by_field, extracted, evidence, review_step, assumptions, missing, query)
+        if not ingested_or_applied and (claims or any(term.strip() for term in run.extracted.device_terms)):
+            device_findings, device_todo = self._devices(run)
 
-        # ② 영역별 규칙: 모델의 판단("예")과 원문 근거가 있을 때만 법 조문·할 일을 붙인다
+        # ② 영역별 규칙: 모델의 판단("예")과 원문 근거가 있을 때만 법 조문·할 일을 붙임
         if state["food_contact"] is True:
             add(FOOD_CONTACT, *self._food_contact(label, facts, by_field, evidence, assumptions))
         if state["edible"] is True:
             add(FOOD, *self._food(label, facts, by_field, evidence, assumptions))
         if state["skin_applied"] is True:
-            cosmetic, cosmetic_todo = self._cosmetic(label, facts, by_field, extracted, evidence, assumptions, query)
+            cosmetic, cosmetic_todo = self._cosmetic(label, facts, by_field, run.extracted, evidence, assumptions,
+                                                     query)
             add(COSMETIC, cosmetic, cosmetic_todo)
             if any(finding.subject.startswith(FUNCTIONAL) for finding in cosmetic):
                 categories.append(FUNCTIONAL)
 
         findings.extend(device_findings)
-        actions.extend(device_todo)
+        run.actions.extend(device_todo)
         if any(finding.determination is Determination.POSSIBLY_REQUIRED for finding in device_findings):
             categories.append(DEVICE)
         query["categories"] = categories
-        return self._assemble(decision, facts, findings, missing, assumptions, query, actions, categories)
+        return findings
 
     @staticmethod
-    def _judged(field: str, by_field: dict, product: Product, missing: list[str], assumptions: list[str],
-                unverified: bool) -> bool | None:
+    def _judged(field: str, run: FoodDrugRun, unverified: bool) -> bool | None:
         """판단 칸의 상태. 예·아니오가 엇갈리거나, "예"의 근거를 원문에서 확인하지 못했거나,
         추출 단계만 음식 접촉으로 보고 근거가 없으면 묻는다."""
-        values = {fact.value.strip() for fact in by_field.get(field, [])}
+        values = {fact.value.strip() for fact in run.by_field.get(field, [])}
         if values == {"예", "아니오"}:
-            missing.append(field)
-            assumptions.append(f"{_FIELDS[field]}의 원문 근거가 서로 달라 해당 여부를 정하지 않았습니다.")
+            run.missing.append(field)
+            run.assumptions.append(f"{_FIELDS[field]}의 원문 근거가 서로 달라 해당 여부를 정하지 않았습니다.")
             return None
         if not values and unverified:
-            missing.append(field)
-            assumptions.append(f"{_FIELDS[field]}를 '예'로 볼 원문 근거를 확인하지 못해 해당 여부를 정하지 않았습니다.")
-        elif not values and field == "food_contact" and product.food_contact is True:
-            missing.append(field)
+            run.missing.append(field)
+            run.assumptions.append(f"{_FIELDS[field]}를 '예'로 볼 원문 근거를 확인하지 못해 해당 여부를 정하지 않았습니다.")
+        elif not values and field == "food_contact" and run.product.food_contact is True:
+            run.missing.append(field)
         return True if values == {"예"} else False if values == {"아니오"} else None
 
     def _food_contact(self, label: str, facts: list[FoodDrugFact], by_field: dict,
@@ -310,14 +306,15 @@ class FoodDrugTool(RegulatoryTool):
                 determination=Determination.POSSIBLY_REQUIRED, risk=risk, facts=[fact],
                 assumptions=list(assumptions),
                 sources=[evidence.cosmetic_ban.source(), evidence.cosmetic_notice.source(),
-                         evidence.cosmetic_notice.doc.source("별표 1", row.row_text), evidence.cosmetic_sale_ban.source()],
+                         evidence.cosmetic_notice.doc.source("별표 1", row.row_text),
+                         evidence.cosmetic_sale_ban.source()],
                 requirements=[action],
             ))
         return findings, todo
 
-    def _devices(self, product: Product, facts: list[FoodDrugFact], by_field: dict, extracted: FoodDrugFacts,
-                 evidence: FoodDrugEvidence | None, review_step: FoodDrugReviewStep, assumptions: list[str],
-                 missing: list[str], query: dict[str, Any]) -> tuple[list[RegulatoryFinding], list[str]]:
+    def _devices(self, run: FoodDrugRun) -> tuple[list[RegulatoryFinding], list[str]]:
+        facts, by_field, evidence = run.facts, run.by_field, run.evidence
+        assumptions, query = run.assumptions, run.query
         claims = [fact.value for fact in by_field.get("health_claim", [])]
 
         def unmatched(reason: str) -> tuple[list[RegulatoryFinding], list[str]]:
@@ -329,43 +326,30 @@ class FoodDrugTool(RegulatoryTool):
 
         if evidence is None:
             return unmatched("의료기기 품목·등급 근거를 확인하지 못해 품목을 대조하지 않았습니다.")
-        terms = [term for term in extracted.device_terms if term.strip()][:_TERMS_LIMIT]
+        terms = [term for term in run.extracted.device_terms if term.strip()][:_TERMS_LIMIT]
         terms += [fact.value for field in ("product_type", "intended_use") for fact in by_field.get(field, [])]
-        query["device_terms"] = list(extracted.device_terms)
+        query["device_terms"] = list(run.extracted.device_terms)
         candidates = rank_devices(evidence.devices, terms, top_k=self._top_k) if terms else []
         query["candidate_items"] = [item.item_id for item in candidates]
         if not candidates:
             return unmatched("비슷한 의료기기 품목을 찾지 못했습니다.")
+        _, review_step = self._get_steps()
         review = review_step.run(ToolStepInput({
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "candidates": [item.as_candidate() for item in candidates],
-        }, product.product_id))
-        items = {item.item_id: item for item in candidates}
-        # 먼저 선택을 대조해 버린 수를 세고, 그 안내를 담아 판단을 만든다(판단은 만들 때의 가정을 복사한다).
-        chosen: list[tuple[DeviceItem, object, list[str]]] = []
-        for selection in review.selections:
-            if not selection.applies:
-                query["not_applicable"] += 1
-                continue
-            item = items.get(selection.item_id)
-            used = [field for field in dict.fromkeys(selection.fact_fields) if field in by_field]
-            if item is None or any(item is picked for picked, _, _ in chosen) or not used:
-                query["dropped_candidates"] += 1
-                continue
-            if len(chosen) >= _SELECTIONS_LIMIT:
-                query["over_limit"] = query.get("over_limit", 0) + 1
-                continue
-            chosen.append((item, selection, used))
+        }, run.product.product_id))
+        # 먼저 선택을 대조해 버린 수를 세고, 그 안내를 담아 판단을 만듦(판단은 만들 때의 가정을 복사함)
+        chosen = self._pick(run, review.selections, {item.item_id: item for item in candidates})
         query["selected_items"] = [item.item_id for item, _, _ in chosen]
         if query["dropped_candidates"]:
             assumptions.append(f"후보 품목과 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
         if query.get("over_limit"):
-            assumptions.append(f"품목 선택이 {_SELECTIONS_LIMIT}개를 넘어 {query['over_limit']}개는 쓰지 않았습니다.")
+            assumptions.append(f"품목 선택이 {SELECTIONS_LIMIT}개를 넘어 {query['over_limit']}개는 쓰지 않았습니다.")
         findings, actions = [], []
         for item, selection, used in chosen:
             needed = [field for field in dict.fromkeys(selection.needed_fields) if field not in by_field]
             # 의료기기 품목을 가르는 조건은 용도뿐이다. 음식 접촉 등 다른 칸은 질문하지 않는다.
-            missing.extend(field for field in needed if field == "intended_use")
+            run.missing.extend(field for field in needed if field == "intended_use")
             notes = ["모델 품목 선택이며 의료기기 해당·허가 보유를 확정하지 않았습니다."]
             if other := [_FIELDS[field] for field in needed if field != "intended_use"]:
                 notes.append(f"품목 확정에는 {', '.join(other)} 확인이 더 필요합니다.")
@@ -399,54 +383,16 @@ class FoodDrugTool(RegulatoryTool):
             sources=sources, requirements=[claim_action(claims)],
         )
 
-    def _load_evidence(self, assumptions: list[str]) -> FoodDrugEvidence | None:
-        try:
-            return (self._evidence or default_evidence_loader())()
-        except EvidenceUnavailable:
-            assumptions.append("식약 근거 법령의 시행 버전·본문을 확인하지 못해 근거 조문 없이 안내했습니다.")
-            return None
-        except Exception as exc:
-            raise FoodDrugToolError("식약 근거 법령 조회에 실패했습니다.") from exc
-
-    def _finding(self, *, subject: str, summary: str, rationale: str, determination: Determination,
-                 risk: RiskLevel, facts: list[FoodDrugFact], assumptions: list[str], sources: list[LegalSource],
-                 requirements: list[str] | None = None) -> RegulatoryFinding:
-        return RegulatoryFinding(
-            tool_name=self.tool_name, subject=subject, determination=determination, risk_level=risk,
-            summary=summary, rationale=rationale, legal_sources=sources, requirements=list(requirements or []),
-            product_facts_used=[f"{_FIELDS[fact.field]}: {fact.value} (근거: {fact.quote})" for fact in facts],
-            assumptions=list(assumptions),
-        )
-
-    def _assemble(self, decision: ToolSelectionItem, facts: list[FoodDrugFact], findings: list[RegulatoryFinding],
-                  missing: list[str], assumptions: list[str], query: dict[str, Any],
-                  actions: list[str] | None = None, categories: list[str] | None = None) -> ToolResult:
-        missing = list(dict.fromkeys(missing))
-        if not findings:
-            findings = [self._finding(
-                subject="식품·화장품·의료기기 해당 여부",
-                summary=("상품 원문에서 음식에 닿거나 먹거나 바르는 쓰임, 질병·신체 기능에 관한 효능 문구를 찾지 못했습니다. "
-                         "비대상 판단이 아닙니다."),
-                rationale="식약 관련 분류로 볼 원문 근거가 없습니다. 근거가 없다는 것을 비대상의 근거로 사용하지 않습니다.",
-                determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,
-                facts=facts, assumptions=assumptions, sources=[],
-            )]
-        detail = FoodDrugAssessment(
-            regulatory_categories=list(categories or []),
+    def _detail(self, run: FoodDrugRun, findings: list[RegulatoryFinding]) -> FoodDrugAssessment:
+        return FoodDrugAssessment(
+            regulatory_categories=list(run.categories),
             regulated=None,
-            detected_claims=[fact.value for fact in facts if fact.field in ("health_claim", "beauty_claim")],
+            detected_claims=[fact.value for fact in run.facts if fact.field in ("health_claim", "beauty_claim")],
             ingredients_or_materials=list(dict.fromkeys(
-                fact.value for fact in facts if fact.field in ("material", "ingredient"))),
+                fact.value for fact in run.facts if fact.field in ("material", "ingredient"))),
             applicable_requirements=list(dict.fromkeys(
                 source.law_name for finding in findings for source in finding.legal_sources if source.law_name)),
             legal_sources=[],
-        )
-        return ToolResult(
-            tool_name=self.tool_name, selected=True, selection_reason=decision.reason,
-            status=ToolStatus.SUCCESS, result=detail, findings=findings,
-            required_actions=list(dict.fromkeys(actions or [])),
-            missing_information=[_QUESTIONS.get(field, f"{_FIELDS[field]} 정보가 필요합니다.") for field in missing],
-            query=query,
         )
 
 
@@ -454,12 +400,6 @@ def _judged_facts(extracted: FoodDrugFacts) -> list[FoodDrugFact]:
     """필수 판단 세 개 중 "모름"이 아닌 것을 조건(값 "예"/"아니오" + 원문 근거)으로 바꾼다."""
     return [FoodDrugFact(field=field, value=judgment.answer, evidence_id=judgment.evidence_id, quote=judgment.quote)
             for field in _JUDGED_FIELDS if (judgment := getattr(extracted.judgments, field)).answer != "모름"]
-
-
-def _fact_matches(fact: FoodDrugFact, snippets: dict[str, str]) -> bool:
-    if fact.field in _JUDGED_FIELDS:
-        return fact.value.strip() in ("예", "아니오") and quote_matches(fact, snippets, value_in_quote=False)
-    return quote_matches(fact, snippets)
 
 
 def _import_sources(evidence: FoodDrugEvidence) -> list[LegalSource]:
@@ -476,14 +416,3 @@ def _device_sources(evidence: FoodDrugEvidence, item: DeviceItem) -> list[LegalS
 def _label(by_field: dict, product: Product) -> str:
     types = [fact.value for fact in by_field.get("product_type", [])]
     return types[0] if types else (product.product_name or "상품")
-
-
-def _hints(product: Product) -> dict[str, Any]:
-    """조건 추출 모델에 주는 참고값. 판단 근거가 아니며 인용은 evidence에서만 한다.
-
-    원문(listing_text)은 evidence에 이미 있어 빼고, 속성은 이름·값만 남긴다(원문 없는 속성도 조회어를 정하는 데 참고된다).
-    """
-    hints = product.model_dump(mode="json", exclude={"listing_text", "attributes", "source_url"}, exclude_none=True)
-    if product.attributes:
-        hints["attributes"] = [{"name": attr.name, "value": attr.value} for attr in product.attributes]
-    return hints

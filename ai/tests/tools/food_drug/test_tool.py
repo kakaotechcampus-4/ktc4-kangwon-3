@@ -533,10 +533,10 @@ def test_결과는_Verification_규칙_검사를_통과한다(case):
 
 def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어간다():
     from app.schemas.product import Attribute
-    from app.tools.food_drug.tool import _hints
     product = Product(product_id="p1", listing_text=["크림"], attributes=[Attribute(name="용량", value="50ml")])
-    assert _hints(product)["attributes"] == [{"name": "용량", "value": "50ml"}]
-    assert "listing_text" not in _hints(product)
+    hints = FoodDrugTool()._hints(product)
+    assert hints["attributes"] == [{"name": "용량", "value": "50ml"}]
+    assert "listing_text" not in hints
 
 
 def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkeypatch):
