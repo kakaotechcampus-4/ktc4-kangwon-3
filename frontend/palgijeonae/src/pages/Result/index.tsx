@@ -102,7 +102,9 @@ function ResultPage() {
                         sourceType={currentProduct.sourceType}
                     />
                     <ResultTabs selected={selectedTab} onSelect={setSelectedTab} />
-                    {tabPanels[selectedTab]}
+                    <div aria-live="polite">
+                        {tabPanels[selectedTab]}
+                    </div>
                 </div>
             )}
         </div>
