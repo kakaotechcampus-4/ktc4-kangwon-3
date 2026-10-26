@@ -51,6 +51,7 @@ function FindingFilterBar({ counts, selected, onSelect }: FindingFilterBarProps)
                     <button
                         key={key ?? "all"}
                         type="button"
+                        aria-pressed={key === selected}
                         onClick={() => onSelect(key)}
                         className={filterChipClassName(key, key === selected)}
                     >
