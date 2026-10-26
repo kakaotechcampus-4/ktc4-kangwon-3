@@ -5,8 +5,8 @@ import threading
 
 import pytest
 
-from app.callbacks.errors import CallbackTransportError
-from app.callbacks.outbox import CallbackOutbox, SendResult
+from app.callbacks.outbox import CallbackOutbox
+from app.clients.backend import CallbackTransportError, SendResult
 from app.schemas.callback import ProductProgressEvent, PublicPipelineStage
 
 
