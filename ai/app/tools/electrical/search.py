@@ -80,7 +80,7 @@ class LawApiItemSearch:
         return ItemCandidates(
             blocks=tuple(rank_blocks(evidence.blocks, terms, top_k=top_k)),
             rule_scope=evidence.rule_scope, notice_scope=evidence.notice_scope,
-            documents=[{"id": s.document_id, "version": s.version_id, "effective_date": s.effective_date}
+            documents=[{"id": s.doc.document_id, "version": s.doc.version_id, "effective_date": s.doc.enforce_date}
                        for s in sections],
             common_notes=dict(evidence.common_notes),
             purchase_agent=dict(evidence.purchase_agent),

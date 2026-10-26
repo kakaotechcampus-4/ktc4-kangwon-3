@@ -17,7 +17,7 @@ from typing import Protocol
 from ...schemas.clients.law_response import LawTextResponse
 from ...schemas.schemas import LegalSource
 from ..common.law import (
-    CachedLoader, EvidenceUnavailable, LawApiClients, LawLookup, LawLookupError, annex_text, article_text,
+    CachedLoader, DocRef, EvidenceUnavailable, LawApiClients, LawLookup, LawLookupError, annex_text, article_text,
     load_admrul, load_law, select_version,
 )
 
@@ -28,8 +28,6 @@ __all__ = [
     "select_version",
 ]
 
-# 다른 규제 Tool(common.law.DocRef.source)과 같은 출처 이름.
-SOURCE_NAME = "법제처 국가법령정보"
 RULE_NAME = "전기용품 및 생활용품 안전관리법 시행규칙"
 RULE_ID = "008044"
 NOTICE_NAME = "전기용품 및 생활용품 안전관리 운용요령"
@@ -68,20 +66,13 @@ class EvidenceSection:
     """인용 가능한 검토 단위 하나. LegalSource로 그대로 옮긴다."""
 
     source_id: str
-    document_name: str
-    document_id: str
-    version_id: str
-    effective_date: str
+    doc: DocRef
     section: str
     text: str
-    source_url: str
 
     def source(self) -> LegalSource:
-        """결과에 붙일 근거. 출처 이름은 다른 규제 Tool과 같은 값을 쓴다."""
-        return LegalSource(
-            source_name=SOURCE_NAME, law_name=self.document_name, article=self.section, quoted_text=self.text,
-            source_url=self.source_url, effective_date=self.effective_date, is_mock=False,
-        )
+        """결과에 붙일 근거."""
+        return self.doc.source(self.section, self.text)
 
 
 @dataclass(frozen=True)
@@ -132,7 +123,7 @@ class ElectricalEvidence:
     def documents(self) -> list[dict[str, str]]:
         """결과 query에 남길 문서 식별 정보. 본문·URL 파라미터의 키는 넣지 않는다."""
         sections = (self.rule_scope, self.notice_scope)
-        return [{"id": item.document_id, "version": item.version_id, "effective_date": item.effective_date}
+        return [{"id": item.doc.document_id, "version": item.doc.version_id, "effective_date": item.doc.enforce_date}
                 for item in sections]
 
 
@@ -371,11 +362,7 @@ def _includes_low_voltage(notes: tuple[str, ...], pattern: re.Pattern) -> bool:
 
 
 def _section(base: EvidenceSection, label: str, text: str, *, source_id: str | None = None) -> EvidenceSection:
-    return EvidenceSection(
-        source_id=source_id or f"{base.source_id}-common", document_name=base.document_name,
-        document_id=base.document_id, version_id=base.version_id, effective_date=base.effective_date,
-        section=label, text=text, source_url=base.source_url,
-    )
+    return EvidenceSection(source_id=source_id or f"{base.source_id}-common", doc=base.doc, section=label, text=text)
 
 
 # 문서 버전 선택·본문 대조·조문과 별표 꺼내기는 공용 모듈(common.law)을 쓴다.
@@ -468,12 +455,8 @@ class LawApiEvidenceSource:
         rule = load_law(self._client, name=RULE_NAME, law_id=RULE_ID, as_of=as_of)
         notice = load_admrul(self._client, name=NOTICE_NAME, rule_id=NOTICE_ID, as_of=as_of)
         rule_body, notice_body = rule.body, notice.body
-        # 법령 링크는 버전을 고정한 공개 열람 주소. 요청 URL(OC 포함)은 쓰지 않음
-        rule_url, notice_url = rule.ref.url, notice.ref.url
-        rule_scope = EvidenceSection("rule-art3", RULE_NAME, RULE_ID, rule.version_id, rule.enforce_date,
-                                     "제3조", article_text(rule_body, 3), rule_url)
-        notice_scope = EvidenceSection("notice-art3", NOTICE_NAME, NOTICE_ID, notice.version_id,
-                                       notice.enforce_date, "제3조", article_text(notice_body, 3), notice_url)
+        rule_scope = EvidenceSection("rule-art3", rule.ref, "제3조", article_text(rule_body, 3))
+        notice_scope = EvidenceSection("notice-art3", notice.ref, "제3조", article_text(notice_body, 3))
         # 범위 조문에 판단에 쓰는 조건이 실제로 있는지 확인한다(빈 본문·다른 조문 방어).
         if not all(token in compact(rule_scope.text) for token in ("1천볼트", "별표3", "별표4", "별표5")):
             raise EvidenceUnavailable("시행규칙 제3조의 대상 범위를 확인하지 못했습니다.")
@@ -483,16 +466,14 @@ class LawApiEvidenceSource:
         blocks: list[AnnexBlock] = []
         common: dict[Scheme, EvidenceSection] = {}
         for scheme, (number, title) in SCHEME_ANNEXES.items():
-            base = EvidenceSection(f"{_SCHEME_CODES[scheme]}", NOTICE_NAME, NOTICE_ID, notice.version_id,
-                                   notice.enforce_date, f"별표 {int(number)}", "", notice_url)
+            base = EvidenceSection(f"{_SCHEME_CODES[scheme]}", notice.ref, f"별표 {int(number)}", "")
             parsed, note = parse_annex(annex_text(notice_body, int(number), title=title), scheme, base)
             if not any(block.sub_items for block in parsed):
                 raise EvidenceUnavailable(f"별표 {int(number)}에서 세부품목을 찾지 못했습니다.")
             blocks.extend(parsed)
             if note is not None:
                 common[scheme] = note
-        rule_base = EvidenceSection("rule-annex13", RULE_NAME, RULE_ID, rule.version_id, rule.enforce_date,
-                                    "별표 13", "", rule_url)
+        rule_base = EvidenceSection("rule-annex13", rule.ref, "별표 13", "")
         return ElectricalEvidence(as_of=as_of, rule_scope=rule_scope, notice_scope=notice_scope,
                                   blocks=tuple(blocks), common_notes=common,
                                   purchase_agent=parse_purchase_agent(rule_body, rule_base))
