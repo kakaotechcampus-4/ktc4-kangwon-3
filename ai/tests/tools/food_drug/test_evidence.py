@@ -56,6 +56,17 @@ def test_잘라_낼_문구가_없으면_근거로_쓰지_않는다(fake_law):
         load_food_drug_evidence(fake_law, AS_OF)
 
 
+def test_개정판에_시행_전인_제8항이_있으면_제7항까지만_인용한다(fake_law):
+    # 2026-10-20 의료기기법 개정판은 본문에 2027-10-21 시행인 ⑧(판매 알선 금지)이 들어 있다.
+    body = fake_law.law_bodies["285343"]
+    article = next(item for item in body.articles if item.article_number == "26")
+    seventh = next(paragraph for paragraph in article.paragraphs if paragraph.content.startswith("⑦"))
+    article.paragraphs.append(seventh.model_copy(update={"number": "⑧", "content": "⑧ 누구든지 판매를 알선하여서는 아니 된다."}))
+    evidence = load_food_drug_evidence(fake_law, AS_OF)
+    assert evidence.device_misleading.text.startswith("⑦ 누구든지")
+    assert "⑧" not in evidence.device_misleading.text
+
+
 def test_품목_행이_없는_별표는_근거로_쓰지_않는다():
     with pytest.raises(EvidenceUnavailable):
         parse_device_items("[별표 1]\n의료기기 품목 및 품목별 등급\nA22010.01  <삭제>(2020.5.1.)")
