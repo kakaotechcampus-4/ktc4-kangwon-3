@@ -1,0 +1,4411 @@
+{
+ "tests/tools/children/test_tool.py::test_같은_행을_두_번_고르면_하나만_남긴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 1,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_결과는_Verification_규칙_검사를_통과한다[adult]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 퍼즐 (근거: 성인용 퍼즐, 14세 이상)",
+      "사용 대상 연령: 14세 이상 (근거: 성인용 퍼즐, 14세 이상)"
+     ],
+     "rationale": "법 제2조 제1호는 만 13세 이하 어린이가 사용하거나 어린이를 위해 사용되는 물품을 어린이제품으로 봅니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 해당 여부 — 사용 연령",
+     "summary": "표시된 사용 연령이 만 13세 이하를 포함하지 않아 어린이제품이 아닐 가능성이 있습니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": false,
+    "age_texts": [
+     "14세 이상"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": false,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "퍼즐",
+    "safety_management_required": null,
+    "target_age_raw": "14세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_결과는_Verification_규칙_검사를_통과한다[candidate]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_결과는_Verification_규칙_검사를_통과한다[fallback]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "품목 선택에서 맞는 행을 찾지 못한 결과입니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      },
+      {
+       "article": "제2조 제12호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "12. \"공급자적합성확인대상어린이제품\"이란 안전인증대상어린이제품 및 안전확인대상어린이제품을 제외한 어린이제품을 말한다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      },
+      {
+       "article": "별표 3",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "2. 개별 안전기준이 없는 공급자적합성확인대상어린이제품은 어린이제품 공통안전기준을 적용한다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)",
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "법 제2조 제12호는 안전인증·안전확인대상이 아닌 어린이제품을 공급자적합성확인대상으로 정합니다.",
+     "requirements": [
+      "[공통안전기준 적용 품목 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "공급자적합성확인대상 어린이제품 후보 — 개별 안전기준이 없는 품목",
+     "summary": "안전인증·안전확인 품목에 맞는 것을 찾지 못했습니다. 만 13세 이하 대상 어린이제품이면 공급자적합성확인대상이고 어린이제품 공통안전기준이 적용될 가능성이 있습니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "fallback": "sdoc-common",
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[공통안전기준 적용 품목 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "공급자적합성확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_결과는_Verification_규칙_검사를_통과한다[missing]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "제품 종류 정보가 필요합니다."
+   ],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": null,
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_근거_버전을_확인하지_못하면_정보부족으로_끝낸다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "법령 품목표의 시행 버전·본문을 확인하지 못해 품목을 대조하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)",
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "conflicted": [],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_대조되지_않는_선택은_버리고_비대상으로_바꾸지_않는다[bad0]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "후보 행과 대조되지 않은 선택 1개를 제외했습니다.",
+      "품목 선택 결과를 원문·후보와 대조하지 못해 품목을 정하지 않았습니다. 안전인증·안전확인 품목일 수 있어 공급자적합성확인으로 낮춰 안내하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)",
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 1,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_대조되지_않는_선택은_버리고_비대상으로_바꾸지_않는다[bad1]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "후보 행과 대조되지 않은 선택 1개를 제외했습니다.",
+      "품목 선택 결과를 원문·후보와 대조하지 못해 품목을 정하지 않았습니다. 안전인증·안전확인 품목일 수 있어 공급자적합성확인으로 낮춰 안내하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)",
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 1,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_만_13세_이하를_포함하지_않으면_품목을_조회하지_않고_대상_아닐_가능성만_낸다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 퍼즐 (근거: 성인용 퍼즐 1000피스, 14세 이상)",
+      "사용 대상 연령: 14세 이상 (근거: 성인용 퍼즐 1000피스, 14세 이상)"
+     ],
+     "rationale": "법 제2조 제1호는 만 13세 이하 어린이가 사용하거나 어린이를 위해 사용되는 물품을 어린이제품으로 봅니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 해당 여부 — 사용 연령",
+     "summary": "표시된 사용 연령이 만 13세 이하를 포함하지 않아 어린이제품이 아닐 가능성이 있습니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": false,
+    "age_texts": [
+     "14세 이상"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": false,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "퍼즐",
+    "safety_management_required": null,
+    "target_age_raw": "14세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_맞는_품목을_고르면_후보와_근거_원문과_판매_전_할_일을_낸다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_맞는_품목이_없어도_어린이제품이면_공급자적합성확인_후보를_낸다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "품목 선택에서 맞는 행을 찾지 못한 결과입니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      },
+      {
+       "article": "제2조 제12호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "12. \"공급자적합성확인대상어린이제품\"이란 안전인증대상어린이제품 및 안전확인대상어린이제품을 제외한 어린이제품을 말한다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      },
+      {
+       "article": "별표 3",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "2. 개별 안전기준이 없는 공급자적합성확인대상어린이제품은 어린이제품 공통안전기준을 적용한다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 어린이 원목 옷걸이 (근거: 어린이 원목 옷걸이, 만 3세 이상)",
+      "사용 대상 연령: 만 3세 이상 (근거: 어린이 원목 옷걸이, 만 3세 이상)"
+     ],
+     "rationale": "법 제2조 제12호는 안전인증·안전확인대상이 아닌 어린이제품을 공급자적합성확인대상으로 정합니다.",
+     "requirements": [
+      "[공통안전기준 적용 품목 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "공급자적합성확인대상 어린이제품 후보 — 개별 안전기준이 없는 품목",
+     "summary": "안전인증·안전확인 품목에 맞는 것을 찾지 못했습니다. 만 13세 이하 대상 어린이제품이면 공급자적합성확인대상이고 어린이제품 공통안전기준이 적용될 가능성이 있습니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "sdoc-14",
+     "sdoc-11",
+     "sdoc-12",
+     "sdoc-04",
+     "cert-02",
+     "sdoc-03",
+     "cert-01",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-06",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "fallback": "sdoc-common",
+    "not_applicable": 0,
+    "search_terms": [
+     "옷걸이"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[공통안전기준 적용 품목 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "공급자적합성확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "어린이 원목 옷걸이",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_모델이_연령을_인용하지_못해도_추출_단계_연령이_원문에_있으면_쓴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_source": "product.target_age",
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_미선택이면_모델과_조회를_부르지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [],
+   "missing_information": [],
+   "query": {},
+   "raw_response": null,
+   "required_actions": [],
+   "result": null,
+   "retry_round": 0,
+   "selected": false,
+   "selection_reason": "어린이 연령 표기",
+   "status": "skipped",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_사용_금지_연령은_반대로_읽어_성인용이면_어린이제품_후보를_내지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 레이저 포인터 (근거: 레이저 포인터, 만 14세 미만 사용 금지)",
+      "사용 대상 연령: 만 14세 미만 사용 금지 (근거: 레이저 포인터, 만 14세 미만 사용 금지)"
+     ],
+     "rationale": "법 제2조 제1호는 만 13세 이하 어린이가 사용하거나 어린이를 위해 사용되는 물품을 어린이제품으로 봅니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 해당 여부 — 사용 연령",
+     "summary": "표시된 사용 연령이 만 13세 이하를 포함하지 않아 어린이제품이 아닐 가능성이 있습니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": false,
+    "age_texts": [
+     "만 14세 미만 사용 금지"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": false,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "레이저 포인터",
+    "safety_management_required": null,
+    "target_age_raw": "만 14세 미만 사용 금지"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_숫자_중간에서_잘린_연령_값은_버린다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "원문과 대조되지 않은 상품 조건 1개를 제외했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감, 13세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준. 사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "사용 대상 연령(예: '만 3세 이상', '36개월 미만') 정보가 필요합니다."
+   ],
+   "query": {
+    "age_state": null,
+    "age_texts": [],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 1,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": null,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": null
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_안전인증_안전확인_품목은_조회_순위와_상관없이_모두_모델에_준다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_연령_값에서_금지_문구가_잘려도_인용의_금지_문구로_읽는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 레이저 포인터 (근거: 그린 레이저 포인터, 만 14세 미만 사용 금지)",
+      "사용 대상 연령: 만 14세 미만 (근거: 그린 레이저 포인터, 만 14세 미만 사용 금지)"
+     ],
+     "rationale": "법 제2조 제1호는 만 13세 이하 어린이가 사용하거나 어린이를 위해 사용되는 물품을 어린이제품으로 봅니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 해당 여부 — 사용 연령",
+     "summary": "표시된 사용 연령이 만 13세 이하를 포함하지 않아 어린이제품이 아닐 가능성이 있습니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": false,
+    "age_texts": [
+     "그린 레이저 포인터, 만 14세 미만 사용 금지"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": false,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "레이저 포인터",
+    "safety_management_required": null,
+    "target_age_raw": "그린 레이저 포인터, 만 14세 미만 사용 금지"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_연령_표기끼리_어긋나면_서로_다르다고_묻는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "사용 대상 연령 정보가 서로 달라 어린이제품 해당 여부를 정하지 않았습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감, 만 3세 이상, 14세 이상 권장)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준. 사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "사용 대상 연령 정보가 서로 달라 확인이 필요합니다."
+   ],
+   "query": {
+    "age_state": null,
+    "age_texts": [
+     "만 3세 이상",
+     "14세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [
+     "target_age"
+    ],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": null,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_연령과_무관한_상품_모순은_조회를_막지_않고_가정으로만_남긴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "추출 단계가 상품 정보의 모순을 표시했습니다: 배터리 용량 표기가 서로 다릅니다.. 연령·제품 종류와 관련된 모순이면 결과가 달라질 수 있습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_연령을_모르면_공급자적합성확인으로_단정하지_않고_연령을_묻는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "후보 품목 중 맞는 것을 고르지 못했습니다. 비대상 판단이 아닙니다. 만 13세 이하 대상이면 최소한 공급자적합성확인대상입니다(법 제2조 제12호)."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 옷걸이 (근거: 원목 옷걸이)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "사용 대상 연령(예: '만 3세 이상', '36개월 미만') 정보가 필요합니다."
+   ],
+   "query": {
+    "age_state": null,
+    "age_texts": [],
+    "candidate_items": [
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-06",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "옷걸이"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": null,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "옷걸이",
+    "safety_management_required": null,
+    "target_age_raw": null
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_연령을_모르면_요약에_연령_조건을_쓴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준. 사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "사용 대상 연령(예: '만 3세 이상', '36개월 미만') 정보가 필요합니다."
+   ],
+   "query": {
+    "age_state": null,
+    "age_texts": [],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": null,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": null
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_원문과_대조되지_않는_조건은_그_조건만_버린다[quote]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "원문과 대조되지 않은 상품 조건 1개를 제외했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "제품 종류 정보가 필요합니다."
+   ],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 1,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": null,
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_원문과_대조되지_않는_조건은_그_조건만_버린다[source]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "원문과 대조되지 않은 상품 조건 1개를 제외했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "제품 종류 정보가 필요합니다."
+   ],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 1,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": null,
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_원문과_대조되지_않는_조건은_그_조건만_버린다[value]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "원문과 대조되지 않은 상품 조건 1개를 제외했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "제품 종류 정보가 필요합니다."
+   ],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 1,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": null,
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_유효한_선택은_최대_3개까지만_남긴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "품목 선택에서 맞는 행을 찾지 못한 결과입니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      },
+      {
+       "article": "제2조 제12호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "12. \"공급자적합성확인대상어린이제품\"이란 안전인증대상어린이제품 및 안전확인대상어린이제품을 제외한 어린이제품을 말한다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      },
+      {
+       "article": "별표 3",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "2. 개별 안전기준이 없는 공급자적합성확인대상어린이제품은 어린이제품 공통안전기준을 적용한다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)",
+      "사용 대상 연령: 만 3세 이상 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "법 제2조 제12호는 안전인증·안전확인대상이 아닌 어린이제품을 공급자적합성확인대상으로 정합니다.",
+     "requirements": [
+      "[공통안전기준 적용 품목 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "공급자적합성확인대상 어린이제품 후보 — 개별 안전기준이 없는 품목",
+     "summary": "안전인증·안전확인 품목에 맞는 것을 찾지 못했습니다. 만 13세 이하 대상 어린이제품이면 공급자적합성확인대상이고 어린이제품 공통안전기준이 적용될 가능성이 있습니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "sdoc-07",
+     "sdoc-12",
+     "conf-09",
+     "sdoc-13",
+     "conf-04",
+     "sdoc-09",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-05",
+     "conf-06",
+     "conf-07",
+     "conf-08",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "fallback": "sdoc-common",
+    "not_applicable": 0,
+    "search_terms": [
+     "어린이용 자전거",
+     "어린이용 킥보드",
+     "어린이용 롤러스케이트"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[공통안전기준 적용 품목 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "공급자적합성확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  },
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 3",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "사. 어린이용 롤러스케이트 — 적용 안전기준: 어린이제품 공통안전기준, 어린이용 롤러스케이트 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 5",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "이 기준은 앞부분 및 뒷부분에 각각 2개의 바퀴를 병렬로 장착시킨 것으로서 구두가 장착된 부분의 최대 길이가 180 mm 이상의 롤러스케이트에 대하여 규정하며, 또한 롤러스케이트는 탈착식 또는 비 탈착식 신발과 사용자의 발에 부착 가능한 장치로 이루어진다. 다만, 베어링을 사용하지 않는 것은 제외한다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[어린이용 롤러스케이트 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "공급자적합성확인대상 어린이제품 후보 — 어린이용 롤러스케이트",
+     "summary": "이 품목으로 분류되면 공급자적합성확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 어린이용 롤러스케이트 안전기준.",
+     "tool_name": "children_product_safety"
+    },
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 3",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "타. 어린이용 킥보드 — 적용 안전기준: 어린이제품 공통안전기준, 어린이용 킥보드 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 5",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "만 13세 이하 어린이가 사용하는 킥보드에 적용 * 바퀴에 베어링을 사용하지 않은 것, 연료를 사용하여 작동되는 것, 좌석이 있는 것은 제외",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[어린이용 킥보드 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "공급자적합성확인대상 어린이제품 후보 — 어린이용 킥보드",
+     "summary": "이 품목으로 분류되면 공급자적합성확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 어린이용 킥보드 안전기준.",
+     "tool_name": "children_product_safety"
+    },
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "9. 어린이용 자전거 — 적용 안전기준: 어린이제품 공통안전기준, 어린이용 자전거 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "어린이 및 유아가 사용하는 이륜자전거로 안장(시트)의 최대 높이가 435 mm 초과, 635 mm 미만인 이륜자전거에 적용하며, 묘기에 사용되는 특수 자전거(예: BMX 자전거)는 제외한다. 주)안장(시트)의 최대 높이가 435 mm이하인 경우 안전확인 완구에 따른다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[어린이용 자전거 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 어린이용 자전거",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 어린이용 자전거 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "sdoc-07",
+     "sdoc-12",
+     "conf-09",
+     "sdoc-13",
+     "conf-04",
+     "sdoc-09",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-05",
+     "conf-06",
+     "conf-07",
+     "conf-08",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "over_limit": 1,
+    "search_terms": [
+     "어린이용 자전거",
+     "어린이용 킥보드",
+     "어린이용 롤러스케이트"
+    ],
+    "selected_items": [
+     "sdoc-07",
+     "sdoc-12",
+     "conf-09"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[어린이용 롤러스케이트 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다.",
+    "[어린이용 킥보드 · 공급자적합성확인 후보] 이 품목으로 분류되면 판매 전 공급자적합성확인(공통·개별 안전기준 시험)과 KC 표시가 된 제품인지 확인해야 합니다. 구매대행·사입 모두 해당합니다.",
+    "[어린이용 자전거 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "공급자적합성확인, 안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_이유에서_해당하지_않는다고_결론_낸_선택은_후보로_내지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 1,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_인용할_원문이_없으면_모델을_부르지_않고_정보부족이다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "입력에 인용 가능한 상품 설명이 없습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [],
+     "rationale": "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 안전관리 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·품목 대응이 부족합니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "제품 종류 정보가 필요합니다.",
+    "사용 대상 연령(예: '만 3세 이상', '36개월 미만') 정보가 필요합니다."
+   ],
+   "query": {
+    "conflicted": [],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": null,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": null,
+    "safety_management_required": null,
+    "target_age_raw": null
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_재질이나_제품_종류가_여러_개여도_충돌로_묻지_않고_모두_조회에_쓴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 원목 블록 장난감 (근거: 원목 블록 장난감 겸 쌓기 놀이 블록, 소재 원목·수성 페인트, 만 3세 이상)",
+      "제품 종류: 쌓기 놀이 블록 (근거: 원목 블록 장난감 겸 쌓기 놀이 블록, 소재 원목·수성 페인트, 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-02",
+     "cert-01",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "원목 블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_정해진_이름이_아닌_제외_물품_값은_버린다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "원문과 대조되지 않은 상품 조건 1개를 제외했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 1,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_제외_물품_값의_가운뎃점_차이는_같은_이름으로_본다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 이유식 보관 용기 (근거: 이유식 보관 용기, 식품 용기ㆍ포장)",
+      "제외 물품 해당 여부: 식품 용기ㆍ포장 (근거: 이유식 보관 용기, 식품 용기ㆍ포장)"
+     ],
+     "rationale": "상품 원문에서 제외 물품으로 볼 근거를 찾았습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 해당 여부 — 제외 물품 가능성",
+     "summary": "어린이제품법 제2조 제1호 단서의 제외 물품(식품 용기·포장)일 가능성이 있습니다. 해당하면 어린이제품 안전관리 대상이 아니라 식약 등 다른 법의 검토가 필요합니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": null,
+    "age_texts": [],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "excluded_kind": [
+     "식품 용기·포장"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": null,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "이유식 보관 용기",
+    "safety_management_required": null,
+    "target_age_raw": null
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_제외_물품으로_표시되면_다른_법_영역으로_안내한다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 젖병 세척 솔 (근거: 유아용 젖병 세척 솔, 식품용 기구, 0개월 이상)",
+      "사용 대상 연령: 0개월 이상 (근거: 유아용 젖병 세척 솔, 식품용 기구, 0개월 이상)",
+      "제외 물품 해당 여부: 식품용 기구 (근거: 유아용 젖병 세척 솔, 식품용 기구, 0개월 이상)"
+     ],
+     "rationale": "상품 원문에서 제외 물품으로 볼 근거를 찾았습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "어린이제품 해당 여부 — 제외 물품 가능성",
+     "summary": "어린이제품법 제2조 제1호 단서의 제외 물품(식품용 기구)일 가능성이 있습니다. 해당하면 어린이제품 안전관리 대상이 아니라 식약 등 다른 법의 검토가 필요합니다. 확정이 아닙니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "0개월 이상"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "excluded_kind": [
+     "식품용 기구"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "젖병 세척 솔",
+    "safety_management_required": null,
+    "target_age_raw": "0개월 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_조건_추출_모델에_품목표의_품목명_목록을_준다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_조건과_확정_아님을_요약에_쓰고_할_일을_판단에도_연결한다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_조회에서_빠진_안전확인_품목도_골라지면_공급자적합성확인으로_낮추지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "13. 유모차 — 적용 안전기준: 어린이제품 공통안전기준, 유모차 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "이 기준은 유아를 이동시키기 위한 바퀴를 가진 이동수단(유모차, 휴대용을 포함한다)으로 15 kg 이하인 1명 이상의 유아를 태울 수있는 좌석을 가지고 있으며 부가적으로 20 kg까지의 어린이가 탑승 가능한 플랫폼을 가진 유모차의 안전요건 및 시험방법을 규정한 다. 단, 유모차에 부착되는 부속품(컵홀더, 식판, 양산, 딸랑이, 삑삑이, 풋머프 등)은 해당 품목의 안전기준에 적합하여야 한다.예를 들어, 컵홀더와 식판 등과 같이 48개월 미만 어린이의 수면, 긴장완화, 위생, 수유, 식사를 도와 줄 용도로 고안되었거나 명백히 그러한 용도로 사용되는 합성수지 재질로 된 일반용품은 합성수지제 어린이용품 안전기준에 양산 및 우산은 어린이용 우산 및 양산 안전기준에 딸랑이 및 삑삑이 등과 같이 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품또는 재질은 완구 안전기준에 풋머프 등과 같이 36 개월 이하의 영?유아용의 의류 및 섬유제품은 유아용 섬유제품 안전기준에 적합하여야 한다. 각각의 기능을 가지고 있거나 다른 기능으로 전환이 가능한 유모차는 이와 관련된 기준에 적합하여야 한다. 예를 들어 유모차에 부착하여 좌석으로 사용되는 자동차용 어린이보호장치 및 상자형 해먹이 독립 분리되어 유아용 침대로 사용되는 경우 등이 있다. 이 기준은 완구, 쇼핑을 위한 운반기구, 바퀴가 달린 유아용 캐리어(모터에 의해 움직이는 바퀴달린 운송장치) 그리고 특별한 도움을 필요로 하는 어린이를 위한 바퀴달린 어린이 이동수단에는 적용하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 휴대용 유모차 (근거: 접이식 휴대용 유모차, 6~36개월)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[유모차 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 유모차",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 유모차 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "6~36개월"
+    ],
+    "candidate_items": [
+     "conf-13",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-06",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "가방"
+    ],
+    "selected_items": [
+     "conf-13"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[유모차 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "휴대용 유모차",
+    "safety_management_required": null,
+    "target_age_raw": "6~36개월"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_추출_단계가_어린이_대상이라_했는데_표시_연령이_미포함이면_단정하지_않고_묻는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "추출 단계는 만 13세 이하 대상으로 보았으나 표시 연령은 이를 포함하지 않아 어린이제품 해당 여부를 정하지 않았습니다.",
+      "사용 대상 연령 정보가 서로 달라 어린이제품 해당 여부를 정하지 않았습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 코딩 로봇 키트 (근거: 코딩 로봇 키트, 14세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준. 사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [
+    "사용 대상 연령 정보가 서로 달라 확인이 필요합니다."
+   ],
+   "query": {
+    "age_state": null,
+    "age_texts": [
+     "14세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [
+     "target_age"
+    ],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": null,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "코딩 로봇 키트",
+    "safety_management_required": null,
+    "target_age_raw": "14세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_품목_선택_모델에는_후보_행과_적용범위만_넘긴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 0,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ],
+ "tests/tools/children/test_tool.py::test_해당_안_함_선택이_앞에_많아도_유효한_선택을_자르지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 2",
+       "effective_date": "20260603",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법 시행규칙",
+       "quoted_text": "6. 완구 — 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387"
+      },
+      {
+       "article": "별표 4",
+       "effective_date": "20240710",
+       "is_mock": false,
+       "law_name": "어린이제품안전관리제도 운용요령",
+       "quoted_text": "완구란 만 13세 이하의 어린이가 놀이에 사용할 용도로 고안되었거나, 명백히 그러한 용도로 사용되는 제품 또는 재질을 말한다. 여기서, '놀이에 사용'이란 정상적인 사용의 경우 뿐 아니라 합리적으로 예견할 수 있는 오용(misuse)도 내포하는 의미이다. 이 기준에서 완구는 ‘놀이에 사용’이라고 규정하고 있으나 ‘교육을 목적으로 사용’하는 교구를 배제하지 않는다. 이 기준에서 연령을 나타내는 ‘세 또는 개월’ 등의 용어를 사용할 때 ‘세 또는 개월’ 수는 ‘만 세 또는 개월’ 수까지를 의미한다. 즉, 13세는 만 13세까지를, 18개월은 만 18개월까지를 포함한 연령을 의미한다. 이 기준은 사용자에게 분명하지 않은 위험을 가능한 줄이는 것을 목표로 하며 이 기준에 적합하다는 것이 제품의 품질까지 보증한다 는 의미는 아니다. 완구를 선택할 때는 많은 주의가 요구된다. 사고는 완구가 의도되지 않은 연령의 아이에게 주어지거나, 설계되지않은 목적으로 사용될 때 빈번하게 발생한다. 완구가 의도된 방식으로 사용된다고 가정하면, 완구는 아이들에게 어떠한 추가적인 위험을 발생시키지 않아야 한다. 어린이는 평균적인 성인과 같은 조심성을 가지지 않음을 유념하여 완구를 선택할 때 많은 주의가 요구된 다. 이 기준의 요구사항은 적절한 완구를 선택하여야 하는 보호자의 선택이나 아이가 노는 동안 아이를 지켜봐야하는 부모나 보호자의 책임을 대신하지 않는다.",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530"
+      },
+      {
+       "article": "제2조 제1호",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "어린이제품 안전 특별법",
+       "quoted_text": "1. \"어린이제품\"이란 만 13세 이하의 어린이가 사용하거나 만 13세 이하의 어린이를 위하여 사용되는 물품 또는 그 부분품이나 부속품을 말한다. 다만, 다음 각 목의 어느 하나에 해당하는 물품 또는 그 부분품이나 부속품은 제외한다. 가. 「약사법」 제2조에 따른 의약품 및 의약외품 나. 「의료기기법」 제2조제1항에 따른 의료기기 다. 「화장품법」 제2조제1호에 따른 화장품 라. 「식품위생법」 제2조제4호에 따른 기구 및 같은 조 제5호에 따른 용기ㆍ포장 마. 「관광진흥법」 제33조제1항에 따른 테마파크시설",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551"
+      }
+     ],
+     "product_facts_used": [
+      "제품 종류: 블록 장난감 (근거: 블록 장난감 세트, 사용연령 만 3세 이상)"
+     ],
+     "rationale": "어린이가 놀이에 쓰는 제품으로 완구에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "안전확인대상 어린이제품 후보 — 완구",
+     "summary": "이 품목으로 분류되면 안전확인대상 어린이제품일 가능성이 있습니다(확정 아님). 적용 안전기준: 어린이제품 공통안전기준, 완구 안전기준.",
+     "tool_name": "children_product_safety"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "age_state": true,
+    "age_texts": [
+     "만 3세 이상"
+    ],
+    "candidate_items": [
+     "conf-06",
+     "cert-01",
+     "cert-02",
+     "cert-03",
+     "cert-04",
+     "conf-01",
+     "conf-02",
+     "conf-03",
+     "conf-04",
+     "conf-05",
+     "conf-07",
+     "conf-08",
+     "conf-09",
+     "conf-11",
+     "conf-12",
+     "conf-13",
+     "conf-14",
+     "conf-15",
+     "conf-16",
+     "conf-17",
+     "conf-18"
+    ],
+    "conflicted": [],
+    "documents": [
+     {
+      "document_id": "012070",
+      "enforce_date": "20251001",
+      "name": "어린이제품 안전 특별법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276551",
+      "version_id": "276551"
+     },
+     {
+      "document_id": "012304",
+      "enforce_date": "20260603",
+      "name": "어린이제품 안전 특별법 시행규칙",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=286387",
+      "version_id": "286387"
+     },
+     {
+      "document_id": "2087627",
+      "enforce_date": "20240710",
+      "name": "어린이제품안전관리제도 운용요령",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000254530",
+      "version_id": "2100000254530"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "not_applicable": 3,
+    "search_terms": [
+     "완구"
+    ],
+    "selected_items": [
+     "conf-06"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[완구 · 안전확인 후보] 이 품목으로 분류되면 판매 전 KC 안전확인 신고가 된 제품인지 신고번호로 확인해야 합니다. 구매대행·사입 모두 해당합니다."
+   ],
+   "result": {
+    "certification_type": "안전확인",
+    "intended_for_children": true,
+    "kind": "children",
+    "legal_sources": [],
+    "product_type": "블록 장난감",
+    "safety_management_required": null,
+    "target_age_raw": "만 3세 이상"
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "어린이 연령 표기",
+   "status": "success",
+   "tool_name": "children_product_safety"
+  }
+ ]
+}

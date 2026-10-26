@@ -1,0 +1,2176 @@
+{
+ "tests/tools/radio/test_tool.py::test_결과는_Verification_규칙_검사를_통과한다[candidate]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_결과는_Verification_규칙_검사를_통과한다[empty]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "후보 행 중 상품에 맞는 기자재를 고르지 못했습니다. 비대상 판단이 아닙니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 무선 이어폰 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "무선 기능 근거 부족·모순 또는 대상기자재와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "방송통신기자재 적합성평가 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·기자재 대응이 부족합니다.",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_결과는_Verification_규칙_검사를_통과한다[no_wireless]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.",
+      "상품 원문에서 무선 기능 근거를 찾지 못해 무선기기 후보를 내지 않았습니다. 비대상 판단이 아닙니다(유선 전자파적합성 기기는 이 Tool 범위 밖)."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 유선 USB 키보드 (근거: 유선 USB 키보드)"
+     ],
+     "rationale": "무선 기능 근거 부족·모순 또는 대상기자재와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "방송통신기자재 적합성평가 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·기자재 대응이 부족합니다.",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [
+    "무선 기능(블루투스·Wi-Fi·무선충전·RF 리모컨 등) 정보가 필요합니다."
+   ],
+   "query": {
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [],
+    "not_applicable": 0,
+    "search_terms": [
+     "키보드"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "conformity_assessment_required": null,
+    "frequency_bands": [],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": []
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_근거_버전을_확인하지_못하면_정보부족으로_끝낸다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "법령 대상기자재의 시행 버전·본문을 확인하지 못해 기자재를 대조하지 않았습니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 무선 이어폰 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "무선 기능 근거 부족·모순 또는 대상기자재와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "방송통신기자재 적합성평가 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·기자재 대응이 부족합니다.",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_기자재_선택_모델에_정규화한_주파수와_절_비고를_준다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_대조되지_않는_선택은_버리고_비대상으로_바꾸지_않는다[bad0]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "후보 행과 대조되지 않은 선택 1개를 제외했습니다.",
+      "후보 행 중 상품에 맞는 기자재를 고르지 못했습니다. 비대상 판단이 아닙니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 무선 이어폰 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "무선 기능 근거 부족·모순 또는 대상기자재와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "방송통신기자재 적합성평가 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·기자재 대응이 부족합니다.",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 1,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_대조되지_않는_선택은_버리고_비대상으로_바꾸지_않는다[bad1]": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "후보 행과 대조되지 않은 선택 1개를 제외했습니다.",
+      "후보 행 중 상품에 맞는 기자재를 고르지 못했습니다. 비대상 판단이 아닙니다."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 무선 이어폰 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "무선 기능 근거 부족·모순 또는 대상기자재와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "방송통신기자재 적합성평가 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·기자재 대응이 부족합니다.",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 1,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": []
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_맞는_기자재를_고르면_평가유형과_근거와_판매_방식별_할_일을_낸다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_무선_기능_값_안의_주파수도_읽는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.0 (2.4GHz) (근거: 블루투스 무선 이어폰, Bluetooth 5.0 (2.4GHz))"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.0 (2.4GHz)"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_무선_기능_원문_근거가_없으면_후보를_내지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.",
+      "상품 원문에서 무선 기능 근거를 찾지 못해 무선기기 후보를 내지 않았습니다. 비대상 판단이 아닙니다(유선 전자파적합성 기기는 이 Tool 범위 밖)."
+     ],
+     "confidence": null,
+     "determination": "insufficient_information",
+     "legal_sources": [],
+     "product_facts_used": [
+      "제품 종류: 유선 USB 키보드 (근거: 유선 USB 키보드)"
+     ],
+     "rationale": "무선 기능 근거 부족·모순 또는 대상기자재와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
+     "requirements": [],
+     "risk_level": "unknown",
+     "subject": "방송통신기자재 적합성평가 대상 판정",
+     "summary": "규제 적용을 판단하기 위한 정보·기자재 대응이 부족합니다.",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [
+    "무선 기능(블루투스·Wi-Fi·무선충전·RF 리모컨 등) 정보가 필요합니다."
+   ],
+   "query": {
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [],
+    "not_applicable": 0,
+    "search_terms": [
+     "키보드"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [],
+   "result": {
+    "certification_type": null,
+    "conformity_assessment_required": null,
+    "frequency_bands": [],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": []
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_미선택이면_모델과_조회를_부르지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [],
+   "missing_information": [],
+   "query": {},
+   "raw_response": null,
+   "required_actions": [],
+   "result": null,
+   "retry_round": 0,
+   "selected": false,
+   "selection_reason": "블루투스 기능",
+   "status": "skipped",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_원문과_대조되지_않는_조건은_그_조건만_버린다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "원문과 대조되지 않은 상품 조건 1개를 제외했습니다.",
+      "상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 1,
+    "frequency_bands": [],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_이유에서_해당하지_않는다고_결론_낸_선택은_후보로_내지_않는다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 1,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_제품_종류가_여러_값이어도_충돌이_아니라_모두_조회어로_쓴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰 겸 헤드셋, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_조건_추출_모델에_대상기자재_분류명_목록을_준다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_주파수는_판단을_바꾸지_않아_질문하지_않고_가정으로_남긴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.",
+      "기자재 확정에는 사용 주파수 확인이 더 필요합니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: 블루투스 (근거: 블루투스 무선 이어폰)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "블루투스"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_추출_단계의_상품_모순은_조회를_막지_않고_가정으로만_남긴다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "추출 단계가 상품 정보의 모순을 표시했습니다: 배터리 용량이 1200mAh와 1500mAh로 다르게 적혀 있음. 무선 기능·제품 종류와 관련된 모순이면 결과가 달라질 수 있습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_판단마다_그_행의_판매_안내를_연결한다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_평가유형은_모델이_아니라_행_표시를_따른다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "상품 원문에서 사용 주파수를 찾지 못해 후보 행의 대역과 대조하지 않았습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "4)음성 및 음향신호 ○ ○ ○ LARN4 전송용 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ③",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "③ 제2항에 따른 적합인증의 대상이 아닌 방송통신기자재등을 제조 또는 판매하거나 수입하려는 자는 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 해당 기자재가 적합성평가기준에 적합함을 확인한 후 그 사실을 과학기술정보통신부장관에게 등록(이하 \"적합등록\"이라 한다)하여야 한다. <개정 2013.3.23, 2017.7.26, 2024.1.23>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: 무선 음향 전송 (근거: 블루투스 스피커 무선 음향 전송)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[음성 및 음향신호전송용 무선기기 · 적합등록 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합등록을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[음성 및 음향신호전송용 무선기기 · 적합등록 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합등록 대상기자재 후보 — 음성 및 음향신호전송용 무선기기",
+     "summary": "방송통신기자재 적합등록 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 4)음성 및 음향신호전송용 무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합등록"
+    ],
+    "candidate_items": [
+     "LARN4",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "LARN8"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [],
+    "not_applicable": 0,
+    "search_terms": [
+     "특정소출력무선기기",
+     "음성 및 음향신호전송용무선기기"
+    ],
+    "selected_items": [
+     "LARN4"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[음성 및 음향신호전송용 무선기기 · 적합등록 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합등록을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[음성 및 음향신호전송용 무선기기 · 적합등록 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합등록",
+    "conformity_assessment_required": null,
+    "frequency_bands": [],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "무선 음향 전송"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ],
+ "tests/tools/radio/test_tool.py::test_해당_없음이_앞에_여러_개여도_뒤의_맞는_행을_고른다": [
+  {
+   "error": null,
+   "execution_id": null,
+   "findings": [
+    {
+     "assumptions": [
+      "전체 상품 원문이 아니라 전달된 설명·속성 근거만 확인했습니다.",
+      "모델 기자재 선택이며 적합성평가 대상·인증 보유를 확정하지 않았습니다. 평가유형은 고시 별표 1의 행 표시를 그대로 옮겼습니다."
+     ],
+     "confidence": null,
+     "determination": "possibly_required",
+     "legal_sources": [
+      {
+       "article": "별표 1",
+       "effective_date": "20260724",
+       "is_mock": false,
+       "law_name": "방송통신기자재등의 적합성평가에 관한 고시",
+       "quoted_text": "8) 무선데이터통신시스템용 ○ ○ ○ ○ LARN8 무선기기",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888"
+      },
+      {
+       "article": "제58조의2 ②",
+       "effective_date": "20260102",
+       "is_mock": false,
+       "law_name": "전파법",
+       "quoted_text": "② 전파환경 및 방송통신망 등에 위해를 줄 우려가 있는 기자재와 중대한 전자파장해를 주거나 전자파로부터 정상적인 동작을 방해받을 정도의 영향을 받는 기자재를 제조 또는 판매하거나 수입하려는 자는 해당 기자재에 대하여 제58조의5에 따른 지정시험기관의 적합성평가기준에 관한 시험을 거쳐 과학기술정보통신부장관의 적합인증을 받아야 한다. <개정 2013.3.23, 2017.7.26>",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245"
+      },
+      {
+       "article": "별표 6의2 자목",
+       "effective_date": "20251001",
+       "is_mock": false,
+       "law_name": "전파법 시행령",
+       "quoted_text": "자. 개인이 사용할 목적으로 반입하는 기자재. 다만, 반입일부터 1년 이내에 판매하는 경우는 제외한다. (면제 수량: 1대, 면제 내용: 법 제58조의2제2항ㆍ제3항및 제4항에따른 적합인증, 적합등록및 자기적합확인)",
+       "source_name": "법제처 국가법령정보",
+       "source_url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235"
+      }
+     ],
+     "product_facts_used": [
+      "무선 기능: Bluetooth 5.3 (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)",
+      "사용 주파수: 2.4GHz (근거: 블루투스 무선 이어폰, Bluetooth 5.3, 2.4GHz)"
+     ],
+     "rationale": "2.4GHz 블루투스 데이터 전송 기기로 무선데이터통신시스템용에 해당할 가능성이 있습니다.",
+     "requirements": [
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+      "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+     ],
+     "risk_level": "medium",
+     "subject": "적합인증 대상기자재 후보 — 무선데이터통신시스템용무선기기",
+     "summary": "방송통신기자재 적합인증 대상일 가능성이 있습니다(5. 신고하지 아니하고 개설할 수 있는 무선국용 무선설비의 기기 > 라.특정소출력무선기기 > 8) 무선데이터통신시스템용무선기기). 판매 목적 수입은 판매 전 적합성평가가 필요합니다. 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2).",
+     "tool_name": "radio_compliance"
+    }
+   ],
+   "missing_information": [],
+   "query": {
+    "assessment_types": [
+     "적합인증"
+    ],
+    "candidate_items": [
+     "LARN8",
+     "LARN6",
+     "LARN1",
+     "FTC",
+     "LARN2",
+     "LARN3",
+     "LARN9",
+     "CWB"
+    ],
+    "documents": [
+     {
+      "document_id": "001732",
+      "enforce_date": "20260102",
+      "name": "전파법",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276245",
+      "version_id": "276245"
+     },
+     {
+      "document_id": "004771",
+      "enforce_date": "20251001",
+      "name": "전파법 시행령",
+      "url": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=278235",
+      "version_id": "278235"
+     },
+     {
+      "document_id": "38724",
+      "enforce_date": "20260724",
+      "name": "방송통신기자재등의 적합성평가에 관한 고시",
+      "url": "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000282888",
+      "version_id": "2100000282888"
+     }
+    ],
+    "dropped_candidates": 0,
+    "dropped_facts": 0,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "not_applicable": 3,
+    "search_terms": [
+     "특정소출력무선기기",
+     "무선데이터통신시스템용무선기기"
+    ],
+    "selected_items": [
+     "LARN8"
+    ]
+   },
+   "raw_response": null,
+   "required_actions": [
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 사입·수입 판매: 이 기자재로 분류되면 판매 전 적합인증을 받은 제품인지 KC 적합성평가 번호로 확인해야 합니다.",
+    "[무선데이터통신시스템용무선기기 · 적합인증 후보] 구매대행: 소비자가 개인 사용 목적으로 1대 반입하는 기자재는 적합성평가 면제 대상일 수 있습니다(전파법 시행령 별표 6의2, 반입일부터 1년 이내 판매 시 제외). 구매대행이 이 면제에 해당하는지는 확인이 필요합니다."
+   ],
+   "result": {
+    "certification_type": "적합인증",
+    "conformity_assessment_required": null,
+    "frequency_bands": [
+     "2400 MHz"
+    ],
+    "kind": "radio",
+    "legal_sources": [],
+    "wireless_features": [
+     "Bluetooth 5.3"
+    ]
+   },
+   "retry_round": 0,
+   "selected": true,
+   "selection_reason": "블루투스 기능",
+   "status": "success",
+   "tool_name": "radio_compliance"
+  }
+ ]
+}
