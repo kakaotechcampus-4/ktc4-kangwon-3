@@ -23,9 +23,9 @@
 | §7.1 ExecutionEvent | 미구현. 세션 이벤트가 상품 단위 진행을 대신함 | `app/sessions/events.py` |
 | §7.1.2 콜백 이벤트 | 구현됨 (#310·#317) | `app/schemas/callback.py`, `app/callbacks/` |
 | §7.1.3 공개 진단서 | 형식 구현됨. 결과 배지 결정 규칙은 결과 종합 작업에서 구현 | `app/schemas/callback.py` |
-| §7.1.4 진단 접수·재진단 요청 | 구현됨. 입력 조건 변경은 #402 | `app/schemas/request.py`, `app/routers/diagnose.py` |
+| §7.1.4 진단 접수·재진단 요청 | 구현됨 (#402) | `app/schemas/request.py`, `app/routers/diagnose.py` |
 
-- 실제 진단은 아직 더미로 실행한다(`main.py`의 `run_dummy_diagnosis`). 파이프라인 연결은 #320.
+- 파이프라인 연결(#320) 전까지 `/diagnose`는 501로 거절한다. BE 연동은 케이스 더미(`/dummy`), 샌드박스는 고정 더미로 실행한다(`main.py`).
 - 기존 [제안 문서](OBSERVABILITY_AND_ERROR_HANDLING.md)는 논의 이력으로 보존한다. 구현 시 이 문서와 제안 문서를 섞어 적용하지 않는다.
 - 내부 Python 필드명은 snake_case를 사용한다. BE API DTO의 alias 규칙은 별도 API 계약을 따른다.
 
@@ -590,8 +590,7 @@ class ExecutionEvent(BaseModel):
 | `POST /resume` | `diagnosisId`, `productId`, `runId`(질문으로 끝난 실행), `questionRound`(1~2), `answers[]`: `questionKey`, `answerText`(≤500자) | 202. 새 runId로 다시 실행 |
 
 - **상품 입력 조건(#310 합의)**: 텍스트(`textBlocks`)·이미지(`imageUrls`)·URL(`sourceUrl`) 중 **하나 이상** 있으면 접수한다.
-  - 지금 코드는 아직 "텍스트·이미지 중 하나 이상"만 받는다. URL만 있는 상품 접수와 `/diagnose/url` 정리는 #402에서 반영한다.
-  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)도 #402에서 정한다.
+  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)는 파이프라인 연결(#320) 때 정한다.
 - 이미지는 URL로 받는다(#389·#403). base64 data URI도 호환으로 받는다.
 - 원래 입력·추출 결과·이전 질문과 답변은 AI 세션이 보관한다. BE는 재진단 때 ID와 이번 회차 답변만 보낸다.
 
