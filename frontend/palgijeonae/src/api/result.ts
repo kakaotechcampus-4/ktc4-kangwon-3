@@ -13,6 +13,7 @@ import {
 import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 
 // TEMP: UI 구현을 위한 목업 데이터. 완료 3건 + 미완료(대기/진행중) 2건.
+// TODO: AI 파이프라인이 연결되면 일괄 제거한다.
 const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     {
         productId: "mock-product-1",
