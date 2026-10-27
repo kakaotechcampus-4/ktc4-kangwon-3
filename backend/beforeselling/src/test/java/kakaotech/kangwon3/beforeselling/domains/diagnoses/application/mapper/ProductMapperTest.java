@@ -122,6 +122,33 @@ class ProductMapperTest {
     }
 
     @Test
+    @DisplayName("실패한 상품을 목록 카드로 변환하면 실패 단계와 오류 코드·메시지·재시도 여부가 담긴다.")
+    void toSummaryResponse_whenFailed_thenIncludeFailure() {
+        // given
+        Product product = createRunningProduct("run-1");
+        product.fail(PipelineStage.TOOL_EXECUTION, "AI_TIMEOUT", "진단 시간이 초과되었습니다.", true);
+
+        // when
+        ProductSummaryResponse response = productMapper.toSummaryResponse(product);
+
+        // then
+        assertThat(response.failure()).isEqualTo(new ProductFailureResponse(
+                PipelineStage.TOOL_EXECUTION, "AI_TIMEOUT", "진단 시간이 초과되었습니다.", true));
+    }
+
+    @Test
+    @DisplayName("실패하지 않은 상품을 목록 카드로 변환하면 실패 정보는 비어 있다.")
+    void toSummaryResponse_whenNotFailed_thenFailureIsNull() {
+        // given & when
+        ProductSummaryResponse inProgress = productMapper.toSummaryResponse(createRunningProduct("run-1"));
+        ProductSummaryResponse completed = productMapper.toSummaryResponse(createCompletedProduct(List.of(childrenReview())));
+
+        // then
+        assertThat(inProgress.failure()).isNull();
+        assertThat(completed.failure()).isNull();
+    }
+
+    @Test
     @DisplayName("목록으로 변환하면 상품 요약과 페이징 정보가 함께 담긴다.")
     void toListResponse_thenIncludeSummariesAndPageInfo() {
         // given
