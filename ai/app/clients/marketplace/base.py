@@ -14,7 +14,7 @@ from typing import ClassVar, TypeVar
 import httpx
 from bs4 import BeautifulSoup
 
-from ..base import BaseClient
+from ..request import RequestClient
 from ...schemas.clients.marketplace_request import ProductPageRequest
 from ...schemas.clients.marketplace_response import ProductPage, ProductPageImage
 from .errors import BlockedUrlError, PageTooLargeError
@@ -53,7 +53,7 @@ def matches_domain(host: str | None, domains: Iterable[str]) -> bool:
     return any(host == domain or host.endswith(f".{domain}") for domain in domains)
 
 
-class MarketplaceBaseClient(BaseClient[ProductPageRequest, ProductPage]):
+class MarketplaceBaseClient(RequestClient[ProductPageRequest, ProductPage]):
     """판매 사이트 상품 페이지 클라이언트 공통 베이스.
 
     방식 : GET/HTML

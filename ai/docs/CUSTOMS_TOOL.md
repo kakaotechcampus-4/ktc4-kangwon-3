@@ -5,7 +5,7 @@
 | 위치 | 내용 |
 |---|---|
 | `app/tools/customs/tool.py` | `CustomsTool` 흐름 (결정 요소 추출 → 결정사례 조회 → 결정사례 선택 → 요건 조회 → 결과 조립) |
-| `app/tools/customs/search.py` | 결정사례 조회 `CaseSearch`(`ClipCaseSearch` / `DatabaseCaseSearch` 스텁), 요건 조회 `RequirementLookup`(`GwRequirementLookup`), 근거 캐시 |
+| `app/tools/customs/search.py` | 결정사례 조회 `CaseSearch`(`ClipCaseSearch`), 요건 조회 `RequirementLookup`(`GwRequirementLookup`), 근거 캐시 |
 | `app/tools/customs/evidence.py` | 관세법 제226조, 세관장확인 고시 제7조·별표 2, 대외무역법 시행령 제19조 읽기 |
 | `app/tools/customs/rules.py` | HS 표기, 요건 법령 ↔ 다른 규제 Tool 대응, 판매 방식별 안내 |
 | `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용): 법제처 조회, 모델 호출 단계, 원문 대조, 행 순위 |
@@ -37,7 +37,7 @@ Product (추출 에이전트 결과)
 - CLIP은 검색어를 구절 그대로 찾아 **두 낱말 이상이면 결과가 거의 없다**(예: "자동 우산", "양수 냄비" 0건, 실측). 그래서 여러 낱말 검색어는 마지막 낱말(중심 명사)도 함께 찾는다. 상품별 동의어 사전은 두지 않는다.
 - 결정사례 물품명은 영문 품목분류 표현이 많다("Umbrellas, …", "POWER BANK"). 조건 추출 모델이 영문 보통 명칭 하나를 검색어에 넣는다.
 - 일부 검색어는 10초 넘게 응답이 없다(시간 초과, 실측으로 검색어 셋 중 하나꼴). 검색어를 **동시에** 보내고, 실패한 검색어는 건너뛰며 `query.failed_terms`에 남긴다. 모두 실패하면 Tool 오류다.
-- `DatabaseCaseSearch`(스텁): `hs_cases` 테이블(결정사례 + 임베딩, `HsCaseRepository.search_by_vector`) 적재 후 벡터 조회로 바꿀 자리다. 같은 `CaseCandidates`를 돌려주면 Tool은 바꾸지 않는다.
+- DB 조회: `hs_cases` 테이블(결정사례 + 임베딩, `HsCaseRepository.search_by_vector`) 적재 후 `CaseSearch`를 구현한 벡터 조회 객체를 Tool에 넘기면 된다(#362). 같은 `CaseCandidates`를 돌려주면 Tool은 바꾸지 않는다.
 
 ### 세관장확인 요건 (GW)
 
@@ -101,7 +101,7 @@ python -m pytest tests/tools/customs tests/tools/test_registry.py -q
 
 - 남은 오답 유형: 유리컵 → 도자기 사례(6912), 립스틱·마스크팩 → 인접 소호(3304.99/3307.90), 지갑·드라이버·스마트워치 → 맞는 사례가 조회되지 않음.
 - 예상 HS는 사람 검토 전이다(스마트워치 8517.62 등 판단이 갈릴 수 있음). 관세청 품목분류표와 대조한 새 평가셋이 필요하다.
-- 조회 품질의 근본 한계는 CLIP 키워드 검색이다. `hs_cases` 임베딩 적재 후 `DatabaseCaseSearch`로 바꾸고 같은 평가로 비교한다.
+- 조회 품질의 근본 한계는 CLIP 키워드 검색이다. `hs_cases` 임베딩 적재 후 벡터 조회 객체로 바꾸고 같은 평가로 비교한다.
 
 ## 남은 작업
 

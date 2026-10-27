@@ -37,10 +37,27 @@ class AgeRange:
 
 
 def _is_month(unit: str | None) -> bool:
+    """개월 단위인지 본다.
+
+    Args:
+        unit: 단위 글자. None이면 세(歲)로 봄.
+
+    Returns:
+        bool: 개월 단위면 True.
+    """
     return unit is not None and (unit in _MONTH_UNITS or unit.lower() in _MONTH_UNITS)
 
 
 def _months(number: str, unit: str | None) -> int:
+    """연령 값을 개월 수로 바꾼다.
+
+    Args:
+        number: 숫자 글자.
+        unit: 단위 글자. None이면 세(歲)로 봄.
+
+    Returns:
+        int: 개월 수.
+    """
     value = int(number)
     return value if _is_month(unit) else value * 12
 
@@ -52,6 +69,12 @@ def parse_age(text: str) -> AgeRange | None:
     "36M+", "24 months", "3-12years", "3 yrs" 같은 영문 표기를 읽는다.
     "N세 이하"는 만 N세까지(N세 11개월)를 포함한다(운용요령 완구 적용범위의 연령 해석과 같다).
     사용 금지 문구("N세 미만 사용 금지")는 반대로 "N세 이상"으로 읽고, 그 밖의 금지 문구는 읽지 않는다.
+
+    Args:
+        text: 연령 표기.
+
+    Returns:
+        AgeRange | None: 개월 범위. 읽을 수 없으면 None.
     """
     text = text.strip()
     under = _UNDER_RE.search(text)
@@ -94,10 +117,16 @@ def parse_age(text: str) -> AgeRange | None:
 
 
 def child_state(text: str) -> bool | None:
-    """연령 표기 하나가 만 13세 이하를 포함하는지. True 포함, False 미포함, None 판단 불가.
+    """연령 표기 하나가 만 13세 이하를 포함하는지.
 
     숫자 범위를 먼저 보고, 숫자가 없으면 "성인"·"유아" 같은 낱말을 본다. 미포함도 확정이 아니라
     "어린이제품이 아닐 가능성"이다.
+
+    Args:
+        text: 연령 표기.
+
+    Returns:
+        bool | None: True 포함, False 미포함, None 판단 불가.
     """
     age = parse_age(text)
     if age is not None:
@@ -115,12 +144,27 @@ def age_text(value: str, quote: str) -> str:
     """연령 판정에 쓸 글. 인용에 사용 금지 문구가 있으면 값만 잘라 읽지 않고 인용 전체를 읽는다.
 
     모델이 "만 14세 미만 사용 금지"에서 값을 "만 14세 미만"까지만 내면 금지 문구가 빠져 어린이 포함으로 뒤집힌다.
+
+    Args:
+        value: 모델이 낸 연령 값.
+        quote: 그 값의 인용.
+
+    Returns:
+        str: 연령 판정에 쓸 글.
     """
     return quote if _PROHIBITION_RE.search(quote) and not _PROHIBITION_RE.search(value) else value
 
 
 def age_value_bounded(value: str, quote: str) -> bool:
-    """연령 값이 인용 안에서 숫자 중간부터 잘린 값이 아닌지("13세 이상"의 "3세" 방지)."""
+    """연령 값이 인용 안에서 숫자 중간부터 잘린 값이 아닌지("13세 이상"의 "3세" 방지).
+
+    Args:
+        value: 모델이 낸 연령 값.
+        quote: 그 값의 인용.
+
+    Returns:
+        bool: 숫자 경계에서 시작하는 자리가 있으면 True.
+    """
     value, quote = "".join(value.split()), "".join(quote.split())
     start = quote.find(value)
     while start != -1:
@@ -131,7 +175,14 @@ def age_value_bounded(value: str, quote: str) -> bool:
 
 
 def combined_child_state(texts: list[str]) -> tuple[bool | None, bool]:
-    """여러 연령 표기를 합친다. Returns: (상태, 충돌 여부). 읽은 값끼리 다르면 충돌이다."""
+    """여러 연령 표기를 합친다. 읽은 값끼리 다르면 충돌이다.
+
+    Args:
+        texts: 연령 표기.
+
+    Returns:
+        tuple[bool | None, bool]: (만 13세 이하 포함 여부, 충돌 여부).
+    """
     states = {state for state in (child_state(text) for text in texts) if state is not None}
     if len(states) > 1:
         return None, True
@@ -146,6 +197,14 @@ KC_ACTION = {
 
 
 def sale_action(scheme: Scheme, name: str) -> str:
-    """후보 품목 기준으로 판매 전에 할 일. 어린이제품법에서 구매대행 특례 조문은 찾지 못해 판매 방식을 나누지 않는다."""
+    """후보 품목 기준으로 판매 전에 할 일. 어린이제품법에서 구매대행 특례 조문은 찾지 못해 판매 방식을 나누지 않는다.
+
+    Args:
+        scheme: 후보 품목의 제도.
+        name: 후보 품목명.
+
+    Returns:
+        str: 판매 전 확인 안내.
+    """
     return (f"[{name} · {scheme.value} 후보] 이 품목으로 분류되면 판매 전 {KC_ACTION[scheme]} 확인해야 합니다. "
             "구매대행·사입 모두 해당합니다.")

@@ -35,6 +35,12 @@ def law_key(name: str) -> str:
     """법령 이름 비교용 키. 공백·가운뎃점(·, ㆍ, 깨진 ?) 차이를 무시한다(고시는 'ㆍ', GW는 '·'를 쓴다).
 
     GW는 같은 법령에 요건 종류를 덧붙여 줄 때가 있어(예: "야생생물 보호 및 관리에 관한 법률(허가)") 끝의 괄호는 뗀다.
+
+    Args:
+        name: 법령 이름.
+
+    Returns:
+        str: 비교용 키.
     """
     return compact(re.sub(r"\([^()]*\)\s*$", "", name)).translate(_DOTS)
 
@@ -57,6 +63,11 @@ class ConfirmationRow:
 
     @property
     def text(self) -> str:
+        """근거 인용에 쓸 행 한 줄.
+
+        Returns:
+            str: "(번호) 범위 — 구비요건: …" 모양의 글.
+        """
         return f"({self.number}) {self.scope.removeprefix(f'({self.number})').strip()} — 구비요건: {self.requirements}"
 
 
@@ -77,10 +88,23 @@ class CustomsEvidence:
     omission_exceptions: dict[str, str] | None = field(default_factory=dict)
 
     def row_for(self, law_name: str) -> ConfirmationRow | None:
+        """법령 이름으로 별표 2 행을 찾는다.
+
+        Args:
+            law_name: 법령 이름 (GW 표기도 됨).
+
+        Returns:
+            ConfirmationRow | None: 찾은 행. 없으면 None.
+        """
         key = law_key(law_name)
         return next((row for row in self.rows if law_key(row.law_name) == key), None)
 
     def documents(self) -> list[dict[str, str]]:
+        """결과 query에 남길 문서 식별 정보.
+
+        Returns:
+            list[dict[str, str]]: 관세법·고시·대외무역법 시행령 순.
+        """
         return [ref.describe() for ref in (self.act, self.notice, self.decree)]
 
 
@@ -88,6 +112,12 @@ def parse_confirmation_rows(text: str) -> list[ConfirmationRow]:
     """고시 별표 2(세관장확인대상 수입물품)의 표를 대상 법령 행으로 나눈다.
 
     표는 '대상법령 및 물품의 범위 │ 구비요건' 두 칸이고, ├ 줄이 행 경계다. 삭제된 행과 머리글은 넣지 않는다.
+
+    Args:
+        text: 고시 별표 2 원문.
+
+    Returns:
+        list[ConfirmationRow]: 대상 법령 행.
 
     Raises:
         EvidenceUnavailable: 행을 찾지 못한 경우.
@@ -127,8 +157,11 @@ def parse_confirmation_rows(text: str) -> list[ConfirmationRow]:
 def parse_omission_exceptions(article: str) -> dict[str, str]:
     """고시 제7조 제2항 제1호 단서의 법령 목록(세관장확인을 생략하지 않는 법령)을 읽는다.
 
+    Args:
+        article: 고시 제7조 원문.
+
     Returns:
-        law_key → 법령 뒤에 붙은 조건 원문. 예: {"화학물질관리법": "(금지물질, 제한물질에 한함. …)"}.
+        dict[str, str]: law_key → 법령 뒤에 붙은 조건 원문. 예: {"화학물질관리법": "(금지물질, 제한물질에 한함. …)"}.
 
     Raises:
         EvidenceUnavailable: 단서 목록을 찾지 못한 경우.
@@ -154,6 +187,13 @@ def parse_omission_exceptions(article: str) -> dict[str, str]:
 
 def load_customs_evidence(client: LawLookup, as_of: date) -> CustomsEvidence:
     """법제처에서 관세법·고시·대외무역법 시행령을 기준일 버전으로 받아 근거를 만든다.
+
+    Args:
+        client: 법제처 조회.
+        as_of: 기준일.
+
+    Returns:
+        CustomsEvidence: 기준일 근거 묶음.
 
     Raises:
         EvidenceUnavailable: 문서·버전·조문·별표를 확인할 수 없는 경우.
@@ -182,7 +222,14 @@ def load_customs_evidence(client: LawLookup, as_of: date) -> CustomsEvidence:
 
 
 def _omission_or_none(article: str) -> dict[str, str] | None:
-    """단서 목록을 읽지 못해도 관세법·별표 2 근거는 쓸 수 있게 None으로 돌려준다."""
+    """단서 목록을 읽지 못해도 관세법·별표 2 근거는 쓸 수 있게 None으로 돌려준다.
+
+    Args:
+        article: 고시 제7조 원문.
+
+    Returns:
+        dict[str, str] | None: 단서 법령 목록. 읽지 못하면 None.
+    """
     try:
         return parse_omission_exceptions(article)
     except EvidenceUnavailable:

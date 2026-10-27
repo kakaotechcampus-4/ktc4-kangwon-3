@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from ..base import BaseClient, RequestT, ResponseT
+from ..request import RequestClient, RequestT, ResponseT
 from ...utils.date_range import is_date_prefix_within_years
 
 # 리콜은 공표일 기준 최근 5년만 수집
@@ -14,7 +14,7 @@ RECALL_COLLECTION_YEARS = 5
 _OK_RESULT_CODES = ("2000", "2004")
 
 
-class SafetyKoreaBaseClient(BaseClient[RequestT, ResponseT]):
+class SafetyKoreaBaseClient(RequestClient[RequestT, ResponseT]):
     """국가기술표준원 제품안전정보센터(SafetyKorea) 클라이언트 공통 베이스.
 
     방식 : GET/JSON

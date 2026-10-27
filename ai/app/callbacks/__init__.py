@@ -4,15 +4,10 @@ from threading import Lock
 
 from ..sessions.events import SessionEvent
 from ..sessions.manager import SessionManager
-from .errors import CallbackTransportError
 from .events import AssessmentPresenter, EventBuilder
-from .http import HttpCallbackSender
-from .outbox import CallbackOutbox, CallbackSender, SendResult
+from .outbox import CallbackOutbox, CallbackSender
 
-__all__ = [
-    "AssessmentPresenter", "CallbackOutbox", "CallbackSender", "CallbackTransportError", "EventBuilder",
-    "HttpCallbackSender", "SendResult", "connect_callbacks",
-]
+__all__ = ["AssessmentPresenter", "CallbackOutbox", "CallbackSender", "EventBuilder", "connect_callbacks"]
 
 
 def connect_callbacks(manager: SessionManager, builder: EventBuilder, outbox: CallbackOutbox) -> None:

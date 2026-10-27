@@ -6,7 +6,7 @@
 |---|---|
 | `app/tools/electrical/tool.py` | `ElectricalTool` 흐름 (조건 추출 → 조회 → 규칙 → 선택 → 결과 조립) |
 | `app/tools/electrical/rules.py` | 코드 규칙(저전압·전지 전용·ESS 필터)과 구매대행 안내 문구 |
-| `app/tools/electrical/search.py` | 품목 조회 인터페이스 `ElectricalItemSearch`, `LawApiItemSearch`, `DatabaseItemSearch`(스텁) |
+| `app/tools/electrical/search.py` | 품목 조회 인터페이스 `ElectricalItemSearch`, `LawApiItemSearch` |
 | `app/tools/electrical/evidence.py` | 품목표·공통 비고·별표 13 파서. 법령 버전 선택·본문 대조·캐시는 공용 `app/tools/common/law.py` |
 | `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용): 법제처 조회(`law.py`), 모델 호출 단계(`agent.py`), 원문 대조(`facts.py`), 행 순위(`ranking.py`) |
 | `app/schemas/electrical.py`, `app/prompts/electrical/facts.md`·`review.md` | LLM 입출력 |
@@ -109,7 +109,7 @@ Product (추출 에이전트 결과)
   - 법제처 조회는 #293에서 나뉜 클라이언트 4개(법령 검색·본문, 행정규칙 검색·본문)를 `LawApiClients`로 묶어 쓴다.
   - 순위는 품목·세부품목 이름과 상품 용어의 글자 2개 단위 유사도(IDF 가중, 용어별 최댓값)에 세부품목 이름 포함 가산점을 더한 것이다.
   - **상품별 동의어 사전은 두지 않는다.** 상품명을 품목표의 보통 명칭으로 바꾸는 일은 조건 추출 LLM의 `search_terms`(조회어 2~3개)가 맡는다. 조회어는 판단 근거가 아니며, 원문 대조를 하지 않는다.
-- `DatabaseItemSearch` (스텁): 품목표 행 테이블과 임베딩 적재 후 벡터 조회로 바꿀 자리다. 같은 `ItemCandidates`를 돌려주면 Tool은 바꾸지 않는다. 현재 DB에는 조문 테이블(`law_articles`)만 있어 별표·행정규칙 테이블과 적재 작업이 먼저 필요하다.
+- DB 조회: 품목표 행 테이블과 임베딩 적재 후 `ElectricalItemSearch`를 구현한 벡터 조회 객체를 Tool에 넘기면 된다. 같은 `ItemCandidates`를 돌려주면 Tool은 바꾸지 않는다. 현재 DB에는 조문 테이블(`law_articles`)만 있어 별표·행정규칙 테이블과 적재 작업이 먼저 필요하다.
 - 정답 품목이 후보에 없을 수 있다. 후보가 없거나 맞는 행이 없으면 정보 부족이며, 비대상으로 바꾸지 않는다.
 
 ## 법령 버전
@@ -129,7 +129,7 @@ Product (추출 에이전트 결과)
 - `required_actions`: 선택된 후보 품목 기준의 구매대행·사입별 할 일(위 표).
 - `ElectricalAssessment.legal_sources`는 비운다. 긴 근거는 findings에만 둔다(Verification 입력 중복 방지). `safety_management_required`는 확정이 아니므로 `None`이다.
 - 모델 호출·구조화 출력 실패, 법령 조회 오류는 `ElectricalToolError`로 전파한다(원인은 예외 체인).
-- 모델 호출은 공통 BaseAgent(#284)를 쓰는 `ToolStep`(`app/tools/common/agent.py`)이 맡는다. 프롬프트는 `PromptName.ELECTRICAL_FACTS`·`ELECTRICAL_REVIEW`로 읽고, 사용량은 `electrical-facts`, `electrical-review`로 구분해 기록한다.
+- 모델 호출은 공통 BaseAgent(#284)를 쓰는 `ToolStep`(`app/tools/base/steps.py`)이 맡는다. 프롬프트는 `PromptName.ELECTRICAL_FACTS`·`ELECTRICAL_REVIEW`로 읽고, 사용량은 `electrical-facts`, `electrical-review`로 구분해 기록한다.
 
 ## 남은 작업
 

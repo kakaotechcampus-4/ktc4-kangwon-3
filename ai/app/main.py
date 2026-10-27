@@ -8,7 +8,9 @@ from fastapi import APIRouter, FastAPI
 from prometheus_client import CollectorRegistry
 from sqlalchemy.exc import SQLAlchemyError
 
-from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect_callbacks
+from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
+from .clients.backend import BackendCallbackClient
+from .clients.llm import close_llm_clients
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
@@ -76,7 +78,7 @@ async def lifespan(app: FastAPI):
     # 진단 세션 (#264). 파이프라인 러너 연결 전까지 더미 진단으로 실행
     manager = SessionManager(SessionStore(), run_dummy_diagnosis)
     # BE 콜백 (#317)
-    sender = HttpCallbackSender(settings.be_base_url, settings.internal_api_token)
+    sender = BackendCallbackClient(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
     connect_callbacks(manager, EventBuilder(presenter), outbox)
     # 세션 지표. 앱마다 registry를 따로 둬 테스트에서 lifespan을 여러 번 띄워도 이름이 겹치지 않음
@@ -109,6 +111,8 @@ async def lifespan(app: FastAPI):
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
+        # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
+        close_llm_clients()
         agent_sinks.remove(agent_metrics)
 
 

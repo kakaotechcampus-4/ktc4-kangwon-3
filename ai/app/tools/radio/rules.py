@@ -12,17 +12,40 @@ ASSESSMENT_PARAGRAPH = {"적합인증": "②", "적합등록": "③", "자기적
 
 
 def normalized_bands(values: list[str]) -> list[tuple[float, float]]:
-    """상품 원문의 주파수 표기들을 MHz 범위로. 읽을 수 없는 표기는 뺀다."""
+    """상품 원문의 주파수 표기들을 MHz 범위로. 읽을 수 없는 표기는 뺀다.
+
+    Args:
+        values: 상품 원문의 주파수 표기.
+
+    Returns:
+        list[tuple[float, float]]: 중복을 뺀 MHz 범위.
+    """
     return list(dict.fromkeys(band for value in values for band in parse_bands(value)))
 
 
 def band_label(band: tuple[float, float]) -> str:
+    """대역을 사람이 읽을 글로 바꾼다.
+
+    Args:
+        band: (하한, 상한) MHz.
+
+    Returns:
+        str: "2400–2483.5 MHz" 모양. 단일 값이면 "13.56 MHz".
+    """
     low, high = (f"{value:g}" for value in band)
     return f"{low} MHz" if low == high else f"{low}–{high} MHz"
 
 
 def sale_actions(item: RadioItem, personal_use: Exemption | None) -> list[str]:
-    """후보 행 기준으로 판매 전에 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다."""
+    """후보 행 기준으로 판매 전에 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다.
+
+    Args:
+        item: 고른 대상기자재 행.
+        personal_use: 개인 사용 반입 면제. 확인하지 못했으면 None.
+
+    Returns:
+        list[str]: 사입·수입 판매 안내와 (면제가 있으면) 구매대행 안내.
+    """
     kind = "·".join(item.assessment) or "적합성평가"
     label = f"[{item.name} · {kind} 후보]"
     actions = [f"{label} 사입·수입 판매: 이 기자재로 분류되면 판매 전 {kind}{object_particle(kind)} 받은 제품인지 "

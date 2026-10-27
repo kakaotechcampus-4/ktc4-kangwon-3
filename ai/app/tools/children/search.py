@@ -2,19 +2,15 @@
 
 - ChildrenItemSearch: Tool이 쓰는 조회 인터페이스.
 - LawApiItemSearch: 지금 쓰는 경로. 법제처 응답을 직접 읽어 품목 행을 만들고 기준일별로 캐시한다.
-- DatabaseItemSearch: 별표 규칙 파서(#307) 결과를 DB에 적재하면 쓸 경로(스텁).
 """
 
-import threading
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Protocol
 
-from ..common.law import CachedLoader, DocRef, LawApiClients
+from ..common.law import KST, CachedLoader, DocRef, LawApiClients
 from ..common.ranking import rank_rows
 from .evidence import ChildrenEvidence, ChildrenItem, Definitions, Scheme, load_children_evidence, without_includes
-
-KST = timezone(timedelta(hours=9))
 
 
 @dataclass(frozen=True)
@@ -35,8 +31,25 @@ class ChildrenCandidates:
 
 
 class ChildrenItemSearch(Protocol):
-    def catalog(self) -> list[str]: ...
-    def search(self, terms: list[str], *, top_k: int) -> ChildrenCandidates: ...
+    def catalog(self) -> list[str]:
+        """품목명 목록.
+
+        Returns:
+            list[str]: 조건 추출 모델에 줄 품목명.
+        """
+        ...
+
+    def search(self, terms: list[str], *, top_k: int) -> ChildrenCandidates:
+        """상품 용어와 비슷한 품목 행을 찾는다.
+
+        Args:
+            terms: 상품 용어.
+            top_k: 돌려줄 최대 행 수.
+
+        Returns:
+            ChildrenCandidates: 후보 행과 근거 문서.
+        """
+        ...
 
 
 class LawApiItemSearch:
@@ -52,15 +65,33 @@ class LawApiItemSearch:
         self._as_of = as_of
 
     def evidence(self) -> ChildrenEvidence:
+        """기준일 근거를 읽는다.
+
+        Returns:
+            ChildrenEvidence: 기준일 근거 묶음.
+        """
         return self._loader(self._as_of or datetime.now(KST).date())
 
     def catalog(self) -> list[str]:
-        """품목표의 품목명 목록(시행규칙 품목명과 운용요령 표기). 조건 추출 모델이 조회어를 고를 때 쓴다."""
+        """품목표의 품목명 목록(시행규칙 품목명과 운용요령 표기). 조건 추출 모델이 조회어를 고를 때 쓴다.
+
+        Returns:
+            list[str]: 포함 문구를 뗀 품목명 (중복 제거).
+        """
         evidence = self.evidence()
         return list(dict.fromkeys(without_includes(name) for item in evidence.items
                                   for name in (item.name, *item.scope_names)))
 
     def search(self, terms: list[str], *, top_k: int) -> ChildrenCandidates:
+        """상품 용어와 비슷한 품목 행을 찾는다.
+
+        Args:
+            terms: 상품 용어. 비면 후보 없이 근거만 돌려줌.
+            top_k: 돌려줄 최대 행 수.
+
+        Returns:
+            ChildrenCandidates: 후보 행과 근거 문서.
+        """
         evidence = self.evidence()
         # 순위에는 포함 문구를 뗀 이름만 쓴다("포함한다" 같은 글자가 유사도에 섞이지 않게).
         items = rank_rows(
@@ -75,7 +106,14 @@ class LawApiItemSearch:
 
 
 def _load_on_demand(as_of: date) -> ChildrenEvidence:
-    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다."""
+    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
+
+    Args:
+        as_of: 기준일.
+
+    Returns:
+        ChildrenEvidence: 기준일 근거 묶음.
+    """
     from ...config import get_settings
 
     clients = LawApiClients.from_oc(get_settings().law_oc)
@@ -85,42 +123,10 @@ def _load_on_demand(as_of: date) -> ChildrenEvidence:
         clients.close()
 
 
-_default_lock = threading.Lock()
-_default_search: LawApiItemSearch | None = None
+def law_api_item_search() -> LawApiItemSearch:
+    """법제처 API 조회 경로를 만든다. 기준일별 캐시는 객체 안에 있어 조립하는 쪽이 한 번 만들어 공유함.
 
-
-def default_item_search() -> LawApiItemSearch:
-    """조립 코드가 주입하지 않았을 때 쓰는 프로세스 공용 조회 경로."""
-    global _default_search
-    with _default_lock:
-        if _default_search is None:
-            _default_search = LawApiItemSearch(CachedLoader(_load_on_demand).load)
-        return _default_search
-
-
-class DatabaseItemSearch:
-    """품목 행을 DB에서 조회하는 경로. 적재 테이블이 없어 자리만 둔다.
-
-    자료 출처는 별표 규칙 파서(#307)의 AnnexParseRecord(app/schemas/annex.py)다.
-    - 시행규칙 별표 1~3: AnnexItem 하나가 품목 행 하나.
-      item_label → 번호, item_name → 품목명, category_path → 제도,
-      attributes["적용 안전기준"] → standards, source_text → 근거 원문, skipped → 삭제된 품목.
-      별표 3의 "2. 개별 안전기준이 없는 …"(공통안전기준) 문장은 notes에서 찾는다.
-    - 운용요령 별표 3~5(적용범위)는 #307 대상에 없다. 적재 대상에 추가하거나 법제처 경로를 함께 쓴다.
-    - 법 제2조 제1호·제12호는 법령 조문 테이블(LawArticleRepository)에서 읽는다.
-    - 벡터 조회는 app.utils.embedding을 쓴다. Tool은 동기라 비동기 embed_text를 그대로 부를 수 없다.
-    LawApiItemSearch의 표 읽기는 DB 적재 전까지 쓰는 임시 경로다. 구현하면 같은 ChildrenCandidates를
-    돌려주므로 ChildrenTool은 바꾸지 않는다.
-
-    Args:
-        session_factory: app.repositories.database.get_session_factory()가 돌려주는 세션 팩토리.
+    Returns:
+        LawApiItemSearch: 조회할 때 법제처 클라이언트를 열고 닫는 조회 경로.
     """
-
-    def __init__(self, session_factory):
-        self._session_factory = session_factory
-
-    def catalog(self) -> list[str]:
-        raise NotImplementedError("DB 품목 조회는 어린이제품 품목표 적재 후 구현합니다.")
-
-    def search(self, terms: list[str], *, top_k: int) -> ChildrenCandidates:
-        raise NotImplementedError("DB 품목 조회는 어린이제품 품목표 적재 후 구현합니다.")
+    return LawApiItemSearch(CachedLoader(_load_on_demand).load)

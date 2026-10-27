@@ -4,10 +4,10 @@ from urllib.parse import unquote
 
 import httpx
 
-from .base import BaseClient, RequestT, ResponseT
+from .request import RequestClient, RequestT, ResponseT
 
 
-class DataGoKrClient(BaseClient[RequestT, ResponseT]):
+class DataGoKrClient(RequestClient[RequestT, ResponseT]):
     """공공데이터포털(apis.data.go.kr) API 공통 베이스.
 
     서비스 키 : data.go.kr serviceKey 필요.

@@ -49,6 +49,7 @@ public class ProductMapper {
                 product.getSourceType(),
                 product.getProcessingStatus(),
                 product.getResultStatus(),
+                toFailureResponse(product),
                 product.getCreatedAt()
         );
     }

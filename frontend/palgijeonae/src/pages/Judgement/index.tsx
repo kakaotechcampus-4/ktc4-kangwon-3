@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Button from "@/components/common/Button";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
-import { isMissingDiagnosesId } from "@/lib/routeParams";
+import { isMissingRouteParam } from "@/lib/routeParams";
 
 import Process from "./Process";
 import { useJudgementProcess } from "./useJudgementProcess";
@@ -18,14 +18,14 @@ function JudgementPage() {
 
     // diagnosesId 없이 잘못 진입한 경우(예: /judgement/undefined) 업로드 페이지로 되돌린다.
     useEffect(() => {
-        if (isMissingDiagnosesId(diagnosesId)) {
+        if (isMissingRouteParam(diagnosesId)) {
             alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
             navigate("/upload", { replace: true });
         }
     }, [diagnosesId, navigate]);
 
     const handleQuestionsClick = () => {
-        if (isMissingDiagnosesId(diagnosesId)) {
+        if (isMissingRouteParam(diagnosesId)) {
             return;
         }
         navigate(`/question/${diagnosesId}`);

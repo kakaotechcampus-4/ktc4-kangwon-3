@@ -7,7 +7,7 @@ from app.agents.extraction import ExtractionFailedError
 from app.agents.image_triage import ImageTriageFailedError
 from app.agents.selection import SelectionFailedError
 from app.agents.verification import VerificationError
-from app.callbacks.errors import CallbackTransportError
+from app.clients.backend import CallbackTransportError
 from app.clients.errors import ClientError
 from app.clients.marketplace.errors import BlockedUrlError, PageTooLargeError
 from app.config.errors import ConfigError
@@ -60,7 +60,7 @@ def test_서비스_예외는_AIError이면서_원래_내장_예외로도_잡힌�
 
 
 def test_분야별_부모로_묶인다():
-    assert issubclass(BlockedUrlError, ClientError) and issubclass(PageTooLargeError, ClientError)
+    assert all(issubclass(error, ClientError) for error in (BlockedUrlError, PageTooLargeError, CallbackTransportError))
     assert all(issubclass(error, SessionError) for error in (
         QueueFullError, SessionConflictError, SessionNotFoundError, ResumeConflictError,
         UnknownQuestionKeyError, UnansweredQuestionError, InvalidTransitionError,

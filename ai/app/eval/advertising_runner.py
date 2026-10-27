@@ -17,7 +17,8 @@ from collections import Counter
 from pathlib import Path
 
 from ..agents.base import AgentError
-from ..config import CHAT_MODELS, MAX_RETRIES, TIMEOUT_SECONDS, ModelProfile, load_settings, tool_profile
+from ..clients.llm import MAX_RETRIES, TIMEOUT_SECONDS
+from ..config import CHAT_MODELS, ModelProfile, load_settings, tool_profile
 from ..prompts import PromptName, get_prompt
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Product

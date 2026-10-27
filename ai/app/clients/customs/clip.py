@@ -4,7 +4,7 @@ import re
 
 import httpx
 
-from ..base import BaseClient
+from ..request import RequestClient
 from ...schemas.clients.customs_request import CLIPSearchRequest
 from ...schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 
@@ -29,7 +29,7 @@ def parse_hs_codes(text: str) -> list[str]:
     return list(dict.fromkeys(codes))
 
 
-class CLIPClient(BaseClient[CLIPSearchRequest, CLIPSearchResponse]):
+class CLIPClient(RequestClient[CLIPSearchRequest, CLIPSearchResponse]):
     """CLIP 국내 품목분류 결정사례 클라이언트.
 
     방식 : POST/form

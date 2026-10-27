@@ -54,6 +54,11 @@ class Article:
     text: str
 
     def source(self):
+        """결과에 붙일 근거.
+
+        Returns:
+            LegalSource: 이 조문 부분의 근거.
+        """
         return self.doc.source(self.label, self.text)
 
 
@@ -79,9 +84,19 @@ class DeviceItem:
 
     @property
     def row_text(self) -> str:
+        """근거 인용에 쓸 품목 한 줄.
+
+        Returns:
+            str: "분류번호 품목명 [N등급] 정의" 모양의 글.
+        """
         return f"{self.item_id} {self.name} [{self.grade}등급] {self.definition}"
 
     def as_candidate(self) -> dict:
+        """품목 선택 모델에 넘기는 모양. 정의는 앞부분만 넣는다.
+
+        Returns:
+            dict: 분류번호·품목명·중분류·정의.
+        """
         return {"item_id": self.item_id, "name": self.name, "group": self.group, "definition": self.definition[:200]}
 
 
@@ -109,6 +124,11 @@ class BannedIngredient:
 
     @property
     def row_text(self) -> str:
+        """근거 인용에 쓸 원료 한 줄.
+
+        Returns:
+            str: "원료명 / CAS … / 화학물질명 …" 모양의 글.
+        """
         parts = [self.name]
         if self.cas:
             parts.append("CAS " + ", ".join(self.cas))
@@ -118,17 +138,32 @@ class BannedIngredient:
 
     @property
     def conditional(self) -> bool:
-        """원료명에 사용 조건(함량·기준·제외)이 붙어 이름만으로는 금지 여부를 정할 수 없는 행인지."""
+        """원료명에 사용 조건(함량·기준·제외)이 붙어 이름만으로는 금지 여부를 정할 수 없는 행인지.
+
+        Returns:
+            bool: 조건이 붙은 행이면 True.
+        """
         return bool(_CONDITION_RE.search(self.name))
 
     def names(self) -> list[str]:
-        """대조에 쓰는 이름: 원료명, 각주·"및 그 염류"를 뗀 원료명, 화학물질명."""
+        """대조에 쓰는 이름: 원료명, 각주·"및 그 염류"를 뗀 원료명, 화학물질명.
+
+        Returns:
+            list[str]: 중복을 뺀 이름.
+        """
         base = _SALT_SUFFIX_RE.sub("", _FOOTNOTE_RE.sub("", self.name))
         return list(dict.fromkeys([self.name, base, *self.chemicals]))
 
 
 def ingredient_key(name: str) -> str:
-    """성분명 비교용 키. 공백·가운뎃점·대소문자 차이를 무시한다."""
+    """성분명 비교용 키. 공백·가운뎃점·대소문자 차이를 무시한다.
+
+    Args:
+        name: 성분명.
+
+    Returns:
+        str: 비교용 키.
+    """
     return "".join(name.split()).translate(_DOTS).lower()
 
 
@@ -165,14 +200,34 @@ class FoodDrugEvidence:
     banned: tuple[BannedIngredient, ...]
 
     def device(self, item_id: str) -> DeviceItem | None:
+        """의료기기 품목을 분류번호로 찾는다.
+
+        Args:
+            item_id: 품목 분류번호.
+
+        Returns:
+            DeviceItem | None: 찾은 품목. 없으면 None.
+        """
         return next((item for item in self.devices if item.item_id == item_id), None)
 
     def functional(self, number: int) -> FunctionalType | None:
+        """기능성화장품 범위를 호 번호로 찾는다.
+
+        Args:
+            number: 시행규칙 제2조의 호 번호.
+
+        Returns:
+            FunctionalType | None: 찾은 호. 없으면 None.
+        """
         return next((item for item in self.functional_types if item.number == number), None)
 
     @cached_property
     def _banned_index(self) -> dict[str, BannedIngredient]:
-        """이름 키 → 원료 행. 처음 대조할 때 한 번 만든다(행마다 키를 다시 만들면 성분 하나에 수십 ms가 걸렸다)."""
+        """이름 키 → 원료 행. 처음 대조할 때 한 번 만든다(행마다 키를 다시 만들면 성분 하나에 수십 ms가 걸렸다).
+
+        Returns:
+            dict[str, BannedIngredient]: 이름 키 → 원료 행.
+        """
         index: dict[str, BannedIngredient] = {}
         for row in self.banned:
             for name in row.names():
@@ -180,11 +235,23 @@ class FoodDrugEvidence:
         return index
 
     def banned_match(self, ingredient: str) -> BannedIngredient | None:
-        """성분명이 사용할 수 없는 원료의 이름과 같으면 그 행. 글자 대조라 다른 이름(영문명·이명)은 찾지 못한다."""
+        """성분명이 사용할 수 없는 원료의 이름과 같으면 그 행. 글자 대조라 다른 이름(영문명·이명)은 찾지 못한다.
+
+        Args:
+            ingredient: 상품의 성분명.
+
+        Returns:
+            BannedIngredient | None: 이름이 같은 원료 행. 없으면 None.
+        """
         key = ingredient_key(ingredient)
         return self._banned_index.get(key) if key else None
 
     def documents(self) -> list[dict[str, str]]:
+        """결과 query에 남길 문서 식별 정보. 같은 문서는 한 번만 넣는다.
+
+        Returns:
+            list[dict[str, str]]: 근거 문서별 식별 정보.
+        """
         refs = {article.doc.document_id: article.doc for article in (
             self.food_item, self.health_food, self.import_business, self.import_business_scope,
             self.device_definition, self.device_exemption, self.cosmetic_definition, self.cosmetic_business_scope,
@@ -198,6 +265,12 @@ def parse_device_items(text: str) -> list[DeviceItem]:
 
     한 줄 형식: "A11010.01  전자 체온계 [2]  Thermometer, … 체온을 측정하는 …".
     등급 뒤 글은 영문 품목명과 한글 정의다. 첫 한글 글자부터를 정의로 본다.
+
+    Args:
+        text: 품목·등급 별표 1 원문.
+
+    Returns:
+        list[DeviceItem]: 품목 행.
 
     Raises:
         EvidenceUnavailable: 품목을 찾지 못한 경우.
@@ -227,6 +300,12 @@ def parse_device_items(text: str) -> list[DeviceItem]:
 def parse_functional_types(article: str) -> list[FunctionalType]:
     """화장품법 시행규칙 제2조(기능성화장품의 범위)를 호별로 나눈다.
 
+    Args:
+        article: 시행규칙 제2조 원문.
+
+    Returns:
+        list[FunctionalType]: 호별 범위.
+
     Raises:
         EvidenceUnavailable: 호를 찾지 못한 경우.
     """
@@ -245,6 +324,12 @@ def parse_banned_ingredients(text: str) -> list[BannedIngredient]:
 
     표는 '원료명 │ CAS No. │ 화학물질명' 세 칸이고, 줄 맨 앞의 ├ 줄이 원료 경계다(칸 안의 ├는 같은 원료의 CAS 구분).
     칸 폭 때문에 끊긴 원료명은 이어 붙인다. 머리글은 넣지 않는다.
+
+    Args:
+        text: 별표 1 원문.
+
+    Returns:
+        list[BannedIngredient]: 원료 행.
 
     Raises:
         EvidenceUnavailable: 원료를 찾지 못한 경우.
@@ -293,6 +378,16 @@ def _article(document: LawDocument, number: int, label: str, start: str | None =
              ) -> Article:
     """조문 전문에서 판단에 쓰는 부분(start부터 end 앞까지)만 잘라 근거로 만든다.
 
+    Args:
+        document: 근거 문서.
+        number: 조 번호.
+        label: 조 번호 뒤에 붙일 위치 (예: " 제1항").
+        start: 잘라 낼 시작 문구. None이면 처음부터.
+        end: 잘라 낼 끝 문구(포함 안 함). None이면 끝까지.
+
+    Returns:
+        Article: 잘라 낸 조문 부분.
+
     Raises:
         EvidenceUnavailable: 조문이나 잘라 낼 문구를 찾지 못한 경우(빈 본문·다른 조문·개정으로 문구가 바뀐 경우).
     """
@@ -310,6 +405,13 @@ def load_food_drug_evidence(client: LawLookup, as_of: date) -> FoodDrugEvidence:
     """법제처에서 식약 근거 문서 10개를 기준일 버전으로 받는다.
 
     조문마다 판단에 쓰는 항·호만 잘라 인용한다. 잘라 낼 문구가 없으면 근거로 쓰지 않는다.
+
+    Args:
+        client: 법제처 조회.
+        as_of: 기준일.
+
+    Returns:
+        FoodDrugEvidence: 기준일 근거 묶음.
 
     Raises:
         EvidenceUnavailable: 문서·버전·조문·별표를 확인할 수 없는 경우.
