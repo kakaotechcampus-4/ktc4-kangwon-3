@@ -13,7 +13,7 @@ from app.schemas.schemas import (
 from app.tools.common.law import EvidenceUnavailable
 from app.tools.customs import CustomsTool, CustomsToolError
 from app.tools.customs.evidence import load_customs_evidence
-from app.tools.customs.search import ClipCaseSearch, Requirement
+from app.tools.customs.search import CaseCandidates, ClipCaseSearch, HsCase, Requirement
 
 from .conftest import AS_OF, FakeClip, FakeLaw, FakeRequirements
 
@@ -403,10 +403,22 @@ def test_법령명을_별표2와_대응하지_못하면_구매대행_생략_여�
     assert "확인이 필요합니다" in buying and "생략할 수 있습니다" not in buying
 
 
+class _FixedCases:
+    def __init__(self, *cases):
+        self.cases = cases
+
+    def search(self, queries, terms, *, top_k):
+        return CaseCandidates(cases=self.cases)
+
+
 def test_일부_HS만_요건이_없으면_그_HS도_따로_알린다():
     product, facts = product_and_facts()
-    chosen = review(select(), select(COFFEE_CASE))
-    result, _, _, _ = run(product, facts, chosen, requirements=FakeRequirements({"8516799000": [FakeRequirements.ELECTRICAL]}))
+    cases = _FixedCases(HsCase(KETTLE_CASE, ("8516799000",), "ELECTRIC KETTLE", "", ""),
+                        HsCase(COFFEE_CASE, ("8419810000",), "커피 머신", "", ""))
+    tool = CustomsTool(Model(facts, review(select(), select(COFFEE_CASE))), case_search=cases,
+                       requirements=FakeRequirements({"8516799000": [FakeRequirements.ELECTRICAL]}),
+                       evidence=lambda: _EVIDENCE)
+    result = tool.execute(product, decision())
     subjects = [finding.subject for finding in result.findings]
     assert "세관장확인 대상 후보 — 전기용품 및 생활용품 안전관리법" in subjects
     empty = next(finding for finding in result.findings if finding.subject == "세관장확인 대상 법령 — HS 후보 기준 없음")
@@ -434,3 +446,26 @@ def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkey
     monkeypatch.setattr("app.clients.llm.build_tool_model", lambda name: names.append(name) or Model(None))
     bare_tool()._get_steps()
     assert names == [ToolName.CUSTOMS]
+
+
+def test_후보에_한_번만_나온_호의_선택은_여러_번_나온_호와_함께_골랐을_때_뺀다():
+    from app.tools.customs.tool import _drop_lone_headings
+    toy = [HsCase(f"t{i}", ("9503003411",), "STUFFED TOY", "", "") for i in range(3)]
+    keyring = HsCase("k", ("6307909000",), "STUFFED TOY 키링", "", "")
+    chosen = [(keyring, None, []), (toy[0], None, [])]
+
+    kept, lone = _drop_lone_headings(chosen, [*toy, keyring])
+
+    assert [case.case_id for case, _, _ in kept] == ["t0"]
+    assert lone == ["k"]
+
+
+def test_여러_번_나온_호끼리_갈리거나_모두_한_번씩이면_모두_남긴다():
+    from app.tools.customs.tool import _drop_lone_headings
+    babies = [HsCase(f"b{i}", ("6111201000",), "Babies' garments", "", "") for i in range(2)]
+    kids = [HsCase(f"k{i}", ("6109101000",), "CHILDREN'S CLOTHES", "", "") for i in range(3)]
+    kettle = HsCase("a", ("8516799000",), "KETTLE", "", "")
+    coffee = HsCase("c", ("8419810000",), "COFFEE", "", "")
+
+    assert _drop_lone_headings([(babies[0], None, []), (kids[0], None, [])], [*babies, *kids])[1] == []
+    assert _drop_lone_headings([(kettle, None, []), (coffee, None, [])], [kettle, coffee])[1] == []

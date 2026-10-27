@@ -6,7 +6,8 @@ HS 분류는 관세청이 정하므로 후보로만 낸다. 모델은 확정 판
 결과는 POSSIBLY_REQUIRED(요건 후보) 또는 INSUFFICIENT_INFORMATION(정보 부족·미확인)이다.
 """
 
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from ...schemas.schemas import CustomsAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName
@@ -134,6 +135,10 @@ class CustomsTool(EvidenceSearchTool):
             "candidates": [case.as_candidate() for case in candidates.cases],
         }, product.product_id))
         chosen = self._pick(run, review.selections, {case.case_id: case for case in candidates.cases}, key="case_id")
+        chosen, lone = _drop_lone_headings(chosen, candidates.cases)
+        if lone:
+            query["lone_cases"] = lone
+            run.assumptions.append(f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개를 제외했습니다.")
         for _, selection, _ in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
             run.missing.extend(name for name in needed if name in _QUESTION_FIELDS)
@@ -338,6 +343,27 @@ def _queries(terms: list[str]) -> list[str]:
         if len(words) > 1 and len(words[-1]) > 1:
             ordered.append(words[-1])
     return list(dict.fromkeys(ordered))[:_QUERY_LIMIT]
+
+
+def _drop_lone_headings(chosen: list, cases: Iterable[HsCase]) -> tuple[list, list[str]]:
+    """고른 사례 중 후보 사례에 한 번만 나온 호(HS 4자리)의 사례를 뺀다. 여러 번 나온 호의 사례를 함께 골랐을 때만.
+
+    Args:
+        chosen: _pick이 남긴 (사례, 선택, 근거 필드) 목록.
+        cases: 선택 모델에 보여 준 후보 사례 전체.
+
+    Returns:
+        tuple[list, list[str]]: 남긴 선택, 뺀 사례 ID.
+    """
+    support = Counter(heading for case in cases for heading in {code[:4] for code in case.hs_codes})
+
+    def score(case: HsCase) -> int:
+        return max((support[code[:4]] for code in case.hs_codes), default=0)
+
+    if all(score(case) <= 1 for case, _, _ in chosen):
+        return chosen, []
+    return ([item for item in chosen if score(item[0]) > 1],
+            [case.case_id for case, _, _ in chosen if score(case) <= 1])
 
 
 def _case_source(case: HsCase) -> LegalSource:
