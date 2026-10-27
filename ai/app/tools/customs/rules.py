@@ -6,6 +6,7 @@
 """
 
 from ...schemas.schemas import ToolName
+from ..common.facts import object_particle
 from .evidence import ConfirmationRow, law_key
 
 # 세관장확인 요건 법령 → 같은 법을 판단하는 규제 Tool. 키는 law_key(공백·가운뎃점 무시).
@@ -26,11 +27,26 @@ RELATED_TOOLS: dict[str, ToolName] = {
 
 
 def related_tool(law_name: str) -> ToolName | None:
+    """요건 법령을 맡는 다른 규제 Tool을 찾는다.
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        ToolName | None: 관련 Tool. 없으면 None.
+    """
     return RELATED_TOOLS.get(law_key(law_name))
 
 
 def format_hs(code: str) -> str:
-    """HS 숫자를 사람이 읽는 표기로 바꾼다. 10자리 "8516799000" → "8516.79-9000", 6자리 → "8516.79"."""
+    """HS 숫자를 사람이 읽는 표기로 바꾼다. 10자리 "8516799000" → "8516.79-9000", 6자리 → "8516.79".
+
+    Args:
+        code: HS 숫자.
+
+    Returns:
+        str: 표기. 6·10자리가 아니면 그대로.
+    """
     if len(code) == 10:
         return f"{code[:4]}.{code[4:6]}-{code[6:]}"
     if len(code) == 6:
@@ -43,14 +59,22 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
     """요건 법령 하나에 대해 판매 방식별로 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다.
 
     Args:
+        law_name: 요건 법령 이름.
+        hs_codes: 이 법령이 걸린 HS.
+        row: 고시 별표 2의 해당 행. 없으면 None.
+        documents: GW가 준 요건 확인 서류.
+        agencies: GW가 준 요건 확인 기관.
         omission: 고시 제7조 제2항의 생략 판단. ("excepted", 조건) = 생략 제외 법령, ("omittable", "") = 생략 가능,
             None = 고시를 확인하지 못함.
+
+    Returns:
+        list[str]: 사입·수입 판매 안내와 구매대행 안내.
     """
     label = f"[「{law_name}」 · HS {', '.join(format_hs(code) for code in hs_codes)} 후보]"
     papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
     who = f"{', '.join(agencies)}의 " if agencies else ""
     import_action = (f"{label} 사입·수입 판매: 이 HS로 분류되면 수입신고 때 세관장확인을 받아야 합니다. "
-                     f"{who}{papers}{_object_particle(papers)} 미리 갖춰야 통관됩니다(관세법 제226조, 세관장확인 고시 별표 2).")
+                     f"{who}{papers}{object_particle(papers)} 미리 갖춰야 통관됩니다(관세법 제226조, 세관장확인 고시 별표 2).")
     if omission is None:
         return [import_action, f"{label} 구매대행: 개인 사용 목적 수입의 세관장확인 생략 여부는 확인이 필요합니다."]
     status, condition = omission
@@ -70,16 +94,16 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
 
 
 def omission_status(law_name: str, exceptions: dict[str, str] | None) -> tuple[str, str] | None:
-    """고시 제7조 제2항 제1호: 대외무역법 시행령 제19조 사유의 물품은 세관장확인을 생략할 수 있지만, 단서의 법령은 제외한다."""
+    """고시 제7조 제2항 제1호: 대외무역법 시행령 제19조 사유의 물품은 세관장확인을 생략할 수 있지만, 단서의 법령은 제외한다.
+
+    Args:
+        law_name: 요건 법령 이름.
+        exceptions: 단서 법령 목록. 읽지 못했으면 None.
+
+    Returns:
+        tuple[str, str] | None: ("excepted", 조건) 또는 ("omittable", ""). 목록이 없으면 None.
+    """
     if exceptions is None:
         return None
     key = law_key(law_name)
     return ("excepted", exceptions[key]) if key in exceptions else ("omittable", "")
-
-
-def _object_particle(word: str) -> str:
-    """목적격 조사. 마지막 글자에 받침이 있으면 "을", 없으면(한글이 아니어도) "를"."""
-    last = word.rstrip()[-1:]
-    if not ("가" <= last <= "힣"):
-        return "를"
-    return "을" if (ord(last) - ord("가")) % 28 else "를"

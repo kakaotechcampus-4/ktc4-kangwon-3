@@ -6,7 +6,7 @@
 |---|---|
 | `app/tools/radio/tool.py` | `RadioTool` 흐름 (조건 추출 → 조회 → 규칙 → 선택 → 결과 조립) |
 | `app/tools/radio/rules.py` | 주파수 정규화, 평가유형별 근거 항, 판매 방식별 안내 문구 |
-| `app/tools/radio/search.py` | 조회 인터페이스 `RadioItemSearch`, `LawApiItemSearch`, `DatabaseItemSearch`(스텁) |
+| `app/tools/radio/search.py` | 조회 인터페이스 `RadioItemSearch`, `LawApiItemSearch` |
 | `app/tools/radio/evidence.py` | 전파법 제58조의2, 고시 별표 1(1~10절), 시행령 별표 6의2 읽기 |
 | `app/tools/common/` | 규제 Tool 공용 (어린이제품 Tool과 같이 씀) |
 | `app/schemas/radio.py`, `app/prompts/radio/facts.md`·`review.md` | 모델 입출력 |
@@ -56,7 +56,7 @@ Product (추출 에이전트 결과)
   - 검사: 1~10절이 모두 있는지, 기기부호가 비거나 겹치지 않는지. 2026-10-14 기준 230행, 행마다 평가유형 1개.
   - 절 끝 비고(예: 5절 전자파흡수율 적용 조건)는 절별로 모아 선택 모델에 같이 준다.
   - 고시는 2026-11-06 시행본이 미리 조회된다. 기준일에 시행 중인 버전만 쓴다.
-- `DatabaseItemSearch` (스텁): 파싱 에이전트가 고시 별표 1을 DB에 넣으면 쓸 자리다. 칸 정의는 "어린이·전파 품목표 칸 정의" 문서를 따른다.
+- DB 조회: 파싱 에이전트가 고시 별표 1을 DB에 넣으면 `RadioItemSearch`를 구현한 DB 조회 객체를 Tool에 넘기면 된다. 칸 정의는 "어린이·전파 품목표 칸 정의" 문서를 따른다.
 
 ## 결과
 

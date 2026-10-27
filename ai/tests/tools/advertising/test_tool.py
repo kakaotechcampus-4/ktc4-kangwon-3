@@ -18,11 +18,12 @@ from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination, DraftAssessment, LegalSource, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
-from app.tools import advertising
+from app.tools.advertising import rules as advertising
 from app.schemas.advertising import AdvertisingReview
 from app.tools.advertising import AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool
+from app.tools.advertising.tool import _NO_LISTING_QUESTION
 
-LAW_DIR = Path(__file__).parents[1] / "fixtures" / "advertising_law"
+LAW_DIR = Path(__file__).parents[2] / "fixtures" / "advertising_law"
 DECISION = ToolSelectionItem(tool_name=ToolName.LABEL_AD, selected=True, reason="효능 표방 문구가 있다.")
 
 
@@ -182,7 +183,7 @@ def test_listing_text가_비면_모델을_부르지_않고_정보_부족으로_�
     assert result.status is ToolStatus.SUCCESS
     assert result.result.overall_risk is RiskLevel.UNKNOWN
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
-    assert result.missing_information == [advertising._NO_LISTING_QUESTION]
+    assert result.missing_information == [_NO_LISTING_QUESTION]
 
 
 def test_미선택이면_모델을_부르지_않고_건너뛴다():

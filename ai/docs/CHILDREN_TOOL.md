@@ -6,7 +6,7 @@
 |---|---|
 | `app/tools/children/tool.py` | `ChildrenTool` 흐름 (조건 추출 → 조회 → 규칙 → 선택 → 결과 조립) |
 | `app/tools/children/rules.py` | 코드 규칙(연령·제외 물품)과 판매 안내 문구 |
-| `app/tools/children/search.py` | 품목 조회 인터페이스 `ChildrenItemSearch`, `LawApiItemSearch`, `DatabaseItemSearch`(스텁) |
+| `app/tools/children/search.py` | 품목 조회 인터페이스 `ChildrenItemSearch`, `LawApiItemSearch` |
 | `app/tools/children/evidence.py` | 법 제2조, 시행규칙 별표 1~3, 운용요령 별표 3~5 읽기 |
 | `app/tools/common/` | 규제 Tool 공용: 법제처 조회·버전 선택·캐시(`law.py`), 품목 행 순위(`ranking.py`), 원문 대조(`facts.py`), 모델 호출 단계(`agent.py`, BaseAgent #284) |
 | `app/schemas/children.py`, `app/prompts/children/facts.md`·`review.md` | 모델 입출력 |
@@ -59,7 +59,7 @@ Product (추출 에이전트 결과)
   - 운용요령 별표 3~5는 적용범위가 긴 설명문이라 칸을 더 나누지 않고 품목 단위 원문 덩어리로 붙인다.
   - 운용요령 품목명은 시행규칙과 다르다(어린이용/아동용, 제품/용품). 같은 제도 안에서 ① 이름 일치 ② 포함 ③ 글자 유사도 순으로 잇고, 못 이은 이름은 `unlinked_scopes`로 남기고 경고 로그를 낸다(2026-10-12 기준 0개). 법 개정으로 이름이 바뀌어 적용범위가 조용히 빠지는 것을 막는다.
   - 운용요령(2024-07-10)이 시행규칙(2026-06-03)보다 오래돼 새 품목(비수면용 기울어진 요람)은 적용범위가 없다.
-- `DatabaseItemSearch` (스텁): 별표 규칙 파서(#307)의 `AnnexParseRecord`를 DB에 적재하면 쓸 자리다. 시행규칙 별표 1~3은 `AnnexItem`(item_label·item_name·attributes·source_text)으로 대응하고, 운용요령 별표 3~5(적용범위)는 #307 대상에 없어 추가가 필요하다. 지금의 표 읽기(`LawApiItemSearch`)는 DB 적재 전까지 쓰는 임시 경로다.
+- DB 조회: 별표 규칙 파서(#307)의 `AnnexParseRecord`를 DB에 적재하면 `ChildrenItemSearch`를 구현한 DB 조회 객체를 Tool에 넘기면 된다. 시행규칙 별표 1~3은 `AnnexItem`(item_label·item_name·attributes·source_text)으로 대응하고, 운용요령 별표 3~5(적용범위)는 #307 대상에 없어 추가가 필요하다. 지금의 표 읽기(`LawApiItemSearch`)는 DB 적재 전까지 쓰는 임시 경로다.
 
 ## 결과
 
@@ -87,7 +87,7 @@ Product (추출 에이전트 결과)
 - 적용범위의 연령·수치 조건(예: 스케이트보드 체중 20kg 초과, 유아용 섬유제품 36개월 미만) 코드화
 - 어린이용 전기제품의 전기 Tool과 중복 적용 관계
 - 질문 키·빠진 정보 키: BE·AI 계약(질문 키 고정) 확정 후 `missing_information`을 키 단위로 맞춘다
-- #307 결과(json 덤프 또는 DB 적재)로 `DatabaseItemSearch` 전환. 지금은 #307과 이 Tool이 시행규칙 별표 1~3을 각각 읽으므로, 한쪽만 고쳐지지 않게 전환 시 표 읽기 코드를 걷어 낸다
+- #307 결과(json 덤프 또는 DB 적재)를 읽는 조회 객체로 전환. 지금은 #307과 이 Tool이 시행규칙 별표 1~3을 각각 읽으므로, 한쪽만 고쳐지지 않게 전환 시 표 읽기 코드를 걷어 낸다
 - ToolExecutor 연결
 
 ## 검증
