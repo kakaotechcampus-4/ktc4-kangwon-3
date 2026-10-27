@@ -136,10 +136,8 @@ def refresh_laws(fetchers: LawFetchers, sources: Iterable[LawSourceLike], *, sel
         text = fetchers.admrul_text if source.is_admrul else fetchers.law_text
         try:
             before = search.cached(request)
-            found = search.refresh(request)
+            found = search.refresh(request, accept=lambda response: bool(versions_of(source, response)))
             versions = [version.version for version in versions_of(source, found)]
-            if not versions:
-                raise LookupError(f"검색 결과에 문서 ID {source.document_id}가 없음")
             for version in versions:
                 text.fetch_parsed(LawTextRequest(mst=version))
             report.versions += len(versions)

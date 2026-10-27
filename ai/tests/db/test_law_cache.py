@@ -37,10 +37,12 @@ class _Fetcher:
     def cached(self, request):
         return self.before
 
-    def refresh(self, request):
+    def refresh(self, request, accept=None):
         self.refreshed.append(request)
         if self.error is not None:
             raise self.error
+        if accept is not None and not accept(self.response):
+            raise LookupError("저장 조건에 맞지 않음")
         return self.response
 
     def fetch_parsed(self, request):

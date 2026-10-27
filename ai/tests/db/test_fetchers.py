@@ -236,6 +236,17 @@ def test_스케줄_점검이_실패하면_오류를_올리고_DB_값은_그대�
     assert list(db.rows.values()) == [before]
 
 
+def test_스케줄_점검은_저장_조건에_맞지_않는_응답이면_DB_값을_그대로_둔다(db):
+    clock = _Clock()
+    _scheduled(_Client(), db, clock).fetch_parsed(_Request(mst="1"))
+    (before,) = db.rows.values()
+
+    with pytest.raises(LookupError):
+        _scheduled(_Client(), db, clock).refresh(_Request(mst="1"), accept=lambda response: False)
+
+    assert list(db.rows.values()) == [before]
+
+
 def test_조회_시_저장_데이터는_조회_실패_때_만료된_값이_있어도_오류를_올린다(db):
     clock = _Clock()
     _on_demand(_Client(), db, clock).fetch_parsed(_Request(mst="1"))
