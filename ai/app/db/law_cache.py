@@ -9,8 +9,8 @@ import asyncio
 import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta, timezone
-from typing import NamedTuple, Protocol
+from datetime import date, datetime, time, timedelta, timezone
+from typing import NamedTuple
 
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,7 @@ from ..schemas.clients.law_response import (
 from .engine import get_session_factory
 from .errors import DatabaseNotConfiguredError
 from .fetchers import ScheduledFetcher
+from .law_changes import LawChange, LawChangeSink, LawSourceLike, VersionSelector, detect_changes, versions_of
 
 logger = logging.getLogger(__name__)
 
@@ -92,14 +93,6 @@ def open_law_fetchers(oc: str) -> LawFetchers:
     return build_law_fetchers(oc, session_factory)
 
 
-class LawSourceLike(Protocol):
-    """점검할 근거 문서 하나. app.tools.common.law_sources.LawSource와 같은 모양."""
-
-    name: str
-    document_id: str
-    is_admrul: bool
-
-
 @dataclass
 class LawRefreshReport:
     """점검 결과.
@@ -108,49 +101,59 @@ class LawRefreshReport:
         checked: 점검한 문서 수.
         versions: 본문을 확보한 버전 수(현행 + 시행예정).
         failed: 실패한 문서 이름.
+        changes: 어제 목록과 비교해 찾은 변경.
     """
 
     checked: int = 0
     versions: int = 0
     failed: list[str] = field(default_factory=list)
+    changes: list[LawChange] = field(default_factory=list)
 
 
-def refresh_laws(fetchers: LawFetchers, sources: Iterable[LawSourceLike]) -> LawRefreshReport:
+def refresh_laws(fetchers: LawFetchers, sources: Iterable[LawSourceLike], *, select: VersionSelector | None = None,
+                 on_change: LawChangeSink | None = None, today: date | None = None) -> LawRefreshReport:
     """근거 문서마다 현행·시행예정 버전 목록을 새로 받고 그 본문을 확보한다.
 
     본문은 버전 번호가 키라 이미 DB에 있으면 다시 받지 않는다. 문서 하나가 실패해도 나머지는 계속한다.
+    덮어쓰기 전 DB 목록과 비교해 변경을 찾고, 있으면 on_change에 한 번에 넘긴다.
 
     Args:
         fetchers: build_law_fetchers로 만든 조회 객체.
         sources: 점검할 근거 문서.
+        select: (문서, 검색 응답, 기준일) → 적용 판 번호. None이면 새 판 발표만 찾는다.
+        on_change: 변경을 받는 함수. None이면 보고서에만 남긴다.
+        today: 기준일. None이면 오늘(KST).
 
     Returns:
         LawRefreshReport: 점검 결과.
     """
+    today = today or datetime.now(KST).date()
     report = LawRefreshReport()
     for source in sources:
         report.checked += 1
         request = LawSearchRequest(query=source.name, display=100)
+        search = fetchers.admrul_search if source.is_admrul else fetchers.law_search
+        text = fetchers.admrul_text if source.is_admrul else fetchers.law_text
         try:
-            if source.is_admrul:
-                found = fetchers.admrul_search.refresh(request)
-                versions = [item.serial_number for item in found.items
-                            if item.rule_id == source.document_id and item.serial_number]
-                text = fetchers.admrul_text
-            else:
-                found = fetchers.law_search.refresh(request)
-                versions = [item.mst for item in found.items if item.law_id == source.document_id and item.mst]
-                text = fetchers.law_text
+            before = search.cached(request)
+            found = search.refresh(request)
+            versions = [version.version for version in versions_of(source, found)]
             if not versions:
                 raise LookupError(f"검색 결과에 문서 ID {source.document_id}가 없음")
             for version in versions:
                 text.fetch_parsed(LawTextRequest(mst=version))
             report.versions += len(versions)
+            report.changes += detect_changes(source, before, found, today=today, select=select)
         except Exception as e:  # 문서 하나의 실패는 나머지 점검을 막지 않음
             logger.warning("법령 점검 실패 — %s: %s: %s", source.name, type(e).__name__, e)
             report.failed.append(source.name)
-    logger.info("법령 점검 완료 — 문서 %d개, 버전 %d개, 실패 %s",
-                report.checked, report.versions, report.failed or "없음")
+    logger.info("법령 점검 완료 — 문서 %d개, 버전 %d개, 변경 %d건, 실패 %s",
+                report.checked, report.versions, len(report.changes), report.failed or "없음")
+    if report.changes and on_change is not None:
+        try:
+            on_change(report.changes)
+        except Exception:
+            logger.exception("법령 변경 전달 실패")
     return report
 
 

@@ -299,6 +299,18 @@ def test_DB_건너뛰기는_같은_상태를_쓰는_다른_조회_객체에도_�
     assert db.sessions == 1
 
 
+def test_저장된_값은_만료와_관계없이_클라이언트_없이_꺼낸다(db):
+    clock = _Clock()
+    client = _Client()
+    fetcher = _on_demand(client, db, clock)
+    stored = fetcher.fetch_parsed(_Request(mst="1"))
+    clock.advance(timedelta(days=2).total_seconds())
+
+    assert fetcher.cached(_Request(mst="1")) == stored
+    assert fetcher.cached(_Request(mst="2")) is None
+    assert len(client.calls) == 1
+
+
 def test_요청_키는_같은_요청이면_같고_64자다():
     assert request_key(_Request(mst="1")) == request_key(_Request(display=20, mst="1"))
     assert request_key(_Request(mst="1")) != request_key(_Request(mst="2"))

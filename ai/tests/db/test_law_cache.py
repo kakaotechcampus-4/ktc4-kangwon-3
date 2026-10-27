@@ -10,6 +10,7 @@ from app.config import LAW_SEARCH_RECHECK_SECONDS
 from app.db import law_cache
 from app.db.errors import DatabaseNotConfiguredError
 from app.db.law_cache import KST, LawFetchers, build_law_fetchers, refresh_laws, run_law_refresh, seconds_until
+from app.db.law_changes import LawChangeKind
 from app.schemas.clients.law_response import (
     AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse,
 )
@@ -25,12 +26,16 @@ class _Source:
 class _Fetcher:
     """refresh·fetch_parsed 호출을 기록하는 가짜 조회 객체."""
 
-    def __init__(self, response=None, error: Exception | None = None):
+    def __init__(self, response=None, error: Exception | None = None, before=None):
         self.response = response
         self.error = error
+        self.before = before
         self.refreshed = []
         self.fetched = []
         self.closed = False
+
+    def cached(self, request):
+        return self.before
 
     def refresh(self, request):
         self.refreshed.append(request)
@@ -111,6 +116,29 @@ def test_검색_결과에_문서_ID가_없으면_실패로_남긴다():
 
     assert report.failed == ["전파법"]
     assert fetchers.law_text.fetched == []
+
+
+def test_덮어쓰기_전_DB_목록과_비교한_변경을_한_번에_넘긴다():
+    fetchers = _fetchers(law_search=_Fetcher(_law_search(("012070", "100"), ("012070", "200")),
+                                             before=_law_search(("012070", "100"))))
+    received = []
+
+    report = refresh_laws(fetchers, [_Source("어린이제품 안전 특별법", "012070", False)], on_change=received.append)
+
+    assert [(change.kind, change.version.version) for change in report.changes] == [(LawChangeKind.ANNOUNCED, "200")]
+    assert received == [report.changes]
+
+
+def test_변경을_넘기다_실패해도_점검_결과는_남는다():
+    fetchers = _fetchers(law_search=_Fetcher(_law_search(("012070", "100"), ("012070", "200")),
+                                             before=_law_search(("012070", "100"))))
+
+    def broken(changes):
+        raise RuntimeError("전달 실패")
+
+    report = refresh_laws(fetchers, [_Source("어린이제품 안전 특별법", "012070", False)], on_change=broken)
+
+    assert (report.versions, report.failed, len(report.changes)) == (2, [], 1)
 
 
 @pytest.mark.parametrize(("now", "expected_hours"), [
