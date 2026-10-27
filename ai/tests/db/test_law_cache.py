@@ -80,6 +80,16 @@ def test_조회_객체는_검색은_시행법령_현행·시행예정만_점검_
     fetchers.close()
 
 
+def test_법령·행정규칙_검색은_빈_결과를_저장하지_않는다():
+    fetchers = build_law_fetchers("test-oc", None)
+
+    assert not fetchers.law_search._accepts(_law_search())
+    assert fetchers.law_search._accepts(_law_search(("012070", "100")))
+    assert not fetchers.admrul_search._accepts(_admrul_search())
+    assert fetchers.law_text._accepts(object())
+    fetchers.close()
+
+
 def test_법령은_검색을_새로_받고_같은_ID의_현행·시행예정_본문을_모두_확보한다():
     fetchers = _fetchers(law_search=_Fetcher(_law_search(("012070", "100"), ("012070", "200"), ("099999", "300"))))
 

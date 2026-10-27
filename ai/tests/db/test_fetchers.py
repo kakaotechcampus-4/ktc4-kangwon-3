@@ -247,6 +247,31 @@ def test_스케줄_점검은_저장_조건에_맞지_않는_응답이면_DB_값�
     assert list(db.rows.values()) == [before]
 
 
+def test_스케줄_데이터는_다시_받은_응답이_저장_조건에_맞지_않으면_만료된_DB_값을_쓴다(db):
+    clock = _Clock()
+    _scheduled(_Client(), db, clock).fetch_parsed(_Request(mst="1"))
+    (before,) = db.rows.values()
+    clock.advance(timedelta(days=3).total_seconds())
+    client = _Client()
+
+    response = ScheduledFetcher(client, recheck_after=timedelta(days=2), accept=lambda response: False,
+                                **_common(db, clock)).fetch_parsed(_Request(mst="1"))
+
+    assert len(client.calls) == 1
+    assert response.items[0].name == "문서 1"
+    assert list(db.rows.values()) == [before]
+
+
+def test_스케줄_데이터는_DB_값이_없으면_저장_조건에_맞지_않는_응답을_저장하지_않고_돌려준다(db):
+    fetcher = ScheduledFetcher(_Client(), recheck_after=timedelta(days=2), accept=lambda response: False,
+                               **_common(db, None))
+
+    response = fetcher.fetch_parsed(_Request(mst="1"))
+
+    assert response.items[0].name == "문서 1"
+    assert db.rows == {}
+
+
 def test_조회_시_저장_데이터는_조회_실패_때_만료된_값이_있어도_오류를_올린다(db):
     clock = _Clock()
     _on_demand(_Client(), db, clock).fetch_parsed(_Request(mst="1"))
