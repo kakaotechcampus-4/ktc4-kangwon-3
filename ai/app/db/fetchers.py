@@ -230,19 +230,23 @@ class ScheduledFetcher(CachedFetcherBase[_R]):
     def _expires_at(self, now: datetime) -> datetime | None:
         return None if self._recheck_after is None else now + self._recheck_after
 
-    def refresh(self, request: BaseModel) -> _R:
+    def refresh(self, request: BaseModel, *, accept: Callable[[_R], bool] | None = None) -> _R:
         """DB 값과 관계없이 새로 받아 저장한다. 스케줄러 점검용.
 
         Args:
             request: 클라이언트 요청 스키마.
+            accept: 저장해도 되는 응답인지 보는 함수. False면 저장하지 않는다. None이면 항상 저장.
 
         Returns:
             _R: 새로 받은 응답 스키마.
 
         Raises:
             Exception: 클라이언트 호출 실패. DB 값은 그대로 둔다.
+            LookupError: accept가 거른 응답. DB 값은 그대로 둔다.
         """
         response = self._client.fetch_parsed(request)
+        if accept is not None and not accept(response):
+            raise LookupError(f"{self._name} 응답이 저장 조건에 맞지 않음")
         self._write(request_key(request), request, response, self._clock())
         return response
 
