@@ -15,6 +15,7 @@ public record ProductSummaryResponse(
         SourceType sourceType,
         ProcessingStatus processingStatus,
         ResultStatus resultStatus,
+        ProductFailureResponse failure,
         LocalDateTime createdAt
 ) {
 }
