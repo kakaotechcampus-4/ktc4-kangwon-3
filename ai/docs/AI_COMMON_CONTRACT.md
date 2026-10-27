@@ -583,11 +583,14 @@ class ExecutionEvent(BaseModel):
 | --- | --- | --- |
 | 1 | 진단 미완료 | `RECHECK_REQUIRED` |
 | 2 | 판단 대상 tool에 `REQUIRED`·`POSSIBLY_REQUIRED` 판단이 있음 | `DIRECT_IMPORT_CERTIFICATION_REQUIRED` |
-| 3 | 판단 대상 tool 실행 실패(`FAILED`·`PARTIAL`), 또는 정보 부족(위험도 `UNKNOWN`, 또는 `INSUFFICIENT_INFORMATION`이면서 위험도가 `LOW`가 아님) | `RECHECK_REQUIRED` |
-| 4 | 그 밖 | `PURCHASING_AGENT_ALLOWED` |
+| 3 | 지원 분야 밖 규제 대상 신호: 추출의 `chemical_product`·`weapon_like`·`plant_material` 중 하나라도 `true` (tool 선택과 상관없이) | `RECHECK_REQUIRED` |
+| 4 | 판단 대상 tool이 하나도 없음 | `PURCHASING_AGENT_ALLOWED` |
+| 5 | 판단 대상 tool 실행 실패(`FAILED`·`PARTIAL`), 또는 정보 부족(`INSUFFICIENT_INFORMATION`이거나 위험도 `UNKNOWN`) | `RECHECK_REQUIRED` |
+| 6 | 그 밖 | `PURCHASING_AGENT_ALLOWED` |
 
-  - 표시·광고(`LABEL_AD`)는 판매 방식과 무관한 문구 의무라 결과 상태 계산에서 뺀다. 카드·할 일로만 보여 준다.
-  - 판단 대상 tool이 하나도 없으면 `PURCHASING_AGENT_ALLOWED` + 안내 "인증·허가 대상 분야를 찾지 못했습니다(확정 아님)".
+  - 표시·광고(`LABEL_AD`)는 판매 방식과 무관한 문구 의무라 결과 상태 계산에서 뺀다. 카드·할 일로 보여 주고, 구매대행 가능인데 표시·광고 판단이 있으면 요약에 "표시·광고 문구는 확인이 필요합니다"를 덧붙인다.
+  - 지원 분야 밖 신호가 있으면 결과 상태와 상관없이 `notices`에 확인하지 않는 법령을 안내한다 (화학제품안전법, 총포·도검·화약류법, 식물방역법).
+  - 구매대행 가능이면 `notices`에 확인한 분야와 확인하지 않은 범위(생활용품 안전관리, 가스·소방용품 등)를 안내한다.
   - 변환기 `app/results/presenter.py`(`ResultPresenter`)가 6개 분야 카드를 항상 같은 순서로 보내고, 할 일은 분야 순서로 중복 없이 모은다. 서버 조립의 더미 변환기 교체는 #320.
 - 공개 가능한 판단·안내를 결정하는 책임은 AI에 있다. BE·FE가 원본 검증 이슈로 판단의 유효성을 재검사하지 않는다.
 
