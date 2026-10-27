@@ -48,6 +48,15 @@ def test_만료_정리는_만료_시각이_지난_행만_지우고_지운_수를
     assert session.statements[-1].compile().params["expires_at_1"] == now
 
 
+def test_만료_정리는_클라이언트를_주면_그_클라이언트만_지운다(session):
+    session.execute = lambda stmt: session.statements.append(stmt) or SimpleNamespace(rowcount=1)
+
+    ApiResponseCacheRepository(session).delete_expired(datetime(2026, 10, 25, tzinfo=timezone.utc), ["customs.gw"])
+
+    assert "AND api_response_cache.client IN (__[POSTCOMPILE_client_1])" in session.last_sql()
+    assert session.statements[-1].compile().params["client_1"] == ["customs.gw"]
+
+
 def test_클라이언트별_삭제는_그_클라이언트_행만_지우고_지운_수를_돌려준다(session):
     session.execute = lambda stmt: session.statements.append(stmt) or SimpleNamespace(rowcount=4)
 

@@ -1,3 +1,4 @@
+from collections.abc import Collection
 from datetime import datetime
 
 from sqlalchemy import delete, func
@@ -54,16 +55,19 @@ class ApiResponseCacheRepository:
         )
         self.session.execute(stmt)
 
-    def delete_expired(self, now: datetime) -> int:
+    def delete_expired(self, now: datetime, clients: Collection[str] | None = None) -> int:
         """만료된 캐시 행을 지운다. 영구 보관 행(expires_at 없음)은 남긴다.
 
         Args:
             now: 기준 시각. expires_at이 이보다 이른 행을 지운다.
+            clients: 지울 클라이언트 이름. None이면 전부.
 
         Returns:
             int: 지운 행 수.
         """
         stmt = delete(ApiResponseCache).where(ApiResponseCache.expires_at < now)
+        if clients is not None:
+            stmt = stmt.where(ApiResponseCache.client.in_(clients))
         return self.session.execute(stmt).rowcount
 
     def delete_by_client(self, client: str) -> int:

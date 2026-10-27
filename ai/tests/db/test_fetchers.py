@@ -334,3 +334,15 @@ def test_close는_클라이언트를_닫는다(db):
     _on_demand(client, db).close()
 
     assert client.closed is True
+
+
+def test_만료_캐시_정리는_준_클라이언트의_만료_행만_지우고_DB_실패면_0이다(db, monkeypatch):
+    calls = []
+    monkeypatch.setattr(_Repository, "delete_expired",
+                        lambda self, now, clients: calls.append((now, clients)) or 2, raising=False)
+
+    assert fetchers.purge_expired_responses(db.session_factory, ["customs.gw"], now=NOW) == 2
+    assert calls == [(NOW, ["customs.gw"])] and db.commits == 1
+
+    db.fail = True
+    assert fetchers.purge_expired_responses(db.session_factory, ["customs.gw"], now=NOW) == 0
