@@ -21,7 +21,7 @@ class ClipCaseDatabase:
 
     Args:
         session_factory: DB 세션을 만드는 함수.
-        embed_query: 검색어 → 벡터 (utils.embedding.embed_text_sync). 적재 때와 같은 모델이어야 한다.
+        embed_query: 검색어 → 벡터 (clients.llm.embedding.embed_text_sync). 적재 때와 같은 모델이어야 한다.
         embedding_model: embed_query가 쓰는 임베딩 모델 이름. 같은 모델로 만든 행만 본다.
     """
 

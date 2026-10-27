@@ -11,7 +11,7 @@ from urllib.parse import parse_qs
 
 import httpx
 
-from ..base import BaseClient
+from ..request import RequestClient
 from .clip import parse_hs_codes
 from ...schemas.clients.customs_request import CLIPDetailRequest
 from ...schemas.clients.customs_response import CLIPCase
@@ -21,7 +21,7 @@ _ROW_RE = re.compile(r"<th[^>]*>(.*?)</th>\s*<td[^>]*>(.*?)</td>", re.S)
 _FIELDS = {"품명": "product_name", "물품설명": "description", "결정사유": "decision_reason"}
 
 
-class CLIPDetailClient(BaseClient[CLIPDetailRequest, CLIPCase]):
+class CLIPDetailClient(RequestClient[CLIPDetailRequest, CLIPCase]):
     """CLIP 국내 품목분류 결정사례 상세 클라이언트.
 
     방식 : POST/form

@@ -9,7 +9,7 @@ from app.db.models import Base
 
 TABLES = list(Base.metadata.sorted_tables)
 
-# text-embedding-3-small 출력 차원 (utils/embedding.py)
+# text-embedding-3-small 출력 차원 (clients/llm/embedding.py)
 EMBEDDING_DIM = 1536
 
 

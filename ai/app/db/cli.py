@@ -19,7 +19,7 @@ from sqlalchemy.exc import OperationalError
 
 from ..clients.customs import CLIPClient, CLIPDetailClient
 from ..config import ConfigError, get_settings
-from ..utils.embedding import embed_texts_sync
+from ..clients.llm.embedding import embed_texts_sync
 from .clip_ingest import ingest_clip_cases
 from .engine import get_session_factory, init_db
 from .law_cache import build_law_fetchers, refresh_laws
