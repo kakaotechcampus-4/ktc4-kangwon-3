@@ -5,12 +5,14 @@ Tool이 늘거나 근거 문서가 바뀌면 여기에 추가한다.
 """
 
 from dataclasses import dataclass
+from datetime import date
 
 from ..children import evidence as children
 from ..customs import evidence as customs
 from ..electrical import evidence as electrical
 from ..food_drug import evidence as food_drug
 from ..radio import evidence as radio
+from .law import EvidenceUnavailable, select_version
 
 
 @dataclass(frozen=True)
@@ -56,3 +58,28 @@ LAW_SOURCES: tuple[LawSource, ...] = (
     LawSource(*food_drug.COSMETICS_RULE, is_admrul=False),
     LawSource(*food_drug.COSMETICS_NOTICE, is_admrul=True),
 )
+
+
+_LAW_FIELDS = {"id_field": "law_id", "name_field": "law_name", "version_field": "mst",
+               "issued_field": "promulgate_date"}
+_ADMRUL_FIELDS = {"id_field": "rule_id", "name_field": "name", "version_field": "serial_number",
+                  "issued_field": "issue_date"}
+
+
+def applied_version(source: LawSource, result, as_of: date) -> str | None:
+    """검색 결과에서 기준일에 Tool이 쓰는 판(load_law·load_admrul과 같은 규칙)을 고른다.
+
+    Args:
+        source: 근거 문서.
+        result: 법령 또는 행정규칙 검색 응답.
+        as_of: 기준일.
+
+    Returns:
+        str | None: 판 번호. 고를 수 없으면 None.
+    """
+    fields = _ADMRUL_FIELDS if source.is_admrul else _LAW_FIELDS
+    try:
+        selected = select_version(result, name=source.name, identifier=source.document_id, as_of=as_of, **fields)
+    except EvidenceUnavailable:
+        return None
+    return getattr(selected, fields["version_field"])

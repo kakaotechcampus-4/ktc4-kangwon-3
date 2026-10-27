@@ -1,7 +1,10 @@
 """근거 문서 목록이 Tool 상수와 맞고 겹치지 않는지 검증한다."""
 
+from datetime import date
+
+from app.schemas.clients.law_response import AdmrulSearchItem, AdmrulSearchResponse
 from app.tools.children import evidence as children
-from app.tools.common.law_sources import LAW_SOURCES, LawSource
+from app.tools.common.law_sources import LAW_SOURCES, LawSource, applied_version
 from app.tools.customs import evidence as customs
 from app.tools.electrical import evidence as electrical
 from app.tools.food_drug import evidence as food_drug
@@ -35,3 +38,15 @@ def test_Tool이_불러오는_문서가_모두_들어_있다():
     }
 
     assert expected <= set(LAW_SOURCES)
+
+
+def test_적용_판은_Tool과_같은_규칙으로_고르고_못_고르면_None이다():
+    source = LawSource(electrical.NOTICE_NAME, electrical.NOTICE_ID, True)
+    result = AdmrulSearchResponse(total_count=2, items=[
+        AdmrulSearchItem(serial_number=serial, rule_id=electrical.NOTICE_ID, name=electrical.NOTICE_NAME,
+                         issue_date=issued, enforce_date=enforced)
+        for serial, issued, enforced in (("2100000285148", "20260911", "20260911"),
+                                         ("2100000283202", "20260731", "20261101"))])
+
+    assert applied_version(source, result, date(2026, 11, 1)) == "2100000285148"
+    assert applied_version(source, result, date(2026, 9, 1)) is None

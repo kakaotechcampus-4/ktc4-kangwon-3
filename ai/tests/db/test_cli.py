@@ -68,7 +68,7 @@ def _law_refresh(monkeypatch, report=None, error=None) -> _Fetchers:
     monkeypatch.setattr(cli, "get_session_factory", lambda: "session-factory")
     monkeypatch.setattr(cli, "build_law_fetchers", lambda oc, factory: fetchers)
 
-    def refresh(f, sources):
+    def refresh(f, sources, **kwargs):
         if error is not None:
             raise error
         return report or LawRefreshReport(checked=len(sources), versions=7, failed=[])
@@ -83,7 +83,7 @@ def test_law_refresh는_점검_결과를_출력하고_조회_객체를_닫는다
     assert cli.main(["law-refresh"]) == 0
     from app.tools.common.law_sources import LAW_SOURCES
 
-    assert f"법령 점검 — 문서 {len(LAW_SOURCES)}개, 버전 7개, 실패 없음" in capsys.readouterr().out
+    assert f"법령 점검 — 문서 {len(LAW_SOURCES)}개, 버전 7개, 변경 0건, 실패 없음" in capsys.readouterr().out
     assert fetchers.closed is True
 
 
