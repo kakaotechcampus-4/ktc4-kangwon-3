@@ -15,6 +15,8 @@ from .engine import get_session_factory
 from .errors import DatabaseNotConfiguredError
 from .fetchers import OnDemandFetcher
 
+CUSTOMS_GW_CACHE = "customs.gw"
+
 
 def build_customs_gw_fetcher(service_key: str, session_factory: Callable[[], Session] | None,
                              ) -> OnDemandFetcher[CustomsGwConfirmationResponse]:
@@ -28,7 +30,7 @@ def build_customs_gw_fetcher(service_key: str, session_factory: Callable[[], Ses
         OnDemandFetcher[CustomsGwConfirmationResponse]: 보관 시간 CUSTOMS_GW_TTL_SECONDS.
     """
     return OnDemandFetcher(
-        CustomsGwClient(service_key), name="customs.gw", response_type=CustomsGwConfirmationResponse,
+        CustomsGwClient(service_key), name=CUSTOMS_GW_CACHE, response_type=CustomsGwConfirmationResponse,
         ttl=timedelta(seconds=CUSTOMS_GW_TTL_SECONDS), session_factory=session_factory)
 
 

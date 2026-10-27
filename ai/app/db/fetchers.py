@@ -13,7 +13,7 @@ import logging
 import threading
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from datetime import datetime, timedelta, timezone
 from typing import Generic, NamedTuple, TypeVar
 
@@ -268,3 +268,26 @@ class OnDemandFetcher(CachedFetcherBase[_R]):
 
     def _expires_at(self, now: datetime) -> datetime | None:
         return now + self._ttl
+
+
+def purge_expired_responses(session_factory: Callable[[], Session], clients: Collection[str], *,
+                            now: datetime | None = None) -> int:
+    """보관 시간이 지난 응답 캐시 행을 지운다. 실패 때 만료 값으로 대신하는 종류(법령 검색)는 넣지 않는다.
+
+    Args:
+        session_factory: DB 세션을 만드는 함수.
+        clients: 지울 캐시 이름(예: "customs.gw").
+        now: 기준 시각. None이면 지금(UTC).
+
+    Returns:
+        int: 지운 행 수. DB 실패면 0.
+    """
+    try:
+        with session_factory() as session:
+            deleted = ApiResponseCacheRepository(session).delete_expired(now or datetime.now(timezone.utc), clients)
+            session.commit()
+    except SQLAlchemyError as e:
+        logger.warning("만료 캐시 정리 실패 (%s)", type(e).__name__)
+        return 0
+    logger.info("만료 캐시 %d건 정리 (%s)", deleted, ", ".join(clients))
+    return deleted

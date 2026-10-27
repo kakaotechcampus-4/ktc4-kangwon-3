@@ -14,8 +14,8 @@ from .clients.llm import close_llm_clients
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
-from .db import (DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db, log_law_changes,
-                 refresh_laws, run_law_refresh)
+from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
+                 log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh)
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
@@ -59,7 +59,7 @@ async def lifespan(app: FastAPI):
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
     # 연결 확인 겸 vector 확장·테이블 생성 (이미 있으면 건너뜀)
-    law_fetchers = None
+    law_fetchers = session_factory = None
     try:
         created = init_db()
     except DatabaseNotConfiguredError:
@@ -69,10 +69,14 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
         # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
-        law_fetchers = build_law_fetchers(settings.law_oc, get_session_factory())
-    law_refresher = None if law_fetchers is None else asyncio.create_task(
-        run_law_refresh(lambda: refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version,
-                                             on_change=log_law_changes)))
+        session_factory = get_session_factory()
+        law_fetchers = build_law_fetchers(settings.law_oc, session_factory)
+
+    def daily_refresh() -> None:
+        refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version, on_change=log_law_changes)
+        purge_expired_responses(session_factory, [CUSTOMS_GW_CACHE])
+
+    law_refresher = None if law_fetchers is None else asyncio.create_task(run_law_refresh(daily_refresh))
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
