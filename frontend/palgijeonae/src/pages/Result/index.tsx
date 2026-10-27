@@ -68,7 +68,8 @@ function ResultPage() {
                                             product={currentProduct}
                                             diagnosesId={diagnosesId}
                                             onNextStepsClick={handleNextStepsClick} />,
-        [ResultTabKey.NextSteps]: <NextStepTab />,
+        [ResultTabKey.NextSteps]: <NextStepTab 
+                                        product={currentProduct}/>,
         [ResultTabKey.ProductInfo]: <ProductInfoTab />,
     } : null;
 
