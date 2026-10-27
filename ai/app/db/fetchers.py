@@ -43,6 +43,43 @@ def request_key(request: BaseModel) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+class DbSkip:
+    """DB 실패 뒤 일정 시간(CACHE_DB_RETRY_SECONDS) DB를 건너뛰게 하는 상태. 같은 DB를 쓰는 조회 객체끼리 공유함.
+
+    조회 객체는 조회마다 새로 만들기도 해서, 상태를 객체마다 두면 장애 중에도 매번 연결 시간 제한을 기다림.
+
+    Args:
+        monotonic: 건너뛰기 시간 계산용 시계. 테스트용.
+    """
+
+    def __init__(self, monotonic: Callable[[], float] = time.monotonic):
+        self._monotonic = monotonic
+        self._lock = threading.Lock()
+        self._skip_until = 0.0
+
+    def available(self) -> bool:
+        """지금 DB를 써도 되는지."""
+        with self._lock:
+            return self._monotonic() >= self._skip_until
+
+    def failed(self, name: str, action: str, error: Exception) -> None:
+        """DB 실패를 기록하고 일정 시간 건너뛰게 한다.
+
+        Args:
+            name: 실패한 조회 이름(로그용).
+            action: 실패한 동작(로그용, 예: "조회").
+            error: 실패 원인.
+        """
+        with self._lock:
+            self._skip_until = self._monotonic() + CACHE_DB_RETRY_SECONDS
+        logger.warning("%s 캐시 %s 실패 — %d초 동안 DB 건너뜀: %s",
+                       name, action, CACHE_DB_RETRY_SECONDS, type(error).__name__)
+
+
+# 프로세스 공용 DB 건너뛰기 상태
+SHARED_DB_SKIP = DbSkip()
+
+
 class _Cached(NamedTuple, Generic[_R]):
     response: _R
     expires_at: datetime | None
@@ -65,7 +102,7 @@ class CachedFetcherBase(ABC, Generic[_R]):
         response_type: 클라이언트 응답 스키마. DB 값을 되돌릴 때 쓴다.
         session_factory: DB 세션을 만드는 함수. None이면 캐시 없이 클라이언트만 쓴다.
         clock: 현재 시각(UTC). 테스트용.
-        monotonic: DB 건너뛰기 시간 계산용 시계. 테스트용.
+        skip: DB 건너뛰기 상태. None이면 프로세스 공용(SHARED_DB_SKIP).
     """
 
     USE_STALE_ON_ERROR = False
@@ -73,15 +110,13 @@ class CachedFetcherBase(ABC, Generic[_R]):
     def __init__(self, client, *, name: str, response_type: type[_R],
                  session_factory: Callable[[], Session] | None,
                  clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-                 monotonic: Callable[[], float] = time.monotonic):
+                 skip: DbSkip | None = None):
         self._client = client
         self._name = name
         self._response_type = response_type
         self._session_factory = session_factory
         self._clock = clock
-        self._monotonic = monotonic
-        self._lock = threading.Lock()
-        self._db_skip_until = 0.0
+        self._skip = skip or SHARED_DB_SKIP
 
     @abstractmethod
     def _expires_at(self, now: datetime) -> datetime | None:
@@ -121,14 +156,10 @@ class CachedFetcherBase(ABC, Generic[_R]):
     # -- DB --
 
     def _db_available(self) -> bool:
-        with self._lock:
-            return self._session_factory is not None and self._monotonic() >= self._db_skip_until
+        return self._session_factory is not None and self._skip.available()
 
     def _db_failed(self, action: str, error: Exception) -> None:
-        with self._lock:
-            self._db_skip_until = self._monotonic() + CACHE_DB_RETRY_SECONDS
-        logger.warning("%s 캐시 %s 실패 — %d초 동안 DB 건너뜀: %s",
-                       self._name, action, CACHE_DB_RETRY_SECONDS, type(error).__name__)
+        self._skip.failed(self._name, action, error)
 
     def _read(self, key: str) -> _Cached[_R] | None:
         """DB 값과 만료 시각. 없거나·읽을 수 없거나·DB를 못 쓰면 None."""
