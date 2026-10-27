@@ -7,7 +7,7 @@ import pytest
 
 from app.schemas.clients.customs_response import CustomsGwConfirmation, CustomsGwConfirmationResponse
 from app.tools.common.law import EvidenceUnavailable
-from app.tools.customs.search import ClipCaseSearch, GwRequirementLookup, requirement_lookup
+from app.tools.customs.search import ClipCaseSearch, DatabaseFirstCaseSearch, GwRequirementLookup, requirement_lookup
 
 from .conftest import FakeClip
 
@@ -52,6 +52,68 @@ def test_검색어가_없으면_조회하지_않는다():
     assert search.search([" ", ""], ["주걱"], top_k=5).cases == ()
     assert calls == []
 
+
+
+class _CaseDb:
+    """받은 글을 기록하고 저장한 CLIP 응답의 사례를 정한 거리로 돌려주는 가짜 결정사례 DB."""
+
+    def __init__(self, source: str | None, distance: float = 0.2, error: Exception | None = None):
+        self.source, self.distance, self.error, self.texts = source, distance, error, []
+
+    def search_similar(self, text, *, top_k=10):
+        self.texts.append(text)
+        if self.error is not None:
+            raise self.error
+        if self.source is None:
+            return []
+        return [(case, self.distance) for case in FakeClip.responses[self.source].items[:top_k]]
+
+
+def db_first(source, *, distance=0.2, error=None, clip_errors=None, max_distance=None):
+    fallback, calls, _ = clip(clip_errors)
+    database = _CaseDb(source, distance, error)
+    return DatabaseFirstCaseSearch(database, fallback, max_distance=max_distance), database, calls
+
+
+def test_검색어와_상품_용어를_이은_글_하나로_DB를_찾고_CLIP은_부르지_않는다():
+    search, database, calls = db_first("실리콘 주걱")
+    found = search.search(["실리콘 주걱", "주방용품"], ["실리콘 주걱", "실리콘"], top_k=5)
+    assert database.texts == ["실리콘 주걱\n주방용품\n실리콘"] and calls == []
+    assert SPATULA_CASE in [case.case_id for case in found.cases]
+
+
+def test_DB_결과는_다시_고르지_않고_가까운_순서대로_top_k개를_쓴다():
+    search, _, _ = db_first("실리콘 주걱")
+    found = search.search(["실리콘 주걱"], ["전혀 다른 용어"], top_k=3)
+    expected = [case.doc_id for case in FakeClip.responses["실리콘 주걱"].items if case.hs_codes][:3]
+    assert [case.case_id for case in found.cases] == expected
+
+
+def test_DB에_없거나_거리가_멀면_검색어로_CLIP에서_찾는다():
+    for search, _, calls in (db_first(None), db_first("실리콘 주걱", distance=0.9, max_distance=0.5)):
+        found = search.search(["실리콘 주걱", "주방용품"], ["실리콘 주걱"], top_k=5)
+        assert sorted(calls) == ["실리콘 주걱", "주방용품"]
+        assert SPATULA_CASE in [case.case_id for case in found.cases]
+
+
+def test_DB_조회가_실패하면_CLIP으로_찾는다():
+    search, _, calls = db_first(None, error=RuntimeError("DB 연결 끊김"))
+    found = search.search(["실리콘 주걱"], ["실리콘 주걱"], top_k=5)
+    assert calls == ["실리콘 주걱"]
+    assert SPATULA_CASE in [case.case_id for case in found.cases]
+
+
+def test_CLIP으로_넘어가서_일부_검색어가_실패하면_실패한_검색어로_남긴다():
+    search, _, _ = db_first(None, clip_errors={"주방용품": httpx.ReadTimeout("느림")})
+    found = search.search(["실리콘 주걱", "주방용품"], ["실리콘 주걱"], top_k=5)
+    assert found.failed_terms == ("주방용품",)
+    assert SPATULA_CASE in [case.case_id for case in found.cases]
+
+
+def test_DB와_CLIP_모두에서_못_받으면_오류를_올린다():
+    search, _, _ = db_first(None, clip_errors={"실리콘 주걱": httpx.ReadTimeout("느림")})
+    with pytest.raises(httpx.ReadTimeout):
+        search.search(["실리콘 주걱"], ["실리콘 주걱"], top_k=5)
 
 class _Gw:
     def __init__(self, calls):
