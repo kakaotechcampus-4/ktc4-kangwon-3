@@ -4,7 +4,7 @@
   - ClipCaseSearch: 지금 쓰는 경로. 관세청 CLIP 결정사례를 검색어별로 받아 상품 용어와의 글자 유사도로 순위를 매긴다.
 - RequirementLookup: HS 10자리로 세관장확인 대상 법령·요건확인기관·제출 서류를 조회한다.
   - GwRequirementLookup: 관세청 세관장확인대상물품 GW(공공데이터포털 키 필요).
-- 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(law_api_evidence_loader).
+- 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(evidence_loader).
 """
 
 import threading
@@ -243,7 +243,7 @@ class GwRequirementLookup:
 
 
 def _load_on_demand(as_of: date) -> CustomsEvidence:
-    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
+    """조회할 때만 법제처 조회 객체(DB 캐시 먼저, 없으면 API)를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
 
     Args:
         as_of: 기준일.
@@ -252,16 +252,17 @@ def _load_on_demand(as_of: date) -> CustomsEvidence:
         CustomsEvidence: 기준일 근거 묶음.
     """
     from ...config import get_settings
+    from ...db import open_law_fetchers
 
-    clients = LawApiClients.from_oc(get_settings().law_oc)
+    clients = LawApiClients(*open_law_fetchers(get_settings().law_oc))
     try:
         return load_customs_evidence(clients, as_of)
     finally:
         clients.close()
 
 
-def law_api_evidence_loader() -> Callable[[], CustomsEvidence]:
-    """기준일(한국 날짜)의 통관 근거를 법제처 API로 돌려주는 함수를 만든다.
+def evidence_loader() -> Callable[[], CustomsEvidence]:
+    """기준일(한국 날짜)의 통관 근거를 돌려주는 함수를 만든다. 법제처 응답은 DB 캐시를 먼저 봄.
 
     기준일별 캐시는 함수마다 따로 있어 조립하는 쪽이 한 번 만들어 공유함.
 
