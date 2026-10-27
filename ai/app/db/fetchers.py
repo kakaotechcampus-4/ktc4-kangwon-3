@@ -122,6 +122,10 @@ class CachedFetcherBase(ABC, Generic[_R]):
     def _expires_at(self, now: datetime) -> datetime | None:
         """지금 받은 응답의 만료 시각. None이면 만료 없음."""
 
+    def _accepts(self, response: _R) -> bool:
+        """저장해도 되는 응답인지. 아니면 저장하지 않고 DB 값이 있으면 그것을 쓴다."""
+        return True
+
     def fetch_parsed(self, request: BaseModel) -> _R:
         """요청 하나의 응답 스키마를 돌려준다. 클라이언트를 직접 부른 결과와 같다.
 
@@ -146,6 +150,11 @@ class CachedFetcherBase(ABC, Generic[_R]):
                 logger.warning("%s 조회 실패 — 만료된 캐시로 대신함 (만료 %s)", self._name, cached.expires_at)
                 return cached.response
             raise
+        if not self._accepts(response):
+            if cached is not None:
+                logger.warning("%s 응답이 저장 조건에 맞지 않음 — 만료된 캐시로 대신함 (만료 %s)", self._name, cached.expires_at)
+                return cached.response
+            return response
         self._write(key, request, response, now)
         return response
 
@@ -213,22 +222,28 @@ class ScheduledFetcher(CachedFetcherBase[_R]):
     """미리 쌓아 두고 스케줄러가 주기적으로 점검하는 데이터용(법령·행정규칙 검색·본문).
 
     - Tool 조회(fetch_parsed): DB 값을 쓴다. 스케줄러가 멈춰 recheck_after가 지나면 직접 다시 받는다.
-    - 클라이언트 호출이 실패하면 만료된 값이라도 쓴다(어제 버전 목록도 대부분 맞음).
+    - 클라이언트 호출이 실패하거나 응답이 accept에 맞지 않으면 만료된 값이라도 쓴다(어제 버전 목록도 대부분 맞음).
     - 스케줄러 점검(refresh): DB를 보지 않고 새로 받아 덮어쓴다.
 
     Args:
         recheck_after: 점검 뒤 이 시간이 지나면 Tool 조회 때 다시 받는다. None이면 다시 받지 않는다(버전이 고정된 본문).
+        accept: Tool 조회 때 저장해도 되는 응답인지 보는 함수. None이면 항상 저장.
         **kwargs: CachedFetcherBase 인자.
     """
 
     USE_STALE_ON_ERROR = True
 
-    def __init__(self, client, *, recheck_after: timedelta | None, **kwargs):
+    def __init__(self, client, *, recheck_after: timedelta | None, accept: Callable[[_R], bool] | None = None,
+                 **kwargs):
         super().__init__(client, **kwargs)
         self._recheck_after = recheck_after
+        self._accept = accept
 
     def _expires_at(self, now: datetime) -> datetime | None:
         return None if self._recheck_after is None else now + self._recheck_after
+
+    def _accepts(self, response: _R) -> bool:
+        return self._accept is None or self._accept(response)
 
     def refresh(self, request: BaseModel, *, accept: Callable[[_R], bool] | None = None) -> _R:
         """DB 값과 관계없이 새로 받아 저장한다. 스케줄러 점검용.

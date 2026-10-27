@@ -48,7 +48,7 @@ def build_law_fetchers(oc: str, session_factory: Callable[[], Session] | None) -
     """법제처 조회 4종의 DB 우선 조회 객체를 만든다.
 
     법령 검색은 시행법령 검색(현행·시행예정만)으로 받는다. 시행 예정 버전이 목록에 있어야
-    시행일에 select_version이 외부 호출 없이 새 버전을 고른다.
+    시행일에 select_version이 외부 호출 없이 새 버전을 고른다. 빈 검색 결과는 저장하지 않는다.
 
     Args:
         oc: 법제처 OC.
@@ -58,16 +58,20 @@ def build_law_fetchers(oc: str, session_factory: Callable[[], Session] | None) -
         LawFetchers: 검색은 점검 기한(LAW_SEARCH_RECHECK_SECONDS), 본문은 영구 보관.
     """
     recheck = timedelta(seconds=LAW_SEARCH_RECHECK_SECONDS)
+
+    def found(response: LawSearchResponse | AdmrulSearchResponse) -> bool:
+        return bool(response.items)
+
     return LawFetchers(
         law_search=ScheduledFetcher(
             EflawSearchClient(oc, include_history=False), name="law.eflaw_search",
-            response_type=LawSearchResponse, recheck_after=recheck, session_factory=session_factory),
+            response_type=LawSearchResponse, recheck_after=recheck, accept=found, session_factory=session_factory),
         law_text=ScheduledFetcher(
             LawTextClient(oc), name="law.text",
             response_type=LawTextResponse, recheck_after=None, session_factory=session_factory),
         admrul_search=ScheduledFetcher(
             AdmrulSearchClient(oc), name="admrul.search",
-            response_type=AdmrulSearchResponse, recheck_after=recheck, session_factory=session_factory),
+            response_type=AdmrulSearchResponse, recheck_after=recheck, accept=found, session_factory=session_factory),
         admrul_text=ScheduledFetcher(
             AdmrulTextClient(oc), name="admrul.text",
             response_type=AdmrulTextResponse, recheck_after=None, session_factory=session_factory),
