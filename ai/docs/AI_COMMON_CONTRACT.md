@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | §2 실행 컨텍스트 | 구현됨 (세션 계층까지만 전달) | `app/domain/context.py` |
 | §3 프롬프트 로더 | 구현됨 | `app/prompts/__init__.py` |
-| §4.2 BaseAgent | 구현됨 (#364) | `app/agents/base/`, Tool 안 모델 호출은 `app/tools/common/agent.py` |
+| §4.2 BaseAgent | 구현됨 (#364) | `app/agents/base/`, Tool 안 모델 호출은 `app/tools/base/steps.py` |
 | §4.3 context 인자 | 미구현. 공개 메서드는 `run(input)` | — |
 | §5 UsageRecord·Sink | 미구현. 평탄한 JSONL `record()` 유지 + 지표 sink 등록표(#379) | `app/usage.py`, `app/observability/` |
 | §6.1 예외·응답 코드 | 구현됨 (#382) | `app/domain/errors.py` |
@@ -156,7 +156,7 @@ M1~M4는 AI 코드의 이관 단위이며, 계약을 합의하는 순서가 아�
 - ClassVar 추가: `task_name`·`output_label`·`structured_output_options`·`creates_default_model`·`model_profile`
 - `AgentError(AIError, RuntimeError)`에 `meta: AgentRunMeta` 추가. `ModelFailurePhase`에 `FINALIZE` 추가
 - 실행 정보 `AgentRunMeta`·`AgentResult` 신설 (`base/meta.py`)
-- Tool 안의 모델 호출도 BaseAgent를 상속: `ToolStep` + `ToolStepInput(payload, subject_id)` (`app/tools/common/agent.py`)
+- Tool 안의 모델 호출도 BaseAgent를 상속: `ToolStep` + `ToolStepInput(payload, subject_id)` (`app/tools/base/steps.py`)
 - 콘솔 토큰 로그는 `base/usage_log.py`의 `log_token_usage`
 - 모델 생성: `build_agent_model(name)`·`build_tool_model(name)` (`app/clients/llm`, #311·#401). 프로필은 `config/profiles.py`
 
