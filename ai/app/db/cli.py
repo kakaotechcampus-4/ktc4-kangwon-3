@@ -23,6 +23,7 @@ from ..clients.llm.embedding import embed_texts_sync
 from .clip_ingest import ingest_clip_cases
 from .engine import get_session_factory, init_db
 from .law_cache import build_law_fetchers, refresh_laws
+from .law_changes import log_law_changes
 from .repositories.api_response_cache import ApiResponseCacheRepository
 
 
@@ -64,16 +65,17 @@ def _law_refresh() -> int:
         int: 종료 코드. 실패한 문서가 있으면 1.
     """
     # 근거 문서 목록은 Tool 쪽에 있음. CLI는 서버 진입점이라 여기서만 가져옴
-    from ..tools.common.law_sources import LAW_SOURCES
+    from ..tools.common.law_sources import LAW_SOURCES, applied_version
 
     # 조회 객체는 DB 연결 실패를 조용히 건너뛰므로 연결부터 확인
     init_db()
     fetchers = build_law_fetchers(get_settings().law_oc, get_session_factory())
     try:
-        report = refresh_laws(fetchers, LAW_SOURCES)
+        report = refresh_laws(fetchers, LAW_SOURCES, select=applied_version, on_change=log_law_changes)
     finally:
         fetchers.close()
-    print(f"법령 점검 — 문서 {report.checked}개, 버전 {report.versions}개, 실패 {', '.join(report.failed) or '없음'}")
+    print(f"법령 점검 — 문서 {report.checked}개, 버전 {report.versions}개, 변경 {len(report.changes)}건, "
+          f"실패 {', '.join(report.failed) or '없음'}")
     return 1 if report.failed else 0
 
 

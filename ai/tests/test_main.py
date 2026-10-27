@@ -150,7 +150,7 @@ def _db_ready(monkeypatch, created=()) -> tuple[_LawFetchers, list]:
     monkeypatch.setattr(main, "init_db", lambda: list(created))
     monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
     monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory: fetchers)
-    monkeypatch.setattr(main, "refresh_laws", lambda f, sources: refreshed.append((f, sources)))
+    monkeypatch.setattr(main, "refresh_laws", lambda f, sources, **kwargs: refreshed.append((f, sources, kwargs)))
     return fetchers, refreshed
 
 
@@ -169,7 +169,8 @@ def test_DB가_준비되면_기동_직후_법령_점검을_돌리고_종료_때_
     with TestClient(main.app):
         _wait_until(lambda: refreshed)
 
-    assert refreshed == [(fetchers, main.LAW_SOURCES)]
+    assert refreshed == [(fetchers, main.LAW_SOURCES,
+                          {"select": main.applied_version, "on_change": main.log_law_changes})]
     assert fetchers.closed is True
 
 

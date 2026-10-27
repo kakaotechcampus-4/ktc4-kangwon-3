@@ -14,14 +14,14 @@ from .clients.llm import close_llm_clients
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
-from .db import (DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db, refresh_laws,
-                 run_law_refresh)
+from .db import (DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db, log_law_changes,
+                 refresh_laws, run_law_refresh)
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
-from .tools.common.law_sources import LAW_SOURCES
+from .tools.common.law_sources import LAW_SOURCES, applied_version
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,8 @@ async def lifespan(app: FastAPI):
         # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
         law_fetchers = build_law_fetchers(settings.law_oc, get_session_factory())
     law_refresher = None if law_fetchers is None else asyncio.create_task(
-        run_law_refresh(lambda: refresh_laws(law_fetchers, LAW_SOURCES)))
+        run_law_refresh(lambda: refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version,
+                                             on_change=log_law_changes)))
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
