@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.models.base import Base
 
-# text-embedding-3-small 출력 차원 (utils/embedding.py)
+# text-embedding-3-small 출력 차원 (clients/llm/embedding.py)
 EMBEDDING_DIM = 1536
 
 

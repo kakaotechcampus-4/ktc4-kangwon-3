@@ -159,7 +159,7 @@ def ingest_clip_cases(
     Args:
         search: CLIP 검색 클라이언트.
         detail: CLIP 상세 클라이언트.
-        embed: 글 목록 → 벡터 목록 (utils.embedding.embed_texts_sync).
+        embed: 글 목록 → 벡터 목록 (clients.llm.embedding.embed_texts_sync).
         embedding_model: 벡터를 만든 임베딩 모델 이름.
         session_factory: DB 세션을 만드는 함수.
         workers: 동시 요청 수.
