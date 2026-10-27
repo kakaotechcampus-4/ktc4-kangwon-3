@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import OperationalError
 
 from app.db import fetchers
-from app.db.fetchers import OnDemandFetcher, ScheduledFetcher, request_key
+from app.db.fetchers import DbSkip, OnDemandFetcher, ScheduledFetcher, request_key
 
 NOW = datetime(2026, 10, 25, 12, tzinfo=timezone.utc)
 
@@ -105,7 +105,7 @@ class _Clock:
 def _common(db, clock) -> dict:
     clock = clock or _Clock()
     return {"name": "law.search", "response_type": _Response, "session_factory": db.session_factory if db else None,
-            "clock": lambda: clock.now, "monotonic": lambda: clock.seconds}
+            "clock": lambda: clock.now, "skip": DbSkip(lambda: clock.seconds)}
 
 
 def _on_demand(client, db, clock=None, *, ttl=timedelta(days=1)) -> OnDemandFetcher:
@@ -283,6 +283,20 @@ def test_DB_실패_뒤_일정_시간은_DB를_건너뛰고_지나면_다시_쓴�
     fetcher.fetch_parsed(_Request(mst="1"))
     assert db.sessions == 3
     assert len(db.rows) == 1
+
+
+def test_DB_건너뛰기는_같은_상태를_쓰는_다른_조회_객체에도_적용된다(db, monkeypatch):
+    monkeypatch.setattr(fetchers, "CACHE_DB_RETRY_SECONDS", 60)
+    clock = _Clock()
+    common = {**_common(db, clock), "skip": DbSkip(lambda: clock.seconds)}
+    first = OnDemandFetcher(_Client(), ttl=timedelta(days=1), **common)
+    second = OnDemandFetcher(_Client(), ttl=timedelta(days=1), **common)
+    db.fail = True
+
+    first.fetch_parsed(_Request(mst="1"))
+    second.fetch_parsed(_Request(mst="1"))
+
+    assert db.sessions == 1
 
 
 def test_요청_키는_같은_요청이면_같고_64자다():

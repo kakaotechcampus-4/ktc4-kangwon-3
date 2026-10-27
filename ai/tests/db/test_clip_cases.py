@@ -1,9 +1,11 @@
 """CLIP 결정사례 DB 조회 객체를 DB·임베딩 없이 검증한다."""
 
 import pytest
+from sqlalchemy.exc import OperationalError
 
-from app.db import clip_cases
+from app.db import clip_cases, fetchers
 from app.db.clip_cases import ClipCaseDatabase
+from app.db.fetchers import DbSkip
 from app.db.models.hs_case import HsCase
 from app.schemas.clients.customs_response import CLIPCase
 
@@ -72,3 +74,20 @@ def test_HS_코드로_겹치는_사례를_찾는다(repo):
     assert repo["hs_code"] == "851631"
     assert [case.doc_id for case in cases] == ["1"]
     assert embedded == []
+
+
+def test_DB가_실패하면_빈_목록이고_건너뛰는_동안은_임베딩도_하지_않는다(monkeypatch):
+    monkeypatch.setattr(fetchers, "CACHE_DB_RETRY_SECONDS", 60)
+    seconds, embedded = [0.0], []
+
+    def failing_session():
+        raise OperationalError("connect", {}, ConnectionRefusedError())
+
+    database = ClipCaseDatabase(failing_session, embed_query=lambda text: embedded.append(text) or [0.2] * 1536,
+                                embedding_model="m", skip=DbSkip(lambda: seconds[0]))
+
+    assert database.search_similar("전기주전자") == []
+    assert database.search_similar("전기주전자") == [] and embedded == ["전기주전자"]
+    seconds[0] = 60
+    database.search_similar("전기주전자")
+    assert len(embedded) == 2
