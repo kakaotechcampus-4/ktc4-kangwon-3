@@ -1,13 +1,23 @@
+import DefaultBox from "@/components/common/DefaultBox";
+
 interface NoticesSectionProps {
     notices: string[]
 }
 
-// TODO: 경고 톤 박스로 렌더링하고, 빈 배열이면 섹션 자체를 숨김
 function NoticesSection({ notices }: NoticesSectionProps) {
+    if (notices.length === 0) {
+        return null;
+    }
+
     return (
-        <div>
-            유의사항 섹션입니다. ({notices.length}건)
-        </div>
+        <DefaultBox tone="warning" className="gap-3">
+            <h3 className="text-lg leading-tight font-bold text-status-warning">유의사항</h3>
+            {notices.map((notice, index) => (
+                <p key={index} className="text-sm leading-relaxed text-status-warning">
+                    • {notice}
+                </p>
+            ))}
+        </DefaultBox>
     );
 }
 
