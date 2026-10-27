@@ -12,6 +12,7 @@
 """
 
 from .clip_cases import ClipCaseDatabase
+from .clip_ingest import run_scheduled_clip_ingest, run_weekly_clip_ingest
 from .customs_cache import CUSTOMS_GW_CACHE, build_customs_gw_fetcher, open_customs_gw_fetcher
 from .engine import get_session_factory, init_db
 from .errors import DatabaseNotConfiguredError
@@ -47,5 +48,7 @@ __all__ = [
     "open_law_fetchers",
     "purge_expired_responses",
     "refresh_laws",
+    "run_scheduled_clip_ingest",
     "run_law_refresh",
+    "run_weekly_clip_ingest",
 ]

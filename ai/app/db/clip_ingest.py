@@ -5,6 +5,7 @@
 raw_dir을 주면 상세 원문도 문서마다 raw.html·parsed.json·meta.json으로 남긴다.
 """
 
+import asyncio
 import json
 import logging
 import math
@@ -12,12 +13,13 @@ import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
 
 from ..clients.customs import CLIPClient, CLIPDetailClient
+from ..config import CLIP_INGEST_WEEKLY_AT
 from ..schemas.clients.customs_request import CLIPDetailRequest, CLIPSearchRequest
 from ..schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 from .models.hs_case import HsCase
@@ -211,3 +213,71 @@ def ingest_clip_cases(
             logger.info("CLIP 적재 %d/%d (실패 %d) — %.1f건/초, 남은 시간 약 %d분", done, len(todo),
                         len(report.failed), rate, (len(todo) - done) / rate / 60)
     return report
+
+
+KST = timezone(timedelta(hours=9))
+
+
+def run_scheduled_clip_ingest(session_factory: Callable[[], Session], *, embed: Callable[[list[str]], list[list[float]]],
+                              embedding_model: str) -> ClipIngestReport | None:
+    """주간 적재 한 번. hs_cases가 비어 있으면(초기 적재 전) 하지 않는다.
+
+    Args:
+        session_factory: DB 세션을 만드는 함수.
+        embed: 글 목록 → 벡터 목록.
+        embedding_model: 벡터를 만든 임베딩 모델 이름.
+
+    Returns:
+        ClipIngestReport | None: 적재 결과. 건너뛰면 None.
+    """
+    with session_factory() as session:
+        if not HsCaseRepository(session).list_doc_ids():
+            logger.warning("CLIP 주간 적재 건너뜀 — hs_cases가 비어 있음 (초기 적재는 cli clip-ingest로)")
+            return None
+    search, detail = CLIPClient(), CLIPDetailClient()
+    try:
+        report = ingest_clip_cases(search=search, detail=detail, embed=embed, embedding_model=embedding_model,
+                                   session_factory=session_factory)
+    finally:
+        search.close()
+        detail.close()
+    logger.info("CLIP 주간 적재 — 새로 저장 %d건, 실패 %d건", report.saved, len(report.failed))
+    return report
+
+
+def seconds_until_weekly(now: datetime, at: tuple[int, int, int]) -> float:
+    """now 다음에 오는 at(요일·시·분, 월=0)까지 남은 초. now와 같은 시간대로 계산한다.
+
+    Args:
+        now: 현재 시각(시간대 포함).
+        at: (요일, 시, 분).
+
+    Returns:
+        float: 남은 초. 이미 지났거나 정각이면 다음 주 그 시각까지.
+    """
+    weekday, hour, minute = at
+    target = datetime.combine(now.date(), clock_time(hour, minute), tzinfo=now.tzinfo)
+    target += timedelta(days=(weekday - now.weekday()) % 7)
+    if target <= now:
+        target += timedelta(days=7)
+    return (target - now).total_seconds()
+
+
+async def run_weekly_clip_ingest(ingest: Callable[[], object], *, at: tuple[int, int, int] = CLIP_INGEST_WEEKLY_AT,
+                                 now: Callable[[], datetime] = lambda: datetime.now(KST),
+                                 sleep: Callable[[float], object] = asyncio.sleep) -> None:
+    """매주 at(KST)에 결정사례 적재를 실행한다. 기동 직후에는 하지 않는다. 취소될 때까지 돈다.
+
+    Args:
+        ingest: 적재 함수(보통 run_scheduled_clip_ingest를 묶은 것). 동기라 스레드에서 실행한다.
+        at: 매주 실행할 (요일, 시, 분).
+        now: 현재 시각. 테스트용.
+        sleep: 대기 함수. 테스트용.
+    """
+    while True:
+        await sleep(seconds_until_weekly(now(), at))
+        try:
+            await asyncio.to_thread(ingest)
+        except Exception:
+            logger.exception("CLIP 주간 적재 실패")
+

@@ -11,11 +11,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
 from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
+from .clients.llm.embedding import embed_texts_sync
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
 from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
-                 log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh)
+                 log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
+                 run_weekly_clip_ingest)
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
@@ -77,6 +79,10 @@ async def lifespan(app: FastAPI):
         purge_expired_responses(session_factory, [CUSTOMS_GW_CACHE])
 
     law_refresher = None if law_fetchers is None else asyncio.create_task(run_law_refresh(daily_refresh))
+    # CLIP 결정사례: 매주 새 사례만 적재
+    clip_ingester = None if session_factory is None else asyncio.create_task(run_weekly_clip_ingest(
+        lambda: run_scheduled_clip_ingest(session_factory, embed=lambda texts: embed_texts_sync(texts, settings),
+                                          embedding_model=settings.embedding_model)))
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
@@ -110,6 +116,10 @@ async def lifespan(app: FastAPI):
             with suppress(asyncio.CancelledError):
                 await law_refresher
             law_fetchers.close()
+        if clip_ingester is not None:
+            clip_ingester.cancel()
+            with suppress(asyncio.CancelledError):
+                await clip_ingester
         # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드는 프로세스 종료 때 끝까지 돌지만
         # 발신함이 먼저 닫혀 이후 콜백은 버려짐. BE는 멈춤 감지(15분)로 실패 처리
         manager.shutdown(wait=False)

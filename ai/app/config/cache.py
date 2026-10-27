@@ -9,3 +9,5 @@ LAW_SEARCH_RECHECK_SECONDS = 2 * 24 * 3600
 LAW_REFRESH_AT = (0, 5)
 # 관세청 세관장확인대상물품 GW 응답 보관 시간. 고시 개정 반영이 늦어도 하루
 CUSTOMS_GW_TTL_SECONDS = 24 * 3600
+# CLIP 결정사례 주간 적재 (KST 요일·시·분, 월=0)
+CLIP_INGEST_WEEKLY_AT = (6, 3, 0)

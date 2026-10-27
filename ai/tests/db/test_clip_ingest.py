@@ -1,12 +1,17 @@
 """CLIP 결정사례 적재 루틴을 DB·네트워크 없이 검증한다."""
 
+import asyncio
 import json
+from datetime import datetime
 
 import httpx
 import pytest
 
 from app.db import clip_ingest
-from app.db.clip_ingest import ALL_CASES_QUERY, case_text, collect_doc_ids, fetch_detail, ingest_clip_cases
+from app.db.clip_ingest import (
+    ALL_CASES_QUERY, KST, ClipIngestReport, case_text, collect_doc_ids, fetch_detail, ingest_clip_cases,
+    run_scheduled_clip_ingest, run_weekly_clip_ingest, seconds_until_weekly,
+)
 from app.schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 
 
@@ -200,3 +205,62 @@ def test_적재에_원문_폴더를_주면_받은_사례마다_원문이_남는�
 
     assert report.saved == 2
     assert sorted(p.name for p in tmp_path.iterdir()) == ["1", "2"]
+
+
+class _Closable:
+    def __init__(self):
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+def _scheduled(monkeypatch, db, existing):
+    db["existing"] = existing
+    clients, ran = [], []
+    monkeypatch.setattr(clip_ingest, "CLIPClient", lambda: clients.append(_Closable()) or clients[-1])
+    monkeypatch.setattr(clip_ingest, "CLIPDetailClient", lambda: clients.append(_Closable()) or clients[-1])
+    monkeypatch.setattr(clip_ingest, "ingest_clip_cases", lambda **kwargs: ran.append(kwargs) or ClipIngestReport())
+    report = run_scheduled_clip_ingest(_Session, embed=lambda texts: [], embedding_model="m")
+    return report, clients, ran
+
+
+def test_주간_적재는_hs_cases가_비어_있으면_건너뛴다(monkeypatch, db):
+    report, clients, ran = _scheduled(monkeypatch, db, set())
+
+    assert (report, clients, ran) == (None, [], [])
+
+
+def test_주간_적재는_새_사례를_받고_클라이언트를_닫는다(monkeypatch, db):
+    report, clients, ran = _scheduled(monkeypatch, db, {"1"})
+
+    assert isinstance(report, ClipIngestReport) and ran[0]["embedding_model"] == "m"
+    assert all(client.closed for client in clients) and len(clients) == 2
+
+
+@pytest.mark.parametrize(("now", "expected_hours"), [
+    (datetime(2026, 10, 27, 12, 0, tzinfo=KST), 4 * 24 + 15),
+    (datetime(2026, 11, 1, 3, 0, tzinfo=KST), 7 * 24),
+    (datetime(2026, 11, 1, 2, 0, tzinfo=KST), 1),
+])
+def test_다음_주간_적재_시각까지_남은_초(now, expected_hours):
+    assert seconds_until_weekly(now, (6, 3, 0)) == pytest.approx(expected_hours * 3600)
+
+
+def test_주간_적재는_기동_직후가_아니라_시각까지_기다린_뒤_돌고_실패해도_계속한다():
+    events = []
+
+    def ingest():
+        events.append("ingest")
+        raise RuntimeError("적재 실패")
+
+    async def sleep(seconds):
+        events.append(seconds)
+        if len(events) == 3:
+            raise asyncio.CancelledError
+
+    now = datetime(2026, 11, 1, 2, 0, tzinfo=KST)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(run_weekly_clip_ingest(ingest, at=(6, 3, 0), now=lambda: now, sleep=sleep))
+
+    assert events == [3600, "ingest", 3600]
