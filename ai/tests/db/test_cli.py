@@ -81,7 +81,9 @@ def test_law_refresh는_점검_결과를_출력하고_조회_객체를_닫는다
     fetchers = _law_refresh(monkeypatch)
 
     assert cli.main(["law-refresh"]) == 0
-    assert "법령 점검 — 문서 5개, 버전 7개, 실패 없음" in capsys.readouterr().out
+    from app.tools.common.law_sources import LAW_SOURCES
+
+    assert f"법령 점검 — 문서 {len(LAW_SOURCES)}개, 버전 7개, 실패 없음" in capsys.readouterr().out
     assert fetchers.closed is True
 
 
