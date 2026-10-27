@@ -15,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
+from typing import NamedTuple
 
 from sqlalchemy.orm import Session
 
@@ -44,13 +45,27 @@ class ClipIngestReport:
         listed: 목록에서 찾은 문서 수.
         existing: 이미 DB에 있어 건너뛴 문서 수.
         saved: 새로 저장한 문서 수.
+        removed: 목록에서 사라져 지운 문서 수.
         failed: 상세를 받지 못한 문서 ID.
     """
 
     listed: int = 0
     existing: int = 0
     saved: int = 0
+    removed: int = 0
     failed: list[str] = field(default_factory=list)
+
+
+class CaseIds(NamedTuple):
+    """CLIP 목록에서 모은 문서 ID.
+
+    Attributes:
+        doc_ids: 목록 순서대로, 중복을 뺀 문서 ID.
+        total: CLIP이 알려 준 전체 건수.
+    """
+
+    doc_ids: list[str]
+    total: int
 
 
 def case_text(case: CLIPCase) -> str:
@@ -76,7 +91,7 @@ def _retry(call: Callable[[], CLIPSearchResponse | CLIPCase], *, sleep: Callable
             sleep(3 * (attempt + 1))
 
 
-def collect_doc_ids(search: CLIPClient, *, workers: int, sleep: Callable[[float], None] = time.sleep) -> list[str]:
+def collect_doc_ids(search: CLIPClient, *, workers: int, sleep: Callable[[float], None] = time.sleep) -> CaseIds:
     """국내 결정사례 전체의 문서 ID를 모은다.
 
     Args:
@@ -85,7 +100,7 @@ def collect_doc_ids(search: CLIPClient, *, workers: int, sleep: Callable[[float]
         sleep: 재시도 대기 함수.
 
     Returns:
-        list[str]: 목록 순서대로, 중복을 뺀 문서 ID.
+        CaseIds: 문서 ID와 전체 건수.
 
     Raises:
         RuntimeError: 재시도 뒤에도 페이지가 비어 있는 경우(목록 불완전).
@@ -108,7 +123,7 @@ def collect_doc_ids(search: CLIPClient, *, workers: int, sleep: Callable[[float]
             if number % LOG_EVERY_PAGES == 0:
                 logger.info("CLIP 목록 %d/%d페이지", number, pages)
     doc_ids = [item.doc_id for result in (first, *rest) for item in result.items if item.doc_id]
-    return list(dict.fromkeys(doc_ids))
+    return CaseIds(list(dict.fromkeys(doc_ids)), first.total_count)
 
 
 def fetch_detail(detail: CLIPDetailClient, doc_id: str, raw_dir: Path | None) -> CLIPCase:
@@ -174,9 +189,16 @@ def ingest_clip_cases(
         ClipIngestReport: 적재 결과.
     """
     report = ClipIngestReport()
-    doc_ids = collect_doc_ids(search, workers=workers, sleep=sleep)
+    doc_ids, total = collect_doc_ids(search, workers=workers, sleep=sleep)
     with session_factory() as session:
         existing = HsCaseRepository(session).list_doc_ids()
+        gone = existing - set(doc_ids)
+        if gone and len(doc_ids) < total:
+            logger.warning("CLIP 목록이 전체보다 적어(%d/%d건) 사라진 사례 %d건을 지우지 않음",
+                           len(doc_ids), total, len(gone))
+        elif gone:
+            report.removed = HsCaseRepository(session).delete_many(sorted(gone))
+            session.commit()
     new = [doc_id for doc_id in doc_ids if doc_id not in existing]
     todo = new[:limit]
     report.listed, report.existing = len(doc_ids), len(doc_ids) - len(new)
@@ -241,7 +263,7 @@ def run_scheduled_clip_ingest(session_factory: Callable[[], Session], *, embed: 
     finally:
         search.close()
         detail.close()
-    logger.info("CLIP 주간 적재 — 새로 저장 %d건, 실패 %d건", report.saved, len(report.failed))
+    logger.info("CLIP 주간 적재 — 새로 저장 %d건, 삭제 %d건, 실패 %d건", report.saved, report.removed, len(report.failed))
     return report
 
 

@@ -125,7 +125,7 @@ def _clip_ingest(workers: int, limit: int | None, raw_dir: Path | None) -> int:
         detail.close()
     failed = f"{len(report.failed)}건 ({', '.join(report.failed[:10])}{' …' if len(report.failed) > 10 else ''})"
     print(f"CLIP 적재 — 목록 {report.listed}건, 이미 있음 {report.existing}건, 새로 저장 {report.saved}건, "
-          f"실패 {failed if report.failed else '없음'}")
+          f"삭제 {report.removed}건, 실패 {failed if report.failed else '없음'}")
     return 1 if report.failed else 0
 
 

@@ -68,7 +68,7 @@ class _Session:
 @pytest.fixture
 def db(monkeypatch):
     """HsCaseRepository를 가짜로 바꾸고, 이미 있는 문서와 저장된 행을 기록한다."""
-    state = {"existing": set(), "saved": []}
+    state = {"existing": set(), "saved": [], "deleted": []}
 
     class _Repository:
         def __init__(self, session):
@@ -79,6 +79,10 @@ def db(monkeypatch):
 
         def upsert_many(self, cases):
             state["saved"].append(cases)
+
+        def delete_many(self, doc_ids):
+            state["deleted"].append(doc_ids)
+            return len(doc_ids)
 
     _Session.commits = 0
     monkeypatch.setattr(clip_ingest, "HsCaseRepository", _Repository)
@@ -92,7 +96,7 @@ def _no_sleep(seconds):
 def test_목록은_검색어_공백으로_전체_페이지를_받아_중복_없이_모은다():
     search = _Search([["1", "2"], ["2", "3"], ["4"]], total=205)
 
-    assert collect_doc_ids(search, workers=2, sleep=_no_sleep) == ["1", "2", "3", "4"]
+    assert collect_doc_ids(search, workers=2, sleep=_no_sleep) == (["1", "2", "3", "4"], 205)
     assert {r.query for r in search.requests} == {ALL_CASES_QUERY}
     assert sorted(r.page for r in search.requests) == [1, 2, 3]
     assert {r.page_size for r in search.requests} == {100}
@@ -101,7 +105,7 @@ def test_목록은_검색어_공백으로_전체_페이지를_받아_중복_없�
 def test_빈_페이지는_다시_받는다():
     search = _Search([["1"], ["2"]], total=101, empty_first={2: 2})
 
-    assert collect_doc_ids(search, workers=1, sleep=_no_sleep) == ["1", "2"]
+    assert collect_doc_ids(search, workers=1, sleep=_no_sleep).doc_ids == ["1", "2"]
 
 
 def test_다시_받아도_비어_있으면_목록이_불완전하다고_알린다():
@@ -160,6 +164,29 @@ def test_limit만큼만_새로_받는다(db):
 
     assert sorted(detail.requested) == ["1", "2"]
     assert report.saved == 2
+
+
+def test_목록에서_사라진_사례는_지운다(db):
+    db["existing"] = {"1", "8", "9"}
+
+    report = ingest_clip_cases(
+        search=_Search([["1", "2"]], total=2), detail=_Detail(),
+        embed=lambda texts: [[0.1] * 1536 for _ in texts], embedding_model="m", session_factory=_Session,
+        sleep=_no_sleep)
+
+    assert db["deleted"] == [["8", "9"]]
+    assert (report.removed, report.saved) == (2, 1)
+
+
+def test_목록이_전체_건수보다_적으면_사라진_사례를_지우지_않는다(db):
+    db["existing"] = {"1", "9"}
+
+    report = ingest_clip_cases(
+        search=_Search([["1", "2"]], total=3), detail=_Detail(),
+        embed=lambda texts: [[0.1] * 1536 for _ in texts], embedding_model="m", session_factory=_Session,
+        sleep=_no_sleep)
+
+    assert (db["deleted"], report.removed, report.saved) == ([], 0, 1)
 
 
 class _RawDetail:
