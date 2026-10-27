@@ -5,7 +5,7 @@
 | 위치 | 내용 |
 |---|---|
 | `app/tools/customs/tool.py` | `CustomsTool` 흐름 (결정 요소 추출 → 결정사례 조회 → 결정사례 선택 → 요건 조회 → 결과 조립) |
-| `app/tools/customs/search.py` | 결정사례 조회 `CaseSearch`(`ClipCaseSearch`), 요건 조회 `RequirementLookup`(`GwRequirementLookup`), 근거 캐시 |
+| `app/tools/customs/search.py` | 결정사례 조회 `CaseSearch`(`DatabaseFirstCaseSearch` / `ClipCaseSearch`), 요건 조회 `RequirementLookup`(`GwRequirementLookup`), 근거 캐시, 조회 경로 생성 함수(`case_search`·`requirement_lookup`·`evidence_loader`) |
 | `app/tools/customs/evidence.py` | 관세법 제226조, 세관장확인 고시 제7조·별표 2, 대외무역법 시행령 제19조 읽기 |
 | `app/tools/customs/rules.py` | HS 표기, 요건 법령 ↔ 다른 규제 Tool 대응, 판매 방식별 안내 |
 | `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용): 법제처 조회, 모델 호출 단계, 원문 대조, 행 순위 |
@@ -25,23 +25,34 @@ HS 분류는 관세청이 정한다. 이 Tool은 **비슷한 품목분류 결정
 ```text
 Product (추출 에이전트 결과)
 → ① LLM 결정 요소 추출   제품 종류·재질·기능·용도·구성품 + 원문 인용, 검색어 3~4개(영문 1개 포함)   (prompts/customs/facts.md)
-→ ② 코드 결정사례 조회   CLIP 검색어별 30건 → 합쳐서 상품 용어와 글자 유사도 상위 8건          (customs/search.py)
+→ ② 코드 결정사례 조회   적재한 DB 벡터 검색 상위 8건, 없으면 CLIP 검색어별 30건 → 글자 유사도 상위 8건 (customs/search.py)
 → ③ LLM 결정사례 선택   후보 중 같은 물품의 사례 최대 3건 + 이유. HS는 사례에 적힌 값을 코드가 쓴다  (prompts/customs/review.md)
 → ④ 코드 요건 조회       HS 10자리마다 세관장확인 GW → 대상 법령·요건확인기관·제출 서류
 → ⑤ 코드 결과 조립       법령별 판단 + 근거(관세법 제226조, 고시 별표 2 행·제7조, 시행령 제19조, 결정사례) + 판매 방식별 할 일
 ```
 
-### 결정사례 조회 (CLIP)
+### 결정사례 조회 (DB 먼저, 없으면 CLIP)
+
+`case_search()`가 `DatabaseFirstCaseSearch`를 만든다. `DATABASE_URL`이 없으면 `ClipCaseSearch`만 쓴다.
+
+**DB (`hs_cases`, `python -m app.db.cli clip-ingest`로 적재)**
+
+- 적재 때 사례의 품명·물품설명·결정사유 전문을 임베딩했으므로, 검색도 검색어·상품 용어를 이은 글 하나를 임베딩해 찾는다. 짧은 검색어 하나씩 찾으면 글자 모양이 비슷한 엉뚱한 사례로 끌려간다(전기주전자 → 절전기기, 리드 디퓨저 → LEAD FRAMES, 2026-10-27 실측).
+- DB 결과는 의미가 가까운 순이라 다시 고르지 않고 앞에서 8건을 쓴다. 글자 유사도로 다시 고르면 정답 사례가 밀려난다(립스틱: 벡터 1~3위가 정답인데 재정렬 후 8건 밖).
+- DB에 사례가 없거나 DB 장애·임베딩 실패면 CLIP으로 찾는다. DB 장애 뒤 60초는 DB를 건너뛴다(응답 캐시와 같은 상태를 공유).
+- 새 결정사례는 적재를 다시 돌리기 전까지 찾지 못한다(이미 있는 사례는 건너뛰고 새 사례만 받음).
+
+**CLIP (DB로 못 찾았을 때)**
 
 - CLIP은 검색어가 물품명·설명에 들어 있는 사례를 **최신순**으로 준다(관련도순 아님). 그래서 검색어마다 30건을 받아 합친 뒤 `common.ranking.rank_rows`로 다시 고른다.
 - CLIP은 검색어를 구절 그대로 찾아 **두 낱말 이상이면 결과가 거의 없다**(예: "자동 우산", "양수 냄비" 0건, 실측). 그래서 여러 낱말 검색어는 마지막 낱말(중심 명사)도 함께 찾는다. 상품별 동의어 사전은 두지 않는다.
 - 결정사례 물품명은 영문 품목분류 표현이 많다("Umbrellas, …", "POWER BANK"). 조건 추출 모델이 영문 보통 명칭 하나를 검색어에 넣는다.
 - 일부 검색어는 10초 넘게 응답이 없다(시간 초과, 실측으로 검색어 셋 중 하나꼴). 검색어를 **동시에** 보내고, 실패한 검색어는 건너뛰며 `query.failed_terms`에 남긴다. 모두 실패하면 Tool 오류다.
-- DB 조회: `hs_cases` 테이블(결정사례 + 임베딩, `HsCaseRepository.search_by_vector`) 적재 후 `CaseSearch`를 구현한 벡터 조회 객체를 Tool에 넘기면 된다(#362). 같은 `CaseCandidates`를 돌려주면 Tool은 바꾸지 않는다.
 
 ### 세관장확인 요건 (GW)
 
 - `GwRequirementLookup`은 관세청 세관장확인대상물품 GW(`CustomsGwClient`, 공공데이터포털 키 `DATA_GO_KR_KEY`)로 HS 10자리를 조회한다. HS별로 6시간 캐시한다.
+- `requirement_lookup()`은 GW 응답을 DB(`api_response_cache`)에서 먼저 찾고, 없으면 받아서 하루 보관한다.
 - 빈 목록은 **통관 단계의 세관장확인이 없다**는 뜻일 뿐 국내 판매 규제가 없다는 뜻이 아니다.
 - 키가 없으면 `EvidenceUnavailable` → 요건 "조회하지 못함"(정보 부족) + UNI-PASS 확인 안내. 6자리 HS도 GW를 조회할 수 없어 같은 처리다.
 - GW 실제 응답으로 확인했다(2026-10-19, HS 12개). 법령 이름은 별표 2 행·제7조 단서와 모두 대응됐다.
@@ -101,7 +112,17 @@ python -m pytest tests/tools/customs tests/tools/test_registry.py -q
 
 - 남은 오답 유형: 유리컵 → 도자기 사례(6912), 립스틱·마스크팩 → 인접 소호(3304.99/3307.90), 지갑·드라이버·스마트워치 → 맞는 사례가 조회되지 않음.
 - 예상 HS는 사람 검토 전이다(스마트워치 8517.62 등 판단이 갈릴 수 있음). 관세청 품목분류표와 대조한 새 평가셋이 필요하다.
-- 조회 품질의 근본 한계는 CLIP 키워드 검색이다. `hs_cases` 임베딩 적재 후 벡터 조회 객체로 바꾸고 같은 평가로 비교한다.
+- 조회 품질의 근본 한계는 CLIP 키워드 검색이었다. 결정사례 5만 4,303건을 적재한 DB 벡터 검색으로 바꾼 뒤 같은 평가셋(3회, `openai/gpt-4.1-mini`)으로 비교했다 (2026-10-27).
+
+  | 결정사례 조회 | HS 정답 | 후보에 정답 없음 | 후보엔 있는데 선택 오답 | 시간 (중앙 / 최대) |
+  |---|---|---|---|---|
+  | CLIP | 27/48 | 15 | 6 | 5.6초 / 14.6초 |
+  | DB 먼저 (글자 유사도로 다시 고름) | 34/48 | 8 | 6 | 4.4초 / 10.0초 |
+  | DB 먼저 (벡터 순서 그대로, 지금 방식) | 36/48 | 6 | 6 | 4.8초 / 6.8초 |
+
+  - 남은 조회 실패: 소가죽 지갑(4202.31 사례가 DB에 2건), 밀폐 용기(3924.10 주방용품 vs 3923 운반 용기 경계, 예상 HS 재검토 필요).
+  - 남은 선택 오답: 스마트워치, 전동 칫솔(후보에 정답 사례가 있는데 다른 사례를 고름).
+  - 비교 실행: `--case-search clip|db` (db는 `DATABASE_URL`의 `hs_cases` 사용).
 
 ## 남은 작업
 
