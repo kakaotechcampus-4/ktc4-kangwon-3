@@ -3,7 +3,7 @@
 - CaseSearch: Tool이 쓰는 결정사례 조회 인터페이스.
   - ClipCaseSearch: 지금 쓰는 경로. 관세청 CLIP 결정사례를 검색어별로 받아 상품 용어와의 글자 유사도로 순위를 매긴다.
 - RequirementLookup: HS 10자리로 세관장확인 대상 법령·요건확인기관·제출 서류를 조회한다.
-  - GwRequirementLookup: 관세청 세관장확인대상물품 GW(공공데이터포털 키 필요).
+  - GwRequirementLookup: 관세청 세관장확인대상물품 GW(공공데이터포털 키 필요). requirement_lookup()이 DB 캐시를 붙여 만듦.
 - 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(evidence_loader).
 """
 
@@ -271,3 +271,17 @@ def evidence_loader() -> Callable[[], CustomsEvidence]:
     """
     loader = CachedLoader(_load_on_demand)
     return lambda: loader.load(datetime.now(KST).date())
+
+
+def requirement_lookup() -> GwRequirementLookup:
+    """세관장확인 요건 조회 경로를 만든다. GW 응답은 DB 캐시를 먼저 봄.
+
+    키는 설정의 DATA_GO_KR_KEY(필수). HS별 캐시는 객체 안에 있어 조립하는 쪽이 한 번 만들어 공유함.
+
+    Returns:
+        GwRequirementLookup: 조회할 때 GW 조회 객체를 열고 닫는 요건 조회 경로.
+    """
+    from ...config import get_settings
+    from ...db import open_customs_gw_fetcher
+
+    return GwRequirementLookup(get_settings().data_go_kr_key, client_factory=open_customs_gw_fetcher)

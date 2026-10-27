@@ -1,11 +1,13 @@
 """결정사례 조회(CLIP)와 세관장확인 요건 조회(GW)를 네트워크 없이 확인한다."""
 
+from types import SimpleNamespace
+
 import httpx
 import pytest
 
 from app.schemas.clients.customs_response import CustomsGwConfirmation, CustomsGwConfirmationResponse
 from app.tools.common.law import EvidenceUnavailable
-from app.tools.customs.search import ClipCaseSearch, GwRequirementLookup
+from app.tools.customs.search import ClipCaseSearch, GwRequirementLookup, requirement_lookup
 
 from .conftest import FakeClip
 
@@ -82,3 +84,14 @@ def test_GW_응답을_요건으로_옮기고_HS별로_캐시한다():
 def test_서비스_키가_없으면_조회할_수_없다고_알린다():
     with pytest.raises(EvidenceUnavailable, match="DATA_GO_KR_KEY"):
         GwRequirementLookup(None).lookup("8518301000")
+
+
+def test_요건_조회_경로는_설정_키로_DB_우선_조회_객체를_연다(monkeypatch):
+    calls, keys = [], []
+    monkeypatch.setattr("app.config.get_settings", lambda: SimpleNamespace(data_go_kr_key="settings-key"))
+    monkeypatch.setattr("app.db.open_customs_gw_fetcher", lambda key: keys.append(key) or _Gw(calls))
+
+    requirements = requirement_lookup().lookup("8518301000")
+
+    assert [item.law_name for item in requirements] == ["전파법"]
+    assert keys == ["settings-key"] and calls == ["8518301000", "close"]
