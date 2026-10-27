@@ -4,7 +4,7 @@
 - 결과 상태: status.decide_result_status
 - 분야 카드: 6개 분야를 모두 보냄(선택 안 된 분야는 SKIPPED). 판단은 그대로 옮기고 BE 칸 길이를 넘으면 자른다.
 - 할 일: 계약상 진단서 한 목록. 분야 순서로 모으고, 품목·판매 방식은 문장 앞 라벨로 구분된다.
-- 안내: 미완료 사유, 질문으로 묻지 않은 부족 정보, 고정 안내.
+- 안내: 미완료 사유, 지원 분야 밖 신호, 구매대행 가능일 때 확인 범위, 질문으로 묻지 않은 부족 정보, 고정 안내.
 """
 
 from ..schemas.callback import (
@@ -13,7 +13,10 @@ from ..schemas.callback import (
 from ..schemas.schemas import (
     ExecutionEndReason, FinalAssessment, LegalSource, RegulatoryFinding, ToolName, ToolResult, ToolStatus,
 )
-from .status import DecisionReason, ResultDecision, decide_result_status, is_completed, tool_order
+from .status import (
+    ACTION_DETERMINATIONS, DecisionReason, ResultDecision, ResultStatus, decide_result_status, is_completed,
+    tool_order,
+)
 
 # BE 수신 DTO·DB 칸 길이 
 SUBJECT_MAX = 255
@@ -45,7 +48,17 @@ _INCOMPLETE_NOTICES = {
     ExecutionEndReason.QUESTION_LIMIT_EXCEEDED: "추가 확인이 필요한 정보가 남아 진단을 끝까지 마치지 못했습니다.",
 }
 _UNVERIFIED_NOTICE = "결과 검증을 마치지 못했습니다."
-_NO_REGULATED_TOOL_NOTICE = "상품 정보에서 인증·허가 대상 분야를 찾지 못했습니다(확정 아님)."
+
+# 지원 분야 밖 신호 → (상품 종류, 확인하지 않는 법령)
+_OUT_OF_SCOPE_LABELS = {
+    "chemical_product": ("생활화학제품", "화학제품안전법"),
+    "weapon_like": ("총포·도검류", "총포·도검·화약류 등의 안전관리에 관한 법률"),
+    "plant_material": ("식물성 소재 제품", "식물방역법(수입 검역)"),
+}
+# 구매대행 가능일 때 확인한 범위 안내
+_SCOPE_NOTICE = ("이 서비스는 통관, 전파, 식품·의약품, 전기용품, 어린이제품, 표시·광고 분야만 확인합니다. "
+                 "생활용품 안전관리, 가스·소방용품 등 그 밖의 법령은 확인하지 않았습니다.")
+_LABEL_AD_NOTE = " 다만 표시·광고 문구는 확인이 필요합니다."
 
 
 class ResultPresenter:
@@ -65,7 +78,7 @@ class ResultPresenter:
         return PublicAssessmentDto(
             status="completed" if completed else "incomplete",
             result_status=decision.status.value,
-            summary=_summary(decision),
+            summary=_summary(decision, result),
             tool_reviews=[_card(tool, result) for tool in tool_order()],
             required_actions=_actions(result),
             notices=_notices(result, decision, completed),
@@ -136,15 +149,26 @@ def _notices(result: FinalAssessment, decision: ResultDecision, completed: bool)
     notices: list[str] = []
     if not completed:
         notices.append(_INCOMPLETE_NOTICES.get(result.termination_reason, _UNVERIFIED_NOTICE))
-    if decision.reason is DecisionReason.NO_REGULATED_TOOL:
-        notices.append(_NO_REGULATED_TOOL_NOTICE)
+    for signal in decision.signals:
+        kind, law = _OUT_OF_SCOPE_LABELS[signal]
+        notices.append(f"{kind}일 수 있어 {law} 대상인지 따로 확인해야 합니다. 이 서비스는 이 법령을 확인하지 않습니다.")
+    if decision.status is ResultStatus.PURCHASING_AGENT_ALLOWED:
+        notices.append(_SCOPE_NOTICE)
     # 질문으로 묻지 않고 끝난 부족 정보 (답변 대기로 끝나면 질문 콜백으로 나가서 여기 오지 않음)
     notices.extend(result.missing_information)
     notices.append(DISCLAIMER)
     return _unique(notices)
 
 
-def _summary(decision: ResultDecision) -> str:
+def _summary(decision: ResultDecision, result: FinalAssessment) -> str:
+    text = _base_summary(decision)
+    # 표시·광고는 결과 상태에서 빠지므로, 구매대행 가능인데 문구 판단이 있으면 같이 알린다
+    if decision.status is ResultStatus.PURCHASING_AGENT_ALLOWED and _has_label_ad_action(result):
+        text += _LABEL_AD_NOTE
+    return text
+
+
+def _base_summary(decision: ResultDecision) -> str:
     fields = "·".join(FIELD_LABELS[tool] for tool in decision.tools)
     match decision.reason:
         case DecisionReason.CERTIFICATION_REQUIRED:
@@ -155,11 +179,19 @@ def _summary(decision: ResultDecision) -> str:
             return f"{fields} 분야는 판단할 정보가 부족해 재확인이 필요합니다."
         case DecisionReason.INCOMPLETE:
             return "진단을 끝까지 마치지 못해 재확인이 필요합니다."
+        case DecisionReason.OUT_OF_SCOPE:
+            kinds = ", ".join(_OUT_OF_SCOPE_LABELS[signal][0] for signal in decision.signals)
+            return f"이 상품은 {kinds}일 수 있어, 이 서비스가 확인하지 않는 법령의 규제 대상인지 재확인이 필요합니다."
         case DecisionReason.NO_REGULATED_TOOL:
             return "인증·허가 대상 분야를 찾지 못해 구매대행으로 판매할 수 있는 것으로 보입니다(확정 아님)."
         case DecisionReason.NO_REQUIREMENT:
-            return "확인한 분야에서 판매 전 인증·허가 요건을 찾지 못했습니다(확정 아님)."
+            return f"확인한 분야({fields})에서 판매 전 인증·허가 요건을 찾지 못했습니다(확정 아님)."
     raise ValueError(f"요약 문장이 없는 결정 단계입니다: {decision.reason}")
+
+
+def _has_label_ad_action(result: FinalAssessment) -> bool:
+    return any(finding.tool_name is ToolName.LABEL_AD and finding.determination in ACTION_DETERMINATIONS
+               for finding in result.findings)
 
 
 def _clip(text: str, limit: int) -> str:
