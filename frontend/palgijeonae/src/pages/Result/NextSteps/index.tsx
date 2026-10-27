@@ -10,7 +10,7 @@ interface NextStepTabProps {
 
 function NextStepTab({product}: NextStepTabProps) {
     return ( 
-        <div>
+        <div className="flex flex-col w-full gap-10">
             <RequiredActionsSection requiredActions={product.requiredActions}/>
             <NoticesSection notices={product.notices}/>
             <ReflectedAnswersSection questions={product.questions}/>
