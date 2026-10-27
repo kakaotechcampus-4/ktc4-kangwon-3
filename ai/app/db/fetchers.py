@@ -149,6 +149,18 @@ class CachedFetcherBase(ABC, Generic[_R]):
         self._write(key, request, response, now)
         return response
 
+    def cached(self, request: BaseModel) -> _R | None:
+        """DB에 저장된 응답을 만료와 관계없이 돌려준다. 클라이언트는 부르지 않는다.
+
+        Args:
+            request: 클라이언트 요청 스키마.
+
+        Returns:
+            _R | None: 저장된 응답. 없거나 DB를 쓸 수 없으면 None.
+        """
+        found = self._read(request_key(request))
+        return None if found is None else found.response
+
     def close(self) -> None:
         """클라이언트 연결을 정리한다."""
         self._client.close()
