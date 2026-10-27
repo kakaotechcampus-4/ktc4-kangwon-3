@@ -70,7 +70,7 @@ class RadioTool(EvidenceSearchTool):
         "규제 적용을 판단하기 위한 정보·기자재 대응이 부족합니다.",
         "무선 기능 근거 부족·모순 또는 대상기자재와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
     )
-    run_type = RadioRun
+    run_class = RadioRun
 
     def __init__(self, model=None, *, item_search: RadioItemSearch, configured_model: str | None = None,
                  top_k: int = 8):

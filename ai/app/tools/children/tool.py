@@ -72,7 +72,7 @@ class ChildrenTool(EvidenceSearchTool):
         "조건 부족·모순 또는 품목표와의 대응이 미확인입니다. 빈 후보를 비대상 근거로 사용하지 않습니다.",
     )
     tracks_conflicts = True
-    run_type = ChildrenRun
+    run_class = ChildrenRun
 
     def __init__(self, model=None, *, item_search: ChildrenItemSearch, configured_model: str | None = None,
                  top_k: int = 6):

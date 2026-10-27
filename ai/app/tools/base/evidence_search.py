@@ -43,7 +43,7 @@ class EvidenceSearchTool(RegulatoryTool):
         insufficient: 기본 정보 부족 판단의 (제목, 요약, 근거).
         tracks_conflicts: query에 "conflicted" 목록을 처음부터 둘지.
         hints_with_attributes: 모델 힌트에 속성 이름·값을 넣을지.
-        run_type: 실행 상태 클래스. Tool별 값이 더 필요하면 ToolRun 하위 클래스.
+        run_class: 실행 상태 클래스. Tool별 값이 더 필요하면 ToolRun 하위 클래스.
     """
 
     facts_step: ClassVar[type[ToolStep]]
@@ -57,7 +57,7 @@ class EvidenceSearchTool(RegulatoryTool):
     insufficient: ClassVar[tuple[str, str, str]]
     tracks_conflicts: ClassVar[bool] = False
     hints_with_attributes: ClassVar[bool] = False
-    run_type: ClassVar[type[ToolRun]] = ToolRun
+    run_class: ClassVar[type[ToolRun]] = ToolRun
 
     def __init__(self, model=None, *, configured_model: str | None = None, top_k: int = 8):
         """모델과 후보 수를 받는다. 모델은 실행할 때 만든다.
@@ -104,7 +104,7 @@ class EvidenceSearchTool(RegulatoryTool):
         Returns:
             ToolResult: 심사 결과.
         """
-        run = self.run_type(product, decision, snippets=product_snippets(product))
+        run = self.run_class(product, decision, snippets=product_snippets(product))
         if self.tracks_conflicts:
             run.query["conflicted"] = run.conflicted
         if not run.snippets:
