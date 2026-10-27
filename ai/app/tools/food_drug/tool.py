@@ -80,7 +80,7 @@ class FoodDrugTool(EvidenceSearchTool):
     )
     # 원문 없는 속성도 조회어를 정하는 데 참고됨
     hints_with_attributes = True
-    run_type = FoodDrugRun
+    run_class = FoodDrugRun
 
     def __init__(self, model=None, *, evidence: Callable[[], FoodDrugEvidence],
                  configured_model: str | None = None, top_k: int = 8):

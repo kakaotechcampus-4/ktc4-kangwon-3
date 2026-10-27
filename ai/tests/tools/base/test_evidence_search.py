@@ -200,7 +200,7 @@ def test_선택은_해당_없음_후보_밖_중복_근거_없음을_거르고_�
 
 def test_pick은_코드_규칙으로_버릴_후보를_받고_상한을_끌_수_있다():
     tool = _Tool()
-    run = tool.run_type(_product(), _decision(), by_field={"product_type": [FACTS.facts[0]]})
+    run = tool.run_class(_product(), _decision(), by_field={"product_type": [FACTS.facts[0]]})
     selections = [_selection(f"item-{i}") for i in range(5)]
 
     chosen = tool._pick(run, selections, {f"item-{i}": i for i in range(5)}, limit=None, skip=lambda item: item == 0)
@@ -227,7 +227,7 @@ def test_결과는_할_일과_재질문을_중복_없이_모으고_충돌_필드
 
 def test_lookup은_근거를_확인할_수_없으면_가정을_남기고_None():
     tool = _Tool()
-    run = tool.run_type(_product(), _decision())
+    run = tool.run_class(_product(), _decision())
 
     def unavailable():
         raise EvidenceUnavailable("버전 없음")
@@ -246,7 +246,7 @@ def test_lookup은_그_밖의_조회_실패를_Tool_예외로_바꾸고_원인�
         raise cause
 
     with pytest.raises(_Error, match="조회에 실패했습니다") as caught:
-        tool._lookup(tool.run_type(_product(), _decision()), failing, failure="조회에 실패했습니다.")
+        tool._lookup(tool.run_class(_product(), _decision()), failing, failure="조회에 실패했습니다.")
 
     assert caught.value.__cause__ is cause
 
