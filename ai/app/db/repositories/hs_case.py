@@ -1,4 +1,4 @@
-from sqlalchemy import exists, func, literal, select
+from sqlalchemy import delete, exists, func, literal, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -92,6 +92,19 @@ class HsCaseRepository(BaseRepository[HsCase]):
             set_={**{name: stmt.excluded[name] for name in columns if name != "doc_id"}, "fetched_at": func.now()},
         )
         self.session.execute(stmt)
+
+    def delete_many(self, doc_ids: list[str]) -> int:
+        """문서 ID 여러 개의 결정사례를 지운다.
+
+        Args:
+            doc_ids: 지울 문서 ID 목록.
+
+        Returns:
+            int: 지운 행 수.
+        """
+        if not doc_ids:
+            return 0
+        return self.session.execute(delete(HsCase).where(HsCase.doc_id.in_(doc_ids))).rowcount
 
     def list_doc_ids(self) -> set[str]:
         """저장된 결정사례의 문서 ID를 모두 돌려준다. 적재 때 이미 받은 사례를 건너뛰는 데 쓴다.

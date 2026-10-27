@@ -188,7 +188,7 @@ def test_clip_ingest는_적재_결과를_출력하고_클라이언트를_닫는�
     called = _clip_ingest(monkeypatch)
 
     assert cli.main(["clip-ingest"]) == 0
-    assert "CLIP 적재 — 목록 54303건, 이미 있음 13679건, 새로 저장 40624건, 실패 없음" in capsys.readouterr().out
+    assert "CLIP 적재 — 목록 54303건, 이미 있음 13679건, 새로 저장 40624건, 삭제 0건, 실패 없음" in capsys.readouterr().out
     kwargs = called["kwargs"]
     assert (kwargs["search"], kwargs["detail"]) == (called["search"], called["detail"])
     assert (kwargs["workers"], kwargs["limit"], kwargs["raw_dir"]) == (4, None, None)

@@ -1,5 +1,7 @@
 """결정사례 Repository가 만드는 SQL을 DB 없이 검증한다."""
 
+from types import SimpleNamespace
+
 import pytest
 
 from app.db.models import HsCase
@@ -57,6 +59,17 @@ def test_일괄_저장은_같은_문서_ID면_내용과_임베딩을_덮어쓴�
     assert "embedding = excluded.embedding" in sql
     assert "fetched_at = now()" in sql
     assert "doc_id = excluded.doc_id" not in sql
+
+
+def test_문서_ID_묶음_삭제는_빈_목록이면_DB를_부르지_않는다(session):
+    repo = HsCaseRepository(session)
+
+    assert repo.delete_many([]) == 0
+    assert session.statements == []
+
+    session.execute = lambda stmt: session.statements.append(stmt) or SimpleNamespace(rowcount=2)
+    assert repo.delete_many(["A1", "B2"]) == 2
+    assert "DELETE FROM hs_cases WHERE hs_cases.doc_id IN" in session.last_sql()
 
 
 def test_문서_ID_전체_조회는_문서_ID_칸만_읽는다(session):
