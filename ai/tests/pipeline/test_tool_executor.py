@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from itertools import combinations
 
+import httpx
+import openai
 import pytest
 
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
@@ -21,7 +23,11 @@ from app.schemas.schemas import (
 )
 from app.schemas.pipeline import RetryRequest
 from app.tools.base import RegulatoryTool
+from app.agents.base import AgentError
+from app.agents.base.meta import AgentRunMeta
+from app.observability.measurements import ToolRun, measurement_sinks
 from app.pipeline.tool_executor import ToolExecutor
+from app.tools.base.errors import ToolModelError
 
 
 class _StubTool(RegulatoryTool):
@@ -639,3 +645,77 @@ def test_재실행_결과를_다음_회차_입력으로_연결한다(tool_name):
     assert len({item.execution_id for item in tool_history}) == 3
     assert len(tools[tool_name].calls) == 3
     assert first_retry == first_retry_snapshot
+
+
+@pytest.fixture
+def tool_runs():
+    """테스트 동안 남은 Tool 실행 측정 기록."""
+    records: list = []
+    with measurement_sinks.added(lambda record: isinstance(record, ToolRun) and records.append(record)):
+        yield records
+
+
+def _finding(determination: Determination) -> RegulatoryFinding:
+    return RegulatoryFinding(
+        tool_name=ToolName.ELECTRICAL, subject="전원 어댑터", determination=determination, risk_level=RiskLevel.HIGH,
+        summary="요약", rationale="근거",
+    )
+
+
+def test_Tool_실행마다_상태_시간_판단을_기록하고_건너뛴_Tool도_센다(tool_runs):
+    def success(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        return ToolResult(
+            tool_name=decision.tool_name, status=ToolStatus.PARTIAL, selected=True, selection_reason="이유",
+            findings=[_finding(Determination.REQUIRED), _finding(Determination.INSUFFICIENT_INFORMATION)],
+        )
+
+    tools = _tools()
+    tools[ToolName.ELECTRICAL] = _StubTool(ToolName.ELECTRICAL, success)
+
+    ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(ToolName.ELECTRICAL))
+
+    [electrical] = [run for run in tool_runs if run.tool_name == ToolName.ELECTRICAL.value]
+    assert (electrical.status, electrical.error_type) == ("partial", None)
+    assert electrical.determinations == ("required", "insufficient_information")
+    assert electrical.seconds >= 0
+    assert sorted(run.status for run in tool_runs) == ["partial"] + ["skipped"] * (len(ToolName) - 1)
+
+
+def _model_failure() -> Exception:
+    request = httpx.Request("POST", "http://llm/v1/chat/completions")
+    try:
+        try:
+            raise openai.APITimeoutError(request)
+        except openai.APITimeoutError as cause:
+            raise AgentError("모델 호출 실패", meta=AgentRunMeta(component="tool", model="m", elapsed_ms=1)) from cause
+    except AgentError as exc:
+        return exc
+
+
+def _client_failure() -> Exception:
+    try:
+        try:
+            raise httpx.ConnectError("연결 실패")
+        except httpx.ConnectError as cause:
+            raise ToolModelError("근거 조회 실패") from cause
+    except ToolModelError as exc:
+        return exc
+
+
+@pytest.mark.parametrize(("make_error", "error_type"), [
+    (_model_failure, "model"),
+    (_client_failure, "client"),
+    (lambda: AgentError("모델 출력 파싱 실패", meta=AgentRunMeta(component="tool", model="m", elapsed_ms=1)), "model"),
+    (lambda: RuntimeError("코드 버그"), "other"),
+])
+def test_Tool_실패는_원인을_모델_근거_조회_그_밖으로_나눠_기록한다(tool_runs, make_error, error_type):
+    def fail(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        raise make_error()
+
+    tools = _tools()
+    tools[ToolName.ELECTRICAL] = _StubTool(ToolName.ELECTRICAL, fail)
+
+    ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(ToolName.ELECTRICAL))
+
+    [electrical] = [run for run in tool_runs if run.tool_name == ToolName.ELECTRICAL.value]
+    assert (electrical.status, electrical.error_type) == ("failed", error_type)

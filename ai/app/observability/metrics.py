@@ -3,7 +3,7 @@
     - SessionMetrics: 세션 이벤트 구독자. 대기·실행·전체·단계 소요 시간과 결말·Tool 진행 횟수
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
     - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
-    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도
+    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도, Tool 실행 결과·시간·실패 원인·판단
     - CallbackOutboxCollector: 수집 때마다 콜백 발신함의 대기 중 이벤트 수를 읽음
 
 라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.
@@ -20,7 +20,7 @@ from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
-from .measurements import CallbackOutcome, ClientCall, Measurement
+from .measurements import CallbackOutcome, ClientCall, Measurement, ToolRun
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
@@ -30,6 +30,8 @@ DURATION_BUCKETS = (1, 5, 10, 30, 60, 120, 300, 600)
 AGENT_CALL_BUCKETS = (0.5, 1, 2, 5, 10, 20, 30, 60, 120)
 # 외부 API 호출 1건 소요 시간 구간(초). 클라이언트 제한 시간(10·15·30·45초)이 구간 경계
 CLIENT_CALL_BUCKETS = (0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 45, 60)
+# Tool 실행 1건 소요 시간 구간(초). 모델 호출 여러 번과 근거 조회를 포함
+TOOL_RUN_BUCKETS = (1, 2, 5, 10, 20, 30, 60, 120, 300)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
 
@@ -204,7 +206,7 @@ class AgentMetrics:
 
 
 class MeasurementMetrics:
-    """측정 기록으로 외부 API 호출·콜백 전송을 기록한다. measurement_sinks에 on_record를 등록해 씀."""
+    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행을 기록한다. measurement_sinks에 on_record를 등록해 씀."""
 
     def __init__(self, registry: CollectorRegistry) -> None:
         """지표를 registry에 등록한다.
@@ -230,6 +232,21 @@ class MeasurementMetrics:
         self._callback_retries = Counter(
             "ai_callback_retries", "종류별 콜백 재시도 횟수", ["event_type"], registry=registry,
         )
+        self._tool_runs = Counter(
+            "ai_tool_runs", "분야·상태(success·partial·failed·skipped)별 Tool 실행 수", ["tool_name", "status"],
+            registry=registry,
+        )
+        self._tool_seconds = Histogram(
+            "ai_tool_run_seconds", "Tool 실행 1건 소요 시간. 건너뛴 실행은 빠짐", ["tool_name", "status"],
+            buckets=TOOL_RUN_BUCKETS, registry=registry,
+        )
+        self._tool_errors = Counter(
+            "ai_tool_errors", "분야·원인(model·client·other)별 Tool 실패 수", ["tool_name", "error_type"],
+            registry=registry,
+        )
+        self._tool_findings = Counter(
+            "ai_tool_findings", "분야·판단별 Tool 판단 항목 수", ["tool_name", "determination"], registry=registry,
+        )
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
@@ -246,6 +263,15 @@ class MeasurementMetrics:
                 self._callback_retries.labels(event_type).inc(retries)
                 if reason is not None:
                     self._callback_dropped.labels(reason).inc()
+            case ToolRun(tool_name=tool_name, status=status, seconds=seconds, error_type=error_type,
+                         determinations=determinations):
+                self._tool_runs.labels(tool_name, status).inc()
+                if status != "skipped":
+                    self._tool_seconds.labels(tool_name, status).observe(seconds)
+                if error_type is not None:
+                    self._tool_errors.labels(tool_name, error_type).inc()
+                for determination in determinations:
+                    self._tool_findings.labels(tool_name, determination).inc()
 
 
 class CallbackOutboxCollector(Collector):

@@ -6,7 +6,7 @@ from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
-from app.observability.measurements import CallbackOutcome, ClientCall
+from app.observability.measurements import CallbackOutcome, ClientCall, ToolRun
 from app.observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
@@ -240,3 +240,26 @@ def test_수집_때_콜백_발신함_대기_수를_지표로_낸다():
     registry.register(CallbackOutboxCollector(_Outbox()))
 
     assert registry.get_sample_value("ai_callback_pending", {}) == 3
+
+
+def test_Tool_실행을_분야와_상태별로_세고_실패_원인과_판단을_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (ToolRun(tool_name="electrical", status="success", seconds=12.0,
+                           determinations=("required", "required", "not_required")),
+                   ToolRun(tool_name="electrical", status="failed", seconds=3.0, error_type="client"),
+                   ToolRun(tool_name="radio", status="skipped", seconds=0.0)):
+        metrics.on_record(record)
+
+    def value(name, **labels):
+        return registry.get_sample_value(name, labels)
+
+    assert value("ai_tool_runs_total", tool_name="electrical", status="success") == 1
+    assert value("ai_tool_runs_total", tool_name="radio", status="skipped") == 1
+    assert value("ai_tool_run_seconds_sum", tool_name="electrical", status="success") == 12
+    # 건너뛴 실행은 시간에 넣지 않음
+    assert value("ai_tool_run_seconds_count", tool_name="radio", status="skipped") is None
+    assert value("ai_tool_errors_total", tool_name="electrical", error_type="client") == 1
+    assert (value("ai_tool_findings_total", tool_name="electrical", determination="required"),
+            value("ai_tool_findings_total", tool_name="electrical", determination="not_required")) == (2, 1)

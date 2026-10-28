@@ -37,12 +37,14 @@ class ToolRun:
         status: 실행 상태 (success·partial·failed·skipped).
         seconds: 걸린 시간(초). 건너뛰면 0.
         error_type: 실패 원인 (client·model·other). 실패가 아니면 None.
+        determinations: 판단 항목마다의 판단 (required·possibly_required 등).
     """
 
     tool_name: str
     status: str
     seconds: float
     error_type: str | None = None
+    determinations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
