@@ -115,6 +115,13 @@ def test_질문_한도를_넘긴_케이스는_안내와_함께_미완료로_끝�
     assert any("직접 확인" in notice for notice in result.assessment.notices)
 
 
+def test_지원_분야_밖_케이스는_완료로_끝나고_안내와_함께_재확인_필요로_나간다(flow):
+    [result] = _play(flow, DummyCaseName.DIFFUSER)
+
+    assert (result.assessment.status, result.assessment.result_status) == ("completed", "RECHECK_REQUIRED")
+    assert any("화학제품안전법" in notice for notice in result.assessment.notices)
+
+
 def test_실패_콜백은_재시도_불가_파이프라인_오류다(flow):
     [failed] = _play(flow, DummyCaseName.FAILED)
 

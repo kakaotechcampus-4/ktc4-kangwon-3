@@ -5,9 +5,9 @@
 | power_bank | 1 | 전기·관세 | 직구 인증 필요 |
 | rc_boat | 2 | 5개 (식품 건너뜀) | 직구 인증 필요 |
 | charging_pad | 1 (2문항) | 전파 실패·전기 | 재확인 필요 (미완료 카드) |
-| toy_gun | 0 | 어린이·표시광고 부분 성공 | 직구 인증 필요 (미완료 카드) |
+| toy_gun | 0 | 어린이·표시광고 부분 성공 | 직구 인증 필요 (미완료 카드, 총 모양 신호보다 인증 필요가 먼저) |
 | tumbler | 2 | 식품 1개 | 직구 인증 필요 |
-| diffuser | 0 | 없음 | 재확인 필요 (지원 분야 밖) |
+| diffuser | 0 | 없음 | 완료, 재확인 필요 (지원 분야 밖: 화학제품) |
 | question_limit | 3 → 한도 초과 | 전파·전기 | 재확인 필요 (세션이 미완료로 바꿈) |
 | failed | 0 | - | 첫 실행 실패 |
 | failed_after_answer | 1 | - | 답변 뒤 실패 |
@@ -225,8 +225,7 @@ def _diffuser(product_id: str) -> FinalAssessment:
     )
     return _assessment(product, [], overall=OverallStatus.INSUFFICIENT_INFORMATION,
         summary="방향제는 지원하는 분야 밖이라 직접 확인이 필요합니다.",
-        missing_information=["생활화학제품(방향제)은 화학제품안전법 확인 대상이며 이 서비스가 지원하지 않습니다."],
-        incomplete=ExecutionEndReason.NO_PROGRESS)
+        missing_information=["생활화학제품(방향제)은 화학제품안전법 확인 대상이며 이 서비스가 지원하지 않습니다."])
 
 
 def _speaker(product_id: str) -> FinalAssessment:
