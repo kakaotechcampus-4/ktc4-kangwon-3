@@ -15,7 +15,7 @@ interface DiagnosisResultTabProps {
 }
 
 function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: DiagnosisResultTabProps) {
-    const { resultStatus, processingStatus, summary, requiredActions, failure, toolReviews } = product;
+    const { toolReviews } = product;
     const [findingFilter, setFindingFilter] = useState<FindingFilter>(null);
     const determinationTooltipId = useId();
     const visibleToolReviews = toolReviews.filter((toolReview) => toolReview.status !== ToolReviewStatus.Skipped);
@@ -35,11 +35,7 @@ function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: Diagnosi
     return (
         <div className="flex w-full flex-col gap-6">
             <ResultBanner
-                resultStatus={resultStatus}
-                processingStatus={processingStatus}
-                summary={summary}
-                requiredActions={requiredActions}
-                failure={failure}
+                product={product}
                 diagnosesId={diagnosesId}
                 onNextStepsClick={onNextStepsClick}
             />
