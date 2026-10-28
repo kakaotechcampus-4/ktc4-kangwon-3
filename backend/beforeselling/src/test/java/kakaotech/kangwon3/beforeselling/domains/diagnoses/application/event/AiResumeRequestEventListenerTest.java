@@ -135,9 +135,10 @@ class AiResumeRequestEventListenerTest {
     @CsvSource({
             "BAD_REQUEST, AI_UNKNOWN_QUESTION_KEY",
             "UNPROCESSABLE_CONTENT, AI_INVALID_REQUEST",
-            "CONFLICT, AI_RESUME_CONFLICT"
+            "CONFLICT, AI_RESUME_CONFLICT",
+            "UNAUTHORIZED, AI_UNAUTHORIZED"
     })
-    @DisplayName("AI가 요청을 거절하거나(400·422) 기다리는 질문과 어긋났다고 하면(409) 바로 다시 진단할 수 없는 실패로 처리한다.")
+    @DisplayName("AI가 요청을 거절하거나(400·422) 기다리는 질문과 어긋났다고 하거나(409) 내부 토큰이 틀렸다고 하면(401) 바로 다시 진단할 수 없는 실패로 처리한다.")
     void handle_whenRequestRejected_thenFailAsNotRetryable(HttpStatus status, String code) {
         // given
         given(aiDiagnosesClient.requestResume(any())).willThrow(rejected(status, code));
