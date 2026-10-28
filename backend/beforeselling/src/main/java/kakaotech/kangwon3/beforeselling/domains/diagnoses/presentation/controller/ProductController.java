@@ -78,6 +78,18 @@ public class ProductController implements ProductApi {
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
     }
 
+    // 실패한 상품 진단 재시도. 상태만 바꾸고 AI 진단 요청은 비동기로 보낸다.
+    @Override
+    @PostMapping("/{productId}/retry")
+    public ResponseEntity<ApiResponse<Void>> retryDiagnoses(
+            @LoginUser UserPrincipal principal,
+            @PathVariable UUID productId
+    ) {
+        productUseCase.retryDiagnoses(principal.userId(), productId);
+
+        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
+    }
+
     // 상품 단건 삭제
     @Override
     @DeleteMapping("/{productId}")
