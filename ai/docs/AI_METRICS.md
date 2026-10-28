@@ -111,10 +111,11 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 
 | 지표 | 종류 | 라벨 | 내용 |
 |---|---|---|---|
-| `ai_extraction_seller_region` | Counter | `site`, `trimmed` | 상세페이지 글 블록별 판매자 구역 자르기 결과 |
+| `ai_extraction_seller_region` | Counter | `site`, `trimmed` | 아는 쇼핑몰 글 블록별 판매자 구역 자르기 결과 |
 
-- `site`: aliexpress·temu, 모르면 unknown. `trimmed`: `"true"`·`"false"`
-- 아는 쇼핑몰의 `trimmed="false"`가 늘면 쇼핑몰 화면 변경 의심
+- `site`: aliexpress·temu. `trimmed`: `"true"`·`"false"`
+- 쇼핑몰 화면이 아닌 글(직접 붙여 넣은 설명 등)은 자를 대상이 아니라 세지 않음
+- `trimmed="false"`가 늘면 쇼핑몰 화면 변경 의심
 - 재는 곳: `ExtractionAgent._build_messages` (후처리에서 다시 자르는 건 세지 않음)
 
 ## 4. 추가 예정
