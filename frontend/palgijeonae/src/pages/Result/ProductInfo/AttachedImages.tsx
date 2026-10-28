@@ -5,6 +5,7 @@ import ImageLightbox from "@/components/common/ImageLightbox";
 import SectionIntro from "@/components/common/SectionIntro";
 
 interface AttachedImagesProps {
+    productName: string
     imageUrls: string[]
 }
 
@@ -14,14 +15,14 @@ const handleImageError: ReactEventHandler<HTMLImageElement> = (event) => {
     event.currentTarget.src = defaultThumbnail;
 };
 
-function AttachedImages({ imageUrls }: AttachedImagesProps) {
+function AttachedImages({ productName, imageUrls }: AttachedImagesProps) {
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
     if (imageUrls.length === 0) {
         return null;
     }
 
-    const lightboxImages = imageUrls.map((imageUrl, index) => ({ src: imageUrl, alt: `상세 이미지 ${index + 1}` }));
+    const lightboxImages = imageUrls.map((imageUrl, index) => ({ src: imageUrl, alt: `${productName} 상세 이미지 ${index + 1}` }));
 
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
@@ -32,7 +33,7 @@ function AttachedImages({ imageUrls }: AttachedImagesProps) {
                         key={imageUrl}
                         type="button"
                         onClick={() => setSelectedIndex(index)}
-                        aria-label={`상세 이미지 ${index + 1} 크게 보기`}
+                        aria-label={`${productName} 상세 이미지 ${index + 1} 크게 보기`}
                         className="relative h-50 w-50 shrink-0 cursor-pointer overflow-hidden rounded-xl bg-gray-100"
                     >
                         <img
