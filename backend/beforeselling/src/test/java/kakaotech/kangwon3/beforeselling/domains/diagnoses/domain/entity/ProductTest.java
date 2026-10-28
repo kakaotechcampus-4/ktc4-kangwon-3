@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -409,6 +410,66 @@ class ProductTest {
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
                 .containsExactly(PipelineStage.TOOL_EXECUTION, ERROR_CODE, ERROR_MESSAGE, true);
+    }
+
+    @Test
+    @DisplayName("재시도 가능한 실패 상품을 재시도하면 진행 중이 되고 이전 실행의 기록이 지워진다.")
+    void retry_whenRetryableFailed_thenInProgressAndReset() {
+        // given
+        Product product = createFailedProduct(true);
+        LocalDateTime beforeRetry = LocalDateTime.now();
+
+        // when
+        product.retry();
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getRunId()).isNull();
+        assertThat(product.getFailedStage()).isNull();
+        assertThat(product.getErrorCode()).isNull();
+        assertThat(product.getErrorMessage()).isNull();
+        assertThat(product.getErrorRetryable()).isNull();
+        assertThat(product.getQuestions()).isEmpty();
+        assertThat(product.getProgresses()).isEmpty();
+        assertThat(product.getRequestedAt()).isAfterOrEqualTo(beforeRetry);
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(booleans = false)
+    @DisplayName("재시도할 수 없는 실패(retryable이 false이거나 없음)면 CONFLICT 예외가 발생한다.")
+    void retry_whenNotRetryable_thenThrowConflict(Boolean retryable) {
+        // given
+        Product product = createFailedProduct(retryable);
+
+        // when & then
+        assertConflict(product::retry);
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("실패하지 않은 상품을 재시도하면 CONFLICT 예외가 발생한다.")
+    void retry_whenNotFailed_thenThrowConflict() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when & then
+        assertConflict(product::retry);
+    }
+
+    @Test
+    @DisplayName("재시도한 뒤 다시 실패해도 재시도 가능한 실패면 또 재시도할 수 있다.")
+    void retry_whenFailedAgainAfterRetry_thenRetryAgain() {
+        // given
+        Product product = createFailedProduct(true);
+        product.retry();
+        product.fail(PipelineStage.TOOL_EXECUTION, ERROR_CODE, ERROR_MESSAGE, true);
+
+        // when
+        product.retry();
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
 
     @Test
@@ -826,6 +887,16 @@ class ProductTest {
     private Product createInProgressProduct() {
         Product product = createProduct();
         product.startDiagnoses();
+        return product;
+    }
+
+    // 질문에 답하고 진행 상태를 받은 뒤 실패한 상태
+    private Product createFailedProduct(Boolean retryable) {
+        Product product = createAwaitingInputProduct(question("sales_type", 1));
+        product.answerQuestions(Map.of(product.getQuestions().getFirst().getId(), "구매대행"));
+        product.assignRun("run-1");
+        product.recordProgress("run-1", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, null);
+        product.fail(PipelineStage.TOOL_EXECUTION, ERROR_CODE, ERROR_MESSAGE, retryable);
         return product;
     }
 

@@ -10,6 +10,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.BatchSize;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,10 @@ public class Product extends BaseEntity {
     @Column(name = "error_retryable")
     private Boolean errorRetryable;
 
+    // 마지막으로 AI에 진단을 요청한 시각. 다시 진단하면 그 시각으로 바뀐다. 대기 상품의 재요청 기한 기준
+    @Column(name = "requested_at")
+    private LocalDateTime requestedAt;
+
     // 결과를 받기 전에는 null
     @Enumerated(EnumType.STRING)
     @Column(name = "assessment_status")
@@ -133,6 +138,7 @@ public class Product extends BaseEntity {
         this.sourceUrl = sourceUrl;
         this.sourceText = sourceText;
         this.processingStatus = ProcessingStatus.PENDING;
+        this.requestedAt = LocalDateTime.now();
     }
 
     public static Product pending(String productName, String productImageKey,
@@ -281,6 +287,32 @@ public class Product extends BaseEntity {
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
         this.errorRetryable = errorRetryable;
+    }
+
+    // 실패한 진단을 처음부터 다시 시작한다. AI는 1회차 질문부터 다시 보내므로 이전 실행의 질문·진행 상태를 지운다.
+    // AI는 접수(202) 직후부터 콜백을 보내므로 커밋 시점에 이미 진단 중이어야 한다.
+    public void retry() {
+        // retryable이 null이면 재시도할 수 없는 것으로 다룬다.
+        if (!isFailed() || !Boolean.TRUE.equals(errorRetryable)) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
+        this.processingStatus = ProcessingStatus.IN_PROGRESS;
+        // 이전 실행의 늦은 콜백을 받지 않는다. 새 실행의 runId는 202 응답으로 다시 받는다.
+        this.runId = null;
+        this.failedStage = null;
+        this.errorCode = null;
+        this.errorMessage = null;
+        this.errorRetryable = null;
+        questions.clear();
+        progresses.clear();
+        this.requestedAt = LocalDateTime.now();
+    }
+
+    // 재요청 기한을 넘겼는지. 컬럼 추가 전에 만든 상품은 생성 시각을 기준으로 한다.
+    public boolean isRequestedBefore(LocalDateTime deadline) {
+        LocalDateTime requested = requestedAt != null ? requestedAt : getCreatedAt();
+        return requested.isBefore(deadline);
     }
 
     // 진단 결과를 반영하고 완료 상태로 끝낸다.
