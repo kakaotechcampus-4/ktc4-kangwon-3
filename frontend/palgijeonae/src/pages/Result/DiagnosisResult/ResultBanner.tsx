@@ -12,11 +12,12 @@ const ACTION_BUTTON_CLASS = "cursor-pointer rounded-full px-5 py-3 text-sm font-
 
 interface ResultBannerProps {
     product: ProductResult
-    diagnosesId?: string
+    judgementPath?: string
+    questionPath?: string
     onNextStepsClick: () => void
 }
 
-function ResultBanner({ product, diagnosesId, onNextStepsClick }: ResultBannerProps) {
+function ResultBanner({ product, judgementPath, questionPath, onNextStepsClick }: ResultBannerProps) {
     const { resultStatus, processingStatus, summary, requiredActions, failure } = product;
     const config = resolveBannerConfig(resultStatus, processingStatus, failure);
 
@@ -31,12 +32,14 @@ function ResultBanner({ product, diagnosesId, onNextStepsClick }: ResultBannerPr
         ?? (typeof config.description === "function" ? config.description(failure) : config.description)
         ?? "";
 
-    // Judgement/Question은 화면 이동이 필요한 액션이라 diagnosesId가 있어야 보여준다.
-    const needsDiagnosesId = config.action === BannerAction.Judgement || config.action === BannerAction.Question;
-    const action = config.action && (!needsDiagnosesId || diagnosesId) ? config.action : undefined;
-    const actionPath = action === BannerAction.Judgement ? `/judgement/${diagnosesId}`
-        : action === BannerAction.Question ? `/question/${diagnosesId}`
+    const actionPath = config.action === BannerAction.Judgement ? judgementPath
+        : config.action === BannerAction.Question ? questionPath
         : undefined;
+
+    // 옳지 못한 상태(진단 중, 입력 대기 중)에서 결과 페이지에 접근한 경우 화면 이동(Judgement/Question)이 필요.
+    const needsPath = config.action === BannerAction.Judgement || config.action === BannerAction.Question;
+    // 경로가 필요한 액션인데 경로가 없으면(productId로 접근해 diagnosesId가 없는 경우 등) 버튼 자체를 숨긴다.
+    const action = config.action && (!needsPath || actionPath) ? config.action : undefined;
 
     // TODO: 재진단 API/플로우가 정해지면 실제 재시도 로직으로 교체
     const handleRetryClick = () => {
