@@ -21,6 +21,7 @@ class _Source:
     name: str
     document_id: str
     is_admrul: bool
+    tool: str = "children_product_safety"
 
 
 class _Fetcher:
