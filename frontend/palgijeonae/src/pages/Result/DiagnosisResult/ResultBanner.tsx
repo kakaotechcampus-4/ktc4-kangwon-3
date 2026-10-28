@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import type { ProductFailure } from "@/api/product";
+import type { ProductFailure, ProductResult } from "@/api/product";
 import { ProcessingStatusType, ResultStatus } from "@/api/types";
 import dangerIcon from "@/assets/result-danger.svg";
 import noResultIcon from "@/assets/result-noResult.svg";
@@ -138,16 +138,13 @@ const BANNER_ACTION_LABELS: Record<BannerAction, string> = {
 const ACTION_BUTTON_CLASS = "cursor-pointer rounded-full px-5 py-3 text-sm font-semibold text-white";
 
 interface ResultBannerProps {
-    resultStatus: ResultStatus | null
-    processingStatus: ProcessingStatusType
-    summary: string | null
-    requiredActions: string[]
-    failure: ProductFailure | null
+    product: ProductResult
     diagnosesId?: string
     onNextStepsClick: () => void
 }
 
-function ResultBanner({ resultStatus, processingStatus, summary, requiredActions, failure, diagnosesId, onNextStepsClick }: ResultBannerProps) {
+function ResultBanner({ product, diagnosesId, onNextStepsClick }: ResultBannerProps) {
+    const { resultStatus, processingStatus, summary, requiredActions, failure } = product;
     const config = BANNER_CONFIG[resolveBannerCase(resultStatus, processingStatus, failure)];
 
     const statusLabel = resultStatus
