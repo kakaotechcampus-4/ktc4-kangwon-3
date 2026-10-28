@@ -16,8 +16,15 @@ interface DiagnosisResultTabProps {
 
 function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: DiagnosisResultTabProps) {
     const { toolReviews } = product;
+    
+    // productId로 접근해 diagnosesId가 없는 경우 경로를 만들지 않는다. 
+    const judgementPath = diagnosesId ? `/judgement/${diagnosesId}` : undefined;
+    const questionPath = diagnosesId ? `/question/${diagnosesId}` : undefined;
+
     const [findingFilter, setFindingFilter] = useState<FindingFilter>(null);
+
     const determinationTooltipId = useId();
+
     const visibleToolReviews = toolReviews.filter((toolReview) => toolReview.status !== ToolReviewStatus.Skipped);
     const skippedToolReviews = toolReviews.filter((toolReview) => toolReview.status === ToolReviewStatus.Skipped);
 
@@ -36,7 +43,8 @@ function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: Diagnosi
         <div className="flex w-full flex-col gap-6">
             <ResultBanner
                 product={product}
-                diagnosesId={diagnosesId}
+                judgementPath={judgementPath}
+                questionPath={questionPath}
                 onNextStepsClick={onNextStepsClick}
             />
             <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
