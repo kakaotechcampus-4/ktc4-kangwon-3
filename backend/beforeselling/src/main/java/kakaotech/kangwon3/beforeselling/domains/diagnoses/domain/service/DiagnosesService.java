@@ -3,7 +3,6 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
-import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -57,7 +56,7 @@ public class DiagnosesService {
 
         s3FileService.markConfirmed(collectImageKeys(diagnoses));
         Diagnoses saved = diagnosesRepository.save(diagnoses);
-        eventPublisher.publishEvent(toAiDiagnosesRequestedEvent(saved.getId(), saved.getProducts()));
+        eventPublisher.publishEvent(AiDiagnosesRequestedEvent.of(saved.getId(), saved.getProducts()));
         log.debug("진단서 생성 완료. diagnosesId={}, userId={}, 상품 수={}",
                 saved.getId(), userId, commands.size());
 
@@ -156,7 +155,7 @@ public class DiagnosesService {
         if (restarted.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(toAiDiagnosesRequestedEvent(diagnosesId, restarted));
+        return Optional.of(AiDiagnosesRequestedEvent.of(diagnosesId, restarted));
     }
 
     // 단건 조회 + 소유권 검증
@@ -218,13 +217,6 @@ public class DiagnosesService {
         return diagnoses.getProducts().stream()
                 .filter(product -> productIds.contains(product.getId()))
                 .toList();
-    }
-
-    private AiDiagnosesRequestedEvent toAiDiagnosesRequestedEvent(UUID diagnosesId, List<Product> products) {
-        return new AiDiagnosesRequestedEvent(diagnosesId, products.stream()
-                .map(product -> new AiDiagnosesRequestedEvent.ProductInput(product.getId(), product.getSourceType(),
-                        product.getSourceUrl(), product.getSourceText(), product.collectImageKeys()))
-                .toList());
     }
 
     private void publishDeleteEvent(List<String> keys) {
