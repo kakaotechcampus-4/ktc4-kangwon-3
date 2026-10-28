@@ -252,7 +252,7 @@ class MeasurementMetrics:
             "ai_tool_findings", "분야·판단별 Tool 판단 항목 수", ["tool_name", "determination"], registry=registry,
         )
         self._seller_region = Counter(
-            "ai_extraction_seller_region", "쇼핑몰·자르기 성공 여부별 상세페이지 글 수. 아는 쇼핑몰의 false는 화면 변경 의심",
+            "ai_extraction_seller_region", "쇼핑몰·자르기 성공 여부별 상세페이지 글 수. false가 늘면 화면 변경 의심",
             ["site", "trimmed"], registry=registry,
         )
 

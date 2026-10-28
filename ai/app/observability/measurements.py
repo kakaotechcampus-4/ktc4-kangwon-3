@@ -52,7 +52,7 @@ class SellerRegionCut:
     """상세페이지 글 하나의 판매자 구역 자르기 결과.
 
     Attributes:
-        site: 알아본 쇼핑몰. 모르면 unknown.
+        site: 알아본 쇼핑몰 (aliexpress·temu).
         trimmed: 구역을 실제로 잘랐는지.
     """
 
