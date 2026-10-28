@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-
 import { type ProcessingStatusType, type ResultStatus, type SourceType } from "@/api/types";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
@@ -12,46 +10,32 @@ interface ProductPreviewProps {
     resultStatus: ResultStatus | null
     processingStatus: ProcessingStatusType
     sourceType: SourceType
-    // 값이 있으면 클릭 가능한 Link로, 없으면 일반 박스로 렌더링한다.
-    to?: string
 }
 
-function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType, to }: ProductPreviewProps) {
+function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType }: ProductPreviewProps) {
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
 
-    const content = (
-        <>
-            <img src={productImageUrl ?? defaultThumbnail}
-                alt="상품 썸네일"
-                className="w-23 h-23 object-cover rounded-lg border border-neutral-border" />
-            <div className="flex flex-col items-start gap-2">
-                <div className="flex items-center gap-2">
-                    <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
-                        {badge.label}
-                    </div>
-                    <img src={SOURCE_TYPE_INFO[sourceType].icon}
-                        alt={SOURCE_TYPE_INFO[sourceType].label}
-                        className="w-5 h-5" />
-                    <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
-                </div>
-                <h3 className="text-xl font-bold text-black">{productName}</h3>
-            </div>
-        </>
-    );
-
     return (
         <DefaultBox>
-            {to ? (
-                <Link to={to} className="flex w-full cursor-pointer flex-row gap-4">
-                    {content}
-                </Link>
-            ) : (
-                <div className="flex w-full flex-row gap-4">
-                    {content}
+            <div className="flex w-full flex-row gap-4">
+                <img src={productImageUrl ?? defaultThumbnail}
+                    alt="상품 썸네일"
+                    className="w-23 h-23 object-cover rounded-lg border border-neutral-border" />
+                <div className="flex flex-col items-start gap-2">
+                    <div className="flex items-center gap-2">
+                        <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
+                            {badge.label}
+                        </div>
+                        <img src={SOURCE_TYPE_INFO[sourceType].icon}
+                            alt={SOURCE_TYPE_INFO[sourceType].label}
+                            className="w-5 h-5" />
+                        <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
+                    </div>
+                    <h3 className="text-xl font-bold text-black">{productName}</h3>
                 </div>
-            )}
+            </div>
         </DefaultBox>
     );
 }
