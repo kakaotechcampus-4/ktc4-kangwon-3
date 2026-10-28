@@ -1,0 +1,150 @@
+{
+  "fixture": "age_label_vs_target_mismatch.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "애매",
+    "어린이",
+    "연령표기"
+  ],
+  "summary": "아이스크림 모양 말랑이 장난감(Temu). 스펙표 '사용연령: 2년 이상'을 원문 그대로 옮기는지, 제목 '어린이 파티 선물'과 경고 '어린이는 성인의 감독 하에'로 어린이 대상을 확정하는지 본다. 전기를 쓰지 않는 장난감이라 전기 관련 칸은 false다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "제목 '짜낼 수 있는 놀이 장난감', '부드러운 젤리 짜는 손가락 장난감'. 전원·전지 표기 없음",
+      "why_not_other": "손으로 누르는 말랑이 형태가 페이지에 확인되어 전기로 작동하는 구조가 아니다."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "말랑이 장난감. 전자 부품 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "말랑이 장난감. 전원·충전 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "말랑이 장난감. 전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '모양 장난감'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "경고 '이 제품을 가열하거나, 전자레인지에 넣거나…하지 마십시오'",
+      "why_not_other": "전기를 쓰지 않는 상품이고, 가열 경고는 발열 기능이 아니라 사용 금지 안내다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "'아이스크림 모양', '과일 감각'은 모양 설명이다",
+      "why_not_other": "음식에 닿는 용도를 말하지 않는다. 음식 모양은 접촉 근거가 아니다."
+    },
+    "skin_contact": {
+      "value": true,
+      "evidence": "제목 '부드러운 젤리 짜는 손가락 장난감', '귀여운 과일 감각 손 장난감'",
+      "why_not_other": "판매자가 손으로 쥐고 짜서 쓰는 장난감이라고 직접 말한다. 몸에 닿는다는 판매자 표현이 없어 None으로 둔 자세교정 밴드와 다르다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "판매자 문구에 질병·신체기능 효과 표방이 없다",
+      "why_not_other": "'감각 손 장난감'은 놀이 방식 설명이다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "아이스크림·과일 모양",
+      "why_not_other": "형태가 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "스펙표 '재료: 기타'",
+      "why_not_other": "재질이 적혀 있지 않아 식물성 소재 여부를 알 수 없다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '말랑이', '독특한 장난감'",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": true,
+      "evidence": "제목 '어린이 파티 선물', 스펙표 '사용연령: 2년 이상', 경고 '어린이는 성인의 감독 하에 이 제품을 사용해야 합니다'",
+      "why_not_other": "표기 연령이 만 13세 이하를 포함하고 광고도 어린이를 겨냥한다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": "2년 이상",
+      "evidence": "스펙표 '사용연령: 2년 이상'(원문 77~78행)"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "장난감"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "말랑이",
+        "독특한 장난감",
+        "장난감&게임",
+        "스퀴시",
+        "감각 장난감",
+        "장난감",
+        "말랑이 장난감",
+        "스트레스 해소 장난감",
+        "장난감&게임 > 독특한 장난감"
+      ]
+    }
+  },
+  "listing_text_required": [
+    {
+      "must_contain": "어린이 파티 선물",
+      "evidence": "판매자 제목(원문 28행). 어린이 대상 광고의 근거"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "내 아가를 되찾기 위해",
+      "evidence": "원문 39행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "꼭 추천하고 싶어요",
+      "evidence": "원문 45행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "형태가 잘 잡히고 촉감이",
+      "evidence": "원문 51행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "진짜 슬러시예요",
+      "evidence": "원문 57행, 구매자 리뷰"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 99행, 판매 사이트 공통 문구"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 104행, 판매 사이트 공통 문구"
+    },
+    {
+      "must_not_contain": "문제 발생 시 환불",
+      "evidence": "원문 6·12행, 판매 사이트 공통 문구"
+    }
+  ]
+}
