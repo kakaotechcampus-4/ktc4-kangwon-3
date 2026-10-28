@@ -1,14 +1,29 @@
 import type { Question } from "@/api/product";
+import SectionIntro from "@/components/common/SectionIntro";
+
+import ReflectedAnswerCard from "./ReflectedAnswerCard";
 
 interface ReflectedAnswersSectionProps {
     questions: Question[]
 }
 
-// TODO: 회차·순서로 정렬해서 렌더링하고, helpText/answerText null 처리, 빈 배열이면 섹션 자체를 숨김
 function ReflectedAnswersSection({ questions }: ReflectedAnswersSectionProps) {
+    if (questions.length === 0) {
+        return null;
+    }
+
+    const sortedQuestions = [...questions].sort((a, b) =>
+        a.questionRound - b.questionRound || a.questionOrder - b.questionOrder,
+    );
+
     return (
-        <div>
-            진단에 반영된 답변 섹션입니다. ({questions.length}건)
+        <div className="flex w-full flex-col gap-6">
+            <SectionIntro title="진단에 반영된 답변" description="진단에 반영된 질문과 사용자님이 입력하신 답변이에요" size="2xl"/>
+            <div className="flex w-full flex-col gap-4">
+                {sortedQuestions.map((question) => (
+                    <ReflectedAnswerCard key={question.questionId} question={question} />
+                ))}
+            </div>
         </div>
     );
 }
