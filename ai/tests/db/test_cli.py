@@ -87,6 +87,16 @@ def test_law_refresh는_점검_결과를_출력하고_조회_객체를_닫는다
     assert fetchers.closed is True
 
 
+def test_law_refresh는_찾은_변경이_보이게_INFO_로그를_켠다(monkeypatch):
+    _law_refresh(monkeypatch)
+    shown = []
+    monkeypatch.setattr(cli, "_show_info_logs", lambda: shown.append(True))
+
+    cli.main(["law-refresh"])
+
+    assert shown == [True]
+
+
 def test_law_refresh는_실패한_문서가_있으면_1로_끝난다(monkeypatch, capsys):
     from app.db.law_cache import LawRefreshReport
 
