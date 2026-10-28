@@ -203,8 +203,43 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         productImageUrl: null,
         sourceType: SourceType.TextImage,
         sourceUrl: null,
-        sourceText: "접이식 알루미늄 캠핑 테이블, 휴대용 가방 포함",
-        imageUrls: [],
+        sourceText: `[상품명] 户外折叠铝合金野营桌 便携式野餐桌 超轻野营装备
+[材质] 航空级铝合金 + 防水牛津布收纳袋
+[规格] 展开尺寸 60*40*40cm / 折叠后 60*8*8cm / 净重 1.8kg
+[颜色] 军绿色 / 黑色 / 橙色 (拍下备注颜色,默认发军绿色)
+[承重] 最大承重 30kg,日常野餐、烧烤、钓鱼完全够用
+
+【产品特点】
+1. 一秒收放,无需安装,打开即用
+2. 铝合金材质,防锈防腐蚀,长期户外使用也不变形
+3. 自带收纳包,背带可调节,方便携带
+4. 桌面做了防滑处理,放置杯具餐具不易打滑
+
+【包装清单】
+折叠桌 x1
+收纳袋 x1
+说明书 x1
+
+【发货说明】
+- 本店所有商品均为现货,付款后 48 小时内发货
+- 默认韵达/中通快递,偏远地区可能需要补运费,拍前请联系客服确认
+- 如遇节假日或大促期间,发货时间可能顺延 2-3 天,敬请谅解
+
+【售后说明】
+收到商品如有质量问题,请在 7 天内联系客服,我们会第一时间为您处理。
+人为损坏、正常使用磨损不在三包范围内,请知悉。
+
+注:图片均为实拍,因拍摄光线、显示器色差等原因,实物颜色可能与图片略有差异,请以实物为准。`,
+        imageUrls: [
+            "https://placehold.co/480x480/png?text=Detail+1",
+            "https://placehold.co/480x480/png?text=Detail+2",
+            "https://placehold.co/480x480/png?text=Detail+3",
+            "https://placehold.co/480x480/png?text=Detail+4",
+            "https://placehold.co/480x480/png?text=Detail+5",
+            "https://placehold.co/480x480/png?text=Detail+6",
+            "https://placehold.co/480x480/png?text=Detail+7",
+            "https://broken-image-url.example.com/not-found.jpg",
+        ],
         processingStatus: ProcessingStatusType.Completed,
         progresses: [],
         questions: [],
@@ -277,7 +312,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         productImageUrl: null,
         sourceType: SourceType.TextImage,
         sourceUrl: null,
-        sourceText: "야광 비즈로 팔찌를 만드는 DIY 키트, 5가지 색상",
+        sourceText: "夜光串珠手链DIY材料包 5色可选 儿童手工制作套装",
         imageUrls: [],
         processingStatus: ProcessingStatusType.Pending,
         progresses: [],

@@ -76,7 +76,8 @@ function ResultPage() {
                                             onNextStepsClick={handleNextStepsClick} />,
         [ResultTabKey.NextSteps]: <NextStepTab 
                                         product={currentProduct}/>,
-        [ResultTabKey.ProductInfo]: <ProductInfoTab />,
+        [ResultTabKey.ProductInfo]: <ProductInfoTab 
+                                        product={currentProduct} />,
     } : null;
 
     return (
