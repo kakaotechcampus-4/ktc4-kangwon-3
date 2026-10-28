@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.infra.ai;
 
 import kakaotech.kangwon3.beforeselling.global.config.properties.AiServerProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.AiDiagnosesRequestException.Failure;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiApiResponse;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesAccepted;
@@ -8,6 +9,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesConflict;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesRequest;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeAccepted;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeRequest;
+import kakaotech.kangwon3.beforeselling.global.security.filter.InternalTokenFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,7 @@ import java.util.List;
 
 /**
  * AI 서버에 진단 접수. 결과는 상품별 콜백(/internal/v1/ai/products/{productId})으로 따로 전달.
+ * 요청에는 콜백과 같은 내부 토큰(X-Internal-Token)을 함께 전달.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,6 +41,7 @@ public class AiDiagnosesClient {
 
     private final RestClient restClient;
     private final AiServerProperties aiServerProperties;
+    private final InternalApiProperties internalApiProperties;
 
     /**
      * @throws AiDiagnosesRequestException 접수(202)되지 않았거나 접수 여부를 모를 때
@@ -46,6 +50,7 @@ public class AiDiagnosesClient {
         try {
             AiApiResponse<AiDiagnosesAccepted> response = restClient.post()
                     .uri(aiServerProperties.baseUrl() + DIAGNOSE_PATH)
+                    .header(InternalTokenFilter.HEADER_NAME, internalApiProperties.token())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
@@ -113,6 +118,7 @@ public class AiDiagnosesClient {
     public AiResumeAccepted requestResume(AiResumeRequest request) {
         AiApiResponse<AiResumeAccepted> response = restClient.post()
                 .uri(aiServerProperties.baseUrl() + RESUME_PATH)
+                .header(InternalTokenFilter.HEADER_NAME, internalApiProperties.token())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
