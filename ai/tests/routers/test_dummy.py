@@ -149,19 +149,28 @@ def test_임시_변환기는_가짜_진단_결과를_분야_카드와_법령_근
     assert assessment.required_actions and assessment.notices
 
 
-@pytest.mark.parametrize(("update", "expected"), [
-    ({}, ("completed", "DIRECT_IMPORT_CERTIFICATION_REQUIRED")),
-    ({"overall_status": OverallStatus.LIKELY_COMPLIANT}, ("completed", "PURCHASING_AGENT_ALLOWED")),
+@pytest.mark.parametrize(("update", "signal", "expected"), [
+    ({}, None, ("completed", "DIRECT_IMPORT_CERTIFICATION_REQUIRED")),
+    ({"overall_status": OverallStatus.LIKELY_COMPLIANT}, None, ("completed", "PURCHASING_AGENT_ALLOWED")),
+    ({"overall_status": OverallStatus.INSUFFICIENT_INFORMATION}, None, ("completed", "RECHECK_REQUIRED")),
     (
         {
             "verification_status": FinalVerificationStatus.INCOMPLETE,
             "termination_reason": ExecutionEndReason.QUESTION_LIMIT_EXCEEDED,
         },
+        None,
         ("incomplete", "RECHECK_REQUIRED"),
     ),
+    # 지원 분야 밖 신호는 인증 필요 다음, 문제없음보다 먼저
+    ({"overall_status": OverallStatus.LIKELY_COMPLIANT}, "chemical_product", ("completed", "RECHECK_REQUIRED")),
+    ({"overall_status": OverallStatus.LIKELY_COMPLIANT}, "plant_material", ("completed", "RECHECK_REQUIRED")),
+    ({"overall_status": OverallStatus.HIGH_RISK}, "weapon_like", ("completed", "DIRECT_IMPORT_CERTIFICATION_REQUIRED")),
 ])
-def test_임시_변환기는_검증_상태와_종합_판단으로_결과_상태를_정한다(update, expected):
-    result = build_dummy_assessment("p-1").model_copy(update=update)
+def test_임시_변환기는_검증_상태와_종합_판단과_지원_분야_밖_신호로_결과_상태를_정한다(update, signal, expected):
+    result = build_dummy_assessment("p-1")
+    if signal is not None:
+        update = {**update, "product": result.product.model_copy(update={signal: True})}
+    result = result.model_copy(update=update)
 
     assessment = DummyAssessmentPresenter().assessment(result)
 
