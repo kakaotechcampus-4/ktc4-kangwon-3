@@ -17,7 +17,8 @@ from .config import SESSION_SWEEP_SECONDS, get_settings
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
-from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
+from .observability.measurements import measurement_sinks
+from .observability.metrics import AgentMetrics, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector
 from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
                  log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
                  run_weekly_clip_ingest)
@@ -108,6 +109,9 @@ async def lifespan(app: FastAPI):
     # 에이전트 지표. 등록표는 앱 전체 공용이라 종료 때 해제 (lifespan을 다시 띄워도 옛 registry에 안 쌓이게)
     agent_metrics = AgentMetrics(registry).on_run
     agent_sinks.add(agent_metrics)
+    # 외부 API·Tool·추출 측정 지표. 에이전트 지표와 같은 이유로 종료 때 해제
+    measurement_metrics = MeasurementMetrics(registry).on_record
+    measurement_sinks.add(measurement_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
     # 샌드박스 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
@@ -139,6 +143,7 @@ async def lifespan(app: FastAPI):
         close_llm_clients()
         close_decision_clients()
         agent_sinks.remove(agent_metrics)
+        measurement_sinks.remove(measurement_metrics)
 
 
 app = FastAPI(
