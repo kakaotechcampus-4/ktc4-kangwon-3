@@ -15,7 +15,9 @@ from .clients.llm import close_llm_clients
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.measurements import measurement_sinks
-from .observability.metrics import AgentMetrics, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector
+from .observability.metrics import (
+    AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
+)
 from .repositories.database import DatabaseNotConfiguredError, get_engine
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
@@ -82,10 +84,11 @@ async def lifespan(app: FastAPI):
     registry = CollectorRegistry()
     manager.subscribe(SessionMetrics(registry).on_event)
     registry.register(SessionSnapshotCollector(manager))
+    registry.register(CallbackOutboxCollector(outbox))
     # 에이전트 지표. 등록표는 앱 전체 공용이라 종료 때 해제 (lifespan을 다시 띄워도 옛 registry에 안 쌓이게)
     agent_metrics = AgentMetrics(registry).on_run
     agent_sinks.add(agent_metrics)
-    # 외부 API·Tool·추출 측정 지표. 에이전트 지표와 같은 이유로 종료 때 해제
+    # 외부 API·콜백·Tool·추출 측정 지표. 에이전트 지표와 같은 이유로 종료 때 해제
     measurement_metrics = MeasurementMetrics(registry).on_record
     measurement_sinks.add(measurement_metrics)
     app.state.metrics_registry = registry

@@ -3,7 +3,8 @@
     - SessionMetrics: 세션 이벤트 구독자. 대기·실행·전체·단계 소요 시간과 결말·Tool 진행 횟수
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
     - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
-    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간
+    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도
+    - CallbackOutboxCollector: 수집 때마다 콜백 발신함의 대기 중 이벤트 수를 읽음
 
 라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.
 에이전트 지표는 실행 컨텍스트가 없어 기록 이름(평가 호출은 extraction-eval 등)으로만 구분.
@@ -18,7 +19,8 @@ from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metri
 from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
-from .measurements import ClientCall, Measurement
+from ..callbacks import CallbackOutbox
+from .measurements import CallbackOutcome, ClientCall, Measurement
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
@@ -200,7 +202,7 @@ class AgentMetrics:
 
 
 class MeasurementMetrics:
-    """측정 기록으로 외부 API 호출 결과·시간을 기록한다. measurement_sinks에 on_record를 등록해 씀."""
+    """측정 기록으로 외부 API 호출·콜백 전송을 기록한다. measurement_sinks에 on_record를 등록해 씀."""
 
     def __init__(self, registry: CollectorRegistry) -> None:
         """지표를 registry에 등록한다.
@@ -215,6 +217,17 @@ class MeasurementMetrics:
         self._client_seconds = Histogram(
             "ai_client_seconds", "외부 API 호출 1건 소요 시간", ["api"], buckets=CLIENT_CALL_BUCKETS, registry=registry,
         )
+        self._callback_sent = Counter(
+            "ai_callback_sent", "종류·최종 결과(delivered·dropped)별 콜백 이벤트 수", ["event_type", "result"],
+            registry=registry,
+        )
+        self._callback_dropped = Counter(
+            "ai_callback_dropped", "사유별 버린 콜백 이벤트 수. 생기면 BE 화면에서 진단이 멈춘 것처럼 보임", ["reason"],
+            registry=registry,
+        )
+        self._callback_retries = Counter(
+            "ai_callback_retries", "종류별 콜백 재시도 횟수", ["event_type"], registry=registry,
+        )
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
@@ -226,6 +239,32 @@ class MeasurementMetrics:
             case ClientCall(api=api, result=result, seconds=seconds):
                 self._client_calls.labels(api, result).inc()
                 self._client_seconds.labels(api).observe(seconds)
+            case CallbackOutcome(event_type=event_type, delivered=delivered, retries=retries, drop_reason=reason):
+                self._callback_sent.labels(event_type, "delivered" if delivered else "dropped").inc()
+                self._callback_retries.labels(event_type).inc(retries)
+                if reason is not None:
+                    self._callback_dropped.labels(reason).inc()
+
+
+class CallbackOutboxCollector(Collector):
+    """수집(scrape) 때마다 콜백 발신함에서 아직 보내기 시작하지 않은 이벤트 수를 읽는다."""
+
+    def __init__(self, outbox: CallbackOutbox) -> None:
+        """
+        Args:
+            outbox: 읽을 콜백 발신함.
+        """
+        self._outbox = outbox
+
+    def collect(self) -> Iterator[Metric]:
+        """대기 중 이벤트 수를 낸다.
+
+        Returns:
+            Iterator[Metric]: ai_callback_pending.
+        """
+        pending = GaugeMetricFamily("ai_callback_pending", "보내기를 기다리는 콜백 이벤트 수")
+        pending.add_metric([], self._outbox.pending())
+        yield pending
 
 
 def _seconds(start: datetime, end: datetime) -> float:

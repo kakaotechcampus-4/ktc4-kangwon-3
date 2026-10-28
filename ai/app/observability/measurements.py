@@ -1,4 +1,4 @@
-"""클라이언트·Tool·추출이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
+"""클라이언트·콜백 발신함·Tool·추출이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
 
 기록을 남기는 코드는 지표를 몰라도 됨. 서버는 lifespan에서 지표 sink를 등록하고 종료 때 해제.
 받는 쪽 오류는 경고 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음.
@@ -58,7 +58,24 @@ class SellerRegionCut:
     trimmed: bool
 
 
-Measurement = ClientCall | ToolRun | SellerRegionCut
+@dataclass(frozen=True)
+class CallbackOutcome:
+    """콜백 이벤트 1건의 최종 결과.
+
+    Attributes:
+        event_type: 콜백 이벤트 종류.
+        delivered: BE가 받았는지.
+        retries: 첫 전송을 뺀 재시도 횟수.
+        drop_reason: 버린 사유 (retry_exhausted·not_retryable·shutdown·error). 받았으면 None.
+    """
+
+    event_type: str
+    delivered: bool
+    retries: int = 0
+    drop_reason: str | None = None
+
+
+Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome
 MeasurementSink = Callable[[Measurement], None]
 
 

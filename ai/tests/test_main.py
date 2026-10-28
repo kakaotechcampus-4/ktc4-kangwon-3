@@ -147,3 +147,10 @@ def test_서버가_떠_있는_동안만_외부_API_호출이_지표에_쌓인다
 
     assert 'ai_client_calls_total{api="law",result="ok"} 1.0' in text
     assert registry.get_sample_value("ai_client_calls_total", {"api": "law", "result": "ok"}) == 1.0
+
+
+def test_metrics에_콜백_발신함_대기_수가_나온다(fake_be):
+    with TestClient(main.app) as client:
+        text = client.get("/metrics").text
+
+    assert "ai_callback_pending 0.0" in text

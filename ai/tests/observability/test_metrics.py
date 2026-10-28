@@ -6,8 +6,10 @@ from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
-from app.observability.measurements import ClientCall
-from app.observability.metrics import AgentMetrics, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector
+from app.observability.measurements import CallbackOutcome, ClientCall
+from app.observability.metrics import (
+    AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
+)
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
@@ -196,3 +198,33 @@ def test_외부_API_호출을_서버와_결과별로_세고_시간을_서버별�
     assert value("ai_client_calls_total", api="data_go_kr", result="timeout") == 1
     assert value("ai_client_seconds_sum", api="law") == 2.2
     assert value("ai_client_seconds_bucket", api="data_go_kr", le="10.0") == 1
+
+
+def test_콜백_결과를_종류와_결과별로_세고_버린_사유와_재시도를_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (CallbackOutcome(event_type="PROGRESS", delivered=True),
+                   CallbackOutcome(event_type="PROGRESS", delivered=True, retries=2),
+                   CallbackOutcome(event_type="COMPLETED", delivered=False, retries=5, drop_reason="retry_exhausted")):
+        metrics.on_record(record)
+
+    def value(name, **labels):
+        return registry.get_sample_value(name, labels)
+
+    assert value("ai_callback_sent_total", event_type="PROGRESS", result="delivered") == 2
+    assert value("ai_callback_sent_total", event_type="COMPLETED", result="dropped") == 1
+    assert value("ai_callback_dropped_total", reason="retry_exhausted") == 1
+    assert (value("ai_callback_retries_total", event_type="PROGRESS"),
+            value("ai_callback_retries_total", event_type="COMPLETED")) == (2, 5)
+
+
+def test_수집_때_콜백_발신함_대기_수를_지표로_낸다():
+    class _Outbox:
+        def pending(self) -> int:
+            return 3
+
+    registry = CollectorRegistry()
+    registry.register(CallbackOutboxCollector(_Outbox()))
+
+    assert registry.get_sample_value("ai_callback_pending", {}) == 3
