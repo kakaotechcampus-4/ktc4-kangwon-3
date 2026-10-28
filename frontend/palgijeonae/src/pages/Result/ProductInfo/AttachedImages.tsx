@@ -2,6 +2,7 @@ import { type ReactEventHandler, useState } from "react";
 
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import ImageLightbox from "@/components/common/ImageLightbox";
+import SectionIntro from "@/components/common/SectionIntro";
 
 interface AttachedImagesProps {
     imageUrls: string[]
@@ -24,7 +25,7 @@ function AttachedImages({ imageUrls }: AttachedImagesProps) {
 
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
-            <h3 className="text-lg leading-tight font-bold text-black">첨부 이미지 {imageUrls.length}장</h3>
+            <SectionIntro title="첨부된 이미지" size="xl"/>
             <div className="flex w-full items-start gap-3 overflow-x-auto">
                 {imageUrls.map((imageUrl, index) => (
                     <button
