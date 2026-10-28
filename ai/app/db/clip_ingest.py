@@ -231,7 +231,7 @@ def ingest_clip_cases(
                 session.commit()
             report.saved += len(cases)
             done = start + len(chunk)
-            rate = done / (time.monotonic() - started)
+            rate = done / max(time.monotonic() - started, 1e-3)
             logger.info("CLIP 적재 %d/%d (실패 %d) — %.1f건/초, 남은 시간 약 %d분", done, len(todo),
                         len(report.failed), rate, (len(todo) - done) / rate / 60)
     return report
