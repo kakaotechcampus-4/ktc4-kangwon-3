@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
 
 import type { ProductResult } from "@/api/product";
 import { getDiagnosesDetail, getProduct } from "@/api/result";
@@ -12,7 +13,7 @@ export function useProductResults(
     diagnosesId: string | undefined,
     isInvalidAccess: boolean,
 ) {
-    return useQuery({
+    const query = useQuery({
         queryKey: productId ? ["product", productId] : ["diagnosesDetail", diagnosesId],
         queryFn: async (): Promise<ProductResult[]> => {
             if (productId) {
@@ -23,4 +24,9 @@ export function useProductResults(
         },
         enabled: !isInvalidAccess,
     });
+
+    // 존재하지 않는 id로 접근한 경우(404)
+    const isNotFoundError = axios.isAxiosError(query.error) && query.error.response?.status === 404;
+
+    return { ...query, isNotFoundError };
 }
