@@ -11,7 +11,7 @@ function NoticesSection({ notices }: NoticesSectionProps) {
 
     return (
         <DefaultBox tone="warning" className="gap-3">
-            <h3 className="text-xl leading-tight font-bold text-status-warning">유의사항</h3>
+            <h2 className="text-xl leading-tight font-bold text-status-warning">유의사항</h2>
             {notices.map((notice, index) => (
                 <p key={index} className="text-base font-medium leading-relaxed text-status-warning">
                     • {notice}
