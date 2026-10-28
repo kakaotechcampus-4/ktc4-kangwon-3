@@ -57,8 +57,8 @@ function ResultTabs({ selected, onSelect, disabledTabs = [] }: ResultTabsProps) 
                         type="button"
                         role="tab"
                         aria-selected={isSelected}
-                        disabled={isDisabled}
-                        onClick={() => onSelect(tab)}
+                        aria-disabled={isDisabled}
+                        onClick={() => !isDisabled && onSelect(tab)}
                         className={cn(tabVariants({ selected: isSelected, disabled: isDisabled }))}
                     >
                         <img src={isSelected ? info.iconSelected : info.icon} alt="" className="h-7.5 w-7.5" />
