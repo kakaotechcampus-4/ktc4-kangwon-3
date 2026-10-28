@@ -47,6 +47,14 @@ def _with_db(command: Callable[[], int]) -> int:
         return 3
 
 
+def _show_info_logs() -> None:
+    """INFO 로그를 화면에 출력한다. HTTP 요청 줄은 뺀다."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    # 요청마다 찍히는 줄 (openai SDK는 httpx2 사용)
+    for name in ("httpx", "httpx2"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 def _init() -> int:
     """vector 확장과 테이블을 만들고 결과를 출력한다.
 
@@ -67,6 +75,8 @@ def _law_refresh() -> int:
     # 근거 문서 목록은 Tool 쪽에 있음. CLI는 서버 진입점이라 여기서만 가져옴
     from ..tools.common.law_sources import LAW_SOURCES, applied_version
 
+    # 찾은 변경(log_law_changes)을 화면에 보임
+    _show_info_logs()
     # 조회 객체는 DB 연결 실패를 조용히 건너뛰므로 연결부터 확인
     init_db()
     fetchers = build_law_fetchers(get_settings().law_oc, get_session_factory())
@@ -108,10 +118,7 @@ def _clip_ingest(workers: int, limit: int | None, raw_dir: Path | None) -> int:
         int: 종료 코드. 상세를 못 받은 사례가 있으면 1.
     """
     # 진행 상황(묶음마다)을 화면에 보임
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
-    # 임베딩 요청 줄 (openai SDK는 httpx2 사용)
-    for name in ("httpx", "httpx2"):
-        logging.getLogger(name).setLevel(logging.WARNING)
+    _show_info_logs()
     init_db()
     settings = get_settings()
     search, detail = CLIPClient(), CLIPDetailClient()
