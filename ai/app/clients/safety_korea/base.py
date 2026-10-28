@@ -25,6 +25,8 @@ class SafetyKoreaBaseClient(RequestClient[RequestT, ResponseT]):
         하위 클라이언트는 `_get_with_auth`로 요청하고 `_send`·`_parse`를 구현.
     """
 
+    API = "safety_korea"
+
     def __init__(self, auth_key: str):
         super().__init__(
             base_url="https://www.safetykorea.kr",

@@ -30,6 +30,8 @@ class LawGoKrClient(RequestClient[RequestT, ResponseT]):
         ValueError: OC 값이 비어 있는 경우.
     """
 
+    API = "law"
+
     def __init__(self, oc: str):
         if not oc or not oc.strip():
             raise ValueError("법제처 OC 값이 비어 있음 (LAW_GO_KR_OC)")

@@ -23,6 +23,8 @@ class CLIPClient(RequestClient[CLIPSearchRequest, CLIPSearchResponse]):
         응답에 <em> 태그가 섞여 오고 HS 코드에 점·하이픈이 포함됨 (예: 8414.59-9000).
     """
 
+    API = "customs"
+
     _ENDPOINT = "/clip/prlstclsfsrch/retrieveDmstPrlstClsfCaseLst2.do"
 
     def __init__(self):

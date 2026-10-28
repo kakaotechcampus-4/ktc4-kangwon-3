@@ -27,6 +27,8 @@ class RadioBaseClient(RequestClient[RadioAuthRequest, ResponseT]):
         없는 번호도 HTTP 200이며 resultCode로 판별해야 함.
     """
 
+    API = "radio"
+
     _ENDPOINT: ClassVar[str]
 
     def __init__(self):

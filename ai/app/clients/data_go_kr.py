@@ -20,6 +20,8 @@ class DataGoKrClient(RequestClient[RequestT, ResponseT]):
         timeout: 요청 제한 시간(초). 기본 10초.
     """
 
+    API = "data_go_kr"
+
     def __init__(self, service_key: str, timeout: float = 10.0):
         super().__init__(base_url="https://apis.data.go.kr", timeout=timeout)
         self._service_key = unquote(service_key)
