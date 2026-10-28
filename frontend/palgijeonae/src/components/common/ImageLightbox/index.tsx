@@ -4,25 +4,30 @@ import { createPortal } from "react-dom";
 import deleteIcon from "@/assets/delete-gray.svg";
 import { cn } from "@/lib/cn";
 
+export interface LightboxImage {
+    src: string
+    alt: string
+}
+
 interface ImageLightboxProps {
-    files: File[]
-    previewUrls: string[]
+    images: LightboxImage[]
     currentIndex: number
     onIndexChange: (index: number) => void
     onClose: () => void
+    // 없으면 삭제(X) 버튼을 보여주지 않는다. 
     onRemove?: (index: number) => void
 }
 
-function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClose, onRemove }: ImageLightboxProps) {
+function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove }: ImageLightboxProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
 
     const goToPrev = useCallback(() => {
-        onIndexChange((currentIndex - 1 + files.length) % files.length);
-    }, [currentIndex, files.length, onIndexChange]);
+        onIndexChange((currentIndex - 1 + images.length) % images.length);
+    }, [currentIndex, images.length, onIndexChange]);
 
     const goToNext = useCallback(() => {
-        onIndexChange((currentIndex + 1) % files.length);
-    }, [currentIndex, files.length, onIndexChange]);
+        onIndexChange((currentIndex + 1) % images.length);
+    }, [currentIndex, images.length, onIndexChange]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -66,8 +71,8 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
         };
     }, []);
 
-    const currentFile = files[currentIndex];
-    if (!currentFile) {
+    const currentImage = images[currentIndex];
+    if (!currentImage) {
         return null;
     }
 
@@ -95,7 +100,7 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                 className="relative flex w-full min-h-0 max-w-240 flex-1 items-center justify-center"
                 onClick={(event) => event.stopPropagation()}
             >
-                {files.length > 1 && (
+                {images.length > 1 && (
                     <button
                         type="button"
                         onClick={goToPrev}
@@ -109,8 +114,8 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
 
                 <div className="relative min-h-0 min-w-0 max-h-full max-w-full shadow-xl">
                     <img
-                        src={previewUrls[currentIndex]}
-                        alt={currentFile.name}
+                        src={currentImage.src}
+                        alt={currentImage.alt}
                         className="max-h-[70vh] max-w-full object-contain shadow-lg"
                     />
                     {onRemove && (
@@ -124,7 +129,7 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                     )}
                 </div>
 
-                {files.length > 1 && (
+                {images.length > 1 && (
                     <button
                         type="button"
                         onClick={goToNext}
@@ -137,14 +142,14 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                 )}
             </div>
 
-            {files.length > 1 && (
+            {images.length > 1 && (
                 <div
                     className="flex w-full max-w-240 gap-3 overflow-x-auto px-6"
                     onClick={(event) => event.stopPropagation()}
                 >
-                    {files.map((file, index) => (
+                    {images.map((image, index) => (
                         <button
-                            key={`${file.name}-${index}`}
+                            key={index}
                             type="button"
                             onClick={() => onIndexChange(index)}
                             className={cn(
@@ -152,7 +157,7 @@ function ImageLightbox({ files, previewUrls, currentIndex, onIndexChange, onClos
                                 index === currentIndex ? "border-primary" : "border-transparent",
                             )}
                         >
-                            <img src={previewUrls[index]} alt={file.name} className="h-full w-full object-cover" />
+                            <img src={image.src} alt={image.alt} className="h-full w-full object-cover" />
                         </button>
                     ))}
                 </div>
