@@ -76,6 +76,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 재는 곳
   - `RequestClient.fetch_raw`·`fetch_parsed`: 조회 1번당 1건. 서버는 클래스 변수 `API`로 지정, 빠뜨리면 테스트가 잡음
   - `LlmClient` 전송 계층: HTTP 요청 1번당 1건. 에이전트를 거치지 않는 임베딩도 잡힘. SDK 재시도는 시도마다 기록
+    - 스트리밍 응답도 조각 수와 상관없이 1건. 시간은 본문을 다 받고 닫을 때까지이고, 받다 끊기면 timeout·connect_error
 
 ### 3.4 콜백
 
