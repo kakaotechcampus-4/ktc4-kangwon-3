@@ -13,6 +13,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultSt
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
@@ -409,6 +410,64 @@ class ProductServiceTest {
         assertResponseCode(() -> productService.answerQuestions(USER_ID, PRODUCT_ID, Map.of()),
                 CommonResponseCode.NOT_FOUND);
         then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("실패한 상품을 재시도하면 상품과 진단서가 다시 진행 중 상태가 된다.")
+    void retryDiagnoses_thenProductAndDiagnosesInProgress() {
+        // given: 상품 A는 실패, 상품 B는 완료라 진단서는 끝난 상태
+        Diagnoses diagnoses = createFailedAndCompletedDiagnoses();
+        givenLockedDiagnoses(diagnoses);
+        Product product = diagnoses.getProducts().getFirst();
+
+        // when
+        productService.retryDiagnoses(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("실패한 상품을 재시도하면 그 상품만 담은 AI 진단 요청 이벤트를 발행한다.")
+    void retryDiagnoses_thenPublishRequestEventOfProduct() {
+        // given
+        Diagnoses diagnoses = createFailedAndCompletedDiagnoses();
+        givenLockedDiagnoses(diagnoses);
+
+        // when
+        productService.retryDiagnoses(USER_ID, PRODUCT_ID);
+
+        // then
+        ArgumentCaptor<AiDiagnosesRequestedEvent> captor = ArgumentCaptor.forClass(AiDiagnosesRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue().diagnosesId()).isEqualTo(DIAGNOSES_ID);
+        assertThat(captor.getValue().products())
+                .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
+                .containsExactly(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("재시도할 수 없는 상품이면 CONFLICT 예외가 발생하고 이벤트를 발행하지 않는다.")
+    void retryDiagnoses_whenNotRetryable_thenThrowConflict() {
+        // given: 진행 중인 상품
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnoses(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.retryDiagnoses(USER_ID, PRODUCT_ID), CommonResponseCode.CONFLICT);
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품을 재시도하면 진단서를 잠그지 않고 NOT_FOUND 예외가 발생한다.")
+    void retryDiagnoses_withUnknownId_thenThrowNotFound() {
+        // given
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertResponseCode(() -> productService.retryDiagnoses(USER_ID, PRODUCT_ID), CommonResponseCode.NOT_FOUND);
+        then(diagnosesRepository).should(never()).findByIdAndUserIdForUpdate(any(), any());
     }
 
     @Test
@@ -926,6 +985,15 @@ class ProductServiceTest {
         // then
         assertThat(failed).isFalse();
         assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    // 첫 번째 상품(PRODUCT_ID)은 재시도 가능한 실패, 두 번째 상품은 완료라 진단서는 끝난 상태
+    private Diagnoses createFailedAndCompletedDiagnoses() {
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        failByScheduler(diagnoses.getProducts().get(0));
+        diagnoses.getProducts().get(1).complete(assessmentContent("요약"));
+        diagnoses.refreshProcessingStatus();
+        return diagnoses;
     }
 
     // 첫 번째 상품(PRODUCT_ID)이 1회차 질문 2개를 받아 답변을 기다리는 상태. 저장하지 않으므로 질문 ID를 직접 넣는다.
