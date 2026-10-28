@@ -89,6 +89,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
             <button
                 type="button"
                 onClick={onClose}
+                aria-label="닫기"
                 className="absolute top-6 right-6 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white shadow"
             >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -104,6 +105,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
                     <button
                         type="button"
                         onClick={goToPrev}
+                        aria-label="이전 이미지"
                         className="absolute left-0 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white shadow"
                     >
                         <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -133,6 +135,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
                     <button
                         type="button"
                         onClick={goToNext}
+                        aria-label="다음 이미지"
                         className="absolute right-0 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white shadow"
                     >
                         <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -152,6 +155,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
                             key={index}
                             type="button"
                             onClick={() => onIndexChange(index)}
+                            aria-current={index === currentIndex ? "true" : undefined}
                             className={cn(
                                 "h-16 w-16 shrink-0 overflow-hidden rounded-xl border-2",
                                 index === currentIndex ? "border-primary" : "border-transparent",
