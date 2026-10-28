@@ -23,7 +23,10 @@ import java.util.UUID;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
         name = "product",
-        indexes = @Index(name = "idx_product_diagnoses_id_sort_order", columnList = "diagnoses_id, sort_order")
+        indexes = {
+                @Index(name = "idx_product_diagnoses_id_sort_order", columnList = "diagnoses_id, sort_order"),
+                @Index(name = "idx_product_processing_status_updated_at", columnList = "processing_status, updated_at")
+        }
 )
 public class Product extends BaseEntity {
 
