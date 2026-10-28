@@ -80,6 +80,20 @@ def _supported(options: list[SocketOption]) -> tuple[SocketOption, ...]:
         probe.close()
 
 
+def keepalive_transport(dead_connection_seconds: int) -> httpx.HTTPTransport:
+    """응답 없는 연결을 OS가 끊도록 keepalive를 켠 전송 계층.
+
+    Args:
+        dead_connection_seconds: 응답 없는 연결을 OS가 끊기까지의 상한(초).
+
+    Returns:
+        httpx.HTTPTransport: 연결 상한을 넣은 전송 계층.
+    """
+    return httpx.HTTPTransport(
+        socket_options=keepalive_socket_options(dead_connection_seconds), limits=_CONNECTION_LIMITS,
+    )
+
+
 class BaseClient:
     """외부 통신 클라이언트 공통 베이스. HTTP 연결을 갖고 닫는 일만 맡는다.
 
@@ -101,9 +115,7 @@ class BaseClient:
     ):
         # transport를 직접 넘기면 httpx가 환경 프록시(HTTP_PROXY/HTTPS_PROXY)를 읽지 않음. 프록시 필요 시 transport에 지정
         if transport is None and dead_connection_seconds is not None:
-            transport = httpx.HTTPTransport(
-                socket_options=keepalive_socket_options(dead_connection_seconds), limits=_CONNECTION_LIMITS,
-            )
+            transport = keepalive_transport(dead_connection_seconds)
         self._client = httpx.Client(
             base_url=base_url,
             timeout=timeout,
