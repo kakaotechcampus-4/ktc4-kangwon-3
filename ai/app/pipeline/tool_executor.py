@@ -1,8 +1,15 @@
 """PipelineManaged 방식의 규제 Tool 실행 경계."""
 
 from collections.abc import Mapping
+from time import perf_counter
 from uuid import uuid4
 
+import httpx
+import openai
+
+from ..agents.base import AgentError
+from ..clients.errors import ClientError
+from ..observability.measurements import ToolRun, measurement_sinks
 from ..schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.base import utc_now
@@ -136,6 +143,7 @@ class ToolExecutor:
             raise ValueError("retry_round는 0 이상이어야 합니다.")
 
         if not decision.selected:
+            _record(decision.tool_name, ToolStatus.SKIPPED, 0.0)
             return ToolResult(
                 tool_name=decision.tool_name,
                 status=ToolStatus.SKIPPED,
@@ -146,6 +154,7 @@ class ToolExecutor:
 
         execution_id = str(uuid4())
         started_at = utc_now()
+        started = perf_counter()
         try:
             result = ToolResult.model_validate(
                 self._tools[decision.tool_name].execute(
@@ -158,6 +167,7 @@ class ToolExecutor:
             if not result.selected or result.status is ToolStatus.SKIPPED:
                 raise ValueError("선택해 실행한 Tool이 미선택 결과를 반환했습니다.")
         except Exception as exc:
+            _record(decision.tool_name, ToolStatus.FAILED, perf_counter() - started, error_type=_error_type(exc))
             return ToolResult(
                 execution_id=execution_id,
                 retry_round=retry_round,
@@ -169,6 +179,12 @@ class ToolExecutor:
                 executed_at=started_at,
             )
 
+        _record(
+            decision.tool_name, result.status, perf_counter() - started,
+            # 예외 없이 실패를 돌려준 경우 원인을 모름
+            error_type="other" if result.status is ToolStatus.FAILED else None,
+            determinations=tuple(finding.determination.value for finding in result.findings),
+        )
         return result.model_copy(
             update={
                 "execution_id": execution_id,
@@ -239,3 +255,38 @@ class ToolExecutor:
             },
             deep=True,
         )
+
+
+def _record(
+    tool_name: ToolName,
+    status: ToolStatus,
+    seconds: float,
+    *,
+    error_type: str | None = None,
+    determinations: tuple[str, ...] = (),
+) -> None:
+    """Tool 실행 1건을 측정 기록으로 남긴다."""
+    measurement_sinks.publish(ToolRun(
+        tool_name=tool_name.value, status=status.value, seconds=seconds,
+        error_type=error_type, determinations=determinations,
+    ))
+
+
+def _error_type(exc: BaseException) -> str:
+    """Tool 예외의 원인 체인을 보고 모델(model)·근거 조회(client)·그 밖(other)으로 나눈다.
+
+    - 모델 SDK 오류는 안쪽에 httpx 오류를 품고 있어 client보다 먼저 확인함
+    - 근거 조회 실패도 Tool 예외(AgentError)로 감싸져 오므로 client를 실행 정보(meta) 있는 AgentError보다 먼저 확인함
+    """
+    chain: list[BaseException] = []
+    current: BaseException | None = exc
+    while current is not None:
+        chain.append(current)
+        current = current.__cause__
+    if any(isinstance(error, openai.OpenAIError) for error in chain):
+        return "model"
+    if any(isinstance(error, (ClientError, httpx.HTTPError)) for error in chain):
+        return "client"
+    if any(isinstance(error, AgentError) and error.meta is not None for error in chain):
+        return "model"
+    return "other"
