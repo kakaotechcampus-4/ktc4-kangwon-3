@@ -5,7 +5,7 @@
     - 한 상품이 재시도로 기다려도 다른 상품은 막히지 않음
     - 2xx 성공, 5xx·타임아웃·연결 실패는 지수 백오프 + 지터로 재시도, 나머지(400·401·409 등)는 재시도 없이 기록
     - 409 중 BE가 다시 보내 달라고 한 코드(COMMON-009: 202 저장 전 도착·락 대기 초과)는 재시도 (#329)
-세션이 메모리에 있어 재시작 시 남은 이벤트도 같이 사라짐. 못 보낸 이벤트는 로그로만 남김.
+세션이 메모리에 있어 재시작 시 남은 이벤트도 같이 사라짐. 못 보낸 이벤트는 로그와 측정 기록으로만 남김.
 """
 
 import logging
@@ -17,6 +17,7 @@ from queue import Queue
 from typing import Protocol
 
 from ..clients.backend import CallbackTransportError, SendResult
+from ..observability.measurements import CallbackOutcome, measurement_sinks
 from ..schemas.callback import PublicProductEvent
 
 logger = logging.getLogger(__name__)
@@ -93,7 +94,7 @@ class CallbackOutbox:
         with self._lock:
             for event in events:
                 if self._closed:
-                    _log_dropped(event, "발신함 종료 후 들어온 이벤트")
+                    _drop(event, "shutdown", "발신함 종료 후 들어온 이벤트")
                     continue
                 lane = self._lanes.get(event.product_id)
                 if lane is None:
@@ -101,6 +102,15 @@ class CallbackOutbox:
                     self._ready.put(event.product_id)
                 else:
                     lane.append(event)
+
+    def pending(self) -> int:
+        """아직 보내기 시작하지 않은 이벤트 수. 보내는 중·재시도 대기 중인 이벤트는 빠짐.
+
+        Returns:
+            int: 대기 중인 이벤트 수.
+        """
+        with self._lock:
+            return sum(len(lane) for lane in self._lanes.values())
 
     def close(self, timeout: float) -> int:
         """새 이벤트를 받지 않고, timeout초까지 남은 이벤트를 보낸 뒤 스레드를 멈춘다.
@@ -119,7 +129,7 @@ class CallbackOutbox:
             dropped = 0
             for lane in self._lanes.values():
                 for event in lane:
-                    _log_dropped(event, "종료 시간 안에 보내지 못함")
+                    _drop(event, "shutdown", "종료 시간 안에 보내지 못함")
                     dropped += 1
                 lane.clear()
         for _ in self._threads:
@@ -145,7 +155,7 @@ class CallbackOutbox:
         """이벤트 하나를 재시도 규칙대로 보낸다. 예외는 밖으로 내지 않음."""
         for attempt in range(self._max_retries + 1):
             if attempt and self._wait(self._delay(attempt)):
-                _log_dropped(event, "종료로 재시도 중단")
+                _drop(event, "shutdown", "종료로 재시도 중단", retries=attempt - 1)
                 return
             try:
                 result = self._sender.send(event)
@@ -153,18 +163,20 @@ class CallbackOutbox:
                 reason = f"전송 실패({type(exc).__name__})"
             except Exception:
                 logger.exception("콜백 전송 중 예상하지 못한 오류 (event_id=%s)", event.event_id)
+                _record(event, retries=attempt, drop_reason="error")
                 return
             else:
                 if 200 <= result.status < 300:
+                    _record(event, retries=attempt)
                     return
                 reason = f"HTTP {result.status}" + (f" {result.code}" if result.code else "")
                 if not _retryable(result):
-                    _log_dropped(event, f"재시도 대상 아님({reason})")
+                    _drop(event, "not_retryable", f"재시도 대상 아님({reason})", retries=attempt)
                     return
             if attempt < self._max_retries:
                 logger.warning("콜백 재시도 예정 %d/%d: %s (event_id=%s, product_id=%s)",
                                attempt + 1, self._max_retries, reason, event.event_id, event.product_id)
-        _log_dropped(event, f"재시도 {self._max_retries}회 초과")
+        _drop(event, "retry_exhausted", f"재시도 {self._max_retries}회 초과", retries=self._max_retries)
 
     def _delay(self, attempt: int) -> float:
         """attempt번째 재시도 전 대기 시간. 상한 안에서 2배씩, 절반~전체 사이로 흩뜨림."""
@@ -177,7 +189,16 @@ def _retryable(result: SendResult) -> bool:
     return result.status >= 500 or (result.status == 409 and result.code in RETRYABLE_CONFLICT_CODES)
 
 
-def _log_dropped(event: PublicProductEvent, reason: str) -> None:
+def _record(event: PublicProductEvent, *, retries: int, drop_reason: str | None = None) -> None:
+    """이벤트 1건의 최종 결과를 측정 기록으로 남긴다."""
+    measurement_sinks.publish(CallbackOutcome(
+        event_type=event.event_type, delivered=drop_reason is None, retries=retries, drop_reason=drop_reason,
+    ))
+
+
+def _drop(event: PublicProductEvent, drop_reason: str, reason: str, *, retries: int = 0) -> None:
+    """버린 이벤트를 로그와 측정 기록으로 남긴다. drop_reason은 지표용 사유, reason은 로그용 설명."""
+    _record(event, retries=retries, drop_reason=drop_reason)
     # 본문(진단서·질문)은 남기지 않고 식별자만
     logger.warning("콜백 이벤트를 보내지 못함: %s (event_id=%s, event_type=%s, product_id=%s, run_id=%s, sequence=%d)",
                    reason, event.event_id, event.event_type, event.product_id, event.run_id, event.sequence)

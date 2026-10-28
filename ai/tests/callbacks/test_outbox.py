@@ -6,6 +6,7 @@ import threading
 import pytest
 
 from app.callbacks.outbox import CallbackOutbox
+from app.observability.measurements import CallbackOutcome, measurement_sinks
 from app.clients.backend import CallbackTransportError, SendResult
 from app.schemas.callback import ProductProgressEvent, PublicPipelineStage
 
@@ -41,6 +42,14 @@ class _Sender:
 def _outbox(sender, delays: list[float] | None = None, **options) -> CallbackOutbox:
     record = delays if delays is not None else []
     return CallbackOutbox(sender, wait=lambda delay: record.append(delay) or False, jitter=lambda: 1.0, **options)
+
+
+@pytest.fixture
+def outcomes():
+    """테스트 동안 남은 콜백 결과 측정 기록."""
+    records: list = []
+    with measurement_sinks.added(records.append):
+        yield records
 
 
 def test_같은_상품은_넣은_순서대로_보낸다():
@@ -204,3 +213,59 @@ def test_닫힌_뒤에_넣은_이벤트는_보내지_않는다(caplog):
 def test_전송_스레드는_1개_이상():
     with pytest.raises(ValueError):
         CallbackOutbox(_Sender(), workers=0)
+
+
+def test_받은_이벤트는_재시도_횟수와_함께_전송_완료로_기록한다(outcomes):
+    outbox = _outbox(_Sender({"p-1-1": [500, 503, 200]}))
+
+    outbox.put([_event()])
+    outbox.close(timeout=5)
+
+    assert outcomes == [CallbackOutcome(event_type=_event().event_type, delivered=True, retries=2)]
+
+
+@pytest.mark.parametrize(("responses", "drop_reason", "retries"), [
+    ([500] * 10, "retry_exhausted", 5),
+    ([400], "not_retryable", 0),
+    ([500, (409, "COMMON-010")], "not_retryable", 1),
+    ([RuntimeError("boom")], "error", 0),
+])
+def test_버린_이벤트는_사유와_재시도_횟수를_기록한다(outcomes, responses, drop_reason, retries):
+    outbox = _outbox(_Sender({"p-1-1": responses}))
+
+    outbox.put([_event()])
+    outbox.close(timeout=5)
+
+    assert outcomes == [CallbackOutcome(event_type=_event().event_type, delivered=False, retries=retries,
+                                        drop_reason=drop_reason)]
+
+
+def test_종료로_버린_이벤트는_shutdown으로_기록한다(outcomes):
+    outbox = _outbox(_Sender())
+    outbox.close(timeout=1)
+
+    outbox.put([_event()])
+
+    assert [record.drop_reason for record in outcomes] == ["shutdown"]
+
+
+def test_대기_수는_보내기_시작하지_않은_이벤트만_센다():
+    release = threading.Event()
+    sending = threading.Event()
+
+    class _Stuck(_Sender):
+        def send(self, event):
+            sending.set()
+            release.wait(5)
+            return super().send(event)
+
+    outbox = CallbackOutbox(_Stuck(), workers=1)
+    outbox.put([_event(sequence=n) for n in range(1, 4)])
+    assert sending.wait(5)
+
+    # 1번은 보내는 중이라 빠짐
+    assert outbox.pending() == 2
+
+    release.set()
+    outbox.close(timeout=5)
+    assert outbox.pending() == 0
