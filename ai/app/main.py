@@ -14,7 +14,8 @@ from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
-from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
+from .observability.measurements import measurement_sinks
+from .observability.metrics import AgentMetrics, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector
 from .repositories.database import DatabaseNotConfiguredError, get_engine
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
@@ -84,6 +85,9 @@ async def lifespan(app: FastAPI):
     # 에이전트 지표. 등록표는 앱 전체 공용이라 종료 때 해제 (lifespan을 다시 띄워도 옛 registry에 안 쌓이게)
     agent_metrics = AgentMetrics(registry).on_run
     agent_sinks.add(agent_metrics)
+    # 외부 API·Tool·추출 측정 지표. 에이전트 지표와 같은 이유로 종료 때 해제
+    measurement_metrics = MeasurementMetrics(registry).on_record
+    measurement_sinks.add(measurement_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
     # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
@@ -104,6 +108,7 @@ async def lifespan(app: FastAPI):
         # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
         close_llm_clients()
         agent_sinks.remove(agent_metrics)
+        measurement_sinks.remove(measurement_metrics)
 
 
 app = FastAPI(

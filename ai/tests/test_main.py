@@ -15,6 +15,7 @@ from app import config, main
 from app.clients.backend import BackendCallbackClient
 from app.agents.base import AgentRunMeta
 from app.observability.agent_sinks import agent_sinks
+from app.observability.measurements import ClientCall, measurement_sinks
 from app.repositories import database
 from app.routers import _dummy
 
@@ -133,3 +134,16 @@ def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인�
     assert 'ai_agent_calls_total{component="extraction",model="m",outcome="ok"} 1.0' in text
     # 종료 때 해제돼 이후 호출은 옛 registry에 쌓이지 않음
     assert registry.get_sample_value("ai_agent_calls_total", sample) == 1.0
+
+
+def test_서버가_떠_있는_동안만_외부_API_호출이_지표에_쌓인다(fake_be):
+    call = ClientCall(api="law", result="ok", seconds=0.1)
+
+    with TestClient(main.app) as client:
+        measurement_sinks.publish(call)
+        registry = main.app.state.metrics_registry
+        text = client.get("/metrics").text
+    measurement_sinks.publish(call)
+
+    assert 'ai_client_calls_total{api="law",result="ok"} 1.0' in text
+    assert registry.get_sample_value("ai_client_calls_total", {"api": "law", "result": "ok"}) == 1.0

@@ -1,4 +1,4 @@
-"""세션·에이전트 지표: 세션 이벤트로 소요 시간·횟수를 기록하고, 수집 때 세션 관리자 현황을 읽고, 에이전트 호출 기록을 세는지 확인한다."""
+"""세션·에이전트·측정 지표: 세션 이벤트로 소요 시간·횟수를 기록하고, 수집 때 세션 관리자 현황을 읽고, 에이전트 호출과 측정 기록을 세는지 확인한다."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -6,7 +6,8 @@ from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
-from app.observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
+from app.observability.measurements import ClientCall
+from app.observability.metrics import AgentMetrics, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
@@ -176,3 +177,22 @@ def test_모델_없는_호출은_none_모델로_센다():
     AgentMetrics(registry).on_run(AgentRunMeta(component="verification"), "p-1")
 
     assert _agent_value(registry, "ai_agent_calls_total", component="verification", model="none", outcome="ok") == 1
+
+
+def test_외부_API_호출을_서버와_결과별로_세고_시간을_서버별로_잰다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (ClientCall(api="law", result="ok", seconds=0.5), ClientCall(api="law", result="ok", seconds=1.5),
+                   ClientCall(api="law", result="api_error", seconds=0.2),
+                   ClientCall(api="data_go_kr", result="timeout", seconds=10.0)):
+        metrics.on_record(record)
+
+    def value(name, **labels):
+        return registry.get_sample_value(name, labels)
+
+    assert value("ai_client_calls_total", api="law", result="ok") == 2
+    assert value("ai_client_calls_total", api="law", result="api_error") == 1
+    assert value("ai_client_calls_total", api="data_go_kr", result="timeout") == 1
+    assert value("ai_client_seconds_sum", api="law") == 2.2
+    assert value("ai_client_seconds_bucket", api="data_go_kr", le="10.0") == 1

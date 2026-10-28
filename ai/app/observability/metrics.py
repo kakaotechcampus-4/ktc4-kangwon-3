@@ -3,6 +3,7 @@
     - SessionMetrics: 세션 이벤트 구독자. 대기·실행·전체·단계 소요 시간과 결말·Tool 진행 횟수
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
     - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
+    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간
 
 라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.
 에이전트 지표는 실행 컨텍스트가 없어 기록 이름(평가 호출은 extraction-eval 등)으로만 구분.
@@ -17,6 +18,7 @@ from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metri
 from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
+from .measurements import ClientCall, Measurement
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
@@ -24,6 +26,8 @@ from ..sessions.manager import SessionManager
 DURATION_BUCKETS = (1, 5, 10, 30, 60, 120, 300, 600)
 # 모델 호출 1건 소요 시간 구간(초)
 AGENT_CALL_BUCKETS = (0.5, 1, 2, 5, 10, 20, 30, 60, 120)
+# 외부 API 호출 1건 소요 시간 구간(초). 클라이언트 제한 시간(10·15·30·45초)이 구간 경계
+CLIENT_CALL_BUCKETS = (0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 45, 60)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
 
@@ -193,6 +197,35 @@ class AgentMetrics:
                 self._tokens.labels(component, model, kind).inc(count)
         if meta.cost_krw is not None:
             self._cost.labels(component, model).inc(meta.cost_krw)
+
+
+class MeasurementMetrics:
+    """측정 기록으로 외부 API 호출 결과·시간을 기록한다. measurement_sinks에 on_record를 등록해 씀."""
+
+    def __init__(self, registry: CollectorRegistry) -> None:
+        """지표를 registry에 등록한다.
+
+        Args:
+            registry: 지표를 등록할 registry. 테스트마다 새로 만들 수 있게 주입.
+        """
+        self._client_calls = Counter(
+            "ai_client_calls", "서버·결과별 외부 API 호출 수. api_error는 HTTP 200에 오류 본문",
+            ["api", "result"], registry=registry,
+        )
+        self._client_seconds = Histogram(
+            "ai_client_seconds", "외부 API 호출 1건 소요 시간", ["api"], buckets=CLIENT_CALL_BUCKETS, registry=registry,
+        )
+
+    def on_record(self, record: Measurement) -> None:
+        """측정 기록 1건을 기록한다.
+
+        Args:
+            record: 측정 기록.
+        """
+        match record:
+            case ClientCall(api=api, result=result, seconds=seconds):
+                self._client_calls.labels(api, result).inc()
+                self._client_seconds.labels(api).observe(seconds)
 
 
 def _seconds(start: datetime, end: datetime) -> float:
