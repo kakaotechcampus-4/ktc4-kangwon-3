@@ -47,6 +47,12 @@ function ResultPage() {
 
     const currentProduct = products[selectedProductIndex];
 
+    // 진단이 끝나기 전에는 다음단계 탭을 비활성화 한다.
+    const isDiagnosisComplete = currentProduct?.resultStatus != null;
+    const disabledTabs = isDiagnosisComplete ? [] : [ResultTabKey.NextSteps];
+    // 상품을 전환했는데 선택된 탭이 막혀 있으면 진단결과 탭을 대신 보여준다.
+    const effectiveSelectedTab = disabledTabs.includes(selectedTab) ? ResultTabKey.DiagnosisResult : selectedTab;
+
     // 존재하지 않는 id로 접근한 경우(404)는 재시도를 띄우지 않고 메인으로 돌려보낸다.
     const isNotFoundError = axios.isAxiosError(error) && error.response?.status === 404;
 
@@ -68,8 +74,10 @@ function ResultPage() {
                                             product={currentProduct}
                                             diagnosesId={diagnosesId}
                                             onNextStepsClick={handleNextStepsClick} />,
-        [ResultTabKey.NextSteps]: <NextStepTab />,
-        [ResultTabKey.ProductInfo]: <ProductInfoTab product={currentProduct} />,
+        [ResultTabKey.NextSteps]: <NextStepTab 
+                                        product={currentProduct}/>,
+        [ResultTabKey.ProductInfo]: <ProductInfoTab 
+                                        product={currentProduct} />,
     } : null;
 
     return (
@@ -102,9 +110,9 @@ function ResultPage() {
                         processingStatus={currentProduct.processingStatus}
                         sourceType={currentProduct.sourceType}
                     />
-                    <ResultTabs selected={selectedTab} onSelect={setSelectedTab} />
+                    <ResultTabs selected={effectiveSelectedTab} onSelect={setSelectedTab} disabledTabs={disabledTabs} />
                     <div aria-live="polite">
-                        {tabPanels[selectedTab]}
+                        {tabPanels[effectiveSelectedTab]}
                     </div>
                 </div>
             )}

@@ -45,30 +45,32 @@ function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: Diagnosi
             />
             <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
                 <FindingFilterBar counts={findingCounts} selected={findingFilter} onSelect={setFindingFilter} />
-                <div className="group relative shrink-0">
-                    <button
-                        type="button"
-                        aria-label="판정·위험도 설명"
-                        aria-describedby={determinationTooltipId}
-                        className="flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-neutral-border text-xs leading-none font-medium text-neutral-border"
-                    >
-                        ?
-                    </button>
-                    <div
-                        id={determinationTooltipId}
-                        role="tooltip"
-                        className="pointer-events-none absolute right-0 bottom-full z-50 mb-2 hidden w-max flex-col gap-1 whitespace-nowrap rounded-lg bg-neutral-dark px-4 py-3 text-sm text-white shadow-lg group-hover:flex group-focus-within:flex"
-                    >
-                        {DETERMINATION_LEGEND_ORDER.map((determination) => (
-                            <p key={determination}>
-                                <span className="font-semibold">{DETERMINATION_LABELS[determination]}</span>
-                                {" · "}
-                                {DETERMINATION_DESCRIPTIONS[determination]}
-                            </p>
-                        ))}
-                        <p className="mt-1 text-white/70">위험도는 문제가 생겼을 때 심각성이 얼마나 큰지를 나타내요.</p>
+                {allFindings.length > 0 && (
+                    <div className="group relative shrink-0">
+                        <button
+                            type="button"
+                            aria-label="판정·위험도 설명"
+                            aria-describedby={determinationTooltipId}
+                            className="flex h-5 w-5 cursor-help items-center justify-center rounded-full border border-neutral-border text-xs leading-none font-medium text-neutral-border"
+                        >
+                            ?
+                        </button>
+                        <div
+                            id={determinationTooltipId}
+                            role="tooltip"
+                            className="pointer-events-none absolute right-0 bottom-full z-50 mb-2 hidden w-max flex-col gap-1 whitespace-nowrap rounded-lg bg-neutral-dark px-4 py-3 text-sm text-white shadow-lg group-hover:flex group-focus-within:flex"
+                        >
+                            {DETERMINATION_LEGEND_ORDER.map((determination) => (
+                                <p key={determination}>
+                                    <span className="font-semibold">{DETERMINATION_LABELS[determination]}</span>
+                                    {" · "}
+                                    {DETERMINATION_DESCRIPTIONS[determination]}
+                                </p>
+                            ))}
+                            <p className="mt-1 text-white/70">위험도는 문제가 생겼을 때 심각성이 얼마나 큰지를 나타내요.</p>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
             <div className="flex w-full flex-col gap-10">
                 {visibleToolReviews.map((toolReview) => (

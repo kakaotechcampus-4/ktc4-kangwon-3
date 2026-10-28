@@ -31,19 +31,25 @@ const tabVariants = cva("flex items-center gap-1.25 px-0.5 py-1.25 border-b-2 te
             true: "border-primary text-primary",
             false: "border-transparent text-neutral-border",
         },
+        disabled: {
+            true: "cursor-not-allowed opacity-40",
+            false: "cursor-pointer",
+        },
     },
 });
 
 interface ResultTabsProps {
     selected: ResultTabKey
     onSelect: (tab: ResultTabKey) => void
+    disabledTabs?: ResultTabKey[]
 }
 
-function ResultTabs({ selected, onSelect }: ResultTabsProps) {
+function ResultTabs({ selected, onSelect, disabledTabs = [] }: ResultTabsProps) {
     return (
         <div role="tablist" className="flex items-start gap-7.5 border-b border-neutral-border px-2.5">
             {TAB_ORDER.map((tab) => {
                 const isSelected = tab === selected;
+                const isDisabled = disabledTabs.includes(tab);
                 const info = TAB_INFO[tab];
                 return (
                     <button
@@ -51,8 +57,9 @@ function ResultTabs({ selected, onSelect }: ResultTabsProps) {
                         type="button"
                         role="tab"
                         aria-selected={isSelected}
-                        onClick={() => onSelect(tab)}
-                        className={cn(tabVariants({ selected: isSelected }), "cursor-pointer")}
+                        aria-disabled={isDisabled}
+                        onClick={() => !isDisabled && onSelect(tab)}
+                        className={cn(tabVariants({ selected: isSelected, disabled: isDisabled }))}
                     >
                         <img src={isSelected ? info.iconSelected : info.icon} alt="" className="h-7.5 w-7.5" />
                         {info.label}
