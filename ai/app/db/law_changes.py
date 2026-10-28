@@ -16,6 +16,7 @@ class LawSourceLike(Protocol):
     name: str
     document_id: str
     is_admrul: bool
+    tool: str
 
 
 class LawChangeKind(StrEnum):
@@ -56,6 +57,7 @@ class LawChange:
         name: 문서 이름.
         document_id: 법령ID 또는 행정규칙ID.
         is_admrul: 행정규칙이면 True.
+        tool: 이 문서를 근거로 쓰는 Tool 이름.
         version: 해당 판.
         previous: APPLIED일 때 이전에 적용되던 판 번호.
     """
@@ -64,6 +66,7 @@ class LawChange:
     name: str
     document_id: str
     is_admrul: bool
+    tool: str
     version: LawVersion
     previous: str | None = None
 
@@ -106,7 +109,7 @@ def detect_changes(source: LawSourceLike, before: Any | None, after: Any, *, tod
     found = versions_of(source, after)
 
     def change(kind: LawChangeKind, version: LawVersion, previous: str | None = None) -> LawChange:
-        return LawChange(kind, source.name, source.document_id, source.is_admrul, version, previous)
+        return LawChange(kind, source.name, source.document_id, source.is_admrul, source.tool, version, previous)
 
     changes = []
     if before is not None:
@@ -135,5 +138,5 @@ def log_law_changes(changes: list[LawChange]) -> None:
     """
     for change in changes:
         log = logger.warning if change.kind is LawChangeKind.SKIPPED else logger.info
-        log("법령 변경 %s — %s %s (시행 %s, 공포·발령 %s, 이전 %s)", change.kind.value, change.name,
+        log("법령 변경 %s — [%s] %s %s (시행 %s, 공포·발령 %s, 이전 %s)", change.kind.value, change.tool, change.name,
             change.version.version, change.version.enforce_date, change.version.issued_date, change.previous or "-")

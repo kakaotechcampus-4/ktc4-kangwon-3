@@ -12,10 +12,11 @@ class _Source:
     name: str
     document_id: str
     is_admrul: bool
+    tool: str
 
 
-LAW = _Source("식품위생법", "001805", False)
-NOTICE = _Source("전기용품 및 생활용품 안전관리 운용요령", "34911", True)
+LAW = _Source("식품위생법", "001805", False, "food_drug_safety")
+NOTICE = _Source("전기용품 및 생활용품 안전관리 운용요령", "34911", True, "electrical_safety")
 
 
 def _laws(*rows):
@@ -47,6 +48,7 @@ def test_DB_목록에_없던_판은_새_판_발표로_낸다():
     changes = detect_changes(LAW, _laws(CURRENT), _laws(CURRENT, PENDING), today=date(2026, 10, 27), select=None)
 
     assert _kinds(changes) == [(LawChangeKind.ANNOUNCED, "282007", None)]
+    assert changes[0].tool == "food_drug_safety"
 
 
 def test_처음_점검이면_새_판_발표를_내지_않는다():
