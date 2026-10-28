@@ -290,7 +290,6 @@ public class Product extends BaseEntity {
     }
 
     // 실패한 진단을 처음부터 다시 시작한다. AI는 1회차 질문부터 다시 보내므로 이전 실행의 질문·진행 상태를 지운다.
-    // AI는 접수(202) 직후부터 콜백을 보내므로 커밋 시점에 이미 진단 중이어야 한다.
     public void retry() {
         // retryable이 null이면 재시도할 수 없는 것으로 다룬다.
         if (!isFailed() || !Boolean.TRUE.equals(errorRetryable)) {
@@ -298,7 +297,6 @@ public class Product extends BaseEntity {
         }
 
         this.processingStatus = ProcessingStatus.IN_PROGRESS;
-        // 이전 실행의 늦은 콜백을 받지 않는다. 새 실행의 runId는 202 응답으로 다시 받는다.
         this.runId = null;
         this.failedStage = null;
         this.errorCode = null;
