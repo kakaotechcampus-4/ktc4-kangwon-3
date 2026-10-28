@@ -134,11 +134,13 @@ class CustomsTool(EvidenceSearchTool):
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "candidates": [case.as_candidate() for case in candidates.cases],
         }, product.product_id))
-        chosen = self._pick(run, review.selections, {case.case_id: case for case in candidates.cases}, key="case_id")
+        by_id = {case.case_id: case for case in candidates.cases}
+        chosen = self._pick(run, review.selections, by_id, key="case_id")
         chosen, lone = _drop_lone_headings(chosen, candidates.cases)
         if lone:
             query["lone_cases"] = lone
-            run.assumptions.append(f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개를 제외했습니다.")
+            codes = ", ".join(dict.fromkeys(format_hs(code) for case_id in lone for code in by_id[case_id].hs_codes))
+            run.assumptions.append(f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개(HS {codes})를 제외했습니다.")
         for _, selection, _ in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
             run.missing.extend(name for name in needed if name in _QUESTION_FIELDS)
