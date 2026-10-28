@@ -1,0 +1,128 @@
+{
+  "fixture": "chemical_product_diffuser.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "기존 실패",
+    "모순",
+    "방향"
+  ],
+  "summary": "PE 장식 꽃 디퓨저 스틱(Temu). 제목 '오래 지속되는 향기 디퓨저 스틱'과 스펙표 '향: 무향'이 충돌한다. 프롬프트 원칙 5대로 chemical_product를 한쪽으로 확정하지 않고 None으로 두고 모순을 conflicts에 남기는지 본다(예전에 카테고리 쪽으로 확정했던 실패 케이스).",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "제목 '무화염 향 덩굴 향 스틱', 스펙표 '재료: PET'",
+      "why_not_other": "불·전기 없이 꽂아 두는 스틱 형태가 확인된다."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "장식 꽃 스틱. 전자 부품 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "장식 꽃 스틱. 전원·충전 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "장식 꽃 스틱. 전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '장식 꽃', '디퓨저 스틱'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "제목 '무화염'",
+      "why_not_other": "전기를 쓰지 않고 불도 쓰지 않는 상품이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "판매자 문구에 질병·신체기능 효과 표방이 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "꽃 장식 형태",
+      "why_not_other": "형태가 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "제목 '흰색 PE 로즈', 스펙표 '재료: PET(폴리에틸렌 테레프타레이트)'",
+      "why_not_other": "꽃 모양이지만 플라스틱 조화다."
+    },
+    "chemical_product": {
+      "value": null,
+      "evidence": "제목 '로즈 향', '오래 지속되는 향기 디퓨저 스틱' vs 스펙표 '향: 무향', 카테고리 '방향제'",
+      "why_not_other": "제목은 방향을 주된 기능으로 말하고 스펙표는 무향이라 서로 모순된다. 프롬프트 원칙 5에 따라 한쪽으로 확정하지 않는다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다. 용도 '침실 거실'",
+      "why_not_other": "대상 표기 칸이라 표기가 없으면 false."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기 없음"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "디퓨저"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "방향제",
+        "디퓨저",
+        "디퓨저 스틱",
+        "홈 데코 제품",
+        "홈&주방 > 홈 데코 제품",
+        "장식 꽃",
+        "인테리어 소품"
+      ]
+    }
+  },
+  "listing_text_required": [
+    {
+      "must_contain": "오래 지속되는 향기 디퓨저 스틱",
+      "evidence": "판매자 제목(원문 28행). 방향 기능을 말하는 근거이자 '무향'과 충돌하는 쪽"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 76행, 판매 사이트 공통 문구"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 80행, 판매 사이트 공통 문구"
+    }
+  ]
+}
