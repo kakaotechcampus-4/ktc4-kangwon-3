@@ -42,6 +42,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class AiDiagnosesClientTest {
 
     private static final String BASE_URL = "http://ai-server:8000";
+    private static final String DIAGNOSE_PATH_PREFIX = "/api/ai/v1";
     private static final String DIAGNOSE_URL = BASE_URL + "/api/ai/v1/diagnose/content";
     private static final String RESUME_URL = BASE_URL + "/api/ai/v1/diagnose/resume";
     private static final String INTERNAL_TOKEN = "test-internal-token-at-least-32-characters";
@@ -53,7 +54,7 @@ class AiDiagnosesClientTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new AiDiagnosesClient(builder.build(), new AiServerProperties(BASE_URL),
+        client = new AiDiagnosesClient(builder.build(), new AiServerProperties(BASE_URL, DIAGNOSE_PATH_PREFIX),
                 new InternalApiProperties(INTERNAL_TOKEN));
     }
 
@@ -129,6 +130,38 @@ class AiDiagnosesClientTest {
 
         // then
         server.verify();
+    }
+
+    @Test
+    @DisplayName("경로 앞부분 설정을 더미 경로로 바꾸면 접수·재진단 요청을 더미 경로로 보낸다.")
+    void request_whenDummyPathPrefix_thenPostToDummyPaths() {
+        // given
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer dummyServer = MockRestServiceServer.bindTo(builder).build();
+        AiDiagnosesClient dummyClient = new AiDiagnosesClient(builder.build(),
+                new AiServerProperties(BASE_URL, "/api/ai/v1/dummy"), new InternalApiProperties(INTERNAL_TOKEN));
+
+        dummyServer.expect(requestTo(BASE_URL + "/api/ai/v1/dummy/diagnose/content"))
+                .andRespond(withStatus(HttpStatus.ACCEPTED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code": "OK", "message": "접수되었습니다.", "details": null,
+                                 "data": {"diagnosisId": "diagnosis-1", "products": []}}
+                                """));
+        dummyServer.expect(requestTo(BASE_URL + "/api/ai/v1/dummy/diagnose/resume"))
+                .andRespond(withStatus(HttpStatus.ACCEPTED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code": "OK", "message": "재진단 요청이 접수되었습니다.", "details": null,
+                                 "data": {"productId": "product-1", "runId": "run-2", "status": "accepted"}}
+                                """));
+
+        // when
+        dummyClient.requestDiagnoses(emptyRequest());
+        dummyClient.requestResume(new AiResumeRequest("diagnosis-1", "product-1", "run-1", 1, List.of()));
+
+        // then
+        dummyServer.verify();
     }
 
     @Test
@@ -292,7 +325,7 @@ class AiDiagnosesClientTest {
         factory.setConnectTimeout(Duration.ofSeconds(1));
         factory.setReadTimeout(readTimeout);
         return new AiDiagnosesClient(RestClient.builder().requestFactory(factory).build(),
-                new AiServerProperties(baseUrl), new InternalApiProperties(INTERNAL_TOKEN));
+                new AiServerProperties(baseUrl, DIAGNOSE_PATH_PREFIX), new InternalApiProperties(INTERNAL_TOKEN));
     }
 
     @Test
