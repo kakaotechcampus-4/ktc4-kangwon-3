@@ -49,7 +49,7 @@ def test_여러_블록에_같은_판매자_제목이_있어도_한_번만_넣는
     assert result.listing_text == [_TITLE, "판매자 설명 문장"]
 
 
-def test_블록마다_쇼핑몰과_자르기_결과를_한_번씩_기록한다(stub_model, records, aliexpress_page):
+def test_아는_쇼핑몰_블록마다_자르기_결과를_한_번씩_기록한다(stub_model, records, aliexpress_page):
     cuts: list = []
     model = stub_model(ProductAttributes(listing_text=["판매자 설명 문장"]))
 
@@ -58,5 +58,5 @@ def test_블록마다_쇼핑몰과_자르기_결과를_한_번씩_기록한다(s
             ExtractionInput(product_id="prod-cut", text_blocks=[aliexpress_page, "AliExpress\n표지 없는 글", "판매자 글"])
         )
 
-    assert cuts == [SellerRegionCut(site="aliexpress", trimmed=True), SellerRegionCut(site="aliexpress", trimmed=False),
-                    SellerRegionCut(site="unknown", trimmed=False)]
+    # 쇼핑몰 화면이 아닌 "판매자 글"은 세지 않음
+    assert cuts == [SellerRegionCut(site="aliexpress", trimmed=True), SellerRegionCut(site="aliexpress", trimmed=False)]

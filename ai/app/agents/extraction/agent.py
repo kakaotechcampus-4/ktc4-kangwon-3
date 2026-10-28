@@ -94,15 +94,17 @@ def _trim_to_seller_region(source: ExtractionInput, *, record: bool = False) -> 
 
     Args:
         source: 상품 원문.
-        record: 블록마다 쇼핑몰·자르기 결과를 측정 기록으로 남길지.
+        record: 아는 쇼핑몰 블록마다 자르기 결과를 측정 기록으로 남길지.
 
     Returns:
         tuple[ExtractionInput, list[str]]: 판매자 영역만 남긴 입력과 찾은 판매자 제목(중복 제거).
     """
     regions = [extract_seller_region(block) for block in source.text_blocks]
     if record:
+        # 쇼핑몰 화면이 아닌 글(직접 붙여 넣은 설명 등)은 자를 대상이 아니라 안 셈
         for region in regions:
-            measurement_sinks.publish(SellerRegionCut(site=region.site or "unknown", trimmed=region.trimmed))
+            if region.site is not None:
+                measurement_sinks.publish(SellerRegionCut(site=region.site, trimmed=region.trimmed))
     trimmed = source.model_copy(update={"text_blocks": [region.text for region in regions]})
     titles = list(dict.fromkeys(region.title for region in regions if region.title))
     return trimmed, titles
