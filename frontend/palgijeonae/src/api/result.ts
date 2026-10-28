@@ -205,7 +205,16 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
 人为损坏、正常使用磨损不在三包范围内,请知悉。
 
 注:图片均为实拍,因拍摄光线、显示器色差等原因,实物颜色可能与图片略有差异,请以实物为准。`,
-        imageUrls: [],
+        imageUrls: [
+            "https://placehold.co/480x480/png?text=Detail+1",
+            "https://placehold.co/480x480/png?text=Detail+2",
+            "https://placehold.co/480x480/png?text=Detail+3",
+            "https://broken-image-url.example.com/not-found.jpg",
+            "https://placehold.co/480x480/png?text=Detail+1",
+            "https://placehold.co/480x480/png?text=Detail+2",
+            "https://placehold.co/480x480/png?text=Detail+3",
+            "https://broken-image-url.example.com/not-found.jpg",
+        ],
         processingStatus: ProcessingStatusType.Completed,
         progresses: [],
         questions: [],
