@@ -1,6 +1,7 @@
 """에이전트의 판매자 영역 적용: 쇼핑몰 글 제외, 판매자 제목 보존 (#251, #253)."""
 
 from app.agents.extraction import ExtractionAgent
+from app.observability.measurements import SellerRegionCut, measurement_sinks
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes
 
@@ -46,3 +47,16 @@ def test_여러_블록에_같은_판매자_제목이_있어도_한_번만_넣는
     )
 
     assert result.listing_text == [_TITLE, "판매자 설명 문장"]
+
+
+def test_블록마다_쇼핑몰과_자르기_결과를_한_번씩_기록한다(stub_model, records, aliexpress_page):
+    cuts: list = []
+    model = stub_model(ProductAttributes(listing_text=["판매자 설명 문장"]))
+
+    with measurement_sinks.added(lambda record: isinstance(record, SellerRegionCut) and cuts.append(record)):
+        ExtractionAgent(model).run(
+            ExtractionInput(product_id="prod-cut", text_blocks=[aliexpress_page, "AliExpress\n표지 없는 글", "판매자 글"])
+        )
+
+    assert cuts == [SellerRegionCut(site="aliexpress", trimmed=True), SellerRegionCut(site="aliexpress", trimmed=False),
+                    SellerRegionCut(site="unknown", trimmed=False)]
