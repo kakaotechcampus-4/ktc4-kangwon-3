@@ -7,7 +7,7 @@ interface ReflectedAnswerCardProps {
 
 function ReflectedAnswerCard({ question }: ReflectedAnswerCardProps) {
     return (
-        <DefaultBox className="gap-3">
+        <DefaultBox>
             <div className="flex w-full flex-wrap items-center gap-2.5">
                 <div className="rounded-full border border-neutral-border px-2.5 py-0.5">
                     <span className="text-xs leading-tight text-neutral-muted">{question.questionRound}차 질문</span>
