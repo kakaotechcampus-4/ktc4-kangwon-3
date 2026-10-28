@@ -41,6 +41,11 @@ public class DiagnosesService {
     static final String REQUEST_UNAVAILABLE_ERROR_MESSAGE = "AI 서버가 요청을 받지 못해 진단을 시작하지 못했습니다.";
     static final boolean REQUEST_UNAVAILABLE_ERROR_RETRYABLE = true;
 
+    // AI가 같은 상품의 이전 진단을 아직 진행 중이라(409) 받지 않았을 때의 오류. 이전 진단이 끝나면 다시 진단할 수 있음.
+    static final String REQUEST_CONFLICT_ERROR_CODE = "BE_AI_REQUEST_CONFLICT";
+    static final String REQUEST_CONFLICT_ERROR_MESSAGE = "이전 진단이 아직 끝나지 않아 진단을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    static final boolean REQUEST_CONFLICT_ERROR_RETRYABLE = true;
+
     private final DiagnosesRepository diagnosesRepository;
     private final S3FileService s3FileService;
     private final ApplicationEventPublisher eventPublisher;
@@ -108,18 +113,18 @@ public class DiagnosesService {
      */
     @Transactional
     public void failRejectedRequest(UUID diagnosesId, List<UUID> productIds) {
-        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
-                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+        failUnacceptedProducts(diagnosesId, productIds, REQUEST_REJECTED_ERROR_CODE,
+                REQUEST_REJECTED_ERROR_MESSAGE, REQUEST_REJECTED_ERROR_RETRYABLE);
+    }
 
-        findProducts(diagnoses, productIds).forEach(product -> {
-            // 실행 식별자가 있으면 AI가 실제로는 접수한 것
-            if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS || product.isRunAssigned()) {
-                return;
-            }
-            product.fail(null, REQUEST_REJECTED_ERROR_CODE, REQUEST_REJECTED_ERROR_MESSAGE,
-                    REQUEST_REJECTED_ERROR_RETRYABLE);
-        });
-        diagnoses.refreshProcessingStatus();
+    /**
+     * AI가 같은 상품의 이전 진단을 아직 진행 중이라(409) 받지 않은 상품을 실패 처리한다.
+     * 실행 식별자를 모르는 진단이라 콜백을 받을 수 없어, 그대로 두면 멈춘 진단 정리 때까지 진행 중으로 남는다.
+     */
+    @Transactional
+    public void failConflictedRequest(UUID diagnosesId, List<UUID> productIds) {
+        failUnacceptedProducts(diagnosesId, productIds, REQUEST_CONFLICT_ERROR_CODE,
+                REQUEST_CONFLICT_ERROR_MESSAGE, REQUEST_CONFLICT_ERROR_RETRYABLE);
     }
 
     /**
@@ -217,6 +222,21 @@ public class DiagnosesService {
         return diagnoses.getProducts().stream()
                 .filter(product -> productIds.contains(product.getId()))
                 .toList();
+    }
+
+    // AI가 요청을 받지 않은 상품을 실패 처리한다. 실행 식별자가 있으면 AI가 실제로는 접수한 것이라 건너뛴다.
+    private void failUnacceptedProducts(UUID diagnosesId, List<UUID> productIds,
+                                        String errorCode, String errorMessage, boolean errorRetryable) {
+        Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
+                .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+
+        findProducts(diagnoses, productIds).forEach(product -> {
+            if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS || product.isRunAssigned()) {
+                return;
+            }
+            product.fail(null, errorCode, errorMessage, errorRetryable);
+        });
+        diagnoses.refreshProcessingStatus();
     }
 
     private void publishDeleteEvent(List<String> keys) {

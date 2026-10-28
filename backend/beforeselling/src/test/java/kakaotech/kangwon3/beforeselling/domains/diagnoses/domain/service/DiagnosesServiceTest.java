@@ -395,6 +395,41 @@ class DiagnosesServiceTest {
     }
 
     @Test
+    @DisplayName("AI가 이전 진단을 진행 중이라 받지 않은 상품은 재시도 가능한 실패로 끝내고 진단서 상태를 다시 계산한다.")
+    void failConflictedRequest_thenFailAsRetryable() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(2);
+        Product conflicted = diagnoses.getProducts().get(0);
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.failConflictedRequest(DIAGNOSES_ID, List.of(conflicted.getId()));
+
+        // then
+        assertThat(conflicted)
+                .extracting(Product::getProcessingStatus, Product::getErrorCode, Product::getErrorRetryable)
+                .containsExactly(ProcessingStatus.FAILED, DiagnosesService.REQUEST_CONFLICT_ERROR_CODE, true);
+        assertThat(diagnoses.getProducts().get(1).getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("충돌 응답이 왔어도 이미 실행 식별자를 받은 상품은 실패 처리하지 않는다.")
+    void failConflictedRequest_whenRunAssigned_thenSkip() {
+        // given
+        Diagnoses diagnoses = createInProgressDiagnoses(1);
+        Product product = diagnoses.getProducts().getFirst();
+        product.assignRun("run-1");
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        diagnosesService.failConflictedRequest(DIAGNOSES_ID, List.of(product.getId()));
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
     @DisplayName("재요청하면 대기 상품만 진행 중으로 바꾸고 그 상품들의 AI 요청 내용을 돌려준다.")
     void restartPendingProducts_thenStartPendingAndReturnEvent() {
         // given
