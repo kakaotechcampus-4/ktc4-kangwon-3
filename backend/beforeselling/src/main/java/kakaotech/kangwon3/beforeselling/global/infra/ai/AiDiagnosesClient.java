@@ -35,8 +35,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AiDiagnosesClient {
 
-    private static final String DIAGNOSE_PATH = "/api/ai/v1/diagnose/content";
-    private static final String RESUME_PATH = "/api/ai/v1/diagnose/resume";
+    private static final String DIAGNOSE_PATH = "/diagnose/content";
+    private static final String RESUME_PATH = "/diagnose/resume";
     private static final String CONNECT_TIMEOUT_MESSAGE = "Connect timed out";
 
     private final RestClient restClient;
@@ -49,7 +49,7 @@ public class AiDiagnosesClient {
     public AiDiagnosesAccepted requestDiagnoses(AiDiagnosesRequest request) {
         try {
             AiApiResponse<AiDiagnosesAccepted> response = restClient.post()
-                    .uri(aiServerProperties.baseUrl() + DIAGNOSE_PATH)
+                    .uri(aiServerProperties.baseUrl() + aiServerProperties.diagnosePathPrefix() + DIAGNOSE_PATH)
                     .header(InternalTokenFilter.HEADER_NAME, internalApiProperties.token())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
@@ -117,7 +117,7 @@ public class AiDiagnosesClient {
      */
     public AiResumeAccepted requestResume(AiResumeRequest request) {
         AiApiResponse<AiResumeAccepted> response = restClient.post()
-                .uri(aiServerProperties.baseUrl() + RESUME_PATH)
+                .uri(aiServerProperties.baseUrl() + aiServerProperties.diagnosePathPrefix() + RESUME_PATH)
                 .header(InternalTokenFilter.HEADER_NAME, internalApiProperties.token())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
