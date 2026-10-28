@@ -125,7 +125,7 @@ public class DiagnosesService {
 
     /**
      * 대기 상품을 다시 AI에 보낼 수 있게 진단 중으로 바꾸고, 보낼 내용을 돌려준다.
-     * 기한 전에 만들어진 상품은 더 기다리지 않고 실패 처리한다. 보낼 상품이 없으면 빈 값.
+     * 마지막 요청이 기한보다 오래된 상품은 더 기다리지 않고 실패 처리한다. 보낼 상품이 없으면 빈 값.
      */
     @Transactional
     public Optional<AiDiagnosesRequestedEvent> restartPendingProducts(UUID diagnosesId, LocalDateTime deadline) {
@@ -140,11 +140,12 @@ public class DiagnosesService {
             if (product.getProcessingStatus() != ProcessingStatus.PENDING) {
                 continue;
             }
-            if (product.getCreatedAt().isBefore(deadline)) {
+            // 생성 시각이 아니라 마지막 요청 시각 기준. 오래된 상품을 다시 진단할 때 재요청 없이 바로 실패하지 않도록 한다.
+            if (product.isRequestedBefore(deadline)) {
                 product.fail(null, REQUEST_UNAVAILABLE_ERROR_CODE, REQUEST_UNAVAILABLE_ERROR_MESSAGE,
                         REQUEST_UNAVAILABLE_ERROR_RETRYABLE);
-                log.warn("AI 재요청 기한이 지나 실패 처리합니다. diagnosesId={}, productId={}, createdAt={}",
-                        diagnosesId, product.getId(), product.getCreatedAt());
+                log.warn("AI 재요청 기한이 지나 실패 처리합니다. diagnosesId={}, productId={}, requestedAt={}",
+                        diagnosesId, product.getId(), product.getRequestedAt());
                 continue;
             }
             product.startDiagnoses();

@@ -402,7 +402,7 @@ class DiagnosesServiceTest {
         Diagnoses diagnoses = createInProgressDiagnoses(2);
         Product pending = diagnoses.getProducts().get(0);
         pending.returnToPending();
-        diagnoses.getProducts().forEach(product -> ReflectionTestUtils.setField(product, "createdAt", now));
+        diagnoses.getProducts().forEach(product -> ReflectionTestUtils.setField(product, "requestedAt", now));
         given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
 
         // when
@@ -429,8 +429,8 @@ class DiagnosesServiceTest {
         Product waiting = diagnoses.getProducts().get(1);
         expired.returnToPending();
         waiting.returnToPending();
-        ReflectionTestUtils.setField(expired, "createdAt", now.minusMinutes(11));
-        ReflectionTestUtils.setField(waiting, "createdAt", now.minusMinutes(9));
+        ReflectionTestUtils.setField(expired, "requestedAt", now.minusMinutes(11));
+        ReflectionTestUtils.setField(waiting, "requestedAt", now.minusMinutes(9));
         given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
 
         // when
@@ -455,7 +455,7 @@ class DiagnosesServiceTest {
         Diagnoses diagnoses = createInProgressDiagnoses(1);
         Product expired = diagnoses.getProducts().getFirst();
         expired.returnToPending();
-        ReflectionTestUtils.setField(expired, "createdAt", now.minusMinutes(11));
+        ReflectionTestUtils.setField(expired, "requestedAt", now.minusMinutes(11));
         given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
 
         // when
@@ -465,6 +465,51 @@ class DiagnosesServiceTest {
         // then
         assertThat(event).isEmpty();
         assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("오래전에 만든 상품이라도 최근에 다시 요청했으면 기한 안으로 보고 재요청한다.")
+    void restartPendingProducts_whenCreatedLongAgoButRequestedRecently_thenRestart() {
+        // given: 하루 전에 만들었지만 방금 다시 진단을 요청한 상품
+        LocalDateTime now = LocalDateTime.now();
+        Diagnoses diagnoses = createInProgressDiagnoses(1);
+        Product product = diagnoses.getProducts().getFirst();
+        product.returnToPending();
+        ReflectionTestUtils.setField(product, "createdAt", now.minusDays(1));
+        ReflectionTestUtils.setField(product, "requestedAt", now.minusMinutes(1));
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        Optional<AiDiagnosesRequestedEvent> event =
+                diagnosesService.restartPendingProducts(DIAGNOSES_ID, now.minusMinutes(10));
+
+        // then
+        assertThat(event).hasValueSatisfying(requested -> assertThat(requested.products())
+                .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
+                .containsExactly(product.getId()));
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("요청 시각이 없는 기존 상품은 생성 시각을 기준으로 기한을 판단한다.")
+    void restartPendingProducts_whenRequestedAtIsNull_thenUseCreatedAt() {
+        // given: requested_at 컬럼 추가 전에 만들어진 상품
+        LocalDateTime now = LocalDateTime.now();
+        Diagnoses diagnoses = createInProgressDiagnoses(1);
+        Product expired = diagnoses.getProducts().getFirst();
+        expired.returnToPending();
+        ReflectionTestUtils.setField(expired, "requestedAt", null);
+        ReflectionTestUtils.setField(expired, "createdAt", now.minusMinutes(11));
+        given(diagnosesRepository.findByIdForUpdate(DIAGNOSES_ID)).willReturn(Optional.of(diagnoses));
+
+        // when
+        Optional<AiDiagnosesRequestedEvent> event =
+                diagnosesService.restartPendingProducts(DIAGNOSES_ID, now.minusMinutes(10));
+
+        // then
+        assertThat(event).isEmpty();
+        assertThat(expired.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(expired.getErrorCode()).isEqualTo(DiagnosesService.REQUEST_UNAVAILABLE_ERROR_CODE);
     }
 
     @Test
