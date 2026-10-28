@@ -281,6 +281,14 @@ def test_이유에서_다른_물품이라고_결론_낸_선택은_쓰지_않는�
     assert result.query["selected_cases"] == [KETTLE_CASE]
 
 
+def test_한_건뿐인_호라_뺀_선택은_가정에_HS를_남긴다():
+    product, facts = product_and_facts()
+    result, _, _, _ = run(product, facts, review(select(), select(COFFEE_CASE)))
+    assert result.query["lone_cases"] == [COFFEE_CASE]
+    assert result.query["selected_cases"] == [KETTLE_CASE]
+    assert any("1개(HS 8419.81-0000)를 제외했습니다" in text for text in result.findings[0].assumptions)
+
+
 def test_원문과_대조되지_않는_조건은_그_조건만_버린다():
     product, facts = product_and_facts()
     facts.facts.append(CustomsFact(field="material", value="유리", evidence_id="listing-0", quote="유리 주전자"))
