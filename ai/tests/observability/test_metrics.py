@@ -70,7 +70,19 @@ def test_대기_중_시간_초과는_실행_시간_없이_실패로_센다():
     assert registry.get_sample_value("ai_session_total_seconds_sum", labels) == 600
     assert registry.get_sample_value("ai_session_run_seconds_count", labels) is None
     assert registry.get_sample_value(
-        "ai_session_failed_total", {"run_type": "production", "error_code": "AI_TIMEOUT"}) == 1
+        "ai_session_failed_total", {"run_type": "production", "error_code": "AI_TIMEOUT", "stage": "none"}) == 1
+
+
+def test_실행_중_실패는_실패한_단계로_센다():
+    metrics, registry = _metrics()
+    run = _Run()
+    run(Start(), at=1)
+    run(ChangeStage(PipelineStage.EXTRACTION), at=2)
+
+    metrics.on_event(run(Fail("AI_INTERNAL_ERROR", retryable=False), at=5))
+
+    assert registry.get_sample_value("ai_session_failed_total", {
+        "run_type": "production", "error_code": "AI_INTERNAL_ERROR", "stage": "extraction"}) == 1
 
 
 def test_재진단_실행은_재접수_시각부터_따로_잰다():

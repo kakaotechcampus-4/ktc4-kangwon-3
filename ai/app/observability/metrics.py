@@ -63,7 +63,8 @@ class SessionMetrics:
             "ai_session_finished", "결말별 끝난 세션 수", ["run_type", "outcome"], registry=registry,
         )
         self._failed = Counter(
-            "ai_session_failed", "오류 코드별 실패한 세션 수", ["run_type", "error_code"], registry=registry,
+            "ai_session_failed", "오류 코드·실패 단계별 실패한 세션 수. 실행 전 실패는 stage=none",
+            ["run_type", "error_code", "stage"], registry=registry,
         )
         self._tool = Counter(
             "ai_session_tool_progress", "Tool 진행 알림 수", ["run_type", "tool_name", "status"], registry=registry,
@@ -98,7 +99,8 @@ class SessionMetrics:
                 if session.started_at is not None:
                     self._run.labels(run_type, outcome).observe(_seconds(session.started_at, session.updated_at))
                 if isinstance(event, Failed):
-                    self._failed.labels(run_type, event.error_code).inc()
+                    stage = session.stage.value if session.stage is not None else "none"
+                    self._failed.labels(run_type, event.error_code, stage).inc()
 
     def _close_stage(self, run_id: str, run_type: str, now: datetime) -> None:
         """실행의 지금 단계를 끝내고 소요 시간을 기록한다. 단계가 없으면 아무것도 안 함."""
