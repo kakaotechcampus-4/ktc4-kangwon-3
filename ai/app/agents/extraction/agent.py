@@ -4,6 +4,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from ...observability.measurements import SellerRegionCut, measurement_sinks
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
@@ -45,6 +46,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         """판매자 영역만 남긴 글과 이미지 URL로 모델 메시지를 만든다.
 
         이미지는 http(s) URL과 data URI를 같게 다룸 (로컬 이미지를 data URI로 바꾸는 건 호출자 몫).
+        자르기 결과는 여기서만 측정 기록으로 남김 (_finalize도 자르므로 두 번 세지 않게).
 
         Args:
             input: 상품 원문.
@@ -55,7 +57,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         Raises:
             ValueError: 글과 이미지가 모두 비어 있는 경우.
         """
-        source, _ = _trim_to_seller_region(input)
+        source, _ = _trim_to_seller_region(input, record=True)
         content: list[dict[str, Any]] = [{"type": "text", "text": block} for block in source.text_blocks]
         content += [{"type": "image_url", "image_url": {"url": url}} for url in source.image_urls]
         # 글·이미지가 모두 비어 추출할 내용이 없음
@@ -85,18 +87,22 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         return Product(product_id=source.product_id, source_url=source.source_url, **payload)
 
 
-def _trim_to_seller_region(source: ExtractionInput) -> tuple[ExtractionInput, list[str]]:
+def _trim_to_seller_region(source: ExtractionInput, *, record: bool = False) -> tuple[ExtractionInput, list[str]]:
     """쇼핑몰이 붙인 글(AI 요약·연관 상품·리뷰·검색창 등)을 잘라 판매자 영역만 남긴다 (#253).
 
     자르지 못한 블록은 원문 그대로라 이전보다 나빠지지 않음.
 
     Args:
         source: 상품 원문.
+        record: 블록마다 쇼핑몰·자르기 결과를 측정 기록으로 남길지.
 
     Returns:
         tuple[ExtractionInput, list[str]]: 판매자 영역만 남긴 입력과 찾은 판매자 제목(중복 제거).
     """
     regions = [extract_seller_region(block) for block in source.text_blocks]
+    if record:
+        for region in regions:
+            measurement_sinks.publish(SellerRegionCut(site=region.site or "unknown", trimmed=region.trimmed))
     trimmed = source.model_copy(update={"text_blocks": [region.text for region in regions]})
     titles = list(dict.fromkeys(region.title for region in regions if region.title))
     return trimmed, titles

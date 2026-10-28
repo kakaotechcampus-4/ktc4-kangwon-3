@@ -6,7 +6,7 @@ from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
-from app.observability.measurements import CallbackOutcome, ClientCall, ToolRun
+from app.observability.measurements import CallbackOutcome, ClientCall, SellerRegionCut, ToolRun
 from app.observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
@@ -263,3 +263,16 @@ def test_Tool_실행을_분야와_상태별로_세고_실패_원인과_판단을
     assert value("ai_tool_errors_total", tool_name="electrical", error_type="client") == 1
     assert (value("ai_tool_findings_total", tool_name="electrical", determination="required"),
             value("ai_tool_findings_total", tool_name="electrical", determination="not_required")) == (2, 1)
+
+
+def test_판매자_구역_자르기를_쇼핑몰과_성공_여부별로_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (SellerRegionCut(site="aliexpress", trimmed=True), SellerRegionCut(site="aliexpress", trimmed=True),
+                   SellerRegionCut(site="temu", trimmed=False)):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value(
+        "ai_extraction_seller_region_total", {"site": "aliexpress", "trimmed": "true"}) == 2
+    assert registry.get_sample_value("ai_extraction_seller_region_total", {"site": "temu", "trimmed": "false"}) == 1

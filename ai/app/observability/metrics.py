@@ -3,7 +3,8 @@
     - SessionMetrics: 세션 이벤트 구독자. 대기·실행·전체·단계 소요 시간과 결말·Tool 진행 횟수
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
     - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
-    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도, Tool 실행 결과·시간·실패 원인·판단
+    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도, Tool 실행 결과·시간·실패 원인·판단,
+      판매자 구역 자르기 결과
     - CallbackOutboxCollector: 수집 때마다 콜백 발신함의 대기 중 이벤트 수를 읽음
 
 라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.
@@ -20,7 +21,7 @@ from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
-from .measurements import CallbackOutcome, ClientCall, Measurement, ToolRun
+from .measurements import CallbackOutcome, ClientCall, Measurement, SellerRegionCut, ToolRun
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
@@ -206,7 +207,10 @@ class AgentMetrics:
 
 
 class MeasurementMetrics:
-    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행을 기록한다. measurement_sinks에 on_record를 등록해 씀."""
+    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기를 기록한다.
+
+    measurement_sinks에 on_record를 등록해 씀.
+    """
 
     def __init__(self, registry: CollectorRegistry) -> None:
         """지표를 registry에 등록한다.
@@ -247,6 +251,10 @@ class MeasurementMetrics:
         self._tool_findings = Counter(
             "ai_tool_findings", "분야·판단별 Tool 판단 항목 수", ["tool_name", "determination"], registry=registry,
         )
+        self._seller_region = Counter(
+            "ai_extraction_seller_region", "쇼핑몰·자르기 성공 여부별 상세페이지 글 수. 아는 쇼핑몰의 false는 화면 변경 의심",
+            ["site", "trimmed"], registry=registry,
+        )
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
@@ -272,6 +280,8 @@ class MeasurementMetrics:
                     self._tool_errors.labels(tool_name, error_type).inc()
                 for determination in determinations:
                     self._tool_findings.labels(tool_name, determination).inc()
+            case SellerRegionCut(site=site, trimmed=trimmed):
+                self._seller_region.labels(site, str(trimmed).lower()).inc()
 
 
 class CallbackOutboxCollector(Collector):
