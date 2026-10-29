@@ -170,11 +170,12 @@ class AiDiagnosesRequestUseCaseTest {
                 .extracting(AiDiagnosesRequest.Product::productId)
                 .containsExactly(URL_PRODUCT_ID.toString());
         then(diagnosesService).should().assignRuns(DIAGNOSES_ID, Map.of(URL_PRODUCT_ID, "run-2"));
+        then(diagnosesService).should().failConflictedRequest(DIAGNOSES_ID, List.of(TEXT_IMAGE_PRODUCT_ID));
     }
 
     @Test
-    @DisplayName("모든 상품이 이미 진행 중이라 거절(409)되면 다시 요청하지 않고 상품 상태도 바꾸지 않는다.")
-    void requestDiagnoses_whenAllConflict_thenStop() {
+    @DisplayName("모든 상품이 이전 진단 진행 중이라 거절(409)되면 다시 요청하지 않고 모두 실패 처리한다.")
+    void requestDiagnoses_whenAllConflict_thenFailAllAndStop() {
         // given
         given(aiDiagnosesClient.requestDiagnoses(any())).willThrow(AiDiagnosesRequestException.conflict(
                 List.of(TEXT_IMAGE_PRODUCT_ID.toString(), URL_PRODUCT_ID.toString()), null));
@@ -184,7 +185,9 @@ class AiDiagnosesRequestUseCaseTest {
 
         // then
         then(aiDiagnosesClient).should(times(1)).requestDiagnoses(any());
-        then(diagnosesService).shouldHaveNoInteractions();
+        then(diagnosesService).should().failConflictedRequest(DIAGNOSES_ID, List.of(TEXT_IMAGE_PRODUCT_ID, URL_PRODUCT_ID));
+        then(diagnosesService).should(never()).assignRuns(any(), any());
+        then(diagnosesService).should(never()).returnToPending(any(), any());
     }
 
     @Test

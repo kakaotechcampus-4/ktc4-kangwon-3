@@ -89,6 +89,7 @@ class ProductControllerTest {
     private static final UUID QUESTION_ID = UUID.randomUUID();
     private static final String BASE_URL = "/api/v1/products";
     private static final String ANSWERS_URL = BASE_URL + "/{productId}/answers";
+    private static final String RETRY_URL = BASE_URL + "/{productId}/retry";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
     @Autowired
@@ -451,6 +452,55 @@ class ProductControllerTest {
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(answersBody(QUESTION_ID, "구매대행")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMMON-006"));
+    }
+
+    @Test
+    @DisplayName("인증 없이 재시도하면 401과 COMMON-004 코드를 응답한다.")
+    void retryDiagnoses_withoutAuthentication_thenUnauthorized() throws Exception {
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON-004"));
+
+        then(productUseCase).should(never()).retryDiagnoses(any(), any());
+    }
+
+    @Test
+    @DisplayName("실패한 상품을 재시도하면 성공 응답을 받고 로그인한 사용자와 상품 ID가 전달된다.")
+    void retryDiagnoses_thenSuccess() throws Exception {
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+
+        then(productUseCase).should().retryDiagnoses(USER_ID, PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("재시도할 수 없는 상품이면 409와 COMMON-010 코드를 응답한다.")
+    void retryDiagnoses_whenNotRetryable_thenConflict() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.CONFLICT))
+                .given(productUseCase).retryDiagnoses(any(), any());
+
+        // when & then
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COMMON-010"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품을 재시도하면 404와 COMMON-006 코드를 응답한다.")
+    void retryDiagnoses_withUnknownId_thenNotFound() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
+                .given(productUseCase).retryDiagnoses(any(), any());
+
+        // when & then
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMMON-006"));
     }
