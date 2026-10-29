@@ -22,11 +22,32 @@ if TYPE_CHECKING:
 
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
 
-# 채팅·판단 모델 단가. 판단 Luna는 채팅 Luna와 등록명·단가가 같음
-PRICING_KRW = {
-    model_id: asdict(model.price)
-    for models in (CHAT_MODELS, DECISION_MODELS) for model_id, model in models.items() if model.price
-}
+
+def build_pricing(*catalogs: dict) -> dict[str, dict[str, float]]:
+    """모델 카탈로그들로 등록명 → 단가표를 만든다. 단가를 모르는 모델은 뺌.
+
+    Args:
+        catalogs: 등록명 → 모델(price 속성) 카탈로그들 (CHAT_MODELS·DECISION_MODELS).
+
+    Returns:
+        dict[str, dict[str, float]]: 등록명 → 1M 토큰당 KRW.
+
+    Raises:
+        ValueError: 같은 등록명에 단가가 다른 모델이 있는 경우 (하나가 조용히 덮이지 않게).
+    """
+    pricing: dict[str, dict[str, float]] = {}
+    for catalog in catalogs:
+        for model_id, model in catalog.items():
+            if model.price is None:
+                continue
+            price = asdict(model.price)
+            if pricing.setdefault(model_id, price) != price:
+                raise ValueError(f"같은 등록명에 단가가 다릅니다: {model_id} {pricing[model_id]} / {price}")
+    return pricing
+
+
+# 채팅·판단 모델 단가. 판단 Luna는 채팅 Luna와 등록명이 같아 단가도 같아야 함 (다르면 import 시점에 실패)
+PRICING_KRW = build_pricing(CHAT_MODELS, DECISION_MODELS)
 
 
 @dataclass(frozen=True)
