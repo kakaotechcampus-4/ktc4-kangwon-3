@@ -473,6 +473,90 @@ class ProductTest {
     }
 
     @Test
+    @DisplayName("진행 중인 상품의 재진단 요청이 전달되지 않으면 재요청 대기로 표시된다.")
+    void markResumePending_whenInProgress_thenPending() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.markResumePending();
+
+        // then
+        assertThat(product.isResumePending()).isTrue();
+        assertThat(product.getResumePendingSince()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("재요청 대기를 다시 표시해도 처음 실패한 시각이 유지된다.")
+    void markResumePending_whenAlreadyPending_thenKeepFirstTime() {
+        // given
+        Product product = createInProgressProduct();
+        LocalDateTime firstFailedAt = LocalDateTime.now().minusMinutes(5);
+        ReflectionTestUtils.setField(product, "resumePendingSince", firstFailedAt);
+
+        // when
+        product.markResumePending();
+
+        // then
+        assertThat(product.getResumePendingSince()).isEqualTo(firstFailedAt);
+    }
+
+    @Test
+    @DisplayName("진행 중이 아닌 상품은 재요청 대기로 표시할 수 없다.")
+    void markResumePending_whenNotInProgress_thenThrowConflict() {
+        // given
+        Product product = createAwaitingInputProduct();
+
+        // when & then
+        assertConflict(product::markResumePending);
+    }
+
+    @Test
+    @DisplayName("재요청 대기 중에 새 실행 식별자를 받으면 대기가 끝난다.")
+    void assignRun_whenResumePending_thenClearPending() {
+        // given
+        Product product = createInProgressProduct();
+        product.markResumePending();
+
+        // when
+        product.assignRun("run-2");
+
+        // then
+        assertThat(product.isResumePending()).isFalse();
+    }
+
+    @Test
+    @DisplayName("재요청 대기 중에 실패로 끝나면 대기가 끝난다.")
+    void fail_whenResumePending_thenClearPending() {
+        // given
+        Product product = createInProgressProduct();
+        product.markResumePending();
+
+        // when
+        product.fail(null, ERROR_CODE, ERROR_MESSAGE, true);
+
+        // then
+        assertThat(product.isResumePending()).isFalse();
+    }
+
+    @Test
+    @DisplayName("처음 실패한 시각이 기한보다 오래됐을 때만 재요청 기한을 넘긴 것으로 본다.")
+    void isResumePendingBefore_thenCompareFirstFailedTime() {
+        // given
+        LocalDateTime deadline = LocalDateTime.now().minusMinutes(10);
+        Product expired = createInProgressProduct();
+        ReflectionTestUtils.setField(expired, "resumePendingSince", deadline.minusMinutes(1));
+        Product waiting = createInProgressProduct();
+        ReflectionTestUtils.setField(waiting, "resumePendingSince", deadline.plusMinutes(1));
+        Product notPending = createInProgressProduct();
+
+        // when & then
+        assertThat(expired.isResumePendingBefore(deadline)).isTrue();
+        assertThat(waiting.isResumePendingBefore(deadline)).isFalse();
+        assertThat(notPending.isResumePendingBefore(deadline)).isFalse();
+    }
+
+    @Test
     @DisplayName("진행 중인 상품이 질문을 받으면 답변 없는 질문이 추가되고 답변 대기 상태가 된다.")
     void askQuestions_whenInProgress_thenAddQuestionsAndAwaitInput() {
         // given
