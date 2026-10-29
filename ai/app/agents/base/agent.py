@@ -393,6 +393,20 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             self._decision_client = get_decision_client(self._decision_profile)
         return self._decision_client
 
+    def _decision_failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
+        """판단 호출 실패 문구를 만든다. 채팅 출력 스키마와 무관해 작업 이름으로만 씀.
+
+        Args:
+            phase: 실패 단계.
+            cause: 원인 예외.
+
+        Returns:
+            str: 예외 메시지.
+        """
+        if phase is ModelFailurePhase.CALL:
+            return f"{self.task_name} 판단 모델 호출에 실패했습니다: {cause}"
+        return f"{self.task_name} 판단 모델 응답을 해석하지 못했습니다: {cause}"
+
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
         """실패 문구를 만든다. 호출 실패는 작업 이름, 파싱 실패는 출력 이름으로.
 
@@ -512,7 +526,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             called_model=called_model,
         )
         raise self.error_class(
-            self._failure_message(phase, cause),
+            self._decision_failure_message(phase, cause) if called_model else self._failure_message(phase, cause),
             partial_result=partial_result,
             meta=meta,
         ) from cause
