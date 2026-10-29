@@ -88,7 +88,7 @@ function QuestionPage() {
                 title={currentRound ? `${currentRound}차 질문` : "진단에 필요한 질문이 몇 가지 있어요"}
                 description="상세페이지만으로는 판단이 어려운 부분이에요. 답해 주시면 진단서에 반영됩니다."
             />
-            {isNotAwaitingInput ? null : isPending ? (
+            {isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
@@ -108,17 +108,15 @@ function QuestionPage() {
                 </p>
 
             ) : (
-                <>
-                    <div className="flex flex-col gap-3">
-                        <ProductPreview
-                            productName={product.productName}
-                            productImageUrl={product.productImageUrl}
-                            resultStatus={product.resultStatus}
-                            processingStatus={product.processingStatus}
-                            sourceType={product.sourceType}
-                        />
-                        <ProgressSummary currentAnswered={currentAnswered} />
-                    </div>
+                <div className="flex w-full flex-col gap-6">
+                    <ProductPreview
+                        productName={product.productName}
+                        productImageUrl={product.productImageUrl}
+                        resultStatus={product.resultStatus}
+                        processingStatus={product.processingStatus}
+                        sourceType={product.sourceType}
+                    />
+                    <ProgressSummary currentAnswered={currentAnswered} />
                     <div className="flex flex-col gap-4">
                         {currentQuestions.map((question, index) => (
                             <Question
@@ -135,7 +133,7 @@ function QuestionPage() {
                     <div className="flex w-full justify-end">
                         <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} />
                     </div>
-                </>
+                </div>
             )}
         </div>
     );
