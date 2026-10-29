@@ -427,21 +427,22 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             elapsed_ms: 걸린 시간(ms).
             error_type: 실패 원인 예외 이름. 성공이면 None.
             failure_phase: 실패 단계. 성공이면 None.
-            called_model: 채팅 모델 말고 다른 모델(판단 모델 등)을 불렀으면 그 등록명. 추론 강도는 없음으로 남김.
-                None이면 채팅 모델과 그 추론 강도.
+            called_model: 채팅 모델 말고 다른 모델(판단 모델 등)을 불렀으면 그 등록명. 추론 강도·프롬프트는
+                없음으로 남김. None이면 채팅 모델과 그 추론 강도·시스템 프롬프트.
 
         Returns:
             AgentRunMeta: 실행 정보.
         """
-        prompt = self.prompt
+        # 판단 모델처럼 다른 모델 호출은 시스템 프롬프트를 안 써서 프롬프트 지문을 남기지 않음
+        prompt = None if called_model else self.prompt
         model = called_model or self._configured_model
         return AgentRunMeta(
             component=self.component_name,
             usage_name=self._usage_agent,
             model=model,
             reasoning_effort=None if called_model else self._reasoning_effort,
-            prompt_name=prompt.name.value,
-            prompt_sha256=prompt.sha256,
+            prompt_name=prompt.name.value if prompt else None,
+            prompt_sha256=prompt.sha256 if prompt else None,
             usage=usage,
             cost_krw=estimate_krw(usage, model) if usage else None,
             elapsed_ms=elapsed_ms,

@@ -49,6 +49,18 @@ def test_판단_답을_돌려주고_판단_모델_이름과_단가로_기록한�
     assert [(row["configured_model"], row["ok"]) for row in records] == [(JEV, True)]
 
 
+def test_판단_호출_기록에는_채팅_프롬프트_지문을_남기지_않는다(fakes, stub_model, records):
+    agent = _agent(fakes, stub_model, lambda request: _jev_reply({"kind_kids": {"type": "noul", "noul": 0.5}}))
+
+    _, usage, started_at = agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
+    decision_meta = agent._finish_call(usage, "p-1", started_at, called_model=JEV)
+    chat_meta = agent.run_with_meta(fakes.question).meta
+
+    # 판단 호출은 시스템 프롬프트를 안 씀. 같은 에이전트의 채팅 호출은 그대로 남김
+    assert (decision_meta.prompt_name, decision_meta.prompt_sha256) == (None, None)
+    assert (chat_meta.prompt_name, chat_meta.prompt_sha256) == (agent.prompt.name.value, agent.prompt.sha256)
+
+
 def test_요청에_판단_모델_등록명을_넣는다(fakes, stub_model, records):
     sent = []
 
