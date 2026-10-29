@@ -1,0 +1,75 @@
+"""판단 클라이언트 공통 베이스가 경로·인증으로 보내고, 잘못된 응답을 DecisionResponseError로 바꾸는지 확인한다.
+
+제공사 형식과 무관한 동작이라 가짜 하위 클라이언트로 확인. 실제 네트워크 요청은 보내지 않는다.
+"""
+
+import httpx
+import pytest
+
+from app.clients.llm.decision import DecisionClient, DecisionResponseError
+from app.schemas.clients.decision_request import DecisionRequest
+from app.schemas.clients.decision_response import DecisionResponse
+
+from .conftest import API_KEY, BASE_URL
+
+
+class _EchoDecisionClient(DecisionClient):
+    """요청 모델만 보내고, 응답 본문을 공통 답 모양 그대로 읽는 가짜 하위 클라이언트."""
+
+    def _to_payload(self, request: DecisionRequest) -> dict:
+        return {"model": request.model}
+
+    def _from_payload(self, body: dict) -> DecisionResponse:
+        return DecisionResponse(model=body["model"], answers=body["answers"], input_tokens=body["input_tokens"])
+
+
+def _answers(*names: str) -> dict:
+    return {name: {"type": "refused"} for name in names}
+
+
+def _ok(*names: str) -> httpx.Response:
+    return httpx.Response(200, json={"model": "m", "answers": _answers(*names), "input_tokens": 10})
+
+
+ALL_NAMES = ("kind_kids", "category", "kid_use")
+
+
+def test_게이트웨이_decisions_경로로_인증_헤더와_함께_보낸다(wire, decision_request):
+    client = _EchoDecisionClient(BASE_URL + "/", API_KEY)
+    sent = wire(client, lambda request: _ok(*ALL_NAMES))
+
+    client.decide(decision_request)
+
+    [request] = sent
+    assert (request.method, str(request.url)) == ("POST", "https://gateway.test/v1/decisions")
+    assert request.headers["Authorization"] == f"Bearer {API_KEY}"
+
+
+def test_답이_빠진_질문이_있으면_이름을_담아_실패한다(wire, decision_request):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: _ok("kind_kids"))
+
+    with pytest.raises(DecisionResponseError, match="category"):
+        client.decide(decision_request)
+
+
+@pytest.mark.parametrize("response", [
+    httpx.Response(200, text="Not Found"),
+    httpx.Response(200, json=["목록"]),
+    httpx.Response(200, json={"answers": {}}),
+    httpx.Response(200, json={"model": "m", "answers": {"kind_kids": {"type": "box"}}, "input_tokens": 1}),
+], ids=["JSON 아님", "객체 아님", "필드 누락", "모르는 답 종류"])
+def test_변환할_수_없는_응답은_DecisionResponseError(wire, decision_request, response):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: response)
+
+    with pytest.raises(DecisionResponseError):
+        client.decide(decision_request)
+
+
+def test_HTTP_오류는_HTTPStatusError_그대로(wire, decision_request):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: httpx.Response(404, json={"error": {"code": "model_not_found"}}))
+
+    with pytest.raises(httpx.HTTPStatusError):
+        client.decide(decision_request)
