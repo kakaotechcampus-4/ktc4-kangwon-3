@@ -20,13 +20,13 @@ export function computeAnswerState(questions: ProductQuestions[], answers: Recor
         let answeredCount = 0;
 
         for (const question of product.questions) {
-            const answered = isAnswered(question.id);
+            const answered = isAnswered(question.questionId);
             row.push(answered);
             if (answered) {
                 answeredCount++;
             } else if (!firstUnanswered) {
                 // 가장 먼저 만난 미답변 질문만 기록한다.
-                firstUnanswered = { productIndex, questionId: question.id };
+                firstUnanswered = { productIndex, questionId: question.questionId };
             }
         }
 
