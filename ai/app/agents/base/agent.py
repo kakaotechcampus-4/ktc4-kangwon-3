@@ -15,8 +15,8 @@ from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
 from ...clients.llm import build_agent_model, build_tool_model
-from ...clients.llm.decision import DecisionClient, DecisionResponseError, build_decision_client, check_request
-from ...config import agent_decision_profile
+from ...clients.llm.decision import DecisionClient, DecisionResponseError, check_request, get_decision_client
+from ...config import DecisionProfile, agent_decision_profile
 from ...observability.agent_sinks import agent_sinks
 from ...prompts import PromptName, PromptSnapshot, get_prompt
 from ...schemas.clients.decision_request import DecisionQuestion, DecisionRequest
@@ -71,12 +71,13 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         파싱하다 예외를 내 실패 호출의 사용량이 기록되지 않음). ``include_raw``로 원본 응답의 사용량·본문을 읽음.
 
         판단 모델은 AGENT_DECISION_PROFILES에 있는 에이전트만 준비함. 없으면 ``_call_decision``을 못 씀.
+        판단 클라이언트는 첫 판단 호출 때 공유 연결로 가져옴 (판단을 안 부르는 실행·테스트는 설정을 안 읽음).
 
         Args:
             model: 구조화 출력 모델. None이면 프로필로 만들거나(``creates_default_model``) 모델 없이 둠.
             configured_model: 비용 계산용 모델 이름. None이면 model의 model_name.
             usage_agent: 사용량 기록 이름. None이면 component_name.
-            decision_client: 판단 클라이언트. None이면 판단 프로필로 만들거나 판단 모델 없이 둠.
+            decision_client: 판단 클라이언트. None이면 판단 프로필로 가져오거나 판단 모델 없이 둠.
             decision_model: 판단 모델 등록명 (요청·비용 계산용). decision_client를 주면 필수.
 
         Raises:
@@ -90,7 +91,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         self._configured_model = configured_model or getattr(model, "model_name", None)
         self._reasoning_effort = getattr(model, "reasoning_effort", None)
         self._usage_agent = usage_agent or self.component_name
-        self._decision_client, self._decision_model = self._prepare_decision(decision_client, decision_model)
+        self._decision_client = decision_client
+        self._decision_profile, self._decision_model = self._prepare_decision(decision_client, decision_model)
         self._structured = (
             None
             if model is None
@@ -103,28 +105,26 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
 
     def _prepare_decision(
         self, client: DecisionClient | None, model: str | None,
-    ) -> tuple[DecisionClient | None, str | None]:
-        """판단 클라이언트와 판단 모델 등록명을 정한다. 미주입이면 판단 프로필로 만듦.
+    ) -> tuple[DecisionProfile | None, str | None]:
+        """판단 프로필과 판단 모델 등록명을 정한다. 클라이언트는 만들지 않음 (첫 판단 호출 때 가져옴).
 
         Args:
             client: 주입한 판단 클라이언트.
             model: 주입한 판단 모델 등록명.
 
         Returns:
-            tuple[DecisionClient | None, str | None]: 판단 클라이언트와 등록명. 판단 프로필이 없으면 둘 다 None.
+            tuple[DecisionProfile | None, str | None]: 판단 프로필(클라이언트를 주입했으면 None)과 등록명.
+            판단 모델을 안 쓰면 둘 다 None.
 
         Raises:
-            ConfigError: 판단 프로필은 있는데 설정이 없거나 잘못된 경우.
             ValueError: client만 주고 model을 안 준 경우.
         """
         if client is not None:
             if not model:
                 raise ValueError(f"{self.component_name}: decision_client를 주면 decision_model도 줘야 합니다.")
-            return client, model
+            return None, model
         profile = agent_decision_profile(self.component_name)
-        if profile is None:
-            return None, None
-        return build_decision_client(profile), profile.model.id
+        return (profile, profile.model.id) if profile else (None, None)
 
     @property
     def prompt(self) -> PromptSnapshot:
@@ -358,15 +358,17 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             AgentError: 호출 실패(call)·응답 변환 실패(parsing). 실제 타입은 ``error_class``, 원인은 ``__cause__``.
             RuntimeError: 판단 모델 없이 호출한 경우.
             DecisionRequestError: 질문 이름·후보 값이 겹치는 경우. 코드 오류라 실패로 기록하지 않음.
+            ConfigError: 판단 클라이언트를 처음 가져오는데 설정이 없거나 잘못된 경우.
         """
-        if self._decision_client is None:
+        client = self._decision_client_or_none()
+        if client is None:
             raise RuntimeError(f"{self.component_name}: 판단 모델 없이 _call_decision을 호출했습니다.")
 
         request = DecisionRequest(model=self._decision_model, subject=subject, questions=questions)
         check_request(request)
         started_at = perf_counter()
         try:
-            response = self._decision_client.decide(request)
+            response = client.decide(request)
         except DecisionResponseError as exc:
             # 응답은 받았으나 모양이 다르거나 답이 빠짐 → 읽은 토큰까지 기록
             usage = from_decision(exc.usage) if exc.usage else None
@@ -377,6 +379,19 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             self._fail(ModelFailurePhase.CALL, exc, None, subject_id, started_at, partial_result,
                        called_model=self._decision_model)
         return response, from_decision(response.usage), started_at
+
+    def _decision_client_or_none(self) -> DecisionClient | None:
+        """판단 클라이언트. 주입하지 않았으면 판단 프로필의 공유 클라이언트를 처음 쓸 때 가져옴.
+
+        Returns:
+            DecisionClient | None: 판단 클라이언트. 판단 모델을 안 쓰는 에이전트면 None.
+
+        Raises:
+            ConfigError: 설정이 없거나 잘못된 경우.
+        """
+        if self._decision_client is None and self._decision_profile is not None:
+            self._decision_client = get_decision_client(self._decision_profile)
+        return self._decision_client
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
         """실패 문구를 만든다. 호출 실패는 작업 이름, 파싱 실패는 출력 이름으로.

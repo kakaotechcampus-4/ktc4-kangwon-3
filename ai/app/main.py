@@ -12,6 +12,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
 from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
+from .clients.llm.decision import close_decision_clients
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
@@ -103,6 +104,7 @@ async def lifespan(app: FastAPI):
         sender.close()
         # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
         close_llm_clients()
+        close_decision_clients()
         agent_sinks.remove(agent_metrics)
 
 

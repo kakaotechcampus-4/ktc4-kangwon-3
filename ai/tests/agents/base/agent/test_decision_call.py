@@ -105,15 +105,20 @@ def test_판단_프로필이_없는_에이전트는_판단_호출을_막는다(f
     assert records == []
 
 
-def test_판단_프로필이_있으면_그_프로필로_판단_클라이언트를_만든다(fakes, stub_model, monkeypatch):
-    built = []
+def test_판단_프로필이_있으면_첫_판단_호출_때_공유_클라이언트를_가져온다(fakes, stub_model, records, monkeypatch):
+    fetched = []
+    shared = _decision_client(lambda request: _jev_reply({"kind_kids": {"type": "noul", "noul": 0.5}}))
     monkeypatch.setattr(agent_module, "agent_decision_profile", lambda name: DECISION_PROFILES["jev"])
-    monkeypatch.setattr(agent_module, "build_decision_client", lambda profile: built.append(profile) or "client")
+    monkeypatch.setattr(agent_module, "get_decision_client", lambda profile: fetched.append(profile) or shared)
 
     agent = fakes.Agent(stub_model(fakes.Answer(value="ok")))
+    # 만들 때는 설정을 읽지 않음 (모델을 주입한 테스트가 .env 없이도 돌게)
+    assert (fetched, agent._decision_model) == ([], JEV)
 
-    assert built == [DECISION_PROFILES["jev"]]
-    assert (agent._decision_client, agent._decision_model) == ("client", JEV)
+    agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
+    agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
+
+    assert fetched == [DECISION_PROFILES["jev"]]
 
 
 def test_판단_클라이언트만_주고_등록명을_안_주면_만들_때_실패한다(fakes, stub_model):
