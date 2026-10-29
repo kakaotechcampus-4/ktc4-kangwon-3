@@ -115,6 +115,7 @@ class _Manager:
             inflight=5, dev_inflight=1, max_running=2, max_inflight=10, max_dev_inflight=2,
             accepted={run_type: 0 for run_type in RunType} | {RunType.PRODUCTION: 7},
             rejected={"queue_full": 1, "conflict": 4},
+            awaiting_replaced=2,
         )
 
 
@@ -132,6 +133,7 @@ def test_수집_때_세션_관리자_현황을_지표로_낸다():
     assert value("ai_session_accepted_total", run_type="production") == 7
     assert (value("ai_session_rejected_total", reason="queue_full"),
             value("ai_session_rejected_total", reason="conflict")) == (1, 4)
+    assert value("ai_session_awaiting_replaced_total") == 2
 
 
 def _agent_value(registry, name, **labels):

@@ -243,6 +243,20 @@ def test_답변_대기_중인_상품은_새_세션으로_교체해_1회차부터
     assert manager.get("p-1").question_round == 1
 
 
+def test_현황은_새_접수로_버린_답변_대기_세션만_센다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-1" else JobDone(
+        build_dummy_assessment(product_id)))
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    job.release("p-1")
+    job.release("p-2")
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+
+    assert manager.snapshot().awaiting_replaced == 1
+
+
 @pytest.mark.parametrize("outcome_for", [
     lambda product_id: JobDone(build_dummy_assessment(product_id)),
     lambda product_id: JobFailed("AI_PIPELINE_ERROR", True),
