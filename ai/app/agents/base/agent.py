@@ -15,9 +15,13 @@ from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
 from ...clients.llm import build_agent_model, build_tool_model
+from ...clients.llm.decision import DecisionClient, DecisionResponseError, build_decision_client
+from ...config import agent_decision_profile
 from ...observability.agent_sinks import agent_sinks
 from ...prompts import PromptName, PromptSnapshot, get_prompt
-from ...usage import CallUsage, estimate_krw, from_completion, from_response
+from ...schemas.clients.decision_request import DecisionQuestion, DecisionRequest
+from ...schemas.clients.decision_response import DecisionResponse
+from ...usage import CallUsage, estimate_krw, from_completion, from_decision, from_response
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
 from .meta import AgentResult, AgentRunMeta
 from .parsing import parse_structured_output
@@ -58,19 +62,26 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         *,
         configured_model: str | None = None,
         usage_agent: str | None = None,
+        decision_client: DecisionClient | None = None,
+        decision_model: str | None = None,
     ) -> None:
         """에이전트를 만든다.
 
         출력 스키마는 pydantic 클래스 대신 같은 JSON 스키마 dict로 넘김 (클래스를 넘기면 SDK가 스트림 도중
         파싱하다 예외를 내 실패 호출의 사용량이 기록되지 않음). ``include_raw``로 원본 응답의 사용량·본문을 읽음.
 
+        판단 모델은 AGENT_DECISION_PROFILES에 있는 에이전트만 준비함. 없으면 ``_call_decision``을 못 씀.
+
         Args:
             model: 구조화 출력 모델. None이면 프로필로 만들거나(``creates_default_model``) 모델 없이 둠.
             configured_model: 비용 계산용 모델 이름. None이면 model의 model_name.
             usage_agent: 사용량 기록 이름. None이면 component_name.
+            decision_client: 판단 클라이언트. None이면 판단 프로필로 만들거나 판단 모델 없이 둠.
+            decision_model: 판단 모델 등록명 (요청·비용 계산용). decision_client를 주면 필수.
 
         Raises:
             ConfigError: 모델을 만들어야 하는데 설정이 없거나 잘못된 경우.
+            ValueError: decision_client만 주고 decision_model을 안 준 경우.
         """
         # 미주입 + 자동 생성 대상이면 프로필로 생성 (검증처럼 creates_default_model=False면 모델 없이 둠)
         if model is None and self.creates_default_model:
@@ -79,6 +90,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         self._configured_model = configured_model or getattr(model, "model_name", None)
         self._reasoning_effort = getattr(model, "reasoning_effort", None)
         self._usage_agent = usage_agent or self.component_name
+        self._decision_client, self._decision_model = self._prepare_decision(decision_client, decision_model)
         self._structured = (
             None
             if model is None
@@ -88,6 +100,31 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
                 **self.structured_output_options,
             )
         )
+
+    def _prepare_decision(
+        self, client: DecisionClient | None, model: str | None,
+    ) -> tuple[DecisionClient | None, str | None]:
+        """판단 클라이언트와 판단 모델 등록명을 정한다. 미주입이면 판단 프로필로 만듦.
+
+        Args:
+            client: 주입한 판단 클라이언트.
+            model: 주입한 판단 모델 등록명.
+
+        Returns:
+            tuple[DecisionClient | None, str | None]: 판단 클라이언트와 등록명. 판단 프로필이 없으면 둘 다 None.
+
+        Raises:
+            ConfigError: 판단 프로필은 있는데 설정이 없거나 잘못된 경우.
+            ValueError: client만 주고 model을 안 준 경우.
+        """
+        if client is not None:
+            if not model:
+                raise ValueError(f"{self.component_name}: decision_client를 주면 decision_model도 줘야 합니다.")
+            return client, model
+        profile = agent_decision_profile(self.component_name)
+        if profile is None:
+            return None, None
+        return build_decision_client(profile), profile.model.id
 
     @property
     def prompt(self) -> PromptSnapshot:
@@ -294,6 +331,49 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
 
         log_token_usage(self.component_name, usage, raw_message)
         return output, usage, started_at
+
+    def _call_decision(
+        self,
+        subject: dict[str, Any],
+        questions: list[DecisionQuestion],
+        *,
+        subject_id: str,
+        partial_result: object | None = None,
+    ) -> tuple[DecisionResponse, CallUsage, float]:
+        """판단 모델에 질문하고 질문 이름별 답을 받는다. 실패는 바로 기록하고, 성공 기록은 후처리 뒤 호출부가 남김.
+
+        호출부는 답으로 결과를 만든 뒤 ``_finish_call(..., called_model=self._decision_model)``(성공)이나
+        ``_fail_after_call(..., called_model=self._decision_model)``(후처리 실패)로 한 번 기록해야 함.
+
+        Args:
+            subject: 판단 대상 정보 (예: 상품 정보).
+            questions: 질문 목록. 이름이 겹치지 않아야 함.
+            subject_id: 사용량 기록 대상 ID (상품 ID).
+            partial_result: 실패 시 예외에 담을 부분 결과.
+
+        Returns:
+            tuple[DecisionResponse, CallUsage, float]: 질문 이름별 답, 사용량, 호출 시작 시각(perf_counter).
+
+        Raises:
+            AgentError: 호출 실패(call)·응답 변환 실패(parsing). 실제 타입은 ``error_class``, 원인은 ``__cause__``.
+            RuntimeError: 판단 모델 없이 호출한 경우.
+        """
+        if self._decision_client is None:
+            raise RuntimeError(f"{self.component_name}: 판단 모델 없이 _call_decision을 호출했습니다.")
+
+        request = DecisionRequest(model=self._decision_model, subject=subject, questions=questions)
+        started_at = perf_counter()
+        try:
+            response = self._decision_client.decide(request)
+        except DecisionResponseError as exc:
+            # 응답은 받았으나 모양이 다르거나 답이 빠짐 → 토큰을 읽을 수 없어 사용량 없이 기록
+            self._fail(ModelFailurePhase.PARSING, exc, None, subject_id, started_at, partial_result,
+                       called_model=self._decision_model)
+        except Exception as exc:
+            # 응답 자체를 못 받음 (네트워크·타임아웃·인증·4xx·5xx)
+            self._fail(ModelFailurePhase.CALL, exc, None, subject_id, started_at, partial_result,
+                       called_model=self._decision_model)
+        return response, from_decision(response), started_at
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
         """실패 문구를 만든다. 호출 실패는 작업 이름, 파싱 실패는 출력 이름으로.
