@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from app import config, main
 from app.clients.backend import BackendCallbackClient
 from app.agents.base import AgentRunMeta
+from app.dummy import job as dummy_job
 from app.observability.agent_sinks import agent_sinks
 from app.repositories import database
 from app.routers import _dummy
@@ -48,6 +49,7 @@ def fake_be(monkeypatch):
     for name in ("DATABASE_URL", "MODEL_PROFILE_OVERRIDES", "AI_DEV_API_ENABLED", "AI_DEV_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
+    monkeypatch.setattr(dummy_job, "STAGE_SECONDS", 0)
     for cached in (config.get_settings, database.get_engine, database.get_session_factory):
         cached.cache_clear()
 
@@ -67,8 +69,8 @@ def fake_be(monkeypatch):
 
 
 def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_be):
-    with TestClient(main.app) as client:
-        response = client.post("/api/ai/v1/diagnose/content", json={
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+        response = client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
         [accepted] = response.json()["data"]["products"]
@@ -82,21 +84,52 @@ def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_
     assert [event["sequence"] for event in events] == list(range(1, len(events) + 1))
     result = events[-1]
     assert result["eventType"] == "product_result"
-    assert len(result["assessment"]["toolReviews"]) == 6
+    assert result["assessment"]["resultStatus"] == "PURCHASING_AGENT_ALLOWED"
 
 
-def test_개발용_진단은_상태_조회로_결과를_보고_BE로는_콜백을_보내지_않는다(fake_be, monkeypatch):
+def test_운영_경로는_파이프라인_연결_전까지_접수하지_않고_콜백도_없다(fake_be):
+    with TestClient(main.app) as client:
+        response = client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        session = main.app.state.session_manager.get("p-1")
+
+    assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert session is None
+    assert fake_be == []
+
+
+def test_더미_경로는_내부_토큰이_없으면_401이고_접수하지_않는다(fake_be):
+    # 형식이 틀린 요청도 422보다 401이 먼저 (토큰 없이 요청 형식을 떠보지 못하게)
+    path = "/api/ai/v1/dummy/diagnose/content"
+    with TestClient(main.app) as client:
+        response = client.post(path, json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        malformed = client.post(path, json={"diagnosisId": "d-1"})
+        session = main.app.state.session_manager.get("p-1")
+
+    assert (response.status_code, response.json()["code"]) == (401, "AI_UNAUTHORIZED")
+    assert malformed.status_code == 401
+    assert session is None
+    assert fake_be == []
+
+
+def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜백을_보내지_않는다(fake_be, monkeypatch):
     key = "test-dev-api-key-0123456789abcdefgh"
     monkeypatch.setenv("AI_DEV_API_ENABLED", "true")
     monkeypatch.setenv("AI_DEV_API_KEY", key)
     headers = {"X-Dev-Api-Key": key}
 
     with TestClient(main.app) as client:
-        accepted = client.post("/api/ai/v1/dev/diagnose", json={"textBlocks": ["상품 설명"]}, headers=headers)
-        product_id = accepted.json()["data"]["productId"]
+        accepted = client.post(
+            "/api/ai/v1/sandbox/diagnose", json={"products": [{"textBlocks": ["상품 설명"]}]}, headers=headers,
+        )
+        [product] = accepted.json()["data"]["products"]
+        product_id = product["productId"]
 
         def status():
-            return client.get(f"/api/ai/v1/dev/diagnose/{product_id}", headers=headers).json()["data"]
+            return client.get(f"/api/ai/v1/sandbox/diagnose/{product_id}", headers=headers).json()["data"]
 
         _wait_until(lambda: status()["status"] == "completed")
         done = status()
@@ -108,16 +141,16 @@ def test_개발용_진단은_상태_조회로_결과를_보고_BE로는_콜백�
 
 
 def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be):
-    with TestClient(main.app) as client:
-        client.post("/api/ai/v1/diagnose/content", json={
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+        client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
-        _wait_until(lambda: 'ai_session_finished_total{outcome="completed",run_type="production"} 1.0'
+        _wait_until(lambda: 'ai_session_finished_total{outcome="completed",run_type="dummy"} 1.0'
                     in client.get("/metrics").text)
         text = client.get("/metrics").text
 
     assert 'ai_sessions{status="completed"} 1.0' in text
-    assert 'ai_session_accepted_total{run_type="production"} 1.0' in text
+    assert 'ai_session_accepted_total{run_type="dummy"} 1.0' in text
 
 
 def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인다(fake_be):

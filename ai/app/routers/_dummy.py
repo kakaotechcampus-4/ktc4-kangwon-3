@@ -314,12 +314,14 @@ def run_dummy_diagnosis(
 
 # 실행 상태 → 분야 카드 상태. 나머지(부분 성공·실패)는 미완료
 _DUMMY_CARD_STATUS = {ToolStatus.SUCCESS: "COMPLETED", ToolStatus.SKIPPED: "SKIPPED"}
+# 지원 분야 밖 규제 대상 신호 (화학제품·총포·검역)
+_OUT_OF_SCOPE_SIGNALS = ("chemical_product", "weapon_like", "plant_material")
 
 
 class DummyAssessmentPresenter:
     """가짜 진단 결과를 공개 진단서·질문으로 바꾸는 임시 변환기. 실제 변환기([콜백 5/5]) 전까지 사용.
 
-    result_status 결정·질문 키 생성 없이 고정값. 분야 카드·판단·법령 근거는 결과에서 그대로 옮김.
+    result_status는 검증 상태·종합 판단·지원 분야 밖 신호로만 정함. 분야 카드·판단·법령 근거는 결과에서 그대로 옮김.
     """
 
     def assessment(self, result: FinalAssessment) -> PublicAssessmentDto:
@@ -329,11 +331,23 @@ class DummyAssessmentPresenter:
             result: 가짜 진단 결과.
 
         Returns:
-            PublicAssessmentDto: 결과 상태는 직구 인증 필요로 고정.
+            PublicAssessmentDto: 위에서부터 먼저 맞는 결과 상태. 검증 미완료면 재확인 필요, 조치 필요·고위험이면 직구 인증 필요,
+                지원 분야 밖 신호가 있으면 재확인 필요, 문제없음이면 대행 구매 가능, 나머지(정보 부족)는 재확인 필요.
         """
+        out_of_scope = any(getattr(result.product, signal) for signal in _OUT_OF_SCOPE_SIGNALS)
+        if result.verification_status is FinalVerificationStatus.INCOMPLETE:
+            status, result_status = "incomplete", "RECHECK_REQUIRED"
+        elif result.overall_status in (OverallStatus.ACTION_REQUIRED, OverallStatus.HIGH_RISK):
+            status, result_status = "completed", "DIRECT_IMPORT_CERTIFICATION_REQUIRED"
+        elif out_of_scope:
+            status, result_status = "completed", "RECHECK_REQUIRED"
+        elif result.overall_status is OverallStatus.LIKELY_COMPLIANT:
+            status, result_status = "completed", "PURCHASING_AGENT_ALLOWED"
+        else:
+            status, result_status = "completed", "RECHECK_REQUIRED"
         return PublicAssessmentDto(
-            status="completed",
-            result_status="DIRECT_IMPORT_CERTIFICATION_REQUIRED",
+            status=status,
+            result_status=result_status,
             summary=result.summary,
             tool_reviews=[
                 PublicToolReviewDto(
