@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { submitAnswers } from "@/api/question";
+import { ProcessingStatusType } from "@/api/types";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
@@ -10,6 +11,7 @@ import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
 import { computeAnswerState } from "./answerState";
+import { getCurrentRoundQuestions } from "./currentQuestions";
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
 import { useQuestionProduct } from "./useQuestionProduct";
@@ -31,7 +33,18 @@ function QuestionPage() {
 
     const { data: product, isPending, isError, refetch } = useQuestionProduct(productId, !isInvalidAccess);
 
-    const currentQuestions = product?.questions ?? [];
+    const isNotAwaitingInput = product != null && product.processingStatus !== ProcessingStatusType.AwaitingInput;
+
+    // 답변 대기 중이 아닌 상품에 URL로 직접 접근한 경우 결과 페이지로 돌려보낸다.
+    useEffect(() => {
+        if (isNotAwaitingInput) {
+            alert("잘못된 접근입니다.");
+            navigate(`/result/product/${productId}`, { replace: true });
+        }
+    }, [isNotAwaitingInput, productId, navigate]);
+
+    const currentQuestions = getCurrentRoundQuestions(product?.questions ?? []);
+    const currentRound = currentQuestions[0]?.questionRound;
     const { currentAnswered, firstUnansweredId } = computeAnswerState(currentQuestions, answers);
 
     const { mutate: runSubmitAnswers, isPending: isSubmitting } = useMutation({
@@ -71,8 +84,11 @@ function QuestionPage() {
 
     return (
         <div className="flex w-full flex-col gap-8">
-            <SectionIntro title="진단에 필요한 질문이 몇 가지 있어요" description="상세페이지만으로는 판단이 어려운 부분이에요. 답해 주시면 진단서에 반영됩니다." />
-            {isPending ? (
+            <SectionIntro
+                title={currentRound ? `${currentRound}차 질문` : "진단에 필요한 질문이 몇 가지 있어요"}
+                description="상세페이지만으로는 판단이 어려운 부분이에요. 답해 주시면 진단서에 반영됩니다."
+            />
+            {isNotAwaitingInput ? null : isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
