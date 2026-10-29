@@ -38,7 +38,7 @@ function QuestionPage() {
         mutationFn: () =>
             submitAnswers(
                 productId!,
-                currentQuestions.map((question) => ({ questionId: question.questionId, answer: answers[question.questionId] ?? "" })),
+                currentQuestions.map((question) => ({ questionId: question.questionId, answerText: answers[question.questionId] })),
             ),
         onSuccess: () => {
             navigate(`/result/product/${productId}`);
