@@ -1,15 +1,10 @@
-/** 하나의 질문 요소 */
-export interface QuestionItem {
-    id: string
-    title: string
-    description?: string
-}
+import type { Question } from "@/api/product"
 
-/** 상품 하나에 대한 질문 목록 */
+/** 상품에 대한 질문 목록 */
 export interface ProductQuestions {
     productId: string
     productName: string
-    questions: QuestionItem[]
+    questions: Question[]
 }
 
 /** 답변 제출(POST) 시 보낼 형태. */

@@ -1,9 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getQuestions, submitAnswers } from "@/api/question";
+import { submitAnswers } from "@/api/question";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductTabs from "@/components/common/ProductTabs";
@@ -14,6 +14,7 @@ import { computeAnswerState } from "./answerState";
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
 import type { ProductQuestions } from "./types";
+import { useProductQuestions } from "./useProductQuestions";
 
 // data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스를 재사용한다.
 const EMPTY_PRODUCT_QUESTIONS: ProductQuestions[] = [];
@@ -24,20 +25,19 @@ function QuestionPage() {
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const navigate = useNavigate();
 
-    // diagnosesId 없이 잘못 진입한 경우(예: /question/undefined) 요청을 보내지 않고 업로드 페이지로 되돌린다.
+    const isInvalidAccess = isMissingRouteParam(productId);
+
+    // productId 없이 잘못 진입한 경우(예: /question/undefined) 요청을 보내지 않고 업로드 페이지로 되돌린다.
     useEffect(() => {
-        if (isMissingRouteParam(productId)) {
+        if (isInvalidAccess) {
             alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
             navigate("/upload", { replace: true });
         }
-    }, [productId, navigate]);
+    }, [isInvalidAccess, navigate]);
 
 
-    const { data, isPending: isQuestionsPending, isError: isQuestionsError, refetch: refetchQuestions } = useQuery({
-        queryKey: ["questions", productId],
-        queryFn: () => getQuestions(productId!),
-        enabled: !isMissingRouteParam(productId),
-    });
+    const { data, isPending: isQuestionsPending, isError: isQuestionsError, refetch: refetchQuestions } =
+        useProductQuestions(productId, !isInvalidAccess);
 
     // 질문 데이터에서 화면에 필요한 파생값(기본값 적용, 탭 이름, 현재 선택된 질문)을 꺼낸다.
     const productQuestions = data ?? EMPTY_PRODUCT_QUESTIONS;
@@ -152,13 +152,13 @@ function QuestionPage() {
                     <div className="flex flex-col gap-4">
                         {currentQuestions.map((question, index) => (
                             <Question
-                                key={question.id}
-                                id={question.id}
+                                key={question.questionId}
+                                id={question.questionId}
                                 questionNumber={index + 1}
-                                title={question.title}
-                                description={question.description ?? ""}
-                                answer={answers[question.id] ?? ""}
-                                onChange={(value) => handleAnswerChange(question.id, value)}
+                                title={question.questionText}
+                                description={question.helpText ?? ""}
+                                answer={answers[question.questionId] ?? ""}
+                                onChange={(value) => handleAnswerChange(question.questionId, value)}
                             />
                         ))}
                     </div>
