@@ -19,24 +19,24 @@ import type { ProductQuestions } from "./types";
 const EMPTY_PRODUCT_QUESTIONS: ProductQuestions[] = [];
 
 function QuestionPage() {
-    const { diagnosesId } = useParams<{ diagnosesId?: string }>();
+    const { productId } = useParams<{ productId?: string }>();
     const [selectedProductIndex, setSelectedProductIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const navigate = useNavigate();
 
     // diagnosesId 없이 잘못 진입한 경우(예: /question/undefined) 요청을 보내지 않고 업로드 페이지로 되돌린다.
     useEffect(() => {
-        if (isMissingRouteParam(diagnosesId)) {
+        if (isMissingRouteParam(productId)) {
             alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
             navigate("/upload", { replace: true });
         }
-    }, [diagnosesId, navigate]);
+    }, [productId, navigate]);
 
 
     const { data, isPending: isQuestionsPending, isError: isQuestionsError, refetch: refetchQuestions } = useQuery({
-        queryKey: ["questions", diagnosesId],
-        queryFn: () => getQuestions(diagnosesId!),
-        enabled: !isMissingRouteParam(diagnosesId),
+        queryKey: ["questions", productId],
+        queryFn: () => getQuestions(productId!),
+        enabled: !isMissingRouteParam(productId),
     });
 
     // 질문 데이터에서 화면에 필요한 파생값(기본값 적용, 탭 이름, 현재 선택된 질문)을 꺼낸다.
@@ -58,11 +58,11 @@ function QuestionPage() {
         // TODO: 질문이 0개인 진단서는 answers가 빈 배열로 제출된다. 백엔드 연동 시 백엔드 제약조건에 따라 처리 필요
         mutationFn: () =>
             submitAnswers(
-                diagnosesId!,
+                productId!,
                 Object.entries(answers).map(([questionId, answer]) => ({ questionId, answer })),
             ),
         onSuccess: () => {
-            navigate(`/result/diagnoses/${diagnosesId}`);
+            navigate(`/result/diagnoses/${productId}`);
         },
         onError: (error) => {
             alert(error instanceof Error ? error.message : "답변 제출에 실패했습니다. 다시 시도해주세요.");
