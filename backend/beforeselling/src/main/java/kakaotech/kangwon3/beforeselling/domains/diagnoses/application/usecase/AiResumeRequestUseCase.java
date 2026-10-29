@@ -98,10 +98,12 @@ public class AiResumeRequestUseCase {
         }
     }
 
-    // 받지 못한 것이 확실하면(429·5xx·연결 실패) 다시 보낸다. 받았는지 모르면 중복될 수 있어 멈춘 진단 정리에 맡긴다.
+    // 받지 못한 것이 확실하면(429·5xx·연결 실패) 재요청 대기로 표시해 다시 보낸다.
+    // 받았는지 모르면 대기 표시를 바꾸지 않는다. 처음 요청이면 다시 보내지 않고 멈춘 진단 정리에 맡기고,
+    // 재요청 중이었다면 표시가 남아 다음 재요청에서 다시 보낸다. AI가 이미 받았다면 그 재요청은 409로 끝난다.
     private void handleNotAccepted(AiResumeRequestedEvent event, RestClientException e) {
         if (!AiDiagnosesClient.isNotReceived(e)) {
-            log.error("AI가 재진단 요청을 받았는지 알 수 없어 다시 보내지 않습니다. diagnosesId={}, productId={}, runId={}",
+            log.error("AI가 재진단 요청을 받았는지 알 수 없어 재요청 대기 표시를 바꾸지 않습니다. diagnosesId={}, productId={}, runId={}",
                     event.diagnosesId(), event.productId(), event.runId(), e);
             return;
         }
