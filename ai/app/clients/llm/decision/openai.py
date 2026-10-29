@@ -11,7 +11,7 @@ from ....schemas.clients.decision_request import (
 from ....schemas.clients.decision_response import (
     ChoiceAnswer,
     DecisionAnswer,
-    DecisionResponse,
+    DecisionUsage,
     RefusedAnswer,
     ScoreAnswer,
     YesNoAnswer,
@@ -47,29 +47,42 @@ class OpenAIDecisionClient(DecisionClient):
             "questions": [_question_payload(question) for question in request.questions],
         }
 
-    def _from_payload(self, body: dict) -> DecisionResponse:
-        """OpenAI 응답 본문을 공통 응답으로 바꾼다.
+    def _usage_from_payload(self, body: dict) -> DecisionUsage:
+        """OpenAI 응답 본문에서 모델·토큰 사용량을 읽는다.
 
         Args:
             body: JSON 응답 본문.
 
         Returns:
-            DecisionResponse: 질문 이름별 답과 토큰 사용량.
+            DecisionUsage: 모델·토큰 사용량.
 
         Raises:
             KeyError: 필수 필드가 빠진 경우.
-            ValueError: 모르는 답 종류이거나 값이 범위를 벗어난 경우.
         """
         usage = body["usage"]
         input_details = usage.get("input_tokens_details") or {}
-        return DecisionResponse(
+        return DecisionUsage(
             model=body["model"],
-            answers={answer["name"]: _answer(answer) for answer in body["answers"]},
             input_tokens=usage["input_tokens"],
             cached_tokens=input_details.get("cached_tokens", 0),
             cache_write_tokens=input_details.get("cache_write_tokens", 0),
             output_tokens=usage.get("output_tokens", 0),
         )
+
+    def _answers_from_payload(self, body: dict) -> dict[str, DecisionAnswer]:
+        """OpenAI 응답 본문의 답을 질문 이름별 공통 답으로 바꾼다.
+
+        Args:
+            body: JSON 응답 본문.
+
+        Returns:
+            dict[str, DecisionAnswer]: 질문 이름별 답.
+
+        Raises:
+            KeyError: 필수 필드가 빠진 경우.
+            ValueError: 모르는 답 종류이거나 값이 범위를 벗어난 경우.
+        """
+        return {answer["name"]: _answer(answer) for answer in body["answers"]}
 
 
 def _question_payload(question: DecisionQuestion) -> dict:

@@ -8,18 +8,21 @@ from abc import ABC, abstractmethod
 import httpx
 
 from ....schemas.clients.decision_request import DecisionRequest
-from ....schemas.clients.decision_response import DecisionResponse
+from ....schemas.clients.decision_response import DecisionAnswer, DecisionResponse, DecisionUsage
 from ...request import RequestClient
 from ..client import TIMEOUT_SECONDS
 from .errors import DecisionRequestError, DecisionResponseError
 
 DECISIONS_PATH = "/decisions"
+# 맵 대신 배열·null처럼 모양이 다르면 AttributeError·IndexError도 남 (pydantic ValidationError는 ValueError 하위)
+_SHAPE_ERRORS = (KeyError, TypeError, ValueError, AttributeError, IndexError)
 
 
 class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
     """판단 API 클라이언트 공통 베이스. 요청 전송·인증·응답 검사만 맡음.
 
-    하위 클라이언트는 `_to_payload`(공통 요청 → 제공사 본문)와 `_from_payload`(제공사 본문 → 공통 응답)만 구현.
+    하위 클라이언트는 `_to_payload`(공통 요청 → 제공사 본문), `_usage_from_payload`(사용량)와
+    `_answers_from_payload`(답)만 구현.
 
     Args:
         base_url: 게이트웨이 주소 (OPENAI_BASE_URL).
@@ -56,7 +59,7 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
         response = self.fetch_parsed(request)
         missing = [question.name for question in request.questions if question.name not in response.answers]
         if missing:
-            raise DecisionResponseError(f"판단 응답에 답이 없는 질문: {missing}")
+            raise DecisionResponseError(f"판단 응답에 답이 없는 질문: {missing}", usage=response.usage)
         return response
 
     # -- 인터페이스 (하위 클라이언트 구현) --
@@ -73,14 +76,25 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
         """
 
     @abstractmethod
-    def _from_payload(self, body: dict) -> DecisionResponse:
-        """제공사 응답 본문을 공통 응답으로 바꾼다. 필드가 빠졌거나 모양이 다르면 예외를 냄.
+    def _usage_from_payload(self, body: dict) -> DecisionUsage:
+        """제공사 응답 본문에서 모델·토큰 사용량을 읽는다. 필드가 빠졌거나 모양이 다르면 예외를 냄.
 
         Args:
             body: JSON 응답 본문.
 
         Returns:
-            DecisionResponse: 질문 이름별 답과 토큰 사용량.
+            DecisionUsage: 모델·토큰 사용량.
+        """
+
+    @abstractmethod
+    def _answers_from_payload(self, body: dict) -> dict[str, DecisionAnswer]:
+        """제공사 응답 본문의 답을 질문 이름별 공통 답으로 바꾼다. 필드가 빠졌거나 모양이 다르면 예외를 냄.
+
+        Args:
+            body: JSON 응답 본문.
+
+        Returns:
+            dict[str, DecisionAnswer]: 질문 이름별 답.
         """
 
     # -- RequestClient 구현 --
@@ -117,11 +131,17 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
             raise DecisionResponseError(f"판단 응답이 JSON이 아님: {raw.text[:200]!r}") from exc
         if not isinstance(body, dict):
             raise DecisionResponseError(f"판단 응답 본문이 객체가 아님: {type(body).__name__}")
+        # 답을 못 읽어도 쓴 토큰은 남기도록 사용량을 먼저 따로 읽음
         try:
-            return self._from_payload(body)
-        # 맵 대신 배열·null처럼 모양이 다르면 AttributeError·IndexError도 남 (pydantic ValidationError는 ValueError 하위)
-        except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
-            raise DecisionResponseError(f"판단 응답 변환 실패: {type(exc).__name__}: {exc}") from exc
+            usage = self._usage_from_payload(body)
+        except _SHAPE_ERRORS as exc:
+            raise DecisionResponseError(f"판단 응답 사용량 변환 실패: {type(exc).__name__}: {exc}") from exc
+        try:
+            return DecisionResponse(answers=self._answers_from_payload(body), usage=usage)
+        except _SHAPE_ERRORS as exc:
+            raise DecisionResponseError(
+                f"판단 응답 답 변환 실패: {type(exc).__name__}: {exc}", usage=usage,
+            ) from exc
 
 
 def check_request(request: DecisionRequest) -> None:

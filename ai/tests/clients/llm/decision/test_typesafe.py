@@ -10,7 +10,7 @@ import pytest
 
 from app.clients.llm.decision import DecisionResponseError
 from app.clients.llm.decision.typesafe import TypeSafeDecisionClient
-from app.schemas.clients.decision_response import ChoiceAnswer, ScoreAnswer, YesNoAnswer
+from app.schemas.clients.decision_response import ChoiceAnswer, DecisionUsage, ScoreAnswer, YesNoAnswer
 
 from .conftest import API_KEY, BASE_URL
 
@@ -67,7 +67,6 @@ def test_답과_토큰을_공통_응답으로_바꾼다(wire, client, decision_r
 
     response = client.decide(decision_request)
 
-    assert response.model == "typesafe/jev-1.14-20261014"
     assert response.answers == {
         "kind_kids": YesNoAnswer(probability=0.61),
         "category": ChoiceAnswer(
@@ -76,8 +75,9 @@ def test_답과_토큰을_공통_응답으로_바꾼다(wire, client, decision_r
         # 단계 번호 키 순서와 상관없이 번호 순 리스트
         "kid_use": ScoreAnswer(score=0.19, probabilities=[0.86, 0.09, 0.05], confidence=0.71),
     }
-    assert (response.input_tokens, response.cached_tokens, response.cache_write_tokens, response.output_tokens) == (
-        421, 100, 20, 0)
+    assert response.usage == DecisionUsage(
+        model="typesafe/jev-1.14-20261014", input_tokens=421, cached_tokens=100, cache_write_tokens=20, output_tokens=0,
+    )
 
 
 def test_모르는_답_종류는_DecisionResponseError(wire, client, decision_request):

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 from .config.catalog import CHAT_MODELS, DECISION_MODELS
 
 if TYPE_CHECKING:
-    from .schemas.clients.decision_response import DecisionResponse
+    from .schemas.clients.decision_response import DecisionUsage
 
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
 
@@ -155,21 +155,21 @@ def from_completion(completion) -> CallUsage | None:
     )
 
 
-def from_decision(response: "DecisionResponse") -> CallUsage:
-    """판단 응답(/decisions)에서 사용량을 뽑는다. 판단 모델은 추론 토큰을 따로 보고하지 않음.
+def from_decision(usage: "DecisionUsage") -> CallUsage:
+    """판단 응답(/decisions)의 사용량을 바꾼다. 판단 모델은 추론 토큰을 따로 보고하지 않음.
 
     Args:
-        response: 판단 클라이언트가 바꾼 공통 응답.
+        usage: 판단 클라이언트가 응답에서 읽은 모델·토큰 사용량.
 
     Returns:
         CallUsage: 사용량. reported_model은 응답이 알려 준 실제 모델 (Jev는 버전 포함).
     """
     return CallUsage(
-        reported_model=response.model,
-        input_tokens=response.input_tokens,
-        cached_tokens=response.cached_tokens,
-        output_tokens=response.output_tokens,
-        cache_write_tokens=response.cache_write_tokens,
+        reported_model=usage.model,
+        input_tokens=usage.input_tokens,
+        cached_tokens=usage.cached_tokens,
+        output_tokens=usage.output_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
     )
 
 

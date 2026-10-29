@@ -368,14 +368,15 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         try:
             response = self._decision_client.decide(request)
         except DecisionResponseError as exc:
-            # 응답은 받았으나 모양이 다르거나 답이 빠짐 → 토큰을 읽을 수 없어 사용량 없이 기록
-            self._fail(ModelFailurePhase.PARSING, exc, None, subject_id, started_at, partial_result,
+            # 응답은 받았으나 모양이 다르거나 답이 빠짐 → 읽은 토큰까지 기록
+            usage = from_decision(exc.usage) if exc.usage else None
+            self._fail(ModelFailurePhase.PARSING, exc, usage, subject_id, started_at, partial_result,
                        called_model=self._decision_model)
         except Exception as exc:
             # 응답 자체를 못 받음 (네트워크·타임아웃·인증·4xx·5xx)
             self._fail(ModelFailurePhase.CALL, exc, None, subject_id, started_at, partial_result,
                        called_model=self._decision_model)
-        return response, from_decision(response), started_at
+        return response, from_decision(response.usage), started_at
 
     def _failure_message(self, phase: ModelFailurePhase, cause: Exception) -> str:
         """실패 문구를 만든다. 호출 실패는 작업 이름, 파싱 실패는 출력 이름으로.
