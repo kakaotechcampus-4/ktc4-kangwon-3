@@ -38,14 +38,14 @@ class ScoreAnswer(BaseModel):
 
     Attributes:
         type: 답 종류.
-        score: 단계 확률로 낸 기댓값 점수.
-        probabilities: 단계 이름별 확률.
+        score: 단계 확률로 낸 기댓값 점수 (단계 번호 기준, 0부터).
+        probabilities: 단계별 확률. 요청 단계 순서(낮은 단계부터).
         confidence: 모델이 낸 확신도.
     """
 
     type: Literal["score"] = "score"
     score: float
-    probabilities: dict[str, float]
+    probabilities: list[float]
     confidence: float = Field(ge=0, le=1)
 
 
