@@ -22,8 +22,6 @@ function AttachedImages({ productName, imageUrls }: AttachedImagesProps) {
         return null;
     }
 
-    const lightboxImages = imageUrls.map((imageUrl, index) => ({ src: imageUrl, alt: `${productName} 상세 이미지 ${index + 1}` }));
-
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
             <SectionIntro title="첨부된 이미지" size="xl"/>
@@ -50,7 +48,7 @@ function AttachedImages({ productName, imageUrls }: AttachedImagesProps) {
             </div>
             {selectedIndex !== null && (
                 <ImageLightbox
-                    images={lightboxImages}
+                    images={imageUrls.map((imageUrl, index) => ({ src: imageUrl, alt: `${productName} 상세 이미지 ${index + 1}` }))}
                     currentIndex={selectedIndex}
                     onIndexChange={setSelectedIndex}
                     onClose={() => setSelectedIndex(null)}

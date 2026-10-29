@@ -12,7 +12,7 @@ function ReflectedAnswersSection({ questions }: ReflectedAnswersSectionProps) {
         return null;
     }
 
-    const sortedQuestions = [...questions].sort((a, b) =>
+    const sortedQuestions = questions.toSorted((a, b) =>
         a.questionRound - b.questionRound || a.questionOrder - b.questionOrder,
     );
 

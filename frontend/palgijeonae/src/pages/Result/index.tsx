@@ -1,4 +1,3 @@
-import axios from "axios";
 import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -38,7 +37,7 @@ function ResultPage() {
         }
     }, [isInvalidAccess, navigate]);
 
-    const { data, isPending, isError, error, refetch } = useProductResults(productId, diagnosesId, isInvalidAccess);
+    const { data, isPending, isError, refetch, isNotFoundError } = useProductResults(productId, diagnosesId, isInvalidAccess);
     // product undefined error 방지
     const products = data ?? EMPTY_PRODUCT_RESULTS;
 
@@ -50,11 +49,6 @@ function ResultPage() {
     // 진단이 끝나기 전에는 다음단계 탭을 비활성화 한다.
     const isDiagnosisComplete = currentProduct?.resultStatus != null;
     const disabledTabs = isDiagnosisComplete ? [] : [ResultTabKey.NextSteps];
-    // 상품을 전환했는데 선택된 탭이 막혀 있으면 진단결과 탭을 대신 보여준다.
-    const effectiveSelectedTab = disabledTabs.includes(selectedTab) ? ResultTabKey.DiagnosisResult : selectedTab;
-
-    // 존재하지 않는 id로 접근한 경우(404)는 재시도를 띄우지 않고 메인으로 돌려보낸다.
-    const isNotFoundError = axios.isAxiosError(error) && error.response?.status === 404;
 
     useEffect(() => {
         if (isNotFoundError) {
@@ -65,6 +59,12 @@ function ResultPage() {
 
     const handleNextStepsClick = () => {
         setSelectedTab(ResultTabKey.NextSteps);
+    };
+
+    // 상품을 전환하면 진단결과 탭으로 되돌린다.
+    const handleProductSelect = (index: number) => {
+        setSelectedProductIndex(index);
+        setSelectedTab(ResultTabKey.DiagnosisResult);
     };
 
     // TODO: 추후 탭 컴포넌트 props 구현에 따라 수정 필요
@@ -102,7 +102,7 @@ function ResultPage() {
                 </p>
             ) : (
                 <div className="flex w-full flex-col gap-6">
-                    <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={setSelectedProductIndex} />
+                    <ProductTabs productNames={productNames} selected={selectedProductIndex} onSelect={handleProductSelect} />
                     <ProductPreview
                         productName={currentProduct.productName}
                         productImageUrl={currentProduct.productImageUrl}
@@ -110,9 +110,9 @@ function ResultPage() {
                         processingStatus={currentProduct.processingStatus}
                         sourceType={currentProduct.sourceType}
                     />
-                    <ResultTabs selected={effectiveSelectedTab} onSelect={setSelectedTab} disabledTabs={disabledTabs} />
+                    <ResultTabs selected={selectedTab} onSelect={setSelectedTab} disabledTabs={disabledTabs} />
                     <div aria-live="polite">
-                        {tabPanels[effectiveSelectedTab]}
+                        {tabPanels[selectedTab]}
                     </div>
                 </div>
             )}

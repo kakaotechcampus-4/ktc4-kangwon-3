@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 
-import { Determination, type ProductResult, ToolReviewStatus } from "@/api/product";
+import type { Finding, ProductResult } from "@/api/product";
+import { ToolReviewStatus } from "@/api/product";
 
 import { DETERMINATION_DESCRIPTIONS, DETERMINATION_LABELS, DETERMINATION_LEGEND_ORDER } from "./constants";
 import FindingFilterBar, { type FindingFilter } from "./FindingFilterBar";
@@ -14,33 +15,38 @@ interface DiagnosisResultTabProps {
     onNextStepsClick: () => void
 }
 
+// 필터 탭에 전달할 각 Determination 상태 별 FindingCard 개수. null은 "전체"를 나타낸다.
+function countFindingsByDetermination(findings: Finding[]): Map<FindingFilter, number> {
+    const counts = new Map<FindingFilter, number>([[null, findings.length]]);
+    for (const determination of DETERMINATION_LEGEND_ORDER) {
+        counts.set(determination, findings.filter((finding) => finding.determination === determination).length);
+    }
+    return counts;
+}
+
 function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: DiagnosisResultTabProps) {
-    const { resultStatus, processingStatus, summary, requiredActions, failure, toolReviews } = product;
+    const { toolReviews } = product;
+    
+    // productId로 접근해 diagnosesId가 없는 경우 경로를 만들지 않는다. 
+    const judgementPath = diagnosesId ? `/judgement/${diagnosesId}` : undefined;
+    const questionPath = diagnosesId ? `/question/${diagnosesId}` : undefined;
+
     const [findingFilter, setFindingFilter] = useState<FindingFilter>(null);
+
     const determinationTooltipId = useId();
+
     const visibleToolReviews = toolReviews.filter((toolReview) => toolReview.status !== ToolReviewStatus.Skipped);
     const skippedToolReviews = toolReviews.filter((toolReview) => toolReview.status === ToolReviewStatus.Skipped);
 
-    // 필터 탭에 전달한 각 Determination 상태 별 FindingCard 개수
     const allFindings = visibleToolReviews.flatMap((toolReview) => toolReview.findings);
-    const findingCounts = new Map<FindingFilter, number>([
-        [null, allFindings.length],
-        [Determination.Required, allFindings.filter((finding) => finding.determination === Determination.Required).length],
-        [Determination.PossiblyRequired, allFindings.filter((finding) => finding.determination === Determination.PossiblyRequired).length],
-        [Determination.NotRequired, allFindings.filter((finding) => finding.determination === Determination.NotRequired).length],
-        [Determination.InsufficientInformation, allFindings.filter((finding) => finding.determination === Determination.InsufficientInformation).length],
-        [Determination.NotApplicable, allFindings.filter((finding) => finding.determination === Determination.NotApplicable).length],
-    ]);
+    const findingCounts = countFindingsByDetermination(allFindings);
 
     return (
         <div className="flex w-full flex-col gap-6">
             <ResultBanner
-                resultStatus={resultStatus}
-                processingStatus={processingStatus}
-                summary={summary}
-                requiredActions={requiredActions}
-                failure={failure}
-                diagnosesId={diagnosesId}
+                product={product}
+                judgementPath={judgementPath}
+                questionPath={questionPath}
                 onNextStepsClick={onNextStepsClick}
             />
             <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
