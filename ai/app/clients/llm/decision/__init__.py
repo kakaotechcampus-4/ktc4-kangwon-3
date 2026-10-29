@@ -1,8 +1,8 @@
 """판단 API(/decisions) 클라이언트: 공통 베이스와 제공사별 형식 변환."""
 
 from ....config import ConfigError, DecisionProfile, Settings, load_settings
-from .base import DecisionClient
-from .errors import DecisionResponseError
+from .base import DecisionClient, check_request
+from .errors import DecisionRequestError, DecisionResponseError
 from .openai import OpenAIDecisionClient
 from .typesafe import TypeSafeDecisionClient
 
@@ -34,6 +34,6 @@ def build_decision_client(profile: DecisionProfile, settings: Settings | None = 
 
 
 __all__ = [
-    "DecisionClient", "DecisionResponseError", "OpenAIDecisionClient", "TypeSafeDecisionClient",
-    "build_decision_client",
+    "DecisionClient", "DecisionRequestError", "DecisionResponseError", "OpenAIDecisionClient",
+    "TypeSafeDecisionClient", "build_decision_client", "check_request",
 ]

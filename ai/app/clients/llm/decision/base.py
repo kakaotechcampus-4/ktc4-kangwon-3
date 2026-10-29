@@ -11,7 +11,7 @@ from ....schemas.clients.decision_request import DecisionRequest
 from ....schemas.clients.decision_response import DecisionResponse
 from ...request import RequestClient
 from ..client import TIMEOUT_SECONDS
-from .errors import DecisionResponseError
+from .errors import DecisionRequestError, DecisionResponseError
 
 DECISIONS_PATH = "/decisions"
 
@@ -47,10 +47,12 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
             DecisionResponse: 질문 이름별 답과 토큰 사용량.
 
         Raises:
+            DecisionRequestError: 질문 이름·후보 값이 겹쳐 보낼 수 없는 경우. 요청은 보내지 않음.
             httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우.
             httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우.
             DecisionResponseError: 응답을 공통 모양으로 바꿀 수 없거나 답이 빠진 질문이 있는 경우.
         """
+        check_request(request)
         response = self.fetch_parsed(request)
         missing = [question.name for question in request.questions if question.name not in response.answers]
         if missing:
@@ -120,3 +122,28 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
         # 맵 대신 배열·null처럼 모양이 다르면 AttributeError·IndexError도 남 (pydantic ValidationError는 ValueError 하위)
         except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
             raise DecisionResponseError(f"판단 응답 변환 실패: {type(exc).__name__}: {exc}") from exc
+
+
+def check_request(request: DecisionRequest) -> None:
+    """제공사 형식으로 보낼 수 있는 요청인지 확인한다.
+
+    Jev는 질문·후보를 이름 키 맵으로 보내 같은 이름이면 앞의 것이 덮이고, 답도 질문 이름으로 찾아 섞임.
+
+    Args:
+        request: 판단 요청.
+
+    Raises:
+        DecisionRequestError: 질문 이름이나 한 질문 안의 후보·단계 값이 겹치는 경우.
+    """
+    problems = _duplicates([question.name for question in request.questions], "질문 이름")
+    for question in request.questions:
+        options = getattr(question, "options", None) or getattr(question, "levels", None) or []
+        problems += _duplicates([option.value for option in options], f"{question.name}의 후보·단계 값")
+    if problems:
+        raise DecisionRequestError(f"보낼 수 없는 판단 요청: {problems}")
+
+
+def _duplicates(values: list[str], label: str) -> list[str]:
+    """겹치는 값이 있으면 문제 설명 하나를 돌려준다."""
+    repeated = sorted({value for value in values if values.count(value) > 1})
+    return [f"{label} 중복 {repeated}"] if repeated else []

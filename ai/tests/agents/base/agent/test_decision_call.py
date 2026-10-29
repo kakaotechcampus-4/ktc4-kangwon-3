@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from app.agents.base import agent as agent_module
-from app.clients.llm.decision import DecisionResponseError, TypeSafeDecisionClient
+from app.clients.llm.decision import DecisionRequestError, DecisionResponseError, TypeSafeDecisionClient
 from app.config import DECISION_PROFILES
 from app.schemas.clients.decision_response import YesNoAnswer
 
@@ -99,3 +99,13 @@ def test_판단_프로필이_있으면_그_프로필로_판단_클라이언트�
 def test_판단_클라이언트만_주고_등록명을_안_주면_만들_때_실패한다(fakes, stub_model):
     with pytest.raises(ValueError, match="decision_model"):
         fakes.Agent(stub_model(fakes.Answer(value="ok")), decision_client=_decision_client(lambda request: None))
+
+
+def test_이름이_겹치는_질문은_보내지도_기록하지도_않는다(fakes, stub_model, records):
+    sent = []
+    agent = _agent(fakes, stub_model, lambda request: sent.append(request))
+
+    # 코드 오류라 모델 실패로 감싸지 않고 그대로 올림
+    with pytest.raises(DecisionRequestError):
+        agent._call_decision(SUBJECT, QUESTIONS * 2, subject_id="p-1")
+    assert (sent, records) == ([], [])
