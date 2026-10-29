@@ -15,7 +15,7 @@ from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
 from ...clients.llm import build_agent_model, build_tool_model
-from ...clients.llm.decision import DecisionClient, DecisionResponseError, build_decision_client
+from ...clients.llm.decision import DecisionClient, DecisionResponseError, build_decision_client, check_request
 from ...config import agent_decision_profile
 from ...observability.agent_sinks import agent_sinks
 from ...prompts import PromptName, PromptSnapshot, get_prompt
@@ -357,11 +357,13 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         Raises:
             AgentError: 호출 실패(call)·응답 변환 실패(parsing). 실제 타입은 ``error_class``, 원인은 ``__cause__``.
             RuntimeError: 판단 모델 없이 호출한 경우.
+            DecisionRequestError: 질문 이름·후보 값이 겹치는 경우. 코드 오류라 실패로 기록하지 않음.
         """
         if self._decision_client is None:
             raise RuntimeError(f"{self.component_name}: 판단 모델 없이 _call_decision을 호출했습니다.")
 
         request = DecisionRequest(model=self._decision_model, subject=subject, questions=questions)
+        check_request(request)
         started_at = perf_counter()
         try:
             response = self._decision_client.decide(request)

@@ -6,7 +6,7 @@
 import httpx
 import pytest
 
-from app.clients.llm.decision import DecisionClient, DecisionResponseError
+from app.clients.llm.decision import DecisionClient, DecisionRequestError, DecisionResponseError
 from app.schemas.clients.decision_request import DecisionRequest
 from app.schemas.clients.decision_response import DecisionResponse
 
@@ -73,3 +73,27 @@ def test_HTTP_오류는_HTTPStatusError_그대로(wire, decision_request):
 
     with pytest.raises(httpx.HTTPStatusError):
         client.decide(decision_request)
+
+
+@pytest.mark.parametrize(("questions", "message"), [
+    ([
+        {"type": "yes_no", "name": "q", "instructions": "A인가"},
+        {"type": "yes_no", "name": "q", "instructions": "B인가"},
+    ], "질문 이름 중복"),
+    ([
+        {"type": "choice", "name": "c", "instructions": "종류",
+         "options": [{"value": "a", "description": "1"}, {"value": "a", "description": "2"}]},
+    ], "c의 후보·단계 값 중복"),
+    ([
+        {"type": "score", "name": "s", "instructions": "정도", "levels": [{"value": "low"}, {"value": "low"}]},
+    ], "s의 후보·단계 값 중복"),
+], ids=["질문 이름", "고르기 후보", "점수 단계"])
+def test_이름이나_값이_겹치는_요청은_보내지_않고_실패한다(wire, questions, message):
+    # Jev는 이름 키 맵으로 보내 겹치면 앞 질문·후보가 덮이고, 답도 이름으로 찾아 섞임
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    sent = wire(client, lambda request: _ok("q"))
+    request = DecisionRequest(model="m", subject={}, questions=questions)
+
+    with pytest.raises(DecisionRequestError, match=message):
+        client.decide(request)
+    assert sent == []
