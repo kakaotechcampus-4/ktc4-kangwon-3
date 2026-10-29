@@ -74,6 +74,7 @@ class SessionManager:
         self._lock = Lock()
         self._accepted: dict[RunType, int] = dict.fromkeys(RunType, 0)
         self._rejected: dict[RejectReason, int] = {"queue_full": 0, "conflict": 0}
+        self._awaiting_replaced = 0
 
     def subscribe(self, listener: SessionListener) -> None:
         """세션 이벤트(시작·단계 변경·Tool 진행·완료·답변 대기·실패)마다 부를 함수를 등록한다.
@@ -95,13 +96,13 @@ class SessionManager:
         return self._store.get(product_id)
 
     def snapshot(self) -> SessionSnapshot:
-        """지금 현황을 읽는다. 상태별 수·자리·상한·누적 접수/거절.
+        """지금 현황을 읽는다. 상태별 수·자리·상한·누적 접수/거절/답변 대기 교체.
 
         Returns:
             SessionSnapshot: 읽은 순간의 현황. 항목마다 따로 읽어 서로 잠깐 어긋날 수 있음.
         """
         with self._lock:
-            accepted, rejected = dict(self._accepted), dict(self._rejected)
+            accepted, rejected, awaiting_replaced = dict(self._accepted), dict(self._rejected), self._awaiting_replaced
         return SessionSnapshot(
             status_counts=self._store.count_by_status(),
             inflight=self._capacity.inflight,
@@ -111,6 +112,7 @@ class SessionManager:
             max_dev_inflight=self._max_dev_inflight,
             accepted=accepted,
             rejected=rejected,
+            awaiting_replaced=awaiting_replaced,
         )
 
     def submit(
@@ -311,6 +313,7 @@ class SessionManager:
                 if replaced is not None and replaced.status is SessionStatus.AWAITING_INPUT:
                     logger.info("답변 대기 세션을 버리고 새로 접수 (product_id=%s, run_id=%s, question_round=%d)",
                                 item.product_id, replaced.context.run_id, replaced.question_round)
+                    self._awaiting_replaced += 1
 
             now = self._clock()
             sessions = [
