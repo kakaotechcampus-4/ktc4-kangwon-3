@@ -31,6 +31,7 @@ public class AiResumeRequestEventListener {
     static final String UNKNOWN_QUESTION_KEY = "AI_UNKNOWN_QUESTION_KEY";
     static final String INVALID_REQUEST = "AI_INVALID_REQUEST";
     static final String RESUME_CONFLICT = "AI_RESUME_CONFLICT";
+    static final String UNAUTHORIZED = "AI_UNAUTHORIZED";
 
     static final String SESSION_NOT_FOUND_MESSAGE = "진단 정보를 찾을 수 없어 이어서 진행할 수 없습니다. 다시 진단해 주세요.";
     static final String REJECTED_MESSAGE = "진단을 이어서 진행하지 못했습니다.";
@@ -77,7 +78,7 @@ public class AiResumeRequestEventListener {
             // 세션이 사라져(AI 재시작, 답변 대기 24시간 경과) 이어서 진단할 수 없다. 처음부터 다시 진단하면 접수된다.
             case SESSION_NOT_FOUND -> fail(event, code, SESSION_NOT_FOUND_MESSAGE, true);
             // BE가 잘못 보낸 요청
-            case UNKNOWN_QUESTION_KEY, INVALID_REQUEST, RESUME_CONFLICT -> {
+            case UNKNOWN_QUESTION_KEY, INVALID_REQUEST, RESUME_CONFLICT, UNAUTHORIZED -> {
                 log.error("AI가 재진단 요청을 거절했습니다. diagnosesId={}, productId={}, status={}, code={}, body={}",
                         event.diagnosesId(), event.productId(), e.getStatusCode(), code,
                         e.getResponseBodyAsString());

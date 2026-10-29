@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.infra.ai;
 
 import kakaotech.kangwon3.beforeselling.global.config.properties.AiServerProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiApiResponse;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesAccepted;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesRequest;
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -42,6 +44,7 @@ class AiDiagnosesClientTest {
     private static final String BASE_URL = "http://ai-server:8000";
     private static final String DIAGNOSE_URL = BASE_URL + "/api/ai/v1/diagnose/content";
     private static final String RESUME_URL = BASE_URL + "/api/ai/v1/diagnose/resume";
+    private static final String INTERNAL_TOKEN = "test-internal-token-at-least-32-characters";
 
     private MockRestServiceServer server;
     private AiDiagnosesClient client;
@@ -50,7 +53,8 @@ class AiDiagnosesClientTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new AiDiagnosesClient(builder.build(), new AiServerProperties(BASE_URL));
+        client = new AiDiagnosesClient(builder.build(), new AiServerProperties(BASE_URL),
+                new InternalApiProperties(INTERNAL_TOKEN));
     }
 
     @Test
@@ -105,6 +109,26 @@ class AiDiagnosesClientTest {
                 .containsExactly(
                         tuple("product-1", "run-1"),
                         tuple("product-2", "run-2"));
+    }
+
+    @Test
+    @DisplayName("AI 진단 접수 요청에 내부 토큰 헤더를 담아 보낸다.")
+    void requestDiagnoses_thenSendInternalTokenHeader() {
+        // given
+        server.expect(requestTo(DIAGNOSE_URL))
+                .andExpect(header("X-Internal-Token", INTERNAL_TOKEN))
+                .andRespond(withStatus(HttpStatus.ACCEPTED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code": "OK", "message": "접수되었습니다.", "details": null,
+                                 "data": {"diagnosisId": "diagnosis-1", "products": []}}
+                                """));
+
+        // when
+        client.requestDiagnoses(emptyRequest());
+
+        // then
+        server.verify();
     }
 
     @Test
@@ -268,7 +292,7 @@ class AiDiagnosesClientTest {
         factory.setConnectTimeout(Duration.ofSeconds(1));
         factory.setReadTimeout(readTimeout);
         return new AiDiagnosesClient(RestClient.builder().requestFactory(factory).build(),
-                new AiServerProperties(baseUrl));
+                new AiServerProperties(baseUrl), new InternalApiProperties(INTERNAL_TOKEN));
     }
 
     @Test
@@ -306,6 +330,26 @@ class AiDiagnosesClientTest {
         // then
         server.verify();
         assertThat(accepted).isEqualTo(new AiResumeAccepted("product-1", "run-2", "accepted"));
+    }
+
+    @Test
+    @DisplayName("AI 재진단 요청에 내부 토큰 헤더를 담아 보낸다.")
+    void requestResume_thenSendInternalTokenHeader() {
+        // given
+        server.expect(requestTo(RESUME_URL))
+                .andExpect(header("X-Internal-Token", INTERNAL_TOKEN))
+                .andRespond(withStatus(HttpStatus.ACCEPTED)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"code": "OK", "message": "재진단 요청이 접수되었습니다.", "details": null,
+                                 "data": {"productId": "product-1", "runId": "run-2", "status": "accepted"}}
+                                """));
+
+        // when
+        client.requestResume(new AiResumeRequest("diagnosis-1", "product-1", "run-1", 1, List.of()));
+
+        // then
+        server.verify();
     }
 
     @Test
