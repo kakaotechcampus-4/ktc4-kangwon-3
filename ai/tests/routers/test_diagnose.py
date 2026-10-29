@@ -116,7 +116,7 @@ def test_진행_중인_상품이_섞이면_전체를_409로_거절한다(client,
     assert response.status_code == 409
     assert response.json() == {
         "code": "AI_SESSION_CONFLICT",
-        "message": "이미 진행 중인 상품이 있습니다.",
+        "message": "이미 실행 중인 상품이 있습니다.",
         "details": None,
         "data": {"conflictProductIds": ["p-1"]},
     }
@@ -318,11 +318,17 @@ def test_형식이_틀린_재진단_요청은_422로_거절한다(client, manage
     assert manager.get("p-1") == waiting
 
 
-def test_답변_대기_상품을_새_진단으로_다시_보내면_409다(client, manager):
-    # 답변 대기는 진행 중 상태. 이어서 진단하려면 resume으로 보내야 함 (#365)
-    _waiting(manager)
+def test_답변_대기_상품을_새_진단으로_다시_보내면_새_runId로_접수한다(client, manager):
+    # BE가 실패 처리한 상품의 재시도. 답변 대기 세션은 버리고 처음부터 (#451)
+    waiting = _waiting(manager)
 
     response = client.post(CONTENT, json=_payload("p-1"))
 
-    assert response.status_code == 409
-    assert response.json()["data"] == {"conflictProductIds": ["p-1"]}
+    assert response.status_code == 202
+    [accepted] = response.json()["data"]["products"]
+    assert accepted["runId"] == manager.get("p-1").context.run_id != waiting.context.run_id
+
+    stale = client.post(RESUME, json=_resume_payload(waiting))
+
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "AI_RESUME_CONFLICT"

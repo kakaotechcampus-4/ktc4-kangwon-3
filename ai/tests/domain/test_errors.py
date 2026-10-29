@@ -90,7 +90,7 @@ def test_AIServiceError는_RuntimeError로도_잡힌다():
 def test_예외_메시지는_공개_문구와_같다():
     error = AIServiceError(response_code=AIResponseCode.SESSION_CONFLICT.value)
 
-    assert str(error) == "이미 진행 중인 상품이 있습니다."
+    assert str(error) == "이미 실행 중인 상품이 있습니다."
 
 
 def test_기본값은_단계_없음_재시도_불가_부분_결과와_data_없음():

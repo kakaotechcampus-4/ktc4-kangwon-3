@@ -68,10 +68,10 @@ class DiagnosisAcceptedResponse(ApiResponse):
 
 
 class DiagnosisConflict(ApiModel):
-    """이미 진행 중인 상품이 섞여 접수를 거절한 경우의 상세 (409).
+    """이미 실행 중인 상품이 섞여 접수를 거절한 경우의 상세 (409).
 
     Attributes:
-        conflict_product_ids: 진행 중인 상품 ID 목록.
+        conflict_product_ids: 실행 중인 상품 ID 목록.
     """
 
     conflict_product_ids: list[str]
