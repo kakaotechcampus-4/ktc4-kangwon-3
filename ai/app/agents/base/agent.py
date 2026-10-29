@@ -14,14 +14,15 @@ from openai import ContentFilterFinishReasonError, LengthFinishReasonError
 from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
-from ...config import build_agent_model, build_tool_model
+from ...clients.llm import build_agent_model, build_tool_model
+from ...observability.agent_sinks import agent_sinks
 from ...prompts import PromptName, PromptSnapshot, get_prompt
 from ...usage import CallUsage, estimate_krw, from_completion, from_response
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
 from .meta import AgentResult, AgentRunMeta
 from .parsing import parse_structured_output
 from .protocols import InputT, ModelLike, OutputT, ResultT
-from .usage_log import log_token_usage, record_call
+from .usage_log import log_token_usage
 
 
 class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
@@ -334,6 +335,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         prompt = self.prompt
         return AgentRunMeta(
             component=self.component_name,
+            usage_name=self._usage_agent,
             model=self._configured_model,
             reasoning_effort=self._reasoning_effort,
             prompt_name=prompt.name.value,
@@ -354,7 +356,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         error_type: str | None = None,
         failure_phase: ModelFailurePhase | None = None,
     ) -> AgentRunMeta:
-        """호출 1건을 마무리한다. 걸린 시간을 한 번 재서 사용량 로그와 실행 정보에 같이 씀.
+        """호출 1건을 마무리한다. 걸린 시간을 한 번 재서 실행 정보를 만들고 sink 등록표에 넘김.
 
         Args:
             usage: 사용량. 호출 실패로 모르면 None.
@@ -367,18 +369,10 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             AgentRunMeta: 실행 정보.
         """
         elapsed_ms = round((perf_counter() - started_at) * 1000)
-        phase = failure_phase.value if failure_phase else None
-        record_call(
-            self._usage_agent,
-            usage,
-            configured_model=self._configured_model,
-            reasoning_effort=self._reasoning_effort,
-            subject_id=subject_id,
-            elapsed_ms=elapsed_ms,
-            error_type=error_type,
-            failure_phase=phase,
-        )
-        return self._run_meta(usage=usage, elapsed_ms=elapsed_ms, error_type=error_type, failure_phase=failure_phase)
+        meta = self._run_meta(usage=usage, elapsed_ms=elapsed_ms, error_type=error_type, failure_phase=failure_phase)
+        # 사용량 로그(usage.jsonl)도 기본 등록된 sink 중 하나 (usage_log.record_call)
+        agent_sinks.publish(meta, subject_id)
+        return meta
 
     def _fail(
         self,

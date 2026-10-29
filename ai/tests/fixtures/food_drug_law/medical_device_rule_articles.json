@@ -1,0 +1,91 @@
+[
+ {
+  "article_number": "32",
+  "article_branch_number": null,
+  "article_is_exist": "조문",
+  "article_title": "의료기기 수입업허가 등의 면제",
+  "article_content": "제32조(의료기기 수입업허가 등의 면제)",
+  "paragraphs": [
+   {
+    "number": "①",
+    "content": "① 법 제15조제6항에 따라 준용되는 법 제6조제10항에 따라 수입업허가나 수입허가 또는 수입인증을 받지 않거나 수입신고를 하지 않고 수입할 수 있는 의료기기는 다음 각 호와 같다. <개정 2016.6.15, 2018.6.14, 2018.12.31, 2024.1.16>",
+    "items": [
+     {
+      "number": "1.",
+      "branch_number": null,
+      "content": "1. 법 제10조제1항 본문에 따라 임상시험계획의 승인을 받은 임상시험 대상 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "2.",
+      "branch_number": null,
+      "content": "2. 법 제10조제1항 단서에 따라 임상시험계획의 승인을 받지 아니하여도 되는 임상시험을 하기 위하여 필요한 별도의 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "3.",
+      "branch_number": null,
+      "content": "3. 「약사법」 제34조제1항에 따라 임상시험계획의 승인을 받아야 하는 의약품 등에 관한 임상시험을 하기 위하여 필요한 별도의 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "3.",
+      "branch_number": "2",
+      "content": "3의2. 「약사법」 제34조제2항에 따라 임상시험계획의 승인을 받지 않아도 되는 의약품 등에 관한 임상시험을 하기 위하여 필요한 별도의 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "4.",
+      "branch_number": null,
+      "content": "4. 의료기기 수입허가 또는 수입인증을 받거나 수입신고를 하기 위하여 수입하는 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "5.",
+      "branch_number": null,
+      "content": "5. 제품개발 등 연구목적으로 사용되는 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "5.",
+      "branch_number": "2",
+      "content": "5의2. 판매의 목적이 아닌 제품으로서 소비자가 제품의 실물을 확인하는 등 제품 구입에 도움을 주기 위하여 수입하는 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "5.",
+      "branch_number": "3",
+      "content": "5의3. 법 제27조에 따른 시험ㆍ검사를 위하여 수입하는 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "6.",
+      "branch_number": null,
+      "content": "6. 자가 사용용 또는 구호용 의료기기 등 식품의약품안전처장이 정하여 고시하는 의료기기",
+      "sub_items": []
+     },
+     {
+      "number": "7.",
+      "branch_number": null,
+      "content": "7. 삭제<2018.12.31>",
+      "sub_items": []
+     },
+     {
+      "number": "8.",
+      "branch_number": null,
+      "content": "8. 식품의약품안전처장이 품질관리체계, 검사성능 및 숙련도 등을 평가하여 적합하다고 인정하는 임상검사실에서 사용하는 의료기기로서 식품의약품안전처장이 정하여 고시하는 의료기기",
+      "sub_items": []
+     }
+    ]
+   },
+   {
+    "number": "②",
+    "content": "② 제1항에 따라 수입업허가 및 수입허가ㆍ수입인증ㆍ수입신고 대상에서 제외하는 의료기기의 수입 절차ㆍ대상 및 확인서 발급 등에 관한 사항은 식품의약품안전처장이 정하여 고시한다.",
+    "items": []
+   }
+  ],
+  "enforce_date": "20260701",
+  "reference": null,
+  "headings": []
+ }
+]

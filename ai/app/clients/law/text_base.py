@@ -7,7 +7,7 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .base import LawGoKrClient
-from ..base import ResponseT
+from ..request import ResponseT
 from ...schemas.clients.law_request import LawTextRequest
 from ...schemas.clients.law_response import LawAnnex
 

@@ -5,8 +5,9 @@ import time
 
 import pytest
 
-from app.callbacks import CallbackOutbox, EventBuilder, SendResult, connect_callbacks
-from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.callbacks import CallbackOutbox, EventBuilder, connect_callbacks
+from app.clients.backend import SendResult
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.routers import _dummy
 from app.schemas.agent import ExtractionInput
 from app.schemas.base import utc_now

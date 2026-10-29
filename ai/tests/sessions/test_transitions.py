@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.agent import ExtractionInput

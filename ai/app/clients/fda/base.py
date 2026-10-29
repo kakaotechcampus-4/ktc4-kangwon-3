@@ -4,7 +4,7 @@ from typing import ClassVar
 
 import httpx
 
-from ..base import ResponseT
+from ..request import ResponseT
 from ..data_go_kr import DataGoKrClient
 from ...schemas.clients.fda_request import FdaPaginationRequest
 

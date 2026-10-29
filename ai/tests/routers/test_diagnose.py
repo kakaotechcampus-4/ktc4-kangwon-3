@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.observability.context import ExecutionContext, PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.routers import _dummy
 from app.routers._dummy import build_dummy_assessment, run_dummy_diagnosis
 from app.routers.diagnose import get_session_manager
@@ -85,14 +85,16 @@ def test_상품별_세션을_만들고_202를_반환한다(client, manager):
 
 
 def test_이미지는_추출_입력의_image_urls로_넘긴다(client, manager, gate):
-    product = {"productId": "p-1", "imagesBase64": ["data:image/png;base64,AAA"], "sourceUrl": "https://example.com/1"}
+    # 이미지 URL과 base64 data URI를 같은 필드로 받음 (#310)
+    images = ["https://example.com/a.jpg", "data:image/png;base64,AAA"]
+    product = {"productId": "p-1", "imageUrls": images, "sourceUrl": "https://example.com/1"}
 
     client.post(CONTENT, json={"diagnosisId": "d-1", "products": [product]})
     gate.set()
     manager.shutdown(wait=True)
 
     assert manager.received == [ExtractionInput(
-        product_id="p-1", source_url="https://example.com/1", image_urls=["data:image/png;base64,AAA"],
+        product_id="p-1", source_url="https://example.com/1", image_urls=images,
     )]
 
 

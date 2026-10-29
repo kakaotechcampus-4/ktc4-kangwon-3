@@ -13,10 +13,10 @@ import random
 import threading
 from collections import deque
 from collections.abc import Callable
-from dataclasses import dataclass
 from queue import Queue
 from typing import Protocol
 
+from ..clients.backend import CallbackTransportError, SendResult
 from ..schemas.callback import PublicProductEvent
 
 logger = logging.getLogger(__name__)
@@ -28,25 +28,8 @@ MAX_DELAY_SECONDS = 30.0
 RETRYABLE_CONFLICT_CODES = frozenset({"COMMON-009"})
 
 
-class CallbackTransportError(RuntimeError):
-    """응답을 받지 못한 전송 실패(타임아웃·연결 실패). 재시도 대상."""
-
-
-@dataclass(frozen=True)
-class SendResult:
-    """BE 응답 하나.
-
-    Attributes:
-        status: HTTP 상태 코드.
-        code: 응답 본문의 code (BE ApiResponse, 예: COMMON-009). 없으면 None.
-    """
-
-    status: int
-    code: str | None = None
-
-
 class CallbackSender(Protocol):
-    """이벤트 하나를 BE로 보내는 쪽. 실제 HTTP 전송은 [콜백 2/5]."""
+    """이벤트 하나를 BE로 보내는 쪽. 실제 HTTP 전송은 clients.backend.BackendCallbackClient."""
 
     def send(self, event: PublicProductEvent) -> SendResult:
         """이벤트를 보내고 BE 응답(상태 코드·응답 코드)을 돌려준다.

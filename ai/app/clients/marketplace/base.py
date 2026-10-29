@@ -14,9 +14,10 @@ from typing import ClassVar, TypeVar
 import httpx
 from bs4 import BeautifulSoup
 
-from ..base import BaseClient
+from ..request import RequestClient
 from ...schemas.clients.marketplace_request import ProductPageRequest
 from ...schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from .errors import BlockedUrlError, PageTooLargeError
 
 _BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -38,14 +39,6 @@ _INVISIBLE_RE = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u200b-\u200f\u202a-\u20
 T = TypeVar("T")
 
 
-class BlockedUrlError(ValueError):
-    """사이트 도메인 밖 주소로 요청하려 한 경우 (처음 주소·리다이렉트 모두). 요청은 보내지 않음."""
-
-
-class PageTooLargeError(ValueError):
-    """상품 페이지 응답이 크기 상한을 넘은 경우."""
-
-
 def matches_domain(host: str | None, domains: Iterable[str]) -> bool:
     """호스트가 도메인 자체이거나 그 하위 도메인인지. 흉내 도메인(made-in-china.com.evil.example)은 아님.
 
@@ -60,7 +53,7 @@ def matches_domain(host: str | None, domains: Iterable[str]) -> bool:
     return any(host == domain or host.endswith(f".{domain}") for domain in domains)
 
 
-class MarketplaceBaseClient(BaseClient[ProductPageRequest, ProductPage]):
+class MarketplaceBaseClient(RequestClient[ProductPageRequest, ProductPage]):
     """판매 사이트 상품 페이지 클라이언트 공통 베이스.
 
     방식 : GET/HTML

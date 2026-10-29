@@ -1,88 +1,65 @@
-"""BaseClient 인터페이스(fetch_raw·fetch_parsed·_send·_parse)와 공통 도구를 가짜 클라이언트로 검증한다."""
+"""외부 통신 클라이언트 공통 베이스(연결)와 공통 도구(키 가리기)를 검증한다."""
+
+import socket
+import sys
 
 import httpx
 import pytest
 
-from app.clients.base import BaseClient, mask_sensitive_params
+from app.clients import base
+from app.clients.base import BaseClient, keepalive_socket_options, mask_sensitive_params
 
 
-class _EchoClient(BaseClient[str, dict]):
-    """요청 문자열을 q 파라미터로 보내고 JSON 본문을 dict로 돌려주는 가짜 클라이언트."""
-
-    def __init__(self):
-        super().__init__(base_url="https://api.example.test")
-
-    def _send(self, request: str) -> httpx.Response:
-        return self._get("/items", params={"q": request})
-
-    def _parse(self, raw: httpx.Response) -> dict:
-        return self._parse_json(raw)
+@pytest.fixture
+def built_transports(monkeypatch) -> list[dict]:
+    """BaseClient가 직접 만든 HTTPTransport의 생성 인자를 기록함."""
+    built: list[dict] = []
+    original = httpx.HTTPTransport
+    monkeypatch.setattr(base.httpx, "HTTPTransport", lambda **kwargs: built.append(kwargs) or original(**kwargs))
+    return built
 
 
-def _json(request: httpx.Request) -> httpx.Response:
-    return httpx.Response(200, json={"q": request.url.params["q"]})
+def test_기본_연결은_keepalive_소켓_옵션과_httpx_기본_연결_한도를_건다(built_transports):
+    BaseClient(base_url="https://api.example.test").close()
+
+    [kwargs] = built_transports
+    assert (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1) in kwargs["socket_options"]
+    assert kwargs["limits"] == httpx.Limits(max_connections=100, max_keepalive_connections=20)
 
 
-def test_fetch_raw는_파싱_전_원문_응답을_돌려준다(wire):
-    client = _EchoClient()
-    wire(client, _json)
+def test_전송_계층을_주입하거나_감지를_끄면_소켓_옵션을_걸지_않는다(built_transports):
+    BaseClient(base_url="https://api.example.test", transport=httpx.MockTransport(lambda r: httpx.Response(200))).close()
+    BaseClient(base_url="https://api.example.test", dead_connection_seconds=None).close()
 
-    raw = client.fetch_raw("전기")
-
-    assert isinstance(raw, httpx.Response)
-    assert raw.json() == {"q": "전기"}
+    assert built_transports == []
 
 
-def test_fetch_parsed는_send_결과를_parse에_넣은_값을_돌려준다(wire):
-    client = _EchoClient()
-    wire(client, _json)
-
-    assert client.fetch_parsed("전기") == {"q": "전기"}
+def test_윈도우는_keepalive_켜기만_건다():
+    assert keepalive_socket_options(120, "win32") == ((socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),)
 
 
-def test_send나_parse를_구현하지_않은_클라이언트는_만들_수_없다():
-    class _NoParse(BaseClient[str, dict]):
-        def _send(self, request):
-            ...
+@pytest.mark.skipif(sys.platform != "linux", reason="Linux 소켓 옵션은 Linux에서만 걸어 볼 수 있음")
+def test_리눅스는_간격과_죽은_연결_상한까지_건다():
+    options = keepalive_socket_options(90, "linux")
 
-    with pytest.raises(TypeError, match="_parse"):
-        _NoParse(base_url="https://api.example.test")
-
-
-def test_POST는_form_본문과_JSON_본문을_구분해_보낸다(wire):
-    client = _EchoClient()
-    sent = wire(client, lambda request: httpx.Response(200))
-
-    client._post("/form", data={"srwr": "전기포트"})
-    client._post("/json", json={"k": "v"})
-
-    assert sent[0].headers["content-type"] == "application/x-www-form-urlencoded"
-    assert sent[1].headers["content-type"] == "application/json"
+    assert (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 60) in options
+    assert (socket.IPPROTO_TCP, socket.TCP_USER_TIMEOUT, 90_000) in options
 
 
-@pytest.mark.parametrize("param", ["serviceKey", "OC"])
-def test_HTTP_오류_메시지의_키_값은_가린다(wire, param):
-    client = _EchoClient()
-    wire(client, lambda request: httpx.Response(500))
+def test_만들_때_넘긴_전송_계층으로_요청을_보낸다():
+    sent: list[httpx.Request] = []
 
-    with pytest.raises(httpx.HTTPStatusError) as exc_info:
-        client._get("/items", params={param: "secret-key", "type": "XML"})
-    masked = BaseClient._mask_url(exc_info.value)
+    def record(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(200)
 
-    assert "secret-key" not in str(masked)
-    assert f"{param}=***" in str(masked)
-    assert masked.response.status_code == 500
+    client = BaseClient(base_url="https://api.example.test", headers={"X-Test": "1"},
+                        transport=httpx.MockTransport(record))
+    client._client.get("/items")
+    client.close()
 
-
-def test_키_이름이_들어간_다른_파라미터는_가리지_않는다(wire):
-    client = _EchoClient()
-    wire(client, lambda request: httpx.Response(500))
-
-    with pytest.raises(httpx.HTTPStatusError) as exc_info:
-        client._get("/items", params={"doc": "keep", "serviceKeyword": "keep2", "OC": "secret"})
-    message = str(BaseClient._mask_url(exc_info.value))
-
-    assert "doc=keep" in message and "serviceKeyword=keep2" in message and "OC=***" in message
+    assert str(sent[0].url) == "https://api.example.test/items"
+    assert sent[0].headers["X-Test"] == "1"
 
 
 def test_mask_sensitive_params는_키_값만_대소문자_구분_없이_가린다():

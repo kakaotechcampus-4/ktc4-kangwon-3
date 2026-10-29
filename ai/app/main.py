@@ -9,13 +9,16 @@ from prometheus_client import CollectorRegistry
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from .callbacks import CallbackOutbox, EventBuilder, HttpCallbackSender, connect_callbacks
+from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
+from .clients.backend import BackendCallbackClient
+from .clients.llm import close_llm_clients
 from .config import SESSION_SWEEP_SECONDS, get_settings
-from .database import DatabaseNotConfiguredError, get_engine
-from .exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
-from .observability.metrics import SessionMetrics, SessionSnapshotCollector
+from .observability.agent_sinks import agent_sinks
+from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
+from .repositories.database import DatabaseNotConfiguredError, get_engine
 from .routers import dev_diagnose, diagnose, dummy, health, metrics
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
+from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
 
@@ -71,13 +74,16 @@ async def lifespan(app: FastAPI):
     # 진단 세션 (#264). 파이프라인 러너 연결 전까지 더미 진단으로 실행
     manager = SessionManager(SessionStore(), run_dummy_diagnosis)
     # BE 콜백 (#317)
-    sender = HttpCallbackSender(settings.be_base_url, settings.internal_api_token)
+    sender = BackendCallbackClient(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
     connect_callbacks(manager, EventBuilder(presenter), outbox)
     # 세션 지표. 앱마다 registry를 따로 둬 테스트에서 lifespan을 여러 번 띄워도 이름이 겹치지 않음
     registry = CollectorRegistry()
     manager.subscribe(SessionMetrics(registry).on_event)
     registry.register(SessionSnapshotCollector(manager))
+    # 에이전트 지표. 등록표는 앱 전체 공용이라 종료 때 해제 (lifespan을 다시 띄워도 옛 registry에 안 쌓이게)
+    agent_metrics = AgentMetrics(registry).on_run
+    agent_sinks.add(agent_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
     # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
@@ -95,6 +101,9 @@ async def lifespan(app: FastAPI):
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
+        # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
+        close_llm_clients()
+        agent_sinks.remove(agent_metrics)
 
 
 app = FastAPI(

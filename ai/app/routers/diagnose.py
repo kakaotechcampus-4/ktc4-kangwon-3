@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, Request, status
 
-from ..errors import AIResponseCode, AIServiceError
+from ..domain.errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
 from ..schemas.request import DiagnosisProductInput, DiagnosisRequest, ResumeRequest, UrlDiagnoseRequest
 from ..schemas.response import (
@@ -40,7 +40,7 @@ def _to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
         product_id=product.product_id,
         source_url=product.source_url,
         text_blocks=product.text_blocks,
-        image_urls=product.images_base64,
+        image_urls=product.image_urls,
     )
 
 

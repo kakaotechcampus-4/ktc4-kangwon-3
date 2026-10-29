@@ -36,6 +36,8 @@ public interface ProductApi {
                     `resultStatus`를 생략하면 전체를 조회하고, 지정하면 해당 결과의 상품만 조회합니다.
                     AI 진단 완료 전인 상품은 `resultStatus`가 없으므로 필터 지정 시 조회되지 않습니다.
                     `keyword`는 상품명 부분 일치로 검색하며 대소문자를 구분하지 않습니다.
+                    `failure`는 상품이 `FAILED`일 때만 실패 단계·오류 코드·메시지·재시도 가능 여부가 담기고, 그 외에는 `null`입니다.
+                    상품 단건 조회의 `failure`와 같은 형태입니다. `retryable`이 `null`이면 재시도할 수 없는 것으로 다룹니다.
                     """)
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(responseClass = ProductListResponse.class, description = "조회 성공")

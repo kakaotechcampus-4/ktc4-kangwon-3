@@ -5,11 +5,13 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFailureResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.ProductUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLevel;
@@ -146,6 +148,22 @@ class ProductControllerTest {
         assertThat(pageable.getPageNumber()).isZero();
         assertThat(pageable.getPageSize()).isEqualTo(10);
         assertThat(pageable.getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
+
+    @Test
+    @DisplayName("실패한 상품이 있으면 목록 응답에 실패 단계·오류 코드·메시지·재시도 여부가 담긴다.")
+    void getProductList_withFailedProduct_thenIncludeFailure() throws Exception {
+        // given
+        given(productUseCase.getProductList(any(UUID.class), any(), any(), any())).willReturn(failedListResponse());
+
+        // when & then
+        mockMvc.perform(get(BASE_URL).with(authentication(loginUser())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.products[0].processingStatus").value("FAILED"))
+                .andExpect(jsonPath("$.data.products[0].failure.failedStage").value("TOOL_EXECUTION"))
+                .andExpect(jsonPath("$.data.products[0].failure.errorCode").value("AI_TIMEOUT"))
+                .andExpect(jsonPath("$.data.products[0].failure.errorMessage").value("진단 시간이 초과되었습니다."))
+                .andExpect(jsonPath("$.data.products[0].failure.retryable").value(true));
     }
 
     @Test
@@ -478,7 +496,17 @@ class ProductControllerTest {
         // 수정: DIAGNOSES_ID 인자 추가
         ProductSummaryResponse summary = new ProductSummaryResponse(
                 PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
-                SourceType.URL, ProcessingStatus.PENDING, null, LocalDateTime.now());
+                SourceType.URL, ProcessingStatus.PENDING, null, null, LocalDateTime.now());
+
+        return new ProductListResponse(List.of(summary), new PageInfo(0, 10, 1, 1, false));
+    }
+
+    private ProductListResponse failedListResponse() {
+        ProductSummaryResponse summary = new ProductSummaryResponse(
+                PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터", null,
+                SourceType.URL, ProcessingStatus.FAILED, null,
+                new ProductFailureResponse(PipelineStage.TOOL_EXECUTION, "AI_TIMEOUT", "진단 시간이 초과되었습니다.", true),
+                LocalDateTime.now());
 
         return new ProductListResponse(List.of(summary), new PageInfo(0, 10, 1, 1, false));
     }

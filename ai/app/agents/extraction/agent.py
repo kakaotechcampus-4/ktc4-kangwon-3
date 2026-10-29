@@ -7,16 +7,14 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
-from ..base import AgentError, BaseAgent
+from ..base import BaseAgent
+from .errors import ExtractionFailedError
+from .guessed_flags import drop_guessed_false
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.EXTRACTION).path
-
-
-class ExtractionFailedError(AgentError):
-    """추출 모델 호출·파싱 실패. 원인 예외는 ``__cause__``."""
 
 
 class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
@@ -68,6 +66,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
     def _finalize(self, output: ProductAttributes, input: ExtractionInput) -> Product:
         """모델 출력에 판매자 제목·규칙 추출 결과를 합쳐 Product를 만든다.
 
+        상품 종류로 짐작해 채운 false는 None으로 되돌림(guessed_flags).
         규칙 추출은 모델과 독립으로 실행하고 결과만 합침. product_id·source_url은 요청 값 그대로.
 
         Args:
@@ -79,6 +78,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         """
         source, titles = _trim_to_seller_region(input)
         payload = output.model_dump()
+        drop_guessed_false(payload)
         payload["listing_text"] = _keep_seller_titles(output.listing_text, titles)
         payload["attributes"] = _merge_attributes(output.attributes, extract_rule_based_attributes(source.text_blocks))
         payload["conflicts"] = _merge_conflicts(output.conflicts, detect_battery_capacity_conflict(source.text_blocks))
@@ -144,7 +144,7 @@ def _merge_attributes(llm_attributes: list[Attribute], rule_attributes: list[Att
     """규칙 추출 속성 중 모델이 이미 뽑은 것(이름과 값 토큰이 둘 다 같음)을 빼고 덧붙인다.
 
     값만 비교하거나 부분 문자열로 비교하면 다른 항목의 같은 문자열 때문에 진짜 속성이 사라짐
-    (예: "모델명: AC-220V-A1" 때문에 "정격전압: 220V" 소실). 이름이 달라 생기는 중복은 허용 (소실보다 나음).
+    (예: "모델명: AC-220V-A1" 때문에 "전압 표기: 220V" 소실). 이름이 달라 생기는 중복은 허용 (소실보다 나음).
 
     Args:
         llm_attributes: 모델이 뽑은 속성.

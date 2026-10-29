@@ -11,19 +11,19 @@ class ContentDiagnoseRequest(StrictModel):
     Args:
         product_id: 상품 식별자.
         text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
-        images_base64: base64 data URI 또는 이미지 URL 목록.
+        image_urls: 이미지 URL 목록. base64 data URI도 받음 (#310).
         source_url: 출처 표시용 URL (선택).
     """
 
     product_id: str = Field(min_length=1)
     text_blocks: list[str] = Field(default_factory=list)
-    images_base64: list[str] = Field(default_factory=list)
+    image_urls: list[str] = Field(default_factory=list)
     source_url: str | None = None
 
     @model_validator(mode="after")
     def at_least_one_input(self):
-        if not self.text_blocks and not self.images_base64:
-            raise ValueError("text_blocks 또는 images_base64 중 하나는 필수입니다.")
+        if not self.text_blocks and not self.image_urls:
+            raise ValueError("text_blocks 또는 image_urls 중 하나는 필수입니다.")
         return self
 
 
@@ -45,19 +45,19 @@ class DiagnosisProductInput(ApiRequestModel):
     Args:
         product_id: BE 상품 ID (UUID v7). 세션 ID로 사용.
         text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
-        images_base64: base64 data URI 또는 이미지 URL 목록.
+        image_urls: 이미지 URL 목록. base64 data URI도 받음 (#310).
         source_url: 출처 표시용 URL (선택).
     """
 
     product_id: str = Field(min_length=1)
     text_blocks: list[str] = Field(default_factory=list)
-    images_base64: list[str] = Field(default_factory=list)
+    image_urls: list[str] = Field(default_factory=list)
     source_url: str | None = None
 
     @model_validator(mode="after")
     def at_least_one_input(self):
-        if not self.text_blocks and not self.images_base64:
-            raise ValueError("textBlocks 또는 imagesBase64 중 하나는 필수입니다.")
+        if not self.text_blocks and not self.image_urls:
+            raise ValueError("textBlocks 또는 imageUrls 중 하나는 필수입니다.")
         return self
 
 

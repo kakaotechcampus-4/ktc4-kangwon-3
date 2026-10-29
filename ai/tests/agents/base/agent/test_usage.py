@@ -1,5 +1,7 @@
 """BaseAgent 사용량 기록: 호출 1건당 1행, 기록 이름·모델·추론 강도 (#160, #284, #311)."""
 
+from app.observability.agent_sinks import agent_sinks
+
 
 def test_성공하면_사용량을_한_번_기록한다(fakes, stub_model, records):
     fakes.Agent(stub_model(fakes.Answer(value="ok"))).run(fakes.question)
@@ -33,3 +35,13 @@ def test_모델의_추론_강도를_사용량_기록에_남긴다(fakes, stub_mo
     fakes.Agent(stub_model(fakes.Answer(value="ok"))).run(fakes.question)
 
     assert [record["reasoning_effort"] for record in records] == ["low", None]
+
+
+def test_호출이_끝나면_등록된_sink에_실행_정보와_기록_대상을_넘긴다(fakes, stub_model, records):
+    received = []
+
+    with agent_sinks.added(lambda meta, subject_id: received.append((meta, subject_id))):
+        result = fakes.Agent(stub_model(fakes.Answer(value="ok")), usage_agent="fake-eval").run_with_meta(fakes.question)
+
+    assert received == [(result.meta, "p-1")]
+    assert (result.meta.component, result.meta.usage_name) == ("fake", "fake-eval")

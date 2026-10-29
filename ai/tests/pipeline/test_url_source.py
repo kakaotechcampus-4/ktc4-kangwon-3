@@ -2,8 +2,9 @@
 
 import pytest
 
+from app.pipeline.errors import UnsupportedSiteError
 from app.pipeline.url_source import (
-    MAX_ALL_IMAGES, MAX_IMAGES, SITES, SiteConfig, UnsupportedSiteError, UrlSourceBuilder, select_images,
+    MAX_ALL_IMAGES, MAX_IMAGES, SITES, SiteConfig, UrlSourceBuilder, select_images,
 )
 from app.schemas.agent import ImageTriageItem, ImageTriageResponse
 from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage

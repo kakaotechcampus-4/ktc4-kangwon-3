@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from pydantic import ValidationError
 
-from app.observability.context import ExecutionContext, RunType
+from app.domain.context import ExecutionContext, RunType
 from app.schemas.agent import ExtractionInput
 from app.schemas.session import DiagnosisSession, SessionAnswer, SessionStatus
 
