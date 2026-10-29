@@ -1,9 +1,14 @@
-import type { Question } from "@/api/product"
+import type { Question } from "@/api/product";
+import type { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 
-/** 상품에 대한 질문 목록 */
-export interface ProductQuestions {
+/** 질문 화면에 필요한 상품 정보와 question을 담은 타입 */
+export interface QuestionProduct {
     productId: string
     productName: string
+    productImageUrl: string | null
+    resultStatus: ResultStatus | null
+    processingStatus: ProcessingStatusType
+    sourceType: SourceType
     questions: Question[]
 }
 
@@ -11,11 +16,4 @@ export interface ProductQuestions {
 export interface AnswerSubmission {
     questionId: string
     answer: string
-}
-
-/** 제품별 답변 완료 상태 */
-export enum ProductStatus {
-    Complete = "complete",
-    Partial = "partial",
-    Empty = "empty",
 }
