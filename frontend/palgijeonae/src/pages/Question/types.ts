@@ -15,5 +15,5 @@ export interface QuestionProduct {
 /** 답변 제출(POST) 시 보낼 형태. */
 export interface AnswerSubmission {
     questionId: string
-    answer: string
+    answerText: string
 }
