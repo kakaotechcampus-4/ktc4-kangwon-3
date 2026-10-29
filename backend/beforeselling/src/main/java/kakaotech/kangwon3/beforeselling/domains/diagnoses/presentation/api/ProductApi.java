@@ -99,6 +99,7 @@ public interface ProductApi {
                     **제출 후**
                     - 진단서 단건 조회 폴링을 다시 시작합니다(`pollIntervalMs`에 값이 생깁니다).
                     - 이어진 진단에서 질문이 한 번 더 올 수 있습니다(최대 2회차).
+                    - AI 서버가 잠시 답변을 받지 못하면 BE가 최대 10분 동안 자동으로 다시 전달합니다. 그동안 상품은 진행 중(`IN_PROGRESS`)으로 보입니다.
                     - 진단을 이어 갈 수 없으면 상품이 `FAILED`가 되고 `failure`에 사유가 담깁니다.
                     """)
     @ApiResponseExplanations(
