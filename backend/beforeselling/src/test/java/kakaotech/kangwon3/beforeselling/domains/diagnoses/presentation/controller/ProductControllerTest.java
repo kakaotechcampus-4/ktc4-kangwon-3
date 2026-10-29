@@ -309,6 +309,7 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.productId").value(PRODUCT_ID.toString()))
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()))
                 .andExpect(jsonPath("$.data.productName").value("대나무 헬리콥터"))
                 .andExpect(jsonPath("$.data.sourceType").value("URL"))
                 .andExpect(jsonPath("$.data.imageUrls[0]").value(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"))
@@ -513,7 +514,7 @@ class ProductControllerTest {
 
     private ProductResponse productResponse() {
         return new ProductResponse(
-                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"),
                 ProcessingStatus.COMPLETED, List.of(), List.of(), null,
