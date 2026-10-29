@@ -7,8 +7,8 @@ from abc import ABC, abstractmethod
 
 import httpx
 
-from ....schemas.clients.decision_request import DecisionRequest
-from ....schemas.clients.decision_response import DecisionAnswer, DecisionResponse, DecisionUsage
+from ....schemas.clients.decision_request import ChoiceQuestion, DecisionRequest, ScoreQuestion
+from ....schemas.clients.decision_response import DecisionAnswer, DecisionResponse, DecisionUsage, RefusedAnswer
 from ...request import RequestClient
 from ..client import TIMEOUT_SECONDS
 from .errors import DecisionRequestError, DecisionResponseError
@@ -53,13 +53,14 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
             DecisionRequestError: 질문 이름·후보 값이 겹쳐 보낼 수 없는 경우. 요청은 보내지 않음.
             httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우.
             httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우.
-            DecisionResponseError: 응답을 공통 모양으로 바꿀 수 없거나 답이 빠진 질문이 있는 경우.
+            DecisionResponseError: 응답을 공통 모양으로 바꿀 수 없거나, 질문과 맞지 않는 답(누락·종류 불일치·
+                후보에 없는 값·단계 수 불일치)이 있는 경우.
         """
         check_request(request)
         response = self.fetch_parsed(request)
-        missing = [question.name for question in request.questions if question.name not in response.answers]
-        if missing:
-            raise DecisionResponseError(f"판단 응답에 답이 없는 질문: {missing}", usage=response.usage)
+        problems = _answer_problems(request, response)
+        if problems:
+            raise DecisionResponseError(f"판단 응답이 질문과 맞지 않음: {problems}", usage=response.usage)
         return response
 
     # -- 인터페이스 (하위 클라이언트 구현) --
@@ -167,3 +168,29 @@ def _duplicates(values: list[str], label: str) -> list[str]:
     """겹치는 값이 있으면 문제 설명 하나를 돌려준다."""
     repeated = sorted({value for value in values if values.count(value) > 1})
     return [f"{label} 중복 {repeated}"] if repeated else []
+
+
+def _answer_problems(request: DecisionRequest, response: DecisionResponse) -> list[str]:
+    """질문과 맞지 않는 답을 찾는다. 거부 답은 맞는 것으로 봄.
+
+    Args:
+        request: 판단 요청.
+        response: 판단 응답.
+
+    Returns:
+        list[str]: 문제 설명 (답 누락·종류 불일치·후보에 없는 값·단계 수 불일치). 비면 이상 없음.
+    """
+    problems = []
+    for question in request.questions:
+        answer = response.answers.get(question.name)
+        if answer is None:
+            problems.append(f"{question.name}: 답 없음")
+        elif isinstance(answer, RefusedAnswer):
+            continue
+        elif answer.type != question.type:
+            problems.append(f"{question.name}: {question.type} 질문에 {answer.type} 답")
+        elif isinstance(question, ChoiceQuestion) and all(answer.choice != option.value for option in question.options):
+            problems.append(f"{question.name}: 후보에 없는 답 {answer.choice!r}")
+        elif isinstance(question, ScoreQuestion) and len(answer.probabilities) != len(question.levels):
+            problems.append(f"{question.name}: 단계 {len(question.levels)}개에 확률 {len(answer.probabilities)}개")
+    return problems

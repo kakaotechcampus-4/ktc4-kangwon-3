@@ -104,7 +104,7 @@ def test_이름이나_값이_겹치는_요청은_보내지_않고_실패한다(w
 
 @pytest.mark.parametrize(("body", "message"), [
     ({"model": "m", "answers": {"kind_kids": {"type": "box"}}, "input_tokens": 10}, "답 변환 실패"),
-    ({"model": "m", "answers": _answers("kind_kids"), "input_tokens": 10}, "답이 없는 질문"),
+    ({"model": "m", "answers": _answers("kind_kids"), "input_tokens": 10}, "답 없음"),
 ], ids=["답 변환 실패", "답 누락"])
 def test_답을_못_쓰는_응답도_읽은_사용량을_예외에_담는다(wire, decision_request, body, message):
     client = _EchoDecisionClient(BASE_URL, API_KEY)
@@ -122,3 +122,31 @@ def test_사용량을_못_읽으면_예외의_사용량은_None(wire, decision_r
     with pytest.raises(DecisionResponseError, match="사용량 변환 실패") as caught:
         client.decide(decision_request)
     assert caught.value.usage is None
+
+
+_YES = {"type": "yes_no", "probability": 0.5}
+_CHOICE = {"type": "choice", "choice": "stationery", "probabilities": {"stationery": 1.0}, "confidence": 1.0}
+_SCORE = {"type": "score", "score": 1.0, "probabilities": [0.2, 0.6, 0.2], "confidence": 0.5}
+
+
+@pytest.mark.parametrize(("change", "message"), [
+    ({"kind_kids": _CHOICE}, "kind_kids: yes_no 질문에 choice 답"),
+    ({"category": {**_CHOICE, "choice": "toy"}}, "category: 후보에 없는 답 'toy'"),
+    ({"kid_use": {**_SCORE, "probabilities": [0.5, 0.5]}}, "kid_use: 단계 3개에 확률 2개"),
+], ids=["종류 불일치", "후보에 없는 값", "단계 수 불일치"])
+def test_질문과_맞지_않는_답은_DecisionResponseError(wire, decision_request, change, message):
+    answers = {"kind_kids": _YES, "category": _CHOICE, "kid_use": _SCORE, **change}
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: httpx.Response(200, json={"model": "m", "answers": answers, "input_tokens": 10}))
+
+    with pytest.raises(DecisionResponseError, match=message) as caught:
+        client.decide(decision_request)
+    assert caught.value.usage == DecisionUsage(model="m", input_tokens=10)
+
+
+def test_질문과_맞는_답과_거부_답은_통과한다(wire, decision_request):
+    answers = {"kind_kids": _YES, "category": _CHOICE, "kid_use": {"type": "refused"}}
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: httpx.Response(200, json={"model": "m", "answers": answers, "input_tokens": 10}))
+
+    assert client.decide(decision_request).answers["kid_use"].type == "refused"
