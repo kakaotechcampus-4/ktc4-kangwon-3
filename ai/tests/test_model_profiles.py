@@ -78,9 +78,9 @@ def test_메타데이터에_프로필_모델_조건_단가를_남긴다():
 def test_비용_단가표는_단가를_아는_모델만_카탈로그에서_만든다():
     assert usage.PRICING_KRW == {
         model.id: {"input": model.price.input, "cached_input": model.price.cached_input, "output": model.price.output}
-        for model in CHAT_MODELS.values() if model.price
+        for model in (*CHAT_MODELS.values(), *DECISION_MODELS.values()) if model.price
     }
-    assert set(usage.PRICING_KRW) == {"openai/gpt-4.1-mini", "openai/gpt-6-luna"}
+    assert set(usage.PRICING_KRW) == {"openai/gpt-4.1-mini", "openai/gpt-6-luna", "typesafe/jev-latest"}
 
 
 def test_Tool_표에_있는_이름은_ToolName_값이다():

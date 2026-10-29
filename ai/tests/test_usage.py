@@ -4,6 +4,7 @@ import json
 from types import SimpleNamespace
 
 from app import usage
+from app.schemas.clients.decision_response import DecisionResponse
 
 
 def test_handler_사용량을_합산하고_캐시_입력을_분리한다():
@@ -231,3 +232,24 @@ def test_게이트웨이_최종_사용량을_LangChain_값보다_먼저_쓴다()
 
     assert (call.input_tokens, call.cache_write_tokens, call.reasoning_tokens) == (4285, 3425, 36)
 
+
+
+def test_판단_응답에서_실제_모델과_토큰을_뽑는다():
+    response = DecisionResponse(
+        model="typesafe/jev-1.14-20261014", answers={}, input_tokens=421, cached_tokens=100, cache_write_tokens=20,
+    )
+
+    call = usage.from_decision(response)
+
+    assert call == usage.CallUsage(
+        reported_model="typesafe/jev-1.14-20261014", input_tokens=421, cached_tokens=100, output_tokens=0,
+        reasoning_tokens=0, cache_write_tokens=20,
+    )
+
+
+def test_판단_모델_비용은_요청한_등록명_단가로_계산한다():
+    call = usage.CallUsage("typesafe/jev-1.14-20261014", input_tokens=1_000_000, cached_tokens=0, output_tokens=0)
+
+    # 실제 버전이 아니라 요청한 등록명으로 단가를 찾음
+    assert usage.estimate_krw(call, "typesafe/jev-latest") == 64.0
+    assert usage.estimate_krw(call, "typesafe/jev-1.14-20261014") is None

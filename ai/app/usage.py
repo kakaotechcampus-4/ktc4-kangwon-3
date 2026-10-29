@@ -13,12 +13,20 @@ import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .config.catalog import CHAT_MODELS
+from .config.catalog import CHAT_MODELS, DECISION_MODELS
+
+if TYPE_CHECKING:
+    from .schemas.clients.decision_response import DecisionResponse
 
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
 
-PRICING_KRW = {model_id: asdict(model.price) for model_id, model in CHAT_MODELS.items() if model.price}
+# 채팅·판단 모델 단가. 판단 Luna는 채팅 Luna와 등록명·단가가 같음
+PRICING_KRW = {
+    model_id: asdict(model.price)
+    for models in (CHAT_MODELS, DECISION_MODELS) for model_id, model in models.items() if model.price
+}
 
 
 @dataclass(frozen=True)
@@ -144,6 +152,24 @@ def from_completion(completion) -> CallUsage | None:
         output_tokens=usage.completion_tokens or 0,
         reasoning_tokens=getattr(completion_details, "reasoning_tokens", 0) or 0,
         cache_write_tokens=cache_write or 0,
+    )
+
+
+def from_decision(response: "DecisionResponse") -> CallUsage:
+    """판단 응답(/decisions)에서 사용량을 뽑는다. 판단 모델은 추론 토큰을 따로 보고하지 않음.
+
+    Args:
+        response: 판단 클라이언트가 바꾼 공통 응답.
+
+    Returns:
+        CallUsage: 사용량. reported_model은 응답이 알려 준 실제 모델 (Jev는 버전 포함).
+    """
+    return CallUsage(
+        reported_model=response.model,
+        input_tokens=response.input_tokens,
+        cached_tokens=response.cached_tokens,
+        output_tokens=response.output_tokens,
+        cache_write_tokens=response.cache_write_tokens,
     )
 
 
