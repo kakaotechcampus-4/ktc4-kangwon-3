@@ -117,6 +117,6 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
             raise DecisionResponseError(f"판단 응답 본문이 객체가 아님: {type(body).__name__}")
         try:
             return self._from_payload(body)
-        # pydantic ValidationError는 ValueError 하위
-        except (KeyError, TypeError, ValueError) as exc:
+        # 맵 대신 배열·null처럼 모양이 다르면 AttributeError·IndexError도 남 (pydantic ValidationError는 ValueError 하위)
+        except (KeyError, TypeError, ValueError, AttributeError, IndexError) as exc:
             raise DecisionResponseError(f"판단 응답 변환 실패: {type(exc).__name__}: {exc}") from exc

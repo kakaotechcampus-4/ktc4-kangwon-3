@@ -103,3 +103,14 @@ def test_모르는_답_종류는_DecisionResponseError(wire, client, decision_re
 
     with pytest.raises(DecisionResponseError, match="box"):
         client.decide(decision_request)
+
+
+@pytest.mark.parametrize("change", [
+    {"answers": {"kind_kids": {"type": "predicate", "probability": 0.5}}},
+    {"usage": None},
+], ids=["답이 배열 아님", "사용량 null"])
+def test_모양이_다른_응답도_DecisionResponseError(wire, client, decision_request, change):
+    wire(client, lambda request: httpx.Response(200, json={**LUNA_BODY, **change}))
+
+    with pytest.raises(DecisionResponseError):
+        client.decide(decision_request)
