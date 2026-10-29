@@ -45,7 +45,7 @@ class AIResponseCode(Enum):
     # 재시작 등으로 세션이 사라진 경우. BE는 실패로 처리 (#301)
     SESSION_NOT_FOUND = ResponseCode(404, "AI_SESSION_NOT_FOUND", "진단 세션을 찾을 수 없습니다.")
     METHOD_NOT_ALLOWED = ResponseCode(405, "AI_METHOD_NOT_ALLOWED", "허용되지 않은 HTTP 메서드입니다.")
-    SESSION_CONFLICT = ResponseCode(409, "AI_SESSION_CONFLICT", "이미 진행 중인 상품이 있습니다.")
+    SESSION_CONFLICT = ResponseCode(409, "AI_SESSION_CONFLICT", "이미 실행 중인 상품이 있습니다.")
     # 답변 대기가 아니거나 runId·questionRound·diagnosisId가 기다리는 질문과 다름 (중복·늦게 온 답변)
     RESUME_CONFLICT = ResponseCode(409, "AI_RESUME_CONFLICT", "지금 답변을 기다리는 질문이 아닙니다.")
     QUEUE_FULL = ResponseCode(429, "AI_QUEUE_FULL", "진단 대기열이 가득 찼습니다. 잠시 후 다시 요청해 주세요.")

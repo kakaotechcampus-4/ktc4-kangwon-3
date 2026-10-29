@@ -105,7 +105,7 @@ def test_AIServiceError는_코드의_상태와_공개_data로_응답한다(clien
     assert response.status_code == 409
     assert response.json() == {
         "code": "AI_SESSION_CONFLICT",
-        "message": "이미 진행 중인 상품이 있습니다.",
+        "message": "이미 실행 중인 상품이 있습니다.",
         "details": None,
         "data": {"conflictProductIds": ["p-1"]},
     }
