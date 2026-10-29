@@ -3,7 +3,9 @@
 import pytest
 
 from app import config
-from app.clients.llm.decision import OpenAIDecisionClient, TypeSafeDecisionClient, build_decision_client
+from app.clients.llm import decision
+from app.clients.llm.decision import (OpenAIDecisionClient, TypeSafeDecisionClient, build_decision_client,
+                                      close_decision_clients, get_decision_client)
 from app.config.catalog import DecisionModel
 
 _SETTINGS = config.Settings(
@@ -45,3 +47,30 @@ def test_카탈로그의_판단_모델은_모두_형식이_있다():
     for model in config.DECISION_MODELS.values():
         client = build_decision_client(config.DecisionProfile("check", model), _SETTINGS)
         client.close()
+
+
+@pytest.fixture
+def shared(monkeypatch):
+    """공유 클라이언트를 테스트 설정으로 만들고 끝나면 닫음."""
+    monkeypatch.setattr(decision, "load_settings", lambda: _SETTINGS)
+    yield
+    close_decision_clients()
+
+
+def test_공유_클라이언트는_같은_형식이면_하나를_다시_쓴다(shared):
+    jev = config.DECISION_PROFILES["jev"]
+
+    first = get_decision_client(jev)
+
+    assert get_decision_client(jev) is first
+    assert get_decision_client(config.DECISION_PROFILES["luna"]) is not first
+
+
+def test_공유_클라이언트를_닫으면_다음엔_새로_만든다(shared):
+    jev = config.DECISION_PROFILES["jev"]
+    first = get_decision_client(jev)
+
+    close_decision_clients()
+
+    assert first._client.is_closed
+    assert get_decision_client(jev) is not first
