@@ -14,6 +14,9 @@ public record ProductResponse(
         @Schema(example = "0b9f3c2e-6d1a-4f7b-9c8e-2a5d4e3f1b6c")
         UUID productId,
 
+        @Schema(description = "상품이 속한 진단서 ID", example = "7c1e4a2b-3f5d-4e6a-8b9c-1d2e3f4a5b6c")
+        UUID diagnosesId,
+
         @Schema(example = "무선 블루투스 이어폰")
         String productName,
 
