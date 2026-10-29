@@ -45,6 +45,11 @@ public class ProductService {
     // AI_TIMEOUT과 같은 일시적인 실패라 다시 진단하면 성공할 수 있다.
     static final boolean STUCK_ERROR_RETRYABLE = true;
 
+    // AI가 재진단 요청을 기한까지 받지 못했을 때의 오류. 일시적인 장애라 다시 진단하면 성공할 수 있다.
+    static final String RESUME_UNAVAILABLE_ERROR_CODE = "BE_AI_RESUME_UNAVAILABLE";
+    static final String RESUME_UNAVAILABLE_ERROR_MESSAGE = "AI 서버가 답변을 받지 못해 진단을 이어서 진행하지 못했습니다.";
+    static final boolean RESUME_UNAVAILABLE_ERROR_RETRYABLE = true;
+
     private final ProductRepository productRepository;
     private final DiagnosesRepository diagnosesRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -254,6 +259,62 @@ public class ProductService {
         return productRepository.findDiagnosesIdsByStatus(ProcessingStatus.PENDING, PageRequest.of(0, limit));
     }
 
+    /**
+     * AI가 재진단 요청을 받지 못한(429·5xx·연결 실패) 상품을 재요청 대기로 표시한다. 재요청 스케줄러가 다시 보낸다.
+     * 그 사이 실패 처리됐거나 새 실행을 받았으면 표시하지 않는다.
+     */
+    @Transactional
+    public void markResumePending(UUID diagnosesId, UUID productId, String runId) {
+        Optional<Product> found = lockProduct(diagnosesId, productId);
+        if (found.isEmpty()) {
+            return;
+        }
+
+        Product product = found.get();
+        if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS || !product.isCurrentRun(runId)) {
+            log.info("재진단 재요청 대기 표시를 건너뜁니다. productId={}, status={}, runId={}, currentRunId={}",
+                    productId, product.getProcessingStatus(), runId, product.getRunId());
+            return;
+        }
+        product.markResumePending();
+    }
+
+    /**
+     * 재진단 재요청 대상이면 저장된 답변으로 다시 보낼 내용을 돌려준다.
+     * 처음 실패한 뒤 기한이 지났으면 더 기다리지 않고 실패 처리한다. 보낼 것이 없으면 빈 값.
+     */
+    @Transactional
+    public Optional<AiResumeRequestedEvent> restartPendingResume(UUID productId, LocalDateTime deadline) {
+        Optional<Product> found = productRepository.findDiagnosesIdById(productId)
+                .flatMap(diagnosesId -> lockProduct(diagnosesId, productId));
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Product product = found.get();
+        if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS || !product.isResumePending()) {
+            return Optional.empty();
+        }
+
+        if (product.isResumePendingBefore(deadline)) {
+            LocalDateTime pendingSince = product.getResumePendingSince();
+            product.fail(null, RESUME_UNAVAILABLE_ERROR_CODE, RESUME_UNAVAILABLE_ERROR_MESSAGE,
+                    RESUME_UNAVAILABLE_ERROR_RETRYABLE);
+            product.getDiagnoses().refreshProcessingStatus();
+            log.warn("재진단 재요청 기한이 지나 실패 처리합니다. productId={}, runId={}, pendingSince={}",
+                    productId, product.getRunId(), pendingSince);
+            return Optional.empty();
+        }
+        return Optional.of(toAiResumeRequestedEvent(product));
+    }
+
+    /**
+     * 재진단 재요청용. 재요청을 기다리는 상품 ID를 오래 기다린 순으로 가져온다.
+     */
+    public List<UUID> findResumePendingProductIds(int limit) {
+        return productRepository.findIdsByResumePending(PageRequest.of(0, limit));
+    }
+
     // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.
     private String normalizeKeyword(String keyword) {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;
@@ -314,6 +375,14 @@ public class ProductService {
         }
 
         return product;
+    }
+
+    // 진단서를 잠그고 상품을 찾는다. 진단서나 상품이 그 사이 삭제됐으면 빈 값.
+    private Optional<Product> lockProduct(UUID diagnosesId, UUID productId) {
+        return diagnosesRepository.findByIdForUpdate(diagnosesId)
+                .flatMap(diagnoses -> diagnoses.getProducts().stream()
+                        .filter(candidate -> candidate.getId().equals(productId))
+                        .findFirst());
     }
 
 }
