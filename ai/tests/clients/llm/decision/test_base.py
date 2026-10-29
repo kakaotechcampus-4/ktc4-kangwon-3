@@ -8,7 +8,7 @@ import pytest
 
 from app.clients.llm.decision import DecisionClient, DecisionRequestError, DecisionResponseError
 from app.schemas.clients.decision_request import DecisionRequest
-from app.schemas.clients.decision_response import DecisionResponse
+from app.schemas.clients.decision_response import DecisionUsage
 
 from .conftest import API_KEY, BASE_URL
 
@@ -19,8 +19,11 @@ class _EchoDecisionClient(DecisionClient):
     def _to_payload(self, request: DecisionRequest) -> dict:
         return {"model": request.model}
 
-    def _from_payload(self, body: dict) -> DecisionResponse:
-        return DecisionResponse(model=body["model"], answers=body["answers"], input_tokens=body["input_tokens"])
+    def _usage_from_payload(self, body: dict) -> DecisionUsage:
+        return DecisionUsage(model=body["model"], input_tokens=body["input_tokens"])
+
+    def _answers_from_payload(self, body: dict) -> dict:
+        return body["answers"]
 
 
 def _answers(*names: str) -> dict:
@@ -97,3 +100,25 @@ def test_이름이나_값이_겹치는_요청은_보내지_않고_실패한다(w
     with pytest.raises(DecisionRequestError, match=message):
         client.decide(request)
     assert sent == []
+
+
+@pytest.mark.parametrize(("body", "message"), [
+    ({"model": "m", "answers": {"kind_kids": {"type": "box"}}, "input_tokens": 10}, "답 변환 실패"),
+    ({"model": "m", "answers": _answers("kind_kids"), "input_tokens": 10}, "답이 없는 질문"),
+], ids=["답 변환 실패", "답 누락"])
+def test_답을_못_쓰는_응답도_읽은_사용량을_예외에_담는다(wire, decision_request, body, message):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: httpx.Response(200, json=body))
+
+    with pytest.raises(DecisionResponseError, match=message) as caught:
+        client.decide(decision_request)
+    assert caught.value.usage == DecisionUsage(model="m", input_tokens=10)
+
+
+def test_사용량을_못_읽으면_예외의_사용량은_None(wire, decision_request):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: httpx.Response(200, json={"model": "m", "answers": {}}))
+
+    with pytest.raises(DecisionResponseError, match="사용량 변환 실패") as caught:
+        client.decide(decision_request)
+    assert caught.value.usage is None

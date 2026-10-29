@@ -10,7 +10,7 @@ import pytest
 
 from app.clients.llm.decision import DecisionResponseError
 from app.clients.llm.decision.openai import OpenAIDecisionClient
-from app.schemas.clients.decision_response import ChoiceAnswer, RefusedAnswer, ScoreAnswer, YesNoAnswer
+from app.schemas.clients.decision_response import ChoiceAnswer, DecisionUsage, RefusedAnswer, ScoreAnswer, YesNoAnswer
 
 from .conftest import API_KEY, BASE_URL
 
@@ -76,15 +76,15 @@ def test_답과_토큰을_공통_응답으로_바꾼다(wire, client, decision_r
 
     response = client.decide(decision_request)
 
-    assert response.model == "gpt-6-luna"
     assert response.answers == {
         "kind_kids": YesNoAnswer(probability=0.94),
         "category": ChoiceAnswer(choice="stationery", probabilities={"stationery": 1.0, "other": 0.0}, confidence=1.0),
         # 응답 순서와 상관없이 단계 번호 순 리스트
         "kid_use": ScoreAnswer(score=0.86, probabilities=[0.34, 0.46, 0.2], confidence=0.19),
     }
-    assert (response.input_tokens, response.cached_tokens, response.cache_write_tokens, response.output_tokens) == (
-        419, 100, 20, 0)
+    assert response.usage == DecisionUsage(
+        model="gpt-6-luna", input_tokens=419, cached_tokens=100, cache_write_tokens=20, output_tokens=0,
+    )
 
 
 def test_질문_단위_거부는_거부_답으로_바꾼다(wire, client, decision_request):

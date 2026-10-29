@@ -65,12 +65,11 @@ DecisionAnswer = Annotated[
 ]
 
 
-class DecisionResponse(BaseModel):
-    """판단 응답 하나.
+class DecisionUsage(BaseModel):
+    """판단 응답 하나의 모델·토큰 사용량. 답을 해석하지 못해도 따로 읽어 비용을 남김.
 
     Attributes:
         model: 응답이 알려 준 실제 모델 이름 (Jev는 버전 포함).
-        answers: 질문 이름별 답.
         input_tokens: 입력 토큰 수.
         cached_tokens: 캐시에서 읽은 입력 토큰 수.
         cache_write_tokens: 캐시에 쓴 입력 토큰 수.
@@ -78,8 +77,19 @@ class DecisionResponse(BaseModel):
     """
 
     model: str
-    answers: dict[str, DecisionAnswer]
     input_tokens: int = Field(ge=0)
     cached_tokens: int = Field(default=0, ge=0)
     cache_write_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(default=0, ge=0)
+
+
+class DecisionResponse(BaseModel):
+    """판단 응답 하나.
+
+    Attributes:
+        answers: 질문 이름별 답.
+        usage: 모델·토큰 사용량.
+    """
+
+    answers: dict[str, DecisionAnswer]
+    usage: DecisionUsage

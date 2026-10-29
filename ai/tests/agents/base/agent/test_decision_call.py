@@ -77,6 +77,26 @@ def test_판단_실패는_그_단계로_판단_모델_이름으로_기록하고_
     assert [(row["configured_model"], row["ok"], row["failure_phase"]) for row in records] == [(JEV, False, phase)]
 
 
+def test_답을_못_쓴_판단_응답도_쓴_토큰과_비용을_기록한다(fakes, stub_model, records):
+    agent = _agent(fakes, stub_model, lambda request: _jev_reply({}))
+
+    with pytest.raises(fakes.Error) as caught:
+        agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
+
+    assert caught.value.meta.failure_phase == "parsing"
+    assert (caught.value.meta.usage.input_tokens, caught.value.meta.cost_krw) == (1_000_000, 64.0)
+    assert records[0]["usage"].reported_model == "typesafe/jev-1.14-20261014"
+
+
+def test_HTTP_오류는_응답이_없어_사용량_없이_기록한다(fakes, stub_model, records):
+    agent = _agent(fakes, stub_model, lambda request: httpx.Response(500, text="server error"))
+
+    with pytest.raises(fakes.Error) as caught:
+        agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
+
+    assert (caught.value.meta.failure_phase, caught.value.meta.usage, records[0]["usage"]) == ("call", None, None)
+
+
 def test_판단_프로필이_없는_에이전트는_판단_호출을_막는다(fakes, stub_model, records):
     agent = fakes.Agent(stub_model(fakes.Answer(value="ok")))
 

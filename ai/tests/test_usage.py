@@ -4,7 +4,7 @@ import json
 from types import SimpleNamespace
 
 from app import usage
-from app.schemas.clients.decision_response import DecisionResponse
+from app.schemas.clients.decision_response import DecisionUsage
 
 
 def test_handler_사용량을_합산하고_캐시_입력을_분리한다():
@@ -235,11 +235,11 @@ def test_게이트웨이_최종_사용량을_LangChain_값보다_먼저_쓴다()
 
 
 def test_판단_응답에서_실제_모델과_토큰을_뽑는다():
-    response = DecisionResponse(
-        model="typesafe/jev-1.14-20261014", answers={}, input_tokens=421, cached_tokens=100, cache_write_tokens=20,
+    decision_usage = DecisionUsage(
+        model="typesafe/jev-1.14-20261014", input_tokens=421, cached_tokens=100, cache_write_tokens=20,
     )
 
-    call = usage.from_decision(response)
+    call = usage.from_decision(decision_usage)
 
     assert call == usage.CallUsage(
         reported_model="typesafe/jev-1.14-20261014", input_tokens=421, cached_tokens=100, output_tokens=0,
