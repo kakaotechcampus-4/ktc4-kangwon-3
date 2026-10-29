@@ -26,7 +26,8 @@ import java.util.UUID;
         name = "product",
         indexes = {
                 @Index(name = "idx_product_diagnoses_id_sort_order", columnList = "diagnoses_id, sort_order"),
-                @Index(name = "idx_product_processing_status_updated_at", columnList = "processing_status, updated_at")
+                @Index(name = "idx_product_processing_status_updated_at", columnList = "processing_status, updated_at"),
+                @Index(name = "idx_product_resume_pending_since", columnList = "resume_pending_since")
         }
 )
 public class Product extends BaseEntity {
