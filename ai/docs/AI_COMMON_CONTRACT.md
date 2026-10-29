@@ -394,7 +394,7 @@ def record_usage(record: UsageRecord, *, sink: UsageSink) -> None:
 | `AI_UNAUTHORIZED` | 401 | 내부 토큰 없음·불일치 |
 | `AI_NOT_FOUND` / `AI_SESSION_NOT_FOUND` | 404 | 경로 없음 / 세션 없음 |
 | `AI_METHOD_NOT_ALLOWED` | 405 | |
-| `AI_SESSION_CONFLICT` | 409 | 진행 중인 상품 포함 |
+| `AI_SESSION_CONFLICT` | 409 | 실행 중인(접수·실행) 상품 포함. 답변 대기 상품은 해당 없음 |
 | `AI_RESUME_CONFLICT` | 409 | 기다리는 질문과 다른 답변·중복 답변 |
 | `AI_QUEUE_FULL` | 429 | 진단 대기열 초과 |
 | `AI_INTERNAL_ERROR` | 500 | 처리 못 한 예외 |
@@ -607,6 +607,10 @@ class ExecutionEvent(BaseModel):
   - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)는 파이프라인 연결(#320) 때 정한다.
 - 이미지는 URL로 받는다(#389·#403). base64 data URI도 호환으로 받는다.
 - 원래 입력·추출 결과·이전 질문과 답변은 AI 세션이 보관한다. BE는 재진단 때 ID와 이번 회차 답변만 보낸다.
+- **답변 대기 상품의 재접수(#451)**: 답변 대기 상품이 `/content`로 다시 오면 기다리던 세션을 버리고 새 runId로 1회차부터 실행한다.
+  - BE가 실패 처리한 상품을 다시 진단할 때 24시간 보관이 끝날 때까지 409로 막히지 않게 하기 위함이다.
+  - 버린 실행의 runId로 온 `/resume`은 `AI_RESUME_CONFLICT`(409)로 거절한다.
+  - 접수·실행 중인 상품은 지금처럼 `AI_SESSION_CONFLICT`(409)로 요청 전체를 거절한다.
 
 ### 7.2 운영 로그 규칙
 
