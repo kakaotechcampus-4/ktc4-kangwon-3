@@ -41,7 +41,7 @@ function QuestionPage() {
                 currentQuestions.map((question) => ({ questionId: question.questionId, answerText: answers[question.questionId] })),
             ),
         onSuccess: () => {
-            navigate(`/result/product/${productId}`);
+            navigate(`/judgement/${product!.diagnosesId}`);
         },
         onError: (error) => {
             alert(error instanceof Error ? error.message : "답변 제출에 실패했습니다. 다시 시도해주세요.");
