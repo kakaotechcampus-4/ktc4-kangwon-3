@@ -89,6 +89,18 @@ def test_판단_실패는_그_단계로_판단_모델_이름으로_기록하고_
     assert [(row["configured_model"], row["ok"], row["failure_phase"]) for row in records] == [(JEV, False, phase)]
 
 
+@pytest.mark.parametrize(("handler", "message"), [
+    (lambda request: httpx.Response(500, text="server error"), "가짜 작업 판단 모델 호출에 실패했습니다"),
+    (lambda request: _jev_reply({}), "가짜 작업 판단 모델 응답을 해석하지 못했습니다"),
+], ids=["호출 실패", "응답 해석 실패"])
+def test_판단_실패_문구는_채팅_출력_스키마가_아니라_판단_모델로_쓴다(fakes, stub_model, records, handler, message):
+    agent = _agent(fakes, stub_model, handler)
+
+    with pytest.raises(fakes.Error, match=message) as caught:
+        agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
+    assert "Answer 스키마" not in str(caught.value)
+
+
 def test_답을_못_쓴_판단_응답도_쓴_토큰과_비용을_기록한다(fakes, stub_model, records):
     agent = _agent(fakes, stub_model, lambda request: _jev_reply({}))
 
