@@ -17,6 +17,7 @@ import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     {
         productId: "mock-product-1",
+        diagnosesId: "mock-diagnoses-1",
         productName: "블루투스 5.3 무선 이어폰 TWS 충전케이스 포함",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -199,6 +200,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-2",
+        diagnosesId: "mock-diagnoses-1",
         productName: "접이식 캠핑 테이블 알루미늄",
         productImageUrl: null,
         sourceType: SourceType.TextImage,
@@ -271,6 +273,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-3",
+        diagnosesId: "mock-diagnoses-1",
         productName: "유아용 실내화 (130~160mm)",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -308,6 +311,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-4",
+        diagnosesId: "mock-diagnoses-1",
         productName: "야광 비즈 팔찌 만들기 DIY 키트 5색",
         productImageUrl: null,
         sourceType: SourceType.TextImage,
@@ -327,6 +331,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-5",
+        diagnosesId: "mock-diagnoses-1",
         productName: "스테인리스 보온 텀블러 500ml",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -350,6 +355,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-6",
+        diagnosesId: "mock-diagnoses-1",
         productName: "LED 네일아트 건조기 UV 램프",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -382,6 +388,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-7",
+        diagnosesId: "mock-diagnoses-1",
         productName: "무선 미니 가습기 USB 충전식",
         productImageUrl: null,
         sourceType: SourceType.TextImage,
@@ -401,6 +408,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-8",
+        diagnosesId: "mock-diagnoses-1",
         productName: "강아지 자동 급식기 3L",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -428,6 +436,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-9",
+        diagnosesId: "mock-diagnoses-1",
         productName: "전자담배 액상 니코틴 프리 30ml",
         productImageUrl: null,
         sourceType: SourceType.TextImage,

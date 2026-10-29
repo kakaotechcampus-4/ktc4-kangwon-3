@@ -4,6 +4,7 @@ import type { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types
 /** 질문 화면에 필요한 상품 정보와 question을 담은 타입 */
 export interface QuestionProduct {
     productId: string
+    diagnosesId: string
     productName: string
     productImageUrl: string | null
     resultStatus: ResultStatus | null

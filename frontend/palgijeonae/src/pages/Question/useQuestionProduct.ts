@@ -12,6 +12,7 @@ export function useQuestionProduct(productId: string | undefined, enabled: boole
             const product = await getProduct(productId!);
             return {
                 productId: product.productId,
+                diagnosesId: product.diagnosesId,
                 productName: product.productName,
                 productImageUrl: product.productImageUrl,
                 resultStatus: product.resultStatus,
