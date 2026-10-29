@@ -1,6 +1,9 @@
 """BaseAgent 사용량 기록: 호출 1건당 1행, 기록 이름·모델·추론 강도 (#160, #284, #311)."""
 
+from time import perf_counter
+
 from app.observability.agent_sinks import agent_sinks
+from app.usage import CallUsage
 
 
 def test_성공하면_사용량을_한_번_기록한다(fakes, stub_model, records):
@@ -45,3 +48,15 @@ def test_호출이_끝나면_등록된_sink에_실행_정보와_기록_대상을
 
     assert received == [(result.meta, "p-1")]
     assert (result.meta.component, result.meta.usage_name) == ("fake", "fake-eval")
+
+
+def test_다른_모델을_부른_기록은_그_모델_이름과_단가로_남기고_추론_강도는_비운다(fakes, stub_model, records):
+    model = stub_model(fakes.Answer(value="ok"))
+    model.reasoning_effort = "low"
+    agent = fakes.Agent(model)
+    usage = CallUsage("typesafe/jev-1.14-20261014", input_tokens=1_000_000, cached_tokens=0, output_tokens=0)
+
+    meta = agent._finish_call(usage, "p-1", perf_counter(), called_model="typesafe/jev-latest")
+
+    assert (meta.model, meta.reasoning_effort, meta.cost_krw) == ("typesafe/jev-latest", None, 64.0)
+    assert (records[0]["configured_model"], records[0]["reasoning_effort"]) == ("typesafe/jev-latest", None)

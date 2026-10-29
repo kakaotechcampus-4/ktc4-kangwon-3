@@ -320,6 +320,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         elapsed_ms: int = 0,
         error_type: str | None = None,
         failure_phase: ModelFailurePhase | None = None,
+        called_model: str | None = None,
     ) -> AgentRunMeta:
         """이 에이전트의 모델·프롬프트 정보로 실행 정보를 만든다.
 
@@ -328,20 +329,23 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             elapsed_ms: 걸린 시간(ms).
             error_type: 실패 원인 예외 이름. 성공이면 None.
             failure_phase: 실패 단계. 성공이면 None.
+            called_model: 채팅 모델 말고 다른 모델(판단 모델 등)을 불렀으면 그 등록명. 추론 강도는 없음으로 남김.
+                None이면 채팅 모델과 그 추론 강도.
 
         Returns:
             AgentRunMeta: 실행 정보.
         """
         prompt = self.prompt
+        model = called_model or self._configured_model
         return AgentRunMeta(
             component=self.component_name,
             usage_name=self._usage_agent,
-            model=self._configured_model,
-            reasoning_effort=self._reasoning_effort,
+            model=model,
+            reasoning_effort=None if called_model else self._reasoning_effort,
             prompt_name=prompt.name.value,
             prompt_sha256=prompt.sha256,
             usage=usage,
-            cost_krw=estimate_krw(usage, self._configured_model) if usage else None,
+            cost_krw=estimate_krw(usage, model) if usage else None,
             elapsed_ms=elapsed_ms,
             error_type=error_type,
             failure_phase=failure_phase.value if failure_phase else None,
@@ -355,6 +359,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         *,
         error_type: str | None = None,
         failure_phase: ModelFailurePhase | None = None,
+        called_model: str | None = None,
     ) -> AgentRunMeta:
         """호출 1건을 마무리한다. 걸린 시간을 한 번 재서 실행 정보를 만들고 sink 등록표에 넘김.
 
@@ -364,12 +369,16 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             started_at: 호출 시작 시각 (perf_counter).
             error_type: 실패 원인 예외 이름. 성공이면 None.
             failure_phase: 실패 단계. 성공이면 None.
+            called_model: 채팅 모델 말고 다른 모델을 불렀으면 그 등록명. None이면 채팅 모델.
 
         Returns:
             AgentRunMeta: 실행 정보.
         """
         elapsed_ms = round((perf_counter() - started_at) * 1000)
-        meta = self._run_meta(usage=usage, elapsed_ms=elapsed_ms, error_type=error_type, failure_phase=failure_phase)
+        meta = self._run_meta(
+            usage=usage, elapsed_ms=elapsed_ms, error_type=error_type, failure_phase=failure_phase,
+            called_model=called_model,
+        )
         # 사용량 로그(usage.jsonl)도 기본 등록된 sink 중 하나 (usage_log.record_call)
         agent_sinks.publish(meta, subject_id)
         return meta
@@ -382,6 +391,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         subject_id: str,
         started_at: float,
         partial_result: object | None,
+        *,
+        called_model: str | None = None,
     ) -> NoReturn:
         """실패 호출을 기록하고 원인 예외를 ``error_class``로 감싸 던진다.
 
@@ -392,11 +403,15 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             subject_id: 기록 대상 ID (상품 ID).
             started_at: 호출 시작 시각 (perf_counter).
             partial_result: 예외에 담을 부분 결과.
+            called_model: 채팅 모델 말고 다른 모델을 불렀으면 그 등록명. None이면 채팅 모델.
 
         Raises:
             AgentError: 항상. 실제 타입은 ``error_class``, 실행 정보는 ``meta``.
         """
-        meta = self._finish_call(usage, subject_id, started_at, error_type=type(cause).__name__, failure_phase=phase)
+        meta = self._finish_call(
+            usage, subject_id, started_at, error_type=type(cause).__name__, failure_phase=phase,
+            called_model=called_model,
+        )
         raise self.error_class(
             self._failure_message(phase, cause),
             partial_result=partial_result,
@@ -411,6 +426,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         started_at: float,
         *,
         partial_result: object | None = None,
+        called_model: str | None = None,
     ) -> NoReturn:
         """후처리 실패를 ``failure_phase="finalize"`` 실패로 기록하고 받은 예외를 그대로 던진다.
 
@@ -422,6 +438,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             subject_id: 기록 대상 ID (상품 ID).
             started_at: 호출 시작 시각 (perf_counter).
             partial_result: 예외에 담을 부분 결과. None이면 기존 값 유지.
+            called_model: 채팅 모델 말고 다른 모델을 불렀으면 그 등록명. None이면 채팅 모델.
 
         Raises:
             Exception: 받은 예외 그대로.
@@ -430,6 +447,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         cause = exc.__cause__ if isinstance(exc, AgentError) and exc.__cause__ is not None else exc
         meta = self._finish_call(
             usage, subject_id, started_at, error_type=type(cause).__name__, failure_phase=ModelFailurePhase.FINALIZE,
+            called_model=called_model,
         )
         if isinstance(exc, AgentError):
             exc.meta = exc.meta or meta
