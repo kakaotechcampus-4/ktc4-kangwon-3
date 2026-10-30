@@ -1,5 +1,6 @@
 """판단 모델(/decisions)로 6개 심사 도메인 선택 여부를 정하는 에이전트. 선택 에이전트와 출력이 같음."""
 
+import logging
 from typing import Any
 
 from ...clients.llm.decision import DecisionClient
@@ -7,10 +8,12 @@ from ...config import ConfigError
 from ...schemas.agent import ToolSelectionResponse
 from ...schemas.product import Product
 from ..base import AgentResult, BaseAgent
-from .assemble import assemble
+from .assemble import assemble, assemble_without_answers
 from .errors import DecisionSelectionFailedError
 from .questions import QUESTIONS
 from .thresholds import THRESHOLDS
+
+logger = logging.getLogger(__name__)
 
 # 판단에 안 쓰는 식별 필드
 _NOT_SUBJECT = {"product_id", "source_url"}
@@ -51,19 +54,24 @@ class DecisionSelectionAgent(BaseAgent[Product, ToolSelectionResponse, ToolSelec
     def run_with_meta(self, input: Product) -> AgentResult[ToolSelectionResponse]:
         """판단 모델에 질문 한 묶음을 보내고 답으로 선택 결과를 조립한다.
 
+        판단 호출이 실패하면 실패로 기록한 뒤 규칙에 안 걸린 Tool까지 모두 선택한 결과를 돌려줌.
+
         Args:
             input: 추출된 상품 정보.
 
         Returns:
-            AgentResult[ToolSelectionResponse]: 6개 Tool 선택 결과와 실행 정보.
-
-        Raises:
-            DecisionSelectionFailedError: 판단 모델 호출·응답 변환 실패. 실행 정보는 ``meta``.
+            AgentResult[ToolSelectionResponse]: 6개 Tool 선택 결과와 실행 정보. 판단 호출 실패 시 실행 정보는
+            실패 기록 (``failure_phase`` 있음).
         """
         subject_id = self._subject_id(input)
         questions = list(QUESTIONS)
         subject = input.model_dump(mode="json", exclude=_NOT_SUBJECT)
-        response, usage, started_at = self._call_decision(subject, questions, subject_id=subject_id)
+        try:
+            response, usage, started_at = self._call_decision(subject, questions, subject_id=subject_id)
+        except DecisionSelectionFailedError as exc:
+            # 호출 실패는 이미 기록됨. 선택을 비우면 진단이 멈추므로 모르면 선택(원칙 1)으로 이어감
+            logger.warning("판단 선택 호출 실패, 전부 선택으로 대체: %s", exc)
+            return AgentResult(assemble_without_answers(input), exc.meta)
         try:
             result = assemble(input, response.answers, self._decision_model)
         except Exception as exc:

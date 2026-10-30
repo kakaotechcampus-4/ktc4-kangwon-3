@@ -40,6 +40,23 @@ def assemble(product: Product, answers: Mapping[str, DecisionAnswer], model: str
     return ToolSelectionResponse(decisions=decisions)
 
 
+def assemble_without_answers(product: Product) -> ToolSelectionResponse:
+    """판단 답 없이 조립한다. 규칙에 안 걸린 Tool도 모두 선택 (모르면 선택, 원칙 1).
+
+    Args:
+        product: 추출된 상품 정보.
+
+    Returns:
+        ToolSelectionResponse: 6개 Tool 모두 선택한 결과.
+    """
+    rules = rule_reasons(product)
+    return ToolSelectionResponse(decisions=[
+        _item(tool, True, "규칙: " + ", ".join(rules[tool])) if tool in rules
+        else _item(tool, True, "규칙 해당 없음. 판단 모델 호출 실패로 정보 부족, 선택")
+        for tool in ToolName
+    ])
+
+
 def _judge(tool: ToolName, answers: Mapping[str, DecisionAnswer], limit: float) -> ToolSelectionItem:
     """Tool 질문 중 하나라도 문턱값 이상이거나 답을 거부했으면 선택한다 (모르면 선택, 원칙 1).
 
