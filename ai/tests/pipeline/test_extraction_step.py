@@ -1,6 +1,7 @@
 """진단 입력 → 상품 정보 추출 단계: 재진단 재사용, URL 수집, 실패 코드·재시도 여부를 가짜 추출기·가짜 수집기로 확인한다."""
 
 import httpx
+import openai
 import pytest
 from openai import LengthFinishReasonError
 from openai.types.chat import ChatCompletion
@@ -133,6 +134,29 @@ def test_이미지_분류가_실패하면_재시도_가능으로_실패한다():
     step = ExtractionStep(_FakeExtractor(), builder)
 
     _expect_failure(step, _input(source_url=URL), AIResponseCode.PIPELINE_ERROR, retryable=True)
+
+
+def _status_error(status: int) -> openai.APIStatusError:
+    response = httpx.Response(status, request=httpx.Request("POST", "https://llm.example/v1/chat/completions"))
+    return openai.APIStatusError(f"HTTP {status}", response=response, body=None)
+
+
+@pytest.mark.parametrize(("cause", "retryable"), [
+    (_status_error(429), True),
+    (_status_error(500), True),
+    (_status_error(503), True),
+    (openai.APIConnectionError(request=httpx.Request("POST", "https://llm.example")), True),
+    (_status_error(400), False),
+    (_status_error(401), False),
+    (_status_error(404), False),
+])
+def test_모델_호출_실패는_429_5xx_연결_실패만_재시도_가능이다(cause, retryable):
+    # 400·401·404는 요청·키·주소 오류라 같은 요청을 다시 보내도 실패함
+    error = ExtractionFailedError("추출 실패", meta=AgentRunMeta(component="extraction", failure_phase="call"))
+    error.__cause__ = cause
+    step = ExtractionStep(_FakeExtractor(error), _builder(_FakeClient()))
+
+    _expect_failure(step, _input(text_blocks=["보조배터리"]), AIResponseCode.PIPELINE_ERROR, retryable)
 
 
 @pytest.mark.parametrize(("phase", "retryable"), [("call", True), ("parsing", False), ("finalize", False)])
