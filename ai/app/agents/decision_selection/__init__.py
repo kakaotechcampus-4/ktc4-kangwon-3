@@ -3,10 +3,12 @@
 - questions.py: Tool별 예/아니오 질문 (TOOL_QUESTIONS, QUESTIONS)
 - rules.py: 판단 모델 없이 정하는 코드 규칙 (rule_reasons)
 - thresholds.py: (판단 모델, Tool)별 문턱값 (threshold)
+- assemble.py: 규칙·판단 답 → 6개 Tool 선택 결과와 이유 (assemble)
 """
 
+from .assemble import assemble
 from .questions import QUESTIONS, TOOL_QUESTIONS
 from .rules import rule_reasons
 from .thresholds import threshold
 
-__all__ = ["QUESTIONS", "TOOL_QUESTIONS", "rule_reasons", "threshold"]
+__all__ = ["QUESTIONS", "TOOL_QUESTIONS", "assemble", "rule_reasons", "threshold"]

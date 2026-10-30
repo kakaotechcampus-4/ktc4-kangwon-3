@@ -47,7 +47,19 @@ def _radio_unknown_reason(product: Product) -> str | None:
         str | None: 규칙 설명. 해당 없으면 None.
     """
     electric = [field for field in _ELECTRIC_FIELDS if getattr(product, field) is True]
-    unknown = [field for field in TRUE_FIELDS[ToolName.RADIO] if getattr(product, field) is None]
+    unknown = unknown_wireless_fields(product)
     if not electric or not unknown:
         return None
     return f"{'·'.join(electric)}=true인데 {'·'.join(unknown)}=None (전기 제품의 무선 기능 정보 없음)"
+
+
+def unknown_wireless_fields(product: Product) -> list[str]:
+    """값이 None인 무선 필드.
+
+    Args:
+        product: 추출된 상품 정보.
+
+    Returns:
+        list[str]: None인 무선 필드 이름. 없으면 빈 목록.
+    """
+    return [field for field in TRUE_FIELDS[ToolName.RADIO] if getattr(product, field) is None]
