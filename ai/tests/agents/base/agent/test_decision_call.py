@@ -9,13 +9,16 @@ import httpx
 import pytest
 
 from app.agents.base import agent as agent_module
-from app.clients.llm.decision import DecisionRequestError, DecisionResponseError, TypeSafeDecisionClient
+from app.clients.llm.decision import (
+    DecisionRequestError, DecisionResponseError, TypeSafeDecisionClient, questions_fingerprint,
+)
 from app.config import DECISION_PROFILES
+from app.schemas.clients.decision_request import YesNoQuestion
 from app.schemas.clients.decision_response import YesNoAnswer
 
 JEV = "typesafe/jev-latest"
 SUBJECT = {"product_name": "색연필 24색 세트"}
-QUESTIONS = [{"type": "yes_no", "name": "kind_kids", "instructions": "어린이가 주로 쓰는 종류인가"}]
+QUESTIONS = [YesNoQuestion(name="kind_kids", instructions="어린이가 주로 쓰는 종류인가")]
 
 
 def _jev_reply(answers: dict) -> httpx.Response:
@@ -40,7 +43,7 @@ def test_판단_답을_돌려주고_판단_모델_이름과_단가로_기록한�
     agent = _agent(fakes, stub_model, lambda request: _jev_reply({"kind_kids": {"type": "noul", "noul": 0.61}}))
 
     response, usage, started_at = agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
-    meta = agent._finish_call(usage, "p-1", started_at, called_model=JEV)
+    meta = agent._finish_call(usage, "p-1", started_at, decision_questions=QUESTIONS)
 
     assert response.answers == {"kind_kids": YesNoAnswer(probability=0.61)}
     # 실제 버전은 사용량에, 기록·비용은 요청한 등록명으로
@@ -49,15 +52,15 @@ def test_판단_답을_돌려주고_판단_모델_이름과_단가로_기록한�
     assert [(row["configured_model"], row["ok"]) for row in records] == [(JEV, True)]
 
 
-def test_판단_호출_기록에는_채팅_프롬프트_지문을_남기지_않는다(fakes, stub_model, records):
+def test_판단_호출_기록에는_채팅_프롬프트_대신_질문_목록_지문을_남긴다(fakes, stub_model, records):
     agent = _agent(fakes, stub_model, lambda request: _jev_reply({"kind_kids": {"type": "noul", "noul": 0.5}}))
 
     _, usage, started_at = agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
-    decision_meta = agent._finish_call(usage, "p-1", started_at, called_model=JEV)
+    decision_meta = agent._finish_call(usage, "p-1", started_at, decision_questions=QUESTIONS)
     chat_meta = agent.run_with_meta(fakes.question).meta
 
-    # 판단 호출은 시스템 프롬프트를 안 씀. 같은 에이전트의 채팅 호출은 그대로 남김
-    assert (decision_meta.prompt_name, decision_meta.prompt_sha256) == (None, None)
+    # 판단 호출은 시스템 프롬프트 대신 질문 지침을 씀. 같은 에이전트의 채팅 호출은 그대로 남김
+    assert (decision_meta.prompt_name, decision_meta.prompt_sha256) == (None, questions_fingerprint(QUESTIONS))
     assert (chat_meta.prompt_name, chat_meta.prompt_sha256) == (agent.prompt.name.value, agent.prompt.sha256)
 
 
@@ -85,6 +88,7 @@ def test_판단_실패는_그_단계로_판단_모델_이름으로_기록하고_
 
     assert isinstance(caught.value.__cause__, cause)
     assert (caught.value.meta.model, caught.value.meta.failure_phase) == (JEV, phase)
+    assert caught.value.meta.prompt_sha256 == questions_fingerprint(QUESTIONS)
     assert caught.value.partial_result == "부분"
     assert [(row["configured_model"], row["ok"], row["failure_phase"]) for row in records] == [(JEV, False, phase)]
 
