@@ -281,12 +281,14 @@ def test_이유에서_다른_물품이라고_결론_낸_선택은_쓰지_않는�
     assert result.query["selected_cases"] == [KETTLE_CASE]
 
 
-def test_한_건뿐인_호라_뺀_선택은_가정에_HS를_남긴다():
+def test_한_건뿐인_호의_선택은_빼지_않고_HS_확인_필요로_남긴다():
+    # 빼면 맞는 후보의 요건·질문도 빠져 효과 평가 전까지 표시만 (#420 리뷰)
     product, facts = product_and_facts()
-    result, _, _, _ = run(product, facts, review(select(), select(COFFEE_CASE)))
+    result, _, _, requirements = run(product, facts, review(select(), select(COFFEE_CASE)))
     assert result.query["lone_cases"] == [COFFEE_CASE]
-    assert result.query["selected_cases"] == [KETTLE_CASE]
-    assert any("1개(HS 8419.81-0000)를 제외했습니다" in text for text in result.findings[0].assumptions)
+    assert result.query["selected_cases"] == [KETTLE_CASE, COFFEE_CASE]
+    assert requirements.calls == ["8516799000", "8419810000"]
+    assert any("1개(HS 8419.81-0000)가 있어 HS 확인이 필요합니다" in text for text in result.findings[0].assumptions)
 
 
 def test_원문과_대조되지_않는_조건은_그_조건만_버린다():
@@ -456,24 +458,21 @@ def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkey
     assert names == [ToolName.CUSTOMS]
 
 
-def test_후보에_한_번만_나온_호의_선택은_여러_번_나온_호와_함께_골랐을_때_뺀다():
-    from app.tools.customs.tool import _drop_lone_headings
+def test_후보에_한_번만_나온_호의_선택은_여러_번_나온_호와_함께_골랐을_때_찾는다():
+    from app.tools.customs.tool import _lone_headings
     toy = [HsCase(f"t{i}", ("9503003411",), "STUFFED TOY", "", "") for i in range(3)]
     keyring = HsCase("k", ("6307909000",), "STUFFED TOY 키링", "", "")
     chosen = [(keyring, None, []), (toy[0], None, [])]
 
-    kept, lone = _drop_lone_headings(chosen, [*toy, keyring])
-
-    assert [case.case_id for case, _, _ in kept] == ["t0"]
-    assert lone == ["k"]
+    assert _lone_headings(chosen, [*toy, keyring]) == ["k"]
 
 
-def test_여러_번_나온_호끼리_갈리거나_모두_한_번씩이면_모두_남긴다():
-    from app.tools.customs.tool import _drop_lone_headings
+def test_여러_번_나온_호끼리_갈리거나_모두_한_번씩이면_찾지_않는다():
+    from app.tools.customs.tool import _lone_headings
     babies = [HsCase(f"b{i}", ("6111201000",), "Babies' garments", "", "") for i in range(2)]
     kids = [HsCase(f"k{i}", ("6109101000",), "CHILDREN'S CLOTHES", "", "") for i in range(3)]
     kettle = HsCase("a", ("8516799000",), "KETTLE", "", "")
     coffee = HsCase("c", ("8419810000",), "COFFEE", "", "")
 
-    assert _drop_lone_headings([(babies[0], None, []), (kids[0], None, [])], [*babies, *kids])[1] == []
-    assert _drop_lone_headings([(kettle, None, []), (coffee, None, [])], [kettle, coffee])[1] == []
+    assert _lone_headings([(babies[0], None, []), (kids[0], None, [])], [*babies, *kids]) == []
+    assert _lone_headings([(kettle, None, []), (coffee, None, [])], [kettle, coffee]) == []
