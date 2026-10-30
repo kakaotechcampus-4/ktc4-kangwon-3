@@ -1,7 +1,7 @@
 """판단 선택 질문 목록: Tool별 질문 구성, 한 요청으로 보낼 수 있는지."""
 
 from app.agents.decision_selection import QUESTIONS, TOOL_QUESTIONS
-from app.agents.decision_selection.questions import SUBJECT_NOTE
+from app.agents.decision_selection.questions import QUESTION_LABELS, SUBJECT_NOTE
 from app.clients.llm.decision import check_request
 from app.schemas.clients.decision_request import DecisionRequest
 from app.schemas.schemas import ToolName
@@ -22,3 +22,7 @@ def test_전체_질문을_한_요청으로_보낼_수_있다():
 
 def test_모든_질문에_판단_대상_설명이_붙는다():
     assert all(question.instructions.startswith(SUBJECT_NOTE) for question in QUESTIONS)
+
+
+def test_모든_질문에_이유용_설명이_있다():
+    assert set(QUESTION_LABELS) == {question.name for question in QUESTIONS}

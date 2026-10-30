@@ -43,13 +43,29 @@ def test_규칙에_걸리면_판단_답과_무관하게_선택하고_규칙을_�
 def test_질문_하나라도_문턱값_이상이면_선택한다():
     picked = _picked(assemble(_product(**_PLAIN), _answers(children_kind=0.82, children_target=0.3), JEV))
 
-    assert picked[ToolName.CHILDREN] == (True, "판단 모델: children_target 0.30, children_kind 0.82 (문턱 0.15)")
+    assert picked[ToolName.CHILDREN] == (True, (
+        "관련 필드 for_children=None, target_age=None. 열어 본 이유: 판단 모델이 본 해당 가능성 "
+        "만 13세 이하 어린이 대상 표기·광고 0.30, 완구·학용품·유아용품처럼 어린이가 주로 쓰는 종류 0.82 (기준 0.15 이상). "
+        "실제 해당 여부는 Tool 결과 기준"
+    ))
 
 
-def test_모두_문턱값_미만이면_선택하지_않고_최고_답을_이유로_쓴다():
-    picked = _picked(assemble(_product(**_PLAIN), _answers(children_kind=0.12), JEV))
+def test_모두_문턱값_미만이면_관련_필드와_질문별_답을_이유로_쓴다():
+    picked = _picked(assemble(_product(**_PLAIN, for_children=False, target_age="성인"), _answers(children_kind=0.12),
+                              JEV))
 
-    assert picked[ToolName.CHILDREN] == (False, "규칙 해당 없음. 판단 모델 최고 children_kind 0.12 < 문턱 0.15")
+    assert picked[ToolName.CHILDREN] == (False, (
+        "관련 필드 for_children=false, target_age='성인'. 열지 않은 이유: 판단 모델이 본 해당 가능성 "
+        "만 13세 이하 어린이 대상 표기·광고 0.05, 완구·학용품·유아용품처럼 어린이가 주로 쓰는 종류 0.12 모두 기준 0.15 미만"
+    ))
+
+
+def test_관련_필드가_없는_표시광고는_판단_내용만_쓴다():
+    picked = _picked(assemble(_product(**_PLAIN), _answers(), JEV))
+
+    selected, reason = picked[ToolName.LABEL_AD]
+    assert not selected
+    assert reason.startswith("열지 않은 이유: 판단 모델이 본 해당 가능성 효능·효과 표현 0.05, ")
 
 
 def test_답을_거부한_질문이_있으면_선택한다():
@@ -58,7 +74,7 @@ def test_답을_거부한_질문이_있으면_선택한다():
 
     picked = _picked(assemble(_product(**_PLAIN), answers, JEV))
 
-    assert picked[ToolName.LABEL_AD] == (True, "판단 모델이 답을 거부함(ad_effect). 정보 부족으로 선택")
+    assert picked[ToolName.LABEL_AD] == (True, "열어 본 이유: 판단 모델이 '효능·효과 표현' 답을 거부해 정보 부족")
 
 
 def test_판단상_전기_제품이고_무선_정보가_없으면_전파를_선택한다():
@@ -66,8 +82,8 @@ def test_판단상_전기_제품이고_무선_정보가_없으면_전파를_선�
 
     selected, reason = picked[ToolName.RADIO]
     assert selected
-    assert reason == ("판단 모델: electric_powered 0.60 (문턱 0.3)인데 wireless_charging·wireless_shield=None "
-                      "(전기 제품의 무선 기능 정보 없음)")
+    assert reason == ("관련 필드 wireless_charging·wireless_shield=None. 열어 본 이유: 판단 모델이 본 해당 가능성 "
+                      "전기 작동 또는 전지 내장 0.60 (기준 0.3 이상)인데 무선 기능 정보 없음")
 
 
 def test_판단상_전기_제품이어도_무선_필드가_다_있으면_전파_질문으로_정한다():
