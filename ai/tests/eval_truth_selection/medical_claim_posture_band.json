@@ -2,7 +2,7 @@
   "fixture": "medical_claim_posture_band.txt",
   "reviewed_by": "gityhb",
   "reviewed_at": "2026-10-05",
-  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "prompt_sha256": "c24174f95164a811e96636d67d6bbc3b61e8cbb1ff0c1eeb25a076a3808516bc",
   "summary": "자세교정 밴드(AliExpress). 판매자 제목의 '굽은 등 교정기'가 의료 표방이라 식약과 표시광고가 선택된다. 추출이 이 제목을 빠뜨리면(#229) 두 툴이 함께 빠지는지 보는 케이스다.",
   "tools": {
     "customs_requirements": {
