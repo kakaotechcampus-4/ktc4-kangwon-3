@@ -8,7 +8,7 @@ import json
 import httpx
 import pytest
 
-from app.agents.decision_selection import QUESTIONS, DecisionSelectionAgent, DecisionSelectionFailedError
+from app.agents.decision_selection import QUESTIONS, DecisionSelectionAgent
 from app.clients.llm.decision import TypeSafeDecisionClient, questions_fingerprint
 from app.config import ConfigError
 from app.schemas.product import Product
@@ -57,14 +57,33 @@ def test_식별_필드는_빼고_전체_질문을_한_요청으로_보낸다(rec
     assert list(sent[0]["questions"]) == [question.name for question in QUESTIONS]
 
 
-def test_판단_호출이_실패하면_에이전트_예외로_기록한다(records):
-    agent = _agent(lambda request: httpx.Response(500, text="server error"))
+@pytest.mark.parametrize(("reply", "phase"), [
+    (httpx.Response(500, text="server error"), "call"),
+    (httpx.Response(200, json={"model": "typesafe/jev-1.14-20261014", "answers": {},
+                               "usage": {"input_tokens": 1000, "output_tokens": 0}}), "parsing"),
+])
+def test_판단_호출이_실패하면_실패로_기록하고_전부_선택한다(records, reply, phase):
+    result = _agent(lambda request: reply).run_with_meta(_PRODUCT)
 
-    with pytest.raises(DecisionSelectionFailedError, match="심사 도메인 선택 판단 모델 호출에 실패했습니다") as caught:
-        agent.run(_PRODUCT)
+    assert all(item.selected for item in result.result.decisions)
+    reasons = {item.tool_name: item.reason for item in result.result.decisions}
+    assert reasons[ToolName.CUSTOMS] == "규칙: 해외 직구 상품은 수입 통관 대상"
+    assert reasons[ToolName.CHILDREN] == "규칙 해당 없음. 판단 모델 호출 실패로 정보 부족, 선택"
+    assert result.meta.failure_phase == phase
+    assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, phase)]
 
-    assert caught.value.meta.failure_phase == "call"
-    assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "call")]
+
+def test_조립이_실패하면_실패로_기록하고_예외를_그대로_던진다(records, monkeypatch):
+    monkeypatch.setattr("app.agents.decision_selection.agent.assemble", _raise_value_error)
+
+    with pytest.raises(ValueError, match="조립 실패"):
+        _agent(lambda request: _jev_reply()).run(_PRODUCT)
+
+    assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "finalize")]
+
+
+def _raise_value_error(*args):
+    raise ValueError("조립 실패")
 
 
 def test_사용량_기록_이름을_바꿀_수_있다(records):
