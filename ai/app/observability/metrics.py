@@ -148,6 +148,10 @@ class SessionSnapshotCollector(Collector):
             rejected.add_metric([reason], count)
         yield rejected
 
+        replaced = CounterMetricFamily("ai_session_awaiting_replaced", "새 접수로 버린 답변 대기 세션 누적 수")
+        replaced.add_metric([], snapshot.awaiting_replaced)
+        yield replaced
+
 
 class AgentMetrics:
     """에이전트 모델 호출 기록으로 호출 수·토큰·비용·시간을 기록한다. agent_sinks에 on_run을 등록해 씀."""

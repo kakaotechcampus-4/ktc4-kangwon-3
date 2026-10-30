@@ -225,15 +225,57 @@ def test_접수_또는_실행_중인_상품이_섞이면_요청_전체를_거절
     assert manager.get("p-2") is None
 
 
-def test_답변_대기_중인_상품도_새_접수를_막는다(managers):
-    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
+def test_답변_대기_상품과_실행_중인_상품이_섞이면_거절하고_답변_대기_세션은_그대로_둔다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-1" else JobDone(
+        build_dummy_assessment(product_id)))
     manager = _manager(managers, job)
     manager.submit("d-1", _inputs("p-1"))
     job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+    manager.submit("d-1", _inputs("p-2"))
+    _wait_until(lambda: _status(manager, "p-2") is SessionStatus.RUNNING)
+
+    with pytest.raises(SessionConflictError) as exc_info:
+        manager.submit("d-2", _inputs("p-1", "p-2"))
+
+    assert exc_info.value.product_ids == ["p-2"]
+    assert manager.get("p-1") == waiting
+    snapshot = manager.snapshot()
+    assert (snapshot.awaiting_replaced, snapshot.rejected["conflict"]) == (0, 1)
+    job.release("p-2")
+
+
+def test_답변_대기_중인_상품은_새_세션으로_교체해_1회차부터_다시_실행한다(managers):
+    # #451: BE가 실패 처리한 상품을 다시 진단할 때 24시간 막히지 않도록
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
+    manager = _manager(managers, job)
+    [old] = manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
     _wait_until(lambda: _status(manager,"p-1") is SessionStatus.AWAITING_INPUT)
 
-    with pytest.raises(SessionConflictError):
-        manager.submit("d-2", _inputs("p-1"))
+    [new] = manager.submit("d-1", _inputs("p-1"))
+
+    assert new.context.run_id != old.context.run_id
+    assert (new.status, new.question_round, new.questions, new.answers) == (SessionStatus.ACCEPTED, 0, [], [])
+    assert manager.get("p-1").context.run_id == new.context.run_id
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    assert manager.get("p-1").question_round == 1
+
+
+def test_현황은_새_접수로_버린_답변_대기_세션만_센다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-1" else JobDone(
+        build_dummy_assessment(product_id)))
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    job.release("p-1")
+    job.release("p-2")
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+
+    assert manager.snapshot().awaiting_replaced == 1
 
 
 @pytest.mark.parametrize("outcome_for", [
@@ -688,6 +730,20 @@ def test_같은_답변이_두_번_오면_두_번째는_거절하고_실행은_�
     job.release("p-1")
     _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
     assert len(job.started) == 2
+
+
+def test_새_접수로_버린_실행의_답변은_재진단하지_않는다(managers):
+    job = _AnswerJob()
+    manager = _waiting(managers, job)
+    discarded = manager.get("p-1")
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: len(job.inputs) == 2 and _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    replaced = manager.get("p-1")
+
+    with pytest.raises(ResumeConflictError):
+        _resume(manager, run_id=discarded.context.run_id)
+
+    assert (manager.get("p-1"), len(job.inputs)) == (replaced, 2)
 
 
 def test_이번_회차에_묻지_않은_질문_키가_있으면_거절한다(managers):

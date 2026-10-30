@@ -50,7 +50,7 @@ def to_extraction_input(product: DiagnosisProductInput) -> ExtractionInput:
 
 # 접수·재진단 경로의 오류 응답. 더미 경로(/dummy/diagnose)도 같이 씀
 SUBMIT_RESPONSES = {
-    status.HTTP_409_CONFLICT: {"model": ApiResponse, "description": "진행 중인 상품 포함. data.conflictProductIds"},
+    status.HTTP_409_CONFLICT: {"model": ApiResponse, "description": "실행 중인 상품 포함. data.conflictProductIds"},
     status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse, "description": "진단 대기열 초과"},
 }
 RESUME_RESPONSES = {

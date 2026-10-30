@@ -122,7 +122,7 @@ class StatusTraits:
     """상태의 성격. 상태별로 다르게 다루는 곳은 이 표만 봄.
 
     Attributes:
-        blocks_new_accept: 같은 상품의 새 접수를 막는지 (진행 중).
+        blocks_new_accept: 같은 상품의 새 접수를 막는지 (실행 중).
         times_out: 접수 후 최대 시간이 지나면 시간 초과로 실패시키는지.
         retention: 지울 때 쓰는 보관 시간 종류. None이면 지우지 않음 (시간 초과 처리가 맡음).
     """
@@ -136,8 +136,8 @@ class StatusTraits:
 STATUS_TRAITS: dict[SessionStatus, StatusTraits] = {
     SessionStatus.ACCEPTED: StatusTraits(blocks_new_accept=True, times_out=True, retention=None),
     SessionStatus.RUNNING: StatusTraits(blocks_new_accept=True, times_out=True, retention=None),
-    # 실행은 끝났지만 답변을 기다리는 중이라 새 접수는 막음. 질문을 보낸 시각부터 따로 보관
-    SessionStatus.AWAITING_INPUT: StatusTraits(blocks_new_accept=True, times_out=False, retention="awaiting_input"),
+    # 실행은 끝나 새 접수가 오면 새 세션으로 교체 (BE 재시도, #451). 질문을 보낸 시각부터 따로 보관
+    SessionStatus.AWAITING_INPUT: StatusTraits(blocks_new_accept=False, times_out=False, retention="awaiting_input"),
     SessionStatus.COMPLETED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended"),
     SessionStatus.FAILED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended"),
 }
