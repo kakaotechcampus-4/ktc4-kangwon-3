@@ -13,6 +13,11 @@ spring:
     redis:
       repositories:
         enabled: false
+  task:
+    scheduling:
+      pool:
+        # 스케줄러 스레드 수
+        size: ${SCHEDULING_POOL_SIZE:3}
   security:
     oauth2:
       client:
