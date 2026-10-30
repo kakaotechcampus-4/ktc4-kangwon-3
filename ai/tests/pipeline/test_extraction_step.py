@@ -2,6 +2,8 @@
 
 import httpx
 import pytest
+from openai import LengthFinishReasonError
+from openai.types.chat import ChatCompletion
 
 from app.agents.base.meta import AgentRunMeta
 from app.agents.extraction.errors import ExtractionFailedError
@@ -139,3 +141,12 @@ def test_추출_모델_실패는_응답을_못_받았을_때만_재시도_가능
     step = ExtractionStep(_FakeExtractor(error), _builder(_FakeClient()))
 
     _expect_failure(step, _input(text_blocks=["보조배터리"]), AIResponseCode.PIPELINE_ERROR, retryable)
+
+
+def test_출력_길이_초과는_파싱_실패여도_재시도_가능이다():
+    # 같은 내용을 반복하다 출력 한도에 닿는 실패. 같은 입력의 다른 회차는 정상이라 다시 하면 성공할 수 있음
+    error = ExtractionFailedError("추출 실패", meta=AgentRunMeta(component="extraction", failure_phase="parsing"))
+    error.__cause__ = LengthFinishReasonError(completion=ChatCompletion.model_construct(usage=None))
+    step = ExtractionStep(_FakeExtractor(error), _builder(_FakeClient()))
+
+    _expect_failure(step, _input(text_blocks=["보조배터리"]), AIResponseCode.PIPELINE_ERROR, retryable=True)
