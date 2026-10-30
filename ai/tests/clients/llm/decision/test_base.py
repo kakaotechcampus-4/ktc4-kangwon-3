@@ -6,7 +6,9 @@
 import httpx
 import pytest
 
-from app.clients.llm.decision import DecisionClient, DecisionRequestError, DecisionResponseError
+from app.clients.llm.decision import (
+    DecisionClient, DecisionRequestError, DecisionResponseError, questions_fingerprint,
+)
 from app.schemas.clients.decision_request import DecisionRequest
 from app.schemas.clients.decision_response import DecisionUsage
 
@@ -150,3 +152,33 @@ def test_질문과_맞는_답과_거부_답은_통과한다(wire, decision_reque
     wire(client, lambda request: httpx.Response(200, json={"model": "m", "answers": answers, "input_tokens": 10}))
 
     assert client.decide(decision_request).answers["kid_use"].type == "refused"
+
+
+def test_질문_지문은_같은_질문이면_다른_요청에서_만들어도_같다(decision_request):
+    # 상품마다 다른 판단 대상 정보·모델과 무관하게 질문만 봄
+    other = DecisionRequest(
+        model="other/model", subject={"product_name": "물감"},
+        questions=[question.model_dump() for question in decision_request.questions],
+    )
+
+    assert questions_fingerprint(other.questions) == questions_fingerprint(decision_request.questions)
+    assert len(questions_fingerprint(decision_request.questions)) == 64
+
+
+@pytest.mark.parametrize(("index", "update"), [
+    (0, {"instructions": "어린이용인가"}),
+    (1, {"options": [{"value": "stationery"}, {"value": "other"}]}),
+    (2, {"name": "kid_usage"}),
+])
+def test_질문_지침_후보_이름이_바뀌면_지문이_바뀐다(decision_request, index, update):
+    questions = decision_request.questions
+    changed = list(questions)
+    changed[index] = questions[index].model_validate(questions[index].model_dump() | update)
+
+    assert questions_fingerprint(changed) != questions_fingerprint(questions)
+
+
+def test_질문_순서가_바뀌면_지문이_바뀐다(decision_request):
+    questions = decision_request.questions
+
+    assert questions_fingerprint(list(reversed(questions))) != questions_fingerprint(questions)

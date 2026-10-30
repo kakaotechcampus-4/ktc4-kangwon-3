@@ -3,7 +3,7 @@
 from threading import Lock
 
 from ....config import ConfigError, DecisionProfile, Settings, load_settings
-from .base import DecisionClient, check_request
+from .base import DecisionClient, check_request, questions_fingerprint
 from .errors import DecisionRequestError, DecisionResponseError
 from .openai import OpenAIDecisionClient
 from .typesafe import TypeSafeDecisionClient
@@ -70,5 +70,5 @@ def close_decision_clients() -> None:
 __all__ = [
     "DecisionClient", "DecisionRequestError", "DecisionResponseError", "OpenAIDecisionClient",
     "TypeSafeDecisionClient", "build_decision_client", "check_request", "close_decision_clients",
-    "get_decision_client",
+    "get_decision_client", "questions_fingerprint",
 ]
