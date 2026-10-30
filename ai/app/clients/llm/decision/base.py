@@ -3,11 +3,13 @@
 POST {OPENAI_BASE_URL}/decisions. 요청·응답 형식은 모델 제공사마다 다름 (Jev는 TypeSafe 형식, Luna는 OpenAI 형식).
 """
 
+import json
 from abc import ABC, abstractmethod
 
 import httpx
 
-from ....schemas.clients.decision_request import ChoiceQuestion, DecisionRequest, ScoreQuestion
+from ....prompts import fingerprint
+from ....schemas.clients.decision_request import ChoiceQuestion, DecisionQuestion, DecisionRequest, ScoreQuestion
 from ....schemas.clients.decision_response import DecisionAnswer, DecisionResponse, DecisionUsage, RefusedAnswer
 from ...request import RequestClient
 from ..client import TIMEOUT_SECONDS
@@ -162,6 +164,21 @@ def check_request(request: DecisionRequest) -> None:
         problems += _duplicates([option.value for option in options], f"{question.name}의 후보·단계 값")
     if problems:
         raise DecisionRequestError(f"보낼 수 없는 판단 요청: {problems}")
+
+
+def questions_fingerprint(questions: list[DecisionQuestion]) -> str:
+    """질문 목록의 지문(SHA-256). 판단 호출에서 프롬프트 지문 자리에 씀.
+
+    질문 순서·종류·이름·지침·후보·단계가 같으면 같은 값. 판단 대상 정보와 모델은 넣지 않음.
+
+    Args:
+        questions: 질문 목록.
+
+    Returns:
+        str: SHA-256 16진 문자열.
+    """
+    dumped = [question.model_dump() for question in questions]
+    return fingerprint(json.dumps(dumped, ensure_ascii=False, sort_keys=True))
 
 
 def _duplicates(values: list[str], label: str) -> list[str]:
