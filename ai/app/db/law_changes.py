@@ -24,7 +24,7 @@ class LawChangeKind(StrEnum):
 
     Attributes:
         ANNOUNCED: 검색 목록에 새 판이 생김.
-        APPLIED: 기준일에 적용되는 판이 바뀜.
+        APPLIED: 서비스가 근거로 고른 판이 바뀜. 실제 개정 시행과 같다는 뜻은 아님 (고르지 않은 시행판은 SKIPPED).
         SKIPPED: 시행일이 됐지만 나중에 공포·발령된 판이 있어 쓰지 않음. 사람이 확인할 것.
     """
 
@@ -59,7 +59,7 @@ class LawChange:
         is_admrul: 행정규칙이면 True.
         tool: 이 문서를 근거로 쓰는 Tool 이름.
         version: 해당 판.
-        previous: APPLIED일 때 이전에 적용되던 판 번호.
+        previous: APPLIED일 때 이전에 근거로 쓰던 판 번호.
     """
 
     kind: LawChangeKind
