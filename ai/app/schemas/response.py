@@ -35,12 +35,6 @@ class ApiResponse(StrictModel):
     data: Any = None
 
 
-class DiagnoseResponse(ApiResponse):
-    """진단 파이프라인 응답. data에 FinalAssessment가 담긴다."""
-
-    data: FinalAssessment | None = None
-
-
 class AcceptedProduct(ApiModel):
     """접수된 상품 하나 (#310).
 
@@ -74,10 +68,10 @@ class DiagnosisAcceptedResponse(ApiResponse):
 
 
 class DiagnosisConflict(ApiModel):
-    """이미 진행 중인 상품이 섞여 접수를 거절한 경우의 상세 (409).
+    """이미 실행 중인 상품이 섞여 접수를 거절한 경우의 상세 (409).
 
     Attributes:
-        conflict_product_ids: 진행 중인 상품 ID 목록.
+        conflict_product_ids: 실행 중인 상품 ID 목록.
     """
 
     conflict_product_ids: list[str]
@@ -118,20 +112,25 @@ def ok(data: Any = None, message: str = "요청이 성공적으로 처리되었�
     return ApiResponse(code="OK", message=message, data=data)
 
 
-def ok_diagnose(data: FinalAssessment, message: str = "진단이 성공적으로 처리되었습니다.") -> DiagnoseResponse:
-    """진단 성공 응답을 생성한다."""
-    return DiagnoseResponse(code="OK", message=message, data=data)
-
-
 def fail(code: str, message: str, details: list[FieldErrorDetail] | None = None) -> ApiResponse:
     """실패 응답을 생성한다."""
     return ApiResponse(code=code, message=message, details=details)
 
 
-class DevDiagnosisAcceptedResponse(ApiResponse):
-    """개발용 진단 접수 응답 (202). data에 발급한 상품 ID·실행 ID."""
+class DevDiagnosisAccepted(ApiModel):
+    """샌드박스 진단 접수 결과. 요청 순서대로 발급한 상품 ID·실행 ID.
 
-    data: AcceptedProduct | None = None
+    Attributes:
+        products: 접수된 상품별 상품 ID·실행 ID.
+    """
+
+    products: list[AcceptedProduct] = Field(min_length=1)
+
+
+class DevDiagnosisAcceptedResponse(ApiResponse):
+    """샌드박스 진단 접수 응답 (202). data에 DevDiagnosisAccepted."""
+
+    data: DevDiagnosisAccepted | None = None
 
 
 class DevDiagnosisStatus(ApiModel):

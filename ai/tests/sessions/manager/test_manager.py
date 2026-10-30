@@ -170,6 +170,17 @@ def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):
     assert all((s.status, s.accepted_at) == (SessionStatus.ACCEPTED, START) for s in sessions)
 
 
+def test_더미_접수는_실행_종류만_다르고_개발용_자리는_쓰지_않는다(managers):
+    manager = _manager(managers, _GatedJob(), max_dev_inflight=1)
+
+    sessions = manager.submit("d-1", _inputs("p-1", "p-2"), run_type=RunType.DUMMY)
+
+    assert all(s.context.run_type is RunType.DUMMY for s in sessions)
+    snapshot = manager.snapshot()
+    assert (snapshot.inflight, snapshot.dev_inflight) == (2, 0)
+    assert (snapshot.accepted[RunType.DUMMY], snapshot.accepted[RunType.PRODUCTION]) == (2, 0)
+
+
 def test_대기열이_가득_차면_접수를_거절하고_세션을_만들지_않는다(managers):
     job = _GatedJob()
     manager = _manager(managers, job, max_running=1, max_inflight=2)
@@ -214,15 +225,57 @@ def test_접수_또는_실행_중인_상품이_섞이면_요청_전체를_거절
     assert manager.get("p-2") is None
 
 
-def test_답변_대기_중인_상품도_새_접수를_막는다(managers):
-    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
+def test_답변_대기_상품과_실행_중인_상품이_섞이면_거절하고_답변_대기_세션은_그대로_둔다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-1" else JobDone(
+        build_dummy_assessment(product_id)))
     manager = _manager(managers, job)
     manager.submit("d-1", _inputs("p-1"))
     job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+    manager.submit("d-1", _inputs("p-2"))
+    _wait_until(lambda: _status(manager, "p-2") is SessionStatus.RUNNING)
+
+    with pytest.raises(SessionConflictError) as exc_info:
+        manager.submit("d-2", _inputs("p-1", "p-2"))
+
+    assert exc_info.value.product_ids == ["p-2"]
+    assert manager.get("p-1") == waiting
+    snapshot = manager.snapshot()
+    assert (snapshot.awaiting_replaced, snapshot.rejected["conflict"]) == (0, 1)
+    job.release("p-2")
+
+
+def test_답변_대기_중인_상품은_새_세션으로_교체해_1회차부터_다시_실행한다(managers):
+    # #451: BE가 실패 처리한 상품을 다시 진단할 때 24시간 막히지 않도록
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
+    manager = _manager(managers, job)
+    [old] = manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
     _wait_until(lambda: _status(manager,"p-1") is SessionStatus.AWAITING_INPUT)
 
-    with pytest.raises(SessionConflictError):
-        manager.submit("d-2", _inputs("p-1"))
+    [new] = manager.submit("d-1", _inputs("p-1"))
+
+    assert new.context.run_id != old.context.run_id
+    assert (new.status, new.question_round, new.questions, new.answers) == (SessionStatus.ACCEPTED, 0, [], [])
+    assert manager.get("p-1").context.run_id == new.context.run_id
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    assert manager.get("p-1").question_round == 1
+
+
+def test_현황은_새_접수로_버린_답변_대기_세션만_센다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-1" else JobDone(
+        build_dummy_assessment(product_id)))
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    job.release("p-1")
+    job.release("p-2")
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+
+    assert manager.snapshot().awaiting_replaced == 1
 
 
 @pytest.mark.parametrize("outcome_for", [
@@ -399,7 +452,7 @@ def test_개발용_진단은_dev_상품_ID로_진단서_없이_접수한다(mana
     job = _GatedJob()
     manager = _manager(managers, job)
 
-    session = manager.submit_dev(ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"]))
+    [session] = manager.submit_dev([ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"])])
 
     # 입력의 상품 ID는 쓰지 않고 운영 상품과 겹치지 않게 새로 발급
     assert session.context.product_id.startswith("dev-")
@@ -411,14 +464,27 @@ def test_개발용_진단은_dev_상품_ID로_진단서_없이_접수한다(mana
     _wait_until(lambda: _status(manager,session.context.product_id) is SessionStatus.COMPLETED)
 
 
+def test_개발용_진단은_여러_상품을_받아_상품마다_dev_ID를_발급하고_상한을_넘으면_전체를_거절한다(managers):
+    manager = _manager(managers, _GatedJob(), max_dev_inflight=3)
+    items = [ExtractionInput(product_id="x", text_blocks=[f"상품 {i}"]) for i in range(2)]
+
+    sessions = manager.submit_dev(items)
+
+    assert [s.source.text_blocks for s in sessions] == [["상품 0"], ["상품 1"]]
+    assert len({s.context.product_id for s in sessions}) == 2
+    with pytest.raises(QueueFullError):
+        manager.submit_dev(items)
+    assert manager.snapshot().dev_inflight == 2
+
+
 def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운영_접수는_막지_않는다(managers):
     job = _GatedJob()
     manager = _manager(managers, job, max_dev_inflight=2)
-    first = manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    [first] = manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
     with pytest.raises(QueueFullError, match="개발용"):
-        manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+        manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     # 운영 진단은 개발용 상한과 관계없이 접수
     manager.submit("d-1", _inputs("p-1"))
 
@@ -426,16 +492,16 @@ def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운�
     job.release(first.context.product_id)
     _wait_until(lambda: _status(manager,first.context.product_id) is SessionStatus.COMPLETED)
     _wait_until(lambda: manager._capacity.dev_inflight == 1)
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
 
 def test_개발용_진단도_전체_상한에_같이_센다(managers):
     manager = _manager(managers, _GatedJob(), max_inflight=2, max_dev_inflight=3)
     manager.submit("d-1", _inputs("p-1"))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
     with pytest.raises(QueueFullError):
-        manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+        manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     with pytest.raises(QueueFullError):
         manager.submit("d-2", _inputs("p-2"))
 
@@ -444,7 +510,7 @@ def test_현황은_상태별_수와_자리_상한_누적_접수_거절을_담는
     job = _GatedJob()
     manager = _manager(managers, job, max_running=1, max_inflight=4, max_dev_inflight=1)
     manager.submit("d-1", _inputs("p-1", "p-2"))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     _wait_until(lambda: "p-1" in job.started)
     with pytest.raises(SessionConflictError):
         manager.submit("d-2", _inputs("p-1"))
@@ -569,6 +635,29 @@ def test_재진단은_새_실행으로_이전_결과와_답변을_진단_함수�
     assert manager.snapshot().accepted[RunType.PRODUCTION] == 2
 
 
+def test_재진단은_세션의_실행_종류를_그대로_쓴다(managers):
+    manager = _manager(managers, _AnswerJob())
+    manager.submit("d-1", _inputs("p-1"), run_type=RunType.DUMMY)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+
+    resumed = _resume(manager, run_type=RunType.DUMMY)
+
+    assert resumed.context.run_type is RunType.DUMMY
+    assert manager.snapshot().accepted[RunType.DUMMY] == 2
+
+
+def test_실행_종류가_다른_재진단은_세션이_없는_것으로_보고_세션을_바꾸지_않는다(managers):
+    manager = _manager(managers, _AnswerJob())
+    manager.submit("d-1", _inputs("p-1"), run_type=RunType.DUMMY)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+
+    with pytest.raises(SessionNotFoundError):
+        _resume(manager)
+
+    assert manager.get("p-1") == waiting
+
+
 def test_세션이_없으면_재진단하지_않는다(managers):
     manager = _manager(managers, _AnswerJob())
 
@@ -641,6 +730,20 @@ def test_같은_답변이_두_번_오면_두_번째는_거절하고_실행은_�
     job.release("p-1")
     _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
     assert len(job.started) == 2
+
+
+def test_새_접수로_버린_실행의_답변은_재진단하지_않는다(managers):
+    job = _AnswerJob()
+    manager = _waiting(managers, job)
+    discarded = manager.get("p-1")
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: len(job.inputs) == 2 and _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    replaced = manager.get("p-1")
+
+    with pytest.raises(ResumeConflictError):
+        _resume(manager, run_id=discarded.context.run_id)
+
+    assert (manager.get("p-1"), len(job.inputs)) == (replaced, 2)
 
 
 def test_이번_회차에_묻지_않은_질문_키가_있으면_거절한다(managers):

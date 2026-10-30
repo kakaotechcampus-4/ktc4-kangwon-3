@@ -81,22 +81,28 @@ public class AiDiagnosesRequestUseCase {
         };
     }
 
-    // AI는 진행 중인 상품이 하나라도 있으면 진단서 전체를 거절한다. 진행 중인 상품은 그대로 두고 나머지만 다시 보낸다.
+    // AI는 진행 중인 상품이 하나라도 있으면 진단서 전체를 거절한다.
+    // 충돌한 상품은 실행 식별자를 몰라 콜백을 받을 수 없으므로 실패 처리하고, 나머지만 다시 보낸다.
     private List<ProductInput> excludeConflicts(UUID diagnosesId, List<ProductInput> products,
                                                 List<String> conflictProductIds) {
-        List<ProductInput> remaining = products.stream()
-                .filter(product -> !conflictProductIds.contains(product.productId().toString()))
+        List<UUID> conflicted = products.stream()
+                .map(ProductInput::productId)
+                .filter(productId -> conflictProductIds.contains(productId.toString()))
                 .toList();
 
-        if (remaining.size() == products.size()) {
+        if (conflicted.isEmpty()) {
             log.error("AI가 진단 요청을 409로 거절했지만 보낸 상품 중 충돌 상품이 없습니다. diagnosesId={}, conflictProductIds={}",
                     diagnosesId, conflictProductIds);
             return List.of();
         }
 
-        log.debug("이미 진행 중인 상품을 빼고 다시 요청합니다. diagnosesId={}, conflictProductIds={}, 남은 상품 수={}",
-                diagnosesId, conflictProductIds, remaining.size());
-        return remaining;
+        log.warn("AI가 이전 진단을 진행 중인 상품을 실패 처리하고 나머지를 다시 요청합니다. diagnosesId={}, conflictProductIds={}",
+                diagnosesId, conflicted);
+        diagnosesService.failConflictedRequest(diagnosesId, conflicted);
+
+        return products.stream()
+                .filter(product -> !conflicted.contains(product.productId()))
+                .toList();
     }
 
     // 상품의 텍스트·이미지·상세페이지 URL을 보낸다.

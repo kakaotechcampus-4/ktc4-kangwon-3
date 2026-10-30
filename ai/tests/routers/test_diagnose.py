@@ -1,18 +1,24 @@
-"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422), 재진단(202·400·404·409·429·422), URL 진단 501을 확인한다."""
+"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422), 재진단(202·400·404·409·429·422), /diagnose 501·404를 확인한다.
+
+/diagnose 접수는 실제 파이프라인 연결 전까지 501이라, 접수·재진단 처리는 같은 처리를 쓰는 더미 경로로 확인함.
+"""
 
 from threading import Event
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app import config
 from app.main import app
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.routers import _dummy
 from app.routers._dummy import build_dummy_assessment, run_dummy_diagnosis
-from app.routers.diagnose import get_session_manager
+from app.routers.diagnose import get_session_manager, to_extraction_input
+from app.routers.internal_auth import INTERNAL_TOKEN_HEADER
 from app.schemas.agent import ExtractionInput
 from app.schemas.base import utc_now
 from app.schemas.callback import PublicQuestionDto
+from app.schemas.request import DiagnosisProductInput
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus
 from app.schemas.session import DiagnosisInput, DiagnosisSession, SessionStatus
 from app.sessions.job import JobDone
@@ -20,7 +26,14 @@ from app.sessions.manager import SessionManager
 from app.sessions.transitions import AskUser, Start, apply
 from app.sessions.store import SessionStore
 
-CONTENT = "/api/ai/v1/diagnose/content"
+TOKEN = "test-internal-token-0123456789abcdef"
+_SETTINGS = config.Settings(
+    api_key="test-key", base_url="https://mlapi.run/example/v1", embedding_model="openai/text-embedding-3-small",
+    data_go_kr_key="k", safetykorea_key="k", law_oc="oc", internal_api_token=TOKEN,
+    be_base_url="http://be-server:8080", database_url="",
+)
+CONTENT = "/api/ai/v1/dummy/diagnose/content"
+PRODUCTION_CONTENT = "/api/ai/v1/diagnose/content"
 
 
 def _payload(*product_ids: str, diagnosis_id: str = "d-1") -> dict:
@@ -60,8 +73,9 @@ def manager(gate):
 
 @pytest.fixture
 def client(manager) -> TestClient:
+    app.dependency_overrides[config.get_settings] = lambda: _SETTINGS
     app.dependency_overrides[get_session_manager] = lambda: manager
-    yield TestClient(app)
+    yield TestClient(app, headers={INTERNAL_TOKEN_HEADER: TOKEN})
     app.dependency_overrides.clear()
 
 
@@ -84,18 +98,14 @@ def test_상품별_세션을_만들고_202를_반환한다(client, manager):
     assert all(s.status in (SessionStatus.ACCEPTED, SessionStatus.RUNNING) for s in sessions)
 
 
-def test_이미지는_추출_입력의_image_urls로_넘긴다(client, manager, gate):
-    # 이미지 URL과 base64 data URI를 같은 필드로 받음 (#310)
-    images = ["https://example.com/a.jpg", "data:image/png;base64,AAA"]
-    product = {"productId": "p-1", "imageUrls": images, "sourceUrl": "https://example.com/1"}
+def test_이미지는_추출_입력의_image_urls로_넘긴다():
+    product = DiagnosisProductInput.model_validate(
+        {"productId": "p-1", "imageUrls": ["data:image/png;base64,AAA"], "sourceUrl": "https://example.com/1"},
+    )
 
-    client.post(CONTENT, json={"diagnosisId": "d-1", "products": [product]})
-    gate.set()
-    manager.shutdown(wait=True)
-
-    assert manager.received == [ExtractionInput(
-        product_id="p-1", source_url="https://example.com/1", image_urls=images,
-    )]
+    assert to_extraction_input(product) == ExtractionInput(
+        product_id="p-1", source_url="https://example.com/1", image_urls=["data:image/png;base64,AAA"],
+    )
 
 
 def test_진행_중인_상품이_섞이면_전체를_409로_거절한다(client, manager):
@@ -106,7 +116,7 @@ def test_진행_중인_상품이_섞이면_전체를_409로_거절한다(client,
     assert response.status_code == 409
     assert response.json() == {
         "code": "AI_SESSION_CONFLICT",
-        "message": "이미 진행 중인 상품이 있습니다.",
+        "message": "이미 실행 중인 상품이 있습니다.",
         "details": None,
         "data": {"conflictProductIds": ["p-1"]},
     }
@@ -142,11 +152,24 @@ def test_형식이_틀린_요청은_422로_거절하고_접수하지_않는다(c
     assert manager.get("p-1") is None
 
 
-def test_URL_진단은_아직_501을_반환한다(client):
-    response = client.post("/api/ai/v1/diagnose/url", json={"product_id": "p-1", "source_url": "https://example.com/item"})
+def test_실제_진단_접수는_파이프라인_연결_전까지_501이고_접수하지_않는다(client, manager):
+    response = client.post(PRODUCTION_CONTENT, json=_payload("p-1"))
 
-    assert response.status_code == 501
-    assert response.json()["code"] == "AI_NOT_IMPLEMENTED"
+    assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert manager.get("p-1") is None
+
+
+def test_실제_진단도_형식이_틀리면_501보다_422가_먼저다(client):
+    response = client.post(PRODUCTION_CONTENT, json={"diagnosisId": "d-1", "products": []})
+
+    assert (response.status_code, response.json()["code"]) == (422, "AI_INVALID_REQUEST")
+
+
+def test_URL_진단_경로는_없다(client):
+    # URL은 /diagnose/content의 sourceUrl로 받음 (#371)
+    response = client.post("/api/ai/v1/diagnose/url", json={"productId": "p-1", "sourceUrl": "https://example.com/1"})
+
+    assert response.status_code == 404
 
 
 def test_더미_진단은_단계를_순서대로_알리고_고정_결과를_반환한다(monkeypatch):
@@ -166,14 +189,15 @@ def test_더미_진단은_단계를_순서대로_알리고_고정_결과를_반�
     assert outcome.result.product.product_id == "p-1"
 
 
-RESUME = "/api/ai/v1/diagnose/resume"
+RESUME = "/api/ai/v1/dummy/diagnose/resume"
+PRODUCTION_RESUME = "/api/ai/v1/diagnose/resume"
 _QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]
 
 
 def _waiting(manager: SessionManager, product_id: str = "p-1", questions=_QUESTIONS):
     """질문으로 끝나 답변을 기다리는 세션. 관리자를 거치지 않고 전이표로 만들어 저장소에 직접 넣음."""
     now = utc_now()
-    context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+    context = ExecutionContext.start(product_id=product_id, run_type=RunType.DUMMY, diagnosis_id="d-1")
     source = ExtractionInput(product_id=product_id, text_blocks=["상품 설명"])
     session = apply(DiagnosisSession(context=context, source=source), Start(), now=now).session
     awaiting = build_dummy_assessment(product_id).model_copy(update={
@@ -210,11 +234,22 @@ def test_답변_대기_상품을_새_runId로_재접수하고_202를_반환한�
     assert [(a.question_key, a.answer_text) for a in session.answers] == [("battery_only", "네")]
 
 
-def test_세션이_없으면_404를_반환한다(client):
+def test_실제_재진단은_더미로_접수한_상품이면_404이고_세션을_바꾸지_않는다(client, manager):
+    # 파이프라인 연결 전에는 /diagnose 접수가 501이라 실제 세션이 없음. BE는 404를 받아 바로 실패 처리
+    waiting = _waiting(manager)
+
+    response = client.post(PRODUCTION_RESUME, json=_resume_payload(waiting))
+
+    assert (response.status_code, response.json()["code"]) == (404, "AI_SESSION_NOT_FOUND")
+    assert manager.get("p-1") == waiting
+
+
+@pytest.mark.parametrize("path", [RESUME, PRODUCTION_RESUME])
+def test_세션이_없으면_404를_반환한다(client, path):
     payload = {"diagnosisId": "d-1", "productId": "p-1", "runId": "run-1", "questionRound": 1,
                "answers": [{"questionKey": "battery_only", "answerText": "네"}]}
 
-    response = client.post(RESUME, json=payload)
+    response = client.post(path, json=payload)
 
     assert response.status_code == 404
     assert response.json()["code"] == "AI_SESSION_NOT_FOUND"
@@ -283,11 +318,17 @@ def test_형식이_틀린_재진단_요청은_422로_거절한다(client, manage
     assert manager.get("p-1") == waiting
 
 
-def test_답변_대기_상품을_새_진단으로_다시_보내면_409다(client, manager):
-    # 답변 대기는 진행 중 상태. 이어서 진단하려면 resume으로 보내야 함 (#365)
-    _waiting(manager)
+def test_답변_대기_상품을_새_진단으로_다시_보내면_새_runId로_접수한다(client, manager):
+    # BE가 실패 처리한 상품의 재시도. 답변 대기 세션은 버리고 처음부터 (#451)
+    waiting = _waiting(manager)
 
     response = client.post(CONTENT, json=_payload("p-1"))
 
-    assert response.status_code == 409
-    assert response.json()["data"] == {"conflictProductIds": ["p-1"]}
+    assert response.status_code == 202
+    [accepted] = response.json()["data"]["products"]
+    assert accepted["runId"] == manager.get("p-1").context.run_id != waiting.context.run_id
+
+    stale = client.post(RESUME, json=_resume_payload(waiting))
+
+    assert stale.status_code == 409
+    assert stale.json()["code"] == "AI_RESUME_CONFLICT"

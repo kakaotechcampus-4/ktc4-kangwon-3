@@ -22,14 +22,14 @@ class QueueFullError(SessionError, RuntimeError):
 
 
 class SessionConflictError(SessionError, RuntimeError):
-    """진행 중인 상품이 요청에 섞여 있어 접수를 거절한 경우.
+    """실행 중인 상품이 요청에 섞여 있어 접수를 거절한 경우.
 
     Attributes:
-        product_ids: 이미 진행 중인 상품 ID 목록.
+        product_ids: 이미 실행 중인 상품 ID 목록.
     """
 
     def __init__(self, product_ids: list[str]) -> None:
-        super().__init__(f"이미 진행 중인 상품이 있습니다: {', '.join(product_ids)}")
+        super().__init__(f"이미 실행 중인 상품이 있습니다: {', '.join(product_ids)}")
         self.product_ids = product_ids
 
 
@@ -63,6 +63,10 @@ class UnansweredQuestionError(SessionError, ValueError):
     def __init__(self, question_keys: list[str]) -> None:
         super().__init__(f"답하지 않은 질문이 있습니다: {', '.join(question_keys)}")
         self.question_keys = question_keys
+
+
+class UnsupportedRunTypeError(SessionError, LookupError):
+    """실행 종류에 연결된 진단 함수가 없는 경우. 세션 관리자가 파이프라인 오류로 기록."""
 
 
 class InvalidTransitionError(SessionError, ValueError):

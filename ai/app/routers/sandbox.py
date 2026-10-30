@@ -1,6 +1,6 @@
-"""개발용 진단 라우터 (#318). BE 없이 진단을 접수하고 상태 조회로 결과를 확인한다.
+"""샌드박스 진단 라우터 (#318). BE 없이 진단을 접수하고 상태 조회로 결과를 확인한다.
 
-외부에 여는 경로는 이 라우터뿐이라 모든 요청에 개발용 API 키를 검사함(꺼져 있으면 404).
+개발자가 직접 부르는 경로라 모든 요청에 개발용 API 키를 검사함(꺼져 있으면 404).
 진단서 없이 접수해 BE로 콜백을 보내지 않음. 상품 ID는 서버가 dev- 접두어로 발급하고, 조회도 dev- 상품만.
 """
 
@@ -14,6 +14,7 @@ from ..schemas.request import DevDiagnosisRequest
 from ..schemas.response import (
     AcceptedProduct,
     ApiResponse,
+    DevDiagnosisAccepted,
     DevDiagnosisAcceptedResponse,
     DevDiagnosisStatus,
     DevDiagnosisStatusResponse,
@@ -27,11 +28,11 @@ from .diagnose import get_session_manager
 
 DEV_PRODUCT_PREFIX = "dev-"
 
-router = APIRouter(prefix="/dev/diagnose", tags=["개발용 진단"], dependencies=[Depends(require_dev_api_key)])
+router = APIRouter(prefix="/sandbox/diagnose", tags=["샌드박스 진단"], dependencies=[Depends(require_dev_api_key)])
 
 _AUTH_RESPONSES = {
     status.HTTP_401_UNAUTHORIZED: {"model": ApiResponse, "description": "개발용 API 키가 없거나 틀림"},
-    status.HTTP_404_NOT_FOUND: {"model": ApiResponse, "description": "개발용 진단이 꺼져 있거나 없는 상품"},
+    status.HTTP_404_NOT_FOUND: {"model": ApiResponse, "description": "샌드박스 진단이 꺼져 있거나 없는 상품"},
 }
 
 
@@ -45,38 +46,44 @@ def get_assessment_presenter(request: Request) -> AssessmentPresenter:
     status_code=status.HTTP_202_ACCEPTED,
     response_model=DevDiagnosisAcceptedResponse,
     responses={**_AUTH_RESPONSES, status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse,
-                                                                     "description": "개발용 진단 대기열 초과"}},
-    summary="개발용 진단 접수",
-    description="상품 하나를 진단으로 접수한다. 결과는 콜백 대신 상태 조회로 확인한다.",
+                                                                     "description": "샌드박스 진단 대기열 초과"}},
+    summary="샌드박스 진단 접수",
+    description="상품 1~10개를 진단으로 접수한다. 결과는 콜백 대신 상품별 상태 조회로 확인한다.",
 )
-async def submit_dev_diagnosis(
+async def submit_sandbox_diagnosis(
     req: DevDiagnosisRequest,
     manager: SessionManager = Depends(get_session_manager),
 ) -> DevDiagnosisAcceptedResponse:
-    """개발용 진단을 접수하고 바로 202를 반환한다.
+    """샌드박스 진단을 접수하고 바로 202를 반환한다.
 
     Args:
-        req: 상품 글·이미지.
+        req: 상품 1~10개의 글·이미지·URL.
         manager: 세션 관리자.
 
     Returns:
-        202 접수 응답. 발급한 상품 ID·실행 ID.
+        202 접수 응답. 요청 순서대로 발급한 상품 ID·실행 ID.
 
     Raises:
-        AIServiceError: 개발용 또는 전체 대기열이 차면 429.
+        AIServiceError: 샌드박스 또는 전체 대기열이 차면 429 (전체 거절).
     """
-    item = ExtractionInput(
-        product_id=DEV_PRODUCT_PREFIX, source_url=req.source_url, text_blocks=req.text_blocks,
-        image_urls=req.image_urls,
-    )
+    items = [
+        ExtractionInput(
+            product_id=DEV_PRODUCT_PREFIX, source_url=product.source_url, text_blocks=product.text_blocks,
+            image_urls=product.image_urls,
+        )
+        for product in req.products
+    ]
     try:
-        session = manager.submit_dev(item)
+        sessions = manager.submit_dev(items)
     except QueueFullError as e:
         raise AIServiceError(response_code=AIResponseCode.QUEUE_FULL.value, retryable=True) from e
     return DevDiagnosisAcceptedResponse(
         code="OK",
-        message="개발용 진단이 접수되었습니다.",
-        data=AcceptedProduct(product_id=session.context.product_id, run_id=session.context.run_id),
+        message="샌드박스 진단이 접수되었습니다.",
+        data=DevDiagnosisAccepted(products=[
+            AcceptedProduct(product_id=session.context.product_id, run_id=session.context.run_id)
+            for session in sessions
+        ]),
     )
 
 
@@ -84,15 +91,15 @@ async def submit_dev_diagnosis(
     "/{product_id}",
     response_model=DevDiagnosisStatusResponse,
     responses=_AUTH_RESPONSES,
-    summary="개발용 진단 상태 조회",
+    summary="샌드박스 진단 상태 조회",
     description="진행 단계와, 끝났으면 BE가 콜백으로 받을 공개 진단서·질문과 내부 결과를 반환한다.",
 )
-async def get_dev_diagnosis(
+async def get_sandbox_diagnosis(
     product_id: str,
     manager: SessionManager = Depends(get_session_manager),
     presenter: AssessmentPresenter = Depends(get_assessment_presenter),
 ) -> DevDiagnosisStatusResponse:
-    """개발용 진단 하나의 상태를 조회한다.
+    """샌드박스 진단 하나의 상태를 조회한다.
 
     Args:
         product_id: 접수 때 받은 dev- 상품 ID.
@@ -109,7 +116,7 @@ async def get_dev_diagnosis(
     # 운영 상품 상태는 개발용 키로 보이지 않게 dev- 상품만
     if session is None:
         raise AIServiceError(response_code=AIResponseCode.NOT_FOUND.value)
-    return DevDiagnosisStatusResponse(code="OK", message="개발용 진단 상태입니다.", data=_status(session, presenter))
+    return DevDiagnosisStatusResponse(code="OK", message="샌드박스 진단 상태입니다.", data=_status(session, presenter))
 
 
 def _status(session: DiagnosisSession, presenter: AssessmentPresenter) -> DevDiagnosisStatus:
@@ -122,7 +129,7 @@ def _status(session: DiagnosisSession, presenter: AssessmentPresenter) -> DevDia
         try:
             assessment = presenter.assessment(session.result)
         except Exception as exc:
-            # 운영이라면 실패 콜백으로 끝나는 경우. 개발용은 원인을 보여 줌
+            # 운영이라면 실패 콜백으로 끝나는 경우. 샌드박스는 원인을 보여 줌
             error = f"{type(exc).__name__}: {exc}"
     return DevDiagnosisStatus(
         product_id=session.context.product_id, run_id=session.context.run_id, status=session.status,

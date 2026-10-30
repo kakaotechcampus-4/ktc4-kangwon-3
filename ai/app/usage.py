@@ -13,12 +13,41 @@ import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .config.catalog import CHAT_MODELS
+from .config.catalog import CHAT_MODELS, DECISION_MODELS
+
+if TYPE_CHECKING:
+    from .schemas.clients.decision_response import DecisionUsage
 
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
 
-PRICING_KRW = {model_id: asdict(model.price) for model_id, model in CHAT_MODELS.items() if model.price}
+
+def build_pricing(*catalogs: dict) -> dict[str, dict[str, float]]:
+    """모델 카탈로그들로 등록명 → 단가표를 만든다. 단가를 모르는 모델은 뺌.
+
+    Args:
+        catalogs: 등록명 → 모델(price 속성) 카탈로그들 (CHAT_MODELS·DECISION_MODELS).
+
+    Returns:
+        dict[str, dict[str, float]]: 등록명 → 1M 토큰당 KRW.
+
+    Raises:
+        ValueError: 같은 등록명에 단가가 다른 모델이 있는 경우 (하나가 조용히 덮이지 않게).
+    """
+    pricing: dict[str, dict[str, float]] = {}
+    for catalog in catalogs:
+        for model_id, model in catalog.items():
+            if model.price is None:
+                continue
+            price = asdict(model.price)
+            if pricing.setdefault(model_id, price) != price:
+                raise ValueError(f"같은 등록명에 단가가 다릅니다: {model_id} {pricing[model_id]} / {price}")
+    return pricing
+
+
+# 채팅·판단 모델 단가. 판단 Luna는 채팅 Luna와 등록명이 같아 단가도 같아야 함 (다르면 import 시점에 실패)
+PRICING_KRW = build_pricing(CHAT_MODELS, DECISION_MODELS)
 
 
 @dataclass(frozen=True)
@@ -144,6 +173,24 @@ def from_completion(completion) -> CallUsage | None:
         output_tokens=usage.completion_tokens or 0,
         reasoning_tokens=getattr(completion_details, "reasoning_tokens", 0) or 0,
         cache_write_tokens=cache_write or 0,
+    )
+
+
+def from_decision(usage: "DecisionUsage") -> CallUsage:
+    """판단 응답(/decisions)의 사용량을 바꾼다. 판단 모델은 추론 토큰을 따로 보고하지 않음.
+
+    Args:
+        usage: 판단 클라이언트가 응답에서 읽은 모델·토큰 사용량.
+
+    Returns:
+        CallUsage: 사용량. reported_model은 응답이 알려 준 실제 모델 (Jev는 버전 포함).
+    """
+    return CallUsage(
+        reported_model=usage.model,
+        input_tokens=usage.input_tokens,
+        cached_tokens=usage.cached_tokens,
+        output_tokens=usage.output_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
     )
 
 
