@@ -11,7 +11,11 @@ from .questions import TOOL_QUESTIONS
 # 판단 모델 등록명 → Tool별 문턱값. 질문 있는 Tool 전부 필요
 THRESHOLDS: dict[str, dict[ToolName, float]] = {
     # 10-29 선택 실험에서 규칙+판단 조합이 가장 적게 놓친 값
-    JEV.id: {tool: 0.3 for tool in TOOL_QUESTIONS},
+    JEV.id: {
+        **{tool: 0.3 for tool in TOOL_QUESTIONS},
+        # 10-31 #433 가상 상품: 대상 0.17~0.78, 비대상 0.04~0.05 (놓치는 쪽이 더 위험해 낮게)
+        ToolName.CHILDREN: 0.15,
+    },
     # 임시값. 평가 러너로 측정한 뒤 조정
     GPT_6_LUNA_DECISION.id: {tool: 0.5 for tool in TOOL_QUESTIONS},
 }
