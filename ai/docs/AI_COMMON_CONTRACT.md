@@ -399,7 +399,7 @@ def record_usage(record: UsageRecord, *, sink: UsageSink) -> None:
 | `AI_QUEUE_FULL` | 429 | 진단 대기열 초과 |
 | `AI_INTERNAL_ERROR` | 500 | 처리 못 한 예외 |
 | `AI_NOT_IMPLEMENTED` | 501 | |
-| `AI_PIPELINE_ERROR` | 500 | 실패 콜백: 진단 중 처리 못 한 예외 (retryable=false). 추출 모델·이미지 분류가 응답을 받지 못했거나 추출 출력이 길이 한도에 닿은 경우만 retryable=true (#432) |
+| `AI_PIPELINE_ERROR` | 500 | 실패 콜백: 진단 중 처리 못 한 예외 (retryable=false). 추출 모델·이미지 분류가 429·5xx·연결 실패로 응답을 받지 못했거나 추출 출력이 길이 한도에 닿은 경우만 retryable=true (#432) |
 | `AI_TIMEOUT` | 500 | 실패 콜백: 진단 시간 초과 (retryable=true) |
 | `AI_UNSUPPORTED_SITE` | 500 | 실패 콜백: 수집할 수 없는 판매 사이트 URL (retryable=false). 접수 단계 422 대신 그 상품만 실패 (#432) |
 | `AI_SOURCE_FETCH_FAILED` | 500 | 실패 콜백: 상품 페이지 수집 실패 (retryable=true) |

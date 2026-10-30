@@ -9,6 +9,7 @@ import logging
 import time
 
 import httpx
+import openai
 from openai import LengthFinishReasonError
 
 from ..agents.base.errors import AgentError, ModelFailurePhase
@@ -81,13 +82,26 @@ class ExtractionStep:
 def _retryable(exc: AgentError) -> bool:
     """추출 실패를 같은 입력으로 다시 해 볼 만한지.
 
-    응답을 받지 못한 경우와, 같은 내용을 반복하다 출력 한도에 닿은 경우만 재시도 가능.
-    그 밖의 출력 해석 실패는 같은 입력으로 다시 해도 반복될 수 있음.
+    응답을 받지 못한 경우(429·5xx·연결 실패)와, 같은 내용을 반복하다 출력 한도에 닿은 경우만 재시도 가능.
+    400·401·404처럼 요청·키·주소가 잘못된 오류와 그 밖의 출력 해석 실패는 같은 입력으로 다시 해도 반복됨.
     """
-    if isinstance(exc.__cause__, LengthFinishReasonError):
+    cause = exc.__cause__
+    if isinstance(cause, LengthFinishReasonError):
         return True
     phase = exc.meta.failure_phase if exc.meta is not None else None
-    return phase == ModelFailurePhase.CALL
+    if phase != ModelFailurePhase.CALL:
+        return False
+    status = _http_status(cause)
+    return status is None or status == 429 or status >= 500
+
+
+def _http_status(cause: BaseException | None) -> int | None:
+    """모델 호출 실패의 HTTP 상태. 채팅은 OpenAI SDK 예외, 판단 호출은 httpx 예외. 응답 전 실패(연결·시간 초과)면 None."""
+    if isinstance(cause, openai.APIStatusError):
+        return cause.status_code
+    if isinstance(cause, httpx.HTTPStatusError):
+        return cause.response.status_code
+    return None
 
 
 def _failure(code: AIResponseCode, *, retryable: bool) -> AIServiceError:
