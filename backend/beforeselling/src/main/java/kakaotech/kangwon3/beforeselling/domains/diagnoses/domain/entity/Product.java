@@ -26,7 +26,8 @@ import java.util.UUID;
         name = "product",
         indexes = {
                 @Index(name = "idx_product_diagnoses_id_sort_order", columnList = "diagnoses_id, sort_order"),
-                @Index(name = "idx_product_processing_status_updated_at", columnList = "processing_status, updated_at")
+                @Index(name = "idx_product_processing_status_updated_at", columnList = "processing_status, updated_at"),
+                @Index(name = "idx_product_resume_pending_since", columnList = "resume_pending_since")
         }
 )
 public class Product extends BaseEntity {
@@ -80,6 +81,10 @@ public class Product extends BaseEntity {
     // 마지막으로 AI에 진단을 요청한 시각. 다시 진단하면 그 시각으로 바뀐다. 대기 상품의 재요청 기한 기준
     @Column(name = "requested_at")
     private LocalDateTime requestedAt;
+
+    // AI가 재진단(resume) 요청을 받지 못해 다시 보내길 기다린 시작 시각. 재요청 기한의 기준. 기다리지 않으면 null
+    @Column(name = "resume_pending_since")
+    private LocalDateTime resumePendingSince;
 
     // 결과를 받기 전에는 null
     @Enumerated(EnumType.STRING)
@@ -188,6 +193,7 @@ public class Product extends BaseEntity {
             throw new BaseException(CommonResponseCode.CONFLICT);
         }
         this.runId = runId;
+        this.resumePendingSince = null;
     }
 
     public boolean isCurrentRun(String runId) {
@@ -290,6 +296,7 @@ public class Product extends BaseEntity {
         this.errorCode = errorCode;
         this.errorMessage = errorMessage;
         this.errorRetryable = errorRetryable;
+        this.resumePendingSince = null;
     }
 
     // 실패한 진단을 처음부터 다시 시작한다. AI는 1회차 질문부터 다시 보내므로 이전 실행의 질문·진행 상태를 지운다.
@@ -314,6 +321,25 @@ public class Product extends BaseEntity {
     public boolean isRequestedBefore(LocalDateTime deadline) {
         LocalDateTime requested = requestedAt != null ? requestedAt : getCreatedAt();
         return requested.isBefore(deadline);
+    }
+
+    // AI가 재진단 요청을 받지 못했다(429·5xx·연결 실패). 다시 보내도 기한이 늘지 않도록 처음 실패한 시각을 남긴다.
+    public void markResumePending() {
+        if (processingStatus != ProcessingStatus.IN_PROGRESS) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+        if (resumePendingSince == null) {
+            this.resumePendingSince = LocalDateTime.now();
+        }
+    }
+
+    public boolean isResumePending() {
+        return resumePendingSince != null;
+    }
+
+    // 재진단 재요청 기한을 넘겼는지
+    public boolean isResumePendingBefore(LocalDateTime deadline) {
+        return resumePendingSince != null && resumePendingSince.isBefore(deadline);
     }
 
     // 진단 결과를 반영하고 완료 상태로 끝낸다.

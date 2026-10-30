@@ -402,4 +402,48 @@ class AiDiagnosesClientTest {
                 .isInstanceOfSatisfying(RestClientResponseException.class, e ->
                         assertThat(e.getResponseBodyAs(AiApiResponse.class).code()).isEqualTo("AI_SESSION_NOT_FOUND"));
     }
+
+    @ParameterizedTest
+    @ValueSource(ints = {429, 500, 502, 503, 504})
+    @DisplayName("재진단 요청에 AI가 대기열 초과나 서버 오류로 응답하면 요청을 받지 않은 것으로 본다.")
+    void isNotReceived_whenResumeQueueFullOrServerError_thenTrue(int status) {
+        // given
+        server.expect(requestTo(RESUME_URL)).andRespond(withStatus(HttpStatusCode.valueOf(status)));
+
+        // when & then
+        assertThatThrownBy(() -> client.requestResume(resumeRequest()))
+                .isInstanceOfSatisfying(RestClientException.class, e ->
+                        assertThat(AiDiagnosesClient.isNotReceived(e)).isTrue());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {400, 401, 404, 409, 422, 501})
+    @DisplayName("재진단 요청을 AI가 거절하면 요청을 받지 않은 것으로 보지 않는다.")
+    void isNotReceived_whenResumeRejected_thenFalse(int status) {
+        // given
+        server.expect(requestTo(RESUME_URL)).andRespond(withStatus(HttpStatusCode.valueOf(status)));
+
+        // when & then
+        assertThatThrownBy(() -> client.requestResume(resumeRequest()))
+                .isInstanceOfSatisfying(RestClientException.class, e ->
+                        assertThat(AiDiagnosesClient.isNotReceived(e)).isFalse());
+    }
+
+    @Test
+    @DisplayName("연결에 실패하면 요청을 받지 않은 것으로 보고, 읽기 시간이 초과되면 받았는지 모르는 것으로 본다.")
+    void isNotReceived_whenConnectFailureOrReadTimeout_thenDistinguish() {
+        // given: HttpURLConnection은 연결·읽기 타임아웃을 같은 예외로 던지고 메시지만 다르다.
+        ResourceAccessException connectTimeout = new ResourceAccessException("I/O error",
+                new SocketTimeoutException("Connect timed out"));
+        ResourceAccessException readTimeout = new ResourceAccessException("I/O error",
+                new SocketTimeoutException("Read timed out"));
+
+        // when & then
+        assertThat(AiDiagnosesClient.isNotReceived(connectTimeout)).isTrue();
+        assertThat(AiDiagnosesClient.isNotReceived(readTimeout)).isFalse();
+    }
+
+    private AiResumeRequest resumeRequest() {
+        return new AiResumeRequest("diagnosis-1", "product-1", "run-1", 1, List.of());
+    }
 }

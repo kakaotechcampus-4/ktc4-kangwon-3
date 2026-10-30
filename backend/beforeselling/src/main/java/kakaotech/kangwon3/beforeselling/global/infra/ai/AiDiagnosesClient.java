@@ -67,6 +67,13 @@ public class AiDiagnosesClient {
         }
     }
 
+    /**
+     * AI가 요청을 받지 못한 것이 확실한지(429, 5xx, 연결 실패). 다시 보내도 중복으로 접수되지 않는다.
+     */
+    public static boolean isNotReceived(RestClientException e) {
+        return classify(e).getFailure() == Failure.NOT_RECEIVED;
+    }
+
     // AI가 요청을 받았는지로 예외 분류. 판단이 어려우면 다시 보내지 않도록 UNKNOWN으로 처리.
     static AiDiagnosesRequestException classify(RestClientException e) {
         if (e instanceof RestClientResponseException response) {
