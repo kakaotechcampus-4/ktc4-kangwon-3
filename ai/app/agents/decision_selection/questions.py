@@ -56,3 +56,24 @@ TOOL_QUESTIONS: dict[ToolName, tuple[YesNoQuestion, ...]] = {
 
 # 한 번에 보내는 전체 질문 (Tool 순서대로)
 QUESTIONS: tuple[YesNoQuestion, ...] = tuple(question for group in TOOL_QUESTIONS.values() for question in group)
+
+# 선택 이유에 쓰는 질문별 짧은 설명. 판단 모델에는 안 보냄 (질문 목록 지문과 무관)
+QUESTION_LABELS: dict[str, str] = {
+    "radio_wireless_comm": "무선 통신 기능",
+    "radio_wireless_charging": "무선충전 기능",
+    "radio_wireless_shield": "RFID 차단·전자파 차폐 기능",
+    "food_contact": "음식·음료에 직접 닿는 용도",
+    "food_medical_claim": "질병 치료·신체기능 개선 효과 표현",
+    "food_cosmetic_claim": "미용·피부 효과 표현",
+    "food_absorbed": "피부·점막에 성분이 흡수·반응할 수 있는 용도",
+    "electric_powered": "전기 작동 또는 전지 내장",
+    "electric_battery_product": "상품 자체가 전지",
+    "electric_heating": "발열 기능",
+    "children_target": "만 13세 이하 어린이 대상 표기·광고",
+    "children_kind": "완구·학용품·유아용품처럼 어린이가 주로 쓰는 종류",
+    "ad_effect": "효능·효과 표현",
+    "ad_superlative": "최상급·절대적 표현",
+    "ad_certification": "인증·승인 언급",
+    "ad_numeric": "효과·지속 시간 수치",
+    "ad_safety": "특정 사용자 대상 안전·적합 표현",
+}

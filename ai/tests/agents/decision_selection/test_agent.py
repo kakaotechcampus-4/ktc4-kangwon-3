@@ -68,7 +68,7 @@ def test_판단_호출이_실패하면_실패로_기록하고_전부_선택한�
     assert all(item.selected for item in result.result.decisions)
     reasons = {item.tool_name: item.reason for item in result.result.decisions}
     assert reasons[ToolName.CUSTOMS] == "규칙: 해외 직구 상품은 수입 통관 대상"
-    assert reasons[ToolName.CHILDREN] == "규칙 해당 없음. 판단 모델 호출 실패로 정보 부족, 선택"
+    assert reasons[ToolName.CHILDREN] == "관련 필드 for_children=None, target_age=None. 열어 본 이유: 판단 모델 호출 실패로 정보 부족"
     assert result.meta.failure_phase == phase
     assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, phase)]
 
