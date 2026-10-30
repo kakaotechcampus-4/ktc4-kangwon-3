@@ -15,7 +15,9 @@ from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
 
 from ...clients.llm import build_agent_model, build_tool_model
-from ...clients.llm.decision import DecisionClient, DecisionResponseError, check_request, get_decision_client
+from ...clients.llm.decision import (
+    DecisionClient, DecisionResponseError, check_request, get_decision_client, questions_fingerprint,
+)
 from ...config import DecisionProfile, agent_decision_profile
 from ...observability.agent_sinks import agent_sinks
 from ...prompts import PromptName, PromptSnapshot, get_prompt
@@ -342,8 +344,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
     ) -> tuple[DecisionResponse, CallUsage, float]:
         """판단 모델에 질문하고 질문 이름별 답을 받는다. 실패는 바로 기록하고, 성공 기록은 후처리 뒤 호출부가 남김.
 
-        호출부는 답으로 결과를 만든 뒤 ``_finish_call(..., called_model=self._decision_model)``(성공)이나
-        ``_fail_after_call(..., called_model=self._decision_model)``(후처리 실패)로 한 번 기록해야 함.
+        호출부는 답으로 결과를 만든 뒤 ``_finish_call(..., decision_questions=questions)``(성공)이나
+        ``_fail_after_call(..., decision_questions=questions)``(후처리 실패)로 한 번 기록해야 함.
 
         Args:
             subject: 판단 대상 정보 (예: 상품 정보).
@@ -373,11 +375,11 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             # 응답은 받았으나 모양이 다르거나 답이 빠짐 → 읽은 토큰까지 기록
             usage = from_decision(exc.usage) if exc.usage else None
             self._fail(ModelFailurePhase.PARSING, exc, usage, subject_id, started_at, partial_result,
-                       called_model=self._decision_model)
+                       decision_questions=request.questions)
         except Exception as exc:
             # 응답 자체를 못 받음 (네트워크·타임아웃·인증·4xx·5xx)
             self._fail(ModelFailurePhase.CALL, exc, None, subject_id, started_at, partial_result,
-                       called_model=self._decision_model)
+                       decision_questions=request.questions)
         return response, from_decision(response.usage), started_at
 
     def _decision_client_or_none(self) -> DecisionClient | None:
@@ -432,7 +434,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         elapsed_ms: int = 0,
         error_type: str | None = None,
         failure_phase: ModelFailurePhase | None = None,
-        called_model: str | None = None,
+        decision_questions: list[DecisionQuestion] | None = None,
     ) -> AgentRunMeta:
         """이 에이전트의 모델·프롬프트 정보로 실행 정보를 만든다.
 
@@ -441,22 +443,27 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             elapsed_ms: 걸린 시간(ms).
             error_type: 실패 원인 예외 이름. 성공이면 None.
             failure_phase: 실패 단계. 성공이면 None.
-            called_model: 채팅 모델 말고 다른 모델(판단 모델 등)을 불렀으면 그 등록명. 추론 강도·프롬프트는
-                없음으로 남김. None이면 채팅 모델과 그 추론 강도·시스템 프롬프트.
+            decision_questions: 판단 모델 호출이면 보낸 질문 목록. 판단 모델과 질문 목록 지문을 남기고
+                추론 강도·프롬프트 이름은 없음으로 남김. None이면 채팅 모델과 그 추론 강도·시스템 프롬프트.
 
         Returns:
             AgentRunMeta: 실행 정보.
         """
-        # 판단 모델처럼 다른 모델 호출은 시스템 프롬프트를 안 써서 프롬프트 지문을 남기지 않음
-        prompt = None if called_model else self.prompt
-        model = called_model or self._configured_model
+        if decision_questions is not None:
+            # 판단 호출은 시스템 프롬프트 대신 질문 지침을 씀 → 질문 목록 지문으로 조건 구분
+            model, reasoning_effort = self._decision_model, None
+            prompt_name, prompt_sha256 = None, questions_fingerprint(decision_questions)
+        else:
+            prompt = self.prompt
+            model, reasoning_effort = self._configured_model, self._reasoning_effort
+            prompt_name, prompt_sha256 = prompt.name.value, prompt.sha256
         return AgentRunMeta(
             component=self.component_name,
             usage_name=self._usage_agent,
             model=model,
-            reasoning_effort=None if called_model else self._reasoning_effort,
-            prompt_name=prompt.name.value if prompt else None,
-            prompt_sha256=prompt.sha256 if prompt else None,
+            reasoning_effort=reasoning_effort,
+            prompt_name=prompt_name,
+            prompt_sha256=prompt_sha256,
             usage=usage,
             cost_krw=estimate_krw(usage, model) if usage else None,
             elapsed_ms=elapsed_ms,
@@ -472,7 +479,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         *,
         error_type: str | None = None,
         failure_phase: ModelFailurePhase | None = None,
-        called_model: str | None = None,
+        decision_questions: list[DecisionQuestion] | None = None,
     ) -> AgentRunMeta:
         """호출 1건을 마무리한다. 걸린 시간을 한 번 재서 실행 정보를 만들고 sink 등록표에 넘김.
 
@@ -482,7 +489,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             started_at: 호출 시작 시각 (perf_counter).
             error_type: 실패 원인 예외 이름. 성공이면 None.
             failure_phase: 실패 단계. 성공이면 None.
-            called_model: 채팅 모델 말고 다른 모델을 불렀으면 그 등록명. None이면 채팅 모델.
+            decision_questions: 판단 모델 호출이면 보낸 질문 목록. None이면 채팅 모델 호출.
 
         Returns:
             AgentRunMeta: 실행 정보.
@@ -490,7 +497,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         elapsed_ms = round((perf_counter() - started_at) * 1000)
         meta = self._run_meta(
             usage=usage, elapsed_ms=elapsed_ms, error_type=error_type, failure_phase=failure_phase,
-            called_model=called_model,
+            decision_questions=decision_questions,
         )
         # 사용량 로그(usage.jsonl)도 기본 등록된 sink 중 하나 (usage_log.record_call)
         agent_sinks.publish(meta, subject_id)
@@ -505,7 +512,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         started_at: float,
         partial_result: object | None,
         *,
-        called_model: str | None = None,
+        decision_questions: list[DecisionQuestion] | None = None,
     ) -> NoReturn:
         """실패 호출을 기록하고 원인 예외를 ``error_class``로 감싸 던진다.
 
@@ -516,17 +523,18 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             subject_id: 기록 대상 ID (상품 ID).
             started_at: 호출 시작 시각 (perf_counter).
             partial_result: 예외에 담을 부분 결과.
-            called_model: 채팅 모델 말고 다른 모델을 불렀으면 그 등록명. None이면 채팅 모델.
+            decision_questions: 판단 모델 호출이면 보낸 질문 목록. None이면 채팅 모델 호출.
 
         Raises:
             AgentError: 항상. 실제 타입은 ``error_class``, 실행 정보는 ``meta``.
         """
         meta = self._finish_call(
             usage, subject_id, started_at, error_type=type(cause).__name__, failure_phase=phase,
-            called_model=called_model,
+            decision_questions=decision_questions,
         )
         raise self.error_class(
-            self._decision_failure_message(phase, cause) if called_model else self._failure_message(phase, cause),
+            self._decision_failure_message(phase, cause) if decision_questions is not None
+            else self._failure_message(phase, cause),
             partial_result=partial_result,
             meta=meta,
         ) from cause
@@ -539,7 +547,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         started_at: float,
         *,
         partial_result: object | None = None,
-        called_model: str | None = None,
+        decision_questions: list[DecisionQuestion] | None = None,
     ) -> NoReturn:
         """후처리 실패를 ``failure_phase="finalize"`` 실패로 기록하고 받은 예외를 그대로 던진다.
 
@@ -551,7 +559,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             subject_id: 기록 대상 ID (상품 ID).
             started_at: 호출 시작 시각 (perf_counter).
             partial_result: 예외에 담을 부분 결과. None이면 기존 값 유지.
-            called_model: 채팅 모델 말고 다른 모델을 불렀으면 그 등록명. None이면 채팅 모델.
+            decision_questions: 판단 모델 호출이면 보낸 질문 목록. None이면 채팅 모델 호출.
 
         Raises:
             Exception: 받은 예외 그대로.
@@ -560,7 +568,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         cause = exc.__cause__ if isinstance(exc, AgentError) and exc.__cause__ is not None else exc
         meta = self._finish_call(
             usage, subject_id, started_at, error_type=type(cause).__name__, failure_phase=ModelFailurePhase.FINALIZE,
-            called_model=called_model,
+            decision_questions=decision_questions,
         )
         if isinstance(exc, AgentError):
             exc.meta = exc.meta or meta
