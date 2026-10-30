@@ -9,6 +9,7 @@ import logging
 import time
 
 import httpx
+from openai import LengthFinishReasonError
 
 from ..agents.base.errors import AgentError, ModelFailurePhase
 from ..agents.image_triage.errors import ImageTriageFailedError
@@ -57,9 +58,7 @@ class ExtractionStep:
         try:
             return self._extractor.run(source)
         except AgentError as exc:
-            # 응답을 받지 못한 경우만 재시도 가능. 출력 해석 실패는 같은 입력으로 다시 해도 반복될 수 있음
-            phase = exc.meta.failure_phase if exc.meta is not None else None
-            raise _failure(AIResponseCode.PIPELINE_ERROR, retryable=phase == ModelFailurePhase.CALL) from exc
+            raise _failure(AIResponseCode.PIPELINE_ERROR, retryable=_retryable(exc)) from exc
 
     def _collect(self, source: ExtractionInput) -> ExtractionInput:
         """URL로 페이지를 수집해 추출 입력을 만든다. 수집 시간은 모델 호출 시간과 나눠 로그로 남김 (#410)."""
@@ -77,6 +76,18 @@ class ExtractionStep:
         if not collected.text_blocks and not collected.image_urls:
             raise _failure(AIResponseCode.EMPTY_SOURCE, retryable=False)
         return collected
+
+
+def _retryable(exc: AgentError) -> bool:
+    """추출 실패를 같은 입력으로 다시 해 볼 만한지.
+
+    응답을 받지 못한 경우와, 같은 내용을 반복하다 출력 한도에 닿은 경우만 재시도 가능.
+    그 밖의 출력 해석 실패는 같은 입력으로 다시 해도 반복될 수 있음.
+    """
+    if isinstance(exc.__cause__, LengthFinishReasonError):
+        return True
+    phase = exc.meta.failure_phase if exc.meta is not None else None
+    return phase == ModelFailurePhase.CALL
 
 
 def _failure(code: AIResponseCode, *, retryable: bool) -> AIServiceError:
