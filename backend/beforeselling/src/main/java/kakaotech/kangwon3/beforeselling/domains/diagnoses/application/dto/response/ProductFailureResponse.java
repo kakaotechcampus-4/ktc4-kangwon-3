@@ -11,7 +11,8 @@ public record ProductFailureResponse(
         @Schema(description = """
                 AI가 보낸 오류 코드 또는 BE가 직접 실패 처리한 코드.
                 BE_DIAGNOSES_TIMEOUT(결과를 받지 못함), BE_AI_REQUEST_UNAVAILABLE(AI 서버가 요청을 받지 못함),
-                BE_AI_REQUEST_REJECTED(AI 서버가 요청을 거절함)""",
+                BE_AI_REQUEST_REJECTED(AI 서버가 요청을 거절함), BE_AI_REQUEST_CONFLICT(이전 진단이 아직 진행 중),
+                BE_AI_RESUME_UNAVAILABLE(AI 서버가 답변을 받지 못함)""",
                 example = "AI_TIMEOUT")
         String errorCode,
 

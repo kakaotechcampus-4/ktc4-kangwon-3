@@ -110,12 +110,15 @@ class SessionManager:
             rejected=rejected,
         )
 
-    def submit(self, diagnosis_id: str, inputs: list[ExtractionInput]) -> list[DiagnosisSession]:
+    def submit(
+        self, diagnosis_id: str, inputs: list[ExtractionInput], run_type: RunType = RunType.PRODUCTION,
+    ) -> list[DiagnosisSession]:
         """상품들을 세션으로 접수하고 백그라운드 실행을 예약한다.
 
         Args:
             diagnosis_id: BE 진단서 ID.
             inputs: 상품별 입력. product_id가 세션 ID.
+            run_type: 실행 종류. 운영 진단은 PRODUCTION, BE 연동 더미는 DUMMY. 둘 다 전체 상한만 봄.
 
         Returns:
             list[DiagnosisSession]: 접수된 세션.
@@ -124,7 +127,7 @@ class SessionManager:
             QueueFullError: 대기 + 실행 중 세션이 상한을 넘는 경우.
             SessionConflictError: 진행 중인 상품이 섞인 경우.
         """
-        sessions = self._accept(diagnosis_id, inputs, RunType.PRODUCTION)
+        sessions = self._accept(diagnosis_id, inputs, run_type)
         for session in sessions:
             self._pool.submit(self._run, session.context)
         return sessions
@@ -137,6 +140,7 @@ class SessionManager:
         run_id: str,
         question_round: int,
         answers: dict[str, str],
+        run_type: RunType = RunType.PRODUCTION,
     ) -> DiagnosisSession:
         """답변 대기 세션을 답변과 함께 재접수하고 새 실행을 예약한다. 접수와 같은 대기열·상한 사용.
 
@@ -146,13 +150,14 @@ class SessionManager:
             run_id: 질문으로 끝난 실행 ID. 지금 세션의 실행과 같아야 함.
             question_round: 답하는 질문 회차. 지금 기다리는 회차와 같아야 함.
             answers: 질문 키 → 답변. 이번 회차 질문에 모두 답해야 함.
+            run_type: 재진단 경로의 실행 종류. 세션의 실행 종류와 같아야 함.
 
         Returns:
             DiagnosisSession: 재접수된 세션. context.run_id가 새 실행 ID.
 
         Raises:
             QueueFullError: 대기 + 실행 중 세션이 상한을 넘는 경우.
-            SessionNotFoundError: 세션이 없는 경우.
+            SessionNotFoundError: 세션이 없거나 실행 종류가 다른 경우.
             ResumeConflictError: 답변 대기가 아니거나 실행·회차·진단서가 다른 경우.
             UnknownQuestionKeyError: 이번 회차에 묻지 않은 질문 키가 있는 경우.
             UnansweredQuestionError: 이번 회차 질문 중 답하지 않은 질문이 있는 경우.
@@ -181,6 +186,9 @@ class SessionManager:
                 self._rejected["queue_full"] += 1
                 raise
             session = self._store.get(product_id)
+            # 다른 경로(운영·더미)로 접수된 세션은 없음으로 봄
+            if session is not None and session.context.run_type is not run_type:
+                session = None
             # 조회 뒤 정리로 사라져도 없음으로 봄. 같은 상품의 접수·재진단은 이 잠금 안에서만 일어남
             transition = self._updater.replace(session.context, resume) if session is not None else None
             if transition is None:
@@ -192,25 +200,26 @@ class SessionManager:
         self._pool.submit(self._run, resumed.context)
         return resumed
 
-    def submit_dev(self, item: ExtractionInput) -> DiagnosisSession:
-        """개발용 진단 한 건을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
+    def submit_dev(self, items: list[ExtractionInput]) -> list[DiagnosisSession]:
+        """개발용 진단 상품들을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
 
         상품 ID는 운영 상품과 겹치지 않게 dev- 접두어로 새로 발급하고, 입력의 product_id는 쓰지 않음.
+        상한을 넘으면 전체를 거절함.
 
         Args:
-            item: 상품 입력.
+            items: 상품별 입력.
 
         Returns:
-            DiagnosisSession: 접수된 세션. 상품 ID는 발급한 dev- ID.
+            list[DiagnosisSession]: 접수된 세션. items 순서와 같고 상품 ID는 발급한 dev- ID.
 
         Raises:
             QueueFullError: 개발용 상한 또는 전체 상한을 넘는 경우.
         """
-        product_id = f"dev-{uuid4()}"
-        item = item.model_copy(update={"product_id": product_id})
-        [session] = self._accept(None, [item], RunType.TEST)
-        self._pool.submit(self._run, session.context)
-        return session
+        items = [item.model_copy(update={"product_id": f"dev-{uuid4()}"}) for item in items]
+        sessions = self._accept(None, items, RunType.TEST)
+        for session in sessions:
+            self._pool.submit(self._run, session.context)
+        return sessions
 
     def expire_overdue(self) -> int:
         """접수부터 최대 시간을 넘긴 세션을 시간 초과 실패로 끝낸다.

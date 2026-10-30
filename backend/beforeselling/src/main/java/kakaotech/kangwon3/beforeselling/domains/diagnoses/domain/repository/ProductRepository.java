@@ -55,4 +55,12 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
         order by min(p.updatedAt) asc
         """)
     List<UUID> findDiagnosesIdsByStatus(@Param("status") ProcessingStatus status, Pageable pageable);
+
+    // 재진단 재요청용. 재요청을 기다리는 상품 ID를 가장 오래 기다린 순으로 가져온다.
+    @Query("""
+        select p.id from Product p
+        where p.resumePendingSince is not null
+        order by p.resumePendingSince asc
+        """)
+    List<UUID> findIdsByResumePending(Pageable pageable);
 }

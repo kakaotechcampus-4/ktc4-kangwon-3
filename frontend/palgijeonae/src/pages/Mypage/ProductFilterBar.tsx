@@ -1,10 +1,11 @@
 import { type FormEvent, useState } from "react";
 
+import { ResultStatus } from "@/api/types.ts";
 import clear from "@/assets/delete-gray.svg"
 import search from "@/assets/mypage-search.svg"
 import { cn } from "@/lib/cn";
 
-import { type ProductFilter, ResultStatus } from "./types.ts";
+import type { ProductFilter } from "./types.ts";
 
 const FILTER_TABS: { key: ProductFilter; label: string }[] = [
     { key: "all", label: "전체" },

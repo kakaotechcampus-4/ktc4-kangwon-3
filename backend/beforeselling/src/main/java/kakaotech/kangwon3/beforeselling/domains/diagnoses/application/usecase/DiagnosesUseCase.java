@@ -19,8 +19,6 @@ public class DiagnosesUseCase {
 
     public DiagnosesCreateResponse createDiagnoses(UUID userId, DiagnosesCreateRequest request) {
         Diagnoses diagnoses = diagnosesService.createDiagnoses(userId, diagnosesMapper.toCommands(request));
-
-        // TODO: AI 서버에 진단 요청을 보내고 상품들의 processingStatus를 IN_PROGRESS로 전이
         return diagnosesMapper.toCreateResponse(diagnoses);
     }
 

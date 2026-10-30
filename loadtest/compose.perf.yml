@@ -1,0 +1,79 @@
+# 부하 테스트 스택. 운영 BE compose(project: be)가 만든 be_appnet에 붙어 운영 PG(db)·Redis(redis)를 쓴다.
+# 실행: docker compose -f compose.perf.yml --env-file .env.perf up -d --build
+#  - DB는 운영 PG 안의 별도 database(beforeselling_perf), Redis는 DB 15번
+#  - Prometheus(mon-prometheus)도 be_appnet에 있어 별도 네트워크 연결 없이 수집된다
+name: perf
+
+services:
+  perf-app:
+    # 운영과 같은 이미지·메모리 제한·JVM 옵션(Dockerfile ENTRYPOINT)
+    image: beforeselling-app:${PERF_IMAGE_TAG:?PERF_IMAGE_TAG를 .env.perf에 설정해주세요}
+    container_name: perf-app
+    restart: "no"
+    mem_limit: 1500m
+    env_file: .env.perf
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      TZ: Asia/Seoul
+      DB_URL: jdbc:postgresql://db:5432/beforeselling_perf
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SPRING_DATA_REDIS_DATABASE: 15
+      AI_BASE_URL: http://perf-mock-ai:8000
+      # 부하 테스트 중 토큰 만료 방지(k6가 직접 만든 AT 사용)
+      JWT_ACCESS_TOKEN_EXPIRATION: 6h
+      # 운영은 100% 트레이싱이지만 기준선에서는 끈다. 오버헤드는 별도 실험으로 비교
+      SENTRY_DSN: ""
+      MAIL_TYPE: NONE
+      # Tomcat 스레드 지표(tomcat_threads_*) 노출
+      SERVER_TOMCAT_MBEANREGISTRY_ENABLED: "true"
+    ports:
+      - "18080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks: [be_appnet]
+
+  perf-mock-ai:
+    build: ./mock-ai
+    image: perf-mock-ai:local
+    container_name: perf-mock-ai
+    restart: "no"
+    mem_limit: 256m
+    env_file: .env.perf
+    environment:
+      BE_BASE_URL: http://perf-app:8080
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [be_appnet]
+
+  perf-pg-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    container_name: perf-pg-exporter
+    restart: "no"
+    mem_limit: 64m
+    environment:
+      DATA_SOURCE_URI: db:5432/beforeselling_perf?sslmode=disable
+      DATA_SOURCE_USER: ${DB_USERNAME}
+      DATA_SOURCE_PASS: ${DB_PASSWORD}
+    networks: [be_appnet]
+
+  perf-redis-exporter:
+    image: oliver006/redis_exporter:v1.67.0
+    container_name: perf-redis-exporter
+    restart: "no"
+    mem_limit: 64m
+    environment:
+      REDIS_ADDR: redis://redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    networks: [be_appnet]
+
+networks:
+  be_appnet:
+    external: true

@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | §2 실행 컨텍스트 | 구현됨 (세션 계층까지만 전달) | `app/domain/context.py` |
 | §3 프롬프트 로더 | 구현됨 | `app/prompts/__init__.py` |
-| §4.2 BaseAgent | 구현됨 (#364) | `app/agents/base/`, Tool 안 모델 호출은 `app/tools/common/agent.py` |
+| §4.2 BaseAgent | 구현됨 (#364) | `app/agents/base/`, Tool 안 모델 호출은 `app/tools/base/steps.py` |
 | §4.3 context 인자 | 미구현. 공개 메서드는 `run(input)` | — |
 | §5 UsageRecord·Sink | 미구현. 평탄한 JSONL `record()` 유지 + 지표 sink 등록표(#379) | `app/usage.py`, `app/observability/` |
 | §6.1 예외·응답 코드 | 구현됨 (#382) | `app/domain/errors.py` |
@@ -23,9 +23,9 @@
 | §7.1 ExecutionEvent | 미구현. 세션 이벤트가 상품 단위 진행을 대신함 | `app/sessions/events.py` |
 | §7.1.2 콜백 이벤트 | 구현됨 (#310·#317) | `app/schemas/callback.py`, `app/callbacks/` |
 | §7.1.3 공개 진단서 | 구현됨 (#405). 서버 조립 교체는 #320 | `app/schemas/callback.py`, `app/results/` |
-| §7.1.4 진단 접수·재진단 요청 | 구현됨. 입력 조건 변경은 #402 | `app/schemas/request.py`, `app/routers/diagnose.py` |
+| §7.1.4 진단 접수·재진단 요청 | 구현됨 (#402) | `app/schemas/request.py`, `app/routers/diagnose.py` |
 
-- 실제 진단은 아직 더미로 실행한다(`main.py`의 `run_dummy_diagnosis`). 파이프라인 연결은 #320.
+- 파이프라인 연결(#320) 전까지 `/diagnose`는 501로 거절한다. BE 연동은 케이스 더미(`/dummy`), 샌드박스는 고정 더미로 실행한다(`main.py`).
 - 기존 [제안 문서](OBSERVABILITY_AND_ERROR_HANDLING.md)는 논의 이력으로 보존한다. 구현 시 이 문서와 제안 문서를 섞어 적용하지 않는다.
 - 내부 Python 필드명은 snake_case를 사용한다. BE API DTO의 alias 규칙은 별도 API 계약을 따른다.
 
@@ -156,7 +156,7 @@ M1~M4는 AI 코드의 이관 단위이며, 계약을 합의하는 순서가 아�
 - ClassVar 추가: `task_name`·`output_label`·`structured_output_options`·`creates_default_model`·`model_profile`
 - `AgentError(AIError, RuntimeError)`에 `meta: AgentRunMeta` 추가. `ModelFailurePhase`에 `FINALIZE` 추가
 - 실행 정보 `AgentRunMeta`·`AgentResult` 신설 (`base/meta.py`)
-- Tool 안의 모델 호출도 BaseAgent를 상속: `ToolStep` + `ToolStepInput(payload, subject_id)` (`app/tools/common/agent.py`)
+- Tool 안의 모델 호출도 BaseAgent를 상속: `ToolStep` + `ToolStepInput(payload, subject_id)` (`app/tools/base/steps.py`)
 - 콘솔 토큰 로그는 `base/usage_log.py`의 `log_token_usage`
 - 모델 생성: `build_agent_model(name)`·`build_tool_model(name)` (`app/clients/llm`, #311·#401). 프로필은 `config/profiles.py`
 
@@ -604,8 +604,7 @@ class ExecutionEvent(BaseModel):
 | `POST /resume` | `diagnosisId`, `productId`, `runId`(질문으로 끝난 실행), `questionRound`(1~2), `answers[]`: `questionKey`, `answerText`(≤500자) | 202. 새 runId로 다시 실행 |
 
 - **상품 입력 조건(#310 합의)**: 텍스트(`textBlocks`)·이미지(`imageUrls`)·URL(`sourceUrl`) 중 **하나 이상** 있으면 접수한다.
-  - 지금 코드는 아직 "텍스트·이미지 중 하나 이상"만 받는다. URL만 있는 상품 접수와 `/diagnose/url` 정리는 #402에서 반영한다.
-  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)도 #402에서 정한다.
+  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)는 파이프라인 연결(#320) 때 정한다.
 - 이미지는 URL로 받는다(#389·#403). base64 data URI도 호환으로 받는다.
 - 원래 입력·추출 결과·이전 질문과 답변은 AI 세션이 보관한다. BE는 재진단 때 ID와 이번 회차 답변만 보낸다.
 

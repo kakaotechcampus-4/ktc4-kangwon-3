@@ -1,0 +1,6 @@
+# 루트의 .env.* 규칙 예외: 예시 파일만 추적
+!.env.perf.example
+
+# 회차별 원본 결과(k6 summary JSON, HTML 리포트)는 커밋하지 않는다
+results/*
+!results/.gitkeep

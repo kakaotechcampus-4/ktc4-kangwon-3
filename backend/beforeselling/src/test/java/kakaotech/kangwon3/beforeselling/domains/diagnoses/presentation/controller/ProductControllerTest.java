@@ -5,11 +5,13 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.respon
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductListResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFailureResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductSummaryResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductToolReviewResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.ProductUseCase;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLevel;
@@ -87,6 +89,7 @@ class ProductControllerTest {
     private static final UUID QUESTION_ID = UUID.randomUUID();
     private static final String BASE_URL = "/api/v1/products";
     private static final String ANSWERS_URL = BASE_URL + "/{productId}/answers";
+    private static final String RETRY_URL = BASE_URL + "/{productId}/retry";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
     @Autowired
@@ -146,6 +149,22 @@ class ProductControllerTest {
         assertThat(pageable.getPageNumber()).isZero();
         assertThat(pageable.getPageSize()).isEqualTo(10);
         assertThat(pageable.getSort()).isEqualTo(Sort.by(Sort.Direction.DESC, "createdAt"));
+    }
+
+    @Test
+    @DisplayName("실패한 상품이 있으면 목록 응답에 실패 단계·오류 코드·메시지·재시도 여부가 담긴다.")
+    void getProductList_withFailedProduct_thenIncludeFailure() throws Exception {
+        // given
+        given(productUseCase.getProductList(any(UUID.class), any(), any(), any())).willReturn(failedListResponse());
+
+        // when & then
+        mockMvc.perform(get(BASE_URL).with(authentication(loginUser())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.products[0].processingStatus").value("FAILED"))
+                .andExpect(jsonPath("$.data.products[0].failure.failedStage").value("TOOL_EXECUTION"))
+                .andExpect(jsonPath("$.data.products[0].failure.errorCode").value("AI_TIMEOUT"))
+                .andExpect(jsonPath("$.data.products[0].failure.errorMessage").value("진단 시간이 초과되었습니다."))
+                .andExpect(jsonPath("$.data.products[0].failure.retryable").value(true));
     }
 
     @Test
@@ -291,6 +310,7 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"))
                 .andExpect(jsonPath("$.data.productId").value(PRODUCT_ID.toString()))
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()))
                 .andExpect(jsonPath("$.data.productName").value("대나무 헬리콥터"))
                 .andExpect(jsonPath("$.data.sourceType").value("URL"))
                 .andExpect(jsonPath("$.data.imageUrls[0]").value(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"))
@@ -437,6 +457,55 @@ class ProductControllerTest {
     }
 
     @Test
+    @DisplayName("인증 없이 재시도하면 401과 COMMON-004 코드를 응답한다.")
+    void retryDiagnoses_withoutAuthentication_thenUnauthorized() throws Exception {
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON-004"));
+
+        then(productUseCase).should(never()).retryDiagnoses(any(), any());
+    }
+
+    @Test
+    @DisplayName("실패한 상품을 재시도하면 성공 응답을 받고 로그인한 사용자와 상품 ID가 전달된다.")
+    void retryDiagnoses_thenSuccess() throws Exception {
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+
+        then(productUseCase).should().retryDiagnoses(USER_ID, PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("재시도할 수 없는 상품이면 409와 COMMON-010 코드를 응답한다.")
+    void retryDiagnoses_whenNotRetryable_thenConflict() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.CONFLICT))
+                .given(productUseCase).retryDiagnoses(any(), any());
+
+        // when & then
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COMMON-010"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품을 재시도하면 404와 COMMON-006 코드를 응답한다.")
+    void retryDiagnoses_withUnknownId_thenNotFound() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
+                .given(productUseCase).retryDiagnoses(any(), any());
+
+        // when & then
+        mockMvc.perform(post(RETRY_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMMON-006"));
+    }
+
+    @Test
     @DisplayName("본인의 상품을 삭제하면 성공 응답을 받는다.")
     void removeProduct_thenSuccess() throws Exception {
         mockMvc.perform(delete(BASE_URL + "/{productId}", PRODUCT_ID)
@@ -478,14 +547,24 @@ class ProductControllerTest {
         // 수정: DIAGNOSES_ID 인자 추가
         ProductSummaryResponse summary = new ProductSummaryResponse(
                 PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
-                SourceType.URL, ProcessingStatus.PENDING, null, LocalDateTime.now());
+                SourceType.URL, ProcessingStatus.PENDING, null, null, LocalDateTime.now());
+
+        return new ProductListResponse(List.of(summary), new PageInfo(0, 10, 1, 1, false));
+    }
+
+    private ProductListResponse failedListResponse() {
+        ProductSummaryResponse summary = new ProductSummaryResponse(
+                PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터", null,
+                SourceType.URL, ProcessingStatus.FAILED, null,
+                new ProductFailureResponse(PipelineStage.TOOL_EXECUTION, "AI_TIMEOUT", "진단 시간이 초과되었습니다.", true),
+                LocalDateTime.now());
 
         return new ProductListResponse(List.of(summary), new PageInfo(0, 10, 1, 1, false));
     }
 
     private ProductResponse productResponse() {
         return new ProductResponse(
-                PRODUCT_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
+                PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터", S3_URL_PREFIX + "product-main/1/uuid_thumbnail.jpg",
                 SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null,
                 List.of(S3_URL_PREFIX + "product-detail/1/uuid_a1.jpg"),
                 ProcessingStatus.COMPLETED, List.of(), List.of(), null,

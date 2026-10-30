@@ -26,3 +26,9 @@ scrape_configs:
       - targets: ["host.docker.internal:9100"]
         labels:
           instance: ec2-app
+
+  # 부하 테스트(loadtest/) 중에만 대상 파일을 넣는다. 파일이 없으면 수집 대상도 없다.
+  # job·metrics_path는 대상 파일의 라벨(job, __metrics_path__)로 정한다.
+  - job_name: loadtest
+    file_sd_configs:
+      - files: ["/etc/prometheus/loadtest/*.json"]

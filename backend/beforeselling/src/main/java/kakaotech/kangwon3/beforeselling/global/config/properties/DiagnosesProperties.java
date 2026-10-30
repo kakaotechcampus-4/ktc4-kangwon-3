@@ -14,7 +14,7 @@ public record DiagnosesProperties(
         // FE가 진단서를 다시 조회할 간격
         @NotNull Duration pollInterval,
 
-        // AI가 요청을 받지 않은 상품을 다시 요청하는 기한. 상품 생성 후 이 시간이 지나면 실패 처리한다.
+        // AI가 요청을 받지 않은 상품을 다시 요청하는 기한. 마지막 요청 후 이 시간이 지나면 실패 처리한다.
         @NotNull Duration requestRetryDeadline
 ) {
 }

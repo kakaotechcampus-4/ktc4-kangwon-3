@@ -5,8 +5,7 @@
 "품목 묶음 + 그 묶음에 걸리는 비고"인 검토 단위(AnnexBlock)로 삼는다.
 구간 단위로 자르면 비고가 어느 품목까지 적용되는지가 원문 그대로 유지된다.
 
-근거 조회 경로는 ElectricalEvidenceSource로 추상화한다. 지금은 법제처 API(LawApiEvidenceSource)만
-구현돼 있고, 적재 DB 경로(DatabaseEvidenceSource)는 테이블이 생긴 뒤 채울 자리만 둔다.
+근거 조회 경로는 ElectricalEvidenceSource로 추상화한다. 구현은 법제처 API(LawApiEvidenceSource).
 """
 
 import re
@@ -15,12 +14,11 @@ from datetime import date
 from enum import StrEnum
 from typing import Protocol
 
-from ...schemas.clients.law_request import LawSearchRequest, LawTextRequest
 from ...schemas.clients.law_response import LawTextResponse
 from ...schemas.schemas import LegalSource
 from ..common.law import (
-    CachedLoader, EvidenceUnavailable, LawApiClients, LawLookup, LawLookupError, annex_text, article_text,
-    check_body, lookup, select_version,
+    CachedLoader, DocRef, EvidenceUnavailable, LawApiClients, LawLookup, LawLookupError, annex_text, article_text,
+    load_admrul, load_law, select_version,
 )
 
 __all__ = [
@@ -30,8 +28,6 @@ __all__ = [
     "select_version",
 ]
 
-# 다른 규제 Tool(common.law.DocRef.source)과 같은 출처 이름.
-SOURCE_NAME = "법제처 국가법령정보"
 RULE_NAME = "전기용품 및 생활용품 안전관리법 시행규칙"
 RULE_ID = "008044"
 NOTICE_NAME = "전기용품 및 생활용품 안전관리 운용요령"
@@ -70,20 +66,17 @@ class EvidenceSection:
     """인용 가능한 검토 단위 하나. LegalSource로 그대로 옮긴다."""
 
     source_id: str
-    document_name: str
-    document_id: str
-    version_id: str
-    effective_date: str
+    doc: DocRef
     section: str
     text: str
-    source_url: str
 
     def source(self) -> LegalSource:
-        """결과에 붙일 근거. 출처 이름은 다른 규제 Tool과 같은 값을 쓴다."""
-        return LegalSource(
-            source_name=SOURCE_NAME, law_name=self.document_name, article=self.section, quoted_text=self.text,
-            source_url=self.source_url, effective_date=self.effective_date, is_mock=False,
-        )
+        """결과에 붙일 근거.
+
+        Returns:
+            LegalSource: 이 검토 단위의 근거.
+        """
+        return self.doc.source(self.section, self.text)
 
 
 @dataclass(frozen=True)
@@ -128,23 +121,49 @@ class ElectricalEvidence:
     purchase_agent: dict[Scheme, EvidenceSection] = field(default_factory=dict)
 
     def block(self, block_id: str) -> AnnexBlock | None:
+        """검토 단위를 ID로 찾는다.
+
+        Args:
+            block_id: 검토 단위 ID (예: "conf-07-02").
+
+        Returns:
+            AnnexBlock | None: 찾은 검토 단위. 없으면 None.
+        """
         return next((item for item in self.blocks if item.block_id == block_id), None)
 
     @property
     def documents(self) -> list[dict[str, str]]:
-        """결과 query에 남길 문서 식별 정보. 본문·URL 파라미터의 키는 넣지 않는다."""
+        """결과 query에 남길 문서 식별 정보. 본문·URL 파라미터의 키는 넣지 않는다.
+
+        Returns:
+            list[dict[str, str]]: 시행규칙·운용요령 순.
+        """
         sections = (self.rule_scope, self.notice_scope)
-        return [{"id": item.document_id, "version": item.version_id, "effective_date": item.effective_date}
+        return [{"id": item.doc.document_id, "version": item.doc.version_id, "effective_date": item.doc.enforce_date}
                 for item in sections]
 
 
 def normalize_text(text: str) -> str:
-    """표 테두리와 공백만 정리한다. 품목·숫자·비고 문구는 바꾸지 않는다."""
+    """표 테두리와 공백만 정리한다. 품목·숫자·비고 문구는 바꾸지 않는다.
+
+    Args:
+        text: 원문.
+
+    Returns:
+        str: 정리한 글.
+    """
     return re.sub(r"\s+", " ", _BOX_RE.sub(" ", text)).strip()
 
 
 def compact(text: str) -> str:
-    """이름 비교용. 공백과, API에서 깨져 오는 구분 문자(?·ㆍ)를 지운다."""
+    """이름 비교용. 공백과, API에서 깨져 오는 구분 문자(?·ㆍ)를 지운다.
+
+    Args:
+        text: 원문.
+
+    Returns:
+        str: 공백·구분 문자를 지운 글.
+    """
     return re.sub(r"[\s?·ㆍ]", "", text)
 
 
@@ -165,6 +184,14 @@ class _Row:
 
 
 def _parse_row(line: str) -> _Row | None:
+    """품목표 한 줄을 칸으로 나눈다.
+
+    Args:
+        line: 품목표 한 줄.
+
+    Returns:
+        _Row | None: 칸 내용과 구분선 정보. 표 안 줄(┃로 시작)이 아니면 None.
+    """
     stripped = line.strip()
     if not stripped.startswith("┃"):
         return None
@@ -196,6 +223,12 @@ def _split_sub_items(text: str) -> list[str]:
     법제처 응답에서 ⑯ 이후 번호는 "?"로 깨져 오므로, 앞이 공백인 "?"도 번호로 본다.
     ("정보?통신?"처럼 글자 사이의 "?"는 깨진 가운뎃점이라 나누지 않는다.)
     "삭제<…>"로 남은 세부품목은 넣지 않는다.
+
+    Args:
+        text: 세부품목 칸 글.
+
+    Returns:
+        list[str]: 세부품목명.
     """
     parts = re.split(f"[{_CIRCLED}]|(?:^|\\s)\\?(?=\\s)", text)
     items = (normalize_text(part).strip(" ?") for part in parts[1:])
@@ -203,7 +236,14 @@ def _split_sub_items(text: str) -> list[str]:
 
 
 def _parse_units(text: str) -> tuple[list[_Unit], str]:
-    """품목표를 품목 단위로 나누고, 표 끝의 공통 비고를 따로 돌려준다."""
+    """품목표를 품목 단위로 나누고, 표 끝의 공통 비고를 따로 돌려준다.
+
+    Args:
+        text: 품목표 원문.
+
+    Returns:
+        tuple[list[_Unit], str]: (품목 단위, 공통 비고).
+    """
     units: list[_Unit] = []
     common: list[str] = []
     category, category_rows = "", 0
@@ -364,7 +404,15 @@ def parse_annex(text: str, scheme: Scheme, base: EvidenceSection) -> tuple[list[
 
 
 def _includes_low_voltage(notes: tuple[str, ...], pattern: re.Pattern) -> bool:
-    """비고가 저전압 제품을 '포함'한다고 정했는지. "30V 초과 … 한정"처럼 반대 뜻은 제외한다."""
+    """비고가 저전압 제품을 '포함'한다고 정했는지. "30V 초과 … 한정"처럼 반대 뜻은 제외한다.
+
+    Args:
+        notes: 검토 단위의 비고.
+        pattern: 저전압 표기 패턴 (교류 30V 또는 직류 42V).
+
+    Returns:
+        bool: 포함한다는 문장이 있으면 True.
+    """
     for note in notes:
         for sentence in re.split(r"(?<=다)\.|\d\.", compact(note)):
             if pattern.search(sentence) and "포함" in sentence:
@@ -373,11 +421,18 @@ def _includes_low_voltage(notes: tuple[str, ...], pattern: re.Pattern) -> bool:
 
 
 def _section(base: EvidenceSection, label: str, text: str, *, source_id: str | None = None) -> EvidenceSection:
-    return EvidenceSection(
-        source_id=source_id or f"{base.source_id}-common", document_name=base.document_name,
-        document_id=base.document_id, version_id=base.version_id, effective_date=base.effective_date,
-        section=label, text=text, source_url=base.source_url,
-    )
+    """같은 문서의 다른 위치로 검토 단위를 만든다.
+
+    Args:
+        base: 문서 정보를 이어받을 검토 단위.
+        label: 위치 (예: "별표 1 공통 비고").
+        text: 인용 원문.
+        source_id: 검토 단위 ID. None이면 "<base ID>-common".
+
+    Returns:
+        EvidenceSection: 새 검토 단위.
+    """
+    return EvidenceSection(source_id=source_id or f"{base.source_id}-common", doc=base.doc, section=label, text=text)
 
 
 # 문서 버전 선택·본문 대조·조문과 별표 꺼내기는 공용 모듈(common.law)을 쓴다.
@@ -396,6 +451,13 @@ def parse_purchase_agent(body: LawTextResponse, base: EvidenceSection) -> dict[S
 
     별표가 없거나 구획을 찾지 못하면 빈 dict를 돌려준다. 구매대행 안내만 빠지고 품목 판단은 계속한다.
     공급자적합성확인대상은 법 제35조가 정하지 않으므로 목록이 없다.
+
+    Args:
+        body: 시행규칙 본문 응답.
+        base: 문서 정보를 이어받을 검토 단위.
+
+    Returns:
+        dict[Scheme, EvidenceSection]: 제도 → 특례 품목 목록 원문.
     """
     matches = [annex for annex in body.annexes
                if annex.annex_type == "별표" and annex.annex_number == "0013"
@@ -417,8 +479,12 @@ def parse_purchase_agent(body: LawTextResponse, base: EvidenceSection) -> dict[S
 def purchase_agent_status(block: AnnexBlock, part: EvidenceSection | None) -> tuple[str, str]:
     """품목 행이 별표 13 구매대행 특례 목록에 이름으로 올라 있는지 본다.
 
+    Args:
+        block: 후보 검토 단위.
+        part: 그 제도의 특례 목록. 확인하지 못했으면 None.
+
     Returns:
-        (상태, 목록의 해당 문구). 상태는
+        tuple[str, str]: (상태, 목록의 해당 문구). 상태는
         "listed"(이름이 있음), "listed_with_exclusion"(이름 뒤에 "…는 제외한다"가 붙음),
         "unmatched"(이름으로 대응시키지 못함. 표현이 달라 못 찾았을 수 있으므로 "특례 없음"으로 보지 않는다.
         특례 없음을 확정하려면 사람이 검토한 대응 규칙이 필요하다),
@@ -453,7 +519,16 @@ def purchase_agent_status(block: AnnexBlock, part: EvidenceSection | None) -> tu
 class ElectricalEvidenceSource(Protocol):
     """기준일에 적용할 전기용품 근거를 돌려준다."""
 
-    def load(self, as_of: date) -> ElectricalEvidence: ...
+    def load(self, as_of: date) -> ElectricalEvidence:
+        """기준일 근거를 읽는다.
+
+        Args:
+            as_of: 기준일.
+
+        Returns:
+            ElectricalEvidence: 기준일 근거 묶음.
+        """
+        ...
 
 
 class LawApiEvidenceSource:
@@ -467,28 +542,22 @@ class LawApiEvidenceSource:
         self._client = law_client
 
     def load(self, as_of: date) -> ElectricalEvidence:
-        rule = select_version(
-            lookup(self._client.search_law, LawSearchRequest(query=RULE_NAME, display=100)),
-            name=RULE_NAME, identifier=RULE_ID, id_field="law_id", name_field="law_name",
-            version_field="mst", as_of=as_of,
-        )
-        rule_body = lookup(self._client.get_law_text, LawTextRequest(mst=rule.mst))
-        check_body(rule_body, name=RULE_NAME, identifier=RULE_ID, enforce_date=rule.enforce_date)
-        notice = select_version(
-            lookup(self._client.search_admrul, LawSearchRequest(query=NOTICE_NAME, display=100)),
-            name=NOTICE_NAME, identifier=NOTICE_ID, id_field="rule_id", name_field="name",
-            version_field="serial_number", as_of=as_of,
-        )
-        notice_body = lookup(self._client.get_admrul_text, LawTextRequest(mst=notice.serial_number))
-        check_body(notice_body, name=NOTICE_NAME, identifier=NOTICE_ID, enforce_date=notice.enforce_date)
+        """시행규칙·운용요령을 기준일 버전으로 받아 검토 단위를 만든다.
 
-        # 법령 링크는 버전(MST)을 고정한 공개 열람 주소다. 요청 URL(OC 포함)은 쓰지 않는다.
-        rule_url = f"https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq={rule.mst}"
-        notice_url = f"https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq={notice.serial_number}"
-        rule_scope = EvidenceSection("rule-art3", RULE_NAME, RULE_ID, rule.mst, rule.enforce_date,
-                                     "제3조", article_text(rule_body, 3), rule_url)
-        notice_scope = EvidenceSection("notice-art3", NOTICE_NAME, NOTICE_ID, notice.serial_number,
-                                       notice.enforce_date, "제3조", article_text(notice_body, 3), notice_url)
+        Args:
+            as_of: 기준일.
+
+        Returns:
+            ElectricalEvidence: 기준일 근거 묶음.
+
+        Raises:
+            EvidenceUnavailable: 범위 조문의 조건이나 별표 세부품목을 확인하지 못한 경우.
+        """
+        rule = load_law(self._client, name=RULE_NAME, law_id=RULE_ID, as_of=as_of)
+        notice = load_admrul(self._client, name=NOTICE_NAME, rule_id=NOTICE_ID, as_of=as_of)
+        rule_body, notice_body = rule.body, notice.body
+        rule_scope = EvidenceSection("rule-art3", rule.ref, "제3조", article_text(rule_body, 3))
+        notice_scope = EvidenceSection("notice-art3", notice.ref, "제3조", article_text(notice_body, 3))
         # 범위 조문에 판단에 쓰는 조건이 실제로 있는지 확인한다(빈 본문·다른 조문 방어).
         if not all(token in compact(rule_scope.text) for token in ("1천볼트", "별표3", "별표4", "별표5")):
             raise EvidenceUnavailable("시행규칙 제3조의 대상 범위를 확인하지 못했습니다.")
@@ -498,40 +567,14 @@ class LawApiEvidenceSource:
         blocks: list[AnnexBlock] = []
         common: dict[Scheme, EvidenceSection] = {}
         for scheme, (number, title) in SCHEME_ANNEXES.items():
-            base = EvidenceSection(f"{_SCHEME_CODES[scheme]}", NOTICE_NAME, NOTICE_ID, notice.serial_number,
-                                   notice.enforce_date, f"별표 {int(number)}", "", notice_url)
+            base = EvidenceSection(f"{_SCHEME_CODES[scheme]}", notice.ref, f"별표 {int(number)}", "")
             parsed, note = parse_annex(annex_text(notice_body, int(number), title=title), scheme, base)
             if not any(block.sub_items for block in parsed):
                 raise EvidenceUnavailable(f"별표 {int(number)}에서 세부품목을 찾지 못했습니다.")
             blocks.extend(parsed)
             if note is not None:
                 common[scheme] = note
-        rule_base = EvidenceSection("rule-annex13", RULE_NAME, RULE_ID, rule.mst, rule.enforce_date,
-                                    "별표 13", "", rule_url)
+        rule_base = EvidenceSection("rule-annex13", rule.ref, "별표 13", "")
         return ElectricalEvidence(as_of=as_of, rule_scope=rule_scope, notice_scope=notice_scope,
                                   blocks=tuple(blocks), common_notes=common,
                                   purchase_agent=parse_purchase_agent(rule_body, rule_base))
-
-
-class DatabaseEvidenceSource:
-    """적재 DB에서 근거를 읽는 경로. 아직 테이블이 없어 자리만 둔다.
-
-    현재 DB(laws, law_articles)에는 조문만 있고 행정규칙·별표가 없다. 이 경로를 쓰려면 다음이 먼저 필요하다.
-
-    - 행정규칙(운용요령) 메타 테이블: 문서 ID, 일련번호, 시행일, 현행 여부
-    - 별표 테이블: 문서 버전 FK, 별표번호·가지번호·구분·제목, 본문 원문
-    - 위 테이블을 채우는 적재 작업(AdmrulTextClient 조회 결과 저장)
-
-    구현 후에는 같은 ElectricalEvidence를 만들어 돌려주면 ElectricalTool을 바꾸지 않고 교체할 수 있다.
-    파싱은 parse_annex, 버전 선택은 select_version을 그대로 쓴다.
-
-    Args:
-        session_factory: app.repositories.database.get_session_factory()가 돌려주는 세션 팩토리.
-    """
-
-    def __init__(self, session_factory):
-        self._session_factory = session_factory
-
-    def load(self, as_of: date) -> ElectricalEvidence:
-        # TODO: 별표·행정규칙 테이블과 적재 작업이 생기면 구현한다.
-        raise NotImplementedError("DB 근거 경로는 별표·행정규칙 테이블 적재 후 구현합니다.")

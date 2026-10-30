@@ -8,7 +8,7 @@ import pytest
 
 from app.schemas.clients.law_response import AdmrulSearchResponse
 from app.tools.electrical.evidence import (
-    NOTICE_ID, NOTICE_NAME, CachedLoader, DatabaseEvidenceSource, EvidenceUnavailable,
+    NOTICE_ID, NOTICE_NAME, CachedLoader, EvidenceUnavailable,
     LawApiClients, LawApiEvidenceSource, LawLookupError, Scheme, article_text, compact, purchase_agent_status, select_version,
 )
 
@@ -100,7 +100,7 @@ def test_기준일에_시행_중인_버전을_고르고_미래_버전은_고르�
 
 def test_출처는_버전을_고정한_공개_주소이고_요청_키가_없다(fake_law):
     evidence = LawApiEvidenceSource(fake_law).load(AS_OF)
-    urls = {block.section.source_url for block in evidence.blocks} | {evidence.rule_scope.source_url}
+    urls = {block.section.doc.url for block in evidence.blocks} | {evidence.rule_scope.doc.url}
     assert urls == {
         "https://www.law.go.kr/LSW/admRulLsInfoP.do?admRulSeq=2100000285148",
         "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=273575",
@@ -255,7 +255,7 @@ def test_별표13에서_안전인증_안전확인_전기용품_목록만_잘라_
     assert "전기액체가열기기" in compact(parts[Scheme.CERTIFICATION].text)
     assert "생활용품" not in parts[Scheme.CERTIFICATION].text[30:]  # 2호(생활용품)는 넣지 않는다
     assert "노트북컴퓨터" in compact(parts[Scheme.CONFIRMATION].text)
-    assert parts[Scheme.CERTIFICATION].source_url.startswith("https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=")
+    assert parts[Scheme.CERTIFICATION].doc.url.startswith("https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=")
 
 
 @pytest.mark.parametrize("block_id,status", [
@@ -278,8 +278,3 @@ def test_별표13이_없으면_목록을_비우고_품목표는_그대로_쓴다
     evidence = LawApiEvidenceSource(fake_law).load(AS_OF)
     assert evidence.purchase_agent == {}
     assert len(evidence.blocks) == 184
-
-
-def test_DB_근거_경로는_구현_전까지_명시적으로_실패한다():
-    with pytest.raises(NotImplementedError):
-        DatabaseEvidenceSource(session_factory=None).load(AS_OF)

@@ -36,6 +36,8 @@ public interface ProductApi {
                     `resultStatus`를 생략하면 전체를 조회하고, 지정하면 해당 결과의 상품만 조회합니다.
                     AI 진단 완료 전인 상품은 `resultStatus`가 없으므로 필터 지정 시 조회되지 않습니다.
                     `keyword`는 상품명 부분 일치로 검색하며 대소문자를 구분하지 않습니다.
+                    `failure`는 상품이 `FAILED`일 때만 실패 단계·오류 코드·메시지·재시도 가능 여부가 담기고, 그 외에는 `null`입니다.
+                    상품 단건 조회의 `failure`와 같은 형태입니다. `retryable`이 `null`이면 재시도할 수 없는 것으로 다룹니다.
                     """)
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(responseClass = ProductListResponse.class, description = "조회 성공")
@@ -97,6 +99,7 @@ public interface ProductApi {
                     **제출 후**
                     - 진단서 단건 조회 폴링을 다시 시작합니다(`pollIntervalMs`에 값이 생깁니다).
                     - 이어진 진단에서 질문이 한 번 더 올 수 있습니다(최대 2회차).
+                    - AI 서버가 잠시 답변을 받지 못하면 BE가 최대 10분 동안 자동으로 다시 전달합니다. 그동안 상품은 진행 중(`IN_PROGRESS`)으로 보입니다.
                     - 진단을 이어 갈 수 없으면 상품이 `FAILED`가 되고 `failure`에 사유가 담깁니다.
                     """)
     @ApiResponseExplanations(
@@ -112,6 +115,35 @@ public interface ProductApi {
             @Parameter(hidden = true) UserPrincipal principal,
             UUID productId,
             @Valid ProductAnswerRequest request);
+
+    @Operation(
+            summary = "진단 재시도",
+            description = """
+                    실패한 상품의 진단을 처음부터 다시 요청합니다.
+                    상품이 실패(`FAILED`)이고 `failure.retryable`이 `true`일 때만 요청할 수 있습니다.
+                    `retryable`이 `false`이거나 `null`이면 `CONFLICT`입니다.
+
+                    **요청 후**
+                    - 상품이 다시 진행 중(`IN_PROGRESS`)이 되고 `failure`는 `null`이 됩니다.
+                    - 진단서 단건 조회 폴링을 다시 시작합니다(`pollIntervalMs`에 값이 생깁니다).
+                    - 이전 진단의 질문·답변과 진행 상태는 지워지고, 질문은 1회차부터 다시 올 수 있습니다.
+                    - 입력 내용(텍스트·이미지·URL)은 처음 등록한 그대로 다시 진단합니다.
+                    - 다시 실패해도 `retryable`이 `true`면 또 재시도할 수 있습니다.
+
+                    **오류**
+                    - 이미 진행 중이거나 완료된 상품, 연속으로 두 번 요청한 경우는 `CONFLICT`입니다.
+                    - 없는 상품과 다른 사용자의 상품은 모두 `NOT_FOUND`입니다.
+                    """)
+    @ApiResponseExplanations(
+            success = @ApiSuccessResponseExplanation(description = "재시도 요청 성공"),
+            errors = {
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "CONFLICT"),
+            }
+    )
+    ResponseEntity<ApiResponse<Void>> retryDiagnoses(
+            @Parameter(hidden = true) UserPrincipal principal,
+            UUID productId);
 
     @Operation(
             summary = "상품 단건 삭제",

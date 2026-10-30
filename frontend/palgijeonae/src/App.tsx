@@ -61,7 +61,8 @@ function App() {
               <Route path="/question/:diagnosesId" element={<QuestionPage />} />
               <Route path="/judgement" element={<JudgementPage />} />
               <Route path="/judgement/:diagnosesId" element={<JudgementPage />} />
-              <Route path="/result" element={<ResultPage />} />
+              <Route path="/result/product/:productId" element={<ResultPage />} />
+              <Route path="/result/diagnoses/:diagnosesId" element={<ResultPage />} />
               <Route path="/mypage" element={<MyPage />} />
             </Route>
 
