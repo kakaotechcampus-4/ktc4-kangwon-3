@@ -2,7 +2,7 @@
   "fixture": "food_contact_silicone_utensils.txt",
   "reviewed_by": "gityhb",
   "reviewed_at": "2026-10-07",
-  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "prompt_sha256": "c24174f95164a811e96636d67d6bbc3b61e8cbb1ff0c1eeb25a076a3808516bc",
   "summary": "실리콘 조리도구 세트(Temu). 식품 접촉이 확인되고, 판매자 상품 설명의 '완벽'이 표시광고 절대적 표현에 해당하는지 보는 케이스다.",
   "tools": {
     "customs_requirements": {

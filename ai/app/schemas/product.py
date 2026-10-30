@@ -56,12 +56,13 @@ class ProductAttributes(StrictModel):
     chemical_product: bool | None = Field(
         default=None, description="세정·방향·살균이 주된 기능인가"
     )
-    # 연령 원문과 광고 맥락을 해석한 선택 신호이며, target_age 원문을 대체하지 않는다.
+    # 판매자 표기(연령 원문·광고 맥락)를 읽은 선택 신호이며, target_age 원문을 대체하지 않는다.
+    # 어린이제품 해당 여부가 아니다. 상품 종류로 보는 판단은 선택 단계가 한다 (#433).
     for_children: bool | None = Field(
         default=None,
         description=(
-            "만 13세 이하 어린이가 사용 대상인가. "
-            "연령 표기뿐 아니라 광고가 겨냥하는 실사용 연령으로 판단한다"
+            "판매자가 만 13세 이하 어린이를 사용 대상으로 표기·광고했는가. "
+            "어린이제품 해당 여부가 아니며, 상품 종류만으로 짐작하지 않는다"
         ),
     )
 
