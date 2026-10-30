@@ -43,13 +43,13 @@ def test_규칙에_걸리면_판단_답과_무관하게_선택하고_규칙을_�
 def test_질문_하나라도_문턱값_이상이면_선택한다():
     picked = _picked(assemble(_product(**_PLAIN), _answers(children_kind=0.82, children_target=0.3), JEV))
 
-    assert picked[ToolName.CHILDREN] == (True, "판단 모델: children_target 0.30, children_kind 0.82 (문턱 0.3)")
+    assert picked[ToolName.CHILDREN] == (True, "판단 모델: children_target 0.30, children_kind 0.82 (문턱 0.15)")
 
 
 def test_모두_문턱값_미만이면_선택하지_않고_최고_답을_이유로_쓴다():
     picked = _picked(assemble(_product(**_PLAIN), _answers(children_kind=0.12), JEV))
 
-    assert picked[ToolName.CHILDREN] == (False, "규칙 해당 없음. 판단 모델 최고 children_kind 0.12 < 문턱 0.3")
+    assert picked[ToolName.CHILDREN] == (False, "규칙 해당 없음. 판단 모델 최고 children_kind 0.12 < 문턱 0.15")
 
 
 def test_답을_거부한_질문이_있으면_선택한다():

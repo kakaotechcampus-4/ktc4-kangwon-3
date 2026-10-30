@@ -18,7 +18,8 @@ def test_문턱값은_0과_1_사이다():
 
 
 def test_모델과_Tool로_문턱값을_찾는다():
-    assert threshold("typesafe/jev-latest", ToolName.CHILDREN) == 0.3
+    assert threshold("typesafe/jev-latest", ToolName.ELECTRICAL) == 0.3
+    assert threshold("typesafe/jev-latest", ToolName.CHILDREN) == 0.15
 
 
 @pytest.mark.parametrize(("model", "tool"), [
