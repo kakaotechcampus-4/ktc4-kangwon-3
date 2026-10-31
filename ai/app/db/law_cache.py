@@ -44,7 +44,8 @@ class LawFetchers(NamedTuple):
             fetcher.close()
 
 
-def build_law_fetchers(oc: str, session_factory: Callable[[], Session] | None) -> LawFetchers:
+def build_law_fetchers(oc: str, session_factory: Callable[[], Session] | None, *,
+                       measure: bool = True) -> LawFetchers:
     """법제처 조회 4종의 DB 우선 조회 객체를 만든다.
 
     법령 검색은 시행법령 검색(현행·시행예정만)으로 받는다. 시행 예정 버전이 목록에 있어야
@@ -53,11 +54,13 @@ def build_law_fetchers(oc: str, session_factory: Callable[[], Session] | None) -
     Args:
         oc: 법제처 OC.
         session_factory: DB 세션을 만드는 함수. None이면 캐시 없이 클라이언트만 쓴다.
+        measure: 조회마다 캐시 결과를 측정 기록으로 남길지. 법령 점검용은 False (Tool 조회 수치와 안 섞이게).
 
     Returns:
         LawFetchers: 검색은 점검 기한(LAW_SEARCH_RECHECK_SECONDS), 본문은 영구 보관.
     """
     recheck = timedelta(seconds=LAW_SEARCH_RECHECK_SECONDS)
+    common = {"session_factory": session_factory, "measure": measure}
 
     def found(response: LawSearchResponse | AdmrulSearchResponse) -> bool:
         return bool(response.items)
@@ -65,16 +68,16 @@ def build_law_fetchers(oc: str, session_factory: Callable[[], Session] | None) -
     return LawFetchers(
         law_search=ScheduledFetcher(
             EflawSearchClient(oc, include_history=False), name="law.eflaw_search",
-            response_type=LawSearchResponse, recheck_after=recheck, accept=found, session_factory=session_factory),
+            response_type=LawSearchResponse, recheck_after=recheck, accept=found, **common),
         law_text=ScheduledFetcher(
             LawTextClient(oc), name="law.text",
-            response_type=LawTextResponse, recheck_after=None, session_factory=session_factory),
+            response_type=LawTextResponse, recheck_after=None, **common),
         admrul_search=ScheduledFetcher(
             AdmrulSearchClient(oc), name="admrul.search",
-            response_type=AdmrulSearchResponse, recheck_after=recheck, accept=found, session_factory=session_factory),
+            response_type=AdmrulSearchResponse, recheck_after=recheck, accept=found, **common),
         admrul_text=ScheduledFetcher(
             AdmrulTextClient(oc), name="admrul.text",
-            response_type=AdmrulTextResponse, recheck_after=None, session_factory=session_factory),
+            response_type=AdmrulTextResponse, recheck_after=None, **common),
     )
 
 

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from app.observability.measurements import CacheLookup, measurement_sinks
 from app.schemas.clients.customs_response import CustomsGwConfirmation, CustomsGwConfirmationResponse
 from app.tools.common.law import EvidenceUnavailable
 from app.tools.customs.search import ClipCaseSearch, DatabaseFirstCaseSearch, GwRequirementLookup, requirement_lookup
@@ -114,6 +115,19 @@ def test_DB와_CLIP_모두에서_못_받으면_오류를_올린다():
     search, _, _ = db_first(None, clip_errors={"실리콘 주걱": httpx.ReadTimeout("느림")})
     with pytest.raises(httpx.ReadTimeout):
         search.search(["실리콘 주걱"], ["실리콘 주걱"], top_k=5)
+
+
+def test_결정사례_DB_조회_결과를_캐시_조회로_기록한다():
+    cases = [db_first("실리콘 주걱"), db_first("실리콘 주걱", distance=0.9, max_distance=0.5),
+             db_first(None, error=RuntimeError("DB 연결 끊김"))]
+    records = []
+
+    with measurement_sinks.added(records.append):
+        for search, _, _ in cases:
+            search.search(["실리콘 주걱"], ["실리콘 주걱"], top_k=5)
+
+    assert records == [CacheLookup("customs.cases", "hit"), CacheLookup("customs.cases", "miss"),
+                       CacheLookup("customs.cases", "skipped")]
 
 class _Gw:
     def __init__(self, calls):

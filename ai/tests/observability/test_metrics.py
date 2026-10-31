@@ -6,7 +6,7 @@ from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
-from app.observability.measurements import CallbackOutcome, ClientCall, SellerRegionCut, ToolRun
+from app.observability.measurements import CacheLookup, CallbackOutcome, ClientCall, SellerRegionCut, ToolRun
 from app.observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
@@ -278,3 +278,15 @@ def test_판매자_구역_자르기를_쇼핑몰과_성공_여부별로_센다()
     assert registry.get_sample_value(
         "ai_extraction_seller_region_total", {"site": "aliexpress", "trimmed": "true"}) == 2
     assert registry.get_sample_value("ai_extraction_seller_region_total", {"site": "temu", "trimmed": "false"}) == 1
+
+
+def test_캐시_조회는_캐시_이름과_결과별로_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (CacheLookup("law.text", "hit"), CacheLookup("law.text", "hit"),
+                   CacheLookup("customs.cases", "skipped")):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_cache_lookups_total", {"cache": "law.text", "result": "hit"}) == 2
+    assert registry.get_sample_value("ai_cache_lookups_total", {"cache": "customs.cases", "result": "skipped"}) == 1

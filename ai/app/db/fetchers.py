@@ -22,6 +22,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from ..config import CACHE_DB_RETRY_SECONDS
+from ..observability.measurements import CacheLookup, measurement_sinks
 from .models import ApiResponseCache
 from .repositories.api_response_cache import ApiResponseCacheRepository
 
@@ -103,6 +104,7 @@ class CachedFetcherBase(ABC, Generic[_R]):
         session_factory: DB 세션을 만드는 함수. None이면 캐시 없이 클라이언트만 쓴다.
         clock: 현재 시각(UTC). 테스트용.
         skip: DB 건너뛰기 상태. None이면 프로세스 공용(SHARED_DB_SKIP).
+        measure: 조회마다 캐시 결과를 측정 기록(CacheLookup)으로 남길지. 스케줄러용은 False.
     """
 
     USE_STALE_ON_ERROR = False
@@ -110,13 +112,14 @@ class CachedFetcherBase(ABC, Generic[_R]):
     def __init__(self, client, *, name: str, response_type: type[_R],
                  session_factory: Callable[[], Session] | None,
                  clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
-                 skip: DbSkip | None = None):
+                 skip: DbSkip | None = None, measure: bool = True):
         self._client = client
         self._name = name
         self._response_type = response_type
         self._session_factory = session_factory
         self._clock = clock
         self._skip = skip or SHARED_DB_SKIP
+        self._measure = measure
 
     @abstractmethod
     def _expires_at(self, now: datetime) -> datetime | None:
@@ -142,21 +145,38 @@ class CachedFetcherBase(ABC, Generic[_R]):
         cached = self._read(key)
         now = self._clock()
         if cached is not None and (cached.expires_at is None or cached.expires_at > now):
+            self._record("hit")
             return cached.response
+        # 읽다 실패했거나 건너뛰는 중이면 DB를 못 본 것, 아니면 없거나 만료된 것
+        missed = "skipped" if self._session_factory is not None and not self._db_available() else "miss"
         try:
             response = self._client.fetch_parsed(request)
         except Exception:
             if self.USE_STALE_ON_ERROR and cached is not None:
                 logger.warning("%s 조회 실패 — 만료된 캐시로 대신함 (만료 %s)", self._name, cached.expires_at)
+                self._record("stale")
                 return cached.response
+            self._record(missed)
             raise
         if not self._accepts(response):
             if cached is not None:
                 logger.warning("%s 응답이 저장 조건에 맞지 않음 — 만료된 캐시로 대신함 (만료 %s)", self._name, cached.expires_at)
+                self._record("stale")
                 return cached.response
+            self._record(missed)
             return response
+        self._record(missed)
         self._write(key, request, response, now)
         return response
+
+    def _record(self, result: str) -> None:
+        """조회 1건의 캐시 결과를 측정 기록으로 남긴다. DB를 안 쓰거나 measure가 False면 남기지 않는다.
+
+        Args:
+            result: 조회 결과 (hit·miss·stale·skipped).
+        """
+        if self._measure and self._session_factory is not None:
+            measurement_sinks.publish(CacheLookup(self._name, result))
 
     def cached(self, request: BaseModel) -> _R | None:
         """DB에 저장된 응답을 만료와 관계없이 돌려준다. 클라이언트는 부르지 않는다.

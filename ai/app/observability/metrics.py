@@ -21,7 +21,7 @@ from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
-from .measurements import CallbackOutcome, ClientCall, Measurement, SellerRegionCut, ToolRun
+from .measurements import CacheLookup, CallbackOutcome, ClientCall, Measurement, SellerRegionCut, ToolRun
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
@@ -211,7 +211,7 @@ class AgentMetrics:
 
 
 class MeasurementMetrics:
-    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기를 기록한다.
+    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회를 기록한다.
 
     measurement_sinks에 on_record를 등록해 씀.
     """
@@ -259,6 +259,10 @@ class MeasurementMetrics:
             "ai_extraction_seller_region", "쇼핑몰·자르기 성공 여부별 상세페이지 글 수. false가 늘면 화면 변경 의심",
             ["site", "trimmed"], registry=registry,
         )
+        self._cache_lookups = Counter(
+            "ai_cache_lookups", "캐시·결과(hit·miss·stale·skipped)별 Tool의 DB 캐시 조회 수", ["cache", "result"],
+            registry=registry,
+        )
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
@@ -286,6 +290,8 @@ class MeasurementMetrics:
                     self._tool_findings.labels(tool_name, determination).inc()
             case SellerRegionCut(site=site, trimmed=trimmed):
                 self._seller_region.labels(site, str(trimmed).lower()).inc()
+            case CacheLookup(cache=cache, result=result):
+                self._cache_lookups.labels(cache, result).inc()
 
 
 class CallbackOutboxCollector(Collector):
