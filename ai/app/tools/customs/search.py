@@ -1,12 +1,14 @@
 """품목분류 결정사례 조회와 HS별 세관장확인 요건 조회. 조회는 "비슷한 사례 고르기"이지 판단이 아니다.
 
 - CaseSearch: Tool이 쓰는 결정사례 조회 인터페이스.
-  - ClipCaseSearch: 지금 쓰는 경로. 관세청 CLIP 결정사례를 검색어별로 받아 상품 용어와의 글자 유사도로 순위를 매긴다.
+  - ClipCaseSearch: 관세청 CLIP 결정사례를 검색어별로 받아 상품 용어와의 글자 유사도로 순위를 매긴다.
+  - DatabaseFirstCaseSearch: 적재한 결정사례(hs_cases)를 벡터로 먼저 찾고, 없으면 CLIP으로. case_search()가 만듦.
 - RequirementLookup: HS 10자리로 세관장확인 대상 법령·요건확인기관·제출 서류를 조회한다.
-  - GwRequirementLookup: 관세청 세관장확인대상물품 GW(공공데이터포털 키 필요).
-- 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(law_api_evidence_loader).
+  - GwRequirementLookup: 관세청 세관장확인대상물품 GW(공공데이터포털 키 필요). requirement_lookup()이 DB 캐시를 붙여 만듦.
+- 근거 법령(관세법·고시·대외무역법 시행령)은 기준일별로 캐시한다(evidence_loader).
 """
 
+import logging
 import threading
 import time
 from collections.abc import Callable
@@ -22,8 +24,12 @@ from ..common.law import KST, CachedLoader, EvidenceUnavailable, LawApiClients
 from ..common.ranking import rank_rows
 from .evidence import CustomsEvidence, load_customs_evidence
 
+logger = logging.getLogger(__name__)
+
 _DESCRIPTION_LIMIT = 300
 _REASON_LIMIT = 200
+# DB 결정사례를 가까운 사례로 볼 코사인 거리 상한. None이면 거리와 상관없이 씀
+_CASE_MAX_DISTANCE: float | None = None
 
 
 @dataclass(frozen=True)
@@ -87,6 +93,29 @@ class CaseSearch(Protocol):
         ...
 
 
+def _clean_queries(queries: list[str]) -> list[str]:
+    return list(dict.fromkeys(query.strip() for query in queries if query and query.strip()))
+
+
+def _unique_cases(items: list[CLIPCase]) -> list[HsCase]:
+    """받은 순서대로 결정사례를 합친다. HS 없는 사례는 뺌."""
+    pool: dict[str, HsCase] = {}
+    for item in items:
+        case = HsCase.from_clip(item)
+        if case.hs_codes:
+            pool.setdefault(case.case_id, case)
+    return list(pool.values())
+
+
+def _rank_cases(items: list[CLIPCase], queries: list[str], terms: list[str], top_k: int) -> tuple[HsCase, ...]:
+    """받은 결정사례를 합치고 상품 용어와 비슷한 순으로 top_k개를 고른다."""
+    return tuple(rank_rows(
+        _unique_cases(items), [*queries, *terms], top_k=top_k, key=lambda case: case.case_id,
+        text=lambda case: f"{case.product_name} {case.description[:_DESCRIPTION_LIMIT]}",
+        names=lambda case: [case.product_name],
+    ))
+
+
 class ClipCaseSearch:
     """관세청 CLIP 국내 품목분류 결정사례를 검색어별로 받아 순위를 매긴다.
 
@@ -120,6 +149,28 @@ class ClipCaseSearch:
             if close is not None:
                 close()
 
+    def collect(self, queries: list[str]) -> tuple[list[CLIPCase], list[str], list[Exception]]:
+        """검색어마다 동시에 받아 모은다. 검색어 하나의 시간 초과·오류는 나머지 검색어로 계속한다.
+
+        Args:
+            queries: CLIP에 보낼 검색어.
+
+        Returns:
+            tuple[list[CLIPCase], list[str], list[Exception]]: 받은 결정사례, 실패한 검색어, 실패 원인.
+        """
+        items: list[CLIPCase] = []
+        failed: list[str] = []
+        errors: list[Exception] = []
+        with ThreadPoolExecutor(max_workers=len(queries)) as executor:
+            futures = [(query, executor.submit(self._fetch, query)) for query in queries]
+            for query, future in futures:
+                try:
+                    items.extend(future.result())
+                except Exception as exc:
+                    failed.append(query)
+                    errors.append(exc)
+        return items, failed, errors
+
     def search(self, queries: list[str], terms: list[str], *, top_k: int) -> CaseCandidates:
         """검색어로 사례를 받아 상품 용어와 비슷한 순으로 top_k개를 돌려준다.
 
@@ -134,33 +185,76 @@ class ClipCaseSearch:
         Raises:
             Exception: 모든 검색어가 실패한 경우 마지막 오류를 그대로 올린다(호출자가 Tool 오류로 바꾼다).
         """
-        queries = list(dict.fromkeys(query.strip() for query in queries if query and query.strip()))
+        queries = _clean_queries(queries)
         if not queries:
             return CaseCandidates(cases=())
-        pool: dict[str, HsCase] = {}
-        failed: list[str] = []
-        errors: list[Exception] = []
-        with ThreadPoolExecutor(max_workers=len(queries)) as executor:
-            futures = [(query, executor.submit(self._fetch, query)) for query in queries]
-            for query, future in futures:
-                try:
-                    items = future.result()
-                except Exception as exc:  # 검색어 하나의 시간 초과·오류는 나머지 검색어로 계속한다.
-                    failed.append(query)
-                    errors.append(exc)
-                    continue
-                for item in items:
-                    case = HsCase.from_clip(item)
-                    if case.hs_codes:
-                        pool.setdefault(case.case_id, case)
+        items, failed, errors = self.collect(queries)
         if len(failed) == len(queries):
             raise errors[-1]
-        ranked = rank_rows(
-            pool.values(), [*queries, *terms], top_k=top_k, key=lambda case: case.case_id,
-            text=lambda case: f"{case.product_name} {case.description[:_DESCRIPTION_LIMIT]}",
-            names=lambda case: [case.product_name],
-        )
-        return CaseCandidates(cases=tuple(ranked), failed_terms=tuple(failed))
+        return CaseCandidates(cases=_rank_cases(items, queries, terms, top_k), failed_terms=tuple(failed))
+
+
+class CaseDatabase(Protocol):
+    def search_similar(self, text: str, *, top_k: int = 10) -> list[tuple[CLIPCase, float]]:
+        """글과 의미가 비슷한 결정사례를 (사례, 코사인 거리)로 돌려준다."""
+        ...
+
+
+class DatabaseFirstCaseSearch:
+    """적재한 결정사례를 벡터로 먼저 찾고, 가까운 사례가 없으면 CLIP API로 찾는다.
+
+    적재 때 사례 전문을 임베딩했으므로 짧은 검색어 하나씩이 아니라 검색어·상품 용어를 이은 글 하나로 찾는다
+    (짧은 검색어는 글자 모양이 비슷한 엉뚱한 사례로 끌려감, 2026-10-27 실측).
+    DB 결과는 이미 의미가 가까운 순이라 그대로 쓴다(글자 유사도로 다시 고르면 정답이 밀려남, 2026-10-27 실측).
+    DB 장애·임베딩 실패도 CLIP으로 돌린다. CLIP 결과만 글자 유사도로 고른다.
+
+    Args:
+        database: 결정사례 DB (app.db.ClipCaseDatabase).
+        fallback: DB로 못 찾았을 때 쓸 CLIP 조회 경로.
+        pool_size: DB에서 받을 사례 수. HS 없는 사례를 빼고 앞에서 top_k개를 쓴다.
+        max_distance: 이 코사인 거리 이하만 가까운 사례로 봄. None이면 거리와 상관없이 씀.
+    """
+
+    def __init__(self, database: CaseDatabase, fallback: ClipCaseSearch, *, pool_size: int = 30,
+                 max_distance: float | None = None):
+        self._database = database
+        self._fallback = fallback
+        self._pool_size = pool_size
+        self._max_distance = max_distance
+
+    def _near(self, text: str) -> list[CLIPCase]:
+        """DB에서 가까운 사례를 찾는다. 실패하면 빈 목록."""
+        try:
+            hits = self._database.search_similar(text, top_k=self._pool_size)
+        except Exception as exc:  # DB 장애·임베딩 실패는 CLIP으로 대신함
+            logger.warning("결정사례 DB 조회 실패 — CLIP으로 찾음: %s", type(exc).__name__)
+            return []
+        return [case for case, distance in hits if self._max_distance is None or distance <= self._max_distance]
+
+    def search(self, queries: list[str], terms: list[str], *, top_k: int) -> CaseCandidates:
+        """DB를 먼저 보고 가까운 순으로 top_k개를 쓴다. 가까운 사례가 없으면 검색어로 CLIP에서 받아 고른다.
+
+        Args:
+            queries: 결정사례 검색어.
+            terms: 순위를 매길 상품 용어. DB 검색 글에도 넣음.
+            top_k: 돌려줄 최대 사례 수.
+
+        Returns:
+            CaseCandidates: 후보 사례와 CLIP에서 실패한 검색어.
+
+        Raises:
+            Exception: DB로 못 찾았고 CLIP 검색어도 전부 실패한 경우.
+        """
+        queries = _clean_queries(queries)
+        if not queries:
+            return CaseCandidates(cases=())
+        near = _unique_cases(self._near("\n".join(_clean_queries([*queries, *terms]))))
+        if near:
+            return CaseCandidates(cases=tuple(near[:top_k]))
+        items, failed, errors = self._fallback.collect(queries)
+        if len(failed) == len(queries):
+            raise errors[-1]
+        return CaseCandidates(cases=_rank_cases(items, queries, terms, top_k), failed_terms=tuple(failed))
 
 
 @dataclass(frozen=True)
@@ -243,7 +337,7 @@ class GwRequirementLookup:
 
 
 def _load_on_demand(as_of: date) -> CustomsEvidence:
-    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
+    """조회할 때만 법제처 조회 객체(DB 캐시 먼저, 없으면 API)를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
 
     Args:
         as_of: 기준일.
@@ -252,16 +346,17 @@ def _load_on_demand(as_of: date) -> CustomsEvidence:
         CustomsEvidence: 기준일 근거 묶음.
     """
     from ...config import get_settings
+    from ...db import open_law_fetchers
 
-    clients = LawApiClients.from_oc(get_settings().law_oc)
+    clients = LawApiClients(*open_law_fetchers(get_settings().law_oc))
     try:
         return load_customs_evidence(clients, as_of)
     finally:
         clients.close()
 
 
-def law_api_evidence_loader() -> Callable[[], CustomsEvidence]:
-    """기준일(한국 날짜)의 통관 근거를 법제처 API로 돌려주는 함수를 만든다.
+def evidence_loader() -> Callable[[], CustomsEvidence]:
+    """기준일(한국 날짜)의 통관 근거를 돌려주는 함수를 만든다. 법제처 응답은 DB 캐시를 먼저 봄.
 
     기준일별 캐시는 함수마다 따로 있어 조립하는 쪽이 한 번 만들어 공유함.
 
@@ -270,3 +365,36 @@ def law_api_evidence_loader() -> Callable[[], CustomsEvidence]:
     """
     loader = CachedLoader(_load_on_demand)
     return lambda: loader.load(datetime.now(KST).date())
+
+
+def case_search() -> ClipCaseSearch | DatabaseFirstCaseSearch:
+    """결정사례 조회 경로를 만든다. DB에 적재한 사례를 먼저 보고, 없으면 CLIP.
+
+    Returns:
+        ClipCaseSearch | DatabaseFirstCaseSearch: DATABASE_URL이 없으면 CLIP만 쓰는 조회 경로.
+    """
+    from ...clients.llm.embedding import embed_text_sync
+    from ...config import get_settings
+    from ...db import ClipCaseDatabase, DatabaseNotConfiguredError, get_session_factory
+
+    try:
+        session_factory = get_session_factory()
+    except DatabaseNotConfiguredError:
+        return ClipCaseSearch()
+    database = ClipCaseDatabase(session_factory, embed_query=embed_text_sync,
+                                embedding_model=get_settings().embedding_model)
+    return DatabaseFirstCaseSearch(database, ClipCaseSearch(), max_distance=_CASE_MAX_DISTANCE)
+
+
+def requirement_lookup() -> GwRequirementLookup:
+    """세관장확인 요건 조회 경로를 만든다. GW 응답은 DB 캐시를 먼저 봄.
+
+    키는 설정의 DATA_GO_KR_KEY(필수). HS별 캐시는 객체 안에 있어 조립하는 쪽이 한 번 만들어 공유함.
+
+    Returns:
+        GwRequirementLookup: 조회할 때 GW 조회 객체를 열고 닫는 요건 조회 경로.
+    """
+    from ...config import get_settings
+    from ...db import open_customs_gw_fetcher
+
+    return GwRequirementLookup(get_settings().data_go_kr_key, client_factory=open_customs_gw_fetcher)

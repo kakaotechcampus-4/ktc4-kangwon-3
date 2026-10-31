@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.infra.ai;
 
 import kakaotech.kangwon3.beforeselling.global.config.properties.AiServerProperties;
+import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.AiDiagnosesRequestException.Failure;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiApiResponse;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesAccepted;
@@ -8,6 +9,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesConflict;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesRequest;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeAccepted;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeRequest;
+import kakaotech.kangwon3.beforeselling.global.security.filter.InternalTokenFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
@@ -27,17 +29,19 @@ import java.util.List;
 
 /**
  * AI 서버에 진단 접수. 결과는 상품별 콜백(/internal/v1/ai/products/{productId})으로 따로 전달.
+ * 요청에는 콜백과 같은 내부 토큰(X-Internal-Token)을 함께 전달.
  */
 @Component
 @RequiredArgsConstructor
 public class AiDiagnosesClient {
 
-    private static final String DIAGNOSE_PATH = "/api/ai/v1/diagnose/content";
-    private static final String RESUME_PATH = "/api/ai/v1/diagnose/resume";
+    private static final String DIAGNOSE_PATH = "/diagnose/content";
+    private static final String RESUME_PATH = "/diagnose/resume";
     private static final String CONNECT_TIMEOUT_MESSAGE = "Connect timed out";
 
     private final RestClient restClient;
     private final AiServerProperties aiServerProperties;
+    private final InternalApiProperties internalApiProperties;
 
     /**
      * @throws AiDiagnosesRequestException 접수(202)되지 않았거나 접수 여부를 모를 때
@@ -45,7 +49,8 @@ public class AiDiagnosesClient {
     public AiDiagnosesAccepted requestDiagnoses(AiDiagnosesRequest request) {
         try {
             AiApiResponse<AiDiagnosesAccepted> response = restClient.post()
-                    .uri(aiServerProperties.baseUrl() + DIAGNOSE_PATH)
+                    .uri(aiServerProperties.baseUrl() + aiServerProperties.diagnosePathPrefix() + DIAGNOSE_PATH)
+                    .header(InternalTokenFilter.HEADER_NAME, internalApiProperties.token())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
@@ -60,6 +65,13 @@ public class AiDiagnosesClient {
         } catch (RestClientException e) {
             throw classify(e);
         }
+    }
+
+    /**
+     * AI가 요청을 받지 못한 것이 확실한지(429, 5xx, 연결 실패). 다시 보내도 중복으로 접수되지 않는다.
+     */
+    public static boolean isNotReceived(RestClientException e) {
+        return classify(e).getFailure() == Failure.NOT_RECEIVED;
     }
 
     // AI가 요청을 받았는지로 예외 분류. 판단이 어려우면 다시 보내지 않도록 UNKNOWN으로 처리.
@@ -112,7 +124,8 @@ public class AiDiagnosesClient {
      */
     public AiResumeAccepted requestResume(AiResumeRequest request) {
         AiApiResponse<AiResumeAccepted> response = restClient.post()
-                .uri(aiServerProperties.baseUrl() + RESUME_PATH)
+                .uri(aiServerProperties.baseUrl() + aiServerProperties.diagnosePathPrefix() + RESUME_PATH)
+                .header(InternalTokenFilter.HEADER_NAME, internalApiProperties.token())
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()

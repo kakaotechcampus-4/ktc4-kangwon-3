@@ -6,24 +6,31 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
 from prometheus_client import CollectorRegistry
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
 from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
+from .clients.llm.decision import close_decision_clients
+from .clients.llm.embedding import embed_texts_sync
 from .config import SESSION_SWEEP_SECONDS, get_settings
+from .domain.context import RunType
+from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
 from .observability.measurements import measurement_sinks
 from .observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
-from .repositories.database import DatabaseNotConfiguredError, get_engine
-from .routers import dev_diagnose, diagnose, dummy, health, metrics
+from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
+                 log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
+                 run_weekly_clip_ingest)
+from .routers import diagnose, dummy, health, metrics, sandbox
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
+from .sessions.job import by_run_type
 from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
+from .tools.common.law_sources import LAW_SOURCES, applied_version
 
 logger = logging.getLogger(__name__)
 
@@ -60,22 +67,39 @@ async def lifespan(app: FastAPI):
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
+    # 연결 확인 겸 vector 확장·테이블 생성 (이미 있으면 건너뜀)
+    law_fetchers = session_factory = None
     try:
-        engine = get_engine()
+        created = init_db()
     except DatabaseNotConfiguredError:
         logger.warning("DATABASE_URL 미설정 — DB 기능 없이 기동합니다")
+    except SQLAlchemyError as e:
+        logger.warning("DB 준비 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     else:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            logger.info("DB 연결 확인 완료")
-        except SQLAlchemyError as e:
-            logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
+        logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
+        # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
+        session_factory = get_session_factory()
+        law_fetchers = build_law_fetchers(settings.law_oc, session_factory)
+
+    def daily_refresh() -> None:
+        refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version, on_change=log_law_changes)
+        purge_expired_responses(session_factory, [CUSTOMS_GW_CACHE])
+
+    law_refresher = None if law_fetchers is None else asyncio.create_task(run_law_refresh(daily_refresh))
+    # CLIP 결정사례: 매주 새 사례만 적재
+    clip_ingester = None if session_factory is None else asyncio.create_task(run_weekly_clip_ingest(
+        lambda: run_scheduled_clip_ingest(session_factory, embed=lambda texts: embed_texts_sync(texts, settings),
+                                          embedding_model=settings.embedding_model)))
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
-    # 진단 세션 (#264). 파이프라인 러너 연결 전까지 더미 진단으로 실행
-    manager = SessionManager(SessionStore(), run_dummy_diagnosis)
+    # 진단 세션 (#264). 운영(/diagnose)은 파이프라인 연결 전까지 501이라 없음
+    # 샌드박스는 파이프라인 연결 전까지 고정 더미, BE 연동용(/dummy)은 케이스 더미
+    job = by_run_type({
+        RunType.TEST: run_dummy_diagnosis,
+        RunType.DUMMY: run_case_diagnosis,
+    })
+    manager = SessionManager(SessionStore(), job)
     # BE 콜백 (#317)
     sender = BackendCallbackClient(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
@@ -93,7 +117,7 @@ async def lifespan(app: FastAPI):
     measurement_sinks.add(measurement_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
-    # 개발용 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
+    # 샌드박스 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
     app.state.assessment_presenter = presenter
     sweeper = asyncio.create_task(_sweep_sessions(manager))
     try:
@@ -102,6 +126,16 @@ async def lifespan(app: FastAPI):
         sweeper.cancel()
         with suppress(asyncio.CancelledError):
             await sweeper
+        if law_refresher is not None:
+            # 실행 중인 점검 스레드는 끝까지 돎. 닫힌 클라이언트 오류는 그 문서 실패로만 남음
+            law_refresher.cancel()
+            with suppress(asyncio.CancelledError):
+                await law_refresher
+            law_fetchers.close()
+        if clip_ingester is not None:
+            clip_ingester.cancel()
+            with suppress(asyncio.CancelledError):
+                await clip_ingester
         # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드는 프로세스 종료 때 끝까지 돌지만
         # 발신함이 먼저 닫혀 이후 콜백은 버려짐. BE는 멈춤 감지(15분)로 실패 처리
         manager.shutdown(wait=False)
@@ -110,6 +144,7 @@ async def lifespan(app: FastAPI):
         sender.close()
         # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
         close_llm_clients()
+        close_decision_clients()
         agent_sinks.remove(agent_metrics)
         measurement_sinks.remove(measurement_metrics)
 
@@ -127,8 +162,8 @@ api_v1.include_router(health.router)
 # 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
 api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
 api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
-# 개발용 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
-api_v1.include_router(dev_diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
+# 샌드박스 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
+api_v1.include_router(sandbox.router, responses=VALIDATION_ERROR_RESPONSES)
 
 app.include_router(api_v1)
 # Prometheus 수집 경로 (BE /actuator/prometheus 대응). 외부 공개 경로(/api/ai/) 밖에 둠

@@ -42,7 +42,7 @@ class SessionStore:
     def add(self, sessions: list[DiagnosisSession]) -> None:
         """새 세션들을 넣는다. 같은 상품의 세션이 있으면 교체.
 
-        진행 중인 상품인지 확인은 부르는 쪽(세션 관리자) 몫.
+        실행 중인 상품인지 확인은 부르는 쪽(세션 관리자) 몫.
 
         Args:
             sessions: 넣을 세션.

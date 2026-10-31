@@ -22,10 +22,10 @@
 | §6.3 API 경계 | 구현됨 | `app/routers/exception_handlers.py` |
 | §7.1 ExecutionEvent | 미구현. 세션 이벤트가 상품 단위 진행을 대신함 | `app/sessions/events.py` |
 | §7.1.2 콜백 이벤트 | 구현됨 (#310·#317) | `app/schemas/callback.py`, `app/callbacks/` |
-| §7.1.3 공개 진단서 | 형식 구현됨. 결과 배지 결정 규칙은 결과 종합 작업에서 구현 | `app/schemas/callback.py` |
-| §7.1.4 진단 접수·재진단 요청 | 구현됨. 입력 조건 변경은 #402 | `app/schemas/request.py`, `app/routers/diagnose.py` |
+| §7.1.3 공개 진단서 | 구현됨 (#405). 서버 조립 교체는 #320 | `app/schemas/callback.py`, `app/results/` |
+| §7.1.4 진단 접수·재진단 요청 | 구현됨 (#402) | `app/schemas/request.py`, `app/routers/diagnose.py` |
 
-- 실제 진단은 아직 더미로 실행한다(`main.py`의 `run_dummy_diagnosis`). 파이프라인 연결은 #320.
+- 파이프라인 연결(#320) 전까지 `/diagnose`는 501로 거절한다. BE 연동은 케이스 더미(`/dummy`), 샌드박스는 고정 더미로 실행한다(`main.py`).
 - 기존 [제안 문서](OBSERVABILITY_AND_ERROR_HANDLING.md)는 논의 이력으로 보존한다. 구현 시 이 문서와 제안 문서를 섞어 적용하지 않는다.
 - 내부 Python 필드명은 snake_case를 사용한다. BE API DTO의 alias 규칙은 별도 API 계약을 따른다.
 
@@ -394,13 +394,16 @@ def record_usage(record: UsageRecord, *, sink: UsageSink) -> None:
 | `AI_UNAUTHORIZED` | 401 | 내부 토큰 없음·불일치 |
 | `AI_NOT_FOUND` / `AI_SESSION_NOT_FOUND` | 404 | 경로 없음 / 세션 없음 |
 | `AI_METHOD_NOT_ALLOWED` | 405 | |
-| `AI_SESSION_CONFLICT` | 409 | 진행 중인 상품 포함 |
+| `AI_SESSION_CONFLICT` | 409 | 실행 중인(접수·실행) 상품 포함. 답변 대기 상품은 해당 없음 |
 | `AI_RESUME_CONFLICT` | 409 | 기다리는 질문과 다른 답변·중복 답변 |
 | `AI_QUEUE_FULL` | 429 | 진단 대기열 초과 |
 | `AI_INTERNAL_ERROR` | 500 | 처리 못 한 예외 |
 | `AI_NOT_IMPLEMENTED` | 501 | |
-| `AI_PIPELINE_ERROR` | 500 | 실패 콜백: 진단 중 처리 못 한 예외 (retryable=false) |
+| `AI_PIPELINE_ERROR` | 500 | 실패 콜백: 진단 중 처리 못 한 예외 (retryable=false). 추출 모델·이미지 분류가 429·5xx·연결 실패로 응답을 받지 못했거나 추출 출력이 길이 한도에 닿은 경우만 retryable=true (#432) |
 | `AI_TIMEOUT` | 500 | 실패 콜백: 진단 시간 초과 (retryable=true) |
+| `AI_UNSUPPORTED_SITE` | 500 | 실패 콜백: 수집할 수 없는 판매 사이트 URL (retryable=false). 접수 단계 422 대신 그 상품만 실패 (#432) |
+| `AI_SOURCE_FETCH_FAILED` | 500 | 실패 콜백: 상품 페이지 수집 실패 (retryable=true) |
+| `AI_EMPTY_SOURCE` | 500 | 실패 콜백: 수집했지만 글·이미지가 없음 (retryable=false) |
 
 정확한 목록·문구는 `AIResponseCode`가 기준이다.
 
@@ -565,7 +568,7 @@ class ExecutionEvent(BaseModel):
 | 필드 | 의미 |
 | --- | --- |
 | `status` | `completed` / `incomplete`. 입력 대기는 질문 콜백으로 따로 나감 |
-| `resultStatus` | 결과 배지. `PURCHASING_AGENT_ALLOWED`(구매대행 가능) / `DIRECT_IMPORT_CERTIFICATION_REQUIRED`(사입 인증 필요) / `RECHECK_REQUIRED`(재확인 필요) |
+| `resultStatus` | 결과 상태. `PURCHASING_AGENT_ALLOWED`(구매대행 가능) / `DIRECT_IMPORT_CERTIFICATION_REQUIRED`(사입 인증 필요) / `RECHECK_REQUIRED`(재확인 필요) |
 | `summary` | AI가 만드는 공개 요약 |
 | `toolReviews[]` | 분야 카드: `toolName`, `status`(COMPLETED·SKIPPED·INCOMPLETE), `message`, `findings[]` |
 | `requiredActions[]` | 상품 전체의 할 일 목록. 카드에 나눠 담지 않음 |
@@ -577,7 +580,21 @@ class ExecutionEvent(BaseModel):
 - 미완료(`incomplete`)는 `notices`가 반드시 있고 `resultStatus`는 `RECHECK_REQUIRED`만 쓴다.
 - 같은 분야 카드를 두 번 보내지 않는다. 문자열 칸은 공백만 있으면 안 된다(BE `@NotBlank`).
 - 카드 상태: COMPLETED = 해당 분야를 검토함(규제 비대상·안전·인증을 뜻하지 않음), SKIPPED = 이 상품에 해당하지 않아 검토하지 않음, INCOMPLETE = 근거 조회 실패 등으로 검토를 마치지 못함.
-- `resultStatus`는 AI가 정해진 규칙으로 정한다(#310). 규칙(미완료 → 인증 필요 판단 → tool 실패·정보 부족 → 그 밖, 표시·광고는 배지 계산 제외)과 구현은 결과 종합 작업에서 다룬다. 지금 더미 변환기는 고정값을 보낸다.
+- `resultStatus`는 AI가 정해진 규칙으로 정한다(#310, #405). 구현: `app/results/status.py`. 위에서부터 먼저 맞는 것을 쓴다.
+
+| 순서 | 조건 | `resultStatus` |
+| --- | --- | --- |
+| 1 | 진단 미완료 | `RECHECK_REQUIRED` |
+| 2 | 판단 대상 tool에 `REQUIRED`·`POSSIBLY_REQUIRED` 판단이 있음 | `DIRECT_IMPORT_CERTIFICATION_REQUIRED` |
+| 3 | 지원 분야 밖 규제 대상 신호: 추출의 `chemical_product`·`weapon_like`·`plant_material` 중 하나라도 `true` (tool 선택과 상관없이) | `RECHECK_REQUIRED` |
+| 4 | 판단 대상 tool이 하나도 없음 | `PURCHASING_AGENT_ALLOWED` |
+| 5 | 판단 대상 tool 실행 실패(`FAILED`·`PARTIAL`), 또는 정보 부족(`INSUFFICIENT_INFORMATION`이거나 위험도 `UNKNOWN`) | `RECHECK_REQUIRED` |
+| 6 | 그 밖 | `PURCHASING_AGENT_ALLOWED` |
+
+  - 표시·광고(`LABEL_AD`)는 판매 방식과 무관한 문구 의무라 결과 상태 계산에서 뺀다. 카드·할 일로 보여 주고, 구매대행 가능인데 표시·광고 판단이 있으면 요약에 "표시·광고 문구는 확인이 필요합니다"를 덧붙인다.
+  - 지원 분야 밖 신호가 있으면 결과 상태와 상관없이 `notices`에 확인하지 않는 법령을 안내한다 (화학제품안전법, 총포·도검·화약류법, 식물방역법).
+  - 구매대행 가능이면 `notices`에 확인한 분야와 확인하지 않은 범위(생활용품 안전관리, 가스·소방용품 등)를 안내한다.
+  - 변환기 `app/results/presenter.py`(`ResultPresenter`)가 6개 분야 카드를 항상 같은 순서로 보내고, 할 일은 분야 순서로 중복 없이 모은다. 서버 조립의 더미 변환기 교체는 #320.
 - 공개 가능한 판단·안내를 결정하는 책임은 AI에 있다. BE·FE가 원본 검증 이슈로 판단의 유효성을 재검사하지 않는다.
 
 ### 7.1.4 진단 접수·재진단 요청 (BE → AI) — 구현됨
@@ -590,10 +607,13 @@ class ExecutionEvent(BaseModel):
 | `POST /resume` | `diagnosisId`, `productId`, `runId`(질문으로 끝난 실행), `questionRound`(1~2), `answers[]`: `questionKey`, `answerText`(≤500자) | 202. 새 runId로 다시 실행 |
 
 - **상품 입력 조건(#310 합의)**: 텍스트(`textBlocks`)·이미지(`imageUrls`)·URL(`sourceUrl`) 중 **하나 이상** 있으면 접수한다.
-  - 지금 코드는 아직 "텍스트·이미지 중 하나 이상"만 받는다. URL만 있는 상품 접수와 `/diagnose/url` 정리는 #402에서 반영한다.
-  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)도 #402에서 정한다.
+  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)는 파이프라인 연결(#320) 때 정한다.
 - 이미지는 URL로 받는다(#389·#403). base64 data URI도 호환으로 받는다.
 - 원래 입력·추출 결과·이전 질문과 답변은 AI 세션이 보관한다. BE는 재진단 때 ID와 이번 회차 답변만 보낸다.
+- **답변 대기 상품의 재접수(#451)**: 답변 대기 상품이 `/content`로 다시 오면 기다리던 세션을 버리고 새 runId로 1회차부터 실행한다.
+  - BE가 실패 처리한 상품을 다시 진단할 때 24시간 보관이 끝날 때까지 409로 막히지 않게 하기 위함이다.
+  - 버린 실행의 runId로 온 `/resume`은 `AI_RESUME_CONFLICT`(409)로 거절한다.
+  - 접수·실행 중인 상품은 지금처럼 `AI_SESSION_CONFLICT`(409)로 요청 전체를 거절한다.
 
 ### 7.2 운영 로그 규칙
 

@@ -1,29 +1,85 @@
-"""더미 진단 라우터. BE 연동 테스트용으로 고정 결과를 반환한다."""
+"""더미 진단 라우터. /diagnose와 같은 요청·응답·콜백으로 케이스 더미를 돌림 (BE·FE 연동 확인용).
 
-from fastapi import APIRouter
+BE는 실제 파이프라인 연결([콜백 5/5]) 전까지 이 경로를 쓰고, 연결 뒤 접두어만 /diagnose로 바꿈.
+"""
 
-from ..schemas.request import ContentDiagnoseRequest, UrlDiagnoseRequest
-from ..schemas.response import DiagnoseResponse, ok_diagnose
-from ._dummy import build_dummy_assessment
+from fastapi import APIRouter, Depends, Query, status
 
-router = APIRouter(prefix="/dummy/diagnose", tags=["더미 진단"])
+from ..domain.context import RunType
+from ..dummy import DummyCaseName, mark_case, random_case
+from ..schemas.request import DiagnosisRequest, ResumeRequest
+from ..schemas.response import DiagnosisAcceptedResponse, ResumeAcceptedResponse
+from ..sessions.manager import SessionManager
+from .diagnose import (
+    RESUME_RESPONSES,
+    SUBMIT_RESPONSES,
+    get_session_manager,
+    resume_session,
+    submit_diagnosis,
+    to_extraction_input,
+)
+from .internal_auth import INTERNAL_AUTH_RESPONSES, require_internal_token
+
+router = APIRouter(prefix="/dummy/diagnose", tags=["더미 진단"], dependencies=[Depends(require_internal_token)],
+                   responses=INTERNAL_AUTH_RESPONSES)
 
 
-@router.post("/content", response_model=DiagnoseResponse, summary="텍스트·이미지 더미 진단", description="요청 스키마만 검증하고 RC 보트 고정 결과를 반환한다.")
-async def dummy_diagnose_by_content(req: ContentDiagnoseRequest) -> DiagnoseResponse:
-    """텍스트·이미지 입력 더미 진단.
+@router.post(
+    "/content",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=DiagnosisAcceptedResponse,
+    responses=SUBMIT_RESPONSES,
+    summary="진단서 단위 더미 진단 접수",
+    description=(
+        "/diagnose/content와 같은 요청으로 접수하고 상품 케이스대로 진행·질문·결과·실패 콜백을 보낸다. "
+        "입력 내용과 상관없이 케이스의 고정 결과를 씀. case를 빼면 상품마다 무작위로 고름. "
+        "재진단은 /dummy/diagnose/resume으로."
+    ),
+)
+async def dummy_diagnose_by_content(
+    req: DiagnosisRequest,
+    case: DummyCaseName | None = Query(None, description="상품 케이스. 없으면 상품마다 무작위"),
+    manager: SessionManager = Depends(get_session_manager),
+) -> DiagnosisAcceptedResponse:
+    """진단서의 상품들을 더미 세션으로 접수하고 바로 202를 반환한다.
+
+    Args:
+        req: 진단서 ID와 상품 1~10개.
+        case: 모든 상품에 쓸 케이스. 없으면 상품마다 무작위.
+        manager: 세션 관리자.
 
     Returns:
-        RC 보트 기반 더미 FinalAssessment.
+        202 접수 응답.
+
+    Raises:
+        AIServiceError: 진행 중 상품이 섞이면 409(data.conflictProductIds), 대기열이 차면 429.
     """
-    return ok_diagnose(build_dummy_assessment(req.product_id))
+    inputs = [mark_case(to_extraction_input(product), case or random_case()) for product in req.products]
+    return submit_diagnosis(manager, req.diagnosis_id, inputs, RunType.DUMMY)
 
 
-@router.post("/url", response_model=DiagnoseResponse, summary="URL 더미 진단", description="요청 스키마만 검증하고 RC 보트 고정 결과를 반환한다.")
-async def dummy_diagnose_by_url(req: UrlDiagnoseRequest) -> DiagnoseResponse:
-    """URL 입력 더미 진단.
+@router.post(
+    "/resume",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=ResumeAcceptedResponse,
+    responses=RESUME_RESPONSES,
+    summary="더미 진단 답변 후 재진단 접수",
+    description="/diagnose/resume과 같은 요청. /dummy/diagnose/content로 접수한 상품만 받고, 처음 고른 케이스를 이어감.",
+)
+async def dummy_resume_diagnosis(
+    req: ResumeRequest,
+    manager: SessionManager = Depends(get_session_manager),
+) -> ResumeAcceptedResponse:
+    """더미 답변 대기 상품을 답변과 함께 재접수하고 바로 202를 반환한다.
+
+    Args:
+        req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변.
+        manager: 세션 관리자.
 
     Returns:
-        RC 보트 기반 더미 FinalAssessment.
+        202 재진단 접수 응답. runId는 새 실행 ID.
+
+    Raises:
+        AIServiceError: /diagnose/resume과 같음. /diagnose로 접수한 상품은 404.
     """
-    return ok_diagnose(build_dummy_assessment(req.product_id))
+    return resume_session(manager, req, RunType.DUMMY)

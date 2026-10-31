@@ -36,4 +36,8 @@ public class ProductUseCase {
     public void answerQuestions(UUID userId, UUID productId, ProductAnswerRequest request) {
         productService.answerQuestions(userId, productId, productMapper.toAnswers(request));
     }
+
+    public void retryDiagnoses(UUID userId, UUID productId) {
+        productService.retryDiagnoses(userId, productId);
+    }
 }

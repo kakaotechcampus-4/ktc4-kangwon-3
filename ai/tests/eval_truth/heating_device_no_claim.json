@@ -1,0 +1,132 @@
+{
+  "fixture": "heating_device_no_claim.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "정상",
+    "온열",
+    "의료표방 없음"
+  ],
+  "summary": "가중감 냉온 아이마스크(Temu). 전원·데우는 방법이 적혀 있지 않은 온열안대를 전기 상품으로 짐작하지 않는지, 매장 분류 '전문 의료용품'을 의료 효능 표방으로 오인하지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": null,
+      "evidence": "제목 '냉온 아이마스크', 스펙표 '재료: 폴리에스테르'. 전원·전지·충전·데우는 방법 표기 없음",
+      "why_not_other": "전기로 데우고 식히는 냉온 안대도 있어 '냉온'만으로는 전기 여부를 알 수 없다. 판매자 이름(gelpack)은 상품의 근거가 아니다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "전원 방식 표기 없음",
+      "why_not_other": "전기 상품인지 알 수 없어 전기 관련 칸도 확정하지 않는다."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "전원 방식 표기 없음",
+      "why_not_other": "전기 상품인지 알 수 없어 전기 관련 칸도 확정하지 않는다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": null,
+      "evidence": "전원 방식 표기 없음",
+      "why_not_other": "전기 상품인지 알 수 없어 전기 관련 칸도 확정하지 않는다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '아이마스크'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "제목 '냉온 아이마스크'",
+      "why_not_other": "온찜질에 쓰는 상품이지만 스스로 열을 내는지(전기식인지) 페이지가 말하지 않는다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": true,
+      "evidence": "제목 '아이마스크'",
+      "why_not_other": "눈에 대는 안대라 쓰면 반드시 피부에 닿는다. 옷 위에도 찰 수 있어 None으로 둔 자세교정 밴드와 다르다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "판매자 문구에 질병·신체기능 효과 표방이 없다",
+      "why_not_other": "'전문 의료용품'은 판매자 스토어 순위 분류('#16 베스트셀러 스토어전문 의료용품')와 사이트 분류 경로라 제품 효능 표방이 아니다(EXTRACTION_EVAL.md)."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "안대 형태",
+      "why_not_other": "형태가 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "스펙표 '재료: 폴리에스테르'",
+      "why_not_other": "재질이 식물성이 아닌 것으로 확인된다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '온열안대'",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다",
+      "why_not_other": "대상 표기 칸이라 표기가 없으면 false."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기 없음"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "아이마스크"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "온열안대",
+        "아이마스크",
+        "안대",
+        "수면 안대",
+        "냉온 아이마스크",
+        "전문 의료용품",
+        "비즈니스&산업&과학 > 전문 의료용품"
+      ]
+    }
+  },
+  "listing_text_required": [
+    {
+      "must_contain": "가중감 있는 냉온 아이마스크",
+      "evidence": "판매자 제목(원문 28행)"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "베스트셀러 스토어",
+      "evidence": "원문 63행, 판매자 스토어 순위 표시(판매 사이트 문구)"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 66행, 판매 사이트 공통 문구"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 72행, 판매 사이트 공통 문구"
+    }
+  ]
+}

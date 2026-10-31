@@ -6,7 +6,8 @@ HS 분류는 관세청이 정하므로 후보로만 낸다. 모델은 확정 판
 결과는 POSSIBLY_REQUIRED(요건 후보) 또는 INSUFFICIENT_INFORMATION(정보 부족·미확인)이다.
 """
 
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from ...schemas.schemas import CustomsAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName
@@ -133,7 +134,15 @@ class CustomsTool(EvidenceSearchTool):
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "candidates": [case.as_candidate() for case in candidates.cases],
         }, product.product_id))
-        chosen = self._pick(run, review.selections, {case.case_id: case for case in candidates.cases}, key="case_id")
+        by_id = {case.case_id: case for case in candidates.cases}
+        chosen = self._pick(run, review.selections, by_id, key="case_id")
+        # 빼면 맞는 후보의 요건·구분 질문도 같이 빠짐 → 효과 평가 전까지 남기고 확인 필요로만 표시
+        lone = _lone_headings(chosen, candidates.cases)
+        if lone:
+            query["lone_cases"] = lone
+            codes = ", ".join(dict.fromkeys(format_hs(code) for case_id in lone for code in by_id[case_id].hs_codes))
+            run.assumptions.append(
+                f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개(HS {codes})가 있어 HS 확인이 필요합니다.")
         for _, selection, _ in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
             run.missing.extend(name for name in needed if name in _QUESTION_FIELDS)
@@ -338,6 +347,26 @@ def _queries(terms: list[str]) -> list[str]:
         if len(words) > 1 and len(words[-1]) > 1:
             ordered.append(words[-1])
     return list(dict.fromkeys(ordered))[:_QUERY_LIMIT]
+
+
+def _lone_headings(chosen: list, cases: Iterable[HsCase]) -> list[str]:
+    """고른 사례 중 후보 사례에 한 번만 나온 호(HS 4자리)의 사례를 찾는다. 여러 번 나온 호의 사례를 함께 골랐을 때만.
+
+    Args:
+        chosen: _pick이 남긴 (사례, 선택, 근거 필드) 목록.
+        cases: 선택 모델에 보여 준 후보 사례 전체.
+
+    Returns:
+        list[str]: 한 건뿐인 호의 사례 ID. 선택에서 빼지 않음.
+    """
+    support = Counter(heading for case in cases for heading in {code[:4] for code in case.hs_codes})
+
+    def score(case: HsCase) -> int:
+        return max((support[code[:4]] for code in case.hs_codes), default=0)
+
+    if all(score(case) <= 1 for case, _, _ in chosen):
+        return []
+    return [case.case_id for case, _, _ in chosen if score(case) <= 1]
 
 
 def _case_source(case: HsCase) -> LegalSource:

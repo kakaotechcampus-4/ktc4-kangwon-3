@@ -185,6 +185,7 @@ class ProductMapperTest {
 
         // then
         assertThat(response.productId()).isEqualTo(PRODUCT_ID);
+        assertThat(response.diagnosesId()).isEqualTo(DIAGNOSES_ID);
         assertThat(response.productName()).isEqualTo(PRODUCT_NAME);
         assertThat(response.productImageUrl()).isEqualTo(URL_PREFIX + PRODUCT_IMAGE_KEY);
         assertThat(response.sourceType()).isEqualTo(SourceType.URL);

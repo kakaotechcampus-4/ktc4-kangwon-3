@@ -2,8 +2,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { useEffect, useState } from "react";
 
 import deleteIcon from "@/assets/delete-gray.svg";
-
-import ImageLightbox from "./ImageLightbox.tsx";
+import ImageLightbox from "@/components/common/ImageLightbox";
 
 const thumbnailVariants = cva("relative", {
     variants: {
@@ -51,6 +50,7 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedIm
     const hasOverflow = files.length > DEFAULT_VISIBLE_COUNT;
     const visibleCount = expanded ? files.length : Math.min(files.length, DEFAULT_VISIBLE_COUNT);
     const hiddenCount = files.length - visibleCount;
+    const lightboxImages = files.map((file, index) => ({ src: previewUrls[index], alt: file.name }));
 
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
@@ -118,8 +118,7 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedIm
             </div>
             {clampedSelectedIndex !== null && (
                 <ImageLightbox
-                    files={files}
-                    previewUrls={previewUrls}
+                    images={lightboxImages}
                     currentIndex={clampedSelectedIndex}
                     onIndexChange={setSelectedIndex}
                     onClose={() => setSelectedIndex(null)}

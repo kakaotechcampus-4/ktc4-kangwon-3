@@ -6,7 +6,7 @@ from typing import Literal
 from ...domain.context import RunType
 from ...schemas.session import SessionStatus
 
-# 접수 거절 사유. 대기열 가득(429) / 진행 중 상품 섞임(409)
+# 접수 거절 사유. 대기열 가득(429) / 실행 중 상품 섞임(409)
 RejectReason = Literal["queue_full", "conflict"]
 
 
@@ -23,6 +23,7 @@ class SessionSnapshot:
         max_dev_inflight: 개발용 대기 + 실행 중 상한.
         accepted: 실행 종류별 누적 접수 세션 수.
         rejected: 거절 사유별 누적 거절 요청 수. 요청 하나에 상품이 여럿이어도 1.
+        awaiting_replaced: 새 접수로 버린 답변 대기 세션 누적 수 (#451).
     """
 
     status_counts: dict[SessionStatus, int]
@@ -33,3 +34,4 @@ class SessionSnapshot:
     max_dev_inflight: int
     accepted: dict[RunType, int]
     rejected: dict[RejectReason, int]
+    awaiting_replaced: int

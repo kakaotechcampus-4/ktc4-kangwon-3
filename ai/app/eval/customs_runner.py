@@ -5,6 +5,7 @@
     python -m app.eval.customs_runner --only 전기주전자 --runs 3
     python -m app.eval.customs_runner --product product.json --json
     python -m app.eval.customs_runner --eval tests/eval_truth_customs/holdout.json --runs 3 --out logs/eval/customs.json
+    python -m app.eval.customs_runner --eval ... --case-search db --max-distance 0.5   # 결정사례 DB 먼저 (DATABASE_URL 필요)
 
 --model 형식은 electrical_runner와 같다("이름", "이름@접두어", "이름@접두어#추론강도").
 세관장확인 GW는 .env의 DATA_GO_KR_KEY가 있을 때만 조회한다. 없으면 HS 후보까지만 확인하고 요건은 "조회하지 못함"이 된다.
@@ -33,7 +34,7 @@ from ..schemas.schemas import ToolName
 from ..tools.common.law import KST, CachedLoader, LawApiClients
 from ..tools.customs import CustomsTool
 from ..tools.customs.evidence import load_customs_evidence
-from ..tools.customs.search import ClipCaseSearch, GwRequirementLookup
+from ..tools.customs.search import ClipCaseSearch, DatabaseFirstCaseSearch, GwRequirementLookup
 from .electrical_runner import _env, build_model
 
 SAMPLES = [
@@ -152,6 +153,19 @@ def default_spec(default_temperature: list[str]) -> str:
     return profile.model.id + (f"#{profile.reasoning_effort}" if profile.reasoning_effort else "")
 
 
+def _case_search(kind: str, max_distance: float | None) -> ClipCaseSearch | DatabaseFirstCaseSearch:
+    """평가에 쓸 결정사례 조회 경로. db는 DATABASE_URL의 hs_cases를 먼저 본다."""
+    if kind == "clip":
+        return ClipCaseSearch()
+    from ..clients.llm.embedding import embed_text_sync
+    from ..config import get_settings
+    from ..db import ClipCaseDatabase, get_session_factory
+
+    database = ClipCaseDatabase(get_session_factory(), embed_query=embed_text_sync,
+                                embedding_model=get_settings().embedding_model)
+    return DatabaseFirstCaseSearch(database, ClipCaseSearch(), max_distance=max_distance)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", action="append", help="모델(여러 번 가능). 없으면 이 Tool의 모델 프로필")
@@ -162,6 +176,9 @@ def main() -> int:
     parser.add_argument("--eval", type=Path, help="평가셋 JSON(tests/eval_truth_customs/holdout.json)")
     parser.add_argument("--out", type=Path, help="회차별 원자료를 JSON으로 저장")
     parser.add_argument("--json", action="store_true", help="결과를 JSON으로 출력")
+    parser.add_argument("--case-search", choices=["clip", "db"], default="clip",
+                        help="결정사례 조회: clip(CLIP API만) / db(적재한 DB 먼저, 없으면 CLIP)")
+    parser.add_argument("--max-distance", type=float, help="db일 때 가까운 사례로 볼 코사인 거리 상한")
     args = parser.parse_args()
     load_dotenv(ENV_FILE)
 
@@ -181,6 +198,7 @@ def main() -> int:
     evidence = CachedLoader(lambda as_of: load_customs_evidence(law_client, as_of))
     today = datetime.now(KST).date()
     requirements = GwRequirementLookup(os.environ.get("DATA_GO_KR_KEY", "").strip() or None)
+    case_search = _case_search(args.case_search, args.max_distance)
     results: dict[str, list[tuple[str, dict]]] = {}
     try:
         started = perf_counter()
@@ -188,7 +206,7 @@ def main() -> int:
         print(f"통관 근거 로드(최초 1회, 이후 캐시): {round((perf_counter() - started) * 1000)}ms", flush=True)
         for spec in args.model or [default_spec(args.default_temperature)]:
             name, model = build_model(spec, default_temperature=spec in args.default_temperature)
-            tool = CustomsTool(model, case_search=ClipCaseSearch(), requirements=requirements,
+            tool = CustomsTool(model, case_search=case_search, requirements=requirements,
                                evidence=lambda: evidence.load(today), configured_model=name)
             for product in products:
                 for index in range(1, args.runs + 1):

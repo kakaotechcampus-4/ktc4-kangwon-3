@@ -1,4 +1,4 @@
-"""채팅 모델 카탈로그. 게이트웨이에 등록된 모델과 단가 (#279).
+"""채팅·판단 모델 카탈로그. 게이트웨이에 등록된 모델과 단가 (#279).
 
 엘리스 ML API 게이트웨이는 세 회사 모델을 같은 OpenAI 호환 엔드포인트로 받음 (2026-10-14 실호출 확인).
 호출은 모두 ChatOpenAI 하나로 하고, 회사마다 다른 호출 옵션 규칙만 하위 클래스에 둠.
@@ -6,6 +6,9 @@
 새 모델은 회사 클래스 상수 하나 + CHAT_MODELS에 넣기.
     - 구조화 출력(json_schema)·temperature·추론 강도를 한 번씩 호출해 보고 reasoning_efforts를 채움
     - 단가는 추론 강도와 무관하게 모델당 하나 (세 회사 모두 추론 토큰이 출력 토큰에 포함되어 보고됨)
+
+판단 모델(/decisions)은 DecisionModel 상수 하나 + DECISION_MODELS에 넣기.
+    - 요청·응답 형식이 회사마다 달라 vendor로 클라이언트를 고름 (clients.llm.decision)
 """
 
 from dataclasses import dataclass
@@ -130,3 +133,38 @@ GPT_6_LUNA = OpenAIModel(
 )
 
 CHAT_MODELS = {model.id: model for model in (GPT_41_MINI, GPT_6_LUNA)}
+
+
+@dataclass(frozen=True)
+class DecisionModel:
+    """게이트웨이 카탈로그의 판단 모델 1개 (/decisions). temperature·추론 강도 없음.
+
+    Attributes:
+        name: 회사 접두어 없는 모델 이름 (예: "jev-latest").
+        vendor: 카탈로그 등록명 접두어. 요청·응답 형식도 이걸로 고름 (typesafe·openai).
+        price: 1M 토큰당 KRW. 모르면 None (비용 계산 안 함).
+        price_source: 단가 출처·확인일.
+    """
+
+    name: str
+    vendor: str
+    price: Price | None
+    price_source: str = ""
+
+    @property
+    def id(self) -> str:
+        """카탈로그 등록명 (예: "typesafe/jev-latest"). 게이트웨이는 접두어 없는 이름을 거부함."""
+        return f"{self.vendor}/{self.name}"
+
+
+# 버전 고정 ID(jev-1.14 등)는 게이트웨이가 404. 실제 버전은 응답 model로 옴
+# $0.042 × 약 1,522.5원. 출력 토큰은 0으로 보고됨, 캐시 적중은 늘 0이라 캐시 입력은 입력과 같게 둠
+JEV = DecisionModel(
+    "jev-latest", "typesafe",
+    Price(input=64.0, cached_input=64.0, output=0.0),
+    price_source="엘리스 ML API 모델 라이브러리 2026-10-29",
+)
+# 채팅 Luna와 같은 등록명이라 단가도 같게 둠 (비용 단가표가 등록명 하나에 단가 하나). 판단 출력 토큰은 0으로 보고됨
+GPT_6_LUNA_DECISION = DecisionModel("gpt-6-luna", "openai", GPT_6_LUNA.price, price_source=GPT_6_LUNA.price_source)
+
+DECISION_MODELS = {model.id: model for model in (JEV, GPT_6_LUNA_DECISION)}

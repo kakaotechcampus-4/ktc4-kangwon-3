@@ -12,7 +12,7 @@
 | 전파 적합성 | radio_compliance | 국립전파연구원 | wireless_comm, wireless_charging, wireless_shield 중 하나라도 true이거나 주파수 관련 속성이 있으면 선택한다. |
 | 식약 안전 | food_drug_safety | 식품의약품안전처 | food_contact, medical_claim, cosmetic_claim 중 하나라도 true이면 선택한다. skin_contact=true일 때는 단독으로 판단하지 않고 category·intended_use를 함께 본다 — 화장품, 의료기기, 구강용품, 위생용품처럼 피부·점막에 성분이 흡수·반응할 수 있는 용도이면 선택하고, 단순히 손에 쥐거나 앉거나 입는 용도(컴퓨터 주변기기, 가구, 일반 의류 등)이면 skin_contact만으로는 선택하지 않는다. 성분·재질에 식약 규제 대상이 포함될 수 있으면 선택한다. |
 | 전기 안전 | electrical_safety | 국가기술표준원 | electrical_powered, battery_included, battery_is_the_product, heating 중 하나라도 true이면 선택한다. 정격·전압·전력 속성이 있으면 선택한다. |
-| 어린이제품 안전 | children_product_safety | 국가기술표준원 | for_children이 true이면 반드시 선택한다. target_age에 만 13세 이하를 포함하는 표현이 있으면 선택한다. None이어도 광고 문맥상 어린이 대상으로 보이면 선택한다. |
+| 어린이제품 안전 | children_product_safety | 국가기술표준원 | for_children이 true이면 반드시 선택한다. target_age에 만 13세 이하를 포함하는 표현이 있으면 선택한다. None이어도 광고 문맥상 어린이 대상으로 보이면 선택한다. for_children=false여도 상품 종류가 학용품(그림도구·필기구·학습 문구) 또는 완구(장난감·퍼즐·보드게임 등 놀이에 쓰는 물품)이면 선택한다. 사무용·전문가용·성인용으로 표시된 상품은 제외한다. |
 | 표시광고 | labeling_advertising_detection | 공정거래위원회 | listing_text의 **내용**을 읽고 아래 유형의 의심 문구가 하나라도 있으면 선택한다. 단순한 스펙 나열·사이즈 안내만 있으면 선택하지 않는다. 의심 유형: (1) 효능·효과 표방 ("혈액순환 개선", "숙면 유도"), (2) 최상급·절대적 표현 ("최고", "완벽 차단", "100%"), (3) 미검증 인증 표방 ("FDA 승인", "TSA 인증"), (4) boolean 필드와 모순되는 의료·미용 주장 (medical_claim=false인데 텍스트에 건강 효능), (5) 객관적 수치의 과장 가능성 ("48시간 재생", "보온 24시간"). reason에 의심 문구를 구체적으로 인용한다. |
 
 ## 판단 원칙

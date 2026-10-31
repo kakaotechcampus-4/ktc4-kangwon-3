@@ -105,7 +105,7 @@ def test_AIServiceError는_코드의_상태와_공개_data로_응답한다(clien
     assert response.status_code == 409
     assert response.json() == {
         "code": "AI_SESSION_CONFLICT",
-        "message": "이미 진행 중인 상품이 있습니다.",
+        "message": "이미 실행 중인 상품이 있습니다.",
         "details": None,
         "data": {"conflictProductIds": ["p-1"]},
     }
@@ -199,9 +199,9 @@ def test_Swagger의_422는_요청_본문이_있는_API만_공통_응답_형식�
     paths = main_app.openapi()["paths"]
     body_routes = [
         ("/api/ai/v1/diagnose/content", "post"),
-        ("/api/ai/v1/diagnose/url", "post"),
+        ("/api/ai/v1/diagnose/resume", "post"),
         ("/api/ai/v1/dummy/diagnose/content", "post"),
-        ("/api/ai/v1/dummy/diagnose/url", "post"),
+        ("/api/ai/v1/dummy/diagnose/resume", "post"),
     ]
 
     assert [_response_422_schema(paths[path][method]) for path, method in body_routes] == ["ApiResponse"] * 4

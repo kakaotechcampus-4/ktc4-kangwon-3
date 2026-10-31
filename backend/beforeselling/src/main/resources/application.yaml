@@ -13,6 +13,11 @@ spring:
     redis:
       repositories:
         enabled: false
+  task:
+    scheduling:
+      pool:
+        # 스케줄러 스레드 수
+        size: ${SCHEDULING_POOL_SIZE:3}
   security:
     oauth2:
       client:
@@ -78,8 +83,10 @@ internal-api:
   token: ${INTERNAL_API_TOKEN}
 
 # BE → AI 진단 요청 대상. 로컬 AI 서버 기본 포트는 8000
+# 진단 경로 앞부분. 더미 진단은 /api/ai/v1/dummy
 ai-server:
   base-url: ${AI_BASE_URL:http://localhost:8000}
+  diagnose-path-prefix: ${AI_DIAGNOSE_PATH_PREFIX:/api/ai/v1}
 
 # 진단이 이 시간 동안 상태 변화 없이 진행 중이면 멈춘 것으로 보고 실패 처리한다.
 diagnoses:

@@ -3,7 +3,11 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from app import usage
+from app.config import Price
+from app.schemas.clients.decision_response import DecisionUsage
 
 
 def test_handler_사용량을_합산하고_캐시_입력을_분리한다():
@@ -231,3 +235,39 @@ def test_게이트웨이_최종_사용량을_LangChain_값보다_먼저_쓴다()
 
     assert (call.input_tokens, call.cache_write_tokens, call.reasoning_tokens) == (4285, 3425, 36)
 
+
+
+def test_판단_응답에서_실제_모델과_토큰을_뽑는다():
+    decision_usage = DecisionUsage(
+        model="typesafe/jev-1.14-20261014", input_tokens=421, cached_tokens=100, cache_write_tokens=20,
+    )
+
+    call = usage.from_decision(decision_usage)
+
+    assert call == usage.CallUsage(
+        reported_model="typesafe/jev-1.14-20261014", input_tokens=421, cached_tokens=100, output_tokens=0,
+        reasoning_tokens=0, cache_write_tokens=20,
+    )
+
+
+def test_판단_모델_비용은_요청한_등록명_단가로_계산한다():
+    call = usage.CallUsage("typesafe/jev-1.14-20261014", input_tokens=1_000_000, cached_tokens=0, output_tokens=0)
+
+    # 실제 버전이 아니라 요청한 등록명으로 단가를 찾음
+    assert usage.estimate_krw(call, "typesafe/jev-latest") == 64.0
+    assert usage.estimate_krw(call, "typesafe/jev-1.14-20261014") is None
+
+
+def test_같은_등록명에_단가가_다르면_단가표를_만들_때_실패한다():
+    chat = {"openai/m": SimpleNamespace(price=Price(input=1, cached_input=0.5, output=2))}
+    same = {"openai/m": SimpleNamespace(price=Price(input=1, cached_input=0.5, output=2))}
+    different = {"openai/m": SimpleNamespace(price=Price(input=1, cached_input=0.5, output=0))}
+
+    # 같으면 한 줄로 합침 (판단 Luna·채팅 Luna)
+    assert usage.build_pricing(chat, same) == {"openai/m": {"input": 1, "cached_input": 0.5, "output": 2}}
+    with pytest.raises(ValueError, match="openai/m"):
+        usage.build_pricing(chat, different)
+
+
+def test_단가를_모르는_모델은_단가표에서_뺀다():
+    assert usage.build_pricing({"openai/unknown": SimpleNamespace(price=None)}) == {}

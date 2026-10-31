@@ -10,10 +10,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from ..domain.context import ExecutionContext, PipelineStage
+from ..domain.context import ExecutionContext, PipelineStage, RunType
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment, ToolName
 from ..schemas.session import DiagnosisInput
+from .errors import UnsupportedRunTypeError
 
 # Tool 진행 상태. Tool 실행 오류도 completed (실패 여부는 분야 카드에서 표시)
 ToolProgressStatus = Literal["started", "completed", "skipped"]
@@ -82,3 +83,23 @@ Outcome = JobDone | JobNeedsInput | JobFailed
 
 # 실행 입력(원래 입력 + 재진단이면 이전 결과·답변), 실행 컨텍스트, 진행 알림을 받아 결말을 돌려주는 진단 함수
 DiagnosisJob = Callable[[DiagnosisInput, ExecutionContext, ProgressReporter], Outcome]
+
+
+def by_run_type(jobs: dict[RunType, DiagnosisJob]) -> DiagnosisJob:
+    """실행 컨텍스트의 실행 종류로 진단 함수를 골라 부르는 진단 함수를 만든다.
+
+    Args:
+        jobs: 실행 종류 → 진단 함수.
+
+    Returns:
+        DiagnosisJob: 실행 종류에 맞는 진단 함수를 부르는 진단 함수.
+    """
+    jobs = dict(jobs)
+
+    def run(job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter) -> Outcome:
+        job = jobs.get(context.run_type)
+        if job is None:
+            raise UnsupportedRunTypeError(f"진단 함수가 연결되지 않은 실행 종류입니다: {context.run_type}")
+        return job(job_input, context, progress)
+
+    return run

@@ -2,51 +2,17 @@
 
 from pydantic import Field, model_validator
 
-from .base import ApiRequestModel, StrictModel
-
-
-class ContentDiagnoseRequest(StrictModel):
-    """텍스트·이미지 통합 진단 요청. 둘 중 하나 이상 필수.
-
-    Args:
-        product_id: 상품 식별자.
-        text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
-        image_urls: 이미지 URL 목록. base64 data URI도 받음 (#310).
-        source_url: 출처 표시용 URL (선택).
-    """
-
-    product_id: str = Field(min_length=1)
-    text_blocks: list[str] = Field(default_factory=list)
-    image_urls: list[str] = Field(default_factory=list)
-    source_url: str | None = None
-
-    @model_validator(mode="after")
-    def at_least_one_input(self):
-        if not self.text_blocks and not self.image_urls:
-            raise ValueError("text_blocks 또는 image_urls 중 하나는 필수입니다.")
-        return self
-
-
-class UrlDiagnoseRequest(StrictModel):
-    """URL 기반 진단 요청. 서버가 직접 크롤링한다.
-
-    Args:
-        product_id: 상품 식별자.
-        source_url: 크롤링할 상품 페이지 URL.
-    """
-
-    product_id: str = Field(min_length=1)
-    source_url: str = Field(min_length=1)
+from .base import ApiRequestModel
 
 
 class DiagnosisProductInput(ApiRequestModel):
-    """진단서에 담긴 상품 하나. 텍스트·이미지 중 하나 이상 필수.
+    """진단서에 담긴 상품 하나. 텍스트·이미지·URL 중 하나 이상 필수 (#371).
 
     Args:
         product_id: BE 상품 ID (UUID v7). 세션 ID로 사용.
         text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
-        image_urls: 이미지 URL 목록. base64 data URI도 받음 (#310).
-        source_url: 출처 표시용 URL (선택).
+        image_urls: 이미지 URL 목록. base64 data URI도 받음 (#389).
+        source_url: 상품 페이지 URL. 텍스트·이미지가 있으면 출처 표시용, 없으면 수집 대상.
     """
 
     product_id: str = Field(min_length=1)
@@ -56,8 +22,8 @@ class DiagnosisProductInput(ApiRequestModel):
 
     @model_validator(mode="after")
     def at_least_one_input(self):
-        if not self.text_blocks and not self.image_urls:
-            raise ValueError("textBlocks 또는 imageUrls 중 하나는 필수입니다.")
+        if not self.text_blocks and not self.image_urls and not self.source_url:
+            raise ValueError("textBlocks, imageUrls, sourceUrl 중 하나는 필수입니다.")
         return self
 
 
@@ -123,15 +89,15 @@ class ResumeRequest(ApiRequestModel):
         return self
 
 
-class DevDiagnosisRequest(ApiRequestModel):
-    """개발용 진단 요청 (#318). 상품 하나, 텍스트·이미지 중 하나 이상 필수. 상품 ID는 서버가 발급.
+class DevDiagnosisProductInput(ApiRequestModel):
+    """샌드박스 진단 상품 하나. 텍스트·이미지·URL 중 하나 이상 필수 (#371). 상품 ID는 서버가 발급.
 
     이미지는 #310 합의대로 URL로 받음(base64 data URI도 호환).
 
     Args:
         text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
         image_urls: 이미지 URL 목록 (base64 data URI도 받음).
-        source_url: 출처 표시용 URL (선택).
+        source_url: 상품 페이지 URL. 텍스트·이미지가 있으면 출처 표시용, 없으면 수집 대상.
     """
 
     text_blocks: list[str] = Field(default_factory=list)
@@ -140,6 +106,16 @@ class DevDiagnosisRequest(ApiRequestModel):
 
     @model_validator(mode="after")
     def at_least_one_input(self):
-        if not self.text_blocks and not self.image_urls:
-            raise ValueError("textBlocks 또는 imageUrls 중 하나는 필수입니다.")
+        if not self.text_blocks and not self.image_urls and not self.source_url:
+            raise ValueError("textBlocks, imageUrls, sourceUrl 중 하나는 필수입니다.")
         return self
+
+
+class DevDiagnosisRequest(ApiRequestModel):
+    """샌드박스 진단 요청 (#318). 실제 진단 접수처럼 상품을 목록으로 받음.
+
+    Args:
+        products: 진단할 상품 목록. 1~10개.
+    """
+
+    products: list[DevDiagnosisProductInput] = Field(min_length=1, max_length=10)

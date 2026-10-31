@@ -1,0 +1,105 @@
+{
+  "fixture": "chinese_material_labels.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "애매",
+    "중국어",
+    "어린이",
+    "연령표기"
+  ],
+  "summary": "중국어 상세페이지의 말랑이 공(雪球脆脆沙 手作球捏捏乐). 중국어 원문을 읽어 연령 표기 '14 周岁及以上'을 원문 그대로 옮기는지, 만 14세 이상 표기로 for_children=false를 판단하는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "상품명 '手作球捏捏乐'(손으로 주무르는 공), '爽脆手感'",
+      "why_not_other": "손으로 누르는 말랑이 공 형태라 전기로 작동하는 구조가 아니다."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "말랑이 공. 전원·전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "말랑이 공. 전원·전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "말랑이 공. 전원·전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "상품명 '捏捏乐'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "말랑이 공",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "'冰沙球'(빙수 공), '雪球'은 모양·이름",
+      "why_not_other": "음식 모양 이름은 접촉 근거가 아니다."
+    },
+    "skin_contact": {
+      "value": true,
+      "evidence": "상품명 '手作球捏捏乐'(손으로 주무르는 공), '爽脆手感'(손에 닿는 느낌)",
+      "why_not_other": "손으로 쥐고 주무르는 장난감이라고 직접 말한다(age_label_vs_target_mismatch 말랑이와 같은 기준)."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병·신체기능 효과 표방이 없다",
+      "why_not_other": "'肌中大力'는 손맛을 말하는 수식어로 보았다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "공 모양",
+      "why_not_other": "형태가 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "(재질 표기 없음)",
+      "why_not_other": "재질이 적혀 있지 않다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "말랑이 장난감",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "'产品适用人群： 14 周岁及以上（内含细小部件，请勿供低龄儿童使用）'",
+      "why_not_other": "판매자 표기 칸이라 판매자가 밝힌 대상(만 14세 이상, 어린 아이 사용 금지)을 따른다. 말랑이처럼 어린이가 흔히 쓰는 품목인지는 추출이 아니라 선택 단계에서 본다(#433)."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": "14 周岁及以上",
+      "evidence": "'产品适用人群： 14 周岁及以上'(원문 42행). 번역하지 않고 원문 그대로 둔다"
+    }
+  },
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "划线价格",
+      "evidence": "원문 50행, 판매 사이트 가격 안내"
+    },
+    {
+      "must_not_contain": "退货包运费",
+      "evidence": "원문 19행, 판매 사이트 보장 안내"
+    }
+  ]
+}
