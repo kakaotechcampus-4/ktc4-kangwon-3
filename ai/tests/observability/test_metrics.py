@@ -6,7 +6,9 @@ from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
-from app.observability.measurements import CacheLookup, CallbackOutcome, ClientCall, SellerRegionCut, ToolRun
+from app.observability.measurements import (
+    CacheLookup, CallbackOutcome, ClientCall, LawRefreshRun, SellerRegionCut, ToolRun,
+)
 from app.observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
@@ -290,3 +292,16 @@ def test_캐시_조회는_캐시_이름과_결과별로_센다():
 
     assert registry.get_sample_value("ai_cache_lookups_total", {"cache": "law.text", "result": "hit"}) == 2
     assert registry.get_sample_value("ai_cache_lookups_total", {"cache": "customs.cases", "result": "skipped"}) == 1
+
+
+def test_법령_점검은_결과별로_세고_실패_문서가_없을_때만_마지막_성공_시각을_바꾼다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+    assert registry.get_sample_value("ai_law_refresh_last_success_timestamp") == 0
+
+    for record in (LawRefreshRun("ok", 1000.0), LawRefreshRun("partial", 2000.0), LawRefreshRun("failed", 3000.0)):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_law_refresh_last_success_timestamp") == 1000.0
+    for result in ("ok", "partial", "failed"):
+        assert registry.get_sample_value("ai_law_refresh_runs_total", {"result": result}) == 1

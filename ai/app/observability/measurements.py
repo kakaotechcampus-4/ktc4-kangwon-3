@@ -90,7 +90,20 @@ class CacheLookup:
     result: str
 
 
-Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup
+@dataclass(frozen=True)
+class LawRefreshRun:
+    """법령 점검 1회.
+
+    Attributes:
+        result: 점검 결과 (ok·partial·failed). 문서 하나라도 실패하면 ok가 아님.
+        finished_at: 끝난 시각(Unix 초).
+    """
+
+    result: str
+    finished_at: float
+
+
+Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun
 MeasurementSink = Callable[[Measurement], None]
 
 

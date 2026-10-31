@@ -125,6 +125,8 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 | 지표 | 종류 | 라벨 | 내용 |
 |---|---|---|---|
 | `ai_cache_lookups` | Counter | `cache`, `result` | Tool이 DB 캐시를 먼저 본 조회 수 |
+| `ai_law_refresh_runs` | Counter | `result` | 법령 점검 결과(ok·partial·failed) |
+| `ai_law_refresh_last_success_timestamp` | Gauge | (없음) | 법령 점검이 실패 문서 없이 끝난 마지막 시각(Unix 초). 0이면 기동 뒤 아직 없음 |
 
 - `cache`: 응답 캐시 `law.eflaw_search`·`law.text`·`admrul.search`·`admrul.text`·`customs.gw`, 결정사례 DB `customs.cases`
 - `result`
@@ -139,6 +141,8 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 법령 점검(스케줄러)이 본문을 확보하는 조회는 세지 않음 (`build_law_fetchers(measure=False)`)
 - DB 없이 뜬 서버(DATABASE_URL 없음)는 세지 않음
 - 재는 곳: `CachedFetcherBase.fetch_parsed`, `DatabaseFirstCaseSearch._near`
+- 법령 점검: 문서 하나라도 실패하면 `partial`, 전부 실패하면 `failed`. 실패한 문서는 법령이 낡은 채 남아 `ok`만 성공 시각을 바꿈
+  - 재는 곳: `refresh_laws` (기동 직후 1번, 매일 00:05 KST)
 
 ## 4. 추가 예정
 
@@ -146,7 +150,6 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 |---|---|---|
 | `ai_http_requests`, `ai_http_request_seconds` | 엔드포인트 개편(#406) 머지 후 | 라벨 `route`는 라우트 템플릿 |
 | `ai_build_info` | #406·#420 머지 후 | `version`, `model_profile` |
-| `ai_law_refresh_runs`, `ai_law_refresh_last_success_timestamp` | DB 캐시(#420) 머지 후 | |
 | `ai_result_status`, `ai_result_incomplete` | 진단서 변환(#408)·파이프라인 연결(#320) 후 | |
 | `ai_pipeline_end`, `ai_verification_results`, `ai_pipeline_retry_rounds`, `ai_question_rounds`, `ai_questions_asked`, `ai_diagnosis_cost_krw` | 파이프라인 연결(#320) 후 | |
 | `ai_tool_runs`에 `run_type` 추가 | 파이프라인 연결(#320) 후 | `ToolExecutor`가 실행 컨텍스트를 받게 되면. `ai_session_tool_progress`는 이때 합침 |
@@ -157,4 +160,4 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 기관별 실패율 급증: `ai_client_calls`
 - 대기열 거절 발생: `ai_session_rejected`
 - Tool 실패율 급증: `ai_tool_runs`
-- 법령 점검 마지막 성공이 하루 넘게 지남: `ai_law_refresh_last_success_timestamp` (#420 후)
+- 법령 점검 마지막 성공이 하루 넘게 지남: `time() - ai_law_refresh_last_success_timestamp > 86400`
