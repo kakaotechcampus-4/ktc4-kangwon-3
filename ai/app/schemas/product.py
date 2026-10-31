@@ -51,8 +51,8 @@ class ProductAttributes(StrictModel):
     # 판매자가 표방하는 효과를 기록한다. 실제 효과가 입증됐다는 뜻은 아니다.
     medical_claim: bool | None = Field(default=None, description="질병명·신체기능 개선을 표방하는가")
     cosmetic_claim: bool | None = Field(default=None, description="미용·피부 효과를 표방하는가")
-    weapon_like: bool | None = Field(default=None, description="총·칼·석궁·전자충격기 형태인가")
-    plant_material: bool | None = Field(default=None, description="목재·대나무·등나무·짚·건조식물")
+    weapon_like: bool | None = Field(default=None, description="총·칼·석궁·전자충격기(사람 대상 호신용) 형태인가")
+    plant_material: bool | None = Field(default=None, description="목재·대나무·등나무·짚·건조식물 (부품 일부 포함)")
     chemical_product: bool | None = Field(
         default=None, description="세정·방향·살균이 주된 기능인가"
     )
