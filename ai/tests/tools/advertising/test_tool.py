@@ -208,14 +208,15 @@ def test_모델_호출_실패는_툴_예외로_감싼다():
         _run(_StubModel(error=TimeoutError("timeout")), "방수 원단")
 
 
-def test_모델에는_표시광고_프롬프트와_판매자_문구를_보낸다():
+def test_모델에는_상품_이름을_비우고_판매자_문구만_보낸다():
+    # 상품 이름이 제목 줄과 같으면 모델이 제목 줄의 효능 구절을 상품 이름으로 보고 빼서 비움 (#349)
     model = _StubModel([])
 
     AdvertisingTool(reviewer=AdvertisingReviewer(model)).execute(_product("방수 원단", " "), DECISION)
 
     system, human = model.received[0]
     assert system.content == get_prompt(PromptName.ADVERTISING).text
-    assert json.loads(human.content) == {"product_name": "접이식 캠핑 의자", "category": None, "listing_text": ["방수 원단"]}
+    assert json.loads(human.content) == {"product_name": None, "category": None, "listing_text": ["방수 원단"]}
 
 
 def _law_text() -> str:
