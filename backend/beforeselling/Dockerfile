@@ -21,6 +21,13 @@ ENTRYPOINT ["java","-XX:MaxRAMPercentage=70","-XX:+UseSerialGC","-jar","/app/app
 FROM runtime-base AS local
 COPY --from=build /app/build/libs/app.jar app.jar
 
-# 배포(CI가 만들어준 jar 사용)
-FROM runtime-base AS deploy
+# 배포. 의존성과 앱 코드를 레이어로 분할
+FROM runtime-base AS extract
 COPY build/libs/app.jar app.jar
+RUN java -Djarmode=tools -jar app.jar extract --layers --destination extracted
+
+FROM runtime-base AS deploy
+COPY --from=extract /app/extracted/dependencies/ ./
+COPY --from=extract /app/extracted/spring-boot-loader/ ./
+COPY --from=extract /app/extracted/snapshot-dependencies/ ./
+COPY --from=extract /app/extracted/application/ ./
