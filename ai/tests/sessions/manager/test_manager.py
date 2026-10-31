@@ -253,6 +253,8 @@ def test_답변_대기_중인_상품은_새_세션으로_교체해_1회차부터
     [old] = manager.submit("d-1", _inputs("p-1"))
     job.release("p-1")
     _wait_until(lambda: _status(manager,"p-1") is SessionStatus.AWAITING_INPUT)
+    # 두 번째 release가 이미 열린 첫 실행 게이트를 다시 열지 않게 비움
+    job.gates.clear()
 
     [new] = manager.submit("d-1", _inputs("p-1"))
 
