@@ -26,7 +26,14 @@ function JudgementPage() {
 
     return (
         <div className="flex w-full flex-col gap-8">
-            <SectionIntro title="상품을 확인하고 있습니다." description="네 명의 전문가가 각자 맡은 법령을 확인합니다." />
+            <SectionIntro
+                title="상품을 진단하고 있어요"
+                description={
+                    data
+                        ? `${data.products.length}개 상품을 동시에 확인하고 있어요. 질문이 생긴 상품은 먼저 답해주시면 바로 이어서 진행해요.`
+                        : "상품을 확인하고 있어요."
+                }
+            />
             {isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
