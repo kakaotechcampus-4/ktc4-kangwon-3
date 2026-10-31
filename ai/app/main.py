@@ -6,25 +6,28 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
 from prometheus_client import CollectorRegistry
-from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
 from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
 from .clients.llm.decision import close_decision_clients
+from .clients.llm.embedding import embed_texts_sync
 from .config import SESSION_SWEEP_SECONDS, get_settings
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
 from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
-from .repositories.database import DatabaseNotConfiguredError, get_engine
+from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
+                 log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
+                 run_weekly_clip_ingest)
 from .routers import diagnose, dummy, health, metrics, sandbox
 from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .sessions.job import by_run_type
 from .sessions.manager import SessionManager
 from .sessions.store import SessionStore
+from .tools.common.law_sources import LAW_SOURCES, applied_version
 
 logger = logging.getLogger(__name__)
 
@@ -61,17 +64,29 @@ async def lifespan(app: FastAPI):
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
+    # 연결 확인 겸 vector 확장·테이블 생성 (이미 있으면 건너뜀)
+    law_fetchers = session_factory = None
     try:
-        engine = get_engine()
+        created = init_db()
     except DatabaseNotConfiguredError:
         logger.warning("DATABASE_URL 미설정 — DB 기능 없이 기동합니다")
+    except SQLAlchemyError as e:
+        logger.warning("DB 준비 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     else:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            logger.info("DB 연결 확인 완료")
-        except SQLAlchemyError as e:
-            logger.warning("DB 연결 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
+        logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
+        # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
+        session_factory = get_session_factory()
+        law_fetchers = build_law_fetchers(settings.law_oc, session_factory)
+
+    def daily_refresh() -> None:
+        refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version, on_change=log_law_changes)
+        purge_expired_responses(session_factory, [CUSTOMS_GW_CACHE])
+
+    law_refresher = None if law_fetchers is None else asyncio.create_task(run_law_refresh(daily_refresh))
+    # CLIP 결정사례: 매주 새 사례만 적재
+    clip_ingester = None if session_factory is None else asyncio.create_task(run_weekly_clip_ingest(
+        lambda: run_scheduled_clip_ingest(session_factory, embed=lambda texts: embed_texts_sync(texts, settings),
+                                          embedding_model=settings.embedding_model)))
 
     # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
     presenter = DummyAssessmentPresenter()
@@ -104,6 +119,16 @@ async def lifespan(app: FastAPI):
         sweeper.cancel()
         with suppress(asyncio.CancelledError):
             await sweeper
+        if law_refresher is not None:
+            # 실행 중인 점검 스레드는 끝까지 돎. 닫힌 클라이언트 오류는 그 문서 실패로만 남음
+            law_refresher.cancel()
+            with suppress(asyncio.CancelledError):
+                await law_refresher
+            law_fetchers.close()
+        if clip_ingester is not None:
+            clip_ingester.cancel()
+            with suppress(asyncio.CancelledError):
+                await clip_ingester
         # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드는 프로세스 종료 때 끝까지 돌지만
         # 발신함이 먼저 닫혀 이후 콜백은 버려짐. BE는 멈춤 감지(15분)로 실패 처리
         manager.shutdown(wait=False)

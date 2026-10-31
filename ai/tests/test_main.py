@@ -10,13 +10,14 @@ import time
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
 from app import config, main
 from app.clients.backend import BackendCallbackClient
 from app.agents.base import AgentRunMeta
 from app.dummy import job as dummy_job
 from app.observability.agent_sinks import agent_sinks
-from app.repositories import database
+from app.db import engine as database
 from app.routers import _dummy
 
 TOKEN = "test-internal-token-0123456789abcdef"
@@ -166,3 +167,71 @@ def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인�
     assert 'ai_agent_calls_total{component="extraction",model="m",outcome="ok"} 1.0' in text
     # 종료 때 해제돼 이후 호출은 옛 registry에 쌓이지 않음
     assert registry.get_sample_value("ai_agent_calls_total", sample) == 1.0
+
+
+class _LawFetchers:
+    closed = False
+
+    def close(self):
+        self.closed = True
+
+
+def _db_ready(monkeypatch, created=()) -> tuple[_LawFetchers, list]:
+    """init_db 성공 상태로 만들고, 법령 점검은 실제 조회 대신 호출만 기록한다."""
+    fetchers = _LawFetchers()
+    refreshed = []
+    monkeypatch.setattr(main, "init_db", lambda: list(created))
+    monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
+    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory: fetchers)
+    monkeypatch.setattr(main, "refresh_laws", lambda f, sources, **kwargs: refreshed.append((f, sources, kwargs)))
+    monkeypatch.setattr(main, "purge_expired_responses", lambda factory, clients: refreshed.append((factory, clients)))
+    return fetchers, refreshed
+
+
+def test_기동_때_DB_테이블을_만들고_새로_만든_테이블을_로그로_남긴다(fake_be, monkeypatch, caplog):
+    _db_ready(monkeypatch, created=["api_response_cache", "hs_cases"])
+
+    with caplog.at_level("INFO", logger="app.main"), TestClient(main.app):
+        pass
+
+    assert "DB 준비 완료 (새로 만든 테이블: api_response_cache, hs_cases)" in caplog.text
+
+
+def test_DB가_준비되면_기동_직후_법령_점검을_돌리고_종료_때_조회_객체를_닫는다(fake_be, monkeypatch):
+    fetchers, refreshed = _db_ready(monkeypatch)
+
+    with TestClient(main.app):
+        _wait_until(lambda: len(refreshed) == 2)
+
+    assert refreshed == [(fetchers, main.LAW_SOURCES,
+                          {"select": main.applied_version, "on_change": main.log_law_changes}),
+                         ("session-factory", ["customs.gw"])]
+    assert fetchers.closed is True
+
+
+def test_DB가_없으면_법령_점검을_돌리지_않는다(fake_be, monkeypatch):
+    built = []
+    monkeypatch.setattr(main, "build_law_fetchers", lambda *args: built.append(args))
+
+    with TestClient(main.app):
+        pass
+
+    assert built == []
+
+
+def test_DATABASE_URL이_없으면_DB_없이_기동한다(fake_be, caplog):
+    with caplog.at_level("WARNING", logger="app.main"), TestClient(main.app) as client:
+        assert client.get("/api/ai/v1/health").status_code == 200
+
+    assert "DATABASE_URL 미설정" in caplog.text
+
+
+def test_DB_준비에_실패해도_경고만_남기고_기동한다(fake_be, monkeypatch, caplog):
+    def fail():
+        raise OperationalError("connect", {}, ConnectionRefusedError("거부됨"))
+    monkeypatch.setattr(main, "init_db", fail)
+
+    with caplog.at_level("WARNING", logger="app.main"), TestClient(main.app) as client:
+        assert client.get("/api/ai/v1/health").status_code == 200
+
+    assert "DB 준비 실패" in caplog.text

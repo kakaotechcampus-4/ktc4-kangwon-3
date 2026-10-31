@@ -15,7 +15,7 @@ from app.domain.context import PipelineStage
 from app.domain.errors import AIError, AIResponseCode, AIServiceError
 from app.eval.errors import InputsMismatch, RawFixtureMissing
 from app.pipeline.errors import UnsupportedSiteError
-from app.repositories.errors import DatabaseNotConfiguredError
+from app.db.errors import DatabaseNotConfiguredError
 from app.schemas.response import DiagnosisConflict
 from app.sessions.errors import (
     InvalidTransitionError,

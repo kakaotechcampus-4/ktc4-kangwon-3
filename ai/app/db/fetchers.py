@@ -1,0 +1,308 @@
+"""외부 API 응답을 DB에서 먼저 찾고, 없으면 클라이언트로 받아 저장하는 조회 객체.
+
+클라이언트가 해석까지 끝낸 응답 스키마를 그대로 JSON으로 저장하고, 꺼낼 때 같은 스키마로 되돌린다.
+그래서 Tool은 클라이언트 자리에 이 객체를 넣기만 하면 되고 데이터 로직은 바뀌지 않는다.
+
+- ScheduledFetcher: 미리 쌓아 두고 스케줄러가 주기적으로 점검하는 데이터(법령·행정규칙 검색·본문).
+- OnDemandFetcher: 무엇이 필요할지 미리 알 수 없어 조회할 때 쌓는 데이터(관세청 확인기관).
+"""
+
+import hashlib
+import json
+import logging
+import threading
+import time
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Collection
+from datetime import datetime, timedelta, timezone
+from typing import Generic, NamedTuple, TypeVar
+
+from pydantic import BaseModel, ValidationError
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+
+from ..config import CACHE_DB_RETRY_SECONDS
+from .models import ApiResponseCache
+from .repositories.api_response_cache import ApiResponseCacheRepository
+
+logger = logging.getLogger(__name__)
+
+_R = TypeVar("_R", bound=BaseModel)
+
+
+def request_key(request: BaseModel) -> str:
+    """요청 스키마의 캐시 키. 필드 순서와 무관하게 같은 요청이면 같은 값이다.
+
+    Args:
+        request: 클라이언트 요청 스키마. 키·OC 같은 비밀값은 클라이언트 생성자에 있어 들어가지 않는다.
+
+    Returns:
+        str: 정렬한 요청 JSON의 sha256 16진수(64자).
+    """
+    text = json.dumps(request.model_dump(mode="json"), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+class DbSkip:
+    """DB 실패 뒤 일정 시간(CACHE_DB_RETRY_SECONDS) DB를 건너뛰게 하는 상태. 같은 DB를 쓰는 조회 객체끼리 공유함.
+
+    조회 객체는 조회마다 새로 만들기도 해서, 상태를 객체마다 두면 장애 중에도 매번 연결 시간 제한을 기다림.
+
+    Args:
+        monotonic: 건너뛰기 시간 계산용 시계. 테스트용.
+    """
+
+    def __init__(self, monotonic: Callable[[], float] = time.monotonic):
+        self._monotonic = monotonic
+        self._lock = threading.Lock()
+        self._skip_until = 0.0
+
+    def available(self) -> bool:
+        """지금 DB를 써도 되는지."""
+        with self._lock:
+            return self._monotonic() >= self._skip_until
+
+    def failed(self, name: str, action: str, error: Exception) -> None:
+        """DB 실패를 기록하고 일정 시간 건너뛰게 한다.
+
+        Args:
+            name: 실패한 조회 이름(로그용).
+            action: 실패한 동작(로그용, 예: "조회").
+            error: 실패 원인.
+        """
+        with self._lock:
+            self._skip_until = self._monotonic() + CACHE_DB_RETRY_SECONDS
+        logger.warning("%s 캐시 %s 실패 — %d초 동안 DB 건너뜀: %s",
+                       name, action, CACHE_DB_RETRY_SECONDS, type(error).__name__)
+
+
+# 프로세스 공용 DB 건너뛰기 상태
+SHARED_DB_SKIP = DbSkip()
+
+
+class _Cached(NamedTuple, Generic[_R]):
+    response: _R
+    expires_at: datetime | None
+
+
+class CachedFetcherBase(ABC, Generic[_R]):
+    """클라이언트와 응답 캐시 저장소를 묶은 조회 객체의 공통 부분. 클라이언트처럼 fetch_parsed·close를 가진다.
+
+    - DB에 있고 만료 전이면 DB 값을 돌려준다.
+    - 없거나 만료됐으면 클라이언트로 받아 DB에 저장하고 돌려준다.
+    - 클라이언트 호출이 실패하면 USE_STALE_ON_ERROR인 종류만 만료된 DB 값을 돌려준다.
+    - DB가 없거나 실패하면 캐시 없이 클라이언트만 쓴다(실패 뒤 일정 시간은 DB를 건너뜀).
+    - 저장된 값이 지금 스키마로 읽히지 않으면 없는 것으로 보고 다시 받는다.
+
+    하위 클래스는 만료 시각(_expires_at)과 실패 시 만료 값 사용 여부(USE_STALE_ON_ERROR)만 정한다.
+
+    Args:
+        client: fetch_parsed·close를 가진 클라이언트.
+        name: 캐시 구분 이름(예: "law.text"). 같은 요청 스키마를 쓰는 클라이언트끼리 겹치지 않게 한다.
+        response_type: 클라이언트 응답 스키마. DB 값을 되돌릴 때 쓴다.
+        session_factory: DB 세션을 만드는 함수. None이면 캐시 없이 클라이언트만 쓴다.
+        clock: 현재 시각(UTC). 테스트용.
+        skip: DB 건너뛰기 상태. None이면 프로세스 공용(SHARED_DB_SKIP).
+    """
+
+    USE_STALE_ON_ERROR = False
+
+    def __init__(self, client, *, name: str, response_type: type[_R],
+                 session_factory: Callable[[], Session] | None,
+                 clock: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+                 skip: DbSkip | None = None):
+        self._client = client
+        self._name = name
+        self._response_type = response_type
+        self._session_factory = session_factory
+        self._clock = clock
+        self._skip = skip or SHARED_DB_SKIP
+
+    @abstractmethod
+    def _expires_at(self, now: datetime) -> datetime | None:
+        """지금 받은 응답의 만료 시각. None이면 만료 없음."""
+
+    def _accepts(self, response: _R) -> bool:
+        """저장해도 되는 응답인지. 아니면 저장하지 않고 DB 값이 있으면 그것을 쓴다."""
+        return True
+
+    def fetch_parsed(self, request: BaseModel) -> _R:
+        """요청 하나의 응답 스키마를 돌려준다. 클라이언트를 직접 부른 결과와 같다.
+
+        Args:
+            request: 클라이언트 요청 스키마.
+
+        Returns:
+            _R: 응답 스키마.
+
+        Raises:
+            Exception: 클라이언트 호출 실패. 만료된 DB 값도 쓸 수 없으면 그대로 올린다.
+        """
+        key = request_key(request)
+        cached = self._read(key)
+        now = self._clock()
+        if cached is not None and (cached.expires_at is None or cached.expires_at > now):
+            return cached.response
+        try:
+            response = self._client.fetch_parsed(request)
+        except Exception:
+            if self.USE_STALE_ON_ERROR and cached is not None:
+                logger.warning("%s 조회 실패 — 만료된 캐시로 대신함 (만료 %s)", self._name, cached.expires_at)
+                return cached.response
+            raise
+        if not self._accepts(response):
+            if cached is not None:
+                logger.warning("%s 응답이 저장 조건에 맞지 않음 — 만료된 캐시로 대신함 (만료 %s)", self._name, cached.expires_at)
+                return cached.response
+            return response
+        self._write(key, request, response, now)
+        return response
+
+    def cached(self, request: BaseModel) -> _R | None:
+        """DB에 저장된 응답을 만료와 관계없이 돌려준다. 클라이언트는 부르지 않는다.
+
+        Args:
+            request: 클라이언트 요청 스키마.
+
+        Returns:
+            _R | None: 저장된 응답. 없거나 DB를 쓸 수 없으면 None.
+        """
+        found = self._read(request_key(request))
+        return None if found is None else found.response
+
+    def close(self) -> None:
+        """클라이언트 연결을 정리한다."""
+        self._client.close()
+
+    # -- DB --
+
+    def _db_available(self) -> bool:
+        return self._session_factory is not None and self._skip.available()
+
+    def _db_failed(self, action: str, error: Exception) -> None:
+        self._skip.failed(self._name, action, error)
+
+    def _read(self, key: str) -> _Cached[_R] | None:
+        """DB 값과 만료 시각. 없거나·읽을 수 없거나·DB를 못 쓰면 None."""
+        if not self._db_available():
+            return None
+        try:
+            with self._session_factory() as session:
+                row = ApiResponseCacheRepository(session).get(self._name, key)
+                if row is None:
+                    return None
+                payload, expires_at = row.response, row.expires_at
+        except SQLAlchemyError as e:
+            self._db_failed("조회", e)
+            return None
+        try:
+            return _Cached(self._response_type.model_validate(payload), expires_at)
+        except ValidationError:
+            # 응답 스키마가 바뀐 뒤의 옛 값 → 다시 받아 덮어씀
+            logger.warning("%s 캐시 값이 지금 응답 스키마와 맞지 않아 다시 조회함", self._name)
+            return None
+
+    def _write(self, key: str, request: BaseModel, response: _R, now: datetime) -> None:
+        if not self._db_available():
+            return
+        entry = ApiResponseCache(
+            client=self._name, request_key=key, request=request.model_dump(mode="json"),
+            response=response.model_dump(mode="json"),
+            expires_at=self._expires_at(now),
+        )
+        try:
+            with self._session_factory() as session:
+                ApiResponseCacheRepository(session).put(entry)
+                session.commit()
+        except SQLAlchemyError as e:
+            self._db_failed("저장", e)
+
+
+class ScheduledFetcher(CachedFetcherBase[_R]):
+    """미리 쌓아 두고 스케줄러가 주기적으로 점검하는 데이터용(법령·행정규칙 검색·본문).
+
+    - Tool 조회(fetch_parsed): DB 값을 쓴다. 스케줄러가 멈춰 recheck_after가 지나면 직접 다시 받는다.
+    - 클라이언트 호출이 실패하거나 응답이 accept에 맞지 않으면 만료된 값이라도 쓴다(어제 버전 목록도 대부분 맞음).
+    - 스케줄러 점검(refresh): DB를 보지 않고 새로 받아 덮어쓴다.
+
+    Args:
+        recheck_after: 점검 뒤 이 시간이 지나면 Tool 조회 때 다시 받는다. None이면 다시 받지 않는다(버전이 고정된 본문).
+        accept: Tool 조회 때 저장해도 되는 응답인지 보는 함수. None이면 항상 저장.
+        **kwargs: CachedFetcherBase 인자.
+    """
+
+    USE_STALE_ON_ERROR = True
+
+    def __init__(self, client, *, recheck_after: timedelta | None, accept: Callable[[_R], bool] | None = None,
+                 **kwargs):
+        super().__init__(client, **kwargs)
+        self._recheck_after = recheck_after
+        self._accept = accept
+
+    def _expires_at(self, now: datetime) -> datetime | None:
+        return None if self._recheck_after is None else now + self._recheck_after
+
+    def _accepts(self, response: _R) -> bool:
+        return self._accept is None or self._accept(response)
+
+    def refresh(self, request: BaseModel, *, accept: Callable[[_R], bool] | None = None) -> _R:
+        """DB 값과 관계없이 새로 받아 저장한다. 스케줄러 점검용.
+
+        Args:
+            request: 클라이언트 요청 스키마.
+            accept: 저장해도 되는 응답인지 보는 함수. False면 저장하지 않는다. None이면 항상 저장.
+
+        Returns:
+            _R: 새로 받은 응답 스키마.
+
+        Raises:
+            Exception: 클라이언트 호출 실패. DB 값은 그대로 둔다.
+            LookupError: accept가 거른 응답. DB 값은 그대로 둔다.
+        """
+        response = self._client.fetch_parsed(request)
+        if accept is not None and not accept(response):
+            raise LookupError(f"{self._name} 응답이 저장 조건에 맞지 않음")
+        self._write(request_key(request), request, response, self._clock())
+        return response
+
+
+class OnDemandFetcher(CachedFetcherBase[_R]):
+    """무엇이 필요할지 미리 알 수 없어 조회할 때 쌓는 데이터용(관세청 확인기관).
+
+    - 보관 시간 안이면 DB 값을, 지났거나 없으면 새로 받아 저장한다.
+    - 클라이언트 호출이 실패하면 오류를 그대로 올린다(만료된 값으로 판정하지 않음).
+
+    Args:
+        ttl: 보관 시간.
+        **kwargs: CachedFetcherBase 인자.
+    """
+
+    def __init__(self, client, *, ttl: timedelta, **kwargs):
+        super().__init__(client, **kwargs)
+        self._ttl = ttl
+
+    def _expires_at(self, now: datetime) -> datetime | None:
+        return now + self._ttl
+
+
+def purge_expired_responses(session_factory: Callable[[], Session], clients: Collection[str], *,
+                            now: datetime | None = None) -> int:
+    """보관 시간이 지난 응답 캐시 행을 지운다. 실패 때 만료 값으로 대신하는 종류(법령 검색)는 넣지 않는다.
+
+    Args:
+        session_factory: DB 세션을 만드는 함수.
+        clients: 지울 캐시 이름(예: "customs.gw").
+        now: 기준 시각. None이면 지금(UTC).
+
+    Returns:
+        int: 지운 행 수. DB 실패면 0.
+    """
+    try:
+        with session_factory() as session:
+            deleted = ApiResponseCacheRepository(session).delete_expired(now or datetime.now(timezone.utc), clients)
+            session.commit()
+    except SQLAlchemyError as e:
+        logger.warning("만료 캐시 정리 실패 (%s)", type(e).__name__)
+        return 0
+    logger.info("만료 캐시 %d건 정리 (%s)", deleted, ", ".join(clients))
+    return deleted

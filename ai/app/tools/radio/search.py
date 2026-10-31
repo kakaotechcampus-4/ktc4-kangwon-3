@@ -101,7 +101,7 @@ class LawApiItemSearch:
 
 
 def _load_on_demand(as_of: date) -> RadioEvidence:
-    """조회할 때만 법제처 클라이언트를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
+    """조회할 때만 법제처 조회 객체(DB 캐시 먼저, 없으면 API)를 열고 닫는다. 캐시와 함께 써서 기준일마다 한 번만 연다.
 
     Args:
         as_of: 기준일.
@@ -110,18 +110,19 @@ def _load_on_demand(as_of: date) -> RadioEvidence:
         RadioEvidence: 기준일 근거 묶음.
     """
     from ...config import get_settings
+    from ...db import open_law_fetchers
 
-    clients = LawApiClients.from_oc(get_settings().law_oc)
+    clients = LawApiClients(*open_law_fetchers(get_settings().law_oc))
     try:
         return load_radio_evidence(clients, as_of)
     finally:
         clients.close()
 
 
-def law_api_item_search() -> LawApiItemSearch:
-    """법제처 API 조회 경로를 만든다. 기준일별 캐시는 객체 안에 있어 조립하는 쪽이 한 번 만들어 공유함.
+def item_search() -> LawApiItemSearch:
+    """법제처 근거 조회 경로를 만든다. 기준일별 캐시는 객체 안에 있어 조립하는 쪽이 한 번 만들어 공유함.
 
     Returns:
-        LawApiItemSearch: 조회할 때 법제처 클라이언트를 열고 닫는 조회 경로.
+        LawApiItemSearch: 조회할 때 법제처 조회 객체를 열고 닫는 조회 경로.
     """
     return LawApiItemSearch(CachedLoader(_load_on_demand).load)

@@ -60,3 +60,29 @@ async def embed_texts(texts: list[str], settings: Settings | None = None) -> lis
     """
     model = build_embedding_model(settings)
     return await model.aembed_documents(texts)
+
+
+def embed_text_sync(text: str, settings: Settings | None = None) -> list[float]:
+    """embed_text의 동기판. 동기로 도는 Tool·적재 명령에서 쓴다.
+
+    Args:
+        text: 임베딩할 텍스트.
+        settings: 공통 설정. None이면 get_settings()의 공용 설정을 쓴다.
+
+    Returns:
+        list[float]: 1536차원 임베딩 벡터.
+    """
+    return build_embedding_model(settings).embed_query(text)
+
+
+def embed_texts_sync(texts: list[str], settings: Settings | None = None) -> list[list[float]]:
+    """embed_texts의 동기판. 동기로 도는 Tool·적재 명령에서 쓴다.
+
+    Args:
+        texts: 임베딩할 텍스트 리스트.
+        settings: 공통 설정. None이면 get_settings()의 공용 설정을 쓴다.
+
+    Returns:
+        list[list[float]]: 각 텍스트에 대한 1536차원 임베딩 벡터 리스트.
+    """
+    return build_embedding_model(settings).embed_documents(texts)

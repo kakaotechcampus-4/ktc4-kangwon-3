@@ -36,7 +36,12 @@ class LawSearchBaseClient(LawGoKrClient[LawSearchRequest, ResponseT]):
             "target": self._TARGET,                 # 검색 대상
             "query": request.query,                 # 검색어
             "display": str(request.display),        # 결과 건수
+            **self._extra_params(),
         })
+
+    def _extra_params(self) -> dict[str, str]:
+        """하위 클라이언트가 생성 시 고정한 추가 검색 조건. 기본은 없음."""
+        return {}
 
     def _total_count(self, root: Element) -> int:
         """검색 응답의 전체 건수를 꺼낸다.
