@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFailureReason;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductService;
@@ -25,17 +26,6 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AiResumeRequestUseCase {
-
-    // AI 재진단 거절 응답의 code
-    static final String SESSION_NOT_FOUND = "AI_SESSION_NOT_FOUND";
-    static final String UNKNOWN_QUESTION_KEY = "AI_UNKNOWN_QUESTION_KEY";
-    static final String INVALID_REQUEST = "AI_INVALID_REQUEST";
-    static final String RESUME_CONFLICT = "AI_RESUME_CONFLICT";
-    static final String UNAUTHORIZED = "AI_UNAUTHORIZED";
-
-    static final String SESSION_NOT_FOUND_MESSAGE = "진단 정보를 찾을 수 없어 이어서 진행할 수 없습니다. 다시 진단해 주세요.";
-    static final String REJECTED_MESSAGE = "진단을 이어서 진행하지 못했습니다.";
-    static final String RESEND_CONFLICT_MESSAGE = "진단을 이어서 진행하지 못했습니다. 다시 시도해 주세요.";
 
     private final AiDiagnosesClient aiDiagnosesClient;
     private final DiagnosesService diagnosesService;
@@ -77,24 +67,25 @@ public class AiResumeRequestUseCase {
     private void handleRejected(AiResumeRequestedEvent event, RestClientResponseException e, boolean resend) {
         String code = readCode(e);
         // 처음 요청을 AI가 실제로는 받아 실행 중인 경우일 수 있다. 실행 식별자를 몰라 결과를 받을 수 없으므로 다시 진단하게 한다.
-        if (resend && RESUME_CONFLICT.equals(code)) {
+        if (resend && ProductFailureReason.RESUME_RESEND_CONFLICT.getCode().equals(code)) {
             log.warn("다시 보낸 재진단 요청이 충돌했습니다. 처음 요청이 접수됐을 수 있습니다. diagnosesId={}, productId={}, runId={}",
                     event.diagnosesId(), event.productId(), event.runId());
-            fail(event, code, RESEND_CONFLICT_MESSAGE, true);
+            fail(event, ProductFailureReason.RESUME_RESEND_CONFLICT);
             return;
         }
 
-        switch (code) {
+        ProductFailureReason reason = ProductFailureReason.resumeRejectionOf(code);
+        switch (reason) {
             // 세션이 사라져(AI 재시작, 답변 대기 24시간 경과) 이어서 진단할 수 없다. 처음부터 다시 진단하면 접수된다.
-            case SESSION_NOT_FOUND -> fail(event, code, SESSION_NOT_FOUND_MESSAGE, true);
+            case RESUME_SESSION_NOT_FOUND -> fail(event, reason);
+            case null -> handleNotAccepted(event, e);
             // BE가 잘못 보낸 요청
-            case UNKNOWN_QUESTION_KEY, INVALID_REQUEST, RESUME_CONFLICT, UNAUTHORIZED -> {
+            default -> {
                 log.error("AI가 재진단 요청을 거절했습니다. diagnosesId={}, productId={}, status={}, code={}, body={}",
                         event.diagnosesId(), event.productId(), e.getStatusCode(), code,
                         e.getResponseBodyAsString());
-                fail(event, code, REJECTED_MESSAGE, false);
+                fail(event, reason);
             }
-            case null, default -> handleNotAccepted(event, e);
         }
     }
 
@@ -119,13 +110,13 @@ public class AiResumeRequestUseCase {
     }
 
     // 상품의 현재 runId가 아직 질문으로 끝난 실행이라 콜백과 같은 실패 처리 경로를 쓸 수 있다.
-    private void fail(AiResumeRequestedEvent event, String errorCode, String errorMessage, boolean retryable) {
+    private void fail(AiResumeRequestedEvent event, ProductFailureReason reason) {
         try {
             productService.failDiagnoses(event.diagnosesId(), event.productId(), event.runId(),
-                    null, errorCode, errorMessage, retryable);
+                    null, reason.getCode(), reason.getMessage(), reason.isRetryable());
         } catch (Exception e) {
             log.warn("재진단 거절에 따른 실패 처리 실패. diagnosesId={}, productId={}, errorCode={}",
-                    event.diagnosesId(), event.productId(), errorCode, e);
+                    event.diagnosesId(), event.productId(), reason.getCode(), e);
         }
     }
 
