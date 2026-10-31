@@ -17,6 +17,7 @@ import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     {
         productId: "mock-product-1",
+        diagnosesId: "mock-diagnoses-1",
         productName: "블루투스 5.3 무선 이어폰 TWS 충전케이스 포함",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -199,6 +200,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-2",
+        diagnosesId: "mock-diagnoses-1",
         productName: "접이식 캠핑 테이블 알루미늄",
         productImageUrl: null,
         sourceType: SourceType.TextImage,
@@ -271,6 +273,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-3",
+        diagnosesId: "mock-diagnoses-1",
         productName: "유아용 실내화 (130~160mm)",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -308,6 +311,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-4",
+        diagnosesId: "mock-diagnoses-1",
         productName: "야광 비즈 팔찌 만들기 DIY 키트 5색",
         productImageUrl: null,
         sourceType: SourceType.TextImage,
@@ -327,6 +331,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-5",
+        diagnosesId: "mock-diagnoses-1",
         productName: "스테인리스 보온 텀블러 500ml",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -350,6 +355,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-6",
+        diagnosesId: "mock-diagnoses-1",
         productName: "LED 네일아트 건조기 UV 램프",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -371,6 +377,22 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
                 helpText: "주문을 받은 뒤 공급사가 소비자에게 바로 보내면 구매대행, 미리 재고를 들여와 창고에 두면 사입입니다.",
                 answerText: null,
             },
+            {
+                questionId: "mock-question-6-2",
+                questionRound: 1,
+                questionOrder: 2,
+                questionText: "UV/LED 램프의 광원 파장(nm) 정보가 상세페이지에 적혀 있나요?",
+                helpText: "파장 정보가 없으면 전기용품 안전확인 대상 여부를 판단하기 어려워요.",
+                answerText: null,
+            },
+            {
+                questionId: "mock-question-6-3",
+                questionRound: 1,
+                questionOrder: 3,
+                questionText: "공급사가 KC 인증(전기용품 안전확인) 서류를 갖고 있나요?",
+                helpText: "서류가 없으면 통관 및 판매가 제한될 수 있습니다.",
+                answerText: null,
+            },
         ],
         failure: null,
         assessmentStatus: null,
@@ -382,6 +404,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-7",
+        diagnosesId: "mock-diagnoses-1",
         productName: "무선 미니 가습기 USB 충전식",
         productImageUrl: null,
         sourceType: SourceType.TextImage,
@@ -401,6 +424,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-8",
+        diagnosesId: "mock-diagnoses-1",
         productName: "강아지 자동 급식기 3L",
         productImageUrl: null,
         sourceType: SourceType.Url,
@@ -428,6 +452,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
     },
     {
         productId: "mock-product-9",
+        diagnosesId: "mock-diagnoses-1",
         productName: "전자담배 액상 니코틴 프리 30ml",
         productImageUrl: null,
         sourceType: SourceType.TextImage,
@@ -457,7 +482,7 @@ const MOCK_PRODUCT_RESULTS: ProductResult[] = [
 export async function getProduct(_productId: string) {
     // const response = await apiClient.get(`/api/v1/products/${productId}`);
     // return response.data.data as ProductResult;
-    return MOCK_PRODUCT_RESULTS[0];
+    return MOCK_PRODUCT_RESULTS[5];
 }
 
 // TODO: AI 파이프라인이 연결되면 아래 주석 풀고 목업 대신 실제 API를 쓸 것

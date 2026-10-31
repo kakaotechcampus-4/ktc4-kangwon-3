@@ -173,6 +173,7 @@ export interface ProductFailure {
  */
 export interface ProductResult {
     productId: string
+    diagnosesId: string
     productName: string
     productImageUrl: string | null
     sourceType: SourceType

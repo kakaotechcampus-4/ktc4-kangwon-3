@@ -27,9 +27,10 @@ function countFindingsByDetermination(findings: Finding[]): Map<FindingFilter, n
 function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: DiagnosisResultTabProps) {
     const { toolReviews } = product;
     
-    // productId로 접근해 diagnosesId가 없는 경우 경로를 만들지 않는다. 
+    // productId로 접근해 diagnosesId가 없는 경우 경로를 만들지 않는다.
     const judgementPath = diagnosesId ? `/judgement/${diagnosesId}` : undefined;
-    const questionPath = diagnosesId ? `/question/${diagnosesId}` : undefined;
+    // question은 product 단위로만 접근 가능하다
+    const questionPath = `/question/${product.productId}`;
 
     const [findingFilter, setFindingFilter] = useState<FindingFilter>(null);
 
