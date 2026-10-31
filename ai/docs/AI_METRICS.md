@@ -60,7 +60,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 | `ai_client_calls` | Counter | `api`, `result` | 서버·결과별 호출 수 |
 | `ai_client_seconds` | Histogram | `api` | 호출 1건 시간 |
 
-- `api`: `law`(법제처, 별표 파일 포함)·`data_go_kr`(공공데이터포털, 관세청 세관장확인·식약처)·`customs`(관세청 품목분류)·`safety_korea`·`radio`·`marketplace`(판매 사이트)·`backend`(BE 콜백)·`llm`(모델 게이트웨이)
+- `api`: `law`(법제처, 별표 파일 포함)·`data_go_kr`(공공데이터포털, 관세청 세관장확인·식약처)·`customs_clip`(관세청 품목분류 사례 CLIP)·`safety_korea`·`radio`·`marketplace`(판매 사이트)·`backend`(BE 콜백)·`llm`(모델 게이트웨이)
 - `result`
 
   | 값 | 뜻 |

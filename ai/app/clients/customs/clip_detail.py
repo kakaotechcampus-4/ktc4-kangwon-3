@@ -31,7 +31,7 @@ class CLIPDetailClient(RequestClient[CLIPDetailRequest, CLIPCase]):
         시행일자·결정세번은 hidden input(txtEnfrDt·txtDtrmHsSgn)에 기호 없는 값이 따로 있음.
     """
 
-    API = "customs"
+    API = "customs_clip"
 
     _ENDPOINT = "/clip/prlstclsfsrch/retrieveDmstPrlstClsfCaseDtl.do"
 
