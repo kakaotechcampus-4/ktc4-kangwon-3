@@ -1,0 +1,133 @@
+{
+  "fixture": "wireless_charging_pad.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "복잡",
+    "무선충전",
+    "전기"
+  ],
+  "summary": "3-in-1 접이식 무선 충전 스탠드(Temu). '무선 충전'만 있고 통신 언급이 없을 때 wireless_charging=true, wireless_comm=None으로 구분하는지, 충전기를 전지 자체로 보지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "스펙표 '전원 모드: USB', '작동 전압: ≤36V'",
+      "why_not_other": "전기로 작동한다는 표기가 있다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "(블루투스·WiFi·RF 언급 없음)",
+      "why_not_other": "프롬프트: 무선충전 문구만 있으면 통신은 근거가 없어 None. 스펙표 'CE-RED'는 무선 기기 인증이지만 무선충전 기능으로도 받는다."
+    },
+    "wireless_charging": {
+      "value": true,
+      "evidence": "제목 '3-in-1 접이식 무선 충전 스탠드', '15W 고속 충전'",
+      "why_not_other": "무선충전 기능이 명시돼 있다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": null,
+      "evidence": "전원 모드 USB. 내장 전지 표기 없음",
+      "why_not_other": "USB 전원 충전 스탠드도 배터리를 내장한 제품(보조배터리 겸용)이 있어 전원 방식만으로 판단할 수 없다. 페이지에 전지 표기가 없다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '무선 충전 스탠드'",
+      "why_not_other": "전지가 아니라 USB 전원을 받아 기기를 충전하는 충전기다."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "(발열 기능 언급 없음). '고온 환경에서는 사용하지 마십시오'는 사용 환경 경고",
+      "why_not_other": "전기 기기라 발열 언급이 없으면 모름이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "판매자 문구에 질병·신체기능 효과 표방이 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "충전 스탠드 형태",
+      "why_not_other": "형태가 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": null,
+      "evidence": "(재질 표기 없음)",
+      "why_not_other": "재질이 적혀 있지 않아 식물성 소재 여부를 알 수 없다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '무선 충전기'",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다",
+      "why_not_other": "대상 표기 칸이라 표기가 없으면 false."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기 없음"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "무선 충전"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "무선 충전기",
+        "무선충전기",
+        "무선 충전 스탠드",
+        "휴대폰&액세서리",
+        "휴대폰&액세서리 > 무선 충전기"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "인증정보",
+      "value": "CE-RED",
+      "evidence": "스펙표 '인증정보: CE-RED(Electric); CE-RoHS; CE-EMC(Electric)'"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "무선 충전 스탠드",
+      "evidence": "판매자 제목(원문 28행)"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 75행, 판매 사이트 공통 문구"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 85행, 판매 사이트 공통 문구"
+    }
+  ]
+}

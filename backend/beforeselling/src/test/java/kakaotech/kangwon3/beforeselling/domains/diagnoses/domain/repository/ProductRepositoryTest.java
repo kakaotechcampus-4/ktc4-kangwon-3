@@ -331,6 +331,22 @@ class ProductRepositoryTest {
         assertThat(diagnosesIds).containsExactly(oldDiagnosesId);
     }
 
+    @Test
+    @DisplayName("재진단 재요청 대상 조회는 재요청을 기다리는 상품 id만 가장 오래 기다린 순으로 반환한다.")
+    void findIdsByResumePending_thenReturnPendingOldestFirst() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        List<UUID> ids = saveProducts(3);
+        markResumePending(ids.get(0), now.minusMinutes(1));
+        markResumePending(ids.get(1), now.minusMinutes(5));
+
+        // when
+        List<UUID> pendingIds = productRepository.findIdsByResumePending(PageRequest.of(0, 10));
+
+        // then: 대기 표시가 없는 ids[2]는 제외
+        assertThat(pendingIds).containsExactly(ids.get(1), ids.get(0));
+    }
+
     private record ProductState(ProcessingStatus status, LocalDateTime updatedAt) {
     }
 
@@ -366,6 +382,13 @@ class ProductRepositoryTest {
                         "update product set processing_status = :status, updated_at = :updatedAt where product_id = :id")
                 .setParameter("status", status.name())
                 .setParameter("updatedAt", updatedAt)
+                .setParameter("id", productId)
+                .executeUpdate();
+    }
+
+    private void markResumePending(UUID productId, LocalDateTime since) {
+        entityManager.createNativeQuery("update product set resume_pending_since = :since where product_id = :id")
+                .setParameter("since", since)
                 .setParameter("id", productId)
                 .executeUpdate();
     }

@@ -1,0 +1,142 @@
+{
+  "fixture": "e2e_page_01.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "정상",
+    "AliExpress",
+    "연관 상품",
+    "화장품 표방"
+  ],
+  "summary": "미지아 고속 헤어 드라이어 H501 SE(AliExpress). 연관 상품(다른 드라이어 10여 개)과 검색창 글자를 근거로 쓰지 않는지, '윤기 있고 촉촉한 머릿결' 같은 모발 효과를 cosmetic_claim=true로 확정하는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "스펙표 '전원: 전기식', '최대. 힘: 1600와트', '전압: 210-240V용'",
+      "why_not_other": "전기로 작동한다는 표기가 있다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "(블루투스·WiFi·RF 언급 없음)",
+      "why_not_other": "전기 기기라 언급 없음만으로 통신 없음을 확정하지 않는다."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "(무선충전 언급 없음)",
+      "why_not_other": "전기 기기라 언급 없음만으로 확정하지 않는다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "'1.7미터 길이의 코드', 스펙표 '최대. 힘: 1600와트', '이 제품의 정격 전압은 220V', 패키지 '헤어 드라이어 본체 * 1, 사용 설명서 * 1'",
+      "why_not_other": "코드로 220V 전원에 꽂아 쓰는 1600W 제품이고 구성품에 전지가 없다. 상품 종류가 아니라 페이지의 전원 사양이 근거다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '헤어 드라이어'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": true,
+      "evidence": "스펙표 '가열 요소: 적외선', '난방 모드 수: 3개 이상', '기능: 뜨거운/차가운 공기'",
+      "why_not_other": "뜨거운 바람을 내는 것이 기능이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "'머리카락과 두피를 태우는 것을 방지'",
+      "why_not_other": "바람을 쐬는 기기이고 피부에 대는 기기라는 표현은 없다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "질병·신체기능 효과 표방이 없다",
+      "why_not_other": "'곱슬거림 완화', '정전기 중화'는 모발 상태·외모에 대한 효과라 cosmetic_claim으로 본다."
+    },
+    "cosmetic_claim": {
+      "value": true,
+      "evidence": "'윤기 있고 촉촉한 머릿결을 만들어 줍니다', '모발의 곱슬거림을 완화', '모발 큐티클을 밀봉'",
+      "why_not_other": "모발·외모를 바꿔 준다는 표방이다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "드라이어 형태",
+      "why_not_other": "형태가 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "스펙표 '재료: PC'",
+      "why_not_other": "재질이 식물성이 아닌 것으로 확인된다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "스펙표 '고농도 화학 물질: 없음', 카테고리 헤어 드라이어",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다",
+      "why_not_other": "대상 표기 칸이라 표기가 없으면 false."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기 없음"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "헤어 드라이어"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "헤어 드라이어",
+        "헤어드라이어",
+        "드라이기",
+        "헤어 드라이기",
+        "헤어 스타일링 도구"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "모델 번호",
+      "value": "H501se",
+      "evidence": "스펙표 '모델 번호: H501se'"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "윤기 있고 촉촉한 머릿결",
+      "evidence": "판매자 설명(원문 249행). 화장품 표방의 근거"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "레노버 Y1S",
+      "evidence": "원문 118행, 연관 상품"
+    },
+    {
+      "must_not_contain": "DOCO 고속 헤어 드라이어",
+      "evidence": "원문 74행, 연관 상품"
+    },
+    {
+      "must_not_contain": "슈퍼 헤어 드라이어, 가정용",
+      "evidence": "원문 105행, 연관 상품"
+    },
+    {
+      "must_not_contain": "₩6,000 할인",
+      "evidence": "원문 29행 등, 판매 사이트 할인 안내"
+    }
+  ]
+}

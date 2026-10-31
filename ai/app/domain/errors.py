@@ -45,7 +45,7 @@ class AIResponseCode(Enum):
     # 재시작 등으로 세션이 사라진 경우. BE는 실패로 처리 (#301)
     SESSION_NOT_FOUND = ResponseCode(404, "AI_SESSION_NOT_FOUND", "진단 세션을 찾을 수 없습니다.")
     METHOD_NOT_ALLOWED = ResponseCode(405, "AI_METHOD_NOT_ALLOWED", "허용되지 않은 HTTP 메서드입니다.")
-    SESSION_CONFLICT = ResponseCode(409, "AI_SESSION_CONFLICT", "이미 진행 중인 상품이 있습니다.")
+    SESSION_CONFLICT = ResponseCode(409, "AI_SESSION_CONFLICT", "이미 실행 중인 상품이 있습니다.")
     # 답변 대기가 아니거나 runId·questionRound·diagnosisId가 기다리는 질문과 다름 (중복·늦게 온 답변)
     RESUME_CONFLICT = ResponseCode(409, "AI_RESUME_CONFLICT", "지금 답변을 기다리는 질문이 아닙니다.")
     QUEUE_FULL = ResponseCode(429, "AI_QUEUE_FULL", "진단 대기열이 가득 찼습니다. 잠시 후 다시 요청해 주세요.")
@@ -55,6 +55,10 @@ class AIResponseCode(Enum):
     # 콜백 errorCode 전용. HTTP 응답으로 쓰지 않음
     PIPELINE_ERROR = ResponseCode(500, "AI_PIPELINE_ERROR", "진단 실행 중 오류가 발생했습니다.")
     TIMEOUT = ResponseCode(500, "AI_TIMEOUT", "진단 시간이 초과되었습니다.")
+    # 추출 단계 실패 (#432). 지원하지 않는 사이트는 접수 단계 422 대신 그 상품만 실패 콜백으로 끝냄
+    UNSUPPORTED_SITE = ResponseCode(500, "AI_UNSUPPORTED_SITE", "지원하지 않는 판매 사이트 주소입니다.")
+    SOURCE_FETCH_FAILED = ResponseCode(500, "AI_SOURCE_FETCH_FAILED", "상품 페이지를 가져오지 못했습니다.")
+    EMPTY_SOURCE = ResponseCode(500, "AI_EMPTY_SOURCE", "상품 페이지에서 읽을 수 있는 내용을 찾지 못했습니다.")
 
 
 class AIServiceError(AIError, RuntimeError):

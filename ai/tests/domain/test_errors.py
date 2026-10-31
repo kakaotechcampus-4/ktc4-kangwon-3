@@ -26,6 +26,7 @@ from app.sessions.errors import (
     SessionNotFoundError,
     UnansweredQuestionError,
     UnknownQuestionKeyError,
+    UnsupportedRunTypeError,
 )
 
 # (예외, 원래 내장 부모). 원래 부모도 유지해야 기존 except가 계속 잡음
@@ -48,6 +49,7 @@ SERVICE_ERRORS = [
     (UnknownQuestionKeyError, ValueError),
     (UnansweredQuestionError, ValueError),
     (InvalidTransitionError, ValueError),
+    (UnsupportedRunTypeError, LookupError),
     (CallbackTransportError, RuntimeError),
     (UnsupportedSiteError, ValueError),
 ]
@@ -63,7 +65,7 @@ def test_분야별_부모로_묶인다():
     assert all(issubclass(error, ClientError) for error in (BlockedUrlError, PageTooLargeError, CallbackTransportError))
     assert all(issubclass(error, SessionError) for error in (
         QueueFullError, SessionConflictError, SessionNotFoundError, ResumeConflictError,
-        UnknownQuestionKeyError, UnansweredQuestionError, InvalidTransitionError,
+        UnknownQuestionKeyError, UnansweredQuestionError, InvalidTransitionError, UnsupportedRunTypeError,
     ))
 
 
@@ -88,7 +90,7 @@ def test_AIServiceError는_RuntimeError로도_잡힌다():
 def test_예외_메시지는_공개_문구와_같다():
     error = AIServiceError(response_code=AIResponseCode.SESSION_CONFLICT.value)
 
-    assert str(error) == "이미 진행 중인 상품이 있습니다."
+    assert str(error) == "이미 실행 중인 상품이 있습니다."
 
 
 def test_기본값은_단계_없음_재시도_불가_부분_결과와_data_없음():

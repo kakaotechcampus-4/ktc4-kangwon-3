@@ -2,7 +2,7 @@
   "fixture": "children_age_label_toy.txt",
   "reviewed_by": "gityhb",
   "reviewed_at": "2026-10-05",
-  "prompt_sha256": "a14ad31a2f12c5027d098ed76bcbc01a0b71f5f780addec8265ac1c47a2f4342",
+  "prompt_sha256": "c24174f95164a811e96636d67d6bbc3b61e8cbb1ff0c1eeb25a076a3808516bc",
   "summary": "어린이 교육용 플라스틱 블록(Temu). 어린이가 확인되고, 제목의 '창의력과 지능 향상'이 표시광고 효능 표방으로 선택된다.",
   "tools": {
     "customs_requirements": {

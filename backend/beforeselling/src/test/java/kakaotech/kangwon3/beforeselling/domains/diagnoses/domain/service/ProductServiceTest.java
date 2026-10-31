@@ -13,6 +13,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultSt
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
@@ -409,6 +410,168 @@ class ProductServiceTest {
         assertResponseCode(() -> productService.answerQuestions(USER_ID, PRODUCT_ID, Map.of()),
                 CommonResponseCode.NOT_FOUND);
         then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("실패한 상품을 재시도하면 상품과 진단서가 다시 진행 중 상태가 된다.")
+    void retryDiagnoses_thenProductAndDiagnosesInProgress() {
+        // given: 상품 A는 실패, 상품 B는 완료라 진단서는 끝난 상태
+        Diagnoses diagnoses = createFailedAndCompletedDiagnoses();
+        givenLockedDiagnoses(diagnoses);
+        Product product = diagnoses.getProducts().getFirst();
+
+        // when
+        productService.retryDiagnoses(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    @Test
+    @DisplayName("실패한 상품을 재시도하면 그 상품만 담은 AI 진단 요청 이벤트를 발행한다.")
+    void retryDiagnoses_thenPublishRequestEventOfProduct() {
+        // given
+        Diagnoses diagnoses = createFailedAndCompletedDiagnoses();
+        givenLockedDiagnoses(diagnoses);
+
+        // when
+        productService.retryDiagnoses(USER_ID, PRODUCT_ID);
+
+        // then
+        ArgumentCaptor<AiDiagnosesRequestedEvent> captor = ArgumentCaptor.forClass(AiDiagnosesRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue().diagnosesId()).isEqualTo(DIAGNOSES_ID);
+        assertThat(captor.getValue().products())
+                .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
+                .containsExactly(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("재시도할 수 없는 상품이면 CONFLICT 예외가 발생하고 이벤트를 발행하지 않는다.")
+    void retryDiagnoses_whenNotRetryable_thenThrowConflict() {
+        // given: 진행 중인 상품
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnoses(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.retryDiagnoses(USER_ID, PRODUCT_ID), CommonResponseCode.CONFLICT);
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 상품을 재시도하면 진단서를 잠그지 않고 NOT_FOUND 예외가 발생한다.")
+    void retryDiagnoses_withUnknownId_thenThrowNotFound() {
+        // given
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertResponseCode(() -> productService.retryDiagnoses(USER_ID, PRODUCT_ID), CommonResponseCode.NOT_FOUND);
+        then(diagnosesRepository).should(never()).findByIdAndUserIdForUpdate(any(), any());
+    }
+
+    @Test
+    @DisplayName("현재 실행의 재진단 요청이 전달되지 않으면 상품을 재요청 대기로 표시한다.")
+    void markResumePending_whenCurrentRun_thenPending() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.markResumePending(DIAGNOSES_ID, PRODUCT_ID, RUN_ID);
+
+        // then
+        assertThat(diagnoses.getProducts().getFirst().isResumePending()).isTrue();
+    }
+
+    @Test
+    @DisplayName("그 사이 새 실행을 받은 상품은 재요청 대기로 표시하지 않는다.")
+    void markResumePending_whenRunChanged_thenSkip() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.markResumePending(DIAGNOSES_ID, PRODUCT_ID, "run-old");
+
+        // then
+        assertThat(diagnoses.getProducts().getFirst().isResumePending()).isFalse();
+    }
+
+    @Test
+    @DisplayName("그 사이 실패 처리된 상품은 재요청 대기로 표시하지 않는다.")
+    void markResumePending_whenFailed_thenSkip() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        Product product = diagnoses.getProducts().getFirst();
+        failByScheduler(product);
+        givenLockedDiagnosesById(diagnoses);
+
+        // when
+        productService.markResumePending(DIAGNOSES_ID, PRODUCT_ID, RUN_ID);
+
+        // then
+        assertThat(product.isResumePending()).isFalse();
+    }
+
+    @Test
+    @DisplayName("재요청을 기다리는 상품은 저장된 답변으로 다시 보낼 재진단 요청을 돌려준다.")
+    void restartPendingResume_thenReturnResumeEvent() {
+        // given
+        Diagnoses diagnoses = createResumePendingDiagnoses();
+        givenStuckLookup(diagnoses);
+
+        // when
+        Optional<AiResumeRequestedEvent> event =
+                productService.restartPendingResume(PRODUCT_ID, LocalDateTime.now().minusMinutes(10));
+
+        // then
+        assertThat(event).contains(new AiResumeRequestedEvent(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1, List.of(
+                new AiResumeRequestedEvent.Answer("sales_type", "구매대행"),
+                new AiResumeRequestedEvent.Answer("battery_only", "네"))));
+    }
+
+    @Test
+    @DisplayName("처음 실패한 뒤 재요청 기한이 지났으면 다시 보내지 않고 재시도 가능한 실패로 끝낸다.")
+    void restartPendingResume_whenPastDeadline_thenFailAsRetryable() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        Diagnoses diagnoses = createResumePendingDiagnoses();
+        Product product = diagnoses.getProducts().getFirst();
+        ReflectionTestUtils.setField(product, "resumePendingSince", now.minusMinutes(11));
+        givenStuckLookup(diagnoses);
+
+        // when
+        Optional<AiResumeRequestedEvent> event = productService.restartPendingResume(PRODUCT_ID, now.minusMinutes(10));
+
+        // then
+        assertThat(event).isEmpty();
+        assertThat(product)
+                .extracting(Product::getProcessingStatus, Product::getErrorCode, Product::getErrorRetryable)
+                .containsExactly(ProcessingStatus.FAILED, ProductService.RESUME_UNAVAILABLE_ERROR_CODE, true);
+        assertThat(product.isResumePending()).isFalse();
+    }
+
+    @Test
+    @DisplayName("재요청을 기다리지 않는 상품은 다시 보내지 않는다.")
+    void restartPendingResume_whenNotPending_thenEmpty() {
+        // given
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenStuckLookup(diagnoses);
+
+        // when & then
+        assertThat(productService.restartPendingResume(PRODUCT_ID, LocalDateTime.now())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("그 사이 삭제된 상품은 진단서를 잠그지 않고 다시 보내지 않는다.")
+    void restartPendingResume_withUnknownId_thenEmpty() {
+        // given
+        given(productRepository.findDiagnosesIdById(PRODUCT_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThat(productService.restartPendingResume(PRODUCT_ID, LocalDateTime.now())).isEmpty();
+        then(diagnosesRepository).should(never()).findByIdForUpdate(any());
     }
 
     @Test
@@ -926,6 +1089,25 @@ class ProductServiceTest {
         // then
         assertThat(failed).isFalse();
         assertThat(diagnoses.getProducts().getFirst().getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+    }
+
+    // 첫 번째 상품(PRODUCT_ID)은 재시도 가능한 실패, 두 번째 상품은 완료라 진단서는 끝난 상태
+    private Diagnoses createFailedAndCompletedDiagnoses() {
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        failByScheduler(diagnoses.getProducts().get(0));
+        diagnoses.getProducts().get(1).complete(assessmentContent("요약"));
+        diagnoses.refreshProcessingStatus();
+        return diagnoses;
+    }
+
+    // 첫 번째 상품(PRODUCT_ID)이 1회차 질문에 답한 뒤 재진단 요청이 전달되지 않아 재요청을 기다리는 상태
+    private Diagnoses createResumePendingDiagnoses() {
+        Diagnoses diagnoses = createAwaitingInputDiagnoses();
+        Product product = diagnoses.getProducts().getFirst();
+        product.answerQuestions(answersOf(product, "구매대행", "네"));
+        product.markResumePending();
+        diagnoses.refreshProcessingStatus();
+        return diagnoses;
     }
 
     // 첫 번째 상품(PRODUCT_ID)이 1회차 질문 2개를 받아 답변을 기다리는 상태. 저장하지 않으므로 질문 ID를 직접 넣는다.
