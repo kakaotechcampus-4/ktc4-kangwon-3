@@ -61,8 +61,8 @@ public class AiDiagnosesRequestUseCase {
         return switch (e.getFailure()) {
             case CONFLICT -> excludeConflicts(diagnosesId, products, e.getConflictProductIds());
             case NOT_RECEIVED -> {
-                log.warn("AI가 진단 요청을 받지 않아 재요청을 기다립니다. diagnosesId={}, status={}, productIds={}",
-                        diagnosesId, e.getStatus(), productIds, e);
+                log.warn("AI가 진단 요청을 받지 않아 재요청을 기다립니다. diagnosesId={}, status={}, productIds={}, cause={}",
+                        diagnosesId, e.getStatus(), productIds, causeMessage(e));
                 diagnosesService.returnToPending(diagnosesId, productIds);
                 yield List.of();
             }
@@ -73,12 +73,17 @@ public class AiDiagnosesRequestUseCase {
                 yield List.of();
             }
             case REJECTED -> {
-                log.error("AI가 진단 요청을 거절했습니다. diagnosesId={}, status={}, productIds={}",
-                        diagnosesId, e.getStatus(), productIds, e);
+                log.error("AI가 진단 요청을 거절했습니다. diagnosesId={}, status={}, productIds={}, cause={}",
+                        diagnosesId, e.getStatus(), productIds, causeMessage(e));
                 diagnosesService.failRejectedRequest(diagnosesId, productIds);
                 yield List.of();
             }
         };
+    }
+
+    // 예상된 실패라 스택 대신 원인(요청 주소·응답 상태 등) 한 줄만 남긴다.
+    private static String causeMessage(AiDiagnosesRequestException e) {
+        return e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
     }
 
     // AI는 진행 중인 상품이 하나라도 있으면 진단서 전체를 거절한다.
