@@ -22,7 +22,8 @@ from prometheus_client.registry import Collector
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
 from .measurements import (
-    CacheLookup, CallbackOutcome, ClientCall, HttpRequest, LawRefreshRun, Measurement, SellerRegionCut, ToolRun,
+    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawRefreshRun, Measurement, SellerRegionCut,
+    ToolRun,
 )
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
@@ -215,7 +216,7 @@ class AgentMetrics:
 
 
 class MeasurementMetrics:
-    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회·법령 점검·HTTP 요청을 기록한다.
+    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회·법령 점검·CLIP 적재·HTTP 요청을 기록한다.
 
     measurement_sinks에 on_record를 등록해 씀.
     """
@@ -282,6 +283,17 @@ class MeasurementMetrics:
             "ai_law_refresh_last_success_timestamp", "법령 점검이 실패 문서 없이 끝난 마지막 시각(Unix 초). 0이면 아직 없음",
             registry=registry,
         )
+        self._clip_ingest_runs = Counter(
+            "ai_clip_ingest_runs", "결과(ok·partial·failed·skipped)별 CLIP 주간 적재 수", ["result"], registry=registry,
+        )
+        self._clip_ingest_last_success = Gauge(
+            "ai_clip_ingest_last_success_timestamp",
+            "CLIP 주간 적재가 실패 사례 없이 끝난 마지막 시각(Unix 초). 0이면 기동 후 아직 없음", registry=registry,
+        )
+        self._clip_ingest_cases = Counter(
+            "ai_clip_ingest_cases", "주간 적재에서 처리(saved·removed·failed)별 CLIP 결정사례 수", ["outcome"],
+            registry=registry,
+        )
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
@@ -318,6 +330,12 @@ class MeasurementMetrics:
                 self._law_refresh_runs.labels(result).inc()
                 if result == "ok":
                     self._law_refresh_last_success.set(finished_at)
+            case ClipIngestRun(result=result, finished_at=finished_at, saved=saved, removed=removed, failed=failed):
+                self._clip_ingest_runs.labels(result).inc()
+                if result == "ok":
+                    self._clip_ingest_last_success.set(finished_at)
+                for outcome, count in (("saved", saved), ("removed", removed), ("failed", failed)):
+                    self._clip_ingest_cases.labels(outcome).inc(count)
 
 
 class CallbackOutboxCollector(Collector):

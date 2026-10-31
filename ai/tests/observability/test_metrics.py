@@ -7,7 +7,7 @@ from prometheus_client import CollectorRegistry
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
 from app.observability.measurements import (
-    CacheLookup, CallbackOutcome, ClientCall, HttpRequest, LawRefreshRun, SellerRegionCut, ToolRun,
+    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawRefreshRun, SellerRegionCut, ToolRun,
 )
 from app.observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
@@ -305,6 +305,22 @@ def test_법령_점검은_결과별로_세고_실패_문서가_없을_때만_마
     assert registry.get_sample_value("ai_law_refresh_last_success_timestamp") == 1000.0
     for result in ("ok", "partial", "failed"):
         assert registry.get_sample_value("ai_law_refresh_runs_total", {"result": result}) == 1
+
+
+def test_CLIP_적재는_결과별로_세고_사례_수를_더하며_실패_사례가_없을_때만_마지막_성공_시각을_바꾼다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+    assert registry.get_sample_value("ai_clip_ingest_last_success_timestamp") == 0
+
+    for record in (ClipIngestRun("ok", 1000.0, saved=3, removed=1), ClipIngestRun("partial", 2000.0, saved=2, failed=1),
+                   ClipIngestRun("failed", 3000.0), ClipIngestRun("skipped", 4000.0)):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_clip_ingest_last_success_timestamp") == 1000.0
+    for result in ("ok", "partial", "failed", "skipped"):
+        assert registry.get_sample_value("ai_clip_ingest_runs_total", {"result": result}) == 1
+    for outcome, count in (("saved", 5), ("removed", 1), ("failed", 1)):
+        assert registry.get_sample_value("ai_clip_ingest_cases_total", {"outcome": outcome}) == count
 
 
 def test_HTTP_요청은_라우트·메서드·상태_코드별로_세고_시간은_라우트·메서드별로_잰다():
