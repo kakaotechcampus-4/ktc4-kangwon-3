@@ -38,8 +38,10 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 | `ai_session_slots_limit` | Gauge | `scope`(all·dev·running) | 자리 상한 |
 | `ai_session_accepted` | Counter | `run_type` | 누적 접수 수 |
 | `ai_session_rejected` | Counter | `reason` | 사유별 누적 거절 수 |
+| `ai_session_awaiting_replaced` | Counter | (없음) | 새 접수로 버린 답변 대기 세션 누적 수 (#451) |
 
 - 소요 시간 구간: 1·5·10·30·60·120·300·600초 (세션 최대 600초)
+- `ai_session_failed`의 `stage`: AI 내부 단계 그대로. 내부 전용 단계 `pipeline`도 그대로 남음 (실패 콜백은 공개 단계만 보내 이때 null)
 - 재는 곳: `app/sessions/` 상태 전이 이벤트
 
 ### 3.2 모델 호출 (에이전트)
@@ -107,6 +109,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
   - `client`: 근거 조회 실패 (클라이언트·httpx 오류)
   - `other`: 그 밖. 예외 없이 FAILED를 돌려준 경우 포함
 - 구간: 1·2·5·10·20·30·60·120·300초
+- 지금 서버 앱은 `ToolExecutor`를 만들지 않음(평가 실행에서만 사용). 파이프라인 연결(#320) 전까지 서버 `/metrics`에서는 0
 - 재는 곳: `ToolExecutor._execute_one`. 재실행 때 이전 판단을 살려 PARTIAL로 바꾼 결과가 아니라 Tool이 실제로 낸 결과를 기록
 
 ### 3.6 추출
@@ -118,6 +121,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - `site`: aliexpress·temu. `trimmed`: `"true"`·`"false"`
 - 쇼핑몰 화면이 아닌 글(직접 붙여 넣은 설명 등)은 자를 대상이 아니라 세지 않음
 - `trimmed="false"`가 늘면 쇼핑몰 화면 변경 의심
+- Tool과 같은 이유로 파이프라인 연결(#320) 전까지 서버 `/metrics`에서는 0 (`ExtractionAgent`는 평가 실행에서만 사용)
 - 재는 곳: `ExtractionAgent._build_messages` (후처리에서 다시 자르는 건 세지 않음)
 
 ### 3.7 캐시·DB
@@ -161,7 +165,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 
 | 지표 | 시점 | 비고 |
 |---|---|---|
-| `ai_build_info` | #406·#420 머지 후 | `version`, `model_profile` |
+| `ai_build_info` | 버전 규칙 결정 후 | `version`, `model_profile`. 지금 배포는 서버에서 소스로 빌드해 앱 안에 버전 정보가 없음 |
 | `ai_result_status`, `ai_result_incomplete` | 진단서 변환(#408)·파이프라인 연결(#320) 후 | |
 | `ai_pipeline_end`, `ai_verification_results`, `ai_pipeline_retry_rounds`, `ai_question_rounds`, `ai_questions_asked`, `ai_diagnosis_cost_krw` | 파이프라인 연결(#320) 후 | |
 | `ai_tool_runs`에 `run_type` 추가 | 파이프라인 연결(#320) 후 | `ToolExecutor`가 실행 컨텍스트를 받게 되면. `ai_session_tool_progress`는 이때 합침 |
