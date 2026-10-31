@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..clients.law import AdmrulSearchClient, AdmrulTextClient, EflawSearchClient, LawTextClient
 from ..config import LAW_REFRESH_AT, LAW_SEARCH_RECHECK_SECONDS
-from ..observability.measurements import LawRefreshRun, measurement_sinks
+from ..observability.measurements import LawChangeFound, LawRefreshRun, measurement_sinks
 from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
 from ..schemas.clients.law_response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
@@ -155,6 +155,8 @@ def refresh_laws(fetchers: LawFetchers, sources: Iterable[LawSourceLike], *, sel
             report.failed.append(source.name)
     logger.info("법령 점검 완료 — 문서 %d개, 버전 %d개, 변경 %d건, 실패 %s",
                 report.checked, report.versions, len(report.changes), report.failed or "없음")
+    for change in report.changes:
+        measurement_sinks.publish(LawChangeFound(change.kind.value, str(change.tool)))
     measurement_sinks.publish(LawRefreshRun(_run_result(report), datetime.now(timezone.utc).timestamp()))
     if report.changes and on_change is not None:
         try:

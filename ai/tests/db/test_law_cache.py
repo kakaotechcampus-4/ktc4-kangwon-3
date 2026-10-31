@@ -11,7 +11,7 @@ from app.db import law_cache
 from app.db.errors import DatabaseNotConfiguredError
 from app.db.law_cache import KST, LawFetchers, build_law_fetchers, refresh_laws, run_law_refresh, seconds_until
 from app.db.law_changes import LawChangeKind
-from app.observability.measurements import measurement_sinks
+from app.observability.measurements import LawChangeFound, LawRefreshRun, measurement_sinks
 from app.schemas.clients.law_response import (
     AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse,
 )
@@ -159,6 +159,20 @@ def test_덮어쓰기_전_DB_목록과_비교한_변경을_한_번에_넘긴다(
 
     assert [(change.kind, change.version.version) for change in report.changes] == [(LawChangeKind.ANNOUNCED, "200")]
     assert received == [report.changes]
+
+
+def test_찾은_변경은_하나씩_측정_기록으로_남긴다():
+    fetchers = _fetchers(law_search=_Fetcher(_law_search(("012070", "100"), ("012070", "200"), ("012070", "300")),
+                                             before=_law_search(("012070", "100"))))
+    records = []
+
+    with measurement_sinks.added(records.append):
+        refresh_laws(fetchers, [_Source("어린이제품 안전 특별법", "012070", False)])
+
+    assert [record for record in records if not isinstance(record, LawRefreshRun)] == [
+        LawChangeFound("announced", "children_product_safety"),
+        LawChangeFound("announced", "children_product_safety"),
+    ]
 
 
 def test_변경을_넘기다_실패해도_점검_결과는_남는다():
