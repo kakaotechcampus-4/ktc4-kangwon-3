@@ -129,13 +129,13 @@ jobs:
             exec 9>/var/lock/be-deploy.lock
             flock -w 600 9
             export BE_DEPLOY_LOCK_HELD=1
-            aws s3 cp s3://${{ env.S3_BUCKET }}/app-image-${{ github.sha }}.tar.gz /tmp/app-image.tar.gz
+            aws s3 cp --no-progress s3://${{ env.S3_BUCKET }}/app-image-${{ github.sha }}.tar.gz /tmp/app-image.tar.gz
             gunzip -c /tmp/app-image.tar.gz | docker load
             rm -rf ${{ env.APP_DIR }}/release && mkdir -p ${{ env.APP_DIR }}/release
-            aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.yml
-            aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-prod-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.prod.yml
-            aws s3 cp s3://${{ env.S3_BUCKET }}/blue-green-${{ github.sha }}.sh ${{ env.APP_DIR }}/release/blue-green.sh
-            (umask 077; aws s3 cp s3://${{ env.S3_BUCKET }}/env/be-${{ github.sha }}.env ${{ env.APP_DIR }}/.env)
+            aws s3 cp --no-progress s3://${{ env.S3_BUCKET }}/docker-compose-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.yml
+            aws s3 cp --no-progress s3://${{ env.S3_BUCKET }}/docker-compose-prod-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.prod.yml
+            aws s3 cp --no-progress s3://${{ env.S3_BUCKET }}/blue-green-${{ github.sha }}.sh ${{ env.APP_DIR }}/release/blue-green.sh
+            (umask 077; aws s3 cp --no-progress s3://${{ env.S3_BUCKET }}/env/be-${{ github.sha }}.env ${{ env.APP_DIR }}/.env)
             chmod 600 ${{ env.APP_DIR }}/.env
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
             cd ${{ env.APP_DIR }}/release
