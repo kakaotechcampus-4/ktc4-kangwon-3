@@ -104,6 +104,19 @@ class LawRefreshRun:
 
 
 @dataclass(frozen=True)
+class LawChangeFound:
+    """법령 점검에서 찾은 근거 문서 변경 1건.
+
+    Attributes:
+        kind: 변경 종류 (announced·applied·skipped).
+        tool: 이 문서를 근거로 쓰는 Tool 이름.
+    """
+
+    kind: str
+    tool: str
+
+
+@dataclass(frozen=True)
 class ClipIngestRun:
     """CLIP 결정사례 주간 적재 1회.
 
@@ -139,8 +152,8 @@ class HttpRequest:
     seconds: float
 
 
-Measurement = (ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun | ClipIngestRun
-               | HttpRequest)
+Measurement = (ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun | LawChangeFound
+               | ClipIngestRun | HttpRequest)
 MeasurementSink = Callable[[Measurement], None]
 
 

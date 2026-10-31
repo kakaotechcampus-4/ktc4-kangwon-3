@@ -7,7 +7,8 @@ from prometheus_client import CollectorRegistry
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
 from app.observability.measurements import (
-    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawRefreshRun, SellerRegionCut, ToolRun,
+    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, SellerRegionCut,
+    ToolRun,
 )
 from app.observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
@@ -305,6 +306,18 @@ def test_법령_점검은_결과별로_세고_실패_문서가_없을_때만_마
     assert registry.get_sample_value("ai_law_refresh_last_success_timestamp") == 1000.0
     for result in ("ok", "partial", "failed"):
         assert registry.get_sample_value("ai_law_refresh_runs_total", {"result": result}) == 1
+
+
+def test_법령_변경은_종류·Tool별로_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (LawChangeFound("announced", "radio_certification"), LawChangeFound("announced", "radio_certification"),
+                   LawChangeFound("skipped", "customs_requirement")):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_law_changes_total", {"kind": "announced", "tool": "radio_certification"}) == 2
+    assert registry.get_sample_value("ai_law_changes_total", {"kind": "skipped", "tool": "customs_requirement"}) == 1
 
 
 def test_CLIP_적재는_결과별로_세고_사례_수를_더하며_실패_사례가_없을_때만_마지막_성공_시각을_바꾼다():

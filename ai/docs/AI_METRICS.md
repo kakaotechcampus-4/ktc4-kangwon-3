@@ -131,6 +131,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 | `ai_cache_lookups` | Counter | `cache`, `result` | Tool이 DB 캐시를 먼저 본 조회 수 |
 | `ai_law_refresh_runs` | Counter | `result` | 법령 점검 결과(ok·partial·failed) |
 | `ai_law_refresh_last_success_timestamp` | Gauge | (없음) | 법령 점검이 실패 문서 없이 끝난 마지막 시각(Unix 초). 0이면 기동 뒤 아직 없음 |
+| `ai_law_changes` | Counter | `kind`, `tool` | 법령 점검에서 찾은 근거 문서 변경 수 |
 | `ai_clip_ingest_runs` | Counter | `result` | CLIP 주간 적재 결과(ok·partial·failed·skipped) |
 | `ai_clip_ingest_last_success_timestamp` | Gauge | (없음) | CLIP 주간 적재가 실패 사례 없이 끝난 마지막 시각(Unix 초). 0이면 기동 뒤 아직 없음 |
 | `ai_clip_ingest_cases` | Counter | `outcome` | 주간 적재에서 새로 저장(saved)·삭제(removed)·상세 실패(failed)한 결정사례 수 |
@@ -150,6 +151,8 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 재는 곳: `CachedFetcherBase.fetch_parsed`, `DatabaseFirstCaseSearch._near`
 - 법령 점검: 문서 하나라도 실패하면 `partial`, 전부 실패하면 `failed`. 실패한 문서는 법령이 낡은 채 남아 `ok`만 성공 시각을 바꿈
   - 재는 곳: `refresh_laws` (기동 직후 1번, 매일 00:05 KST)
+- 법령 변경 `kind`: `announced`(새 판 발표)·`applied`(근거로 고르는 판이 바뀜)·`skipped`(시행일이 됐지만 나중 판이 있어 안 씀, 사람이 확인할 것). `tool`은 그 문서를 근거로 쓰는 Tool
+  - 같은 날 재기동하면 그날의 `applied`·`skipped`를 다시 셀 수 있음 (변경 로그와 같음)
 - CLIP 주간 적재: 상세 하나라도 실패하면 `partial`, 저장한 사례 없이 실패만 있으면 `failed`, 목록 수집·임베딩·저장 오류도 `failed`. hs_cases가 비어(초기 적재 전) 건너뛰면 `skipped`
   - 재는 곳: `run_scheduled_clip_ingest` (매주 일요일 03:00 KST, 기동 직후엔 돌지 않음). 직접 돌리는 `cli clip-ingest`는 세지 않음
 
@@ -182,4 +185,5 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 대기열 거절 발생: `ai_session_rejected`
 - Tool 실패율 급증: `ai_tool_runs`
 - 법령 점검 마지막 성공이 하루 넘게 지남: `time() - ai_law_refresh_last_success_timestamp > 86400`
+- 사람이 확인할 법령 변경: `increase(ai_law_changes_total{kind="skipped"}[1d]) > 0`
 - CLIP 주간 적재가 실패로 끝남: `increase(ai_clip_ingest_runs_total{result=~"failed|partial"}[1d]) > 0` (기동 직후엔 돌지 않아 성공 시각 기준 알람은 재기동 뒤 오탐)

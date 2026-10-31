@@ -22,8 +22,8 @@ from prometheus_client.registry import Collector
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
 from .measurements import (
-    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawRefreshRun, Measurement, SellerRegionCut,
-    ToolRun,
+    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, Measurement,
+    SellerRegionCut, ToolRun,
 )
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
@@ -283,6 +283,10 @@ class MeasurementMetrics:
             "ai_law_refresh_last_success_timestamp", "법령 점검이 실패 문서 없이 끝난 마지막 시각(Unix 초). 0이면 아직 없음",
             registry=registry,
         )
+        self._law_changes = Counter(
+            "ai_law_changes", "종류(announced·applied·skipped)·Tool별 법령 점검에서 찾은 근거 문서 변경 수",
+            ["kind", "tool"], registry=registry,
+        )
         self._clip_ingest_runs = Counter(
             "ai_clip_ingest_runs", "결과(ok·partial·failed·skipped)별 CLIP 주간 적재 수", ["result"], registry=registry,
         )
@@ -330,6 +334,8 @@ class MeasurementMetrics:
                 self._law_refresh_runs.labels(result).inc()
                 if result == "ok":
                     self._law_refresh_last_success.set(finished_at)
+            case LawChangeFound(kind=kind, tool=tool):
+                self._law_changes.labels(kind, tool).inc()
             case ClipIngestRun(result=result, finished_at=finished_at, saved=saved, removed=removed, failed=failed):
                 self._clip_ingest_runs.labels(result).inc()
                 if result == "ok":
