@@ -79,6 +79,12 @@ def test_이미지를_받거나_읽지_못하면_원래_주소를_그대로_둔�
     assert ImageSplitter(fetch=fetch).prepare([TALL_URL]) == [TALL_URL]
 
 
+def test_픽셀_수가_Pillow_상한을_넘는_이미지도_원래_주소를_그대로_둔다(monkeypatch):
+    # 실제로는 1,000x200,000처럼 파일은 10MB 안이어도 픽셀이 너무 많은 이미지. 상한을 낮춰 재현
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 100)
+
+    assert ImageSplitter(fetch=lambda url: _png(100, 400)).prepare([TALL_URL]) == [TALL_URL]
+
 def test_조각_수_상한을_넘는_긴_이미지는_자르지_않고_원래_주소로_둔다():
     other = "https://img.example/tall-2.png"
     pages = {TALL_URL: _png(100, 400), other: _png(100, 400)}

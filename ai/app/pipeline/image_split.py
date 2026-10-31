@@ -114,7 +114,9 @@ class ImageSplitter:
         try:
             data = _decode_data_uri(url) if url.startswith("data:") else self._fetch(url)
             return split_tall_image(data)
-        except (httpx.HTTPError, ValueError, binascii.Error, UnidentifiedImageError, OSError) as exc:
+        # 픽셀 수가 Pillow 상한을 넘는 이미지(DecompressionBombError)는 Exception을 바로 상속해 따로 잡음
+        except (httpx.HTTPError, ValueError, binascii.Error, UnidentifiedImageError, OSError,
+                Image.DecompressionBombError) as exc:
             logger.warning("이미지를 읽지 못해 원래 주소로 넘김: %s (%s)", url[:80], type(exc).__name__)
             return None
 
