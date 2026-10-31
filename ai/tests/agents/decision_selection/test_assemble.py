@@ -82,7 +82,7 @@ def test_판단상_전기_제품이고_무선_정보가_없으면_전파를_선�
 
     selected, reason = picked[ToolName.RADIO]
     assert selected
-    assert reason == ("관련 필드 wireless_charging·wireless_shield=None. 열어 본 이유: 판단 모델이 본 해당 가능성 "
+    assert reason == ("관련 필드 wireless_charging=None. 열어 본 이유: 판단 모델이 본 해당 가능성 "
                       "전기 작동 또는 전지 내장 0.60 (기준 0.3 이상)인데 무선 기능 정보 없음")
 
 
