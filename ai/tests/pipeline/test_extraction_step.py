@@ -96,6 +96,20 @@ def test_글이_있으면_URL을_수집하지_않고_그대로_추출한다():
     assert product.product_id == "p-1"
 
 
+def test_긴_캡처_이미지는_조각으로_잘라_추출에_넘긴다():
+    class _Splitter:
+        def prepare(self, image_urls):
+            return [f"{url}#조각{index}" for url in image_urls for index in range(2)]
+
+    extractor = _FakeExtractor()
+    step = ExtractionStep(extractor, _builder(_FakeClient()), image_splitter=_Splitter())
+
+    step.run(_input(text_blocks=["충전기"], image_urls=["https://img/long.png"]))
+
+    assert extractor.inputs[0].image_urls == ["https://img/long.png#조각0", "https://img/long.png#조각1"]
+    assert extractor.inputs[0].text_blocks == ["충전기"]
+
+
 def test_URL만_있으면_수집한_페이지로_추출한다():
     extractor = _FakeExtractor()
     step = ExtractionStep(extractor, _builder(_FakeClient(_page(["보조배터리", "Capacity: 10000mAh"]))))

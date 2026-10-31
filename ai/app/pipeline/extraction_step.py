@@ -20,6 +20,7 @@ from ..schemas.agent import ExtractionInput
 from ..schemas.product import Product
 from ..schemas.session import DiagnosisInput
 from .errors import UnsupportedSiteError
+from .image_split import ImageSplitter
 from .runner import ExtractionStage
 from .url_source import UrlSourceBuilder
 
@@ -32,11 +33,15 @@ class ExtractionStep:
     Args:
         extractor: 추출 에이전트.
         url_builder: URL만 있는 입력을 추출 입력으로 만드는 수집기.
+        image_splitter: 세로로 긴 캡처를 조각으로 자르는 처리 (#462). None이면 기본 설정.
     """
 
-    def __init__(self, extractor: ExtractionStage, url_builder: UrlSourceBuilder) -> None:
+    def __init__(
+        self, extractor: ExtractionStage, url_builder: UrlSourceBuilder, *, image_splitter: ImageSplitter | None = None,
+    ) -> None:
         self._extractor = extractor
         self._url_builder = url_builder
+        self._image_splitter = image_splitter or ImageSplitter()
 
     def run(self, job_input: DiagnosisInput) -> Product:
         """진단 입력을 상품 정보로 만든다.
@@ -56,6 +61,8 @@ class ExtractionStep:
         source = job_input.source
         if not source.text_blocks and not source.image_urls:
             source = self._collect(source)
+        if source.image_urls:
+            source = source.model_copy(update={"image_urls": self._image_splitter.prepare(source.image_urls)})
         try:
             return self._extractor.run(source)
         except AgentError as exc:
