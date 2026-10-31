@@ -80,7 +80,7 @@ jobs:
       - name: 빌드 결과물 업로드
         run: |
           tar czf /tmp/ai-app.tar.gz -C ai --exclude='.git' --exclude='venv' --exclude='.venv' --exclude='__pycache__' --exclude='.env' .
-          aws s3 cp /tmp/ai-app.tar.gz "s3://${S3_BUCKET}/ai-app-${GITHUB_SHA}.tar.gz"
+          aws s3 cp /tmp/ai-app.tar.gz "s3://${S3_BUCKET}/ai/app-${GITHUB_SHA}.tar.gz"
 
       - name: 배포 실행
         uses: ./.github/actions/ssm-run
@@ -89,7 +89,7 @@ jobs:
           label: ai deploy
           commands: |
             mkdir -p ${{ env.APP_DIR }}
-            aws s3 cp s3://${{ env.S3_BUCKET }}/ai-app-${{ github.sha }}.tar.gz /tmp/ai-app.tar.gz
+            aws s3 cp s3://${{ env.S3_BUCKET }}/ai/app-${{ github.sha }}.tar.gz /tmp/ai-app.tar.gz
             rm -rf ${{ env.APP_DIR }}/release && mkdir -p ${{ env.APP_DIR }}/release
             tar xzf /tmp/ai-app.tar.gz -C ${{ env.APP_DIR }}/release
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
