@@ -71,7 +71,7 @@ class ExtractionStep:
         except httpx.HTTPError as exc:
             raise _failure(AIResponseCode.SOURCE_FETCH_FAILED, retryable=True) from exc
         except ImageTriageFailedError as exc:
-            raise _failure(AIResponseCode.PIPELINE_ERROR, retryable=True) from exc
+            raise _failure(AIResponseCode.PIPELINE_ERROR, retryable=_retryable(exc)) from exc
         logger.info("URL 수집 완료 (product_id=%s, 글 %d개, 이미지 %d장, %dms)", source.product_id,
                     len(collected.text_blocks), len(collected.image_urls), (time.perf_counter() - started) * 1000)
         if not collected.text_blocks and not collected.image_urls:
