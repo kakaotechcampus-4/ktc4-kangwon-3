@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFailureReason;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductService;
@@ -124,26 +125,27 @@ class AiResumeRequestUseCaseTest {
     void requestResume_whenSessionNotFound_thenFailAsRetryable() {
         // given
         given(aiDiagnosesClient.requestResume(any()))
-                .willThrow(rejected(HttpStatus.NOT_FOUND, AiResumeRequestUseCase.SESSION_NOT_FOUND));
+                .willThrow(rejected(HttpStatus.NOT_FOUND, ProductFailureReason.RESUME_SESSION_NOT_FOUND.getCode()));
 
         // when
         aiResumeRequestUseCase.requestResume(event(), false);
 
         // then
         then(productService).should().failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, null,
-                AiResumeRequestUseCase.SESSION_NOT_FOUND, AiResumeRequestUseCase.SESSION_NOT_FOUND_MESSAGE, true);
+                ProductFailureReason.RESUME_SESSION_NOT_FOUND.getCode(),
+                ProductFailureReason.RESUME_SESSION_NOT_FOUND.getMessage(), true);
         then(diagnosesService).should(never()).assignRuns(any(), any());
     }
 
     @ParameterizedTest
     @CsvSource({
-            "BAD_REQUEST, AI_UNKNOWN_QUESTION_KEY",
-            "UNPROCESSABLE_CONTENT, AI_INVALID_REQUEST",
-            "CONFLICT, AI_RESUME_CONFLICT",
-            "UNAUTHORIZED, AI_UNAUTHORIZED"
+            "BAD_REQUEST, AI_UNKNOWN_QUESTION_KEY, RESUME_UNKNOWN_QUESTION_KEY",
+            "UNPROCESSABLE_CONTENT, AI_INVALID_REQUEST, RESUME_INVALID_REQUEST",
+            "CONFLICT, AI_RESUME_CONFLICT, RESUME_CONFLICT",
+            "UNAUTHORIZED, AI_UNAUTHORIZED, RESUME_UNAUTHORIZED"
     })
     @DisplayName("처음 보낸 요청을 AI가 거절하거나(400·422) 기다리는 질문과 어긋났다고 하거나(409) 내부 토큰이 틀렸다고 하면(401) 다시 진단할 수 없는 실패로 처리한다.")
-    void requestResume_whenRejected_thenFailAsNotRetryable(HttpStatus status, String code) {
+    void requestResume_whenRejected_thenFailAsNotRetryable(HttpStatus status, String code, ProductFailureReason reason) {
         // given
         given(aiDiagnosesClient.requestResume(any())).willThrow(rejected(status, code));
 
@@ -152,7 +154,7 @@ class AiResumeRequestUseCaseTest {
 
         // then
         then(productService).should().failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, null,
-                code, AiResumeRequestUseCase.REJECTED_MESSAGE, false);
+                code, reason.getMessage(), false);
     }
 
     @Test
@@ -160,14 +162,15 @@ class AiResumeRequestUseCaseTest {
     void requestResume_whenResendConflict_thenFailAsRetryable() {
         // given
         given(aiDiagnosesClient.requestResume(any()))
-                .willThrow(rejected(HttpStatus.CONFLICT, AiResumeRequestUseCase.RESUME_CONFLICT));
+                .willThrow(rejected(HttpStatus.CONFLICT, ProductFailureReason.RESUME_RESEND_CONFLICT.getCode()));
 
         // when
         aiResumeRequestUseCase.requestResume(event(), true);
 
         // then
         then(productService).should().failDiagnoses(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, null,
-                AiResumeRequestUseCase.RESUME_CONFLICT, AiResumeRequestUseCase.RESEND_CONFLICT_MESSAGE, true);
+                ProductFailureReason.RESUME_RESEND_CONFLICT.getCode(),
+                ProductFailureReason.RESUME_RESEND_CONFLICT.getMessage(), true);
     }
 
     @ParameterizedTest
@@ -234,7 +237,7 @@ class AiResumeRequestUseCaseTest {
     void requestResume_whenFailDiagnosesFails_thenSwallow() {
         // given
         given(aiDiagnosesClient.requestResume(any()))
-                .willThrow(rejected(HttpStatus.NOT_FOUND, AiResumeRequestUseCase.SESSION_NOT_FOUND));
+                .willThrow(rejected(HttpStatus.NOT_FOUND, ProductFailureReason.RESUME_SESSION_NOT_FOUND.getCode()));
         willThrow(new BaseException(CommonResponseCode.CONFLICT))
                 .given(productService).failDiagnoses(any(), any(), any(), isNull(), any(), any(), anyBoolean());
 
