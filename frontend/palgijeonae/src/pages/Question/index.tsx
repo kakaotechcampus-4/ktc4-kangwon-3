@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { getErrorMessage } from "@/api/client";
 import { submitAnswers } from "@/api/question";
 import { ProcessingStatusType } from "@/api/types";
 import Button from "@/components/common/Button";
@@ -57,7 +58,7 @@ function QuestionPage() {
             navigate(`/judgement/${product!.diagnosesId}`);
         },
         onError: (error) => {
-            alert(error instanceof Error ? error.message : "답변 제출에 실패했습니다. 다시 시도해주세요.");
+            alert(getErrorMessage(error, "답변 제출에 실패했습니다. 다시 시도해주세요."));
         },
     });
 
