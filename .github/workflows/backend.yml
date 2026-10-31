@@ -119,12 +119,9 @@ jobs:
 
       - name: 배포 파일 업로드
         run: |
-          aws s3 cp backend/beforeselling/docker-compose.yml \
-            "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
-          aws s3 cp backend/beforeselling/docker-compose.prod.yml \
-            "s3://${S3_BUCKET}/docker-compose-prod-${GITHUB_SHA}.yml"
-          aws s3 cp backend/beforeselling/deploy/blue-green.sh \
-            "s3://${S3_BUCKET}/blue-green-${GITHUB_SHA}.sh"
+          aws s3 cp backend/beforeselling/docker-compose.yml "s3://${S3_BUCKET}/backend/${GITHUB_SHA}/"
+          aws s3 cp backend/beforeselling/docker-compose.prod.yml "s3://${S3_BUCKET}/backend/${GITHUB_SHA}/"
+          aws s3 cp backend/beforeselling/deploy/blue-green.sh "s3://${S3_BUCKET}/backend/${GITHUB_SHA}/"
           aws s3 cp "$RUNNER_TEMP/be.env" "s3://${S3_BUCKET}/env/be-${GITHUB_SHA}.env"
 
       # Blue-Green 전환은 blue-green.sh가 한다 (backend/beforeselling/deploy/README.md).
@@ -146,9 +143,7 @@ jobs:
             docker tag "$ECR_IMAGE" beforeselling-app:${{ github.sha }}
             docker tag "$ECR_IMAGE" beforeselling-app:latest
             rm -rf ${{ env.APP_DIR }}/release && mkdir -p ${{ env.APP_DIR }}/release
-            aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.yml
-            aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-prod-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.prod.yml
-            aws s3 cp s3://${{ env.S3_BUCKET }}/blue-green-${{ github.sha }}.sh ${{ env.APP_DIR }}/release/blue-green.sh
+            aws s3 sync s3://${{ env.S3_BUCKET }}/backend/${{ github.sha }}/ ${{ env.APP_DIR }}/release/
             (umask 077; aws s3 cp s3://${{ env.S3_BUCKET }}/env/be-${{ github.sha }}.env ${{ env.APP_DIR }}/.env)
             chmod 600 ${{ env.APP_DIR }}/.env
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
