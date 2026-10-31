@@ -33,6 +33,8 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
         transport: httpx 전송 계층. 테스트에서 가짜 응답을 붙일 때 주입.
     """
 
+    API = "llm"
+
     def __init__(
         self, base_url: str, api_key: str, *, timeout: float = TIMEOUT_SECONDS,
         transport: httpx.BaseTransport | None = None,
