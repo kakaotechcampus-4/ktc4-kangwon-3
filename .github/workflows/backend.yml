@@ -18,6 +18,7 @@ permissions:
 env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: ${{ vars.S3_BUCKET }}
+  ECR_REPOSITORY: beforeselling-app
   APP_DIR: /home/ubuntu/app
 
 jobs:
@@ -98,17 +99,26 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 이미지 빌드 및 업로드
+      - name: ECR 로그인
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: 이미지 빌드 및 ECR push
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/beforeselling
+          target: deploy
+          push: true
+          provenance: false
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha
+
+      - name: 배포 파일 업로드
         run: |
-          docker build --target deploy \
-            -t "beforeselling-app:${GITHUB_SHA}" \
-            -t "beforeselling-app:latest" \
-            backend/beforeselling
-          docker save \
-            "beforeselling-app:${GITHUB_SHA}" \
-            "beforeselling-app:latest" \
-            | gzip > /tmp/app-image.tar.gz
-          aws s3 cp /tmp/app-image.tar.gz "s3://${S3_BUCKET}/app-image-${GITHUB_SHA}.tar.gz"
           aws s3 cp backend/beforeselling/docker-compose.yml \
             "s3://${S3_BUCKET}/docker-compose-${GITHUB_SHA}.yml"
           aws s3 cp backend/beforeselling/docker-compose.prod.yml \
@@ -129,8 +139,12 @@ jobs:
             exec 9>/var/lock/be-deploy.lock
             flock -w 600 9
             export BE_DEPLOY_LOCK_HELD=1
-            aws s3 cp s3://${{ env.S3_BUCKET }}/app-image-${{ github.sha }}.tar.gz /tmp/app-image.tar.gz
-            gunzip -c /tmp/app-image.tar.gz | docker load
+            ECR_IMAGE=${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ steps.ecr.outputs.registry }}
+            docker pull -q "$ECR_IMAGE"
+            docker logout ${{ steps.ecr.outputs.registry }}
+            docker tag "$ECR_IMAGE" beforeselling-app:${{ github.sha }}
+            docker tag "$ECR_IMAGE" beforeselling-app:latest
             rm -rf ${{ env.APP_DIR }}/release && mkdir -p ${{ env.APP_DIR }}/release
             aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.yml
             aws s3 cp s3://${{ env.S3_BUCKET }}/docker-compose-prod-${{ github.sha }}.yml ${{ env.APP_DIR }}/release/docker-compose.prod.yml
