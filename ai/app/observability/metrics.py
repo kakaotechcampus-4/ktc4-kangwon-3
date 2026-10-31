@@ -15,13 +15,15 @@ from collections.abc import Iterator
 from datetime import datetime
 from threading import Lock
 
-from prometheus_client import CollectorRegistry, Counter, Histogram
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metric
 from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
-from .measurements import CacheLookup, CallbackOutcome, ClientCall, Measurement, SellerRegionCut, ToolRun
+from .measurements import (
+    CacheLookup, CallbackOutcome, ClientCall, LawRefreshRun, Measurement, SellerRegionCut, ToolRun,
+)
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
@@ -211,7 +213,7 @@ class AgentMetrics:
 
 
 class MeasurementMetrics:
-    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회를 기록한다.
+    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회·법령 점검을 기록한다.
 
     measurement_sinks에 on_record를 등록해 씀.
     """
@@ -263,6 +265,13 @@ class MeasurementMetrics:
             "ai_cache_lookups", "캐시·결과(hit·miss·stale·skipped)별 Tool의 DB 캐시 조회 수", ["cache", "result"],
             registry=registry,
         )
+        self._law_refresh_runs = Counter(
+            "ai_law_refresh_runs", "결과(ok·partial·failed)별 법령 점검 수", ["result"], registry=registry,
+        )
+        self._law_refresh_last_success = Gauge(
+            "ai_law_refresh_last_success_timestamp", "법령 점검이 실패 문서 없이 끝난 마지막 시각(Unix 초). 0이면 아직 없음",
+            registry=registry,
+        )
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
@@ -292,6 +301,10 @@ class MeasurementMetrics:
                 self._seller_region.labels(site, str(trimmed).lower()).inc()
             case CacheLookup(cache=cache, result=result):
                 self._cache_lookups.labels(cache, result).inc()
+            case LawRefreshRun(result=result, finished_at=finished_at):
+                self._law_refresh_runs.labels(result).inc()
+                if result == "ok":
+                    self._law_refresh_last_success.set(finished_at)
 
 
 class CallbackOutboxCollector(Collector):

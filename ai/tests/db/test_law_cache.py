@@ -11,6 +11,7 @@ from app.db import law_cache
 from app.db.errors import DatabaseNotConfiguredError
 from app.db.law_cache import KST, LawFetchers, build_law_fetchers, refresh_laws, run_law_refresh, seconds_until
 from app.db.law_changes import LawChangeKind
+from app.observability.measurements import measurement_sinks
 from app.schemas.clients.law_response import (
     AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse,
 )
@@ -120,6 +121,24 @@ def test_문서_하나가_실패해도_나머지는_점검한다():
 
     assert report.failed == ["전파법"]
     assert fetchers.admrul_text.fetched == ["A"]
+
+
+@pytest.mark.parametrize(("errors", "expected"), [
+    ({}, "ok"),
+    ({"law_search": TimeoutError()}, "partial"),
+    ({"law_search": TimeoutError(), "admrul_search": TimeoutError()}, "failed"),
+])
+def test_점검마다_결과를_측정_기록으로_남긴다(errors, expected):
+    fetchers = _fetchers(law_search=_Fetcher(_law_search(("001732", "100")), error=errors.get("law_search")),
+                         admrul_search=_Fetcher(_admrul_search(("34911", "A")), error=errors.get("admrul_search")))
+    records = []
+
+    with measurement_sinks.added(records.append):
+        refresh_laws(fetchers, [_Source("전파법", "001732", False), _Source("운용요령", "34911", True)])
+
+    [record] = records
+    assert record.result == expected
+    assert record.finished_at > 0
 
 
 def test_검색_결과에_문서_ID가_없으면_실패로_남긴다():

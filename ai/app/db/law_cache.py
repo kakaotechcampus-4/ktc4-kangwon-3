@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from ..clients.law import AdmrulSearchClient, AdmrulTextClient, EflawSearchClient, LawTextClient
 from ..config import LAW_REFRESH_AT, LAW_SEARCH_RECHECK_SECONDS
+from ..observability.measurements import LawRefreshRun, measurement_sinks
 from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
 from ..schemas.clients.law_response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
@@ -154,12 +155,27 @@ def refresh_laws(fetchers: LawFetchers, sources: Iterable[LawSourceLike], *, sel
             report.failed.append(source.name)
     logger.info("법령 점검 완료 — 문서 %d개, 버전 %d개, 변경 %d건, 실패 %s",
                 report.checked, report.versions, len(report.changes), report.failed or "없음")
+    measurement_sinks.publish(LawRefreshRun(_run_result(report), datetime.now(timezone.utc).timestamp()))
     if report.changes and on_change is not None:
         try:
             on_change(report.changes)
         except Exception:
             logger.exception("법령 변경 전달 실패")
     return report
+
+
+def _run_result(report: LawRefreshReport) -> str:
+    """점검 결과 구분. 문서 하나라도 실패하면 그 문서의 법령이 낡은 채 남아 성공(ok)으로 보지 않는다.
+
+    Args:
+        report: 점검 결과.
+
+    Returns:
+        str: ok(실패 없음)·partial(일부 실패)·failed(전부 실패).
+    """
+    if not report.failed:
+        return "ok"
+    return "failed" if len(report.failed) == report.checked else "partial"
 
 
 def seconds_until(now: datetime, at: tuple[int, int]) -> float:
