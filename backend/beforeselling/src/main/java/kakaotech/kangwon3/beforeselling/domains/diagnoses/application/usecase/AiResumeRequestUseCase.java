@@ -99,8 +99,8 @@ public class AiResumeRequestUseCase {
             return;
         }
 
-        log.warn("AI가 재진단 요청을 받지 않아 재요청을 기다립니다. diagnosesId={}, productId={}, runId={}",
-                event.diagnosesId(), event.productId(), event.runId(), e);
+        log.warn("AI가 재진단 요청을 받지 않아 재요청을 기다립니다. diagnosesId={}, productId={}, runId={}, cause={}",
+                event.diagnosesId(), event.productId(), event.runId(), e.getMessage());
         try {
             productService.markResumePending(event.diagnosesId(), event.productId(), event.runId());
         } catch (Exception markFailure) {
