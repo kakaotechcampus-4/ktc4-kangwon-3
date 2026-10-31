@@ -49,8 +49,11 @@ class _FakeClient:
 
 
 class _FailingTriage:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
     def run(self, input):
-        raise ImageTriageFailedError("이미지 분류 실패")
+        raise self.error
 
 
 def _page(text_blocks: list[str], images: list[ProductPageImage] | None = None) -> ProductPage:
@@ -128,12 +131,21 @@ def test_수집한_페이지에_글도_이미지도_없으면_재시도_불가�
     assert extractor.inputs == []
 
 
-def test_이미지_분류가_실패하면_재시도_가능으로_실패한다():
+@pytest.mark.parametrize(("phase", "status", "retryable"), [
+    ("call", 503, True),
+    ("call", 401, False),
+    ("parsing", None, False),
+])
+def test_이미지_분류_실패도_추출_모델과_같은_기준으로_재시도_여부를_정한다(phase, status, retryable):
+    # 응답을 못 받았으면(429·5xx·연결) 재시도 가능, 키 오류·출력 해석 실패는 다시 해도 반복됨
+    error = ImageTriageFailedError("이미지 분류 실패", meta=AgentRunMeta(component="image_triage", failure_phase=phase))
+    if status is not None:
+        error.__cause__ = _status_error(status)
     image = ProductPageImage(url="https://img/spec.jpg", thumbnail_url="https://img/spec-small.jpg", area="description")
-    builder = _builder(_FakeClient(_page(["보조배터리"], [image])), images="selected", triage=_FailingTriage())
+    builder = _builder(_FakeClient(_page(["보조배터리"], [image])), images="selected", triage=_FailingTriage(error))
     step = ExtractionStep(_FakeExtractor(), builder)
 
-    _expect_failure(step, _input(source_url=URL), AIResponseCode.PIPELINE_ERROR, retryable=True)
+    _expect_failure(step, _input(source_url=URL), AIResponseCode.PIPELINE_ERROR, retryable)
 
 
 def _status_error(status: int) -> openai.APIStatusError:
