@@ -191,3 +191,14 @@ export interface ProductResult {
     requiredActions: string[]
     notices: string[]
 }
+
+/** GET /api/v1/diagnoses/{diagnosesId} 응답 전체. */
+export interface DiagnosesDetail {
+    diagnosesId: string
+    processingStatus: ProcessingStatusType
+    // 대기·진행 중인 상품이 하나라도 있으면 값이 있고, 없으면 null(폴링 중단).
+    pollIntervalMs: number | null
+    products: ProductResult[]
+    createdAt: string
+    updatedAt: string
+}
