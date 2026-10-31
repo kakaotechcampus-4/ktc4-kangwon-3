@@ -355,6 +355,24 @@ class ProductTest {
                 .containsExactly(null, "AI_PIPELINE_ERROR", "진단 중 오류가 발생했습니다.", null);
     }
 
+    @Test
+    @DisplayName("실패 사유로 실패 처리하면 사유의 코드·문구·재시도 여부가 남고 실패 단계는 비어 있다.")
+    void fail_whenReason_thenFailedWithReason() {
+        // given
+        Product product = createInProgressProduct();
+
+        // when
+        product.fail(ProductFailureReason.DIAGNOSES_TIMEOUT);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
+        assertThat(product)
+                .extracting(Product::getFailedStage, Product::getErrorCode,
+                        Product::getErrorMessage, Product::getErrorRetryable)
+                .containsExactly(null, ProductFailureReason.DIAGNOSES_TIMEOUT.getCode(),
+                        ProductFailureReason.DIAGNOSES_TIMEOUT.getMessage(), true);
+    }
+
     @ParameterizedTest(name = "code=[{0}], message=[{1}]")
     @MethodSource("blankErrors")
     @DisplayName("오류 코드나 메시지가 비어 있으면 BAD_REQUEST 예외가 발생하고 상태와 실패 정보가 바뀌지 않는다.")

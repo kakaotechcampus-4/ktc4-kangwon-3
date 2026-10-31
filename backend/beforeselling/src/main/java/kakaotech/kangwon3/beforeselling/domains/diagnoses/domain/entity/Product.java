@@ -281,6 +281,11 @@ public class Product extends BaseEntity {
                 .toList();
     }
 
+    // BE가 정한 사유로 실패 처리
+    public void fail(ProductFailureReason reason) {
+        fail(null, reason.getCode(), reason.getMessage(), reason.isRetryable());
+    }
+
     // 진단을 실패로 끝내고 실패 정보를 남긴다.
     public void fail(PipelineStage failedStage, String errorCode, String errorMessage, Boolean errorRetryable) {
         if (errorCode == null || errorCode.isBlank() || errorMessage == null || errorMessage.isBlank()) {
