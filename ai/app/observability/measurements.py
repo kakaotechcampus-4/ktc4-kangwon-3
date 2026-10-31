@@ -1,4 +1,4 @@
-"""클라이언트·콜백 발신함·Tool·추출·DB 캐시·HTTP 요청이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
+"""클라이언트·콜백 발신함·Tool·추출·DB 캐시·법령 점검·CLIP 적재·HTTP 요청이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
 
 기록을 남기는 코드는 지표를 몰라도 됨. 서버는 lifespan에서 지표 sink를 등록하고 종료 때 해제.
 받는 쪽 오류는 경고 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음.
@@ -104,6 +104,25 @@ class LawRefreshRun:
 
 
 @dataclass(frozen=True)
+class ClipIngestRun:
+    """CLIP 결정사례 주간 적재 1회.
+
+    Attributes:
+        result: 적재 결과 (ok·partial·failed·skipped). 상세 하나라도 실패하면 ok가 아님.
+        finished_at: 끝난 시각(Unix 초).
+        saved: 새로 저장한 사례 수.
+        removed: 목록에서 사라져 지운 사례 수.
+        failed: 상세를 받지 못한 사례 수.
+    """
+
+    result: str
+    finished_at: float
+    saved: int = 0
+    removed: int = 0
+    failed: int = 0
+
+
+@dataclass(frozen=True)
 class HttpRequest:
     """AI 서버가 받은 HTTP 요청 1건.
 
@@ -120,7 +139,8 @@ class HttpRequest:
     seconds: float
 
 
-Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun | HttpRequest
+Measurement = (ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun | ClipIngestRun
+               | HttpRequest)
 MeasurementSink = Callable[[Measurement], None]
 
 

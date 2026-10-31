@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from ..clients.customs import CLIPClient, CLIPDetailClient
 from ..config import CLIP_INGEST_WEEKLY_AT
+from ..observability.measurements import ClipIngestRun, measurement_sinks
 from ..schemas.clients.customs_request import CLIPDetailRequest, CLIPSearchRequest
 from ..schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 from .models.hs_case import HsCase
@@ -242,7 +243,7 @@ KST = timezone(timedelta(hours=9))
 
 def run_scheduled_clip_ingest(session_factory: Callable[[], Session], *, embed: Callable[[list[str]], list[list[float]]],
                               embedding_model: str) -> ClipIngestReport | None:
-    """주간 적재 한 번. hs_cases가 비어 있으면(초기 적재 전) 하지 않는다.
+    """주간 적재 한 번. hs_cases가 비어 있으면(초기 적재 전) 하지 않는다. 결과는 측정 기록으로 남긴다.
 
     Args:
         session_factory: DB 세션을 만드는 함수.
@@ -251,20 +252,57 @@ def run_scheduled_clip_ingest(session_factory: Callable[[], Session], *, embed: 
 
     Returns:
         ClipIngestReport | None: 적재 결과. 건너뛰면 None.
+
+    Raises:
+        Exception: 목록 수집·임베딩·저장 중 오류. failed로 남기고 그대로 올림.
     """
     with session_factory() as session:
         if not HsCaseRepository(session).list_doc_ids():
             logger.warning("CLIP 주간 적재 건너뜀 — hs_cases가 비어 있음 (초기 적재는 cli clip-ingest로)")
+            _publish_run("skipped")
             return None
     search, detail = CLIPClient(), CLIPDetailClient()
     try:
         report = ingest_clip_cases(search=search, detail=detail, embed=embed, embedding_model=embedding_model,
                                    session_factory=session_factory)
+    except Exception:
+        _publish_run("failed")
+        raise
     finally:
         search.close()
         detail.close()
     logger.info("CLIP 주간 적재 — 새로 저장 %d건, 삭제 %d건, 실패 %d건", report.saved, report.removed, len(report.failed))
+    _publish_run(_run_result(report), report)
     return report
+
+
+def _run_result(report: ClipIngestReport) -> str:
+    """적재 결과 구분. 상세 하나라도 실패하면 그 사례가 빠진 채 남아 성공(ok)으로 보지 않는다.
+
+    Args:
+        report: 적재 결과.
+
+    Returns:
+        str: ok(실패 없음)·partial(일부 실패)·failed(받을 사례를 하나도 저장 못 함).
+    """
+    if not report.failed:
+        return "ok"
+    return "failed" if report.saved == 0 else "partial"
+
+
+def _publish_run(result: str, report: ClipIngestReport | None = None) -> None:
+    """적재 1회를 측정 기록으로 남긴다.
+
+    Args:
+        result: 적재 결과 (ok·partial·failed·skipped).
+        report: 적재 결과 상세. 건너뛰거나 도중에 실패하면 None.
+    """
+    finished_at = datetime.now(timezone.utc).timestamp()
+    if report is None:
+        measurement_sinks.publish(ClipIngestRun(result, finished_at))
+        return
+    measurement_sinks.publish(ClipIngestRun(result, finished_at, saved=report.saved, removed=report.removed,
+                                            failed=len(report.failed)))
 
 
 def seconds_until_weekly(now: datetime, at: tuple[int, int, int]) -> float:

@@ -12,6 +12,7 @@ from app.db.clip_ingest import (
     ALL_CASES_QUERY, KST, ClipIngestReport, case_text, collect_doc_ids, fetch_detail, ingest_clip_cases,
     run_scheduled_clip_ingest, run_weekly_clip_ingest, seconds_until_weekly,
 )
+from app.observability.measurements import ClipIngestRun, measurement_sinks
 from app.schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 
 
@@ -242,12 +243,13 @@ class _Closable:
         self.closed = True
 
 
-def _scheduled(monkeypatch, db, existing):
+def _scheduled(monkeypatch, db, existing, result=None):
     db["existing"] = existing
     clients, ran = [], []
     monkeypatch.setattr(clip_ingest, "CLIPClient", lambda: clients.append(_Closable()) or clients[-1])
     monkeypatch.setattr(clip_ingest, "CLIPDetailClient", lambda: clients.append(_Closable()) or clients[-1])
-    monkeypatch.setattr(clip_ingest, "ingest_clip_cases", lambda **kwargs: ran.append(kwargs) or ClipIngestReport())
+    monkeypatch.setattr(clip_ingest, "ingest_clip_cases",
+                        lambda **kwargs: ran.append(kwargs) or result or ClipIngestReport())
     report = run_scheduled_clip_ingest(_Session, embed=lambda texts: [], embedding_model="m")
     return report, clients, ran
 
@@ -263,6 +265,48 @@ def test_주간_적재는_새_사례를_받고_클라이언트를_닫는다(monk
 
     assert isinstance(report, ClipIngestReport) and ran[0]["embedding_model"] == "m"
     assert all(client.closed for client in clients) and len(clients) == 2
+
+
+@pytest.mark.parametrize(("result", "expected"), [
+    (ClipIngestReport(saved=2, removed=1), ClipIngestRun("ok", 0, saved=2, removed=1)),
+    (ClipIngestReport(saved=1, failed=["9"]), ClipIngestRun("partial", 0, saved=1, failed=1)),
+    (ClipIngestReport(failed=["9"]), ClipIngestRun("failed", 0, failed=1)),
+])
+def test_주간_적재마다_결과를_측정_기록으로_남긴다(monkeypatch, db, result, expected):
+    records = []
+
+    with measurement_sinks.added(records.append):
+        _scheduled(monkeypatch, db, {"1"}, result)
+
+    [record] = records
+    assert record.finished_at > 0
+    assert record == ClipIngestRun(expected.result, record.finished_at, saved=expected.saved,
+                                   removed=expected.removed, failed=expected.failed)
+
+
+def test_주간_적재를_건너뛰면_skipped로_남긴다(monkeypatch, db):
+    records = []
+
+    with measurement_sinks.added(records.append):
+        _scheduled(monkeypatch, db, set())
+
+    assert [record.result for record in records] == ["skipped"]
+
+
+def test_주간_적재_도중_오류면_failed로_남기고_오류를_올린다(monkeypatch, db):
+    def fail(**kwargs):
+        raise httpx.ConnectError("끊김")
+
+    db["existing"] = {"1"}
+    monkeypatch.setattr(clip_ingest, "CLIPClient", _Closable)
+    monkeypatch.setattr(clip_ingest, "CLIPDetailClient", _Closable)
+    monkeypatch.setattr(clip_ingest, "ingest_clip_cases", fail)
+    records = []
+
+    with measurement_sinks.added(records.append), pytest.raises(httpx.ConnectError):
+        run_scheduled_clip_ingest(_Session, embed=lambda texts: [], embedding_model="m")
+
+    assert [(record.result, record.saved) for record in records] == [("failed", 0)]
 
 
 @pytest.mark.parametrize(("now", "expected_hours"), [
