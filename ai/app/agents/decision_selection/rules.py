@@ -16,6 +16,8 @@ TRUE_FIELDS: dict[ToolName, tuple[str, ...]] = {
 
 # 원칙 2용 전기 제품 신호
 _ELECTRIC_FIELDS = ("electrical_powered", "battery_included")
+# 원칙 2에서 None을 보는 무선 필드. wireless_shield는 추출 후처리로 false가 늘 None이 되어 제외 (판단 질문이 맡음)
+_UNKNOWN_WIRELESS_FIELDS = ("wireless_comm", "wireless_charging")
 
 
 def rule_reasons(product: Product) -> dict[ToolName, list[str]]:
@@ -54,7 +56,7 @@ def _radio_unknown_reason(product: Product) -> str | None:
 
 
 def unknown_wireless_fields(product: Product) -> list[str]:
-    """값이 None인 무선 필드.
+    """값이 None인 무선 필드 (wireless_shield 제외).
 
     Args:
         product: 추출된 상품 정보.
@@ -62,4 +64,4 @@ def unknown_wireless_fields(product: Product) -> list[str]:
     Returns:
         list[str]: None인 무선 필드 이름. 없으면 빈 목록.
     """
-    return [field for field in TRUE_FIELDS[ToolName.RADIO] if getattr(product, field) is None]
+    return [field for field in _UNKNOWN_WIRELESS_FIELDS if getattr(product, field) is None]

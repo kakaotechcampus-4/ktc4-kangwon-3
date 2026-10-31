@@ -35,15 +35,15 @@ def test_false_필드는_선택하지_않는다():
 
 
 def test_전기_제품인데_무선_정보가_없으면_전파를_선택한다():
-    reasons = rule_reasons(_product(battery_included=True, wireless_comm=False, wireless_charging=False))
+    reasons = rule_reasons(_product(battery_included=True, wireless_comm=False))
 
     assert reasons[ToolName.RADIO] == [
-        "battery_included=true인데 wireless_shield=None (전기 제품의 무선 기능 정보 없음)",
+        "battery_included=true인데 wireless_charging=None (전기 제품의 무선 기능 정보 없음)",
     ]
 
 
-def test_전기_제품이어도_무선_필드가_모두_false면_전파를_선택하지_않는다():
-    product = _product(electrical_powered=True, wireless_comm=False, wireless_charging=False, wireless_shield=False)
+def test_전기_제품이어도_통신_무선충전이_false면_전파를_선택하지_않는다():
+    product = _product(electrical_powered=True, wireless_comm=False, wireless_charging=False)
 
     assert ToolName.RADIO not in rule_reasons(product)
 
