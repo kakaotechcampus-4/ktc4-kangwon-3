@@ -3,6 +3,7 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFailureReason;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -30,21 +31,6 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DiagnosesService {
-
-    // AI가 요청을 거절해 BE가 실패 처리할 때의 오류. 대부분 BE 코드·설정 문제라 다시 진단해도 같은 결과인 경우.
-    static final String REQUEST_REJECTED_ERROR_CODE = "BE_AI_REQUEST_REJECTED";
-    static final String REQUEST_REJECTED_ERROR_MESSAGE = "진단 요청이 거절되어 진단을 시작하지 못했습니다.";
-    static final boolean REQUEST_REJECTED_ERROR_RETRYABLE = false;
-
-    // 재요청 기한까지 AI가 요청을 받지 못했을 때의 오류. 일시적인 장애라 다시 진단하면 성공할 수 있음.
-    static final String REQUEST_UNAVAILABLE_ERROR_CODE = "BE_AI_REQUEST_UNAVAILABLE";
-    static final String REQUEST_UNAVAILABLE_ERROR_MESSAGE = "AI 서버가 요청을 받지 못해 진단을 시작하지 못했습니다.";
-    static final boolean REQUEST_UNAVAILABLE_ERROR_RETRYABLE = true;
-
-    // AI가 같은 상품의 이전 진단을 아직 진행 중이라(409) 받지 않았을 때의 오류. 이전 진단이 끝나면 다시 진단할 수 있음.
-    static final String REQUEST_CONFLICT_ERROR_CODE = "BE_AI_REQUEST_CONFLICT";
-    static final String REQUEST_CONFLICT_ERROR_MESSAGE = "이전 진단이 아직 끝나지 않아 진단을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.";
-    static final boolean REQUEST_CONFLICT_ERROR_RETRYABLE = true;
 
     private final DiagnosesRepository diagnosesRepository;
     private final S3FileService s3FileService;
@@ -113,8 +99,7 @@ public class DiagnosesService {
      */
     @Transactional
     public void failRejectedRequest(UUID diagnosesId, List<UUID> productIds) {
-        failUnacceptedProducts(diagnosesId, productIds, REQUEST_REJECTED_ERROR_CODE,
-                REQUEST_REJECTED_ERROR_MESSAGE, REQUEST_REJECTED_ERROR_RETRYABLE);
+        failUnacceptedProducts(diagnosesId, productIds, ProductFailureReason.AI_REQUEST_REJECTED);
     }
 
     /**
@@ -123,8 +108,7 @@ public class DiagnosesService {
      */
     @Transactional
     public void failConflictedRequest(UUID diagnosesId, List<UUID> productIds) {
-        failUnacceptedProducts(diagnosesId, productIds, REQUEST_CONFLICT_ERROR_CODE,
-                REQUEST_CONFLICT_ERROR_MESSAGE, REQUEST_CONFLICT_ERROR_RETRYABLE);
+        failUnacceptedProducts(diagnosesId, productIds, ProductFailureReason.AI_REQUEST_CONFLICT);
     }
 
     /**
@@ -146,8 +130,7 @@ public class DiagnosesService {
             }
             // 생성 시각이 아니라 마지막 요청 시각 기준. 오래된 상품을 다시 진단할 때 재요청 없이 바로 실패하지 않도록 한다.
             if (product.isRequestedBefore(deadline)) {
-                product.fail(null, REQUEST_UNAVAILABLE_ERROR_CODE, REQUEST_UNAVAILABLE_ERROR_MESSAGE,
-                        REQUEST_UNAVAILABLE_ERROR_RETRYABLE);
+                product.fail(ProductFailureReason.AI_REQUEST_UNAVAILABLE);
                 log.warn("AI 재요청 기한이 지나 실패 처리합니다. diagnosesId={}, productId={}, requestedAt={}",
                         diagnosesId, product.getId(), product.getRequestedAt());
                 continue;
@@ -225,8 +208,7 @@ public class DiagnosesService {
     }
 
     // AI가 요청을 받지 않은 상품을 실패 처리한다. 실행 식별자가 있으면 AI가 실제로는 접수한 것이라 건너뛴다.
-    private void failUnacceptedProducts(UUID diagnosesId, List<UUID> productIds,
-                                        String errorCode, String errorMessage, boolean errorRetryable) {
+    private void failUnacceptedProducts(UUID diagnosesId, List<UUID> productIds, ProductFailureReason reason) {
         Diagnoses diagnoses = diagnosesRepository.findByIdForUpdate(diagnosesId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
 
@@ -234,7 +216,7 @@ public class DiagnosesService {
             if (product.getProcessingStatus() != ProcessingStatus.IN_PROGRESS || product.isRunAssigned()) {
                 return;
             }
-            product.fail(null, errorCode, errorMessage, errorRetryable);
+            product.fail(reason);
         });
         diagnoses.refreshProcessingStatus();
     }

@@ -6,6 +6,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFailureReason;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductProgress;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductQuestion;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
@@ -548,7 +549,7 @@ class ProductServiceTest {
         assertThat(event).isEmpty();
         assertThat(product)
                 .extracting(Product::getProcessingStatus, Product::getErrorCode, Product::getErrorRetryable)
-                .containsExactly(ProcessingStatus.FAILED, ProductService.RESUME_UNAVAILABLE_ERROR_CODE, true);
+                .containsExactly(ProcessingStatus.FAILED, ProductFailureReason.AI_RESUME_UNAVAILABLE.getCode(), true);
         assertThat(product.isResumePending()).isFalse();
     }
 
@@ -908,7 +909,7 @@ class ProductServiceTest {
                 "AI_TIMEOUT", "시간이 초과되었습니다.", true);
 
         // then
-        assertThat(product.getErrorCode()).isEqualTo(ProductService.STUCK_ERROR_CODE);
+        assertThat(product.getErrorCode()).isEqualTo(ProductFailureReason.DIAGNOSES_TIMEOUT.getCode());
         assertThat(product.getFailedStage()).isNull();
     }
 
@@ -986,8 +987,8 @@ class ProductServiceTest {
         assertThat(product)
                 .extracting(Product::getFailedStage, Product::getErrorCode,
                         Product::getErrorMessage, Product::getErrorRetryable)
-                .containsExactly(null, ProductService.STUCK_ERROR_CODE, ProductService.STUCK_ERROR_MESSAGE,
-                        ProductService.STUCK_ERROR_RETRYABLE);
+                .containsExactly(null, ProductFailureReason.DIAGNOSES_TIMEOUT.getCode(),
+                        ProductFailureReason.DIAGNOSES_TIMEOUT.getMessage(), ProductFailureReason.DIAGNOSES_TIMEOUT.isRetryable());
         assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
     }
 
@@ -1150,8 +1151,7 @@ class ProductServiceTest {
 
     // 멈춘 진단 정리(failStuckDiagnoses)가 먼저 실패 처리한 상태
     private void failByScheduler(Product product) {
-        product.fail(null, ProductService.STUCK_ERROR_CODE, ProductService.STUCK_ERROR_MESSAGE,
-                ProductService.STUCK_ERROR_RETRYABLE);
+        product.fail(ProductFailureReason.DIAGNOSES_TIMEOUT);
     }
 
     private QuestionContent question(String questionKey, String questionText) {

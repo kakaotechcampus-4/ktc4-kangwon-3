@@ -4,6 +4,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFailureReason;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
@@ -374,7 +375,7 @@ class DiagnosesServiceTest {
         // then
         assertThat(diagnoses.getProducts())
                 .extracting(Product::getProcessingStatus, Product::getErrorCode, Product::getErrorRetryable)
-                .containsOnly(tuple(ProcessingStatus.FAILED, DiagnosesService.REQUEST_REJECTED_ERROR_CODE, false));
+                .containsOnly(tuple(ProcessingStatus.FAILED, ProductFailureReason.AI_REQUEST_REJECTED.getCode(), false));
         assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
     }
 
@@ -408,7 +409,7 @@ class DiagnosesServiceTest {
         // then
         assertThat(conflicted)
                 .extracting(Product::getProcessingStatus, Product::getErrorCode, Product::getErrorRetryable)
-                .containsExactly(ProcessingStatus.FAILED, DiagnosesService.REQUEST_CONFLICT_ERROR_CODE, true);
+                .containsExactly(ProcessingStatus.FAILED, ProductFailureReason.AI_REQUEST_CONFLICT.getCode(), true);
         assertThat(diagnoses.getProducts().get(1).getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
         assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
@@ -477,7 +478,7 @@ class DiagnosesServiceTest {
                 .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
                 .containsExactly(waiting.getId()));
         assertThat(expired.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
-        assertThat(expired.getErrorCode()).isEqualTo(DiagnosesService.REQUEST_UNAVAILABLE_ERROR_CODE);
+        assertThat(expired.getErrorCode()).isEqualTo(ProductFailureReason.AI_REQUEST_UNAVAILABLE.getCode());
         assertThat(expired.getErrorRetryable()).isTrue();
         assertThat(waiting.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
     }
@@ -544,7 +545,7 @@ class DiagnosesServiceTest {
         // then
         assertThat(event).isEmpty();
         assertThat(expired.getProcessingStatus()).isEqualTo(ProcessingStatus.FAILED);
-        assertThat(expired.getErrorCode()).isEqualTo(DiagnosesService.REQUEST_UNAVAILABLE_ERROR_CODE);
+        assertThat(expired.getErrorCode()).isEqualTo(ProductFailureReason.AI_REQUEST_UNAVAILABLE.getCode());
     }
 
     @Test
