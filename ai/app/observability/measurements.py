@@ -18,7 +18,7 @@ class ClientCall:
     """외부 API 호출 1건.
 
     Attributes:
-        api: 호출한 서버 (law·data_go_kr·customs·safety_korea·radio·marketplace·backend·llm).
+        api: 호출한 서버 (law·data_go_kr·customs_clip·safety_korea·radio·marketplace·backend·llm).
         result: 호출 결과 (ok·http_error·api_error·timeout·connect_error·other).
         seconds: 걸린 시간(초).
     """
