@@ -18,7 +18,7 @@ class AdvertisingReviewInput:
     """문구 검토 입력.
 
     Attributes:
-        product: 사용량 기록과 문맥(상품 이름·종류)에 쓸 상품.
+        product: 사용량 기록에 쓸 상품.
         lines: 검토할 판매자 문구. 빈 줄은 뺀 listing_text.
     """
 
@@ -37,7 +37,11 @@ class AdvertisingReviewer(BaseAgent[AdvertisingReviewInput, AdvertisingReview, A
     error_class = AdvertisingReviewError
 
     def _build_messages(self, input: AdvertisingReviewInput) -> list[SystemMessage | HumanMessage]:
-        """상품 이름·종류와 판매자 문구로 모델 메시지를 만든다.
+        """판매자 문구로 모델 메시지를 만든다.
+
+        상품 이름·종류는 비워서 보냄. 추출한 상품 이름이 판매자 제목 줄과 같아서, 채우면 모델이 제목 줄의 효능 구절을
+        "상품 이름"으로 보고 뺌('굽은 등 교정기' 0/9 → 비우면 6/9, #349). 평가 실행기와 같은 입력이라 평가 결과가 그대로
+        서비스 결과가 됨. 칸 자체를 없애면 평가셋 고정 입력 맞힘이 떨어짐(10회 × 2: 60·63 → 51·55/70).
 
         Args:
             input: 문구 검토 입력.
@@ -45,8 +49,7 @@ class AdvertisingReviewer(BaseAgent[AdvertisingReviewInput, AdvertisingReview, A
         Returns:
             list[SystemMessage | HumanMessage]: 모델에 보낼 메시지.
         """
-        product = input.product
-        payload = {"product_name": product.product_name, "category": product.category, "listing_text": input.lines}
+        payload = {"product_name": None, "category": None, "listing_text": input.lines}
         return self._messages(json.dumps(payload, ensure_ascii=False))
 
     def _subject_id(self, input: AdvertisingReviewInput) -> str:
