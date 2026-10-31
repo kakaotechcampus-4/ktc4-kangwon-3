@@ -144,11 +144,23 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 법령 점검: 문서 하나라도 실패하면 `partial`, 전부 실패하면 `failed`. 실패한 문서는 법령이 낡은 채 남아 `ok`만 성공 시각을 바꿈
   - 재는 곳: `refresh_laws` (기동 직후 1번, 매일 00:05 KST)
 
+### 3.8 HTTP 요청
+
+| 지표 | 종류 | 라벨 | 내용 |
+|---|---|---|---|
+| `ai_http_requests` | Counter | `route`, `method`, `status` | 받은 요청 수. 409·422·429 비율 등 |
+| `ai_http_request_seconds` | Histogram | `route`, `method` | 요청 1건 처리 시간(응답 헤더까지) |
+
+- `route`: 라우트 템플릿(`/api/ai/v1/sandbox/diagnose/{product_id}`). 맞는 라우트가 없는 요청은 `unmatched`
+- 처리 중 예외로 끝난 요청은 `status="500"`
+- Prometheus 수집 요청(`/metrics`)은 세지 않음. 헬스 체크는 셈
+- 구간: 0.01·0.025·0.05·0.1·0.25·0.5·1·2.5·5·10초 (진단은 세션에서 돌고 접수는 바로 응답)
+- 재는 곳: `record_http_requests` 미들웨어 (`app/observability/http_requests.py`)
+
 ## 4. 추가 예정
 
 | 지표 | 시점 | 비고 |
 |---|---|---|
-| `ai_http_requests`, `ai_http_request_seconds` | 엔드포인트 개편(#406) 머지 후 | 라벨 `route`는 라우트 템플릿 |
 | `ai_build_info` | #406·#420 머지 후 | `version`, `model_profile` |
 | `ai_result_status`, `ai_result_incomplete` | 진단서 변환(#408)·파이프라인 연결(#320) 후 | |
 | `ai_pipeline_end`, `ai_verification_results`, `ai_pipeline_retry_rounds`, `ai_question_rounds`, `ai_questions_asked`, `ai_diagnosis_cost_krw` | 파이프라인 연결(#320) 후 | |

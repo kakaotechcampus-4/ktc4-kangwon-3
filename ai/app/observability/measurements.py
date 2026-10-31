@@ -1,4 +1,4 @@
-"""클라이언트·콜백 발신함·Tool·추출·DB 캐시가 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
+"""클라이언트·콜백 발신함·Tool·추출·DB 캐시·HTTP 요청이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
 
 기록을 남기는 코드는 지표를 몰라도 됨. 서버는 lifespan에서 지표 sink를 등록하고 종료 때 해제.
 받는 쪽 오류는 경고 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음.
@@ -103,7 +103,24 @@ class LawRefreshRun:
     finished_at: float
 
 
-Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun
+@dataclass(frozen=True)
+class HttpRequest:
+    """AI 서버가 받은 HTTP 요청 1건.
+
+    Attributes:
+        route: 라우트 템플릿 (예: /api/ai/v1/sandbox/diagnose/{product_id}). 맞는 라우트가 없으면 unmatched.
+        method: HTTP 메서드.
+        status: 응답 상태 코드. 처리 중 예외로 끝나면 500.
+        seconds: 받은 때부터 응답 헤더를 보낼 때까지(초).
+    """
+
+    route: str
+    method: str
+    status: int
+    seconds: float
+
+
+Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun | HttpRequest
 MeasurementSink = Callable[[Measurement], None]
 
 

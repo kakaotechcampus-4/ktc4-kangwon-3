@@ -17,6 +17,7 @@ from .config import SESSION_SWEEP_SECONDS, get_settings
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
+from .observability.http_requests import record_http_requests
 from .observability.measurements import measurement_sinks
 from .observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
@@ -156,6 +157,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 register_exception_handlers(app)
+# HTTP 요청 지표 (라우트 템플릿 기준)
+app.middleware("http")(record_http_requests)
 
 api_v1 = APIRouter(prefix="/api/ai/v1")
 api_v1.include_router(health.router)
