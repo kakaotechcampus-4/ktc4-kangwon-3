@@ -5,6 +5,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
+import ProductProgressCard from "./ProductProgressCard";
 import { useJudgementProducts } from "./useJudgementProducts";
 
 function JudgementPage() {
@@ -40,10 +41,9 @@ function JudgementPage() {
                     </button>
                 </div>
             ) : (
-                // TODO: ProductProgressCard로 교체
                 <div className="flex flex-col gap-4">
                     {data.products.map((product) => (
-                        <p key={product.productId}>{product.productName} - {product.processingStatus}</p>
+                        <ProductProgressCard key={product.productId} product={product} />
                     ))}
                 </div>
             )}
