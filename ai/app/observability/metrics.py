@@ -4,7 +4,8 @@
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
     - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
     - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도, Tool 실행 결과·시간·실패 원인·판단,
-      판매자 구역 자르기 결과, DB 캐시 조회 결과, 법령 점검 결과·마지막 성공 시각, 받은 HTTP 요청 수·처리 시간
+      판매자 구역 자르기 결과, DB 캐시 조회 결과, 법령 점검 결과·마지막 성공 시각·찾은 변경, CLIP 적재 결과·마지막 성공 시각·사례 수,
+      받은 HTTP 요청 수·처리 시간
     - CallbackOutboxCollector: 수집 때마다 콜백 발신함의 대기 중 이벤트 수를 읽음
 
 라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.

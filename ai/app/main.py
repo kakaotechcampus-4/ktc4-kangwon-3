@@ -5,7 +5,7 @@ import logging
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
-from prometheus_client import CollectorRegistry
+from prometheus_client import CollectorRegistry, disable_created_metrics
 from sqlalchemy.exc import SQLAlchemyError
 
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
@@ -34,6 +34,9 @@ from .sessions.store import SessionStore
 from .tools.common.law_sources import LAW_SOURCES, applied_version
 
 logger = logging.getLogger(__name__)
+
+# Counter·Histogram마다 붙는 _created(처음 만든 시각) 시계열을 내보내지 않음. Prometheus는 재시작을 _total 감소로 알아챔
+disable_created_metrics()
 
 # 종료 시 남은 콜백을 보내는 최대 대기 시간. 넘으면 버리고 로그만 남김
 CALLBACK_CLOSE_SECONDS = 5.0
