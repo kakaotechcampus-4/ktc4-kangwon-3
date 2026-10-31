@@ -6,6 +6,7 @@ import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
 import ProductProgressCard from "./ProductProgressCard";
+import StatusSummaryBar from "./StatusSummaryBar";
 import { useJudgementProducts } from "./useJudgementProducts";
 
 function JudgementPage() {
@@ -48,11 +49,14 @@ function JudgementPage() {
                     </button>
                 </div>
             ) : (
+                <>
+                <StatusSummaryBar products={data.products}/>
                 <div className="flex flex-col gap-4">
                     {data.products.map((product) => (
                         <ProductProgressCard key={product.productId} product={product} />
                     ))}
                 </div>
+                </>
             )}
         </div>
     );
