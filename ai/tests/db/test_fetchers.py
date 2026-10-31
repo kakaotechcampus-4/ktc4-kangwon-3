@@ -9,6 +9,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.db import fetchers
 from app.db.fetchers import DbSkip, OnDemandFetcher, ScheduledFetcher, request_key
+from app.observability.measurements import CacheLookup, measurement_sinks
 
 NOW = datetime(2026, 10, 25, 12, tzinfo=timezone.utc)
 
@@ -371,3 +372,40 @@ def test_만료_캐시_정리는_준_클라이언트의_만료_행만_지우고_
 
     db.fail = True
     assert fetchers.purge_expired_responses(db.session_factory, ["customs.gw"], now=NOW) == 0
+
+
+def test_Tool_조회마다_캐시_결과를_측정_기록으로_남긴다(db, monkeypatch):
+    monkeypatch.setattr(fetchers, "CACHE_DB_RETRY_SECONDS", 60)
+    clock = _Clock()
+    records = []
+
+    with measurement_sinks.added(records.append):
+        _scheduled(_Client(), db, clock).fetch_parsed(_Request(mst="1"))
+        _scheduled(_Client(), db, clock).fetch_parsed(_Request(mst="1"))
+        clock.advance(timedelta(days=3).total_seconds())
+        _scheduled(_Client(error=TimeoutError()), db, clock).fetch_parsed(_Request(mst="1"))
+        db.fail = True
+        _scheduled(_Client(), db, clock).fetch_parsed(_Request(mst="2"))
+
+    assert [record.result for record in records] == ["miss", "hit", "stale", "skipped"]
+    assert {record.cache for record in records} == {"law.search"}
+
+
+def test_조회가_실패해도_캐시_결과는_남긴다(db):
+    records = []
+
+    with measurement_sinks.added(records.append), pytest.raises(TimeoutError):
+        _on_demand(_Client(error=TimeoutError()), db).fetch_parsed(_Request(mst="1"))
+
+    assert records == [CacheLookup("law.search", "miss")]
+
+
+def test_DB를_안_쓰거나_measure가_꺼진_조회_객체는_측정_기록을_남기지_않는다(db):
+    records = []
+
+    with measurement_sinks.added(records.append):
+        _on_demand(_Client(), None).fetch_parsed(_Request(mst="1"))
+        OnDemandFetcher(_Client(), ttl=timedelta(days=1), measure=False, **_common(db, None)).fetch_parsed(
+            _Request(mst="1"))
+
+    assert records == []

@@ -120,13 +120,33 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - `trimmed="false"`가 늘면 쇼핑몰 화면 변경 의심
 - 재는 곳: `ExtractionAgent._build_messages` (후처리에서 다시 자르는 건 세지 않음)
 
+### 3.7 캐시·DB
+
+| 지표 | 종류 | 라벨 | 내용 |
+|---|---|---|---|
+| `ai_cache_lookups` | Counter | `cache`, `result` | Tool이 DB 캐시를 먼저 본 조회 수 |
+
+- `cache`: 응답 캐시 `law.eflaw_search`·`law.text`·`admrul.search`·`admrul.text`·`customs.gw`, 결정사례 DB `customs.cases`
+- `result`
+
+  | 값 | 응답 캐시 | 결정사례 DB |
+  |---|---|---|
+  | `hit` | 만료 전 DB 값을 씀 | 가까운 사례를 찾아 CLIP을 안 부름 |
+  | `miss` | 없거나 만료돼 외부 API로 받음 (실패해도 셈) | 가까운 사례가 없어 CLIP으로 찾음 |
+  | `stale` | 외부 API 실패·저장 조건 불일치로 만료된 DB 값을 씀 | (없음) |
+  | `skipped` | DB 장애로 건너뛰고 외부 API로 받음 | DB·임베딩 실패로 CLIP으로 찾음 |
+
+- 법령 점검(스케줄러)이 본문을 확보하는 조회는 세지 않음 (`build_law_fetchers(measure=False)`)
+- DB 없이 뜬 서버(DATABASE_URL 없음)는 세지 않음
+- 재는 곳: `CachedFetcherBase.fetch_parsed`, `DatabaseFirstCaseSearch._near`
+
 ## 4. 추가 예정
 
 | 지표 | 시점 | 비고 |
 |---|---|---|
 | `ai_http_requests`, `ai_http_request_seconds` | 엔드포인트 개편(#406) 머지 후 | 라벨 `route`는 라우트 템플릿 |
 | `ai_build_info` | #406·#420 머지 후 | `version`, `model_profile` |
-| `ai_cache_lookups`, `ai_law_refresh_runs`, `ai_law_refresh_last_success_timestamp` | DB 캐시(#420) 머지 후 | |
+| `ai_law_refresh_runs`, `ai_law_refresh_last_success_timestamp` | DB 캐시(#420) 머지 후 | |
 | `ai_result_status`, `ai_result_incomplete` | 진단서 변환(#408)·파이프라인 연결(#320) 후 | |
 | `ai_pipeline_end`, `ai_verification_results`, `ai_pipeline_retry_rounds`, `ai_question_rounds`, `ai_questions_asked`, `ai_diagnosis_cost_krw` | 파이프라인 연결(#320) 후 | |
 | `ai_tool_runs`에 `run_type` 추가 | 파이프라인 연결(#320) 후 | `ToolExecutor`가 실행 컨텍스트를 받게 되면. `ai_session_tool_progress`는 이때 합침 |

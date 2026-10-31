@@ -1,4 +1,4 @@
-"""클라이언트·콜백 발신함·Tool·추출이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
+"""클라이언트·콜백 발신함·Tool·추출·DB 캐시가 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
 
 기록을 남기는 코드는 지표를 몰라도 됨. 서버는 lifespan에서 지표 sink를 등록하고 종료 때 해제.
 받는 쪽 오류는 경고 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음.
@@ -77,7 +77,20 @@ class CallbackOutcome:
     drop_reason: str | None = None
 
 
-Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome
+@dataclass(frozen=True)
+class CacheLookup:
+    """Tool이 DB 캐시를 먼저 본 조회 1건.
+
+    Attributes:
+        cache: 캐시 이름 (law.eflaw_search·law.text·admrul.search·admrul.text·customs.gw·customs.cases).
+        result: 조회 결과 (hit·miss·stale·skipped).
+    """
+
+    cache: str
+    result: str
+
+
+Measurement = ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup
 MeasurementSink = Callable[[Measurement], None]
 
 
