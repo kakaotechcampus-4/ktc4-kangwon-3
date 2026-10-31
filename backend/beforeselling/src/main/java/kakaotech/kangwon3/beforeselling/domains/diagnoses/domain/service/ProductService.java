@@ -5,6 +5,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnose
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.PipelineStage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductFailureReason;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.QuestionContent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
@@ -38,17 +39,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ProductService {
-
-    // BE가 직접 실패 처리할 때의 오류 코드
-    static final String STUCK_ERROR_CODE = "BE_DIAGNOSES_TIMEOUT";
-    static final String STUCK_ERROR_MESSAGE = "진단 결과를 받지 못해 진단을 종료했습니다.";
-    // AI_TIMEOUT과 같은 일시적인 실패라 다시 진단하면 성공할 수 있다.
-    static final boolean STUCK_ERROR_RETRYABLE = true;
-
-    // AI가 재진단 요청을 기한까지 받지 못했을 때의 오류. 일시적인 장애라 다시 진단하면 성공할 수 있다.
-    static final String RESUME_UNAVAILABLE_ERROR_CODE = "BE_AI_RESUME_UNAVAILABLE";
-    static final String RESUME_UNAVAILABLE_ERROR_MESSAGE = "AI 서버가 답변을 받지 못해 진단을 이어서 진행하지 못했습니다.";
-    static final boolean RESUME_UNAVAILABLE_ERROR_RETRYABLE = true;
 
     private final ProductRepository productRepository;
     private final DiagnosesRepository diagnosesRepository;
@@ -236,7 +226,7 @@ public class ProductService {
         }
 
         LocalDateTime lastUpdatedAt = product.getUpdatedAt();
-        product.fail(null, STUCK_ERROR_CODE, STUCK_ERROR_MESSAGE, STUCK_ERROR_RETRYABLE);
+        product.fail(ProductFailureReason.DIAGNOSES_TIMEOUT);
         product.getDiagnoses().refreshProcessingStatus();
 
         log.warn("멈춘 진단 실패 처리. productId={}, diagnosesId={}, runId={}, lastUpdatedAt={}",
@@ -298,8 +288,7 @@ public class ProductService {
 
         if (product.isResumePendingBefore(deadline)) {
             LocalDateTime pendingSince = product.getResumePendingSince();
-            product.fail(null, RESUME_UNAVAILABLE_ERROR_CODE, RESUME_UNAVAILABLE_ERROR_MESSAGE,
-                    RESUME_UNAVAILABLE_ERROR_RETRYABLE);
+            product.fail(ProductFailureReason.AI_RESUME_UNAVAILABLE);
             product.getDiagnoses().refreshProcessingStatus();
             log.warn("재진단 재요청 기한이 지나 실패 처리합니다. productId={}, runId={}, pendingSince={}",
                     productId, product.getRunId(), pendingSince);
