@@ -7,7 +7,7 @@ from prometheus_client import CollectorRegistry
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
 from app.observability.measurements import (
-    CacheLookup, CallbackOutcome, ClientCall, LawRefreshRun, SellerRegionCut, ToolRun,
+    CacheLookup, CallbackOutcome, ClientCall, HttpRequest, LawRefreshRun, SellerRegionCut, ToolRun,
 )
 from app.observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
@@ -305,3 +305,16 @@ def test_법령_점검은_결과별로_세고_실패_문서가_없을_때만_마
     assert registry.get_sample_value("ai_law_refresh_last_success_timestamp") == 1000.0
     for result in ("ok", "partial", "failed"):
         assert registry.get_sample_value("ai_law_refresh_runs_total", {"result": result}) == 1
+
+
+def test_HTTP_요청은_라우트·메서드·상태_코드별로_세고_시간은_라우트·메서드별로_잰다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for status in (202, 202, 429):
+        metrics.on_record(HttpRequest("/api/ai/v1/dummy/diagnose/content", "POST", status, 0.02))
+
+    labels = {"route": "/api/ai/v1/dummy/diagnose/content", "method": "POST"}
+    assert registry.get_sample_value("ai_http_requests_total", {**labels, "status": "202"}) == 2
+    assert registry.get_sample_value("ai_http_requests_total", {**labels, "status": "429"}) == 1
+    assert registry.get_sample_value("ai_http_request_seconds_count", labels) == 3

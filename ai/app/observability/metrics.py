@@ -4,7 +4,7 @@
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
     - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
     - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도, Tool 실행 결과·시간·실패 원인·판단,
-      판매자 구역 자르기 결과
+      판매자 구역 자르기 결과, DB 캐시 조회 결과, 법령 점검 결과·마지막 성공 시각, 받은 HTTP 요청 수·처리 시간
     - CallbackOutboxCollector: 수집 때마다 콜백 발신함의 대기 중 이벤트 수를 읽음
 
 라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.
@@ -22,7 +22,7 @@ from prometheus_client.registry import Collector
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
 from .measurements import (
-    CacheLookup, CallbackOutcome, ClientCall, LawRefreshRun, Measurement, SellerRegionCut, ToolRun,
+    CacheLookup, CallbackOutcome, ClientCall, HttpRequest, LawRefreshRun, Measurement, SellerRegionCut, ToolRun,
 )
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
@@ -35,6 +35,8 @@ AGENT_CALL_BUCKETS = (0.5, 1, 2, 5, 10, 20, 30, 60, 120)
 CLIENT_CALL_BUCKETS = (0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 45, 60)
 # Tool 실행 1건 소요 시간 구간(초). 모델 호출 여러 번과 근거 조회를 포함
 TOOL_RUN_BUCKETS = (1, 2, 5, 10, 20, 30, 60, 120, 300)
+# HTTP 요청 처리 시간 구간(초). 접수는 바로 응답하고 진단은 세션에서 돎
+HTTP_REQUEST_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
 
@@ -213,7 +215,7 @@ class AgentMetrics:
 
 
 class MeasurementMetrics:
-    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회·법령 점검을 기록한다.
+    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회·법령 점검·HTTP 요청을 기록한다.
 
     measurement_sinks에 on_record를 등록해 씀.
     """
@@ -265,6 +267,14 @@ class MeasurementMetrics:
             "ai_cache_lookups", "캐시·결과(hit·miss·stale·skipped)별 Tool의 DB 캐시 조회 수", ["cache", "result"],
             registry=registry,
         )
+        self._http_requests = Counter(
+            "ai_http_requests", "라우트 템플릿·메서드·상태 코드별 받은 HTTP 요청 수", ["route", "method", "status"],
+            registry=registry,
+        )
+        self._http_seconds = Histogram(
+            "ai_http_request_seconds", "HTTP 요청 1건 처리 시간(응답 헤더까지)", ["route", "method"],
+            buckets=HTTP_REQUEST_BUCKETS, registry=registry,
+        )
         self._law_refresh_runs = Counter(
             "ai_law_refresh_runs", "결과(ok·partial·failed)별 법령 점검 수", ["result"], registry=registry,
         )
@@ -301,6 +311,9 @@ class MeasurementMetrics:
                 self._seller_region.labels(site, str(trimmed).lower()).inc()
             case CacheLookup(cache=cache, result=result):
                 self._cache_lookups.labels(cache, result).inc()
+            case HttpRequest(route=route, method=method, status=status, seconds=seconds):
+                self._http_requests.labels(route, method, str(status)).inc()
+                self._http_seconds.labels(route, method).observe(seconds)
             case LawRefreshRun(result=result, finished_at=finished_at):
                 self._law_refresh_runs.labels(result).inc()
                 if result == "ok":

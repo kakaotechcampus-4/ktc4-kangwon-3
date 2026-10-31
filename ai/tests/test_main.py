@@ -155,6 +155,15 @@ def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be
     assert 'ai_session_accepted_total{run_type="dummy"} 1.0' in text
 
 
+def test_지표_경로에_받은_HTTP_요청이_라우트_템플릿으로_나온다(fake_be):
+    with TestClient(main.app) as client:
+        client.get("/api/ai/v1/health")
+        text = client.get("/metrics").text
+
+    assert 'ai_http_requests_total{method="GET",route="/api/ai/v1/health",status="200"} 1.0' in text
+    assert 'route="/metrics"' not in text
+
+
 def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인다(fake_be):
     meta = AgentRunMeta(component="extraction", model="m", elapsed_ms=100)
     sample = {"component": "extraction", "model": "m", "outcome": "ok"}
