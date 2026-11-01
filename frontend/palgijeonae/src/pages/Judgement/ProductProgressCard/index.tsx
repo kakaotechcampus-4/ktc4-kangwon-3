@@ -1,19 +1,85 @@
-import type { ProductResult } from "@/api/product";
+import { Link } from "react-router-dom";
 
+import type { ProductResult } from "@/api/product";
+import { ProcessingStatusType } from "@/api/types";
+import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
+import DefaultBox from "@/components/common/DefaultBox";
+import { cn } from "@/lib/cn";
+
+import StatusBadge from "./StatusBadge";
 import { getStatusDescription } from "./statusDescription";
+import { getStatusNotice } from "./statusNotice";
+
+const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "warning" | "danger"> = {
+    [ProcessingStatusType.Pending]: "neutral",
+    [ProcessingStatusType.InProgress]: "neutral",
+    [ProcessingStatusType.AwaitingInput]: "warning",
+    [ProcessingStatusType.Completed]: "success",
+    [ProcessingStatusType.Failed]: "danger",
+};
+
+const ACTION_BUTTON_BASE_CLASS = "shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-sm font-semibold";
+
+interface ActionConfig {
+    label: string
+    buildPath: (productId: string) => string
+    // 상태별 테두리/글자 색. 피그마 상 흰 배경 + 상태 색 테두리·텍스트 조합.
+    className: string
+}
+
+// 답변이 필요하거나 완료된 상품만 버튼이 있다.
+const ACTION_CONFIG: Partial<Record<ProcessingStatusType, ActionConfig>> = {
+    [ProcessingStatusType.AwaitingInput]: {
+        label: "질문에 답변하기 →",
+        buildPath: (productId) => `/question/${productId}`,
+        className: "border-status-warning text-[#6e500b]",
+    },
+    [ProcessingStatusType.Completed]: {
+        label: "결과 보기",
+        buildPath: (productId) => `/result/product/${productId}`,
+        className: "border-black text-black",
+    },
+};
 
 interface ProductProgressCardProps {
     product: ProductResult
 }
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
+    const { productId, productName, productImageUrl, processingStatus } = product;
     const description = getStatusDescription(product);
+    const action = ACTION_CONFIG[processingStatus];
+    const notice = getStatusNotice(product);
 
-    // TODO: 컴포넌트 구성(레이아웃/스타일)은 다음 단계에서 진행. 지금은 파싱한 값만 확인.
     return (
-        <div>
-            상품 진행 카드: {description}
-        </div>
+        <DefaultBox borderTone={CARD_BORDER_TONE[processingStatus]}>
+            <div className="flex w-full flex-row items-center justify-between gap-4">
+                <div className="flex flex-row items-center gap-4">
+                    <img
+                        src={productImageUrl ?? defaultThumbnail}
+                        alt="상품 썸네일"
+                        className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
+                    />
+                    <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-lg font-bold text-black">{productName}</h2>
+                            <StatusBadge processingStatus={processingStatus} />
+                        </div>
+                        <p className="text-sm text-neutral-muted">{description}</p>
+                    </div>
+                </div>
+                {action && (
+                    <Link to={action.buildPath(productId)} className={cn(ACTION_BUTTON_BASE_CLASS, action.className)}>
+                        {action.label}
+                    </Link>
+                )}
+            </div>
+            {notice && (
+                <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
+                    <p className="flex-1 text-sm leading-[1.55]">{notice.text}</p>
+                </div>
+            )}
+        </DefaultBox>
     );
 }
 
