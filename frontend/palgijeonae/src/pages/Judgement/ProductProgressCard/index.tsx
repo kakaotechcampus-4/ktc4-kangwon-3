@@ -7,6 +7,7 @@ import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
 import { countGraphemes, truncateGraphemes } from "@/lib/text";
 
+import ProgressBar from "./ProgressBar";
 import StatusBadge from "./StatusBadge";
 import { getStatusDescription } from "./statusDescription";
 import { getStatusNotice } from "./statusNotice";
@@ -53,10 +54,11 @@ interface ProductProgressCardProps {
 }
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
-    const { productId, productName, productImageUrl, processingStatus } = product;
+    const { productId, productName, productImageUrl, processingStatus, progresses } = product;
     const description = getStatusDescription(product);
     const action = ACTION_CONFIG[processingStatus];
     const notice = getStatusNotice(product);
+    const showProgressBar = processingStatus === ProcessingStatusType.Pending || processingStatus === ProcessingStatusType.InProgress;
 
     return (
         <DefaultBox borderTone={CARD_BORDER_TONE[processingStatus]}>
@@ -81,6 +83,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     </Link>
                 )}
             </div>
+            {showProgressBar && <ProgressBar progresses={progresses} />}
             {notice && (
                 <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
                     <p className="flex-1 text-sm leading-[1.55]">{notice.text}</p>
