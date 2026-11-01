@@ -22,11 +22,19 @@ const defaultBoxVariants = cva(
                 warning: "border-status-warning bg-status-warning-bg",
                 danger: "border-status-danger bg-status-danger-bg",
             },
+            // tone과 달리 배경은 채우지 않고 테두리 색만 상태에 맞춘다.
+            borderTone: {
+                neutral: "",
+                success: "border-status-success",
+                warning: "border-status-warning",
+                danger: "border-status-danger",
+            },
         },
         defaultVariants: {
             align: "left",
             variant: "solid",
             tone: "neutral",
+            borderTone: "neutral",
         },
     },
 );
@@ -37,11 +45,11 @@ interface DefaultBoxProps extends VariantProps<typeof defaultBoxVariants> {
     children: ReactNode
 }
 
-function DefaultBox({ width = "full", align, variant, tone, className, children }: DefaultBoxProps) {
+function DefaultBox({ width = "full", align, variant, tone, borderTone, className, children }: DefaultBoxProps) {
     const widthClass = width === "full" ? "w-full" : width;
 
     return (
-        <div className={cn(defaultBoxVariants({ align, variant, tone }), widthClass, className)}>
+        <div className={cn(defaultBoxVariants({ align, variant, tone, borderTone }), widthClass, className)}>
             {children}
         </div>
     );
