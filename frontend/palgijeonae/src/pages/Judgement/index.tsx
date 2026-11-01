@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { ProcessingStatusType } from "@/api/types";
+import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
@@ -24,6 +26,8 @@ function JudgementPage() {
     }, [isInvalidAccess, navigate]);
 
     const { data, isPending, isError, refetch } = useJudgementProducts(diagnosesId, !isInvalidAccess);
+    const isDiagnosisDone = data != null
+        && (data.processingStatus === ProcessingStatusType.Completed || data.processingStatus === ProcessingStatusType.Failed);
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -55,6 +59,15 @@ function JudgementPage() {
                         {data.products.map((product) => (
                             <ProductProgressCard key={product.productId} product={product} />
                         ))}
+                    </div>
+                    <div className="flex w-full items-center justify-between">
+                        <p className="text-sm text-neutral-muted">페이지를 나가도 진단은 계속돼요. 마이페이지에서 다시 볼 수 있어요.</p>
+                        <Button
+                            text="진단서 보기 →"
+                            onClick={() => navigate(`/result/diagnoses/${diagnosesId}`)}
+                            fontSize={15}
+                            disabled={!isDiagnosisDone}
+                        />
                     </div>
                 </div>
             )}
