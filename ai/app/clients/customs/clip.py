@@ -9,7 +9,10 @@ from ...schemas.clients.customs_request import CLIPSearchRequest
 from ...schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 
 # HS 코드 한 개 (10단위 8414.59-9000, 6단위 9032.89)
-_HS_CODE_RE = re.compile(r"\d{4}\.?\d{2}(?:-?\d{4})?")
+# 10단위는 점 대신 하이픈·공백이 섞인 표기도 있음 (8525-10-9010, 8479. 89-9099, 5407-52.0000)
+# 구분 기호는 점·하이픈으로 시작해야 함 (공백만 있으면 다음 코드와 붙음)
+# 6단위는 점만 허용 (문장 속 "고시2005-16" 같은 숫자를 코드로 읽지 않게)
+_HS_CODE_RE = re.compile(r"\d{4}(?:[.\-][ .\-]*)?\d{2}(?:[ ]*[.\-][ ]*)?\d{4}|\d{4}\.?\d{2}")
 
 
 def parse_hs_codes(text: str) -> list[str]:
@@ -23,6 +26,7 @@ def parse_hs_codes(text: str) -> list[str]:
 
     Returns:
         list[str]: 숫자만 남긴 HS 코드 목록. 6단위까지만 결정된 사례는 6자리.
+            호(4자리)·류(2자리)까지만 적은 표기와 문장("각각 해당 호에 분류")은 읽지 않음.
     """
     codes = [re.sub(r"\D", "", code) for code in _HS_CODE_RE.findall(text)]
     # 구성품마다 같은 코드를 따로 적은 경우 대비 중복 제거 (순서 유지)
