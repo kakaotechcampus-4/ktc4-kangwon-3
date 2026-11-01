@@ -49,14 +49,14 @@ function JudgementPage() {
                     </button>
                 </div>
             ) : (
-                <>
-                <StatusSummaryBar products={data.products}/>
-                <div className="flex flex-col gap-4">
-                    {data.products.map((product) => (
-                        <ProductProgressCard key={product.productId} product={product} />
-                    ))}
+                <div className="flex w-full flex-col gap-6">
+                    <StatusSummaryBar products={data.products} pollIntervalMs={data.pollIntervalMs} />
+                    <div className="flex flex-col gap-4">
+                        {data.products.map((product) => (
+                            <ProductProgressCard key={product.productId} product={product} />
+                        ))}
+                    </div>
                 </div>
-                </>
             )}
         </div>
     );
