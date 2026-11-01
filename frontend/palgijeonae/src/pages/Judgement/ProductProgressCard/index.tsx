@@ -40,7 +40,7 @@ const ACTION_CONFIG: Partial<Record<ProcessingStatusType, ActionConfig>> = {
     [ProcessingStatusType.AwaitingInput]: {
         label: "질문에 답변하기 →",
         buildPath: (productId) => `/question/${productId}`,
-        className: "border-status-warning text-[#6e500b]",
+        className: "border-status-warning text-status-warning",
     },
     [ProcessingStatusType.Completed]: {
         label: "결과 보기",
@@ -86,7 +86,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
             {showProgressBar && <ProgressBar progresses={progresses} />}
             {notice && (
                 <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
-                    <p className="flex-1 text-sm leading-[1.55]">{notice.text}</p>
+                    <p className="flex-1 text-sm leading-normal">{notice.text}</p>
                 </div>
             )}
         </DefaultBox>
