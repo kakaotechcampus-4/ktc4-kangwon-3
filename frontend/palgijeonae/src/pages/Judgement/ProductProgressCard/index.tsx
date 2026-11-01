@@ -5,6 +5,7 @@ import { ProcessingStatusType } from "@/api/types";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
+import { countGraphemes, truncateGraphemes } from "@/lib/text";
 
 import StatusBadge from "./StatusBadge";
 import { getStatusDescription } from "./statusDescription";
@@ -19,6 +20,12 @@ const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "wa
 };
 
 const ACTION_BUTTON_BASE_CLASS = "shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-sm font-semibold";
+
+// 상품명을 몇 글자까지 보여줄 지 결정
+const MAX_PRODUCT_NAME_LENGTH = 30;
+
+const truncateProductName = (name: string) =>
+    countGraphemes(name) > MAX_PRODUCT_NAME_LENGTH ? `${truncateGraphemes(name, MAX_PRODUCT_NAME_LENGTH)}...` : name;
 
 interface ActionConfig {
     label: string
@@ -62,7 +69,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     />
                     <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-2">
-                            <h2 className="text-lg font-bold text-black">{productName}</h2>
+                            <h2 className="text-lg font-bold text-black">{truncateProductName(productName)}</h2>
                             <StatusBadge processingStatus={processingStatus} />
                         </div>
                         <p className="text-sm text-neutral-muted">{description}</p>
