@@ -237,6 +237,68 @@ def ingest_clip_cases(
     return report
 
 
+@dataclass
+class ClipRefillReport:
+    """HS 코드 다시 채우기 결과.
+
+    Attributes:
+        empty: HS 코드가 빈 사례 수.
+        filled: 코드를 새로 읽어 채운 사례 수.
+        failed: 상세를 받지 못한 문서 ID.
+    """
+
+    empty: int = 0
+    filled: int = 0
+    failed: list[str] = field(default_factory=list)
+
+
+def refill_hs_codes(
+    *,
+    detail: CLIPDetailClient,
+    session_factory: Callable[[], Session],
+    workers: int = 4,
+    sleep: Callable[[float], None] = time.sleep,
+) -> ClipRefillReport:
+    """HS 코드가 빈 결정사례의 상세를 다시 받아 코드만 채운다. 파서를 고친 뒤 이미 적재된 행에 반영할 때 씀.
+
+    내용·임베딩은 바꾸지 않음 (임베딩 입력에 HS 코드가 없음). 다시 읽어도 빈 사례는 그대로 둠.
+
+    Args:
+        detail: CLIP 상세 클라이언트.
+        session_factory: DB 세션을 만드는 함수.
+        workers: 동시 요청 수.
+        sleep: 재시도 대기 함수.
+
+    Returns:
+        ClipRefillReport: 다시 채우기 결과.
+    """
+    with session_factory() as session:
+        doc_ids = HsCaseRepository(session).list_doc_ids_without_hs_codes()
+    report = ClipRefillReport(empty=len(doc_ids))
+    logger.info("HS 코드가 빈 CLIP 사례 %d건 다시 받는 중", len(doc_ids))
+
+    def fetch(doc_id: str) -> CLIPCase | None:
+        try:
+            return _retry(lambda: detail.fetch_parsed(CLIPDetailRequest(doc_id=doc_id)), sleep=sleep)
+        except Exception as exc:
+            logger.warning("CLIP 상세 실패 %s (%s)", doc_id, type(exc).__name__)
+            return None
+
+    found = {}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        for doc_id, case in zip(doc_ids, pool.map(fetch, doc_ids)):
+            if case is None:
+                report.failed.append(doc_id)
+            elif case.hs_codes:
+                found[doc_id] = case.hs_codes
+    if found:
+        with session_factory() as session:
+            HsCaseRepository(session).update_hs_codes(found)
+            session.commit()
+    report.filled = len(found)
+    return report
+
+
 KST = timezone(timedelta(hours=9))
 
 
