@@ -231,3 +231,37 @@ def test_clip_ingest_도중_예외가_나도_클라이언트를_닫는다(monkey
     with pytest.raises(RuntimeError):
         cli.main(["clip-ingest"])
     assert called["search"].closed and called["detail"].closed
+
+
+def _clip_refill(monkeypatch, report) -> dict:
+    """DB 준비·상세 클라이언트·다시 채우기 루틴을 가짜로 바꾸고, 받은 인자를 기록한다."""
+    called = {"detail": _Client()}
+    monkeypatch.setattr(cli, "init_db", lambda: [])
+    monkeypatch.setattr(cli, "get_session_factory", lambda: "session-factory")
+    monkeypatch.setattr(cli, "CLIPDetailClient", lambda: called["detail"])
+
+    def refill(**kwargs):
+        called["kwargs"] = kwargs
+        return report
+    monkeypatch.setattr(cli, "refill_hs_codes", refill)
+    return called
+
+
+def test_clip_refill_hs는_결과를_출력하고_상세_클라이언트를_닫는다(monkeypatch, capsys):
+    from app.db.clip_ingest import ClipRefillReport
+
+    called = _clip_refill(monkeypatch, ClipRefillReport(empty=141, filled=59))
+
+    assert cli.main(["clip-refill-hs", "--workers", "2"]) == 0
+    assert "CLIP HS 코드 다시 채우기 — 빈 사례 141건, 채움 59건, 그대로 빔 82건, 실패 없음" in capsys.readouterr().out
+    assert called["kwargs"] == {"detail": called["detail"], "session_factory": "session-factory", "workers": 2}
+    assert called["detail"].closed
+
+
+def test_clip_refill_hs는_실패한_사례가_있으면_1로_끝난다(monkeypatch, capsys):
+    from app.db.clip_ingest import ClipRefillReport
+
+    _clip_refill(monkeypatch, ClipRefillReport(empty=3, filled=1, failed=["D1"]))
+
+    assert cli.main(["clip-refill-hs"]) == 1
+    assert "그대로 빔 1건, 실패 1건 (D1)" in capsys.readouterr().out

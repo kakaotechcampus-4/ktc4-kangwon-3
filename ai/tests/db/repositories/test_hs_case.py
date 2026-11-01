@@ -75,3 +75,17 @@ def test_문서_ID_묶음_삭제는_빈_목록이면_DB를_부르지_않는다(s
 def test_문서_ID_전체_조회는_문서_ID_칸만_읽는다(session):
     assert HsCaseRepository(session).list_doc_ids() == set()
     assert " ".join(session.last_sql().split()) == "SELECT hs_cases.doc_id FROM hs_cases"
+
+
+def test_HS_코드가_빈_사례는_배열_길이로_찾는다(session):
+    assert HsCaseRepository(session).list_doc_ids_without_hs_codes() == []
+    sql = " ".join(session.last_sql().split())
+    assert "WHERE cardinality(hs_cases.hs_codes) = %(cardinality_1)s ORDER BY hs_cases.doc_id" in sql
+
+
+def test_HS_코드_갱신은_그_문서의_hs_codes만_바꾼다(session):
+    HsCaseRepository(session).update_hs_codes({"A1": ["8525109010"], "B2": ["903289"]})
+
+    assert len(session.statements) == 2
+    sql = " ".join(session.last_sql().split())
+    assert sql == "UPDATE hs_cases SET hs_codes=%(hs_codes)s::VARCHAR(10)[] WHERE hs_cases.doc_id = %(doc_id_1)s"
