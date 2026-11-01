@@ -1,10 +1,12 @@
 import type { ProductResult } from "@/api/product";
 import { ProcessingStatusType } from "@/api/types";
+import { cn } from "@/lib/cn";
 
 import { STATUS_SUMMARY_INFO } from "./statusSummaryInfo";
 
 interface StatusSummaryBarProps {
     products: ProductResult[]
+    pollIntervalMs: number | null
 }
 
 // 상품들을 한 번 순회하며 상태별 개수를 센다. PENDING은 BE 설명대로 IN_PROGRESS로 합친다.
@@ -27,13 +29,29 @@ function countProductsByStatus(products: ProductResult[]): Map<ProcessingStatusT
     return counts;
 }
 
-function StatusSummaryBar({ products }: StatusSummaryBarProps) {
+function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
     const statusCounts = countProductsByStatus(products);
 
-    // TODO: 컴포넌트 구성(레이아웃/스타일)은 다음 단계에서 진행. 지금은 집계한 값만 확인.
     return (
-        <div>
-            {Array.from(statusCounts, ([status, count]) => `${STATUS_SUMMARY_INFO[status].label} ${count}`).join(" · ")}
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#f7f8fa] px-[22px] py-4">
+            <div className="flex flex-wrap items-center gap-4.5">
+                {Array.from(statusCounts, ([status, count]) => {
+                    const { label, dotClassName } = STATUS_SUMMARY_INFO[status];
+                    return (
+                        <div key={status} className="flex items-center gap-1.5">
+                            <span className={cn("size-2 rounded-full", dotClassName)} />
+                            <span className="text-sm text-neutral-text">{label}</span>
+                            <span className="text-sm font-bold text-black">{count}</span>
+                        </div>
+                    );
+                })}
+            </div>
+            {pollIntervalMs != null && (
+                <div className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-full bg-status-success" />
+                    <span className="text-sm text-neutral-muted">{pollIntervalMs / 1000}초마다 자동 갱신 중</span>
+                </div>
+            )}
         </div>
     );
 }
