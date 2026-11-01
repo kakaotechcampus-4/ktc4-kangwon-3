@@ -12,7 +12,7 @@ const AWAITING_INPUT_NOTICE_TEXT = "답변하면 처음부터 다시 진단해�
 export function getStatusNotice(product: ProductResult): StatusNotice | null {
     switch (product.processingStatus) {
         case ProcessingStatusType.AwaitingInput:
-            return { text: AWAITING_INPUT_NOTICE_TEXT, className: "bg-status-warning-bg text-[#6e500b]" };
+            return { text: AWAITING_INPUT_NOTICE_TEXT, className: "bg-status-warning-bg text-status-warning" };
         case ProcessingStatusType.Failed:
             return product.failure
                 ? { text: product.failure.errorMessage, className: "bg-status-danger-bg text-status-danger" }
