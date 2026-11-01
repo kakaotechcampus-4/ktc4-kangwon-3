@@ -1,4 +1,4 @@
-"""AI DB 관리 명령. 서버에서는 docker exec ai-app 으로 실행.
+"""AI DB 관리 명령. 서버에서는 docker exec ai-server 로 실행.
 
     cd ai
     python -m app.db.cli init
