@@ -40,11 +40,10 @@ const truncateProductName = (name: string) =>
 interface ActionConfig {
     label: string
     buildPath: (productId: string) => string
-    // 상태별 테두리/글자 색. 피그마 상 흰 배경 + 상태 색 테두리·텍스트 조합.
     className: string
 }
 
-// 답변이 필요하거나 완료된 상품만 버튼이 있다.
+// 답변이 필요하거나 완료된 상품만 버튼 노출.
 const ACTION_CONFIG: Partial<Record<ProcessingStatusType, ActionConfig>> = {
     [ProcessingStatusType.AwaitingInput]: {
         label: "질문에 답변하기 →",
@@ -54,7 +53,7 @@ const ACTION_CONFIG: Partial<Record<ProcessingStatusType, ActionConfig>> = {
     [ProcessingStatusType.Completed]: {
         label: "결과 보기",
         buildPath: (productId) => `/result/product/${productId}`,
-        className: "border-black text-black",
+        className: "border-status-success text-status-success",
     },
 };
 
@@ -64,8 +63,12 @@ interface ProductProgressCardProps {
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
     const { productId, productName, productImageUrl, progresses } = product;
+    // displayStatus: 화면에 보여줄 상태(전환 중엔 이전 상태를 유지). isFinishing: 진행 중 → 완료로 막대가 채워지는 중인지.
+    // changeCount: 화면 상태가 실제로 바뀔 때마다 증가하는 트리거 값(첫 렌더는 0 → 효과 없음).
     const { displayStatus, isFinishing, changeCount } = useStatusTransition(product.processingStatus);
+    // changeCount가 바뀐 순간에만 카드 내용 크로스페이드를 한 번 재생한다.
     const contentRef = useAnimateOnChange<HTMLDivElement>(changeCount, FADE_KEYFRAMES, FADE_OPTIONS);
+    // PENDING도 IN_PROGRESS와 같은 "진행 중"으로 취급한다.
     const isRunning = isRunningStatus(displayStatus);
     // 상태 전환 중에는 실제 processingStatus 대신 표시용 상태(displayStatus)로 배지/설명/버튼/테두리를 계산한다.
     const displayProduct = { ...product, processingStatus: displayStatus };
@@ -102,7 +105,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                         </Link>
                     )}
                 </div>
-                {isRunning && <ProgressBar progresses={progresses} finishing={isFinishing} />}
+                {isRunning && <ProgressBar progresses={progresses} />}
                 {notice && (
                     <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
                         <p className="flex-1 text-sm leading-normal">{notice.text}</p>
