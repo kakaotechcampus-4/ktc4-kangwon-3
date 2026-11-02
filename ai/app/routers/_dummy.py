@@ -293,7 +293,7 @@ DUMMY_STAGES = (
 def run_dummy_diagnosis(
     job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter,
 ) -> JobDone:
-    """파이프라인 러너 연결 전까지 세션 관리자에 넣는 더미 진단 함수.
+    """테스트에서 세션 관리자에 넣는 더미 진단 함수.
 
     단계 진행만 흉내 내고 고정 결과로 완료. LLM·외부 API 호출 없음.
     질문으로 끝나지 않아 재진단도 같은 완료 결과.
@@ -319,7 +319,7 @@ _OUT_OF_SCOPE_SIGNALS = ("chemical_product", "weapon_like", "plant_material")
 
 
 class DummyAssessmentPresenter:
-    """가짜 진단 결과를 공개 진단서·질문으로 바꾸는 임시 변환기. 실제 변환기([콜백 5/5]) 전까지 사용.
+    """가짜 진단 결과를 공개 진단서·질문으로 바꾸는 테스트용 변환기.
 
     result_status는 검증 상태·종합 판단·지원 분야 밖 신호로만 정함. 분야 카드·판단·법령 근거는 결과에서 그대로 옮김.
     """
