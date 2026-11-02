@@ -65,7 +65,7 @@ interface ProductProgressCardProps {
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
     const { productId, productName, productImageUrl, progresses } = product;
-    const { displayStatus, finishing, animationKey } = useStatusTransition(product.processingStatus);
+    const { displayStatus, finishing, animationKey, contentKey } = useStatusTransition(product.processingStatus);
     // 상태 전환 중에는 실제 processingStatus 대신 표시용 상태(displayStatus)로 배지/설명/버튼/테두리를 계산한다.
     const displayProduct = { ...product, processingStatus: displayStatus };
     const description = getStatusDescription(displayProduct);
@@ -93,7 +93,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                 />
             )}
             <div
-                key={`content-${animationKey ?? 0}`}
+                key={`content-${contentKey}`}
                 className={cn("relative flex w-full flex-col gap-5", animationKey != null && "motion-safe:animate-status-fade")}
             >
                 <div className="flex w-full flex-row items-center justify-between gap-4">
