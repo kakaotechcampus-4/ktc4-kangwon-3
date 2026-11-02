@@ -3,13 +3,16 @@ import { PipelineStage } from "@/api/product";
 import { ProcessingStatusType } from "@/api/types";
 import { getCurrentRoundQuestions } from "@/lib/questions";
 
+// ProgressBar.tsx의 PROGRESS_SEGMENTS도 이 세 단계를 "정리·검증" 한 구간으로 묶어서 보여준다.
+const FINALIZING_DESCRIPTION = "검토 결과를 정리하고 있어요.";
+
 const STAGE_DESCRIPTIONS: Record<PipelineStage, string> = {
     [PipelineStage.Extraction]: "상세페이지에서 상품 정보를 읽고 있어요.",
     [PipelineStage.Selection]: "검토할 분야를 고르고 있어요.",
     [PipelineStage.ToolExecution]: "분야별 전문가가 법령을 확인하고 있어요.",
-    [PipelineStage.Aggregation]: "검토 결과를 정리하고 있어요.",
-    [PipelineStage.Verification]: "검토 결과를 정리하고 있어요.",
-    [PipelineStage.Finalization]: "검토 결과를 정리하고 있어요.",
+    [PipelineStage.Aggregation]: FINALIZING_DESCRIPTION,
+    [PipelineStage.Verification]: FINALIZING_DESCRIPTION,
+    [PipelineStage.Finalization]: FINALIZING_DESCRIPTION,
 };
 
 const RETRYING_DESCRIPTION = "검증에서 보완할 점이 있어 법령을 다시 확인하고 있어요.";
