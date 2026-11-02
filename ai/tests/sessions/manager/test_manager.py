@@ -1012,3 +1012,31 @@ def test_진단_함수_예외도_재시도_불가_실패로_요약을_남긴다(
     _wait_until(lambda: _summary_lines(caplog))
 
     assert _summary_lines(caplog)[0].startswith("진단 요약: 실패 AI_PIPELINE_ERROR, 재시도 불가 | ")
+
+
+def test_기다리지_않고_닫으면_버리는_실행_중·대기_중·답변_대기_세션을_경고로_남긴다(managers, caplog):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-3"
+                    else JobDone(build_dummy_assessment(product_id)))
+    manager = _manager(managers, job, max_running=2)
+    manager.submit("d-1", _inputs("p-3"))
+    job.release("p-3")
+    _wait_until(lambda: _status(manager, "p-3") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    manager.submit("d-2", _inputs("p-1", "p-2", "p-4"))
+    _wait_until(lambda: {"p-1", "p-2"} <= set(job.started))
+
+    manager.shutdown(wait=False)
+    job.release("p-1")
+    job.release("p-2")
+
+    assert _messages(caplog, "WARNING") == [
+        "서버 종료로 진단을 버림: 실행 중 2개(p-1, p-2), 대기 중 1개(p-4), 결과 콜백 없음. 답변 대기 1개도 사라짐",
+    ]
+
+
+def test_버릴_세션이_없으면_종료_경고를_남기지_않는다(managers, caplog):
+    manager = _manager(managers, _GatedJob())
+
+    manager.shutdown(wait=False)
+
+    assert _messages(caplog, "WARNING") == []
