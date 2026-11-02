@@ -64,12 +64,17 @@ function JudgementPage() {
                         ))}
                     </div>
                     <div className="flex w-full items-center justify-between">
-                        <p className="text-sm text-neutral-muted">페이지를 나가도 진단은 계속돼요. 마이페이지에서 다시 볼 수 있어요.</p>
+                        <p id="report-hint" className="text-sm text-neutral-muted">
+                            {isDiagnosisDone
+                                ? "페이지를 나가도 진단은 계속돼요. 마이페이지에서 다시 볼 수 있어요."
+                                : "진행 중인 상품이 끝나면 진단서를 볼 수 있어요."}
+                        </p>
                         <Button
                             text="진단서 보기 →"
-                            onClick={() => navigate(`/result/diagnoses/${diagnosesId}`)}
+                            onClick={() => isDiagnosisDone && navigate(`/result/diagnoses/${diagnosesId}`)}
                             fontSize={15}
-                            disabled={!isDiagnosisDone}
+                            ariaDisabled={!isDiagnosisDone}
+                            ariaDescribedBy="report-hint"
                         />
                     </div>
                 </div>
