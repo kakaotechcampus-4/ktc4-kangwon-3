@@ -28,9 +28,12 @@ export function useStatusAnnouncement(products: ProductResult[] | undefined, isD
         setPrevProducts(products);
         if (prevProducts && products) {
             const prevStatus = new Map(prevProducts.map((p) => [p.productId, p.processingStatus]));
-            const changes = products
-                .filter((p) => prevStatus.get(p.productId) !== p.processingStatus && ANNOUNCE_TEXT[p.processingStatus])
-                .map((p) => `${truncateWithEllipsis(p.productName, MAX_PRODUCT_NAME_LENGTH)} ${ANNOUNCE_TEXT[p.processingStatus]}`);
+            const changes: string[] = [];
+            for (const p of products) {
+                if (prevStatus.get(p.productId) !== p.processingStatus && ANNOUNCE_TEXT[p.processingStatus]) {
+                    changes.push(`${truncateWithEllipsis(p.productName, MAX_PRODUCT_NAME_LENGTH)} ${ANNOUNCE_TEXT[p.processingStatus]}`);
+                }
+            }
             if (isDone) changes.push("모든 진단이 끝났어요. 진단서를 볼 수 있어요");
             if (changes.length > 0) setMessage(changes.join(". "));
         }
