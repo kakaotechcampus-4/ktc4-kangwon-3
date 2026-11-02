@@ -11,6 +11,7 @@ from collections.abc import Callable
 from ..agents.verification import VerificationError
 from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIResponseCode, AIServiceError
+from ..observability.logs import set_run_field
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
@@ -138,6 +139,8 @@ class _ToolExecution:
         return result
 
     def execute_retry(self, product: Product, previous: SelectionResult, request: RetryRequest) -> SelectionResult:
+        # 이후 로그 줄(재실행 Tool·집계·검증)에 회차 표시
+        set_run_field("retry_round", request.retry_round)
         self._progress.stage(PipelineStage.TOOL_EXECUTION)
         return self._executor.execute_retry(product, previous, request)
 

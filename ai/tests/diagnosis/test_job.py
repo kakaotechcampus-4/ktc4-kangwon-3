@@ -1,11 +1,13 @@
 """실제 진단 함수를 모델·외부 호출 없이 검증한다. 파이프라인은 단계를 차례로 부르는 가짜로 바꿈."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
 from app.agents.verification import VerificationError
 from app.diagnosis import job as job_module
+from app.observability.logs import current_run_fields, run_log_context
 from app.diagnosis.assembly import PipelineParts
 from app.diagnosis.job import _reporting_tools, _ToolExecution, build_job
 from app.domain.context import ExecutionContext, PipelineStage, RunType
@@ -90,7 +92,7 @@ def pipeline(monkeypatch):
             product = extractor.run(source)
             selected = executor.execute_initial(product, selector.run(product))
             verifier.run(aggregator.aggregate(product, selected))
-            retried = executor.execute_retry(product, selected, "retry-request")
+            retried = executor.execute_retry(product, selected, SimpleNamespace(retry_round=1))
             verifier.run(aggregator.aggregate(product, retried))
             return state["result"]
 
@@ -183,6 +185,16 @@ def test_단계_실패는_실행_정보와_원인을_경고로_남긴다(pipelin
     assert "product_id=p-1, run_id=run-1" in record.message
     assert "code=AI_PIPELINE_ERROR, retryable=True" in record.message
     assert record.exc_info[1].__cause__ is error
+
+
+def test_재실행_회차부터는_로그_줄에_회차가_붙는다(pipeline):
+    seen = []
+    parts = replace(_parts([]), verifier=SimpleNamespace(run=lambda draft: seen.append(dict(current_run_fields()))))
+
+    with run_log_context(CONTEXT):
+        build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert [fields.get("retry_round") for fields in seen] == [None, "1"]
 
 
 def test_예상_밖_예외는_그대로_올려_세션이_파이프라인_오류로_기록하게_한다(pipeline):
