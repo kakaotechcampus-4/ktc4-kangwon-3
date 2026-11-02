@@ -22,6 +22,9 @@ APP_LOGGER = "app"
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s%(run_fields)s"
 # 형식을 맞출 uvicorn 로거. uvicorn.error는 uvicorn으로 넘겨 따로 핸들러가 없음
 UVICORN_LOGGERS = ("uvicorn", "uvicorn.access")
+UVICORN_ACCESS_LOGGER = "uvicorn.access"
+# 성공 응답은 접근 로그에서 빼는 주기 호출 경로. Docker 헬스체크·Prometheus 수집이 15초마다 부름
+QUIET_ACCESS_PATHS = frozenset({"/api/ai/v1/health", "/metrics"})
 
 # 지금 실행의 로그 필드. 실행 밖이면 비어 있음
 _run_fields: ContextVar[Mapping[str, str]] = ContextVar("run_log_fields", default=MappingProxyType({}))
@@ -89,6 +92,24 @@ class _RunFieldsFilter(logging.Filter):
         return True
 
 
+class _QuietAccessFilter(logging.Filter):
+    """주기 호출 경로의 성공 응답 접근 로그를 뺌. 실패 응답(4xx·5xx)은 남김.
+
+    uvicorn 접근 로그 인자: (클라이언트 주소, 메서드, 경로(쿼리 포함), HTTP 버전, 상태 코드).
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if not (isinstance(args, tuple) and len(args) == 5):
+            return True
+        _, _, full_path, _, status = args
+        path = str(full_path).split("?", 1)[0]
+        return not (path in QUIET_ACCESS_PATHS and isinstance(status, int) and status < 400)
+
+
+_QUIET_ACCESS_FILTER = _QuietAccessFilter()
+
+
 # 핸들러마다 같은 필터 하나. 다시 설정해도 필터가 쌓이지 않음 (addFilter는 같은 객체를 두 번 넣지 않음)
 _RUN_FIELDS_FILTER = _RunFieldsFilter()
 
@@ -118,6 +139,8 @@ def configure_logging(level: str) -> None:
     for name in UVICORN_LOGGERS:
         for uvicorn_handler in logging.getLogger(name).handlers:
             _use_app_format(uvicorn_handler)
+    # 헬스체크·지표 수집 성공 줄이 하루 1만 줄 넘게 쌓여 진단 로그를 덮지 않게 함
+    logging.getLogger(UVICORN_ACCESS_LOGGER).addFilter(_QUIET_ACCESS_FILTER)
 
 
 def _use_app_format(handler: logging.Handler) -> None:
