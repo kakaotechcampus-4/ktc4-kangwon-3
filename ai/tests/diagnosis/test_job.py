@@ -16,7 +16,7 @@ from app.schemas.callback import PublicQuestionDto
 from app.schemas.pipeline import RetryRequest
 from app.schemas.product import Product
 from app.schemas.schemas import (
-    ExecutionEndReason, ToolName, ToolResult, ToolStatus, VerificationResult, VerificationStatus,
+    ExecutionEndReason, FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationResult, VerificationStatus,
 )
 from app.schemas.session import DiagnosisInput, SessionAnswer
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
@@ -55,7 +55,7 @@ class _Step:
 
 
 def _parts(calls, *, extraction_error=None) -> PipelineParts:
-    extraction = type("Extraction", (), {"run": staticmethod(_Step(calls, "extract", error=extraction_error))})()
+    extraction = type("Extraction", (), {"run": staticmethod(_Step(calls, "extract", returns=Product(product_id="p-1"), error=extraction_error))})()
     return PipelineParts(
         extraction=extraction,
         selector=type("Selector", (), {"run": staticmethod(_Step(calls, "select"))})(),
@@ -123,6 +123,21 @@ def test_추출은_원래_입력이_아니라_실행_입력_전체로_부른다(
     build_job(_parts(calls), _no_questions)(job_input, CONTEXT, _Progress())
 
     assert calls[0] == ("extract", (job_input,))
+
+
+def test_재진단은_추출_결과에_이번_회차_답변을_붙여_선택_단계로_넘긴다(pipeline):
+    calls = []
+    parts = _parts(calls)
+    parts.extraction.run = staticmethod(lambda job_input: Product(product_id="p-1", listing_text=["무선 선풍기"]))
+    previous = _result().model_copy(update={"follow_up_questions": [
+        FollowUpQuestion(question="배터리로만 동작하나요?", reason="판단에 필요")]})
+    job_input = DiagnosisInput(source=SOURCE, previous=previous, answers=[
+        SessionAnswer(question_round=1, question_key="r1_q1", answer_text="네")])
+
+    build_job(parts, _no_questions)(job_input, CONTEXT, _Progress())
+
+    selected_product = next(args[0] for name, args in calls if name == "select")
+    assert selected_product.listing_text == ["무선 선풍기", "[사용자 답변] 배터리로만 동작하나요? → 네"]
 
 
 def test_Tool_실행기는_조립한_Tool을_진행_알림으로_감싸_실행마다_만든다(pipeline):

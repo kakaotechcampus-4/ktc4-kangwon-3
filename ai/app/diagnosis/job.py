@@ -21,6 +21,7 @@ from ..schemas.schemas import (
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
 from ..tools.base import RegulatoryTool
+from .answers import with_answers
 from .assembly import PipelineParts
 
 # 질문 결과 + 질문 회차 → BE에 보낼 질문
@@ -65,7 +66,10 @@ def _next_round(job_input: DiagnosisInput) -> int:
 
 
 class _Extraction:
-    """추출 자리. 파이프라인이 넘기는 원래 입력 대신 실행 입력 전체로 추출 단계를 부름 (재진단이면 이전 추출 결과)."""
+    """추출 자리. 파이프라인이 넘기는 원래 입력 대신 실행 입력 전체로 추출 단계를 부름.
+
+    재진단이면 이전 추출 결과에 이번 회차 답변을 붙여 선택 단계부터 다시 돎.
+    """
 
     def __init__(self, parts: PipelineParts, job_input: DiagnosisInput, progress: ProgressReporter) -> None:
         self._step = parts.extraction
@@ -74,7 +78,7 @@ class _Extraction:
 
     def run(self, source: ExtractionInput) -> Product:
         self._progress.stage(PipelineStage.EXTRACTION)
-        return self._step.run(self._job_input)
+        return with_answers(self._step.run(self._job_input), self._job_input)
 
 
 class _Selection:
