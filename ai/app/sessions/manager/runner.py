@@ -5,7 +5,7 @@ from typing import assert_never
 
 from ...domain.errors import AIResponseCode
 from ...domain.context import ExecutionContext, PipelineStage
-from ...observability.logs import run_log_context
+from ...observability.logs import run_log_context, set_run_field
 from ...schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerificationStatus, ToolName
 from ...schemas.session import DiagnosisInput
 from ..job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, ToolProgressStatus
@@ -28,6 +28,8 @@ class _Progress:
         self._context = context
 
     def stage(self, stage: PipelineStage) -> None:
+        # 이후 로그 줄에 지금 단계 표시
+        set_run_field("stage", stage.value)
         self._updater.apply(self._context, ChangeStage(stage))
 
     def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None:

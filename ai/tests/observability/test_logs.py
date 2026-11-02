@@ -5,7 +5,13 @@ import logging
 import pytest
 
 from app.domain.context import ExecutionContext, RunType
-from app.observability.logs import APP_LOGGER, configure_logging, current_run_fields, run_log_context
+from app.observability.logs import (
+    APP_LOGGER,
+    configure_logging,
+    current_run_fields,
+    run_log_context,
+    set_run_field,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -60,6 +66,19 @@ def test_진단서_ID가_없는_실행은_그_필드를_뺀다():
         fields = dict(current_run_fields())
 
     assert fields == {"product_id": "dev-1", "run_id": context.run_id, "run_type": "test"}
+
+
+def test_실행_중_바꾼_필드는_실행이_끝나면_사라지고_실행_밖에서는_무시한다():
+    context = ExecutionContext.start(product_id="p-1", run_type=RunType.PRODUCTION)
+
+    set_run_field("stage", "selection")
+    with run_log_context(context):
+        set_run_field("stage", "selection")
+        set_run_field("retry_round", 1)
+        inside = dict(current_run_fields())
+
+    assert (inside["stage"], inside["retry_round"]) == ("selection", "1")
+    assert dict(current_run_fields()) == {}
 
 
 def test_외부_라이브러리_로거는_건드리지_않는다(capsys):

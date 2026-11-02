@@ -44,6 +44,20 @@ def run_log_context(context: ExecutionContext) -> Iterator[None]:
         _run_fields.reset(token)
 
 
+def set_run_field(name: str, value: object) -> None:
+    """지금 실행의 로그 필드 하나를 넣거나 바꾼다. 실행 밖이면 무시.
+
+    단계·재실행 회차처럼 실행 중 바뀌는 값용. ``run_log_context``를 나가면 함께 사라짐.
+
+    Args:
+        name: 필드 이름 (``stage``, ``retry_round`` 등).
+        value: 값. 문자열로 붙임.
+    """
+    fields = _run_fields.get()
+    if fields:
+        _run_fields.set(MappingProxyType({**fields, name: str(value)}))
+
+
 def current_run_fields() -> Mapping[str, str]:
     """지금 실행의 로그 필드. 실행 밖이면 빈 매핑.
 

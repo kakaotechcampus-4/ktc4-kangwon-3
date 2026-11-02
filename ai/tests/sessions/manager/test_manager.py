@@ -175,6 +175,22 @@ def test_진단_함수_안의_로그에는_그_실행의_정보가_붙고_끝나
     assert dict(current_run_fields()) == {}
 
 
+def test_단계_알림_뒤_로그_줄에는_지금_단계가_붙는다(managers):
+    seen = []
+
+    def job(job_input, context, progress):
+        seen.append(current_run_fields().get("stage"))
+        progress.stage(PipelineStage.EXTRACTION)
+        seen.append(current_run_fields().get("stage"))
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert seen == [None, "extraction"]
+
+
 def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):
     manager = _manager(managers, _GatedJob())
 
