@@ -13,8 +13,8 @@ import StatusBadge from "./components/StatusBadge";
 import StatusFlash from "./components/StatusFlash";
 import { useAnimateOnChange } from "./hooks/useAnimateOnChange";
 import { isRunningStatus, useStatusTransition } from "./hooks/useStatusTransition";
-import { getStatusDescription } from "./statusDescription";
-import { getStatusNotice } from "./statusNotice";
+import { getStatusDescription } from "./utils/statusDescription";
+import { getStatusNotice } from "./utils/statusNotice";
 
 const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "warning" | "danger"> = {
     [ProcessingStatusType.Pending]: "neutral",
