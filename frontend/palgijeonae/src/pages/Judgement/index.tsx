@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { ProcessingStatusType } from "@/api/types";
 import Button from "@/components/common/Button";
+import HelpTooltip from "@/components/common/HelpTooltip";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
@@ -57,7 +58,16 @@ function JudgementPage() {
                 </div>
             ) : (
                 <div className="flex w-full flex-col gap-6">
-                    <StatusSummaryBar products={data.products} pollIntervalMs={data.pollIntervalMs} />
+                    <div>
+                        <StatusSummaryBar products={data.products} pollIntervalMs={data.pollIntervalMs} />
+                        <div className="flex w-full items-center justify-end gap-3">
+                            <span className="text-sm text-neutral-muted">결과는 언제 볼 수 있나요?</span>
+                            <HelpTooltip label="결과 확인 방법 안내">
+                                먼저 진단이 완료된 상품은 결과 보기 버튼으로 개별로 확인할 수 있어요.{"\n"}
+                                전체 상품을 한 번에 보려면 진단이 모드 끝난 후 맨 아래 진단서 보기 버튼을 사용하세요.
+                            </HelpTooltip>
+                        </div>
+                    </div>
                     <ul aria-label="진단 중인 상품" className="flex flex-col gap-4">
                         {data.products.map((product) => (
                             <li key={product.productId}>
