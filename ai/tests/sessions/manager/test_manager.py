@@ -9,6 +9,7 @@ import pytest
 
 from app.domain.context import PipelineStage, RunType
 from app.observability.logs import current_run_fields
+from app.observability.measurements import ToolRun, measurement_sinks
 from app.observability.run_summary import current_summary
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
@@ -207,7 +208,8 @@ def test_실행마다_새_요약에_단계를_모으고_끝나면_지운다(mana
     _wait_until(lambda: all(_status(manager, p) is SessionStatus.COMPLETED for p in ("p-1", "p-2")))
 
     assert len(seen) == 2 and seen[0] is not seen[1]
-    assert all(set(summary.stage_seconds) == {"extraction"} for summary in seen)
+    # 마지막 단계(선택)는 실행이 끝날 때 닫힘
+    assert all(set(summary.stage_seconds) == {"extraction", "selection"} for summary in seen)
     assert current_summary() is None
 
 
@@ -942,3 +944,43 @@ def test_접수_거절은_이유와_함께_경고로_남긴다(managers, caplog)
 
     assert _messages(caplog, "WARNING") == ["진단 접수 거절: 대기열 가득 참 (상품 2개)",
                                             "진단 접수 거절: 진행 중인 상품 p-1 (상품 1개)"]
+
+
+def _summary_lines(caplog) -> list[str]:
+    return [m for m in _messages(caplog, "INFO") if m.startswith("진단 요약")]
+
+
+@pytest.mark.parametrize(("outcome_for", "ending"), [
+    (lambda pid: JobDone(build_dummy_assessment(pid)),
+     "완료 action_required, 검증 verified_with_warnings, 종료 completed"),
+    (_ask, "답변 대기, 질문 1개"),
+    (lambda pid: JobFailed("AI_PIPELINE_ERROR", retryable=True), "실패 AI_PIPELINE_ERROR, 재시도 가능"),
+])
+def test_실행이_끝나면_결말과_단계·Tool·모델_호출_요약을_한_줄로_남긴다(managers, caplog, outcome_for, ending):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.EXTRACTION)
+        measurement_sinks.publish(ToolRun("radio", "success", 1.25))
+        return outcome_for(context.product_id)
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _summary_lines(caplog))
+
+    [line] = _summary_lines(caplog)
+    assert line.startswith(f"진단 요약: {ending} | 총 ")
+    assert "| 단계(초) extraction " in line
+    assert "| Tool(초) radio success 1.2 | Tool 실행 0회 | 모델 호출 0회(실패 0) 토큰 입력 0 출력 0 | 비용 0.0원" in line
+
+
+def test_진단_함수_예외도_재시도_불가_실패로_요약을_남긴다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _GatedJob(raise_error=True)
+    manager = _manager(managers, job)
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _summary_lines(caplog))
+
+    assert _summary_lines(caplog)[0].startswith("진단 요약: 실패 AI_PIPELINE_ERROR, 재시도 불가 | ")
