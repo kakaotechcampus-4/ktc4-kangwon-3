@@ -1,7 +1,7 @@
 import type { ProductProgress, ProductResult } from "@/api/product";
 import { PipelineStage } from "@/api/product";
 import { ProcessingStatusType } from "@/api/types";
-import { getCurrentRoundQuestions } from "@/pages/Question/currentQuestions";
+import { getCurrentRoundQuestions } from "@/lib/questions";
 
 const STAGE_DESCRIPTIONS: Record<PipelineStage, string> = {
     [PipelineStage.Extraction]: "상세페이지에서 상품 정보를 읽고 있어요.",
