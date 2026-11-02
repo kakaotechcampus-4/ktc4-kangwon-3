@@ -86,6 +86,12 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     className={cn("pointer-events-none absolute inset-0 motion-safe:animate-status-flash", FLASH_BG[displayStatus])}
                 />
             )}
+            {showProgressSweep && (
+                <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-0 left-0 z-10 h-0.5 w-2/5 bg-linear-to-r from-transparent via-primary to-transparent motion-safe:animate-progress-sweep"
+                />
+            )}
             <div
                 key={`content-${animationKey ?? 0}`}
                 className={cn("relative flex w-full flex-col gap-5", animationKey != null && "motion-safe:animate-status-fade")}
@@ -116,12 +122,6 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
                         <p className="flex-1 text-sm leading-normal">{notice.text}</p>
                     </div>
-                )}
-                {showProgressSweep && (
-                    <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute top-0 left-0 z-10 h-0.5 w-2/5 bg-linear-to-r from-transparent via-primary to-transparent motion-safe:animate-progress-sweep"
-                    />
                 )}
             </div>
         </DefaultBox>
