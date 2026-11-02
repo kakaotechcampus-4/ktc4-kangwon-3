@@ -113,13 +113,30 @@ def _log_summary(outcome: Outcome, summary: RunSummary) -> None:
         case _:
             assert_never(outcome)
     stages = " ".join(f"{stage} {seconds:.1f}" for stage, seconds in summary.stage_seconds.items())
-    tools = ", ".join(f"{tool.tool_name} {tool.status} {tool.seconds:.1f}" for tool in summary.tools)
+    tools = _format_tools(summary)
     logger.info(
         "진단 요약: %s | 총 %.1f초 | 단계(초) %s | Tool(초) %s | Tool 실행 %d회 | 모델 호출 %d회(실패 %d) "
         "토큰 입력 %d 출력 %d | 비용 %.1f원",
         ending, total, stages or "-", tools or "-", summary.tool_execution_rounds, summary.model_calls,
         summary.model_failures, summary.input_tokens, summary.output_tokens, summary.cost_krw,
     )
+
+
+def _format_tools(summary: RunSummary) -> str:
+    """요약의 Tool 목록. 재실행이 있으면 회차별로 ``[1] … [2] …``로 묶고, 없으면 회차 표시 없이.
+
+    Args:
+        summary: 이 실행의 요약 재료.
+
+    Returns:
+        str: ``이름 상태 초`` 목록. Tool이 없으면 빈 문자열.
+    """
+    rounds: dict[int, list[str]] = {}
+    for tool in summary.tools:
+        rounds.setdefault(tool.round, []).append(f"{tool.tool_name} {tool.status} {tool.seconds:.1f}")
+    if len(rounds) <= 1:
+        return ", ".join(item for items in rounds.values() for item in items)
+    return " ".join(f"[{number}] {', '.join(items)}" for number, items in rounds.items())
 
 
 def _close_at_question_limit(result: FinalAssessment) -> FinalAssessment:

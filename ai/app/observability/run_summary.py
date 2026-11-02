@@ -28,11 +28,13 @@ class ToolRunSummary:
         tool_name: Tool 이름.
         status: 실행 상태.
         seconds: 걸린 시간(초).
+        round: Tool 실행 회차. 첫 회차 1, 재실행마다 1씩.
     """
 
     tool_name: str
     status: str
     seconds: float
+    round: int = 1
 
 
 @dataclass
@@ -90,13 +92,13 @@ class RunSummary:
         return self.clock() - self.started
 
     def add_tool(self, run: ToolRun) -> None:
-        """Tool 실행 1건을 넣는다. 건너뜀은 시간이 없어 뺌.
+        """Tool 실행 1건을 지금 회차로 넣는다. 건너뜀은 시간이 없어 뺌.
 
         Args:
             run: Tool 실행 측정 기록.
         """
         if run.status != "skipped":
-            self.tools.append(ToolRunSummary(run.tool_name, run.status, run.seconds))
+            self.tools.append(ToolRunSummary(run.tool_name, run.status, run.seconds, max(self.tool_execution_rounds, 1)))
 
     def add_call(self, meta: "AgentRunMeta") -> None:
         """모델 호출 1건을 더한다.

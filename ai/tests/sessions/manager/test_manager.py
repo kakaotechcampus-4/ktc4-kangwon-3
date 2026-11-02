@@ -1040,3 +1040,23 @@ def test_버릴_세션이_없으면_종료_경고를_남기지_않는다(manager
     manager.shutdown(wait=False)
 
     assert _messages(caplog, "WARNING") == []
+
+
+def test_Tool_재실행이_있으면_요약의_Tool_목록을_회차별로_묶는다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("radio", "success", 1.0))
+        measurement_sinks.publish(ToolRun("customs", "success", 2.0))
+        progress.stage(PipelineStage.VERIFICATION)
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("radio", "failed", 0.5, error_type="client"))
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _summary_lines(caplog))
+
+    assert "| Tool(초) [1] radio success 1.0, customs success 2.0 [2] radio failed 0.5 | Tool 실행 2회 |" \
+        in _summary_lines(caplog)[0]

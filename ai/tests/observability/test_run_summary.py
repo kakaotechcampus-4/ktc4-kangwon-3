@@ -58,3 +58,14 @@ def test_실행_밖의_기록은_무시한다():
     measurement_sinks.publish(ToolRun("radio", "success", 1.0))
 
     assert current_summary() is None
+
+
+def test_Tool_실행은_들어간_Tool_실행_회차를_같이_남긴다():
+    with run_summary() as summary:
+        summary.enter_stage(S.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("radio", "success", 1.0))
+        summary.enter_stage(S.VERIFICATION)
+        summary.enter_stage(S.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("customs", "failed", 2.0, error_type="client"))
+
+    assert [(t.tool_name, t.round) for t in summary.tools] == [("radio", 1), ("customs", 2)]
