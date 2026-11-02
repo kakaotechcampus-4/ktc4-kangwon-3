@@ -1,7 +1,7 @@
 """클라이언트·콜백 발신함·Tool·추출·DB 캐시·법령 점검·CLIP 적재·HTTP 요청이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
 
 기록을 남기는 코드는 지표를 몰라도 됨. 서버는 lifespan에서 지표 sink를 등록하고 종료 때 해제.
-받는 쪽 오류는 경고 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음.
+받는 쪽 오류는 오류 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음.
 """
 
 import logging
@@ -198,7 +198,7 @@ class MeasurementSinkRegistry:
             self.remove(sink)
 
     def publish(self, record: Measurement) -> None:
-        """기록 1건을 등록된 sink 전부에 넘긴다. sink 오류는 경고 로그만 남김.
+        """기록 1건을 등록된 sink 전부에 넘긴다. sink 오류는 오류 로그만 남김.
 
         Args:
             record: 측정 기록.
@@ -210,7 +210,7 @@ class MeasurementSinkRegistry:
             try:
                 sink(record)
             except Exception:
-                logger.warning("측정 기록 sink 처리 실패 (%s)", type(record).__name__, exc_info=True)
+                logger.error("측정 기록 sink 처리 실패 (%s)", type(record).__name__, exc_info=True)
 
 
 # 앱 전체가 함께 쓰는 등록표

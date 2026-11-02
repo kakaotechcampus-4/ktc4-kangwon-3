@@ -57,8 +57,9 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder) -> DiagnosisJob:
             result = pipeline.run(job_input.source)
         except AIServiceError as exc:
             # 단계가 정한 실패 코드·재시도 여부를 그대로 (#450). 세션 실행기는 이 실패를 로그로 안 남김 → 원인과 함께 기록
-            logger.warning("진단 단계 실패 (stage=%s, code=%s, retryable=%s)",
-                           exc.stage, exc.response_code.code, exc.retryable, exc_info=exc)
+            # 예상한 실패 → 위치 없이 원인 예외만 한 줄로
+            logger.warning("진단 단계 실패 (stage=%s, code=%s, retryable=%s): %s", exc.stage,
+                           exc.response_code.code, exc.retryable, _error_text(exc.__cause__ or exc))
             return JobFailed(exc.response_code.code, exc.retryable)
         progress.stage(PipelineStage.FINALIZATION)
         if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:

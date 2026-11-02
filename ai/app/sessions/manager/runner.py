@@ -124,7 +124,7 @@ def _log_summary(outcome: Outcome, summary: RunSummary) -> None:
 
 def _close_at_question_limit(result: FinalAssessment) -> FinalAssessment:
     """질문 회차를 다 쓴 실행의 질문 결과를 미완료 결과로 바꾼다. 남은 질문은 기록용으로 그대로 둠."""
-    logger.warning("질문 회차 초과로 미완료 처리 (남은 질문 %d개)", len(result.follow_up_questions))
+    logger.info("질문 회차 초과로 미완료 처리 (남은 질문 %d개)", len(result.follow_up_questions))
     return result.model_copy(update={
         "termination_reason": ExecutionEndReason.QUESTION_LIMIT_EXCEEDED,
         "verification_status": FinalVerificationStatus.INCOMPLETE,

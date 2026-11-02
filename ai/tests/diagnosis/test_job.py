@@ -186,7 +186,8 @@ def test_단계_실패는_원인을_경고로_남긴다(pipeline, caplog):
     # 진단서·상품·실행 ID는 실행 정보로 줄 끝에 붙어 메시지에는 넣지 않음
     assert "product_id" not in record.message
     assert "code=AI_PIPELINE_ERROR, retryable=True" in record.message
-    assert record.exc_info[1].__cause__ is error
+    assert record.message.endswith(": VerificationError: checked_finding_ids에 중복이 있습니다.")
+    assert record.exc_info is None
 
 
 def test_재실행_회차부터는_로그_줄에_회차가_붙는다(pipeline):
