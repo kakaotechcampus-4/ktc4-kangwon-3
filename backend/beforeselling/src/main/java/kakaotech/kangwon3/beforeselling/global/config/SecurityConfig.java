@@ -146,6 +146,7 @@ public class SecurityConfig {
                 HttpMethod.GET.name(), HttpMethod.POST.name(), HttpMethod.PUT.name(),
                 HttpMethod.PATCH.name(), HttpMethod.DELETE.name(), HttpMethod.OPTIONS.name()));
         configuration.setAllowedHeaders(List.of(HttpHeaders.AUTHORIZATION, HttpHeaders.CONTENT_TYPE));
+        configuration.setExposedHeaders(List.of(HttpHeaders.RETRY_AFTER));
         // 리프레시 토큰 쿠키를 주고받기 위해 credentials 허용 (allowedOrigins에 와일드카드 사용 불가)
         configuration.setAllowCredentials(true);
 
