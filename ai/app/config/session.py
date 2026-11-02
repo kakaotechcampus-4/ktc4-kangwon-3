@@ -11,8 +11,9 @@ MAX_RUNNING_SESSIONS = 10
 # 대기 + 실행 중 세션 상한. 넘으면 접수 거절
 # t3.medium, AI 컨테이너 1GB 기준 최악 약 360MB (대기 세션당 약 5MB 추정)
 MAX_INFLIGHT_SESSIONS = 50
-# 샌드박스 진단 대기 + 실행 중 상한. 요청 하나(최대 10개)만큼, 운영 진단 자리를 덜 차지하게 따로 둠 (전체 상한에도 같이 셈)
-MAX_DEV_INFLIGHT_SESSIONS = 10
+# 샌드박스 진단 대기 + 실행 중 상한. 운영 진단 실행 자리를 덜 차지하게 따로 둠 (전체 상한에도 같이 셈)
+# 실제 파이프라인(모델 호출)이라 3개. 샌드박스 요청 상품 수 상한도 이 값
+MAX_DEV_INFLIGHT_SESSIONS = 3
 # 접수부터 결과까지 최대 시간. 넘으면 시간 초과 실패
 SESSION_MAX_DURATION_SECONDS = 600
 # 시간 초과·보관 시간 정리 주기
