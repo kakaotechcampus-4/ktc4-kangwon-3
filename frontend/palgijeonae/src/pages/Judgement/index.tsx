@@ -10,6 +10,7 @@ import { isMissingRouteParam } from "@/lib/routeParams";
 import ProductProgressCard from "./ProductProgressCard";
 import StatusSummaryBar from "./StatusSummaryBar";
 import { useJudgementProducts } from "./useJudgementProducts";
+import { useStatusAnnouncement } from "./useStatusAnnouncement";
 
 function JudgementPage() {
     const { diagnosesId } = useParams<{ diagnosesId?: string }>();
@@ -28,6 +29,7 @@ function JudgementPage() {
     const { data, isPending, isError, refetch } = useJudgementProducts(diagnosesId, !isInvalidAccess);
     const isDiagnosisDone = data != null
         && (data.processingStatus === ProcessingStatusType.Completed || data.processingStatus === ProcessingStatusType.Failed);
+    const announcement = useStatusAnnouncement(data?.products, isDiagnosisDone);
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -39,6 +41,7 @@ function JudgementPage() {
                         : "상품을 확인하고 있어요."
                 }
             />
+            <p role="status" className="sr-only">{announcement}</p>
             {isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
