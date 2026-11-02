@@ -11,11 +11,12 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from ...schemas.schemas import CustomsAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName
+from ...schemas.product import Product
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.law import EvidenceUnavailable
 from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
-from .rules import format_hs, omission_status, related_tool, sale_actions
+from .rules import excluded_by_product, format_hs, omission_status, related_tool, sale_actions
 from .search import (
     CaseSearch, HsCase, Requirement, RequirementLookup,
 )
@@ -165,6 +166,9 @@ class CustomsTool(EvidenceSearchTool):
         if evidence is not None:
             query["documents"] = evidence.documents()
         requirements, unresolved = self._lookup_requirements(hs_codes, run.assumptions)
+        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions)
+        if excluded:
+            query["excluded_requirements"] = excluded
         run.requirements = requirements
         query["requirements"] = {code: [item.law_name for item in requirements if item.hs_code == code]
                                  for code in hs_codes if code not in unresolved}
@@ -205,7 +209,9 @@ class CustomsTool(EvidenceSearchTool):
             ))
         query["related_tools"] = related
         # 조회는 됐지만 요건이 0건인 HS. 다른 HS에 요건이 있어도 따로 알림(결과 서술에서 빠지지 않게)
-        empty = [code for code in hs_codes if code not in unresolved and not query["requirements"].get(code)]
+        # 상품 신호로 요건을 뺀 HS는 조회 결과가 0건인 게 아니라서 "요건 없음"으로 안내하지 않음 (뺀 이유는 가정에 있음)
+        empty = [code for code in hs_codes if code not in unresolved and not query["requirements"].get(code)
+                 and code not in excluded]
         if empty:
             act_source = self._act_source(evidence)
             labels = ", ".join(format_hs(code) for code in empty)
@@ -367,6 +373,36 @@ def _lone_headings(chosen: list, cases: Iterable[HsCase]) -> list[str]:
     if all(score(case) <= 1 for case, _, _ in chosen):
         return []
     return [case.case_id for case, _, _ in chosen if score(case) <= 1]
+
+
+def _exclude_by_product(requirements: list[Requirement], product: Product, assumptions: list[str]
+                        ) -> tuple[list[Requirement], dict[str, list[str]]]:
+    """상품 신호로 보아 해당하지 않는 요건을 뺀다. 뺀 이유는 가정에 남긴다.
+
+    Args:
+        requirements: HS 후보의 세관장확인 요건.
+        product: 상품 정보.
+        assumptions: 결과에 남길 가정. 뺀 요건마다 이유를 더함.
+
+    Returns:
+        tuple[list[Requirement], dict[str, list[str]]]: (남긴 요건, HS별로 뺀 법령).
+    """
+    kept: list[Requirement] = []
+    excluded: dict[str, list[str]] = {}
+    reasons: dict[str, tuple[str, list[str]]] = {}
+    for item in requirements:
+        goods = excluded_by_product(item.law_name, product)
+        if goods is None:
+            kept.append(item)
+            continue
+        excluded.setdefault(item.hs_code, []).append(item.law_name)
+        codes = reasons.setdefault(law_key(item.law_name), (item.law_name, goods, []))[2]
+        if item.hs_code not in codes:
+            codes.append(item.hs_code)
+    for law_name, goods, codes in reasons.values():
+        assumptions.append(f"HS {', '.join(format_hs(code) for code in codes)}의 「{law_name}」 세관장확인 요건은 "
+                           f"{goods}에만 걸리는 요건이라, 상품 정보상 이에 해당하지 않아 제외했습니다.")
+    return kept, excluded
 
 
 def _case_source(case: HsCase) -> LegalSource:

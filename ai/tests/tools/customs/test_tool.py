@@ -476,3 +476,50 @@ def test_여러_번_나온_호끼리_갈리거나_모두_한_번씩이면_찾지
 
     assert _lone_headings([(babies[0], None, []), (kids[0], None, [])], [*babies, *kids]) == []
     assert _lone_headings([(kettle, None, []), (coffee, None, [])], [kettle, coffee]) == []
+
+
+# -- 상품 신호로 빼는 요건 (완구 HS에 걸린 총포법 등) --
+
+_GUN = Requirement(hs_code="9503003919", law_name="총포･도검･화약류 등의 안전관리에 관한 법률", agency="경찰청",
+                   document="총포화약류등 수입허가증", apply_start_date="20200406")
+_CHILD = Requirement(hs_code="9503003300", law_name="어린이제품 안전 특별법", agency="기술표준원",
+                     document="어린이제품 요건확인서", apply_start_date="20200406")
+
+
+def _toy_result(weapon_like):
+    product, facts = product_and_facts()
+    product = product.model_copy(update={"weapon_like": weapon_like})
+    cases = _FixedCases(HsCase("g", ("9503003919",), "WOODEN TOY", "", ""),
+                        HsCase("c", ("9503003300",), "BLOCK TOY", "", ""))
+    tool = CustomsTool(Model(facts, review(select("g"), select("c"))), case_search=cases,
+                       requirements=FakeRequirements({"9503003919": [_GUN], "9503003300": [_CHILD]}),
+                       evidence=lambda: _EVIDENCE)
+    return tool.execute(product, decision())
+
+
+def test_무기_형태가_아닌_상품이면_HS에_걸린_총포법_요건은_빼고_이유를_남긴다():
+    result = _toy_result(False)
+
+    subjects = [finding.subject for finding in result.findings]
+    assert subjects == ["세관장확인 대상 후보 — 어린이제품 안전 특별법"]
+    assert result.query["excluded_requirements"] == {"9503003919": [_GUN.law_name]}
+    assert result.query["requirements"]["9503003919"] == []
+    assert result.result.applicable_requirements == ["어린이제품 안전 특별법"]
+    assert all("총포" not in text for text in result.required_actions)
+    note = next(text for text in result.findings[0].assumptions if "제외했습니다" in text)
+    assert "9503.00-3919" in note and "무기 형태 물품" in note
+
+
+def test_요건을_뺀_HS는_조회_결과_요건_없음으로_안내하지_않는다():
+    result = _toy_result(False)
+
+    assert all("HS 후보 기준 없음" not in finding.subject for finding in result.findings)
+
+
+@pytest.mark.parametrize("weapon_like", [True, None])
+def test_무기_형태이거나_모르면_총포법_요건을_남긴다(weapon_like):
+    result = _toy_result(weapon_like)
+
+    subjects = [finding.subject for finding in result.findings]
+    assert "세관장확인 대상 후보 — 총포･도검･화약류 등의 안전관리에 관한 법률" in subjects
+    assert "excluded_requirements" not in result.query

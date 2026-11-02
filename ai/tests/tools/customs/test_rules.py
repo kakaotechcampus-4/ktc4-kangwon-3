@@ -24,3 +24,15 @@ def test_GW가_법령_이름에_요건_종류를_붙여도_같은_법령으로_�
     assert law_key("야생생물 보호 및 관리에 관한 법률(허가)") == law_key("야생생물 보호 및 관리에 관한 법률")
     exceptions = {law_key("야생생물 보호 및 관리에 관한 법률"): ""}
     assert omission_status("야생생물 보호 및 관리에 관한 법률(허가)", exceptions) == ("excepted", "")
+
+
+def test_상품_신호가_False일_때만_조건부_요건을_뺀다():
+    from app.schemas.product import Product
+    from app.tools.customs.rules import excluded_by_product
+
+    law = "총포･도검･화약류 등의 안전관리에 관한 법률"
+    assert excluded_by_product(law, Product(product_id="p", weapon_like=False)) is not None
+    assert excluded_by_product(law, Product(product_id="p", weapon_like=True)) is None
+    assert excluded_by_product(law, Product(product_id="p")) is None
+    # 조건이 없는 법령은 신호와 상관없이 남김
+    assert excluded_by_product("어린이제품 안전 특별법", Product(product_id="p", weapon_like=False)) is None

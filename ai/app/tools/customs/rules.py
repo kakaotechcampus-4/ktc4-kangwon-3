@@ -2,9 +2,11 @@
 
 - HS 표기: 숫자 10자리 → "8516.79-9000", 6자리 → "8516.79".
 - 요건 법령과 다른 규제 Tool의 대응(검증 단계가 교차 확인할 수 있게 결과에 남긴다).
+- 상품 신호가 아니라고 나오면 빼는 요건(HS 하나에 여러 물품이 묶여 일부 물품에만 걸리는 요건).
 - 판매 방식별 안내(관세법 제226조, 고시 별표 2·제7조 제2항). HS가 후보이므로 모두 조건부로 쓴다.
 """
 
+from ...schemas.product import Product
 from ...schemas.schemas import ToolName
 from ..common.facts import object_particle
 from .evidence import ConfirmationRow, law_key
@@ -36,6 +38,30 @@ def related_tool(law_name: str) -> ToolName | None:
         ToolName | None: 관련 Tool. 없으면 None.
     """
     return RELATED_TOOLS.get(law_key(law_name))
+
+
+# 요건 법령 → (상품 신호, 해당하는 물품). HS 하나에 여러 물품이 묶여 있어(예: 완구 HS에 모의총포) GW는 HS 단위로
+# 요건을 주지만, 법은 그 물품에만 걸린다. 신호가 False(아니라고 추출)일 때만 빼고 None(모름)이면 남긴다.
+PRODUCT_CONDITIONED_LAWS: dict[str, tuple[str, str]] = {
+    law_key("총포·도검·화약류 등의 안전관리에 관한 법률"): ("weapon_like", "총포·도검·모의총포 등 무기 형태 물품"),
+}
+
+
+def excluded_by_product(law_name: str, product: Product) -> str | None:
+    """상품 신호로 보아 이 요건 법령이 해당하지 않으면 그 이유를 돌려준다.
+
+    Args:
+        law_name: 요건 법령 이름.
+        product: 상품 정보.
+
+    Returns:
+        str | None: 해당하는 물품 설명(뺄 때). 남길 요건이면 None.
+    """
+    condition = PRODUCT_CONDITIONED_LAWS.get(law_key(law_name))
+    if condition is None:
+        return None
+    signal, goods = condition
+    return goods if getattr(product, signal) is False else None
 
 
 def format_hs(code: str) -> str:
