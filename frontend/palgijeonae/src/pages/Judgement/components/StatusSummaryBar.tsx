@@ -48,9 +48,9 @@ function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
                 })}
             </div>
             <div className="flex items-center gap-1.5">
-                <span className={cn("size-2 rounded-full", pollIntervalMs != null ? "bg-status-success" : "bg-[#9d9d9d]")} />
+                <span className={cn("size-2 rounded-full", pollIntervalMs != null ? "bg-status-success" : "bg-neutral-border")} />
                 <span className="text-sm text-neutral-muted">
-                    {pollIntervalMs != null ? `${pollIntervalMs / 1000}초마다 자동 갱신 중` : "갱신 종료"}
+                    {pollIntervalMs != null ? `${pollIntervalMs / 1000}초마다 불러오는 중` : "종료"}
                 </span>
             </div>
         </div>
