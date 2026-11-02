@@ -30,6 +30,7 @@ function JudgementPage() {
     const { data, isPending, isError, refetch } = useJudgementProducts(diagnosesId, !isInvalidAccess);
     const isDiagnosisDone = data != null
         && (data.processingStatus === ProcessingStatusType.Completed || data.processingStatus === ProcessingStatusType.Failed);
+    // 폴링으로 바뀌는 상태를 스크린리더에게도 알린다.
     const announcement = useStatusAnnouncement(data?.products, isDiagnosisDone);
 
     return (
