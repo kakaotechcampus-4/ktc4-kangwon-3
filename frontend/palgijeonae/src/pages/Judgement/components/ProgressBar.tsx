@@ -23,13 +23,13 @@ enum SegmentStatus {
 const BAR_CLASSES: Record<SegmentStatus, string> = {
     [SegmentStatus.Completed]: "bg-primary",
     [SegmentStatus.Current]: "bg-primary opacity-50 motion-safe:animate-segment-breathe",
-    [SegmentStatus.Upcoming]: "bg-gray-200",
+    [SegmentStatus.Upcoming]: "bg-neutral-border/20",
 };
 
 const LABEL_CLASSES: Record<SegmentStatus, string> = {
     [SegmentStatus.Completed]: "font-normal text-neutral-text",
     [SegmentStatus.Current]: "font-bold text-primary",
-    [SegmentStatus.Upcoming]: "font-normal text-gray-400",
+    [SegmentStatus.Upcoming]: "font-normal text-neutral-border",
 };
 
 // 색으로만 구분되는 단계 상태를 스크린리더용 글자로 보충한다.
