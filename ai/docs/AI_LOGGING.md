@@ -8,6 +8,9 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 - 레벨은 환경변수 `LOG_LEVEL` (DEBUG·INFO·WARNING·ERROR, 비우면 INFO). 그 밖의 값은 기동 실패
 - `app` 로거만 설정. uvicorn 로거는 uvicorn 설정 그대로, 외부 라이브러리(httpx 등)는 WARNING 이상만 (요청 주소에 API 키가 들어가는 로그 방지)
 - 출력은 표준 에러 → 서버에서는 `docker logs`로 봄
+- uvicorn이 붙인 핸들러(기동·접근 로그)도 같은 형식으로 맞춤. 상태 코드 뒤 설명(`OK` 등)과 색은 빠짐
+- 헬스체크(`/api/ai/v1/health`)·지표 수집(`/metrics`)의 성공 응답은 접근 로그에서 뺌. 15초마다 불려 진단 로그를 덮음. 실패 응답은 남음
+- 컨테이너 로그는 10MB씩 5개까지만 보관 (`docker-compose.yml`의 `x-logging`)
 
 ## 2. 형식
 
@@ -53,6 +56,8 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | `진단 접수 (글 N개 N자, 이미지 N장, URL 있음/없음)` | INFO | `sessions/manager/manager.py` |
 | `재진단 접수 (질문 회차 N, 답변 N개)` | INFO | `sessions/manager/manager.py` |
 | `진단 접수 거절: 대기열 가득 참` / `진행 중인 상품 ...` | WARNING | `sessions/manager/manager.py` |
+| `재진단 접수 거절: {이유} (질문 회차 n, 답변 n개)` | WARNING | `sessions/manager/manager.py` |
+| `서버 종료로 진단을 버림: 실행 중 n개(...), 대기 중 n개(...), ...` | WARNING | `sessions/manager/manager.py` |
 | `진단 시작 (대기 N초, 답변 N개)` | INFO | `sessions/manager/runner.py` |
 | `모델 호출 {이름} (모델, 시간, 토큰, 비용)` | INFO | `agents/base/usage_log.py` |
 | `모델 호출 실패 {이름} (...)` | WARNING | `agents/base/usage_log.py` |
@@ -75,7 +80,7 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 
 - 결말: `완료 {종합 상태}, 검증 {검증 상태}, 종료 {종료 이유}` / `답변 대기, 질문 N개` / `실패 {코드}, 재시도 가능·불가`
 - 단계 시간: Tool 재실행 회차의 같은 단계는 더함. `Tool 실행 N회`가 2 이상이면 검증이 Tool을 다시 부른 것
-- Tool: 실행 순서대로, 건너뜀은 뺌
+- Tool: 실행 순서대로, 건너뜀은 뺌. 재실행이 있으면 회차별로 묶음 (`[1] radio_compliance success 1.2, ... [2] labeling_advertising_detection success 1.7`)
 - 모델 호출·토큰·비용: 이 실행의 에이전트 호출 합. 단가를 모르는 모델은 비용에서 빠짐
 - 모으는 곳: `app/observability/run_summary.py` (측정 기록·에이전트 실행 기록 sink로 받음)
 
@@ -96,6 +101,7 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 ```
 
 - 레벨을 바꾸려면 서버 `.env`의 `LOG_LEVEL`을 고치고 컨테이너를 다시 띄움
+- 배포·`docker stop` 때 실행 중이던 진단은 그 자리에서 끊김 (uvicorn이 종료 처리 뒤 SIGTERM을 다시 발생시킴). 버린 상품은 `서버 종료로 진단을 버림` 줄로 확인
 - 모델 호출 사용량 기록(`logs/usage.jsonl`)은 named volume `ai-logs`에 남아 배포 뒤에도 유지. 보기: `docker exec ai-server python -m app.usage`
 
 ## 6. 새 로그를 넣을 때
