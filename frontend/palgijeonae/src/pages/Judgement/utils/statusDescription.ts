@@ -49,7 +49,7 @@ export function getStatusDescription(product: ProductResult): string {
         case ProcessingStatusType.AwaitingInput:
             return `확인이 필요한 질문 ${getCurrentRoundQuestions(product.questions).length}개`;
         case ProcessingStatusType.Completed:
-            return product.summary ?? "";
+            return product.summary ?? "진단이 완료되었어요.";
         case ProcessingStatusType.Failed:
             return product.failure?.errorMessage ?? "진단에 실패했어요.";
     }
