@@ -175,7 +175,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 | 지표 | 시점 | 비고 |
 |---|---|---|
 | `ai_build_info` | 버전 규칙 결정 후 | `version`, `model_profile`. 지금 배포는 서버에서 소스로 빌드해 앱 안에 버전 정보가 없음 |
-| `ai_result_status`, `ai_result_incomplete` | 진단서 변환(#408)·파이프라인 연결(#320) 후 | |
+| `ai_result_status`, `ai_result_incomplete` | 진단서 변환(#408)·파이프라인 연결(#320) 후 | `reason` 라벨(#408 `DecisionReason`)로 재확인 필요가 미완료·Tool 실패·정보 부족·지원 분야 밖 중 어디서 오는지 구분 |
 | `ai_pipeline_end`, `ai_verification_results`, `ai_pipeline_retry_rounds`, `ai_question_rounds`, `ai_questions_asked`, `ai_diagnosis_cost_krw` | 파이프라인 연결(#320) 후 | |
 | `ai_tool_runs`에 `run_type` 추가 | 파이프라인 연결(#320) 후 | `ToolExecutor`가 실행 컨텍스트를 받게 되면. `ai_session_tool_progress`는 이때 합침 |
 
@@ -188,3 +188,4 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 법령 점검 마지막 성공이 하루 넘게 지남: `time() - ai_law_refresh_last_success_timestamp > 86400`
 - 사람이 확인할 법령 변경: `increase(ai_law_changes_total{kind="skipped"}[1d]) > 0`
 - CLIP 주간 적재가 실패로 끝남: `increase(ai_clip_ingest_runs_total{result=~"failed|partial"}[1d]) > 0` (기동 직후엔 돌지 않아 성공 시각 기준 알람은 재기동 뒤 오탐)
+- CLIP 주간 적재가 멈춤 (스케줄러가 돌지 않아 실패도 안 남는 경우): `ai_clip_ingest_last_success_timestamp > 0 and time() - ai_clip_ingest_last_success_timestamp > 8 * 86400` (성공 시각 0은 재기동 직후라 제외)
