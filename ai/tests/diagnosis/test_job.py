@@ -173,6 +173,18 @@ def test_검증_실패는_재시도_가능한_파이프라인_오류로_돌려�
     assert PipelineStage.FINALIZATION not in progress.stages
 
 
+def test_단계_실패는_실행_정보와_원인을_경고로_남긴다(pipeline, caplog):
+    error = VerificationError("checked_finding_ids에 중복이 있습니다.")
+
+    build_job(_parts([], verification_error=error), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    record = next(r for r in caplog.records if r.message.startswith("진단 단계 실패"))
+    assert record.levelname == "WARNING"
+    assert "product_id=p-1, run_id=run-1" in record.message
+    assert "code=AI_PIPELINE_ERROR, retryable=True" in record.message
+    assert record.exc_info[1].__cause__ is error
+
+
 def test_예상_밖_예외는_그대로_올려_세션이_파이프라인_오류로_기록하게_한다(pipeline):
     with pytest.raises(RuntimeError):
         build_job(_parts([], extraction_error=RuntimeError("버그")), _no_questions)(

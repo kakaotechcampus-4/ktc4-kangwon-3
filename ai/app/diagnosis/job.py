@@ -5,6 +5,7 @@
 Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하는 Tool만 started·completed가 다시 나감.
 """
 
+import logging
 from collections.abc import Callable
 
 from ..agents.verification import VerificationError
@@ -24,6 +25,8 @@ from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outc
 from ..tools.base import RegulatoryTool
 from .answers import with_answers
 from .assembly import PipelineParts
+
+logger = logging.getLogger(__name__)
 
 # 질문 결과 + 질문 회차 → BE에 보낼 질문
 QuestionBuilder = Callable[[FinalAssessment, int], list[PublicQuestionDto]]
@@ -51,7 +54,10 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder) -> DiagnosisJob:
         try:
             result = pipeline.run(job_input.source)
         except AIServiceError as exc:
-            # 단계가 정한 실패 코드·재시도 여부를 그대로 (#450)
+            # 단계가 정한 실패 코드·재시도 여부를 그대로 (#450). 세션 실행기는 이 실패를 로그로 안 남김 → 원인과 함께 기록
+            logger.warning("진단 단계 실패 (product_id=%s, run_id=%s, stage=%s, code=%s, retryable=%s)",
+                           context.product_id, context.run_id, exc.stage, exc.response_code.code, exc.retryable,
+                           exc_info=exc)
             return JobFailed(exc.response_code.code, exc.retryable)
         progress.stage(PipelineStage.FINALIZATION)
         if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:
