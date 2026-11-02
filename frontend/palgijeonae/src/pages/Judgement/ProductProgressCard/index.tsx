@@ -86,7 +86,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     <div className="flex flex-row items-center gap-4">
                         <img
                             src={productImageUrl ?? defaultThumbnail}
-                            alt="상품 썸네일"
+                            alt=""
                             className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
                         />
                         <div className="flex flex-col items-start gap-1">
