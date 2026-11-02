@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { ProductResult } from "@/api/product";
 import { ProcessingStatusType } from "@/api/types";
+import { truncateWithEllipsis } from "@/lib/text";
 
 // 스크린리더로 알릴 상태만. 진행 중으로 바뀌는 건(PENDING → IN_PROGRESS, 답변 후 재진행) 알리지 않는다.
 const ANNOUNCE_TEXT: Partial<Record<ProcessingStatusType, string>> = {
@@ -9,6 +10,9 @@ const ANNOUNCE_TEXT: Partial<Record<ProcessingStatusType, string>> = {
     [ProcessingStatusType.Completed]: "진단이 끝났어요",
     [ProcessingStatusType.Failed]: "진단에 실패했어요",
 };
+
+// 카드에 보이는 상품명 길이와 맞춘다.
+const MAX_PRODUCT_NAME_LENGTH = 30;
 
 /**
  * 폴링 응답 사이에 상태가 바뀐 상품을 한 문장으로 모아 돌려준다.
@@ -26,7 +30,7 @@ export function useStatusAnnouncement(products: ProductResult[] | undefined, isD
             const prevStatus = new Map(prevProducts.map((p) => [p.productId, p.processingStatus]));
             const changes = products
                 .filter((p) => prevStatus.get(p.productId) !== p.processingStatus && ANNOUNCE_TEXT[p.processingStatus])
-                .map((p) => `${p.productName} ${ANNOUNCE_TEXT[p.processingStatus]}`);
+                .map((p) => `${truncateWithEllipsis(p.productName, MAX_PRODUCT_NAME_LENGTH)} ${ANNOUNCE_TEXT[p.processingStatus]}`);
             if (isDone) changes.push("모든 진단이 끝났어요. 진단서를 볼 수 있어요");
             if (changes.length > 0) setMessage(changes.join(". "));
         }
