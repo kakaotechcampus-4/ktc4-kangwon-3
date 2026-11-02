@@ -120,6 +120,8 @@ const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
 
 // TEMP: 실제 숏폴링처럼 호출할 때마다 진행 상태가 바뀌는 것처럼 보여주는 임시 목업. 삭제 예정.
 let mockPollTick = 0;
+// TEMP: diagnosesId가 바뀌면(새 진단 시작) 틱을 리셋해서, 두 번째 진단이 이전 진단에 이어서 완료 상태로 보이지 않게 한다.
+let mockPollDiagnosesId: string | null = null;
 
 // TEMP: 틱이 지날수록 상품마다 다른 속도로 진행되다가, 마지막엔 모두 끝나서 진단서 전체도 끝난다.
 function buildMockSnapshot(tick: number): DiagnosesDetail {
@@ -181,9 +183,13 @@ function buildMockSnapshot(tick: number): DiagnosesDetail {
 }
 
 // TODO: AI 파이프라인이 연결되면 아래 주석 풀고 목업 대신 실제 API를 쓸 것
-export async function getDiagnosesPolling(_diagnosesId: string) {
+export async function getDiagnosesPolling(diagnosesId: string) {
     // const response = await apiClient.get(`/api/v1/diagnoses/${diagnosesId}`);
     // return response.data.data as DiagnosesDetail;
+    if (diagnosesId !== mockPollDiagnosesId) {
+        mockPollDiagnosesId = diagnosesId;
+        mockPollTick = 0;
+    }
     const snapshot = buildMockSnapshot(mockPollTick);
     mockPollTick += 1;
     return snapshot;
