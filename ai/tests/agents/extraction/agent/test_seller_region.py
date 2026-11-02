@@ -1,6 +1,7 @@
 """에이전트의 판매자 영역 적용: 쇼핑몰 글 제외, 판매자 제목 보존 (#251, #253)."""
 
 from app.agents.extraction import ExtractionAgent
+from app.agents.extraction.agent import SELLER_TITLE_LABEL
 from app.observability.measurements import SellerRegionCut, measurement_sinks
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes
@@ -20,6 +21,34 @@ def test_쇼핑몰이_붙인_글은_모델과_규칙에_넘기지_않는다(stub
         assert removed not in sent
     assert result.conflicts == []
     assert not any("5000mAh" in a.value for a in result.attributes)
+
+
+def test_찾은_판매자_제목은_머리말을_붙여_첫_블록으로_따로_보낸다(stub_model, records, aliexpress_page):
+    # 가격·옵션 사이의 제목을 모델이 상품 이름 표시로만 보고 효능 구절을 놓치는 문제 (#421)
+    model = stub_model(ProductAttributes())
+
+    ExtractionAgent(model).run(ExtractionInput(product_id="prod-title-block", text_blocks=[aliexpress_page]))
+
+    texts = [part["text"] for part in model.received[0][1].content if part.get("type") == "text"]
+    assert texts[0] == f"{SELLER_TITLE_LABEL}{_TITLE}"
+    assert len(texts) == 2
+
+
+def test_판매자_제목을_못_찾은_글에는_제목_블록을_붙이지_않는다(stub_model, records):
+    model = stub_model(ProductAttributes())
+
+    ExtractionAgent(model).run(ExtractionInput(product_id="prod-no-title", text_blocks=["판매자가 붙여 넣은 설명"]))
+
+    texts = [part["text"] for part in model.received[0][1].content if part.get("type") == "text"]
+    assert texts == ["판매자가 붙여 넣은 설명"]
+
+
+def test_모델이_옮긴_제목_블록_머리말은_listing_text에서_뗀다(stub_model, records, aliexpress_page):
+    model = stub_model(ProductAttributes(listing_text=[f"{SELLER_TITLE_LABEL}{_TITLE}", "판매자 설명 문장"]))
+
+    result = ExtractionAgent(model).run(ExtractionInput(product_id="prod-title-label", text_blocks=[aliexpress_page]))
+
+    assert result.listing_text == [_TITLE, "판매자 설명 문장"]
 
 
 def test_모델이_빠뜨린_판매자_제목은_listing_text_맨_앞에_원문으로_넣는다(stub_model, records, aliexpress_page):

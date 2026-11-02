@@ -61,6 +61,9 @@
   `battery_included=true`, `battery_is_the_product=false`.
 - `medical_claim` / `cosmetic_claim`은 실제 효과가 입증됐는지와 무관하게, 판매자가 **표방하는 문구가
   있는지만** 본다. 온열 기능이 있어도 "혈액순환 개선" 같은 표현이 없으면 `medical_claim=false`로 둔다.
+  - 상품 이름이나 기능 설명 안에 들어 있어도 표방이다. 몸이 달라진다고 말하면 `medical_claim`(통증·질환이
+    낫는다, 자세·체형·신체 기능이 바로잡힌다), 겉모습이 달라진다고 말하면 `cosmetic_claim`(피부·모발·얼굴선이
+    좋아진다)이다.
 - `food_contact` · `skin_contact`는 페이지가 용도나 접촉을 말할 때만 판단한다. "우산이니까 손에
   닿는다", "면도기니까 음식에 닿을 리 없다"는 상품 종류에서 나온 추론이지 페이지 근거가 아니다.
 - `weapon_like`는 형태·작동 방식 기준이다. "장난감 총"이라는 표기만으로 false로 판단하지 않는다.
