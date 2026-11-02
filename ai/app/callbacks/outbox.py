@@ -178,8 +178,8 @@ class CallbackOutbox:
                     _drop(event, "not_retryable", f"재시도 대상 아님({reason})", retries=attempt)
                     return
             if attempt < self._max_retries:
-                logger.warning("콜백 재시도 예정 %d/%d: %s (event_id=%s, product_id=%s)",
-                               attempt + 1, self._max_retries, reason, event.event_id, event.product_id)
+                logger.warning("콜백 재시도 예정 %d/%d: %s (event_id=%s)",
+                               attempt + 1, self._max_retries, reason, event.event_id)
         _drop(event, "retry_exhausted", f"재시도 {self._max_retries}회 초과", retries=self._max_retries)
 
     def _delay(self, attempt: int) -> float:
