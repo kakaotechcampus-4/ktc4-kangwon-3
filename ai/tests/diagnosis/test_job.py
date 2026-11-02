@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.agents.verification import VerificationError
+from app.clients.errors import ClientError
 from app.diagnosis import job as job_module
 from app.observability.logs import current_run_fields, run_log_context
 from app.diagnosis.assembly import PipelineParts
@@ -265,6 +266,32 @@ def test_Tool이_예외를_내도_완료를_보내고_결과는_실패로_남는
     assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
     radio = next(r for r in result.tool_results if r.tool_name is ToolName.RADIO)
     assert radio.status is ToolStatus.FAILED
+
+
+class _RaisingTool:
+    def __init__(self, tool_name, error):
+        self.tool_name = tool_name
+        self.error = error
+
+    def execute(self, product, decision):
+        raise self.error
+
+
+@pytest.mark.parametrize(("error", "level", "traceback"), [
+    (ClientError("응답 없음 https://apis.data.go.kr/x?serviceKey=SECRET&page=1"), "WARNING", False),
+    (RuntimeError("버그"), "ERROR", True),
+])
+def test_Tool_실패는_원인을_남기고_예상한_오류는_위치_없이_코드_오류는_위치까지_남긴다(caplog, error, level, traceback):
+    tools = {name: _RaisingTool(name, error) for name in ToolName}
+    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools, _Progress())), _Progress())
+
+    execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
+
+    [record] = [r for r in caplog.records if r.name == "app.diagnosis.job"]
+    assert record.levelname == level
+    assert record.getMessage().startswith(f"Tool 실행 실패 {ToolName.RADIO}: {type(error).__name__}: ")
+    assert "SECRET" not in record.getMessage()
+    assert (record.exc_info is not None) is traceback
 
 
 def test_재실행_회차는_다시_실행하는_Tool만_시작·완료를_보내고_건너뜀은_다시_보내지_않는다():

@@ -44,6 +44,16 @@ def test_일부_검색어가_시간_초과여도_나머지로_찾고_실패한_�
     assert SPATULA_CASE in [case.case_id for case in found.cases]
 
 
+def test_실패한_검색어는_원인과_함께_경고로_남긴다(caplog):
+    search, _, _ = clip({"주방용품": httpx.ReadTimeout("느림")})
+
+    search.collect(["실리콘 주걱", "주방용품"])
+
+    assert [(r.levelname, r.getMessage()) for r in caplog.records if r.name == "app.tools.customs.search"] == [
+        ("WARNING", "결정사례 검색어 실패 '주방용품': ReadTimeout: 느림"),
+    ]
+
+
 def test_검색어별_스레드에도_실행_정보가_넘어가_로그_줄에_붙는다():
     seen = []
 

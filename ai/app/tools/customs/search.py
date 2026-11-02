@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol
 
+from ...clients.base import mask_sensitive_params
 from ...clients.customs import CLIPClient, CustomsGwClient
 from ...observability.measurements import CacheLookup, measurement_sinks
 from ...schemas.clients.customs_request import CLIPSearchRequest, CustomsGwConfirmationRequest
@@ -173,6 +174,9 @@ class ClipCaseSearch:
                 try:
                     items.extend(future.result())
                 except Exception as exc:
+                    # 나머지 검색어로 계속해 Tool 실패로 안 남는 경우도 있어 검색어마다 남김 (#497)
+                    logger.warning("결정사례 검색어 실패 %r: %s", query,
+                                   mask_sensitive_params(f"{type(exc).__name__}: {exc}"))
                     failed.append(query)
                     errors.append(exc)
         return items, failed, errors
