@@ -105,4 +105,7 @@ DECISION_PROFILES = {profile.name: profile for profile in (
 )}
 
 # 판단 모델을 쓰는 에이전트별 프로필. 키는 BaseAgent.component_name. 없는 에이전트는 판단 모델을 안 씀
-AGENT_DECISION_PROFILES: dict[str, str] = {}
+AGENT_DECISION_PROFILES: dict[str, str] = {
+    # 10-29 선택 실험 기준. Luna와 비교 측정 후 확정
+    "decision_selection": "jev",
+}
