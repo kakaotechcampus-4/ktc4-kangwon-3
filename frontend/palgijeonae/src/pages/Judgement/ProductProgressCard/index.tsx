@@ -5,7 +5,7 @@ import { ProcessingStatusType } from "@/api/types";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
-import { countGraphemes, truncateGraphemes } from "@/lib/text";
+import { truncateWithEllipsis } from "@/lib/text";
 
 import ProgressBar from "./components/ProgressBar";
 import ProgressSweep from "./components/ProgressSweep";
@@ -32,9 +32,6 @@ const FADE_OPTIONS: KeyframeAnimationOptions = { duration: 250, easing: "ease-ou
 
 // 상품명을 몇 글자까지 보여줄 지 결정
 const MAX_PRODUCT_NAME_LENGTH = 30;
-
-const truncateProductName = (name: string) =>
-    countGraphemes(name) > MAX_PRODUCT_NAME_LENGTH ? `${truncateGraphemes(name, MAX_PRODUCT_NAME_LENGTH)}...` : name;
 
 interface ActionConfig {
     label: string
@@ -94,7 +91,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                         />
                         <div className="flex flex-col items-start gap-1">
                             <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-bold text-black">{truncateProductName(productName)}</h2>
+                                <h2 className="text-lg font-bold text-black">{truncateWithEllipsis(productName, MAX_PRODUCT_NAME_LENGTH)}</h2>
                                 <StatusBadge processingStatus={processingStatus} />
                             </div>
                             <p className="text-sm text-neutral-muted">{description}</p>
