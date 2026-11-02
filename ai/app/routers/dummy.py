@@ -1,6 +1,6 @@
 """더미 진단 라우터. /diagnose와 같은 요청·응답·콜백으로 케이스 더미를 돌림 (BE·FE 연동 확인용).
 
-BE는 실제 파이프라인 연결([콜백 5/5]) 전까지 이 경로를 쓰고, 연결 뒤 접두어만 /diagnose로 바꿈.
+실제 진단(/diagnose)과 접두어만 다름. 실제 파이프라인 연결([콜백 5/5]) 뒤에도 BE·FE 연동 확인용으로 남김.
 """
 
 from fastapi import APIRouter, Depends, Query, status
