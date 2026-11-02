@@ -378,10 +378,19 @@ def _log_abandoned(unfinished: list[DiagnosisSession], awaiting: int) -> None:
     """
     running = [s.context.product_id for s in unfinished if s.status is SessionStatus.RUNNING]
     queued = [s.context.product_id for s in unfinished if s.status is not SessionStatus.RUNNING]
-    if not (running or queued or awaiting):
-        return
-    logger.warning("서버 종료로 진단을 버림: 실행 중 %d개(%s), 대기 중 %d개(%s), 결과 콜백 없음. 답변 대기 %d개도 사라짐",
-                   len(running), ", ".join(running) or "-", len(queued), ", ".join(queued) or "-", awaiting)
+    # 0개인 항목은 뺌
+    parts, notes = [], []
+    if running:
+        parts.append(f"실행 중 {len(running)}개({', '.join(running)})")
+    if queued:
+        parts.append(f"대기 중 {len(queued)}개({', '.join(queued)})")
+    if running or queued:
+        notes.append("결과 콜백 없음")
+    if awaiting:
+        parts.append(f"답변 대기 {awaiting}개")
+        notes.append("재시작 뒤 재진단 불가")
+    if parts:
+        logger.warning("서버 종료로 진단을 버림: %s (%s)", ", ".join(parts), ", ".join(notes))
 
 
 def _check_answers(session: DiagnosisSession, answers: dict[str, str]) -> None:

@@ -57,7 +57,7 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | `재진단 접수 (질문 회차 N, 답변 N개)` | INFO | `sessions/manager/manager.py` |
 | `진단 접수 거절: 대기열 가득 참` / `진행 중인 상품 ...` | WARNING | `sessions/manager/manager.py` |
 | `재진단 접수 거절: {이유} (질문 회차 n, 답변 n개)` | WARNING | `sessions/manager/manager.py` |
-| `서버 종료로 진단을 버림: 실행 중 n개(...), 대기 중 n개(...), ...` | WARNING | `sessions/manager/manager.py` |
+| `서버 종료로 진단을 버림: 실행 중 n개(...), 대기 중 n개(...), 답변 대기 n개 (...)` (0개인 항목은 빠짐) | WARNING | `sessions/manager/manager.py` |
 | `진단 시작 (대기 N초, 답변 N개)` | INFO | `sessions/manager/runner.py` |
 | `모델 호출 {이름} (모델, 시간, 토큰, 비용)` | INFO | `agents/base/usage_log.py` |
 | `모델 호출 실패 {이름} (...)` | WARNING | `agents/base/usage_log.py` |
