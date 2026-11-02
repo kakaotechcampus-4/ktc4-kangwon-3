@@ -15,7 +15,7 @@ const ANNOUNCE_TEXT: Partial<Record<ProcessingStatusType, string>> = {
 const MAX_PRODUCT_NAME_LENGTH = 30;
 
 /**
- * 폴링 응답 사이에 상태가 바뀐 상품을 한 문장으로 모아 돌려준다.
+ * 폴링 응답 사이에 상태가 바뀐 상품을 한 문장으로 모아 돌려준다. (접근성)
  * - 첫 응답(페이지 진입)은 알리지 않는다.
  * - react-query는 데이터가 같으면 같은 참조를 돌려주므로, 참조가 바뀐 응답만 비교한다.
  */
