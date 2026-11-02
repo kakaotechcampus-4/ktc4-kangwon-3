@@ -32,6 +32,13 @@ const LABEL_CLASSES: Record<SegmentStatus, string> = {
     [SegmentStatus.Upcoming]: "font-normal text-gray-400",
 };
 
+// 색으로만 구분되는 단계 상태를 스크린리더용 글자로 보충한다.
+const SEGMENT_SR_TEXT: Record<SegmentStatus, string> = {
+    [SegmentStatus.Completed]: " 완료",
+    [SegmentStatus.Current]: " 진행 중",
+    [SegmentStatus.Upcoming]: " 대기",
+};
+
 function resolveSegmentStatus(index: number, currentIndex: number): SegmentStatus {
     if (currentIndex === -1 || index > currentIndex) return SegmentStatus.Upcoming;
     return index === currentIndex ? SegmentStatus.Current : SegmentStatus.Completed;
@@ -50,19 +57,27 @@ function ProgressBar({ progresses }: ProgressBarProps) {
     const currentIndex = PROGRESS_SEGMENTS.findIndex((segment) => currentStage != null && segment.stages.includes(currentStage));
 
     return (
-        <div className="flex w-full items-start gap-1.5">
+        <ol aria-label="진단 단계" className="flex w-full items-start gap-1.5">
             {PROGRESS_SEGMENTS.map((segment, index) => {
                 const status = resolveSegmentStatus(index, currentIndex);
                 return (
-                    <div key={segment.label} className="flex flex-1 flex-col items-start gap-2">
-                        <div className={cn("h-1.5 w-full rounded-sm transition-[background-color,opacity] duration-500", BAR_CLASSES[status])} />
+                    <li
+                        key={segment.label}
+                        aria-current={status === SegmentStatus.Current ? "step" : undefined}
+                        className="flex flex-1 flex-col items-start gap-2"
+                    >
+                        <div
+                            aria-hidden="true"
+                            className={cn("h-1.5 w-full rounded-sm transition-[background-color,opacity] duration-500", BAR_CLASSES[status])}
+                        />
                         <p className={cn("text-xs leading-4", LABEL_CLASSES[status])}>
                             {segment.label}
+                            <span className="sr-only">{SEGMENT_SR_TEXT[status]}</span>
                         </p>
-                    </div>
+                    </li>
                 );
             })}
-        </div>
+        </ol>
     );
 }
 
