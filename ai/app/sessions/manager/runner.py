@@ -75,7 +75,7 @@ def _run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionU
     try:
         outcome = job(job_input, context, _Progress(updater, context))
         if isinstance(outcome, JobNeedsInput) and session.question_round >= MAX_QUESTION_ROUNDS:
-            outcome = JobDone(_close_at_question_limit(outcome.result, context))
+            outcome = JobDone(_close_at_question_limit(outcome.result))
         # 결말 기록 실패도 진단 실패로. 실행 중으로 남으면 시간 초과까지 콜백 없이 멈춤
         match outcome:
             case JobDone(result=result):
@@ -87,7 +87,7 @@ def _run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionU
             case _:
                 assert_never(outcome)
     except Exception:
-        logger.exception("진단 실행 실패 (product_id=%s, run_id=%s)", context.product_id, context.run_id)
+        logger.exception("진단 실행 실패")
         # 일시적 오류인지 알 수 없어 재시도 불가로 기록. 코드 오류를 BE가 계속 재요청하지 않게 함
         outcome = JobFailed(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False)
         updater.apply(context, Fail(outcome.error_code, outcome.retryable))
@@ -122,12 +122,9 @@ def _log_summary(outcome: Outcome, summary: RunSummary) -> None:
     )
 
 
-def _close_at_question_limit(result: FinalAssessment, context: ExecutionContext) -> FinalAssessment:
+def _close_at_question_limit(result: FinalAssessment) -> FinalAssessment:
     """질문 회차를 다 쓴 실행의 질문 결과를 미완료 결과로 바꾼다. 남은 질문은 기록용으로 그대로 둠."""
-    logger.warning(
-        "질문 회차 초과로 미완료 처리 (product_id=%s, run_id=%s, 남은 질문 %d개)",
-        context.product_id, context.run_id, len(result.follow_up_questions),
-    )
+    logger.warning("질문 회차 초과로 미완료 처리 (남은 질문 %d개)", len(result.follow_up_questions))
     return result.model_copy(update={
         "termination_reason": ExecutionEndReason.QUESTION_LIMIT_EXCEEDED,
         "verification_status": FinalVerificationStatus.INCOMPLETE,
