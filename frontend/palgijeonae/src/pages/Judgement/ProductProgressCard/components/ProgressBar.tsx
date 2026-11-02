@@ -4,7 +4,6 @@ import { cn } from "@/lib/cn";
 
 interface Segment {
     label: string
-    // 하나의 구간에 여러 단계가 합쳐질 수 있다 (정리·검증 = 집계/검증/최종화).
     stages: PipelineStage[]
 }
 
@@ -42,6 +41,10 @@ interface ProgressBarProps {
     progresses: ProductProgress[]
 }
 
+/**
+ * 진행 중인 상품의 4단계(상세페이지 읽기/검토 분야 선택/법령 검토/정리·검증) 진행 막대.
+ * progresses의 마지막 단계를 기준으로 각 구간을 완료/현재/예정 색으로 표시한다.
+ */
 function ProgressBar({ progresses }: ProgressBarProps) {
     const currentStage = progresses.at(-1)?.stage;
     const currentIndex = PROGRESS_SEGMENTS.findIndex((segment) => currentStage != null && segment.stages.includes(currentStage));

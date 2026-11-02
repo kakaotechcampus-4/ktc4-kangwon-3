@@ -14,6 +14,7 @@ interface StatusBadgeProps {
     processingStatus: ProcessingStatusType
 }
 
+/** 진행 카드 상단에 붙는 상태 배지. 진행 중/답변 필요/완료/실패를 색으로 구분해 보여준다. */
 function StatusBadge({ processingStatus }: StatusBadgeProps) {
     const badge = PROGRESS_STATUS_BADGE[processingStatus];
 
