@@ -14,6 +14,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import config, main
 from app.clients.backend import BackendCallbackClient
+from app.diagnosis import build_questions
 from app.agents.base import AgentRunMeta
 from app.dummy import job as dummy_job
 from app.observability.agent_sinks import agent_sinks
@@ -21,6 +22,8 @@ from app.db import engine as database
 from app.routers import _dummy
 
 TOKEN = "test-internal-token-0123456789abcdef"
+# lifespan이 만든 실제 진단 함수의 조립 인자 (부품, 질문 변환)
+_PIPELINE_JOBS: list = []
 _ENV = {
     "OPENAI_API_KEY": "test-key",
     "OPENAI_BASE_URL": "https://mlapi.run/example/v1",
@@ -51,6 +54,11 @@ def fake_be(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     monkeypatch.setattr(dummy_job, "STAGE_SECONDS", 0)
+    # 실제 파이프라인 대신 고정 더미 진단 (모델·외부 호출 없음). 조립 인자는 기록
+    monkeypatch.setattr(main, "build_parts", lambda: "pipeline-parts")
+    monkeypatch.setattr(main, "build_job", lambda parts, questions: _PIPELINE_JOBS.append((parts, questions))
+                        or _dummy.run_dummy_diagnosis)
+    _PIPELINE_JOBS.clear()
     for cached in (config.get_settings, database.get_engine, database.get_session_factory):
         cached.cache_clear()
 
@@ -86,6 +94,13 @@ def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_
     result = events[-1]
     assert result["eventType"] == "product_result"
     assert result["assessment"]["resultStatus"] == "PURCHASING_AGENT_ALLOWED"
+
+
+def test_기동_때_파이프라인_부품을_한_번_만들어_운영·샌드박스_진단_함수로_쓴다(fake_be):
+    with TestClient(main.app):
+        pass
+
+    assert _PIPELINE_JOBS == [("pipeline-parts", build_questions)]
 
 
 def test_운영_경로는_파이프라인_연결_전까지_접수하지_않고_콜백도_없다(fake_be):
