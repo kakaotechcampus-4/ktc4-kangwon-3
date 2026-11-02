@@ -11,10 +11,10 @@ import ProgressBar from "./components/ProgressBar";
 import ProgressSweep from "./components/ProgressSweep";
 import StatusBadge from "./components/StatusBadge";
 import StatusFlash from "./components/StatusFlash";
+import { useAnimateOnChange } from "./hooks/useAnimateOnChange";
+import { isRunningStatus, useStatusTransition } from "./hooks/useStatusTransition";
 import { getStatusDescription } from "./statusDescription";
 import { getStatusNotice } from "./statusNotice";
-import { useAnimateOnChange } from "./useAnimateOnChange";
-import { isRunningStatus, useStatusTransition } from "./useStatusTransition";
 
 const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "warning" | "danger"> = {
     [ProcessingStatusType.Pending]: "neutral",
