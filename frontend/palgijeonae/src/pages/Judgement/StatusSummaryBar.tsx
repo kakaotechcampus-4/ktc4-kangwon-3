@@ -33,7 +33,7 @@ function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
     const statusCounts = countProductsByStatus(products);
 
     return (
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#f7f8fa] px-[22px] py-4">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 px-5.5 py-4">
             <div className="flex flex-wrap items-center gap-4.5">
                 {Array.from(statusCounts, ([status, count]) => {
                     const { label, dotClassName } = STATUS_SUMMARY_INFO[status];
