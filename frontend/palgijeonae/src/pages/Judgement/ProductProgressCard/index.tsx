@@ -13,7 +13,6 @@ import StatusBadge from "./components/StatusBadge";
 import StatusFlash from "./components/StatusFlash";
 import { useAnimateOnChange } from "./hooks/useAnimateOnChange";
 import { useStatusChangeCount } from "./hooks/useStatusChangeCount";
-import { isRunningStatus } from "./utils/processingStatus";
 import { getStatusDescription } from "./utils/statusDescription";
 import { getStatusNotice } from "./utils/statusNotice";
 
@@ -63,12 +62,17 @@ interface ProductProgressCardProps {
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
     const { productId, productName, productImageUrl, processingStatus, progresses } = product;
-    // changeCount: 화면 상태가 실제로 바뀔 때마다 증가하는 트리거 값(첫 렌더는 0 → 효과 없음).
+
+
+    // 화면 상태가 실제로 바뀔 때마다 증가하는 트리거 값(첫 렌더는 0 → 효과 없음).
     const changeCount = useStatusChangeCount(processingStatus);
     // changeCount가 바뀐 순간에만 카드 내용 크로스페이드를 한 번 재생한다.
     const contentRef = useAnimateOnChange<HTMLDivElement>(changeCount, FADE_KEYFRAMES, FADE_OPTIONS);
     // PENDING도 IN_PROGRESS와 같은 "진행 중"으로 취급한다.
-    const isRunning = isRunningStatus(processingStatus);
+    const isRunning = processingStatus === ProcessingStatusType.Pending || processingStatus === ProcessingStatusType.InProgress;
+
+    
+    // 카드에 띄울 설명, 액션 버튼, 부가 설명
     const description = getStatusDescription(product);
     const action = ACTION_CONFIG[processingStatus];
     const notice = getStatusNotice(product);
