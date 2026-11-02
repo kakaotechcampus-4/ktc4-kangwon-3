@@ -9,7 +9,7 @@ interface StatusSummaryBarProps {
     pollIntervalMs: number | null
 }
 
-// 상품들을 한 번 순회하며 상태별 개수를 센다. PENDING은 BE 설명대로 IN_PROGRESS로 합친다.
+// 상품들을 한 번 순회하며 상태별 개수를 센다. PENDING은 IN_PROGRESS로 합친다.
 // 0개인 상태도 빠지지 않도록 미리 채워둔다.
 function countProductsByStatus(products: ProductResult[]): Map<ProcessingStatusType, number> {
     const counts = new Map<ProcessingStatusType, number>();
