@@ -57,7 +57,7 @@ def test_토큰은_상수_시간_비교로_검사한다(client, monkeypatch):
     assert calls == [(b"wrong", TOKEN.encode())]
 
 
-def test_Swagger에서_더미_경로는_내부_토큰_샌드박스는_개발용_키로_보인다():
+def test_Swagger에서_진단·더미_경로는_내부_토큰_샌드박스는_개발용_키로_보인다():
     # 보안 방식 이름이 같으면 하나로 합쳐져 Authorize로 넣은 값이 엉뚱한 헤더로 나감
     spec = main.app.openapi()
     schemes = {name: scheme["name"] for name, scheme in spec["components"]["securitySchemes"].items()}
@@ -66,6 +66,7 @@ def test_Swagger에서_더미_경로는_내부_토큰_샌드박스는_개발용_
 
     assert used["/api/ai/v1/dummy/diagnose/content"] == {INTERNAL_TOKEN_HEADER}
     assert used["/api/ai/v1/dummy/diagnose/resume"] == {INTERNAL_TOKEN_HEADER}
-    assert used["/api/ai/v1/diagnose/content"] == set()
+    assert used["/api/ai/v1/diagnose/content"] == {INTERNAL_TOKEN_HEADER}
+    assert used["/api/ai/v1/diagnose/resume"] == {INTERNAL_TOKEN_HEADER}
     assert used["/api/ai/v1/sandbox/diagnose"] == {"X-Dev-Api-Key"}
     assert used["/api/ai/v1/health"] == set()
