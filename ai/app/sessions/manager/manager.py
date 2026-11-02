@@ -22,8 +22,8 @@ from ...schemas.agent import ExtractionInput
 from ...schemas.base import utc_now
 from ...schemas.session import DiagnosisSession, SessionAnswer, SessionStatus
 from ..errors import (
-    QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
-    UnknownQuestionKeyError,
+    QueueFullError, ResumeConflictError, SessionConflictError, SessionError, SessionNotFoundError,
+    UnansweredQuestionError, UnknownQuestionKeyError,
 )
 from ..job import DiagnosisJob
 from ..store import SessionStore
@@ -185,23 +185,31 @@ class SessionManager:
             ]
             return apply(session, Resume(context, new_answers), now=self._clock())
 
-        with self._lock:
-            try:
-                self._capacity.check(1, dev=False)
-            except QueueFullError:
-                self._rejected["queue_full"] += 1
-                raise
-            session = self._store.get(product_id)
-            # 다른 경로(운영·더미)로 접수된 세션은 없음으로 봄
-            if session is not None and session.context.run_type is not run_type:
-                session = None
-            # 조회 뒤 정리로 사라져도 없음으로 봄. 같은 상품의 접수·재진단은 이 잠금 안에서만 일어남
-            transition = self._updater.replace(session.context, resume) if session is not None else None
-            if transition is None:
-                raise SessionNotFoundError(f"세션이 없습니다: {product_id}")
-            resumed = transition.session
-            self._capacity.take([resumed.context.run_id], dev=resumed.context.run_type is RunType.TEST)
-            self._accepted[resumed.context.run_type] += 1
+        try:
+            with self._lock:
+                try:
+                    self._capacity.check(1, dev=False)
+                except QueueFullError:
+                    self._rejected["queue_full"] += 1
+                    raise
+                session = self._store.get(product_id)
+                # 다른 경로(운영·더미)로 접수된 세션은 없음으로 봄
+                if session is not None and session.context.run_type is not run_type:
+                    session = None
+                # 조회 뒤 정리로 사라져도 없음으로 봄. 같은 상품의 접수·재진단은 이 잠금 안에서만 일어남
+                transition = self._updater.replace(session.context, resume) if session is not None else None
+                if transition is None:
+                    raise SessionNotFoundError(f"세션이 없습니다: {product_id}")
+                resumed = transition.session
+                self._capacity.take([resumed.context.run_id], dev=resumed.context.run_type is RunType.TEST)
+                self._accepted[resumed.context.run_type] += 1
+        except SessionError as exc:
+            # 라우터가 4xx 응답으로 바꿔 앱 로그가 없으면 거절 이유가 안 보임. 잠금 밖에서 남김
+            fields = {"diagnosis_id": diagnosis_id, "product_id": product_id, "run_id": run_id,
+                      "run_type": run_type.value}
+            with log_fields(fields):
+                logger.warning("재진단 접수 거절: %s (질문 회차 %d, 답변 %d개)", exc, question_round, len(answers))
+            raise
 
         with run_log_context(resumed.context):
             logger.info("재진단 접수 (질문 회차 %d, 답변 %d개)", question_round, len(answers))

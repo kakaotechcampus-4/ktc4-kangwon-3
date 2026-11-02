@@ -946,6 +946,34 @@ def test_접수_거절은_이유와_함께_경고로_남긴다(managers, caplog)
                                             "진단 접수 거절: 진행 중인 상품 p-1 (상품 1개)"]
 
 
+@pytest.mark.parametrize(("fields", "error", "reason"), [
+    ({"answers": {}}, UnansweredQuestionError, "답하지 않은 질문이 있습니다: battery_only"),
+    ({"answers": {"battery_only": "네", "other": "네"}}, UnknownQuestionKeyError, "이번 회차에 묻지 않은 질문입니다: other"),
+    ({"question_round": 2}, ResumeConflictError, "기다리는 질문과 다른 답변입니다: p-1"),
+    ({"product_id": "p-9"}, SessionNotFoundError, "세션이 없습니다: p-9"),
+])
+def test_재진단_거절은_이유와_함께_경고로_남기고_상품·이전_실행을_붙인다(managers, fields, error, reason):
+    manager = _waiting(managers)
+    run_id = manager.get("p-1").context.run_id
+    request = {"diagnosis_id": "d-1", "product_id": "p-1", "run_id": run_id, "question_round": 1,
+               "answers": {"battery_only": "네"}, **fields}
+
+    seen = []
+    handler = logging.Handler()
+    handler.emit = lambda record: seen.append((record.levelname, record.getMessage(), dict(current_run_fields())))
+    logging.getLogger("app.sessions").addHandler(handler)
+    try:
+        with pytest.raises(error):
+            manager.resume(**request)
+    finally:
+        logging.getLogger("app.sessions").removeHandler(handler)
+
+    [(level, message, run_fields)] = [entry for entry in seen if entry[0] == "WARNING"]
+    assert message.startswith(f"재진단 접수 거절: {reason} (질문 회차 ")
+    assert run_fields == {"diagnosis_id": "d-1", "product_id": request["product_id"], "run_id": run_id,
+                          "run_type": "production"}
+
+
 def _summary_lines(caplog) -> list[str]:
     return [m for m in _messages(caplog, "INFO") if m.startswith("진단 요약")]
 
