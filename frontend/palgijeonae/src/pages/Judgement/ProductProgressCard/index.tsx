@@ -26,7 +26,7 @@ const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "wa
 
 const ACTION_BUTTON_BASE_CLASS = "shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-sm font-semibold";
 
-// 의존성 배열에 들어가므로 반드시 모듈 상수로 둔다
+// 컴포넌트 안에서 만들면 렌더마다 새 배열/객체가 생겨 useAnimateOnChange의 effect가 매번 재실행된다
 const FADE_KEYFRAMES: Keyframe[] = [{ opacity: 0.25 }, { opacity: 1 }];
 const FADE_OPTIONS: KeyframeAnimationOptions = { duration: 250, easing: "ease-out" };
 
