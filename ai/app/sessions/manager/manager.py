@@ -264,11 +264,13 @@ class SessionManager:
         return self._store.purge()
 
     def shutdown(self, *, wait: bool = False) -> None:
-        """새 실행을 받지 않고 관리자를 닫는다.
+        """새 실행을 받지 않고 관리자를 닫는다. 기다리지 않으면 버리는 세션을 경고로 남김.
 
         Args:
             wait: 실행 중인 세션이 끝날 때까지 기다릴지.
         """
+        if not wait:
+            _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0))
         self._pool.shutdown(wait=wait, cancel_futures=not wait)
 
     def _run(self, context: ExecutionContext) -> None:
@@ -362,6 +364,24 @@ def _log_rejected(diagnosis_id: str | None, run_type: RunType, count: int, reaso
     """
     with log_fields({"diagnosis_id": diagnosis_id, "run_type": run_type.value}):
         logger.warning("진단 접수 거절: %s (상품 %d개)", reason, count)
+
+
+def _log_abandoned(unfinished: list[DiagnosisSession], awaiting: int) -> None:
+    """서버 종료로 버리는 세션 한 줄 (#497). 버릴 세션이 없으면 남기지 않음.
+
+    대기 중은 취소되고, 실행 중은 프로세스가 끝나며 함께 끊김(uvicorn이 종료 신호를 다시 발생시킴).
+    둘 다 결과 콜백이 나가지 않음. 답변 대기 세션은 메모리에만 있어 재시작 뒤 재진단할 수 없음.
+
+    Args:
+        unfinished: 접수·실행 중 세션.
+        awaiting: 답변 대기 세션 수.
+    """
+    running = [s.context.product_id for s in unfinished if s.status is SessionStatus.RUNNING]
+    queued = [s.context.product_id for s in unfinished if s.status is not SessionStatus.RUNNING]
+    if not (running or queued or awaiting):
+        return
+    logger.warning("서버 종료로 진단을 버림: 실행 중 %d개(%s), 대기 중 %d개(%s), 결과 콜백 없음. 답변 대기 %d개도 사라짐",
+                   len(running), ", ".join(running) or "-", len(queued), ", ".join(queued) or "-", awaiting)
 
 
 def _check_answers(session: DiagnosisSession, answers: dict[str, str]) -> None:
