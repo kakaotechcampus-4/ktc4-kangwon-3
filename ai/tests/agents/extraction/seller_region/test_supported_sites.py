@@ -56,6 +56,25 @@ def test_Temu_구매_상자에_배송_안내가_없으면_스펙을_남기지_�
     assert "1200마" not in extract_seller_region(page).text
 
 
+def _without_full_title(temu_page: str) -> str:
+    # 2026-11 화면: 경로 다음에 잘린 제목만 있고 전체 제목은 "가장 빠른 배송: 5일" 뒤에 붙어 나옴
+    page = temu_page.replace("접이식 원목 의자 3단...\n접이식 원목 의자 3단 높이 조절\n", "접이식 원목 의자 3단...\n")
+    return page.replace("가장 빠른 배송: 5일", "가장 빠른 배송: 5일접이식 원목 의자 3단 높이 조절")
+
+
+def test_Temu_잘린_제목만_있으면_구매_상자_첫_줄에서_전체_제목을_찾는다(temu_page):
+    region = extract_seller_region(_without_full_title(temu_page))
+
+    assert region.title == "접이식 원목 의자 3단 높이 조절"
+    assert "가장 빠른 배송" not in region.text
+
+
+def test_Temu_잘린_제목의_전체_제목을_못_찾으면_잘린_제목을_쓴다(temu_page):
+    page = _without_full_title(temu_page).replace("가장 빠른 배송: 5일접이식 원목 의자 3단 높이 조절", "가장 빠른 배송: 5일")
+
+    assert extract_seller_region(page).title == "접이식 원목 의자 3단..."
+
+
 def test_AliExpress에_구매자_질문과_면책_조항이_없어도_판매자_가게_앞에서_끊는다(aliexpress_page):
     page = "\n".join(
         line for line in aliexpress_page.splitlines()

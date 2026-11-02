@@ -192,7 +192,31 @@ def _cut_temu(lines: list[str], stripped: list[str]) -> tuple[list[str], str | N
     # 경로 다음에 짧게 잘린 제목("…...")과 전체 제목이 함께 있다. 가장 긴 줄이 전체 제목이다.
     candidates = [lines[i].strip() for i in range(top, stop1) if lines[i].strip()]
     title = max(candidates, key=len) if candidates else None
+    if title and title.endswith("..."):
+        title = _temu_full_title(stripped, title) or title
     return lines[top:stop1] + lines[start2:stop2] + _temu_box_spec(lines, stripped, stop2), title
+
+
+def _temu_full_title(stripped: list[str], truncated: str) -> str | None:
+    """잘린 제목만 있는 화면에서 구매 상자 첫 줄에 붙어 나오는 전체 제목을 찾는다.
+
+    2026-11 화면은 경로 다음에 잘린 제목("…...")만 있고, 전체 제목은 "가장 빠른 배송: 5일전체 제목"처럼
+    배송 안내 뒤에 붙어 나온다.
+
+    Args:
+        stripped: 앞뒤 공백을 지운 줄 목록.
+        truncated: "..."로 끝나는 잘린 제목.
+
+    Returns:
+        str | None: 잘린 제목으로 시작하는 전체 제목. 못 찾으면 None.
+    """
+    head = truncated.removesuffix("...").strip()
+    if not head:
+        return None
+    for line in stripped:
+        if line.startswith("가장 빠른 배송") and (start := line.find(head)) != -1:
+            return line[start:]
+    return None
 
 
 def _temu_box_spec(lines: list[str], stripped: list[str], box: int) -> list[str]:
