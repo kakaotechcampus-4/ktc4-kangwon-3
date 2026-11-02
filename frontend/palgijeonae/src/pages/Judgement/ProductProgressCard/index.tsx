@@ -23,6 +23,15 @@ const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "wa
 
 const ACTION_BUTTON_BASE_CLASS = "shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-sm font-semibold";
 
+// 상태가 바뀐 순간 카드 위에 잠깐 깔리는 하이라이트 색.
+const FLASH_BG: Record<ProcessingStatusType, string> = {
+    [ProcessingStatusType.Pending]: "bg-primary/10",
+    [ProcessingStatusType.InProgress]: "bg-primary/10",
+    [ProcessingStatusType.AwaitingInput]: "bg-status-warning-bg",
+    [ProcessingStatusType.Completed]: "bg-status-success-bg",
+    [ProcessingStatusType.Failed]: "bg-status-danger-bg",
+};
+
 // 상품명을 몇 글자까지 보여줄 지 결정
 const MAX_PRODUCT_NAME_LENGTH = 30;
 
@@ -56,7 +65,7 @@ interface ProductProgressCardProps {
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
     const { productId, productName, productImageUrl, progresses } = product;
-    const { displayStatus, finishing } = useStatusTransition(product.processingStatus);
+    const { displayStatus, finishing, animationKey } = useStatusTransition(product.processingStatus);
     // 상태 전환 중에는 실제 processingStatus 대신 표시용 상태(displayStatus)로 배지/설명/버튼/테두리를 계산한다.
     const displayProduct = { ...product, processingStatus: displayStatus };
     const description = getStatusDescription(displayProduct);
@@ -70,39 +79,51 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
             borderTone={CARD_BORDER_TONE[displayStatus]}
             className="relative overflow-hidden transition-colors duration-300"
         >
-            <div className="flex w-full flex-row items-center justify-between gap-4">
-                <div className="flex flex-row items-center gap-4">
-                    <img
-                        src={productImageUrl ?? defaultThumbnail}
-                        alt="상품 썸네일"
-                        className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
-                    />
-                    <div className="flex flex-col items-start gap-1">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-lg font-bold text-black">{truncateProductName(productName)}</h2>
-                            <StatusBadge processingStatus={displayStatus} />
-                        </div>
-                        <p className="text-sm text-neutral-muted">{description}</p>
-                    </div>
-                </div>
-                {action && (
-                    <Link to={action.buildPath(productId)} className={cn(ACTION_BUTTON_BASE_CLASS, action.className)}>
-                        {action.label}
-                    </Link>
-                )}
-            </div>
-            {showProgressBar && <ProgressBar progresses={progresses} finishing={finishing} />}
-            {notice && (
-                <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
-                    <p className="flex-1 text-sm leading-normal">{notice.text}</p>
-                </div>
-            )}
-            {showProgressSweep && (
+            {animationKey != null && (
                 <span
+                    key={`flash-${animationKey}`}
                     aria-hidden="true"
-                    className="pointer-events-none absolute top-0 left-0 z-10 h-0.5 w-2/5 bg-linear-to-r from-transparent via-primary to-transparent motion-safe:animate-progress-sweep"
+                    className={cn("pointer-events-none absolute inset-0 motion-safe:animate-status-flash", FLASH_BG[displayStatus])}
                 />
             )}
+            <div
+                key={`content-${animationKey ?? 0}`}
+                className={cn("relative flex w-full flex-col gap-5", animationKey != null && "motion-safe:animate-status-fade")}
+            >
+                <div className="flex w-full flex-row items-center justify-between gap-4">
+                    <div className="flex flex-row items-center gap-4">
+                        <img
+                            src={productImageUrl ?? defaultThumbnail}
+                            alt="상품 썸네일"
+                            className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
+                        />
+                        <div className="flex flex-col items-start gap-1">
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-lg font-bold text-black">{truncateProductName(productName)}</h2>
+                                <StatusBadge processingStatus={displayStatus} />
+                            </div>
+                            <p className="text-sm text-neutral-muted">{description}</p>
+                        </div>
+                    </div>
+                    {action && (
+                        <Link to={action.buildPath(productId)} className={cn(ACTION_BUTTON_BASE_CLASS, action.className)}>
+                            {action.label}
+                        </Link>
+                    )}
+                </div>
+                {showProgressBar && <ProgressBar progresses={progresses} finishing={finishing} />}
+                {notice && (
+                    <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
+                        <p className="flex-1 text-sm leading-normal">{notice.text}</p>
+                    </div>
+                )}
+                {showProgressSweep && (
+                    <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute top-0 left-0 z-10 h-0.5 w-2/5 bg-linear-to-r from-transparent via-primary to-transparent motion-safe:animate-progress-sweep"
+                    />
+                )}
+            </div>
         </DefaultBox>
     );
 }
