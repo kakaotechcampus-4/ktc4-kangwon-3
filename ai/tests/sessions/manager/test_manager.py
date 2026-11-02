@@ -1030,8 +1030,17 @@ def test_기다리지_않고_닫으면_버리는_실행_중·대기_중·답변_
     job.release("p-2")
 
     assert _messages(caplog, "WARNING") == [
-        "서버 종료로 진단을 버림: 실행 중 2개(p-1, p-2), 대기 중 1개(p-4), 결과 콜백 없음. 답변 대기 1개도 사라짐",
+        "서버 종료로 진단을 버림: 실행 중 2개(p-1, p-2), 대기 중 1개(p-4), 답변 대기 1개 "
+        "(결과 콜백 없음, 재시작 뒤 재진단 불가)",
     ]
+
+
+def test_답변_대기만_남았으면_0개인_항목_없이_답변_대기만_남긴다(managers, caplog):
+    manager = _waiting(managers)
+
+    manager.shutdown(wait=False)
+
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 답변 대기 1개 (재시작 뒤 재진단 불가)"]
 
 
 def test_버릴_세션이_없으면_종료_경고를_남기지_않는다(managers, caplog):
