@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from app import config
 from app.main import app
+from app.config.session import MAX_DEV_INFLIGHT_SESSIONS
 from app.routers._dummy import DummyAssessmentPresenter, build_dummy_assessment
 from app.routers.sandbox import get_assessment_presenter
 from app.routers.diagnose import get_session_manager
@@ -113,9 +114,9 @@ def test_접수하면_dev_상품_ID와_실행_ID를_돌려주고_진단서_없�
 
 
 def test_여러_상품을_요청_순서대로_접수한다():
-    manager = SessionManager(SessionStore(), lambda *args: JobDone(build_dummy_assessment("x")), max_dev_inflight=10)
+    manager = SessionManager(SessionStore(), lambda *args: JobDone(build_dummy_assessment("x")))
     try:
-        body = _body(*({"textBlocks": [f"상품 {i}"]} for i in range(10)))
+        body = _body(*({"textBlocks": [f"상품 {i}"]} for i in range(MAX_DEV_INFLIGHT_SESSIONS)))
         response = _client(manager).post(ROUTE, json=body, headers=HEADERS)
         products = response.json()["data"]["products"]
         sources = [manager.get(product["productId"]).source.text_blocks for product in products]
@@ -123,8 +124,8 @@ def test_여러_상품을_요청_순서대로_접수한다():
         manager.shutdown(wait=True)
 
     assert response.status_code == 202, response.text
-    assert sources == [[f"상품 {i}"] for i in range(10)]
-    assert len({product["productId"] for product in products}) == 10
+    assert sources == [[f"상품 {i}"] for i in range(MAX_DEV_INFLIGHT_SESSIONS)]
+    assert len({product["productId"] for product in products}) == MAX_DEV_INFLIGHT_SESSIONS
 
 
 def test_이미지_URL만_보내도_추출_입력으로_넘긴다(manager):
@@ -240,7 +241,7 @@ def test_개발용_상한을_넘으면_429(manager):
 
 
 @pytest.mark.parametrize("body", [
-    {}, {"products": []}, _body(*({"textBlocks": ["x"]} for _ in range(11))),
+    {}, {"products": []}, _body(*({"textBlocks": ["x"]} for _ in range(MAX_DEV_INFLIGHT_SESSIONS + 1))),
     _body({"textBlocks": [], "imageUrls": [], "sourceUrl": None}), _body({"productId": "p-1", "textBlocks": ["x"]}),
     _body({"imagesBase64": ["https://example.com/a.jpg"]}), {"textBlocks": ["x"]},
 ])

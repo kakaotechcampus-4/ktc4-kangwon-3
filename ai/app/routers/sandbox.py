@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Request, status
 
 from ..callbacks import AssessmentPresenter
 from ..clients.base import mask_sensitive_params
+from ..config.session import MAX_DEV_INFLIGHT_SESSIONS
 from ..domain.errors import AIResponseCode, AIServiceError
 from ..schemas.agent import ExtractionInput
 from ..schemas.request import DevDiagnosisRequest
@@ -48,7 +49,7 @@ def get_assessment_presenter(request: Request) -> AssessmentPresenter:
     responses={**_AUTH_RESPONSES, status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse,
                                                                      "description": "샌드박스 진단 대기열 초과"}},
     summary="샌드박스 진단 접수",
-    description="상품 1~10개를 진단으로 접수한다. 결과는 콜백 대신 상품별 상태 조회로 확인한다.",
+    description=f"상품 1~{MAX_DEV_INFLIGHT_SESSIONS}개를 진단으로 접수한다. 결과는 콜백 대신 상품별 상태 조회로 확인한다.",
 )
 async def submit_sandbox_diagnosis(
     req: DevDiagnosisRequest,
@@ -57,7 +58,7 @@ async def submit_sandbox_diagnosis(
     """샌드박스 진단을 접수하고 바로 202를 반환한다.
 
     Args:
-        req: 상품 1~10개의 글·이미지·URL.
+        req: 상품 1개부터 샌드박스 상한까지의 글·이미지·URL.
         manager: 세션 관리자.
 
     Returns:
