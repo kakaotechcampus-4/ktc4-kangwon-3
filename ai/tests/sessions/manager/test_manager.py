@@ -9,6 +9,7 @@ import pytest
 
 from app.domain.context import PipelineStage, RunType
 from app.observability.logs import current_run_fields
+from app.observability.run_summary import current_summary
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
@@ -190,6 +191,24 @@ def test_단계_알림_뒤_로그_줄에는_지금_단계가_붙는다(managers)
     _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
 
     assert seen == [None, "extraction"]
+
+
+def test_실행마다_새_요약에_단계를_모으고_끝나면_지운다(managers):
+    seen = []
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.EXTRACTION)
+        progress.stage(PipelineStage.SELECTION)
+        seen.append(current_summary())
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    _wait_until(lambda: all(_status(manager, p) is SessionStatus.COMPLETED for p in ("p-1", "p-2")))
+
+    assert len(seen) == 2 and seen[0] is not seen[1]
+    assert all(set(summary.stage_seconds) == {"extraction"} for summary in seen)
+    assert current_summary() is None
 
 
 def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):

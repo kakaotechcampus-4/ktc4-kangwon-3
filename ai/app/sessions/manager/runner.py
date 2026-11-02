@@ -6,6 +6,7 @@ from typing import assert_never
 from ...domain.errors import AIResponseCode
 from ...domain.context import ExecutionContext, PipelineStage
 from ...observability.logs import run_log_context, set_run_field
+from ...observability.run_summary import current_summary, run_summary
 from ...schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerificationStatus, ToolName
 from ...schemas.session import DiagnosisInput
 from ..job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, ToolProgressStatus
@@ -28,8 +29,10 @@ class _Progress:
         self._context = context
 
     def stage(self, stage: PipelineStage) -> None:
-        # 이후 로그 줄에 지금 단계 표시
+        # 이후 로그 줄에 지금 단계 표시, 실행 요약에 단계 시간 기록
         set_run_field("stage", stage.value)
+        if (summary := current_summary()) is not None:
+            summary.enter_stage(stage)
         self._updater.apply(self._context, ChangeStage(stage))
 
     def tool(self, tool_name: ToolName, status: ToolProgressStatus) -> None:
@@ -40,14 +43,14 @@ def run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionUp
     """세션 하나를 실행한다. 예외는 실패로 기록하고 밖으로 내보내지 않음.
 
     세션 변경은 모두 이 실행의 context로 함. 시간 초과 뒤 재접수된 새 세션은 건드리지 않음.
-    실행 중 남긴 로그 줄에는 이 실행의 정보가 붙음 (#497).
+    실행 중 남긴 로그 줄에는 이 실행의 정보가 붙고, 단계·Tool·모델 호출은 실행 요약에 모임 (#497).
 
     Args:
         job: 진단 함수.
         context: 이 실행의 컨텍스트.
         updater: 상태 변경 통로.
     """
-    with run_log_context(context):
+    with run_log_context(context), run_summary():
         _run_session(job, context, updater)
 
 
