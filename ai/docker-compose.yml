@@ -1,5 +1,12 @@
 name: ai
 
+# 컨테이너 로그(docker logs) 크기 상한. 서버 Docker 기본값은 상한 없음 → 10MB × 5개까지만 보관
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   ai:
     build:
@@ -8,6 +15,7 @@ services:
     container_name: ai-server
     restart: unless-stopped
     mem_limit: 1g
+    logging: *logging
     # 앱 환경변수는 .env 전체를 그대로 주입 (새 변수는 .env·.env.example에만 추가)
     env_file: .env
     # compose가 정하는 값만. env_file보다 우선함
@@ -36,6 +44,7 @@ services:
     container_name: ai-db
     restart: unless-stopped
     mem_limit: 512m
+    logging: *logging
     environment:
       POSTGRES_DB: ${AI_DB_NAME:-ai}
       POSTGRES_USER: ${AI_DB_USERNAME:-ai}
