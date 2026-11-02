@@ -11,7 +11,7 @@ const FLASH_BG: Record<ProcessingStatusType, string> = {
     [ProcessingStatusType.Failed]: "bg-status-danger-bg",
 };
 
-// 의존성 배열에 들어가므로 반드시 모듈 상수로 둔다
+// 컴포넌트 안에서 만들면 렌더마다 새 배열/객체가 생겨 useAnimateOnChange의 effect가 매번 다시 실행된다
 const FLASH_KEYFRAMES: Keyframe[] = [{ opacity: 1 }, { opacity: 0 }];
 const FLASH_OPTIONS: KeyframeAnimationOptions = { duration: 1200, easing: "ease-out" };
 
