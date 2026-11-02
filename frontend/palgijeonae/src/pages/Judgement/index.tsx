@@ -58,11 +58,13 @@ function JudgementPage() {
             ) : (
                 <div className="flex w-full flex-col gap-6">
                     <StatusSummaryBar products={data.products} pollIntervalMs={data.pollIntervalMs} />
-                    <div className="flex flex-col gap-4">
+                    <ul aria-label="진단 중인 상품" className="flex flex-col gap-4">
                         {data.products.map((product) => (
-                            <ProductProgressCard key={product.productId} product={product} />
+                            <li key={product.productId}>
+                                <ProductProgressCard product={product} />
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                     <div className="flex w-full items-center justify-between">
                         <p id="report-hint" className="text-sm text-neutral-muted">
                             {isDiagnosisDone
