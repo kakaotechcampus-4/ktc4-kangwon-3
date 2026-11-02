@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { countGraphemes, truncateGraphemes } from "@/lib/text";
 
 import ProgressBar from "./ProgressBar";
+import ProgressSweep from "./ProgressSweep";
 import StatusBadge from "./StatusBadge";
 import { getStatusDescription } from "./statusDescription";
 import { getStatusNotice } from "./statusNotice";
@@ -86,12 +87,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     className={cn("pointer-events-none absolute inset-0 opacity-0 motion-safe:animate-status-flash", FLASH_BG[displayStatus])}
                 />
             )}
-            {showProgressSweep && (
-                <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute top-0 left-0 z-10 h-0.5 w-2/5 bg-linear-to-r from-transparent via-primary to-transparent motion-safe:animate-progress-sweep"
-                />
-            )}
+            {showProgressSweep && <ProgressSweep />}
             <div className="relative flex w-full flex-col gap-5">
                 <div className="flex w-full flex-row items-center justify-between gap-4">
                     <div className="flex flex-row items-center gap-4">
