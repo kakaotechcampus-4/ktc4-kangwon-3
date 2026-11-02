@@ -1,6 +1,8 @@
 """앱 로그 설정 테스트."""
 
+import io
 import logging
+import re
 
 import pytest
 
@@ -97,3 +99,21 @@ def test_외부_라이브러리_로거는_건드리지_않는다(capsys):
     logging.getLogger("httpx").info("HTTP Request: GET https://apis.data.go.kr/?serviceKey=secret")
 
     assert "serviceKey" not in capsys.readouterr().err
+
+
+def test_uvicorn이_붙인_핸들러도_시각이_있는_앱_형식으로_맞춘다():
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    access = logging.getLogger("uvicorn.access")
+    access.addHandler(handler)
+    try:
+        configure_logging("INFO")
+        configure_logging("INFO")
+        access.warning('%s - "%s %s HTTP/%s" %d', "127.0.0.1:1234", "POST", "/api/ai/v1/diagnose/resume", "1.1", 422)
+    finally:
+        access.removeHandler(handler)
+
+    line = stream.getvalue().strip()
+    assert re.fullmatch(r'\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3} WARNING uvicorn.access: '
+                        r'127.0.0.1:1234 - "POST /api/ai/v1/diagnose/resume HTTP/1.1" 422', line)
+    assert len(handler.filters) == 1

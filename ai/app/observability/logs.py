@@ -20,6 +20,8 @@ from ..domain.context import ExecutionContext
 
 APP_LOGGER = "app"
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s%(run_fields)s"
+# 형식을 맞출 uvicorn 로거. uvicorn.error는 uvicorn으로 넘겨 따로 핸들러가 없음
+UVICORN_LOGGERS = ("uvicorn", "uvicorn.access")
 
 # 지금 실행의 로그 필드. 실행 밖이면 비어 있음
 _run_fields: ContextVar[Mapping[str, str]] = ContextVar("run_log_fields", default=MappingProxyType({}))
@@ -87,12 +89,19 @@ class _RunFieldsFilter(logging.Filter):
         return True
 
 
+# 핸들러마다 같은 필터 하나. 다시 설정해도 필터가 쌓이지 않음 (addFilter는 같은 객체를 두 번 넣지 않음)
+_RUN_FIELDS_FILTER = _RunFieldsFilter()
+
+
 class _AppHandler(logging.StreamHandler):
     """이 모듈이 붙인 핸들러 표시. 다시 설정해도 줄이 두 번 찍히지 않게 찾아서 바꿈."""
 
 
 def configure_logging(level: str) -> None:
     """``app`` 로거를 표준 에러로 내보내게 설정한다. 여러 번 불러도 핸들러는 하나.
+
+    uvicorn이 붙인 핸들러(기동·접근 로그)도 같은 형식으로 맞춤. 시각이 없는 uvicorn 기본 형식이면
+    앱 줄과 시간순으로 맞춰 보기 어려움. 레벨·출력 위치는 uvicorn 설정 그대로.
 
     Args:
         level: 로그 레벨 이름 (DEBUG·INFO·WARNING·ERROR).
@@ -101,8 +110,16 @@ def configure_logging(level: str) -> None:
     for handler in [h for h in logger.handlers if isinstance(h, _AppHandler)]:
         logger.removeHandler(handler)
     handler = _AppHandler(sys.stderr)
-    handler.setFormatter(logging.Formatter(LOG_FORMAT))
-    handler.addFilter(_RunFieldsFilter())
+    _use_app_format(handler)
     logger.addHandler(handler)
     # 루트로 넘기는 것은 그대로 (pytest caplog가 루트에서 받음). 서버는 루트에 핸들러가 없어 두 번 안 찍힘
     logger.setLevel(level)
+    # uvicorn은 앱 lifespan 전에 자기 로거를 설정함 → 여기서 형식만 바꿈. uvicorn 없이 띄우면 핸들러가 없어 그대로
+    for name in UVICORN_LOGGERS:
+        for uvicorn_handler in logging.getLogger(name).handlers:
+            _use_app_format(uvicorn_handler)
+
+
+def _use_app_format(handler: logging.Handler) -> None:
+    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    handler.addFilter(_RUN_FIELDS_FILTER)
