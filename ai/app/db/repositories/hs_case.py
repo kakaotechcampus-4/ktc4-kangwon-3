@@ -1,4 +1,4 @@
-from sqlalchemy import delete, exists, func, literal, select
+from sqlalchemy import delete, exists, func, literal, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -113,3 +113,21 @@ class HsCaseRepository(BaseRepository[HsCase]):
             set[str]: 문서 ID 집합.
         """
         return set(self.session.scalars(select(HsCase.doc_id)).all())
+
+    def list_doc_ids_without_hs_codes(self) -> list[str]:
+        """결정 HS 코드가 빈 결정사례의 문서 ID를 돌려준다. 코드를 다시 채울 대상을 찾는 데 쓴다.
+
+        Returns:
+            list[str]: 문서 ID 목록(문서 ID 순).
+        """
+        stmt = select(HsCase.doc_id).where(func.cardinality(HsCase.hs_codes) == 0).order_by(HsCase.doc_id)
+        return list(self.session.scalars(stmt).all())
+
+    def update_hs_codes(self, hs_codes_by_doc_id: dict[str, list[str]]) -> None:
+        """결정사례의 HS 코드만 바꾼다. 내용·임베딩은 그대로 둔다.
+
+        Args:
+            hs_codes_by_doc_id: 문서 ID → 새 HS 코드 목록.
+        """
+        for doc_id, hs_codes in hs_codes_by_doc_id.items():
+            self.session.execute(update(HsCase).where(HsCase.doc_id == doc_id).values(hs_codes=hs_codes))

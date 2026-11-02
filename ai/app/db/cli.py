@@ -1,10 +1,11 @@
-"""AI DB 관리 명령. 서버에서는 docker exec ai-app 으로 실행.
+"""AI DB 관리 명령. 서버에서는 docker exec ai-server 로 실행.
 
     cd ai
     python -m app.db.cli init
     python -m app.db.cli law-refresh
     python -m app.db.cli clear-cache law.text
     python -m app.db.cli clip-ingest [--workers 4] [--limit N] [--raw-dir DIR]
+    python -m app.db.cli clip-refill-hs [--workers 4]
 
 종료 코드: 0 성공, 1 일부 실패, 2 설정 오류, 3 DB 연결 실패.
 """
@@ -20,7 +21,7 @@ from sqlalchemy.exc import OperationalError
 from ..clients.customs import CLIPClient, CLIPDetailClient
 from ..config import ConfigError, get_settings
 from ..clients.llm.embedding import embed_texts_sync
-from .clip_ingest import ingest_clip_cases
+from .clip_ingest import ingest_clip_cases, refill_hs_codes
 from .engine import get_session_factory, init_db
 from .law_cache import build_law_fetchers, refresh_laws
 from .law_changes import log_law_changes
@@ -136,6 +137,29 @@ def _clip_ingest(workers: int, limit: int | None, raw_dir: Path | None) -> int:
     return 1 if report.failed else 0
 
 
+def _clip_refill_hs(workers: int) -> int:
+    """HS 코드가 빈 CLIP 결정사례의 상세를 다시 받아 코드만 채운다.
+
+    Args:
+        workers: 동시 요청 수.
+
+    Returns:
+        int: 종료 코드. 상세를 못 받은 사례가 있으면 1.
+    """
+    _show_info_logs()
+    init_db()
+    detail = CLIPDetailClient()
+    try:
+        report = refill_hs_codes(detail=detail, session_factory=get_session_factory(), workers=workers)
+    finally:
+        detail.close()
+    failed = f"{len(report.failed)}건 ({', '.join(report.failed[:10])}{' …' if len(report.failed) > 10 else ''})"
+    print(f"CLIP HS 코드 다시 채우기 — 빈 사례 {report.empty}건, 채움 {report.filled}건, "
+          f"그대로 빔 {report.empty - report.filled - len(report.failed)}건, "
+          f"실패 {failed if report.failed else '없음'}")
+    return 1 if report.failed else 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """명령을 해석해 실행한다.
 
@@ -156,6 +180,8 @@ def main(argv: list[str] | None = None) -> int:
     clip.add_argument("--limit", type=int, default=None, help="새로 받을 최대 사례 수 (시험 적재용)")
     clip.add_argument("--raw-dir", type=Path, default=None,
                       help="상세 원문 저장 폴더 (문서마다 raw.html·parsed.json·meta.json)")
+    refill = commands.add_parser("clip-refill-hs", help="HS 코드가 빈 CLIP 결정사례의 상세를 다시 받아 코드만 채움")
+    refill.add_argument("--workers", type=int, default=4, help="동시 요청 수 (기본 4)")
     args = parser.parse_args(argv)
 
     if args.command == "init":
@@ -166,6 +192,8 @@ def main(argv: list[str] | None = None) -> int:
         return _with_db(lambda: _clear_cache(args.client))
     if args.command == "clip-ingest":
         return _with_db(lambda: _clip_ingest(args.workers, args.limit, args.raw_dir))
+    if args.command == "clip-refill-hs":
+        return _with_db(lambda: _clip_refill_hs(args.workers))
     parser.error("알 수 없는 명령")
 
 

@@ -10,7 +10,7 @@ import pytest
 from app.db import clip_ingest
 from app.db.clip_ingest import (
     ALL_CASES_QUERY, KST, ClipIngestReport, case_text, collect_doc_ids, fetch_detail, ingest_clip_cases,
-    run_scheduled_clip_ingest, run_weekly_clip_ingest, seconds_until_weekly,
+    refill_hs_codes, run_scheduled_clip_ingest, run_weekly_clip_ingest, seconds_until_weekly,
 )
 from app.observability.measurements import ClipIngestRun, measurement_sinks
 from app.schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
@@ -69,7 +69,7 @@ class _Session:
 @pytest.fixture
 def db(monkeypatch):
     """HsCaseRepository를 가짜로 바꾸고, 이미 있는 문서와 저장된 행을 기록한다."""
-    state = {"existing": set(), "saved": [], "deleted": []}
+    state = {"existing": set(), "saved": [], "deleted": [], "empty_hs": [], "updated": []}
 
     class _Repository:
         def __init__(self, session):
@@ -84,6 +84,12 @@ def db(monkeypatch):
         def delete_many(self, doc_ids):
             state["deleted"].append(doc_ids)
             return len(doc_ids)
+
+        def list_doc_ids_without_hs_codes(self):
+            return list(state["empty_hs"])
+
+        def update_hs_codes(self, hs_codes_by_doc_id):
+            state["updated"].append(hs_codes_by_doc_id)
 
     _Session.commits = 0
     monkeypatch.setattr(clip_ingest, "HsCaseRepository", _Repository)
@@ -233,6 +239,39 @@ def test_적재에_원문_폴더를_주면_받은_사례마다_원문이_남는�
 
     assert report.saved == 2
     assert sorted(p.name for p in tmp_path.iterdir()) == ["1", "2"]
+
+
+def test_HS_코드가_빈_사례만_상세를_다시_받아_읽힌_코드만_채운다(db):
+    db["empty_hs"] = ["1", "2", "3"]
+
+    class _Detail:
+        def __init__(self):
+            self.requested = []
+
+        def fetch_parsed(self, request):
+            self.requested.append(request.doc_id)
+            if request.doc_id == "3":
+                raise RuntimeError("상세 실패")
+            # 2는 다시 읽어도 호까지만 적힌 사례
+            return _case(request.doc_id, hs_codes=["8525109010"] if request.doc_id == "1" else [])
+
+    detail = _Detail()
+    report = refill_hs_codes(detail=detail, session_factory=_Session, workers=2, sleep=_no_sleep)
+
+    assert sorted(detail.requested) == ["1", "2", "3", "3", "3"]
+    assert db["updated"] == [{"1": ["8525109010"]}]
+    assert db["saved"] == []
+    assert _Session.commits == 1
+    assert (report.empty, report.filled, report.failed) == (3, 1, ["3"])
+
+
+def test_HS_코드가_빈_사례가_없으면_상세를_받지_않고_커밋도_하지_않는다(db):
+    detail = _Detail()
+
+    report = refill_hs_codes(detail=detail, session_factory=_Session, sleep=_no_sleep)
+
+    assert (detail.requested, db["updated"], _Session.commits) == ([], [], 0)
+    assert (report.empty, report.filled) == (0, 0)
 
 
 class _Closable:
