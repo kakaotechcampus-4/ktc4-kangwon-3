@@ -2,13 +2,11 @@ import { useEffect, useState } from "react";
 
 import { ProcessingStatusType } from "@/api/types";
 
+import { isRunningStatus } from "../utils/processingStatus";
 import { prefersReducedMotion } from "./useAnimateOnChange";
 
 // 진행 중 → 완료 때 막대가 차오르는 시간
 const FINISH_MS = 650;
-
-export const isRunningStatus = (status: ProcessingStatusType) =>
-    status === ProcessingStatusType.Pending || status === ProcessingStatusType.InProgress;
 
 // PENDING과 IN_PROGRESS는 화면상 같은 "진행 중"이라 전환으로 치지 않는다.
 const toVisualStatus = (status: ProcessingStatusType) =>
