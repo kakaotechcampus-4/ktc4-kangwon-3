@@ -3,13 +3,63 @@
 서버는 uvicorn만 실행해 로그 설정이 없으면 파이썬 기본값(WARNING 이상)만 나옴.
 ``app`` 로거에만 핸들러·레벨을 붙임. uvicorn 로거는 uvicorn 설정 그대로,
 외부 라이브러리(httpx 등)는 WARNING 이상만 (요청 주소에 API 키가 들어가는 로그 방지).
+
+진단 실행 중 남긴 줄에는 실행 정보(진단서·상품·실행 ID, 실행 종류)를 줄 끝에 ``key=value``로 붙임.
+실행 정보는 문맥 변수라 남기는 쪽 코드는 고치지 않음. 새 스레드로는 자동으로 안 넘어감.
 """
 
 import logging
 import sys
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
+from contextvars import ContextVar
+from types import MappingProxyType
+
+from ..domain.context import ExecutionContext
 
 APP_LOGGER = "app"
-LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s%(run_fields)s"
+
+# 지금 실행의 로그 필드. 실행 밖이면 비어 있음
+_run_fields: ContextVar[Mapping[str, str]] = ContextVar("run_log_fields", default=MappingProxyType({}))
+
+
+@contextmanager
+def run_log_context(context: ExecutionContext) -> Iterator[None]:
+    """이 블록에서 남긴 로그 줄에 실행 정보를 붙인다. 나가면 이전 값으로 되돌림.
+
+    Args:
+        context: 이 실행의 컨텍스트. 값이 없는 필드(단독 실행의 진단서 ID)는 뺌.
+    """
+    fields = {
+        "diagnosis_id": context.diagnosis_id,
+        "product_id": context.product_id,
+        "run_id": context.run_id,
+        "run_type": context.run_type.value,
+    }
+    token = _run_fields.set(MappingProxyType({key: value for key, value in fields.items() if value is not None}))
+    try:
+        yield
+    finally:
+        _run_fields.reset(token)
+
+
+def current_run_fields() -> Mapping[str, str]:
+    """지금 실행의 로그 필드. 실행 밖이면 빈 매핑.
+
+    Returns:
+        Mapping[str, str]: 필드 이름 → 값.
+    """
+    return _run_fields.get()
+
+
+class _RunFieldsFilter(logging.Filter):
+    """줄 끝에 붙일 실행 정보를 ``run_fields``로 넣음. 실행 밖이면 빈 문자열."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        fields = _run_fields.get()
+        record.run_fields = "".join(f" {key}={value}" for key, value in fields.items())
+        return True
 
 
 class _AppHandler(logging.StreamHandler):
@@ -27,6 +77,7 @@ def configure_logging(level: str) -> None:
         logger.removeHandler(handler)
     handler = _AppHandler(sys.stderr)
     handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    handler.addFilter(_RunFieldsFilter())
     logger.addHandler(handler)
     # 루트로 넘기는 것은 그대로 (pytest caplog가 루트에서 받음). 서버는 루트에 핸들러가 없어 두 번 안 찍힘
     logger.setLevel(level)

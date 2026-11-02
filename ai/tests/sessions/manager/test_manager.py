@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.domain.context import PipelineStage, RunType
+from app.observability.logs import current_run_fields
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
@@ -156,6 +157,22 @@ def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(
     job.release(job.started[0])
     _wait_until(lambda: len(job.started) == 3)
     assert _status(manager,"p-3") is SessionStatus.RUNNING
+
+
+def test_진단_함수_안의_로그에는_그_실행의_정보가_붙고_끝나면_지워진다(managers):
+    seen = {}
+
+    def job(job_input, context, progress):
+        seen[context.product_id] = dict(current_run_fields())
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    sessions = manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert seen["p-1"] == {"diagnosis_id": "d-1", "product_id": "p-1", "run_id": sessions[0].context.run_id,
+                           "run_type": "production"}
+    assert dict(current_run_fields()) == {}
 
 
 def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):
