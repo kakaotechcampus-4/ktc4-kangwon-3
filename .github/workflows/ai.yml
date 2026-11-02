@@ -68,6 +68,10 @@ jobs:
     needs: [test, docker-build]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # job 레벨이라 PR CI는 막지 않음. 연달아 머지해도 배포가 하나씩 차례로 돎
+    concurrency:
+      group: ai-deploy
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
 
