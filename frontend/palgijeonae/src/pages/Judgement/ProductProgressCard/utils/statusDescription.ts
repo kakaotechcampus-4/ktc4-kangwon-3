@@ -14,7 +14,8 @@ const STAGE_DESCRIPTIONS: Record<PipelineStage, string> = {
 
 const RETRYING_DESCRIPTION = "검증에서 보완할 점이 있어 법령을 다시 확인하고 있어요.";
 
-// 재시도 여부를 알려주는 필드가 없어서, VERIFICATION 이후 TOOL_EXECUTION 재등장으로 판단한다.
+// 법령 재검토 여부를 알려주는 필드가 없어서, VERIFICATION 이후 TOOL_EXECUTION 재등장으로 판단한다.
+// (AI 파이프라인에서 재시도 가능한 단계는 법령 검토 뿐이다)
 function isRetrying(progresses: ProductProgress[]): boolean {
     const verificationIndex = progresses.findIndex((progress) => progress.stage === PipelineStage.Verification);
     if (verificationIndex === -1) {
