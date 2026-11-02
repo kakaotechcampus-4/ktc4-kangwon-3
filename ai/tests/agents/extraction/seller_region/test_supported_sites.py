@@ -28,6 +28,34 @@ def test_Temu에서_리뷰와_구매_상자_안내를_뺀다(temu_page):
         assert removed not in region.text
 
 
+def _with_purchase_box(temu_page: str, box: list[str]) -> str:
+    return temu_page.replace("가장 빠른 배송: 5일", "\n".join(["가장 빠른 배송: 5일", "판매자", "8,290원", *box]))
+
+
+def test_Temu_구매_상자의_수량과_배송_안내_사이에_있는_판매자_스펙은_남긴다(temu_page):
+    # 국내 물류센터에서 보내는 판매자 화면 (kc_certified_fan)
+    page = _with_purchase_box(temu_page, ["수량", "1", "배터리 용량(mAh)", "1200마", "이 판매자로부터 배송됩니다", "표준: 3,000원"])
+
+    region = extract_seller_region(page)
+
+    assert "배터리 용량(mAh)\n1200마" in region.text
+    for removed in ("8,290원", "이 판매자로부터 배송됩니다", "표준: 3,000원"):
+        assert removed not in region.text
+
+
+def test_Temu_구매_상자에_수량_다음이_바로_배송_안내면_아무것도_더_남기지_않는다(temu_page):
+    page = _with_purchase_box(temu_page, ["수량", "1", "해당 상품 무료 배송", "배송업체:"])
+
+    assert extract_seller_region(page).text == extract_seller_region(temu_page).text
+
+
+def test_Temu_구매_상자에_배송_안내가_없으면_스펙을_남기지_않는다(temu_page):
+    # 끝을 모르면 구매 상자 나머지(가격 안내 등)까지 남길 수 있어 버린다
+    page = _with_purchase_box(temu_page, ["수량", "1", "배터리 용량(mAh)", "1200마"])
+
+    assert "1200마" not in extract_seller_region(page).text
+
+
 def test_AliExpress에_구매자_질문과_면책_조항이_없어도_판매자_가게_앞에서_끊는다(aliexpress_page):
     page = "\n".join(
         line for line in aliexpress_page.splitlines()
