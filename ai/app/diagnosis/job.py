@@ -7,8 +7,9 @@ Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하
 
 from collections.abc import Callable
 
+from ..agents.verification import VerificationError
 from ..domain.context import ExecutionContext, PipelineStage
-from ..domain.errors import AIServiceError
+from ..domain.errors import AIResponseCode, AIServiceError
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
@@ -152,4 +153,10 @@ class _Verification:
 
     def run(self, draft: DraftAssessment) -> VerificationResult:
         self._progress.stage(PipelineStage.VERIFICATION)
-        return self._verifier.run(draft)
+        try:
+            return self._verifier.run(draft)
+        except VerificationError as exc:
+            # 검토 ID 중복 등 모델 실수·호출 실패. 다시 돌리면 통과 가능 → 재시도 가능
+            raise AIServiceError(
+                response_code=AIResponseCode.PIPELINE_ERROR.value, stage=PipelineStage.VERIFICATION, retryable=True,
+            ) from exc

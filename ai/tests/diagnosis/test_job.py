@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.agents.verification import VerificationError
 from app.diagnosis import job as job_module
 from app.diagnosis.assembly import PipelineParts
 from app.diagnosis.job import _reporting_tools, _ToolExecution, build_job
@@ -54,14 +55,14 @@ class _Step:
         return self.returns if self.returns is not None else self.name
 
 
-def _parts(calls, *, extraction_error=None) -> PipelineParts:
+def _parts(calls, *, extraction_error=None, verification_error=None) -> PipelineParts:
     extraction = type("Extraction", (), {"run": staticmethod(_Step(calls, "extract", returns=Product(product_id="p-1"), error=extraction_error))})()
     return PipelineParts(
         extraction=extraction,
         selector=type("Selector", (), {"run": staticmethod(_Step(calls, "select"))})(),
         tools={},
         aggregator=type("Aggregator", (), {"aggregate": staticmethod(_Step(calls, "aggregate"))})(),
-        verifier=type("Verifier", (), {"run": staticmethod(_Step(calls, "verify"))})(),
+        verifier=type("Verifier", (), {"run": staticmethod(_Step(calls, "verify", error=verification_error))})(),
     )
 
 
@@ -159,6 +160,16 @@ def test_단계가_정한_실패는_코드와_재시도_여부를_그대로_실�
         DiagnosisInput(source=SOURCE), CONTEXT, progress)
 
     assert outcome == JobFailed("AI_UNSUPPORTED_SITE", retryable=True)
+    assert PipelineStage.FINALIZATION not in progress.stages
+
+
+def test_검증_실패는_재시도_가능한_파이프라인_오류로_돌려준다(pipeline):
+    progress = _Progress()
+
+    outcome = build_job(_parts([], verification_error=VerificationError("checked_finding_ids에 중복이 있습니다.")),
+                        _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, progress)
+
+    assert outcome == JobFailed("AI_PIPELINE_ERROR", retryable=True)
     assert PipelineStage.FINALIZATION not in progress.stages
 
 
