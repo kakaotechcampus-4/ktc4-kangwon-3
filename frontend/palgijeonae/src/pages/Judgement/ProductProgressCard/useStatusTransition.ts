@@ -10,6 +10,10 @@ export const isRunningStatus = (status: ProcessingStatusType) =>
 
 const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+// 화면에는 PENDING과 IN_PROGRESS가 똑같이 "진행 중"으로 보이니, 둘 사이를 오가는 건 전환으로 치지 않는다.
+const toVisualStatus = (status: ProcessingStatusType) =>
+    status === ProcessingStatusType.Pending ? ProcessingStatusType.InProgress : status;
+
 /**
  * processingStatus 변화를 감지해 화면에 보여줄 상태와 애니메이션 key를 돌려준다.
  * - 첫 렌더에서는 animationKey가 null이라 효과가 재생되지 않는다.
@@ -17,7 +21,8 @@ const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: r
  * - contentKey는 finishing 동안 이전 값을 유지한다. 그래야 콘텐츠가 리마운트되지 않고
  *   ProgressBar가 같은 엘리먼트로 남아 색 전환 트랜지션이 재생된다.
  */
-export function useStatusTransition(status: ProcessingStatusType) {
+export function useStatusTransition(rawStatus: ProcessingStatusType) {
+    const status = toVisualStatus(rawStatus);
     const [current, setCurrent] = useState(status);
     const [prevStatus, setPrevStatus] = useState<ProcessingStatusType | null>(null);
     const [changeKey, setChangeKey] = useState(0);

@@ -92,35 +92,49 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     className="pointer-events-none absolute top-0 left-0 z-10 h-0.5 w-2/5 bg-linear-to-r from-transparent via-primary to-transparent motion-safe:animate-progress-sweep"
                 />
             )}
-            <div
-                key={`content-${contentKey}`}
-                className={cn("relative flex w-full flex-col gap-5", animationKey != null && "motion-safe:animate-status-fade")}
-            >
+            <div className="relative flex w-full flex-col gap-5">
                 <div className="flex w-full flex-row items-center justify-between gap-4">
                     <div className="flex flex-row items-center gap-4">
+                        {/* 상태와 무관한 요소라 remount 대상에서 제외 — 안 그러면 전환마다 썸네일이 다시 그려진다 */}
                         <img
                             src={productImageUrl ?? defaultThumbnail}
                             alt="상품 썸네일"
                             className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
                         />
                         <div className="flex flex-col items-start gap-1">
-                            <div className="flex items-center gap-2">
+                            <div
+                                key={`badge-${contentKey}`}
+                                className={cn("flex items-center gap-2", animationKey != null && "motion-safe:animate-status-fade")}
+                            >
                                 <h2 className="text-lg font-bold text-black">{truncateProductName(productName)}</h2>
                                 <StatusBadge processingStatus={displayStatus} />
                             </div>
-                            <p className="text-sm text-neutral-muted">{description}</p>
+                            <p
+                                key={`desc-${contentKey}`}
+                                className={cn("text-sm text-neutral-muted", animationKey != null && "motion-safe:animate-status-fade")}
+                            >
+                                {description}
+                            </p>
                         </div>
                     </div>
+                    {/* 포커스를 유지해야 하니 remount 대상에서 제외 — 상태가 바뀌어도 링크를 새로 만들지 않고 href/라벨만 갱신 */}
                     {action && (
                         <Link to={action.buildPath(productId)} className={cn(ACTION_BUTTON_BASE_CLASS, action.className)}>
                             {action.label}
                         </Link>
                     )}
                 </div>
-                {showProgressBar && <ProgressBar progresses={progresses} finishing={finishing} />}
-                {notice && (
-                    <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
-                        <p className="flex-1 text-sm leading-normal">{notice.text}</p>
+                {(showProgressBar || notice) && (
+                    <div
+                        key={`body-${contentKey}`}
+                        className={cn("flex w-full flex-col gap-5", animationKey != null && "motion-safe:animate-status-fade")}
+                    >
+                        {showProgressBar && <ProgressBar progresses={progresses} finishing={finishing} />}
+                        {notice && (
+                            <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
+                                <p className="flex-1 text-sm leading-normal">{notice.text}</p>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
