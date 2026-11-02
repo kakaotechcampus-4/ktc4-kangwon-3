@@ -74,19 +74,17 @@ const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
             sourceUrl: null,
             sourceText: "USB로 충전하는 무선 미니 가습기",
             imageUrls: [],
-            processingStatus: ProcessingStatusType.Completed,
+            processingStatus: ProcessingStatusType.InProgress,
             progresses: [
                 { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
                 { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
-                { stage: PipelineStage.ToolExecution, toolName: null, stageStatus: StageStatus.Completed },
-                { stage: PipelineStage.Aggregation, toolName: null, stageStatus: StageStatus.Completed },
-                { stage: PipelineStage.Finalization, toolName: null, stageStatus: StageStatus.Completed },
+                { stage: PipelineStage.ToolExecution, toolName: ToolName.Electrical, stageStatus: StageStatus.Started },
             ],
             questions: [],
             failure: null,
             assessmentStatus: null,
-            resultStatus: ResultStatus.PurchasingAgentAllowed,
-            summary: "구매대행으로 판매 가능한 상품입니다.",
+            resultStatus: null,
+            summary: null,
             toolReviews: [],
             requiredActions: [],
             notices: [],
@@ -100,19 +98,14 @@ const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
             sourceUrl: "https://detail.1688.com/offer/example-camping-table.html",
             sourceText: null,
             imageUrls: [],
-            processingStatus: ProcessingStatusType.Failed,
+            processingStatus: ProcessingStatusType.InProgress,
             progresses: [
                 { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
                 { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
                 { stage: PipelineStage.ToolExecution, toolName: ToolName.Customs, stageStatus: StageStatus.Started },
             ],
             questions: [],
-            failure: {
-                failedStage: PipelineStage.ToolExecution,
-                errorCode: "TOOL_TIMEOUT",
-                errorMessage: "법령 검토 중 응답 시간이 초과됐어요. 잠시 후 다시 시도해 주세요.",
-                retryable: true,
-            },
+            failure: null,
             assessmentStatus: null,
             resultStatus: null,
             summary: null,
@@ -125,10 +118,73 @@ const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
     updatedAt: "2026-10-30T12:05:00",
 };
 
+// TEMP: 실제 숏폴링처럼 호출할 때마다 진행 상태가 바뀌는 것처럼 보여주는 임시 목업. 삭제 예정.
+let mockPollTick = 0;
+
+// TEMP: 틱이 지날수록 상품마다 다른 속도로 진행되다가, 마지막엔 모두 끝나서 진단서 전체도 끝난다.
+function buildMockSnapshot(tick: number): DiagnosesDetail {
+    const snapshot = structuredClone(MOCK_DIAGNOSES_DETAIL);
+    const [product1, product2, product3, product4] = snapshot.products;
+
+    if (tick >= 1) {
+        product1.progresses = [
+            { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.ToolExecution, toolName: ToolName.Radio, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Aggregation, toolName: null, stageStatus: StageStatus.Started },
+        ];
+
+        product3.processingStatus = ProcessingStatusType.Completed;
+        product3.progresses = [
+            { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.ToolExecution, toolName: ToolName.Electrical, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Aggregation, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Finalization, toolName: null, stageStatus: StageStatus.Completed },
+        ];
+        product3.resultStatus = ResultStatus.PurchasingAgentAllowed;
+        product3.summary = "구매대행으로 판매 가능한 상품입니다.";
+
+        product4.progresses = [
+            { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.ToolExecution, toolName: ToolName.Customs, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Aggregation, toolName: null, stageStatus: StageStatus.Completed },
+            { stage: PipelineStage.Verification, toolName: null, stageStatus: StageStatus.Started },
+        ];
+    }
+
+    if (tick >= 2) {
+        product1.processingStatus = ProcessingStatusType.Completed;
+        product1.progresses.push({ stage: PipelineStage.Finalization, toolName: null, stageStatus: StageStatus.Completed });
+        product1.resultStatus = ResultStatus.PurchasingAgentAllowed;
+        product1.summary = "구매대행으로 판매 가능한 상품입니다.";
+
+        product2.processingStatus = ProcessingStatusType.Completed;
+        product2.questions[0].answerText = "구매대행으로 판매할 예정이에요.";
+        product2.resultStatus = ResultStatus.RecheckRequired;
+        product2.summary = "일부 조건을 다시 확인해야 해요.";
+
+        product4.processingStatus = ProcessingStatusType.Failed;
+        product4.failure = {
+            failedStage: PipelineStage.Verification,
+            errorCode: "TOOL_TIMEOUT",
+            errorMessage: "검증 중 응답 시간이 초과됐어요. 잠시 후 다시 시도해 주세요.",
+            retryable: true,
+        };
+
+        snapshot.processingStatus = ProcessingStatusType.Completed;
+        snapshot.pollIntervalMs = null;
+    }
+
+    return snapshot;
+}
+
 // TODO: AI 파이프라인이 연결되면 아래 주석 풀고 목업 대신 실제 API를 쓸 것
-// 진단서 조회(숏폴링). Judgement 페이지 전용 — Result 페이지가 쓰는 getDiagnosesDetail과 달리 pollIntervalMs를 함께 반환한다.
 export async function getDiagnosesPolling(_diagnosesId: string) {
     // const response = await apiClient.get(`/api/v1/diagnoses/${diagnosesId}`);
     // return response.data.data as DiagnosesDetail;
-    return MOCK_DIAGNOSES_DETAIL;
+    const snapshot = buildMockSnapshot(mockPollTick);
+    mockPollTick += 1;
+    return snapshot;
 }
