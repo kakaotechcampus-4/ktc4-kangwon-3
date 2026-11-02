@@ -1,5 +1,6 @@
 """진단 세션 관리자의 실행 상한·대기열·실패·시간 초과·진행 알림·재진단·질문 회차를 확인한다."""
 
+import logging
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -881,3 +882,44 @@ def test_2회차_답변_뒤에도_질문이_남으면_질문_대신_미완료_�
     assert session.result.verification_status is FinalVerificationStatus.INCOMPLETE
     assert session.result.missing_information[-1] == QUESTION_LIMIT_NOTICE
     assert [a.question_round for a in session.answers] == [1, 2]
+
+
+def _messages(caplog, level=None) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.name.startswith("app.sessions")
+            and (level is None or r.levelname == level)]
+
+
+def test_접수와_실행_시작은_입력_모양·대기_시간과_함께_INFO로_남긴다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    manager = _manager(managers, lambda job_input, context, progress: JobDone(build_dummy_assessment("p-1")))
+
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert "진단 접수 (글 1개 5자, 이미지 0장, URL 없음)" in _messages(caplog, "INFO")
+    assert "진단 시작 (대기 0.0초, 답변 0개)" in _messages(caplog, "INFO")
+
+
+def test_재진단_접수는_회차와_답변_수만_남기고_답변_내용은_남기지_않는다(managers, caplog):
+    manager = _waiting(managers)
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    _resume(manager)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert "재진단 접수 (질문 회차 1, 답변 1개)" in _messages(caplog, "INFO")
+    assert "진단 시작 (대기 0.0초, 답변 1개)" in _messages(caplog, "INFO")
+    assert not any("네" in message for message in _messages(caplog))
+
+
+def test_접수_거절은_이유와_함께_경고로_남긴다(managers, caplog):
+    manager = _manager(managers, _GatedJob(), max_running=1, max_inflight=2)
+    manager.submit("d-1", _inputs("p-1"))
+
+    with pytest.raises(QueueFullError):
+        manager.submit("d-2", _inputs("p-2", "p-3"))
+    with pytest.raises(SessionConflictError):
+        manager.submit("d-3", _inputs("p-1"))
+
+    assert _messages(caplog, "WARNING") == ["진단 접수 거절: 대기열 가득 참 (상품 2개)",
+                                            "진단 접수 거절: 진행 중인 상품 p-1 (상품 1개)"]

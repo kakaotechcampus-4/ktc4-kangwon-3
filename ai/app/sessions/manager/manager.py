@@ -17,6 +17,7 @@ from ...config import (
 )
 from ...domain.errors import AIResponseCode
 from ...domain.context import ExecutionContext, RunType
+from ...observability.logs import log_fields, run_log_context
 from ...schemas.agent import ExtractionInput
 from ...schemas.base import utc_now
 from ...schemas.session import DiagnosisSession, SessionAnswer, SessionStatus
@@ -202,6 +203,8 @@ class SessionManager:
             self._capacity.take([resumed.context.run_id], dev=resumed.context.run_type is RunType.TEST)
             self._accepted[resumed.context.run_type] += 1
 
+        with run_log_context(resumed.context):
+            logger.info("재진단 접수 (질문 회차 %d, 답변 %d개)", question_round, len(answers))
         self._pool.submit(self._run, resumed.context)
         return resumed
 
@@ -303,9 +306,11 @@ class SessionManager:
                     raise SessionConflictError(conflicts)
             except QueueFullError:
                 self._rejected["queue_full"] += 1
+                _log_rejected(diagnosis_id, run_type, len(inputs), "대기열 가득 참")
                 raise
-            except SessionConflictError:
+            except SessionConflictError as exc:
                 self._rejected["conflict"] += 1
+                _log_rejected(diagnosis_id, run_type, len(inputs), f"진행 중인 상품 {', '.join(exc.product_ids)}")
                 raise
 
             for item in inputs:
@@ -328,7 +333,27 @@ class SessionManager:
             self._store.add(sessions)
             self._capacity.take([session.context.run_id for session in sessions], dev=dev)
             self._accepted[run_type] += len(sessions)
-            return sessions
+        for session in sessions:
+            # 입력 모양만. 글·URL 본문은 남기지 않음
+            source = session.source
+            with run_log_context(session.context):
+                logger.info("진단 접수 (글 %d개 %d자, 이미지 %d장, URL %s)", len(source.text_blocks),
+                            sum(len(block) for block in source.text_blocks), len(source.image_urls),
+                            "있음" if source.source_url else "없음")
+        return sessions
+
+
+def _log_rejected(diagnosis_id: str | None, run_type: RunType, count: int, reason: str) -> None:
+    """접수 거절 한 줄. 세션을 만들기 전이라 진단서 ID·실행 종류만 붙임.
+
+    Args:
+        diagnosis_id: BE 진단서 ID. 개발용 진단은 None.
+        run_type: 실행 종류.
+        count: 요청한 상품 수.
+        reason: 거절 이유.
+    """
+    with log_fields({"diagnosis_id": diagnosis_id, "run_type": run_type.value}):
+        logger.warning("진단 접수 거절: %s (상품 %d개)", reason, count)
 
 
 def _check_answers(session: DiagnosisSession, answers: dict[str, str]) -> None:
