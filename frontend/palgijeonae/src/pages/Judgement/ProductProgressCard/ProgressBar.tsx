@@ -57,8 +57,7 @@ function ProgressBar({ progresses, finishing = false }: ProgressBarProps) {
                         <div
                             className={cn(
                                 "h-1.5 w-full rounded-sm transition-[background-color,opacity] duration-500",
-                                BAR_CLASSES[status],
-                                finishing && "bg-status-success opacity-100 duration-[250ms]",
+                                finishing ? "bg-status-success opacity-100 duration-250" : BAR_CLASSES[status],
                             )}
                             style={finishing ? { transitionDelay: `${index * 80}ms` } : undefined}
                         />
