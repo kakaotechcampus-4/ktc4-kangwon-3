@@ -19,6 +19,7 @@ from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
 from .observability.http_requests import record_http_requests
+from .observability.logs import configure_logging
 from .observability.measurements import measurement_sinks
 from .observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
@@ -68,7 +69,9 @@ async def lifespan(app: FastAPI):
 
     ## 에러가 발생하면 서버가 뜨지 않도록, try-except로 잡지 않고 그대로 전파한다.
     settings = get_settings()
-    logger.info("환경변수 검증 완료")
+    # 설정이 없으면 app 로그가 WARNING 이상만 나옴. 이후 기동 로그부터 이 레벨로
+    configure_logging(settings.log_level)
+    logger.info("환경변수 검증 완료 (로그 레벨 %s)", settings.log_level)
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
