@@ -42,6 +42,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	runtimeOnly 'org.postgresql:postgresql'
 
+	// Rate Limit
+	implementation 'com.bucket4j:bucket4j_jdk17-core:8.21.0'
+	implementation 'com.bucket4j:bucket4j_jdk17-lettuce:8.21.0'
+
 	// AWS
 	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:ses'
