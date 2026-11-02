@@ -7,11 +7,11 @@ import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
 import { countGraphemes, truncateGraphemes } from "@/lib/text";
 
-import ProgressBar from "./ProgressBar";
-import ProgressSweep from "./ProgressSweep";
-import StatusBadge from "./StatusBadge";
+import ProgressBar from "./components/ProgressBar";
+import ProgressSweep from "./components/ProgressSweep";
+import StatusBadge from "./components/StatusBadge";
+import StatusFlash from "./components/StatusFlash";
 import { getStatusDescription } from "./statusDescription";
-import StatusFlash from "./StatusFlash";
 import { getStatusNotice } from "./statusNotice";
 import { useAnimateOnChange } from "./useAnimateOnChange";
 import { isRunningStatus, useStatusTransition } from "./useStatusTransition";
