@@ -1,7 +1,7 @@
 import { ProcessingStatusType } from "@/api/types";
 import { cn } from "@/lib/cn";
 
-import { useAnimateOnChange } from "../useAnimateOnChange";
+import { useAnimateOnChange } from "../hooks/useAnimateOnChange";
 
 const FLASH_BG: Record<ProcessingStatusType, string> = {
     [ProcessingStatusType.Pending]: "bg-primary/10",
