@@ -1,0 +1,162 @@
+"""실제 진단 함수를 모델·외부 호출 없이 검증한다. 파이프라인은 단계를 차례로 부르는 가짜로 바꿈."""
+
+import pytest
+
+from app.diagnosis import job as job_module
+from app.diagnosis.assembly import PipelineParts
+from app.diagnosis.job import build_job
+from app.domain.context import ExecutionContext, PipelineStage, RunType
+from app.domain.errors import AIResponseCode, AIServiceError
+from app.dummy.cases import CASES, DummyCaseName
+from app.schemas.agent import ExtractionInput
+from app.schemas.callback import PublicQuestionDto
+from app.schemas.schemas import ExecutionEndReason
+from app.schemas.session import DiagnosisInput, SessionAnswer
+from app.sessions.job import JobDone, JobFailed, JobNeedsInput
+
+CONTEXT = ExecutionContext(run_id="run-1", product_id="p-1", run_type=RunType.TEST)
+SOURCE = ExtractionInput(product_id="p-1", text_blocks=["무선 선풍기"])
+
+
+def _result(reason: ExecutionEndReason = ExecutionEndReason.COMPLETED):
+    return CASES[DummyCaseName.KC_FAN].build("p-1").model_copy(update={"termination_reason": reason})
+
+
+class _Progress:
+    def __init__(self):
+        self.stages = []
+
+    def stage(self, stage):
+        self.stages.append(stage)
+
+    def tool(self, tool_name, status):
+        pass
+
+
+class _Step:
+    """부른 순서를 calls에 남기는 가짜 단계."""
+
+    def __init__(self, calls, name, returns=None, error=None):
+        self.calls, self.name, self.returns, self.error = calls, name, returns, error
+
+    def __call__(self, *args):
+        self.calls.append((self.name, args))
+        if self.error is not None:
+            raise self.error
+        return self.returns if self.returns is not None else self.name
+
+
+def _parts(calls, *, extraction_error=None) -> PipelineParts:
+    extraction = type("Extraction", (), {"run": staticmethod(_Step(calls, "extract", error=extraction_error))})()
+    return PipelineParts(
+        extraction=extraction,
+        selector=type("Selector", (), {"run": staticmethod(_Step(calls, "select"))})(),
+        tools={},
+        aggregator=type("Aggregator", (), {"aggregate": staticmethod(_Step(calls, "aggregate"))})(),
+        verifier=type("Verifier", (), {"run": staticmethod(_Step(calls, "verify"))})(),
+    )
+
+
+@pytest.fixture
+def pipeline(monkeypatch):
+    """CompliancePipeline·ToolExecutor를 가짜로. 단계를 첫 실행 + 재실행 1회 순서로 부르고 정해 둔 결과를 돌려줌."""
+    state = {"result": _result(), "executor_tools": None}
+
+    class _Executor:
+        def __init__(self, tools):
+            state["executor_tools"] = tools
+
+        def execute_initial(self, product, selection):
+            return "initial"
+
+        def execute_retry(self, product, previous, request):
+            return "retried"
+
+    class _Pipeline:
+        def __init__(self, extractor, selector, tool_executor, aggregator, verifier):
+            self.stages = (extractor, selector, tool_executor, aggregator, verifier)
+
+        def run(self, source):
+            extractor, selector, executor, aggregator, verifier = self.stages
+            product = extractor.run(source)
+            selected = executor.execute_initial(product, selector.run(product))
+            verifier.run(aggregator.aggregate(product, selected))
+            retried = executor.execute_retry(product, selected, "retry-request")
+            verifier.run(aggregator.aggregate(product, retried))
+            return state["result"]
+
+    monkeypatch.setattr(job_module, "ToolExecutor", _Executor)
+    monkeypatch.setattr(job_module, "CompliancePipeline", _Pipeline)
+    return state
+
+
+def _no_questions(result, question_round):
+    raise AssertionError("질문을 만들면 안 됨")
+
+
+def test_단계마다_진행_알림을_보내고_재실행_회차도_다시_알린다(pipeline):
+    progress = _Progress()
+
+    outcome = build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, progress)
+
+    assert isinstance(outcome, JobDone)
+    S = PipelineStage
+    assert progress.stages == [
+        S.EXTRACTION, S.SELECTION, S.TOOL_EXECUTION, S.AGGREGATION, S.VERIFICATION,
+        S.TOOL_EXECUTION, S.AGGREGATION, S.VERIFICATION, S.FINALIZATION,
+    ]
+
+
+def test_추출은_원래_입력이_아니라_실행_입력_전체로_부른다(pipeline):
+    calls = []
+    job_input = DiagnosisInput(source=SOURCE, previous=_result(), answers=[
+        SessionAnswer(question_round=1, question_key="r1_q1", answer_text="네")])
+
+    build_job(_parts(calls), _no_questions)(job_input, CONTEXT, _Progress())
+
+    assert calls[0] == ("extract", (job_input,))
+
+
+def test_Tool_실행기는_조립한_Tool로_실행마다_만든다(pipeline):
+    parts = _parts([])
+
+    build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert pipeline["executor_tools"] is parts.tools
+
+
+def test_단계가_정한_실패는_코드와_재시도_여부를_그대로_실패로_돌려준다(pipeline):
+    error = AIServiceError(response_code=AIResponseCode.UNSUPPORTED_SITE.value, retryable=True)
+    progress = _Progress()
+
+    outcome = build_job(_parts([], extraction_error=error), _no_questions)(
+        DiagnosisInput(source=SOURCE), CONTEXT, progress)
+
+    assert outcome == JobFailed("AI_UNSUPPORTED_SITE", retryable=True)
+    assert PipelineStage.FINALIZATION not in progress.stages
+
+
+def test_예상_밖_예외는_그대로_올려_세션이_파이프라인_오류로_기록하게_한다(pipeline):
+    with pytest.raises(RuntimeError):
+        build_job(_parts([], extraction_error=RuntimeError("버그")), _no_questions)(
+            DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+
+@pytest.mark.parametrize(("answers", "expected_round"), [
+    ([], 1),
+    ([SessionAnswer(question_round=1, question_key="r1_q1", answer_text="네")], 2),
+])
+def test_답변이_필요한_결과는_다음_회차_질문과_함께_멈춘다(pipeline, answers, expected_round):
+    pipeline["result"] = _result(ExecutionEndReason.USER_INPUT_REQUIRED)
+    asked = []
+    question = PublicQuestionDto(question_key="r1_q1", question_order=1, question_text="배터리로만 동작하나요?")
+
+    def questions(result, question_round):
+        asked.append((result, question_round))
+        return [question]
+
+    outcome = build_job(_parts([]), questions)(DiagnosisInput(source=SOURCE, answers=answers), CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobNeedsInput)
+    assert outcome.questions == [question]
+    assert asked == [(pipeline["result"], expected_round)]
