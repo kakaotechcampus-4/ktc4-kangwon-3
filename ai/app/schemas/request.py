@@ -2,6 +2,7 @@
 
 from pydantic import Field, model_validator
 
+from ..config.session import MAX_DEV_INFLIGHT_SESSIONS
 from .base import ApiRequestModel
 
 
@@ -115,7 +116,8 @@ class DevDiagnosisRequest(ApiRequestModel):
     """샌드박스 진단 요청 (#318). 실제 진단 접수처럼 상품을 목록으로 받음.
 
     Args:
-        products: 진단할 상품 목록. 1~10개.
+        products: 진단할 상품 목록. 1개부터 샌드박스 상한(MAX_DEV_INFLIGHT_SESSIONS)까지.
     """
 
-    products: list[DevDiagnosisProductInput] = Field(min_length=1, max_length=10)
+    # 상한보다 많으면 대기열이 비어도 매번 429라 형식 오류(422)로 먼저 거절
+    products: list[DevDiagnosisProductInput] = Field(min_length=1, max_length=MAX_DEV_INFLIGHT_SESSIONS)

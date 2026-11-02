@@ -1,7 +1,7 @@
 """진단 라우터. 진단서 단위 접수(content)와 답변 후 재진단(resume) 엔드포인트를 제공한다.
 
-실제 파이프라인 연결 전까지 접수는 501, 재진단은 접수된 세션이 없어 404.
-BE 연동은 같은 처리를 쓰는 더미 경로(/dummy/diagnose)로 함.
+실제 파이프라인으로 진단하고 결과는 상품별 콜백으로 보냄 ([콜백 5/5]).
+더미 경로(/dummy/diagnose)와 같은 요청·응답이라 BE는 접두어만 바꾸면 됨. 둘 다 내부 토큰 필요.
 """
 
 from fastapi import APIRouter, Depends, Request, status
@@ -29,8 +29,10 @@ from ..sessions.errors import (
     UnknownQuestionKeyError,
 )
 from ..sessions.manager import SessionManager
+from .internal_auth import INTERNAL_AUTH_RESPONSES, require_internal_token
 
-router = APIRouter(prefix="/diagnose", tags=["진단"])
+router = APIRouter(prefix="/diagnose", tags=["진단"], dependencies=[Depends(require_internal_token)],
+                   responses=INTERNAL_AUTH_RESPONSES)
 
 
 def get_session_manager(request: Request) -> SessionManager:
@@ -60,10 +62,6 @@ RESUME_RESPONSES = {
     status.HTTP_422_UNPROCESSABLE_ENTITY: {"model": ApiResponse,
                                            "description": "형식 오류, 또는 이번 회차 질문 중 답하지 않은 질문 있음"},
     status.HTTP_429_TOO_MANY_REQUESTS: {"model": ApiResponse, "description": "진단 대기열 초과"},
-}
-# 실제 파이프라인 연결 전 /diagnose/content 응답
-_NOT_IMPLEMENTED_RESPONSES = {
-    status.HTTP_501_NOT_IMPLEMENTED: {"model": ApiResponse, "description": "실제 파이프라인 연결 전. 더미 경로 사용"},
 }
 
 
@@ -157,23 +155,28 @@ def resume_session(manager: SessionManager, req: ResumeRequest, run_type: RunTyp
     "/content",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=DiagnosisAcceptedResponse,
-    responses={**SUBMIT_RESPONSES, **_NOT_IMPLEMENTED_RESPONSES},
+    responses=SUBMIT_RESPONSES,
     summary="진단서 단위 진단 접수",
-    description=(
-        "진단서 한 건의 상품들을 상품별 세션으로 접수한다. 결과는 상품별 콜백으로 전달 (#263). "
-        "실제 파이프라인 연결 전까지 501."
-    ),
+    description="진단서 한 건의 상품들을 상품별 세션으로 접수한다. 결과는 상품별 콜백으로 전달 (#263).",
 )
-async def diagnose_by_content(req: DiagnosisRequest) -> DiagnosisAcceptedResponse:
-    """진단서의 상품들을 접수한다. 실제 파이프라인 연결 전까지 접수하지 않음.
+async def diagnose_by_content(
+    req: DiagnosisRequest,
+    manager: SessionManager = Depends(get_session_manager),
+) -> DiagnosisAcceptedResponse:
+    """진단서의 상품들을 운영 세션으로 접수하고 바로 202를 반환한다.
 
     Args:
-        req: 진단서 ID와 상품 1~10개. 형식은 검사함.
+        req: 진단서 ID와 상품 1~10개.
+        manager: 세션 관리자.
+
+    Returns:
+        202 접수 응답.
 
     Raises:
-        AIServiceError: 항상 501.
+        AIServiceError: 진행 중 상품이 섞이면 409(data.conflictProductIds), 대기열이 차면 429.
     """
-    raise AIServiceError(response_code=AIResponseCode.NOT_IMPLEMENTED.value)
+    inputs = [to_extraction_input(product) for product in req.products]
+    return submit_diagnosis(manager, req.diagnosis_id, inputs, RunType.PRODUCTION)
 
 
 @router.post(
@@ -183,18 +186,14 @@ async def diagnose_by_content(req: DiagnosisRequest) -> DiagnosisAcceptedRespons
     responses=RESUME_RESPONSES,
     summary="답변 후 재진단 접수",
     description=(
-        "답변 대기 상품에 이번 회차 답변을 더해 새 실행으로 접수한다. 결과는 새 runId의 콜백으로 전달 (#310). "
-        "실제 파이프라인 연결 전에는 /diagnose로 접수한 세션이 없어 404."
+        "답변 대기 상품에 이번 회차 답변을 더해 새 실행으로 접수한다. 결과는 새 runId의 콜백으로 전달 (#310)."
     ),
 )
 async def resume_diagnosis(
     req: ResumeRequest,
     manager: SessionManager = Depends(get_session_manager),
 ) -> ResumeAcceptedResponse:
-    """답변 대기 상품을 답변과 함께 재접수하고 바로 202를 반환한다.
-
-    실제 파이프라인 연결 전에는 접수(/diagnose/content)가 501이라 세션이 없어 항상 404.
-    더미로 접수한 상품도 실행 종류가 달라 404.
+    """답변 대기 상품을 답변과 함께 재접수하고 바로 202를 반환한다. 더미로 접수한 상품은 실행 종류가 달라 404.
 
     Args:
         req: 진단서·상품·질문으로 끝난 실행 ID, 질문 회차, 이번 회차 답변.

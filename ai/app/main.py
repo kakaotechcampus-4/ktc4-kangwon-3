@@ -14,6 +14,7 @@ from .clients.llm import close_llm_clients
 from .clients.llm.decision import close_decision_clients
 from .clients.llm.embedding import embed_texts_sync
 from .config import SESSION_SWEEP_SECONDS, get_settings
+from .diagnosis import build_job, build_parts, build_questions
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
@@ -26,7 +27,7 @@ from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetcher
                  log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
                  run_weekly_clip_ingest)
 from .routers import diagnose, dummy, health, metrics, sandbox
-from .routers._dummy import DummyAssessmentPresenter, run_dummy_diagnosis
+from .results.presenter import ResultPresenter
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
 from .sessions.job import by_run_type
 from .sessions.manager import SessionManager
@@ -95,12 +96,14 @@ async def lifespan(app: FastAPI):
         lambda: run_scheduled_clip_ingest(session_factory, embed=lambda texts: embed_texts_sync(texts, settings),
                                           embedding_model=settings.embedding_model)))
 
-    # 실제 진단서·질문 변환기([콜백 5/5]) 전까지 가짜 진단용 변환기
-    presenter = DummyAssessmentPresenter()
-    # 진단 세션 (#264). 운영(/diagnose)은 파이프라인 연결 전까지 501이라 없음
-    # 샌드박스는 파이프라인 연결 전까지 고정 더미, BE 연동용(/dummy)은 케이스 더미
+    # 공개 진단서 변환기 (#405). 콜백과 샌드박스 상태 조회가 같이 씀
+    presenter = ResultPresenter()
+    # 진단 세션 (#264). 운영(/diagnose)·샌드박스는 실제 파이프라인 ([콜백 5/5]), BE 연동용(/dummy)은 케이스 더미
+    # 에이전트·Tool은 여기서 한 번 만들어 모든 진단이 같이 씀. 모델 설정 오류면 기동을 막음
+    pipeline_job = build_job(build_parts(), build_questions)
     job = by_run_type({
-        RunType.TEST: run_dummy_diagnosis,
+        RunType.PRODUCTION: pipeline_job,
+        RunType.TEST: pipeline_job,
         RunType.DUMMY: run_case_diagnosis,
     })
     manager = SessionManager(SessionStore(), job)

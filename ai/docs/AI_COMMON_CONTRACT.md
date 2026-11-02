@@ -22,10 +22,10 @@
 | §6.3 API 경계 | 구현됨 | `app/routers/exception_handlers.py` |
 | §7.1 ExecutionEvent | 미구현. 세션 이벤트가 상품 단위 진행을 대신함 | `app/sessions/events.py` |
 | §7.1.2 콜백 이벤트 | 구현됨 (#310·#317) | `app/schemas/callback.py`, `app/callbacks/` |
-| §7.1.3 공개 진단서 | 구현됨 (#405). 서버 조립 교체는 #320 | `app/schemas/callback.py`, `app/results/` |
-| §7.1.4 진단 접수·재진단 요청 | 구현됨 (#402) | `app/schemas/request.py`, `app/routers/diagnose.py` |
+| §7.1.3 공개 진단서 | 구현됨 (#405·#320) | `app/schemas/callback.py`, `app/results/` |
+| §7.1.4 진단 접수·재진단 요청 | 구현됨 (#402·#320) | `app/schemas/request.py`, `app/routers/diagnose.py` |
 
-- 파이프라인 연결(#320) 전까지 `/diagnose`는 501로 거절한다. BE 연동은 케이스 더미(`/dummy`), 샌드박스는 고정 더미로 실행한다(`main.py`).
+- `/diagnose`는 실제 파이프라인으로 진단한다(#320, `app/diagnosis/`). 샌드박스(`/sandbox`)도 같은 파이프라인을 쓰고 상품 수·동시 실행은 3개까지다. BE 연동 확인용 케이스 더미는 `/dummy`(`main.py`).
 - 기존 [제안 문서](OBSERVABILITY_AND_ERROR_HANDLING.md)는 논의 이력으로 보존한다. 구현 시 이 문서와 제안 문서를 섞어 적용하지 않는다.
 - 내부 Python 필드명은 snake_case를 사용한다. BE API DTO의 alias 규칙은 별도 API 계약을 따른다.
 
@@ -557,6 +557,8 @@ class ExecutionEvent(BaseModel):
 
 질문 `PublicQuestionDto`: `questionKey`(≤50자), `questionOrder`(1부터), `questionText`, `helpText`.
 
+- 질문 키는 회차·순서로 만든다: `r{회차}_q{순서}`(예: `r1_q1`). 같은 문장은 한 번만, 꼭 필요한 질문을 앞에 두고 검증이 준 이유를 `helpText`로 보낸다(`app/diagnosis/questions.py`).
+- 재실행 회차에는 Tool 실행·집계·검증 단계 알림이 다시 나간다. Tool 진행은 다시 실행하는 Tool만 started·completed를 다시 보내고 skipped는 다시 보내지 않는다(`app/diagnosis/job.py`).
 - 질문은 최대 2회차. 2회차에는 1회차에 없던 새 키만 묻는다. 재진단 요청은 이번 회차 질문에 **모두** 답해야 한다(아니면 422).
 - `toolName`·카드의 분야 이름은 BE `ToolName` 값: `CUSTOMS`, `CHILDREN`, `ELECTRICAL`, `RADIO`, `FOOD_DRUG`, `LABEL_AD`.
 - 처음 제안과 달라진 점: 이벤트별 `status`·`retryRound`·`assessmentId`·`terminationReason`·`verificationStatus` 삭제, `runId` 추가, 질문 형식이 키·순서 기반으로 바뀜, 결과 콜백이 진단서를 직접 담음.
@@ -594,12 +596,12 @@ class ExecutionEvent(BaseModel):
   - 표시·광고(`LABEL_AD`)는 판매 방식과 무관한 문구 의무라 결과 상태 계산에서 뺀다. 카드·할 일로 보여 주고, 구매대행 가능인데 표시·광고 판단이 있으면 요약에 "표시·광고 문구는 확인이 필요합니다"를 덧붙인다.
   - 지원 분야 밖 신호가 있으면 결과 상태와 상관없이 `notices`에 확인하지 않는 법령을 안내한다 (화학제품안전법, 총포·도검·화약류법, 식물방역법).
   - 구매대행 가능이면 `notices`에 확인한 분야와 확인하지 않은 범위(생활용품 안전관리, 가스·소방용품 등)를 안내한다.
-  - 변환기 `app/results/presenter.py`(`ResultPresenter`)가 6개 분야 카드를 항상 같은 순서로 보내고, 할 일은 분야 순서로 중복 없이 모은다. 서버 조립의 더미 변환기 교체는 #320.
+  - 변환기 `app/results/presenter.py`(`ResultPresenter`)가 6개 분야 카드를 항상 같은 순서로 보내고, 할 일은 분야 순서로 중복 없이 모은다. 콜백과 샌드박스 상태 조회가 같은 변환기를 쓴다.
 - 공개 가능한 판단·안내를 결정하는 책임은 AI에 있다. BE·FE가 원본 검증 이슈로 판단의 유효성을 재검사하지 않는다.
 
 ### 7.1.4 진단 접수·재진단 요청 (BE → AI) — 구현됨
 
-위치: `app/schemas/request.py`, `app/routers/diagnose.py`. 경로 앞부분은 `/api/ai/v1/diagnose`.
+위치: `app/schemas/request.py`, `app/routers/diagnose.py`. 경로 앞부분은 `/api/ai/v1/diagnose`. 두 경로 모두 내부 토큰(`X-Internal-Token`)이 필요하다(#320).
 
 | 경로 | 요청 | 응답 |
 | --- | --- | --- |
@@ -607,9 +609,10 @@ class ExecutionEvent(BaseModel):
 | `POST /resume` | `diagnosisId`, `productId`, `runId`(질문으로 끝난 실행), `questionRound`(1~2), `answers[]`: `questionKey`, `answerText`(≤500자) | 202. 새 runId로 다시 실행 |
 
 - **상품 입력 조건(#310 합의)**: 텍스트(`textBlocks`)·이미지(`imageUrls`)·URL(`sourceUrl`) 중 **하나 이상** 있으면 접수한다.
-  - URL만 있는 상품의 처리(지원 판매 사이트 수집 #337, 미지원 사이트의 실패 코드)는 파이프라인 연결(#320) 때 정한다.
+  - URL만 있는 상품은 판매 사이트에서 수집한 뒤 추출한다(#337, `app/pipeline/extraction_step.py`). 미지원 사이트는 `AI_UNSUPPORTED_SITE`(재시도 불가), 수집 실패는 `AI_SOURCE_FETCH_FAILED`(재시도 가능), 수집 결과가 비면 `AI_EMPTY_SOURCE`(재시도 불가)로 실패 콜백을 보낸다.
 - 이미지는 URL로 받는다(#389·#403). base64 data URI도 호환으로 받는다.
 - 원래 입력·추출 결과·이전 질문과 답변은 AI 세션이 보관한다. BE는 재진단 때 ID와 이번 회차 답변만 보낸다.
+- 재진단은 이전 추출 결과에 이번 회차 답변을 `[사용자 답변] 질문 → 답변` 줄로 상품 글 끝에 붙여 선택 단계부터 다시 실행한다(`app/diagnosis/answers.py`). 답변 유형 구조화(#412) 전까지 쓰는 방식이다.
 - **답변 대기 상품의 재접수(#451)**: 답변 대기 상품이 `/content`로 다시 오면 기다리던 세션을 버리고 새 runId로 1회차부터 실행한다.
   - BE가 실패 처리한 상품을 다시 진단할 때 24시간 보관이 끝날 때까지 409로 막히지 않게 하기 위함이다.
   - 버린 실행의 runId로 온 `/resume`은 `AI_RESUME_CONFLICT`(409)로 거절한다.
