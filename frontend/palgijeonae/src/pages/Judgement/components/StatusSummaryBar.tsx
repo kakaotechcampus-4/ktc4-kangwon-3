@@ -34,7 +34,7 @@ function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
     const statusCounts = countProductsByStatus(products);
 
     return (
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 px-5.5 py-4">
+        <div className="flex w-full flex-wrap items-center justify-between gap-3 py-4">
             <div className="flex flex-wrap items-center gap-4.5">
                 {Array.from(statusCounts, ([status, count]) => {
                     const { label, dotClassName } = STATUS_SUMMARY_INFO[status];
@@ -47,12 +47,12 @@ function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
                     );
                 })}
             </div>
-            {pollIntervalMs != null && (
-                <div className="flex items-center gap-1.5">
-                    <span className="size-2 rounded-full bg-status-success" />
-                    <span className="text-sm text-neutral-muted">{pollIntervalMs / 1000}초마다 자동 갱신 중</span>
-                </div>
-            )}
+            <div className="flex items-center gap-1.5">
+                <span className={cn("size-2 rounded-full", pollIntervalMs != null ? "bg-status-success" : "bg-[#9d9d9d]")} />
+                <span className="text-sm text-neutral-muted">
+                    {pollIntervalMs != null ? `${pollIntervalMs / 1000}초마다 자동 갱신 중` : "갱신 종료"}
+                </span>
+            </div>
         </div>
     );
 }
