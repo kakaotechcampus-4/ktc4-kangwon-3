@@ -19,12 +19,14 @@ from app.observability.logs import (
 
 @pytest.fixture(autouse=True)
 def _restore_app_logger():
-    """테스트가 바꾼 app 로거 핸들러·레벨을 되돌림."""
+    """테스트가 바꾼 app 로거 핸들러·레벨과 uvicorn 접근 로그 필터를 되돌림."""
     logger = logging.getLogger(APP_LOGGER)
-    handlers, level = list(logger.handlers), logger.level
+    access = logging.getLogger("uvicorn.access")
+    handlers, level, access_filters = list(logger.handlers), logger.level, list(access.filters)
     yield
     logger.handlers[:] = handlers
     logger.setLevel(level)
+    access.filters[:] = access_filters
 
 
 def _own_handlers():
@@ -117,3 +119,25 @@ def test_uvicorn이_붙인_핸들러도_시각이_있는_앱_형식으로_맞춘
     assert re.fullmatch(r'\d{4}-\d\d-\d\d \d\d:\d\d:\d\d,\d{3} WARNING uvicorn.access: '
                         r'127.0.0.1:1234 - "POST /api/ai/v1/diagnose/resume HTTP/1.1" 422', line)
     assert len(handler.filters) == 1
+
+
+@pytest.mark.parametrize(("method", "path", "status", "kept"), [
+    ("GET", "/api/ai/v1/health", 200, False),
+    ("GET", "/metrics", 200, False),
+    ("GET", "/metrics?name[]=ai_sessions", 200, False),
+    ("GET", "/api/ai/v1/health", 503, True),
+    ("GET", "/api/ai/v1/health/ready", 200, True),
+    ("POST", "/api/ai/v1/diagnose/content", 202, True),
+])
+def test_헬스체크·지표_수집의_성공_응답만_접근_로그에서_뺀다(method, path, status, kept):
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    access = logging.getLogger("uvicorn.access")
+    access.addHandler(handler)
+    try:
+        configure_logging("INFO")
+        access.warning('%s - "%s %s HTTP/%s" %d', "127.0.0.1:1234", method, path, "1.1", status)
+    finally:
+        access.removeHandler(handler)
+
+    assert bool(stream.getvalue()) is kept
