@@ -9,10 +9,10 @@ import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
 import SectionIntro from "@/components/common/SectionIntro";
+import { getCurrentRoundQuestions } from "@/lib/questions";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
 import { computeAnswerState } from "./answerState";
-import { getCurrentRoundQuestions } from "./currentQuestions";
 import ProgressSummary from "./ProgressSummary";
 import Question from "./Question";
 import { useQuestionProduct } from "./useQuestionProduct";
