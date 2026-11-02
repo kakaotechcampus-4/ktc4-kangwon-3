@@ -12,7 +12,7 @@ import ProgressSweep from "./components/ProgressSweep";
 import StatusBadge from "./components/StatusBadge";
 import StatusFlash from "./components/StatusFlash";
 import { useAnimateOnChange } from "./hooks/useAnimateOnChange";
-import { useStatusTransition } from "./hooks/useStatusTransition";
+import { useStatusChangeCount } from "./hooks/useStatusChangeCount";
 import { isRunningStatus } from "./utils/processingStatus";
 import { getStatusDescription } from "./utils/statusDescription";
 import { getStatusNotice } from "./utils/statusNotice";
@@ -62,27 +62,24 @@ interface ProductProgressCardProps {
 }
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
-    const { productId, productName, productImageUrl, progresses } = product;
-    // displayStatus: 화면에 보여줄 상태(전환 중엔 이전 상태를 유지). isFinishing: 진행 중 → 완료로 막대가 채워지는 중인지.
+    const { productId, productName, productImageUrl, processingStatus, progresses } = product;
     // changeCount: 화면 상태가 실제로 바뀔 때마다 증가하는 트리거 값(첫 렌더는 0 → 효과 없음).
-    const { displayStatus, isFinishing, changeCount } = useStatusTransition(product.processingStatus);
+    const changeCount = useStatusChangeCount(processingStatus);
     // changeCount가 바뀐 순간에만 카드 내용 크로스페이드를 한 번 재생한다.
     const contentRef = useAnimateOnChange<HTMLDivElement>(changeCount, FADE_KEYFRAMES, FADE_OPTIONS);
     // PENDING도 IN_PROGRESS와 같은 "진행 중"으로 취급한다.
-    const isRunning = isRunningStatus(displayStatus);
-    // 상태 전환 중에는 실제 processingStatus 대신 표시용 상태(displayStatus)로 배지/설명/버튼/테두리를 계산한다.
-    const displayProduct = { ...product, processingStatus: displayStatus };
-    const description = getStatusDescription(displayProduct);
-    const action = ACTION_CONFIG[displayStatus];
-    const notice = getStatusNotice(displayProduct);
+    const isRunning = isRunningStatus(processingStatus);
+    const description = getStatusDescription(product);
+    const action = ACTION_CONFIG[processingStatus];
+    const notice = getStatusNotice(product);
 
     return (
         <DefaultBox
-            borderTone={CARD_BORDER_TONE[displayStatus]}
+            borderTone={CARD_BORDER_TONE[processingStatus]}
             className="relative overflow-hidden transition-colors duration-300"
         >
-            <StatusFlash status={displayStatus} trigger={changeCount} />
-            {isRunning && !isFinishing && <ProgressSweep />}
+            <StatusFlash status={processingStatus} trigger={changeCount} />
+            {isRunning && <ProgressSweep />}
             <div ref={contentRef} className="relative flex w-full flex-col gap-5">
                 <div className="flex w-full flex-row items-center justify-between gap-4">
                     <div className="flex flex-row items-center gap-4">
@@ -94,7 +91,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                         <div className="flex flex-col items-start gap-1">
                             <div className="flex items-center gap-2">
                                 <h2 className="text-lg font-bold text-black">{truncateProductName(productName)}</h2>
-                                <StatusBadge processingStatus={displayStatus} />
+                                <StatusBadge processingStatus={processingStatus} />
                             </div>
                             <p className="text-sm text-neutral-muted">{description}</p>
                         </div>
