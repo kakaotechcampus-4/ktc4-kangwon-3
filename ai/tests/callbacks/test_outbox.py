@@ -6,6 +6,7 @@ import threading
 import pytest
 
 from app.callbacks.outbox import CallbackOutbox
+from app.observability.logs import current_run_fields
 from app.observability.measurements import CallbackOutcome, measurement_sinks
 from app.clients.backend import CallbackTransportError, SendResult
 from app.schemas.callback import ProductProgressEvent, PublicPipelineStage
@@ -60,6 +61,21 @@ def test_같은_상품은_넣은_순서대로_보낸다():
 
     assert outbox.close(timeout=5) == 0
     assert sender.sent == [f"p-1-{n}" for n in range(1, 6)]
+
+
+def test_전송_스레드의_로그_줄에는_이벤트의_실행_정보가_붙는다():
+    seen = []
+
+    class _Recording(_Sender):
+        def send(self, event):
+            seen.append(dict(current_run_fields()))
+            return super().send(event)
+
+    outbox = _outbox(_Recording())
+    outbox.put([_event("p-1")])
+
+    assert outbox.close(timeout=5) == 0
+    assert seen == [{"diagnosis_id": "d-1", "product_id": "p-1", "run_id": "run-p-1"}]
 
 
 @pytest.mark.parametrize("failure", [500, 503, CallbackTransportError("timeout")])

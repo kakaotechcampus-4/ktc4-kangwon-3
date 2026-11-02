@@ -17,6 +17,7 @@ from queue import Queue
 from typing import Protocol
 
 from ..clients.backend import CallbackTransportError, SendResult
+from ..observability.logs import log_fields
 from ..observability.measurements import CallbackOutcome, measurement_sinks
 from ..schemas.callback import PublicProductEvent
 
@@ -149,7 +150,10 @@ class CallbackOutbox:
                         self._lock.notify_all()
                         break
                     event = lane.popleft()
-                self._deliver(event)
+                # 진단 실행과 다른 스레드라 이벤트의 ID로 로그 줄에 실행 정보를 붙임
+                with log_fields({"diagnosis_id": event.diagnosis_id, "product_id": event.product_id,
+                                 "run_id": event.run_id}):
+                    self._deliver(event)
 
     def _deliver(self, event: PublicProductEvent) -> None:
         """이벤트 하나를 재시도 규칙대로 보낸다. 예외는 밖으로 내지 않음."""

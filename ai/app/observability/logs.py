@@ -5,7 +5,8 @@
 외부 라이브러리(httpx 등)는 WARNING 이상만 (요청 주소에 API 키가 들어가는 로그 방지).
 
 진단 실행 중 남긴 줄에는 실행 정보(진단서·상품·실행 ID, 실행 종류)를 줄 끝에 ``key=value``로 붙임.
-실행 정보는 문맥 변수라 남기는 쪽 코드는 고치지 않음. 새 스레드로는 자동으로 안 넘어감.
+실행 정보는 문맥 변수라 남기는 쪽 코드는 고치지 않음. 새 스레드로는 자동으로 안 넘어감
+→ 스레드를 띄우는 쪽에서 ``contextvars.copy_context().run``으로 넘김.
 """
 
 import logging
@@ -31,12 +32,22 @@ def run_log_context(context: ExecutionContext) -> Iterator[None]:
     Args:
         context: 이 실행의 컨텍스트. 값이 없는 필드(단독 실행의 진단서 ID)는 뺌.
     """
-    fields = {
+    with log_fields({
         "diagnosis_id": context.diagnosis_id,
         "product_id": context.product_id,
         "run_id": context.run_id,
         "run_type": context.run_type.value,
-    }
+    }):
+        yield
+
+
+@contextmanager
+def log_fields(fields: Mapping[str, str | None]) -> Iterator[None]:
+    """이 블록에서 남긴 로그 줄에 주어진 필드를 붙인다. 실행 컨텍스트가 없는 곳(콜백 발신함 등)용.
+
+    Args:
+        fields: 필드 이름 → 값. None인 필드는 뺌.
+    """
     token = _run_fields.set(MappingProxyType({key: value for key, value in fields.items() if value is not None}))
     try:
         yield
