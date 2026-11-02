@@ -103,14 +103,28 @@ def test_기동_때_파이프라인_부품을_한_번_만들어_운영·샌드�
     assert _PIPELINE_JOBS == [("pipeline-parts", build_questions)]
 
 
-def test_운영_경로는_파이프라인_연결_전까지_접수하지_않고_콜백도_없다(fake_be):
+def test_운영_경로로_접수한_상품은_실제_진단_함수로_돌고_결과가_BE_콜백으로_나간다(fake_be):
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+        response = client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        _wait_until(lambda: any(json.loads(r.content)["eventType"] == "product_result" for r in fake_be))
+
+    assert response.status_code == 202
+    # 실제 진단 함수 자리의 고정 더미가 알린 단계가 그대로 콜백으로
+    events = [json.loads(request.content) for request in fake_be]
+    assert next(event["stage"] for event in events if event["eventType"] == "product_progress") == "extraction"
+    assert events[-1]["assessment"]["status"] == "completed"
+
+
+def test_운영_경로는_내부_토큰이_없으면_401이고_접수하지_않는다(fake_be):
     with TestClient(main.app) as client:
         response = client.post("/api/ai/v1/diagnose/content", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
         session = main.app.state.session_manager.get("p-1")
 
-    assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert (response.status_code, response.json()["code"]) == (401, "AI_UNAUTHORIZED")
     assert session is None
     assert fake_be == []
 

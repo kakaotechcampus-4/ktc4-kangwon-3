@@ -1,6 +1,6 @@
-"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422), 재진단(202·400·404·409·429·422), /diagnose 501·404를 확인한다.
+"""진단 라우터 테스트. 진단서 단위 접수(202·409·429·422), 재진단(202·400·404·409·429·422), 내부 토큰(401)을 확인한다.
 
-/diagnose 접수는 실제 파이프라인 연결 전까지 501이라, 접수·재진단 처리는 같은 처리를 쓰는 더미 경로로 확인함.
+접수·재진단 처리는 /diagnose와 더미 경로가 같이 써서 대부분 더미 경로로 확인함.
 """
 
 from threading import Event
@@ -152,17 +152,31 @@ def test_형식이_틀린_요청은_422로_거절하고_접수하지_않는다(c
     assert manager.get("p-1") is None
 
 
-def test_실제_진단_접수는_파이프라인_연결_전까지_501이고_접수하지_않는다(client, manager):
+def test_실제_진단_접수는_운영_세션으로_접수하고_입력을_그대로_넘긴다(client, manager):
     response = client.post(PRODUCTION_CONTENT, json=_payload("p-1"))
 
-    assert (response.status_code, response.json()["code"]) == (501, "AI_NOT_IMPLEMENTED")
+    assert response.status_code == 202
+    session = manager.get("p-1")
+    assert (session.context.run_type, session.context.diagnosis_id) == (RunType.PRODUCTION, "d-1")
+    assert session.source == ExtractionInput(product_id="p-1", text_blocks=["상품 설명"])
+
+
+@pytest.mark.parametrize(("path", "payload"), [
+    (PRODUCTION_CONTENT, _payload("p-1")),
+    ("/api/ai/v1/diagnose/resume", {"diagnosisId": "d-1", "productId": "p-1", "runId": "r-1", "questionRound": 1,
+                                    "answers": [{"questionKey": "r1_q1", "answerText": "네"}]}),
+])
+@pytest.mark.parametrize("headers", [{}, {INTERNAL_TOKEN_HEADER: "wrong-token"}])
+def test_실제_진단은_내부_토큰이_없거나_틀리면_형식_검사보다_먼저_401이다(client, manager, path, payload, headers):
+    # 기본 토큰 헤더 없는 클라이언트 (의존성 교체는 client fixture가 해 둠)
+    bare = TestClient(app)
+
+    response = bare.post(path, json=payload, headers=headers)
+    malformed = bare.post(path, json={"diagnosisId": "d-1"}, headers=headers)
+
+    assert (response.status_code, response.json()["code"]) == (401, "AI_UNAUTHORIZED")
+    assert malformed.status_code == 401
     assert manager.get("p-1") is None
-
-
-def test_실제_진단도_형식이_틀리면_501보다_422가_먼저다(client):
-    response = client.post(PRODUCTION_CONTENT, json={"diagnosisId": "d-1", "products": []})
-
-    assert (response.status_code, response.json()["code"]) == (422, "AI_INVALID_REQUEST")
 
 
 def test_URL_진단_경로는_없다(client):
@@ -235,7 +249,7 @@ def test_답변_대기_상품을_새_runId로_재접수하고_202를_반환한�
 
 
 def test_실제_재진단은_더미로_접수한_상품이면_404이고_세션을_바꾸지_않는다(client, manager):
-    # 파이프라인 연결 전에는 /diagnose 접수가 501이라 실제 세션이 없음. BE는 404를 받아 바로 실패 처리
+    # 실행 종류가 다르면 없는 세션으로 봄. BE는 404를 받아 바로 실패 처리
     waiting = _waiting(manager)
 
     response = client.post(PRODUCTION_RESUME, json=_resume_payload(waiting))
