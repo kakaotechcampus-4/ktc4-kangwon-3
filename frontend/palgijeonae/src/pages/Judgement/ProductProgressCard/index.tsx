@@ -83,7 +83,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                 <span
                     key={`flash-${animationKey}`}
                     aria-hidden="true"
-                    className={cn("pointer-events-none absolute inset-0 motion-safe:animate-status-flash", FLASH_BG[displayStatus])}
+                    className={cn("pointer-events-none absolute inset-0 opacity-0 motion-safe:animate-status-flash", FLASH_BG[displayStatus])}
                 />
             )}
             {showProgressSweep && (
