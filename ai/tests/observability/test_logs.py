@@ -9,6 +9,7 @@ from app.observability.logs import (
     APP_LOGGER,
     configure_logging,
     current_run_fields,
+    log_fields,
     run_log_context,
     set_run_field,
 )
@@ -78,6 +79,14 @@ def test_실행_중_바꾼_필드는_실행이_끝나면_사라지고_실행_밖
         inside = dict(current_run_fields())
 
     assert (inside["stage"], inside["retry_round"]) == ("selection", "1")
+    assert dict(current_run_fields()) == {}
+
+
+def test_실행_컨텍스트가_없는_곳은_필드를_직접_붙이고_None은_뺀다():
+    with log_fields({"product_id": "p-1", "diagnosis_id": None}):
+        inside = dict(current_run_fields())
+
+    assert inside == {"product_id": "p-1"}
     assert dict(current_run_fields()) == {}
 
 

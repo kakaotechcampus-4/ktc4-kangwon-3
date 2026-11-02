@@ -13,6 +13,7 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol
@@ -166,7 +167,8 @@ class ClipCaseSearch:
         failed: list[str] = []
         errors: list[Exception] = []
         with ThreadPoolExecutor(max_workers=len(queries)) as executor:
-            futures = [(query, executor.submit(self._fetch, query)) for query in queries]
+            # 검색어 스레드 로그에도 실행 정보가 붙게 문맥 복사. 문맥 하나는 한 스레드만 쓸 수 있어 검색어마다 복사
+            futures = [(query, executor.submit(copy_context().run, self._fetch, query)) for query in queries]
             for query, future in futures:
                 try:
                     items.extend(future.result())
