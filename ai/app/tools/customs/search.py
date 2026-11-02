@@ -18,6 +18,7 @@ from datetime import date, datetime
 from typing import Protocol
 
 from ...clients.customs import CLIPClient, CustomsGwClient
+from ...observability.measurements import CacheLookup, measurement_sinks
 from ...schemas.clients.customs_request import CLIPSearchRequest, CustomsGwConfirmationRequest
 from ...schemas.clients.customs_response import CLIPCase
 from ..common.law import KST, CachedLoader, EvidenceUnavailable, LawApiClients
@@ -25,6 +26,9 @@ from ..common.ranking import rank_rows
 from .evidence import CustomsEvidence, load_customs_evidence
 
 logger = logging.getLogger(__name__)
+
+# 결정사례 DB 조회의 캐시 지표 이름 (응답 캐시 이름과 같은 꼴)
+CASE_CACHE = "customs.cases"
 
 _DESCRIPTION_LIMIT = 300
 _REASON_LIMIT = 200
@@ -228,8 +232,11 @@ class DatabaseFirstCaseSearch:
             hits = self._database.search_similar(text, top_k=self._pool_size)
         except Exception as exc:  # DB 장애·임베딩 실패는 CLIP으로 대신함
             logger.warning("결정사례 DB 조회 실패 — CLIP으로 찾음: %s", type(exc).__name__)
+            measurement_sinks.publish(CacheLookup(CASE_CACHE, "skipped"))
             return []
-        return [case for case, distance in hits if self._max_distance is None or distance <= self._max_distance]
+        near = [case for case, distance in hits if self._max_distance is None or distance <= self._max_distance]
+        measurement_sinks.publish(CacheLookup(CASE_CACHE, "hit" if near else "miss"))
+        return near
 
     def search(self, queries: list[str], terms: list[str], *, top_k: int) -> CaseCandidates:
         """DB를 먼저 보고 가까운 순으로 top_k개를 쓴다. 가까운 사례가 없으면 검색어로 CLIP에서 받아 고른다.

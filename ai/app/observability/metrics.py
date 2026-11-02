@@ -3,6 +3,10 @@
     - SessionMetrics: 세션 이벤트 구독자. 대기·실행·전체·단계 소요 시간과 결말·Tool 진행 횟수
     - SessionSnapshotCollector: 수집(scrape) 때마다 세션 관리자 현황을 읽음. 상태별 수·자리·상한·누적 접수/거절
     - AgentMetrics: 에이전트 실행 기록 sink. 모델 호출 수·토큰·비용·호출 시간
+    - MeasurementMetrics: 측정 기록 sink. 외부 API 호출 결과·시간, 콜백 전송 결과·버림·재시도, Tool 실행 결과·시간·실패 원인·판단,
+      판매자 구역 자르기 결과, DB 캐시 조회 결과, 법령 점검 결과·마지막 성공 시각·찾은 변경, CLIP 적재 결과·마지막 성공 시각·사례 수,
+      받은 HTTP 요청 수·처리 시간
+    - CallbackOutboxCollector: 수집 때마다 콜백 발신함의 대기 중 이벤트 수를 읽음
 
 라벨에 product_id·run_id는 넣지 않음 (실행마다 시계열이 늘어남). 세션 지표는 실행 종류(run_type)로 운영·개발 구분.
 에이전트 지표는 실행 컨텍스트가 없어 기록 이름(평가 호출은 extraction-eval 등)으로만 구분.
@@ -12,11 +16,16 @@ from collections.abc import Iterator
 from datetime import datetime
 from threading import Lock
 
-from prometheus_client import CollectorRegistry, Counter, Histogram
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metric
 from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
+from ..callbacks import CallbackOutbox
+from .measurements import (
+    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, Measurement,
+    SellerRegionCut, ToolRun,
+)
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..sessions.manager import SessionManager
 
@@ -24,6 +33,12 @@ from ..sessions.manager import SessionManager
 DURATION_BUCKETS = (1, 5, 10, 30, 60, 120, 300, 600)
 # 모델 호출 1건 소요 시간 구간(초)
 AGENT_CALL_BUCKETS = (0.5, 1, 2, 5, 10, 20, 30, 60, 120)
+# 외부 API 호출 1건 소요 시간 구간(초). 클라이언트 제한 시간(10·15·30·45초)이 구간 경계
+CLIENT_CALL_BUCKETS = (0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 45, 60)
+# Tool 실행 1건 소요 시간 구간(초). 모델 호출 여러 번과 근거 조회를 포함
+TOOL_RUN_BUCKETS = (1, 2, 5, 10, 20, 30, 60, 120, 300)
+# HTTP 요청 처리 시간 구간(초). 접수는 바로 응답하고 진단은 세션에서 돎
+HTTP_REQUEST_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
 
@@ -57,7 +72,8 @@ class SessionMetrics:
             "ai_session_finished", "결말별 끝난 세션 수", ["run_type", "outcome"], registry=registry,
         )
         self._failed = Counter(
-            "ai_session_failed", "오류 코드별 실패한 세션 수", ["run_type", "error_code"], registry=registry,
+            "ai_session_failed", "오류 코드·실패 단계별 실패한 세션 수. 실행 전 실패는 stage=none",
+            ["run_type", "error_code", "stage"], registry=registry,
         )
         self._tool = Counter(
             "ai_session_tool_progress", "Tool 진행 알림 수", ["run_type", "tool_name", "status"], registry=registry,
@@ -92,7 +108,8 @@ class SessionMetrics:
                 if session.started_at is not None:
                     self._run.labels(run_type, outcome).observe(_seconds(session.started_at, session.updated_at))
                 if isinstance(event, Failed):
-                    self._failed.labels(run_type, event.error_code).inc()
+                    stage = session.stage.value if session.stage is not None else "none"
+                    self._failed.labels(run_type, event.error_code, stage).inc()
 
     def _close_stage(self, run_id: str, run_type: str, now: datetime) -> None:
         """실행의 지금 단계를 끝내고 소요 시간을 기록한다. 단계가 없으면 아무것도 안 함."""
@@ -197,6 +214,156 @@ class AgentMetrics:
                 self._tokens.labels(component, model, kind).inc(count)
         if meta.cost_krw is not None:
             self._cost.labels(component, model).inc(meta.cost_krw)
+
+
+class MeasurementMetrics:
+    """측정 기록으로 외부 API 호출·콜백 전송·Tool 실행·판매자 구역 자르기·캐시 조회·법령 점검·CLIP 적재·HTTP 요청을 기록한다.
+
+    measurement_sinks에 on_record를 등록해 씀.
+    """
+
+    def __init__(self, registry: CollectorRegistry) -> None:
+        """지표를 registry에 등록한다.
+
+        Args:
+            registry: 지표를 등록할 registry. 테스트마다 새로 만들 수 있게 주입.
+        """
+        self._client_calls = Counter(
+            "ai_client_calls", "서버·결과별 외부 API 호출 수. api_error는 HTTP 200에 오류 본문",
+            ["api", "result"], registry=registry,
+        )
+        self._client_seconds = Histogram(
+            "ai_client_seconds", "외부 API 호출 1건 소요 시간", ["api"], buckets=CLIENT_CALL_BUCKETS, registry=registry,
+        )
+        self._callback_sent = Counter(
+            "ai_callback_sent", "종류·최종 결과(delivered·dropped)별 콜백 이벤트 수", ["event_type", "result"],
+            registry=registry,
+        )
+        self._callback_dropped = Counter(
+            "ai_callback_dropped", "사유별 버린 콜백 이벤트 수. 생기면 BE 화면에서 진단이 멈춘 것처럼 보임", ["reason"],
+            registry=registry,
+        )
+        self._callback_retries = Counter(
+            "ai_callback_retries", "종류별 콜백 재시도 횟수", ["event_type"], registry=registry,
+        )
+        self._tool_runs = Counter(
+            "ai_tool_runs", "분야·상태(success·partial·failed·skipped)별 Tool 실행 수", ["tool_name", "status"],
+            registry=registry,
+        )
+        self._tool_seconds = Histogram(
+            "ai_tool_run_seconds", "Tool 실행 1건 소요 시간. 건너뛴 실행은 빠짐", ["tool_name", "status"],
+            buckets=TOOL_RUN_BUCKETS, registry=registry,
+        )
+        self._tool_errors = Counter(
+            "ai_tool_errors", "분야·원인(model·client·other)별 Tool 실패 수", ["tool_name", "error_type"],
+            registry=registry,
+        )
+        self._tool_findings = Counter(
+            "ai_tool_findings", "분야·판단별 Tool 판단 항목 수", ["tool_name", "determination"], registry=registry,
+        )
+        self._seller_region = Counter(
+            "ai_extraction_seller_region", "쇼핑몰·자르기 성공 여부별 상세페이지 글 수. false가 늘면 화면 변경 의심",
+            ["site", "trimmed"], registry=registry,
+        )
+        self._cache_lookups = Counter(
+            "ai_cache_lookups", "캐시·결과(hit·miss·stale·skipped)별 Tool의 DB 캐시 조회 수", ["cache", "result"],
+            registry=registry,
+        )
+        self._http_requests = Counter(
+            "ai_http_requests", "라우트 템플릿·메서드·상태 코드별 받은 HTTP 요청 수", ["route", "method", "status"],
+            registry=registry,
+        )
+        self._http_seconds = Histogram(
+            "ai_http_request_seconds", "HTTP 요청 1건 처리 시간(응답 헤더까지)", ["route", "method"],
+            buckets=HTTP_REQUEST_BUCKETS, registry=registry,
+        )
+        self._law_refresh_runs = Counter(
+            "ai_law_refresh_runs", "결과(ok·partial·failed)별 법령 점검 수", ["result"], registry=registry,
+        )
+        self._law_refresh_last_success = Gauge(
+            "ai_law_refresh_last_success_timestamp", "법령 점검이 실패 문서 없이 끝난 마지막 시각(Unix 초). 0이면 아직 없음",
+            registry=registry,
+        )
+        self._law_changes = Counter(
+            "ai_law_changes", "종류(announced·applied·skipped)·Tool별 법령 점검에서 찾은 근거 문서 변경 수",
+            ["kind", "tool"], registry=registry,
+        )
+        self._clip_ingest_runs = Counter(
+            "ai_clip_ingest_runs", "결과(ok·partial·failed·skipped)별 CLIP 주간 적재 수", ["result"], registry=registry,
+        )
+        self._clip_ingest_last_success = Gauge(
+            "ai_clip_ingest_last_success_timestamp",
+            "CLIP 주간 적재가 실패 사례 없이 끝난 마지막 시각(Unix 초). 0이면 기동 후 아직 없음", registry=registry,
+        )
+        self._clip_ingest_cases = Counter(
+            "ai_clip_ingest_cases", "주간 적재에서 처리(saved·removed·failed)별 CLIP 결정사례 수", ["outcome"],
+            registry=registry,
+        )
+
+    def on_record(self, record: Measurement) -> None:
+        """측정 기록 1건을 기록한다.
+
+        Args:
+            record: 측정 기록.
+        """
+        match record:
+            case ClientCall(api=api, result=result, seconds=seconds):
+                self._client_calls.labels(api, result).inc()
+                self._client_seconds.labels(api).observe(seconds)
+            case CallbackOutcome(event_type=event_type, delivered=delivered, retries=retries, drop_reason=reason):
+                self._callback_sent.labels(event_type, "delivered" if delivered else "dropped").inc()
+                self._callback_retries.labels(event_type).inc(retries)
+                if reason is not None:
+                    self._callback_dropped.labels(reason).inc()
+            case ToolRun(tool_name=tool_name, status=status, seconds=seconds, error_type=error_type,
+                         determinations=determinations):
+                self._tool_runs.labels(tool_name, status).inc()
+                if status != "skipped":
+                    self._tool_seconds.labels(tool_name, status).observe(seconds)
+                if error_type is not None:
+                    self._tool_errors.labels(tool_name, error_type).inc()
+                for determination in determinations:
+                    self._tool_findings.labels(tool_name, determination).inc()
+            case SellerRegionCut(site=site, trimmed=trimmed):
+                self._seller_region.labels(site, str(trimmed).lower()).inc()
+            case CacheLookup(cache=cache, result=result):
+                self._cache_lookups.labels(cache, result).inc()
+            case HttpRequest(route=route, method=method, status=status, seconds=seconds):
+                self._http_requests.labels(route, method, str(status)).inc()
+                self._http_seconds.labels(route, method).observe(seconds)
+            case LawRefreshRun(result=result, finished_at=finished_at):
+                self._law_refresh_runs.labels(result).inc()
+                if result == "ok":
+                    self._law_refresh_last_success.set(finished_at)
+            case LawChangeFound(kind=kind, tool=tool):
+                self._law_changes.labels(kind, tool).inc()
+            case ClipIngestRun(result=result, finished_at=finished_at, saved=saved, removed=removed, failed=failed):
+                self._clip_ingest_runs.labels(result).inc()
+                if result == "ok":
+                    self._clip_ingest_last_success.set(finished_at)
+                for outcome, count in (("saved", saved), ("removed", removed), ("failed", failed)):
+                    self._clip_ingest_cases.labels(outcome).inc(count)
+
+
+class CallbackOutboxCollector(Collector):
+    """수집(scrape) 때마다 콜백 발신함에서 아직 보내기 시작하지 않은 이벤트 수를 읽는다."""
+
+    def __init__(self, outbox: CallbackOutbox) -> None:
+        """
+        Args:
+            outbox: 읽을 콜백 발신함.
+        """
+        self._outbox = outbox
+
+    def collect(self) -> Iterator[Metric]:
+        """대기 중 이벤트 수를 낸다.
+
+        Returns:
+            Iterator[Metric]: ai_callback_pending.
+        """
+        pending = GaugeMetricFamily("ai_callback_pending", "보내기를 기다리는 콜백 이벤트 수")
+        pending.add_metric([], self._outbox.pending())
+        yield pending
 
 
 def _seconds(start: datetime, end: datetime) -> float:

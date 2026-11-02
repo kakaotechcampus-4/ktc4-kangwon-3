@@ -17,6 +17,7 @@ from app.clients.backend import BackendCallbackClient
 from app.agents.base import AgentRunMeta
 from app.dummy import job as dummy_job
 from app.observability.agent_sinks import agent_sinks
+from app.observability.measurements import ClientCall, measurement_sinks
 from app.db import engine as database
 from app.routers import _dummy
 
@@ -154,6 +155,24 @@ def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be
     assert 'ai_session_accepted_total{run_type="dummy"} 1.0' in text
 
 
+def test_지표_경로에_받은_HTTP_요청이_라우트_템플릿으로_나온다(fake_be):
+    with TestClient(main.app) as client:
+        client.get("/api/ai/v1/health")
+        text = client.get("/metrics").text
+
+    assert 'ai_http_requests_total{method="GET",route="/api/ai/v1/health",status="200"} 1.0' in text
+    assert 'route="/metrics"' not in text
+
+
+def test_지표_경로는_처음_만든_시각_시계열을_내보내지_않는다(fake_be):
+    with TestClient(main.app) as client:
+        client.get("/api/ai/v1/health")
+        text = client.get("/metrics").text
+
+    assert "ai_http_requests_total" in text
+    assert "_created" not in text
+
+
 def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인다(fake_be):
     meta = AgentRunMeta(component="extraction", model="m", elapsed_ms=100)
     sample = {"component": "extraction", "model": "m", "outcome": "ok"}
@@ -169,6 +188,26 @@ def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인�
     assert registry.get_sample_value("ai_agent_calls_total", sample) == 1.0
 
 
+def test_서버가_떠_있는_동안만_외부_API_호출이_지표에_쌓인다(fake_be):
+    call = ClientCall(api="law", result="ok", seconds=0.1)
+
+    with TestClient(main.app) as client:
+        measurement_sinks.publish(call)
+        registry = main.app.state.metrics_registry
+        text = client.get("/metrics").text
+    measurement_sinks.publish(call)
+
+    assert 'ai_client_calls_total{api="law",result="ok"} 1.0' in text
+    assert registry.get_sample_value("ai_client_calls_total", {"api": "law", "result": "ok"}) == 1.0
+
+
+def test_metrics에_콜백_발신함_대기_수가_나온다(fake_be):
+    with TestClient(main.app) as client:
+        text = client.get("/metrics").text
+
+    assert "ai_callback_pending 0.0" in text
+
+
 class _LawFetchers:
     closed = False
 
@@ -182,7 +221,7 @@ def _db_ready(monkeypatch, created=()) -> tuple[_LawFetchers, list]:
     refreshed = []
     monkeypatch.setattr(main, "init_db", lambda: list(created))
     monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
-    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory: fetchers)
+    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: fetchers)
     monkeypatch.setattr(main, "refresh_laws", lambda f, sources, **kwargs: refreshed.append((f, sources, kwargs)))
     monkeypatch.setattr(main, "purge_expired_responses", lambda factory, clients: refreshed.append((factory, clients)))
     return fetchers, refreshed
@@ -207,6 +246,17 @@ def test_DB가_준비되면_기동_직후_법령_점검을_돌리고_종료_때_
                           {"select": main.applied_version, "on_change": main.log_law_changes}),
                          ("session-factory", ["customs.gw"])]
     assert fetchers.closed is True
+
+
+def test_법령_점검용_조회_객체는_캐시_조회를_측정_기록으로_남기지_않는다(fake_be, monkeypatch):
+    fetchers, refreshed = _db_ready(monkeypatch)
+    options = []
+    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: options.append(kwargs) or fetchers)
+
+    with TestClient(main.app):
+        _wait_until(lambda: len(refreshed) == 2)
+
+    assert options == [{"measure": False}]
 
 
 def test_DB가_없으면_법령_점검을_돌리지_않는다(fake_be, monkeypatch):

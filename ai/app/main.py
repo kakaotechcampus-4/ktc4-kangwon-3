@@ -5,7 +5,7 @@ import logging
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
-from prometheus_client import CollectorRegistry
+from prometheus_client import CollectorRegistry, disable_created_metrics
 from sqlalchemy.exc import SQLAlchemyError
 
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
@@ -17,7 +17,11 @@ from .config import SESSION_SWEEP_SECONDS, get_settings
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
-from .observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
+from .observability.http_requests import record_http_requests
+from .observability.measurements import measurement_sinks
+from .observability.metrics import (
+    AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
+)
 from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
                  log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
                  run_weekly_clip_ingest)
@@ -30,6 +34,9 @@ from .sessions.store import SessionStore
 from .tools.common.law_sources import LAW_SOURCES, applied_version
 
 logger = logging.getLogger(__name__)
+
+# Counter·Histogram마다 붙는 _created(처음 만든 시각) 시계열을 내보내지 않음. Prometheus는 재시작을 _total 감소로 알아챔
+disable_created_metrics()
 
 # 종료 시 남은 콜백을 보내는 최대 대기 시간. 넘으면 버리고 로그만 남김
 CALLBACK_CLOSE_SECONDS = 5.0
@@ -76,7 +83,7 @@ async def lifespan(app: FastAPI):
         logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
         # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
         session_factory = get_session_factory()
-        law_fetchers = build_law_fetchers(settings.law_oc, session_factory)
+        law_fetchers = build_law_fetchers(settings.law_oc, session_factory, measure=False)
 
     def daily_refresh() -> None:
         refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version, on_change=log_law_changes)
@@ -105,9 +112,13 @@ async def lifespan(app: FastAPI):
     registry = CollectorRegistry()
     manager.subscribe(SessionMetrics(registry).on_event)
     registry.register(SessionSnapshotCollector(manager))
+    registry.register(CallbackOutboxCollector(outbox))
     # 에이전트 지표. 등록표는 앱 전체 공용이라 종료 때 해제 (lifespan을 다시 띄워도 옛 registry에 안 쌓이게)
     agent_metrics = AgentMetrics(registry).on_run
     agent_sinks.add(agent_metrics)
+    # 외부 API·콜백·Tool·추출 측정 지표. 에이전트 지표와 같은 이유로 종료 때 해제
+    measurement_metrics = MeasurementMetrics(registry).on_record
+    measurement_sinks.add(measurement_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
     # 샌드박스 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
@@ -139,6 +150,7 @@ async def lifespan(app: FastAPI):
         close_llm_clients()
         close_decision_clients()
         agent_sinks.remove(agent_metrics)
+        measurement_sinks.remove(measurement_metrics)
 
 
 app = FastAPI(
@@ -148,6 +160,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 register_exception_handlers(app)
+# HTTP 요청 지표 (라우트 템플릿 기준)
+app.middleware("http")(record_http_requests)
 
 api_v1 = APIRouter(prefix="/api/ai/v1")
 api_v1.include_router(health.router)
