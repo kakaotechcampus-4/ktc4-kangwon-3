@@ -27,11 +27,19 @@ function JudgementPage() {
         }
     }, [isInvalidAccess, navigate]);
 
-    const { data, isPending, isError, refetch } = useJudgementProducts(diagnosesId, !isInvalidAccess);
+    const { data, isPending, isError, refetch, isNotFoundError } = useJudgementProducts(diagnosesId, !isInvalidAccess);
     const isDiagnosisDone = data != null
         && (data.processingStatus === ProcessingStatusType.Completed || data.processingStatus === ProcessingStatusType.Failed);
     // 폴링으로 바뀌는 상태를 스크린리더에게도 알린다.
     const announcement = useStatusAnnouncement(data?.products, isDiagnosisDone);
+
+    // 존재하지 않는 diagnosesId로 접근한 경우(404)
+    useEffect(() => {
+        if (isNotFoundError) {
+            alert("유효하지 않은 진단서 id 입니다.");
+            navigate("/", { replace: true });
+        }
+    }, [isNotFoundError, navigate]);
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -44,7 +52,7 @@ function JudgementPage() {
                 }
             />
             <p role="status" className="sr-only">{announcement}</p>
-            {isPending ? (
+            {isNotFoundError ? null : isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">
@@ -57,6 +65,10 @@ function JudgementPage() {
                         다시 시도
                     </button>
                 </div>
+            ) : data.products.length === 0 ? (
+                <p className="w-full py-12 text-center text-sm font-medium text-neutral-border">
+                    확인할 상품이 없어요.
+                </p>
             ) : (
                 <div className="flex w-full flex-col gap-6">
                     <div>
