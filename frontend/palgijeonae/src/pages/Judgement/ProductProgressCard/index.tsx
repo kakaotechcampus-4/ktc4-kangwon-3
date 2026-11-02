@@ -11,6 +11,7 @@ import ProgressBar from "./ProgressBar";
 import StatusBadge from "./StatusBadge";
 import { getStatusDescription } from "./statusDescription";
 import { getStatusNotice } from "./statusNotice";
+import { isRunningStatus, useStatusTransition } from "./useStatusTransition";
 
 const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "warning" | "danger"> = {
     [ProcessingStatusType.Pending]: "neutral",
@@ -54,14 +55,21 @@ interface ProductProgressCardProps {
 }
 
 function ProductProgressCard({ product }: ProductProgressCardProps) {
-    const { productId, productName, productImageUrl, processingStatus, progresses } = product;
-    const description = getStatusDescription(product);
-    const action = ACTION_CONFIG[processingStatus];
-    const notice = getStatusNotice(product);
-    const showProgressBar = processingStatus === ProcessingStatusType.Pending || processingStatus === ProcessingStatusType.InProgress;
+    const { productId, productName, productImageUrl, progresses } = product;
+    const { displayStatus, finishing } = useStatusTransition(product.processingStatus);
+    // 상태 전환 중에는 실제 processingStatus 대신 표시용 상태(displayStatus)로 배지/설명/버튼/테두리를 계산한다.
+    const displayProduct = { ...product, processingStatus: displayStatus };
+    const description = getStatusDescription(displayProduct);
+    const action = ACTION_CONFIG[displayStatus];
+    const notice = getStatusNotice(displayProduct);
+    const showProgressBar = isRunningStatus(displayStatus);
+    const showProgressSweep = showProgressBar && !finishing;
 
     return (
-        <DefaultBox borderTone={CARD_BORDER_TONE[processingStatus]}>
+        <DefaultBox
+            borderTone={CARD_BORDER_TONE[displayStatus]}
+            className="relative overflow-hidden transition-colors duration-300"
+        >
             <div className="flex w-full flex-row items-center justify-between gap-4">
                 <div className="flex flex-row items-center gap-4">
                     <img
@@ -72,7 +80,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-2">
                             <h2 className="text-lg font-bold text-black">{truncateProductName(productName)}</h2>
-                            <StatusBadge processingStatus={processingStatus} />
+                            <StatusBadge processingStatus={displayStatus} />
                         </div>
                         <p className="text-sm text-neutral-muted">{description}</p>
                     </div>
@@ -83,11 +91,17 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                     </Link>
                 )}
             </div>
-            {showProgressBar && <ProgressBar progresses={progresses} />}
+            {showProgressBar && <ProgressBar progresses={progresses} finishing={finishing} />}
             {notice && (
                 <div className={cn("flex w-full rounded-xl px-4 py-3", notice.className)}>
                     <p className="flex-1 text-sm leading-normal">{notice.text}</p>
                 </div>
+            )}
+            {showProgressSweep && (
+                <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-0 left-0 z-10 h-0.5 w-2/5 bg-linear-to-r from-transparent via-primary to-transparent motion-safe:animate-progress-sweep"
+                />
             )}
         </DefaultBox>
     );
