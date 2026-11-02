@@ -23,7 +23,7 @@ enum SegmentStatus {
 
 const BAR_CLASSES: Record<SegmentStatus, string> = {
     [SegmentStatus.Completed]: "bg-primary",
-    [SegmentStatus.Current]: "bg-primary opacity-50",
+    [SegmentStatus.Current]: "bg-primary opacity-50 motion-safe:animate-segment-breathe",
     [SegmentStatus.Upcoming]: "bg-gray-200",
 };
 
@@ -40,9 +40,11 @@ function resolveSegmentStatus(index: number, currentIndex: number): SegmentStatu
 
 interface ProgressBarProps {
     progresses: ProductProgress[]
+    // 진행 중 → 완료로 넘어가는 중이면 남은 막대를 순서대로 채운다.
+    finishing?: boolean
 }
 
-function ProgressBar({ progresses }: ProgressBarProps) {
+function ProgressBar({ progresses, finishing = false }: ProgressBarProps) {
     const currentStage = progresses.at(-1)?.stage;
     const currentIndex = PROGRESS_SEGMENTS.findIndex((segment) => currentStage != null && segment.stages.includes(currentStage));
 
@@ -52,8 +54,17 @@ function ProgressBar({ progresses }: ProgressBarProps) {
                 const status = resolveSegmentStatus(index, currentIndex);
                 return (
                     <div key={segment.label} className="flex flex-1 flex-col items-start gap-2">
-                        <div className={cn("h-1.5 w-full rounded-sm", BAR_CLASSES[status])} />
-                        <p className={cn("text-xs leading-4", LABEL_CLASSES[status])}>{segment.label}</p>
+                        <div
+                            className={cn(
+                                "h-1.5 w-full rounded-sm transition-[background-color,opacity] duration-500",
+                                BAR_CLASSES[status],
+                                finishing && "bg-status-success opacity-100 duration-[250ms]",
+                            )}
+                            style={finishing ? { transitionDelay: `${index * 80}ms` } : undefined}
+                        />
+                        <p className={cn("text-xs leading-4", LABEL_CLASSES[status], finishing && "text-status-success")}>
+                            {segment.label}
+                        </p>
                     </div>
                 );
             })}
