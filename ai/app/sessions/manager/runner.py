@@ -5,6 +5,7 @@ from typing import assert_never
 
 from ...domain.errors import AIResponseCode
 from ...domain.context import ExecutionContext, PipelineStage
+from ...observability.logs import run_log_context
 from ...schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerificationStatus, ToolName
 from ...schemas.session import DiagnosisInput
 from ..job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, ToolProgressStatus
@@ -37,12 +38,19 @@ def run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionUp
     """세션 하나를 실행한다. 예외는 실패로 기록하고 밖으로 내보내지 않음.
 
     세션 변경은 모두 이 실행의 context로 함. 시간 초과 뒤 재접수된 새 세션은 건드리지 않음.
+    실행 중 남긴 로그 줄에는 이 실행의 정보가 붙음 (#497).
 
     Args:
         job: 진단 함수.
         context: 이 실행의 컨텍스트.
         updater: 상태 변경 통로.
     """
+    with run_log_context(context):
+        _run_session(job, context, updater)
+
+
+def _run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionUpdater) -> None:
+    """``run_session``의 본문. 인자는 같음."""
     started = updater.apply(context, Start())
     # 대기 중 시간 초과로 이미 실패한 세션이면 실행하지 않음
     if started is None:

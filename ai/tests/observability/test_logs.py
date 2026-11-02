@@ -4,7 +4,8 @@ import logging
 
 import pytest
 
-from app.observability.logs import APP_LOGGER, configure_logging
+from app.domain.context import ExecutionContext, RunType
+from app.observability.logs import APP_LOGGER, configure_logging, current_run_fields, run_log_context
 
 
 @pytest.fixture(autouse=True)
@@ -36,6 +37,29 @@ def test_app_아래_로거의_INFO가_시각·레벨·이름과_함께_나간다
 
     line = capsys.readouterr().err.strip()
     assert line.endswith("INFO app.sessions.manager: 진단 접수")
+
+
+def test_실행_안에서_남긴_줄에는_실행_정보가_붙고_밖에서는_안_붙는다(capsys):
+    configure_logging("INFO")
+    logger = logging.getLogger("app.tools.electrical")
+    context = ExecutionContext.start(product_id="p-1", run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+
+    with run_log_context(context):
+        logger.info("안쪽")
+    logger.info("바깥")
+
+    inside, outside = capsys.readouterr().err.strip().splitlines()
+    assert inside.endswith(f"안쪽 diagnosis_id=d-1 product_id=p-1 run_id={context.run_id} run_type=production")
+    assert outside.endswith("app.tools.electrical: 바깥")
+
+
+def test_진단서_ID가_없는_실행은_그_필드를_뺀다():
+    context = ExecutionContext.start(product_id="dev-1", run_type=RunType.TEST)
+
+    with run_log_context(context):
+        fields = dict(current_run_fields())
+
+    assert fields == {"product_id": "dev-1", "run_id": context.run_id, "run_type": "test"}
 
 
 def test_외부_라이브러리_로거는_건드리지_않는다(capsys):
