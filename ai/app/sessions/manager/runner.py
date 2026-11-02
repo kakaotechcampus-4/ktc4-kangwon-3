@@ -58,6 +58,9 @@ def _run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionU
     if started is None:
         return
     session = started.session
+    if session.started_at is not None:
+        logger.info("진단 시작 (대기 %.1f초, 답변 %d개)",
+                    (session.started_at - session.accepted_at).total_seconds(), len(session.answers))
     # 첫 실행은 이전 결과·답변이 비어 있음
     job_input = DiagnosisInput(source=session.source, previous=session.result, answers=session.answers)
     try:
