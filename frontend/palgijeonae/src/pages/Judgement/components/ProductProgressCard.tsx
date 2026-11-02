@@ -7,14 +7,14 @@ import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";
 import { truncateWithEllipsis } from "@/lib/text";
 
-import ProgressBar from "./components/ProgressBar";
-import ProgressSweep from "./components/ProgressSweep";
-import StatusBadge from "./components/StatusBadge";
-import StatusFlash from "./components/StatusFlash";
-import { useAnimateOnChange } from "./hooks/useAnimateOnChange";
-import { useStatusChangeCount } from "./hooks/useStatusChangeCount";
-import { getStatusDescription } from "./utils/statusDescription";
-import { getStatusNotice } from "./utils/statusNotice";
+import { useAnimateOnChange } from "../hooks/useAnimateOnChange";
+import { useStatusChangeCount } from "../hooks/useStatusChangeCount";
+import { getStatusDescription } from "../utils/statusDescription";
+import { getStatusNotice } from "../utils/statusNotice";
+import ProgressBar from "./ProgressBar";
+import ProgressSweep from "./ProgressSweep";
+import StatusBadge from "./StatusBadge";
+import StatusFlash from "./StatusFlash";
 
 const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "warning" | "danger"> = {
     [ProcessingStatusType.Pending]: "neutral",
@@ -57,6 +57,10 @@ interface ProductProgressCardProps {
     product: ProductResult
 }
 
+/**
+ * Judgement 페이지의 진행 카드 하나. 상품 상태(진행 중/답변 필요/완료/실패)에 맞춰
+ * 썸네일·배지·설명·진행 막대·안내 문구·액션 버튼을 보여주고, 상태 전환 애니메이션을 재생한다.
+ */
 function ProductProgressCard({ product }: ProductProgressCardProps) {
     const { productId, productName, productImageUrl, processingStatus, progresses } = product;
 

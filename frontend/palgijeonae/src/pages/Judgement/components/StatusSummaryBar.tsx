@@ -2,7 +2,7 @@ import type { ProductResult } from "@/api/product";
 import { ProcessingStatusType } from "@/api/types";
 import { cn } from "@/lib/cn";
 
-import { STATUS_SUMMARY_INFO } from "./statusSummaryInfo";
+import { STATUS_SUMMARY_INFO } from "../utils/statusSummaryInfo";
 
 interface StatusSummaryBarProps {
     products: ProductResult[]
@@ -29,6 +29,7 @@ function countProductsByStatus(products: ProductResult[]): Map<ProcessingStatusT
     return counts;
 }
 
+/** Judgement 페이지 상단 요약 바. 상태별 상품 개수와 자동 갱신 주기(pollIntervalMs)를 보여준다. */
 function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
     const statusCounts = countProductsByStatus(products);
 

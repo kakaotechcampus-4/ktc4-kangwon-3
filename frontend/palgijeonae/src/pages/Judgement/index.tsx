@@ -7,10 +7,10 @@ import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
-import ProductProgressCard from "./ProductProgressCard";
-import StatusSummaryBar from "./StatusSummaryBar";
-import { useJudgementProducts } from "./useJudgementProducts";
-import { useStatusAnnouncement } from "./useStatusAnnouncement";
+import ProductProgressCard from "./components/ProductProgressCard";
+import StatusSummaryBar from "./components/StatusSummaryBar";
+import { useJudgementProducts } from "./hooks/useJudgementProducts";
+import { useStatusAnnouncement } from "./hooks/useStatusAnnouncement";
 
 function JudgementPage() {
     const { diagnosesId } = useParams<{ diagnosesId?: string }>();
