@@ -1,16 +1,23 @@
 """실제 진단 함수를 모델·외부 호출 없이 검증한다. 파이프라인은 단계를 차례로 부르는 가짜로 바꿈."""
 
+from types import SimpleNamespace
+
 import pytest
 
 from app.diagnosis import job as job_module
 from app.diagnosis.assembly import PipelineParts
-from app.diagnosis.job import build_job
+from app.diagnosis.job import _reporting_tools, _ToolExecution, build_job
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.domain.errors import AIResponseCode, AIServiceError
 from app.dummy.cases import CASES, DummyCaseName
-from app.schemas.agent import ExtractionInput
+from app.pipeline.tool_executor import ToolExecutor
+from app.schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from app.schemas.callback import PublicQuestionDto
-from app.schemas.schemas import ExecutionEndReason
+from app.schemas.pipeline import RetryRequest
+from app.schemas.product import Product
+from app.schemas.schemas import (
+    ExecutionEndReason, ToolName, ToolResult, ToolStatus, VerificationResult, VerificationStatus,
+)
 from app.schemas.session import DiagnosisInput, SessionAnswer
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 
@@ -25,12 +32,13 @@ def _result(reason: ExecutionEndReason = ExecutionEndReason.COMPLETED):
 class _Progress:
     def __init__(self):
         self.stages = []
+        self.tools = []
 
     def stage(self, stage):
         self.stages.append(stage)
 
     def tool(self, tool_name, status):
-        pass
+        self.tools.append((tool_name, status))
 
 
 class _Step:
@@ -67,7 +75,7 @@ def pipeline(monkeypatch):
             state["executor_tools"] = tools
 
         def execute_initial(self, product, selection):
-            return "initial"
+            return SimpleNamespace(tool_results=[])
 
         def execute_retry(self, product, previous, request):
             return "retried"
@@ -117,12 +125,15 @@ def test_추출은_원래_입력이_아니라_실행_입력_전체로_부른다(
     assert calls[0] == ("extract", (job_input,))
 
 
-def test_Tool_실행기는_조립한_Tool로_실행마다_만든다(pipeline):
+def test_Tool_실행기는_조립한_Tool을_진행_알림으로_감싸_실행마다_만든다(pipeline):
+    tool = _FakeTool(ToolName.RADIO)
     parts = _parts([])
+    parts.tools[ToolName.RADIO] = tool
 
     build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
-    assert pipeline["executor_tools"] is parts.tools
+    wrapped = pipeline["executor_tools"][ToolName.RADIO]
+    assert (wrapped._tool, wrapped.tool_name) == (tool, ToolName.RADIO)
 
 
 def test_단계가_정한_실패는_코드와_재시도_여부를_그대로_실패로_돌려준다(pipeline):
@@ -160,3 +171,63 @@ def test_답변이_필요한_결과는_다음_회차_질문과_함께_멈춘다(
     assert isinstance(outcome, JobNeedsInput)
     assert outcome.questions == [question]
     assert asked == [(pipeline["result"], expected_round)]
+
+
+class _FakeTool:
+    """정해 둔 결과를 돌려주는 가짜 Tool. failing이면 예외."""
+
+    def __init__(self, tool_name, failing=False):
+        self.tool_name = tool_name
+        self.failing = failing
+
+    def execute(self, product, decision):
+        if self.failing:
+            raise RuntimeError("조회 실패")
+        return ToolResult(tool_name=self.tool_name, status=ToolStatus.SUCCESS, selected=True,
+                          selection_reason=decision.reason)
+
+
+def _executor(progress, failing=frozenset()):
+    tools = {name: _FakeTool(name, failing=name in failing) for name in ToolName}
+    return _ToolExecution(ToolExecutor(_reporting_tools(tools, progress)), progress)
+
+
+def _selection(selected):
+    return ToolSelectionResponse(decisions=[
+        ToolSelectionItem(tool_name=name, selected=name in selected, reason="이유") for name in ToolName])
+
+
+def test_첫_실행은_선택한_Tool마다_시작·완료를_보내고_나머지는_건너뜀을_보낸다():
+    progress = _Progress()
+
+    _executor(progress).execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
+
+    assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
+    assert sorted(progress.tools[2:]) == sorted((name, "skipped") for name in ToolName if name is not ToolName.RADIO)
+
+
+def test_Tool이_예외를_내도_완료를_보내고_결과는_실패로_남는다():
+    progress = _Progress()
+
+    result = _executor(progress, failing={ToolName.RADIO}).execute_initial(
+        Product(product_id="p-1"), _selection({ToolName.RADIO}))
+
+    assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
+    radio = next(r for r in result.tool_results if r.tool_name is ToolName.RADIO)
+    assert radio.status is ToolStatus.FAILED
+
+
+def test_재실행_회차는_다시_실행하는_Tool만_시작·완료를_보내고_건너뜀은_다시_보내지_않는다():
+    progress = _Progress()
+    execution = _executor(progress)
+    product = Product(product_id="p-1")
+    first = execution.execute_initial(product, _selection({ToolName.RADIO}))
+    progress.tools.clear()
+    verification = VerificationResult(status=VerificationStatus.TOOLS_REQUIRED,
+                                      additional_tools_required=[ToolName.CUSTOMS])
+    request = RetryRequest(retry_round=1, requested_tools=[ToolName.CUSTOMS], verification=verification,
+                           latest_tool_results=first.tool_results)
+
+    execution.execute_retry(product, first, request)
+
+    assert progress.tools == [(ToolName.CUSTOMS, "started"), (ToolName.CUSTOMS, "completed")]

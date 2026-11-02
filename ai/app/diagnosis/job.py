@@ -2,6 +2,7 @@
 
 파이프라인(pipeline/runner.py)은 진행 알림을 모름. 단계 객체를 감싸 부를 때마다 단계 알림을 보냄.
 재실행 회차에는 Tool 실행·집계·검증 알림이 다시 나감.
+Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하는 Tool만 started·completed가 다시 나감.
 """
 
 from collections.abc import Callable
@@ -10,13 +11,16 @@ from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIServiceError
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
-from ..schemas.agent import ExtractionInput, ToolSelectionResponse
+from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
-from ..schemas.schemas import DraftAssessment, ExecutionEndReason, FinalAssessment, VerificationResult
+from ..schemas.schemas import (
+    DraftAssessment, ExecutionEndReason, FinalAssessment, ToolName, ToolResult, ToolStatus, VerificationResult,
+)
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
+from ..tools.base import RegulatoryTool
 from .assembly import PipelineParts
 
 # 질문 결과 + 질문 회차 → BE에 보낼 질문
@@ -38,7 +42,7 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder) -> DiagnosisJob:
         pipeline = CompliancePipeline(
             extractor=_Extraction(parts, job_input, progress),
             selector=_Selection(parts, progress),
-            tool_executor=_ToolExecution(ToolExecutor(parts.tools), progress),
+            tool_executor=_ToolExecution(ToolExecutor(_reporting_tools(parts.tools, progress)), progress),
             aggregator=_Aggregation(parts, progress),
             verifier=_Verification(parts, progress),
         )
@@ -83,6 +87,31 @@ class _Selection:
         return self._selector.run(product)
 
 
+def _reporting_tools(tools: dict[ToolName, RegulatoryTool],
+                     progress: ProgressReporter) -> dict[ToolName, "_ReportingTool"]:
+    """Tool마다 진행 알림을 보내는 감싸개를 씌운다. 이번 실행의 진행 알림으로 묶음."""
+    return {name: _ReportingTool(tool, progress) for name, tool in tools.items()}
+
+
+class _ReportingTool:
+    """실행 전후로 Tool 진행 알림. 실행기가 선택된 Tool만 부르므로 started·completed만 보냄.
+
+    Tool 예외도 completed (실패 여부는 분야 카드에서 표시). 예외는 실행기가 FAILED 결과로 바꿈.
+    """
+
+    def __init__(self, tool: RegulatoryTool, progress: ProgressReporter) -> None:
+        self._tool = tool
+        self._progress = progress
+        self.tool_name = tool.tool_name
+
+    def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
+        self._progress.tool(self.tool_name, "started")
+        try:
+            return self._tool.execute(product, decision)
+        finally:
+            self._progress.tool(self.tool_name, "completed")
+
+
 class _ToolExecution:
     def __init__(self, executor: ToolExecutor, progress: ProgressReporter) -> None:
         self._executor = executor
@@ -90,7 +119,12 @@ class _ToolExecution:
 
     def execute_initial(self, product: Product, selection: ToolSelectionResponse) -> SelectionResult:
         self._progress.stage(PipelineStage.TOOL_EXECUTION)
-        return self._executor.execute_initial(product, selection)
+        result = self._executor.execute_initial(product, selection)
+        # 선택 안 된 Tool은 실행기가 부르지 않아 여기서 알림. 재실행 회차에는 보내지 않음
+        for tool_result in result.tool_results:
+            if tool_result.status is ToolStatus.SKIPPED:
+                self._progress.tool(tool_result.tool_name, "skipped")
+        return result
 
     def execute_retry(self, product: Product, previous: SelectionResult, request: RetryRequest) -> SelectionResult:
         self._progress.stage(PipelineStage.TOOL_EXECUTION)
