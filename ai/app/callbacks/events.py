@@ -127,9 +127,7 @@ class EventBuilder:
                 try:
                     return self._presenter.assessment(result)
                 except Exception:
-                    context = event.session.context
-                    logger.exception("콜백 진단서 변환 실패 (product_id=%s, run_id=%s)",
-                                     context.product_id, context.run_id)
+                    logger.exception("콜백 진단서 변환 실패")
                     return _CONVERSION_FAILED
             case AwaitingInput(session=session):
                 return session.question_round, session.questions
@@ -141,9 +139,7 @@ class EventBuilder:
         """Tool 진행 이벤트. 단계 이벤트와 번호를 이어 씀. BE에는 PublicToolName(멤버 이름, 예: ELECTRICAL)으로 보냄."""
         # 단계 시작을 알리기 전의 Tool 진행은 버림. 단계 경로와 섞지 않음
         if run.stage is not PublicPipelineStage.TOOL_EXECUTION:
-            context = session.context
-            logger.warning("Tool 실행 단계 시작 전 Tool 진행은 보내지 않음 (product_id=%s, run_id=%s, tool=%s)",
-                           context.product_id, context.run_id, tool_name)
+            logger.warning("Tool 실행 단계 시작 전 Tool 진행은 보내지 않음 (tool=%s)", tool_name)
             return []
         return [ProductProgressEvent(**self._base(session, run), stage=run.stage, stage_status=status,
                                      tool_name=tool_name.name)]

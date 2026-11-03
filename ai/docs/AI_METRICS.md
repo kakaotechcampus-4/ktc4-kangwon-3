@@ -10,7 +10,7 @@ AI 서버가 `GET /metrics`로 내보내는 Prometheus 지표와 어디서 재�
   - 세션 이벤트: `SessionManager.subscribe` → `SessionMetrics`
   - 측정 기록: `measurement_sinks`(`app/observability/measurements.py`) → `MeasurementMetrics`. 에이전트 실행 기록은 `agent_sinks` → `AgentMetrics`
 - 현황 값(세션 수·자리·콜백 대기 수)은 수집(scrape) 때마다 읽음 (`SessionSnapshotCollector`, `CallbackOutboxCollector`)
-- sink 오류는 경고 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음
+- sink 오류는 오류 로그(ERROR)만 남기고 기록을 남긴 쪽 동작에 영향 없음
 - Counter·Histogram의 `_created`(처음 만든 시각) 시계열은 내보내지 않음 (`main.py`의 `disable_created_metrics()`)
 
 ## 2. 라벨 원칙

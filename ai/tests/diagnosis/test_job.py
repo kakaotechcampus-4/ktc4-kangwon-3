@@ -1,11 +1,14 @@
 """실제 진단 함수를 모델·외부 호출 없이 검증한다. 파이프라인은 단계를 차례로 부르는 가짜로 바꿈."""
 
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
 from app.agents.verification import VerificationError
+from app.clients.errors import ClientError
 from app.diagnosis import job as job_module
+from app.observability.logs import current_run_fields, run_log_context
 from app.diagnosis.assembly import PipelineParts
 from app.diagnosis.job import _reporting_tools, _ToolExecution, build_job
 from app.domain.context import ExecutionContext, PipelineStage, RunType
@@ -90,7 +93,7 @@ def pipeline(monkeypatch):
             product = extractor.run(source)
             selected = executor.execute_initial(product, selector.run(product))
             verifier.run(aggregator.aggregate(product, selected))
-            retried = executor.execute_retry(product, selected, "retry-request")
+            retried = executor.execute_retry(product, selected, SimpleNamespace(retry_round=1))
             verifier.run(aggregator.aggregate(product, retried))
             return state["result"]
 
@@ -173,16 +176,28 @@ def test_검증_실패는_재시도_가능한_파이프라인_오류로_돌려�
     assert PipelineStage.FINALIZATION not in progress.stages
 
 
-def test_단계_실패는_실행_정보와_원인을_경고로_남긴다(pipeline, caplog):
+def test_단계_실패는_원인을_경고로_남긴다(pipeline, caplog):
     error = VerificationError("checked_finding_ids에 중복이 있습니다.")
 
     build_job(_parts([], verification_error=error), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
     record = next(r for r in caplog.records if r.message.startswith("진단 단계 실패"))
     assert record.levelname == "WARNING"
-    assert "product_id=p-1, run_id=run-1" in record.message
+    # 진단서·상품·실행 ID는 실행 정보로 줄 끝에 붙어 메시지에는 넣지 않음
+    assert "product_id" not in record.message
     assert "code=AI_PIPELINE_ERROR, retryable=True" in record.message
-    assert record.exc_info[1].__cause__ is error
+    assert record.message.endswith(": VerificationError: checked_finding_ids에 중복이 있습니다.")
+    assert record.exc_info is None
+
+
+def test_재실행_회차부터는_로그_줄에_회차가_붙는다(pipeline):
+    seen = []
+    parts = replace(_parts([]), verifier=SimpleNamespace(run=lambda draft: seen.append(dict(current_run_fields()))))
+
+    with run_log_context(CONTEXT):
+        build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert [fields.get("retry_round") for fields in seen] == [None, "1"]
 
 
 def test_예상_밖_예외는_그대로_올려_세션이_파이프라인_오류로_기록하게_한다(pipeline):
@@ -253,6 +268,32 @@ def test_Tool이_예외를_내도_완료를_보내고_결과는_실패로_남는
     assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
     radio = next(r for r in result.tool_results if r.tool_name is ToolName.RADIO)
     assert radio.status is ToolStatus.FAILED
+
+
+class _RaisingTool:
+    def __init__(self, tool_name, error):
+        self.tool_name = tool_name
+        self.error = error
+
+    def execute(self, product, decision):
+        raise self.error
+
+
+@pytest.mark.parametrize(("error", "level", "traceback"), [
+    (ClientError("응답 없음 https://apis.data.go.kr/x?serviceKey=SECRET&page=1"), "WARNING", False),
+    (RuntimeError("버그"), "ERROR", True),
+])
+def test_Tool_실패는_원인을_남기고_예상한_오류는_위치_없이_코드_오류는_위치까지_남긴다(caplog, error, level, traceback):
+    tools = {name: _RaisingTool(name, error) for name in ToolName}
+    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools, _Progress())), _Progress())
+
+    execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
+
+    [record] = [r for r in caplog.records if r.name == "app.diagnosis.job"]
+    assert record.levelname == level
+    assert record.getMessage().startswith(f"Tool 실행 실패 {ToolName.RADIO}: {type(error).__name__}: ")
+    assert "SECRET" not in record.getMessage()
+    assert (record.exc_info is not None) is traceback
 
 
 def test_재실행_회차는_다시_실행하는_Tool만_시작·완료를_보내고_건너뜀은_다시_보내지_않는다():
