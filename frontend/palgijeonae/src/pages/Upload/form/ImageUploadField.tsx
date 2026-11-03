@@ -1,6 +1,7 @@
 import { type DragEvent } from "react";
 
 import uploadInputIcon from "@/assets/upload-inputImage.png";
+import HelpTooltip from "@/components/common/HelpTooltip";
 
 import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from "../constraints.ts";
 import { isAllowedImageType, isWithinFileSizeLimit } from "../validation.ts";
@@ -14,10 +15,11 @@ interface ImageUploadFieldProps {
     optionLabel?: string
     helperText?: string
     countLabel?: string
+    tooltip?: string
     onChange: (files: File[]) => void
 }
 
-function ImageUploadField({ id, title, description, multiple = false, isOption = false, optionLabel = "선택", helperText, countLabel, onChange }: ImageUploadFieldProps) {
+function ImageUploadField({ id, title, description, multiple = false, isOption = false, optionLabel = "선택", helperText, countLabel, tooltip, onChange }: ImageUploadFieldProps) {
     const handleFiles = (fileList: FileList | null) => {
         if (!fileList) {
             return;
@@ -53,6 +55,7 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                 <div className="flex items-center gap-3.75">
                     <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
                     {isOption && <span className="text-xs leading-3.5 text-neutral-border">{optionLabel}</span>}
+                    {tooltip && <HelpTooltip label={`${title} 설명`} className="left-0">{tooltip}</HelpTooltip>}
                 </div>
                 {countLabel && <span className="text-xs leading-3.5 text-neutral-border">{countLabel}</span>}
             </div>
