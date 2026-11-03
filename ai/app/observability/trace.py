@@ -3,13 +3,14 @@
 서버에서는 켜지 않음. 로컬 CLI·평가가 trace_run()으로 감싼 블록에서만 기록하고, 밖에서는 아무것도 안 함.
 지금 실행의 기록기는 문맥 변수로 찾음 → 단계·Tool 코드는 기록기를 넘겨받지 않아도 됨.
 
-파일 구성 (실행 폴더 아래)
-    - run-N.json: 단계(steps)와 결말(finish). 단계 안에 단계가 들어갈 수 있음
-    - run-N/calls/cK.json: 모델 호출 1건의 보낸 메시지·받은 출력·모델·토큰·비용·시간·실패 단계
-    - 이미지: 링크만 남김. 링크가 없는 data URI(긴 이미지 조각)는 본문을 빼고 형식만
-    - prompts/<지문>.txt: 시스템 프롬프트 원문. 같은 프롬프트는 실행끼리도 한 파일
-    - 그 밖: 단계 JSON에 다 넣기엔 큰 내용을 write_file()로 따로 쓰고 경로만 남김
-ID는 실행 안에서 나온 순서대로 붙임(s1, s2, …). 같은 입력을 두 번 돌리면 같은 ID라 diff로 비교 가능.
+실행 하나 = 파일 하나 (실행 폴더/run-N.json). 같은 상품의 재진단 실행은 같은 폴더에 run-2.json, run-3.json.
+    - info: 실행 정보. 열린 단계 밖에서 남긴 값도 여기
+    - steps: 단계. 단계 안에 단계가 들어갈 수 있고, 모델 호출은 그 단계의 calls에 원문째
+    - finish: 결말
+    - prompts: 시스템 프롬프트 원문 (지문 → 원문). 호출에는 지문만
+이미지는 링크만 남김. 링크가 없는 data URI(긴 이미지 조각)는 본문을 빼고 형식만.
+ID는 실행 안에서 나온 순서대로 붙임(s1, c1, …). 같은 입력을 두 번 돌리면 같은 ID라 diff로 비교 가능.
+실행마다 달라지는 값(시간·토큰·비용)은 호출마다 meta 한 곳에 모음 (diff 때 meta를 빼고 비교).
 """
 
 import dataclasses
@@ -68,6 +69,7 @@ class TraceRecorder:
         info: 실행 정보(입력 출처·모델 설정 등). run-N.json 맨 앞에 들어감.
         steps: 맨 바깥 단계. 실행 순서대로.
         finish: 결말. 실행이 끝날 때 채움.
+        prompts: 시스템 프롬프트 지문 → 원문.
     """
 
     def __init__(self, directory: Path, run_name: str = "run-1") -> None:
@@ -76,6 +78,7 @@ class TraceRecorder:
         self.info: dict[str, Any] = {}
         self.steps: list[dict[str, Any]] = []
         self.finish: dict[str, Any] | None = None
+        self.prompts: dict[str, str] = {}
         self._open: list[dict[str, Any]] = []
         self._counters: dict[str, int] = {}
         self._call: dict[str, Any] | None = None
@@ -136,7 +139,7 @@ class TraceRecorder:
         target[key] = to_jsonable(value)
 
     def begin_call(self, component: str, request: Any) -> None:
-        """모델 호출 1건을 시작한다. 메시지 속 시스템 프롬프트·data URI 이미지는 따로 쓰고 경로만 남김.
+        """모델 호출 1건을 시작한다. 시스템 프롬프트는 prompts에 한 번만, data URI 이미지는 형식만 남김.
 
         Args:
             component: 에이전트 이름.
@@ -160,7 +163,7 @@ class TraceRecorder:
                 self._call["raw"] = to_jsonable(raw)
 
     def end_call(self, meta: Any) -> str:
-        """호출 1건을 실행 정보와 함께 파일로 쓰고, 지금 열린 단계의 calls에 요약을 넣는다.
+        """호출 1건을 실행 정보와 함께 지금 열린 단계의 calls에 넣는다. 열린 단계가 없으면 info의 calls에.
 
         시작하지 않은 호출이면 실행 정보만 남김.
 
@@ -173,57 +176,19 @@ class TraceRecorder:
         call = self._call or {"id": self.next_id("c"), "component": getattr(meta, "component", None)}
         self._call = None
         call["meta"] = to_jsonable(meta)
-        path = self.write_file(f"{self.run_name}/calls/{call['id']}.json", call)
-        summary = {"id": call["id"], "component": call["component"], "file": path}
-        for key in ("model", "elapsed_ms", "cost_krw", "error_type", "failure_phase"):
-            if call["meta"].get(key) is not None:
-                summary[key] = call["meta"][key]
-        (self._open[-1] if self._open else self.info).setdefault("calls", []).append(summary)
+        (self._open[-1] if self._open else self.info).setdefault("calls", []).append(call)
         return call["id"]
 
     def _message(self, message: Any) -> dict[str, Any]:
         role, content = getattr(message, "type", None), getattr(message, "content", message)
-        # 시스템 프롬프트는 길고 호출마다 같음 → 지문 이름 파일 하나로
+        # 시스템 프롬프트는 길고 호출마다 같음 → 원문은 prompts에 한 번만, 호출엔 지문만
         if role == "system" and isinstance(content, str):
             digest = hashlib.sha256(content.encode("utf-8")).hexdigest()[:12]
-            relative = f"prompts/{digest}.txt"
-            if not (self.directory / relative).exists():
-                (self.directory / "prompts").mkdir(parents=True, exist_ok=True)
-                (self.directory / relative).write_text(content, encoding="utf-8")
-            return {"role": role, "prompt_file": relative}
+            self.prompts.setdefault(digest, content)
+            return {"role": role, "prompt": digest}
         if isinstance(content, list):
             content = [_image_link(block) for block in content]
         return {"role": role, "content": to_jsonable(content)}
-
-    def write_file(self, relative: str, data: Any) -> str:
-        """실행 폴더 아래에 JSON 파일을 따로 쓴다.
-
-        Args:
-            relative: 실행 폴더 기준 경로 (calls/c1.json 등).
-            data: 쓸 값.
-
-        Returns:
-            str: 실행 폴더 기준 경로. 단계 기록에 참조로 넣음.
-        """
-        path = self.directory / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(_dump(data), encoding="utf-8")
-        return relative
-
-    def write_bytes(self, relative: str, data: bytes) -> str:
-        """실행 폴더 아래에 바이너리 파일(이미지 등)을 쓴다.
-
-        Args:
-            relative: 실행 폴더 기준 경로.
-            data: 쓸 내용.
-
-        Returns:
-            str: 실행 폴더 기준 경로.
-        """
-        path = self.directory / relative
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-        return relative
 
     def to_dict(self) -> dict[str, Any]:
         """run-N.json에 쓸 내용.
@@ -231,7 +196,8 @@ class TraceRecorder:
         Returns:
             dict[str, Any]: 실행 정보·단계·결말.
         """
-        return {"run": self.run_name, "info": self.info, "steps": self.steps, "finish": self.finish}
+        return {"run": self.run_name, "info": self.info, "steps": self.steps, "finish": self.finish,
+                "prompts": self.prompts}
 
     def save(self) -> Path:
         """run-N.json을 쓴다. 이미 있으면 덮어씀.

@@ -22,31 +22,33 @@ def test_기록_중이_아니면_파일을_쓰지_않는다(fakes, stub_model, r
     assert list(tmp_path.iterdir()) == []
 
 
-def test_성공한_호출은_메시지·출력·실행_정보를_호출_파일로_남기고_단계엔_요약만_넣는다(fakes, stub_model, records, tmp_path):
+def test_성공한_호출은_메시지·출력·실행_정보를_열린_단계의_calls에_원문째_남긴다(fakes, stub_model, records, tmp_path):
     with trace_run(tmp_path) as recorder:
         with trace_step("selection") as step:
             fakes.Agent(stub_model(fakes.Answer(value="ok"))).run(fakes.question)
 
-    summary = step["calls"][0]
-    assert (summary["id"], summary["component"], summary["file"]) == ("c1", "fake", "run-1/calls/c1.json")
-    assert summary["model"] == "openai/gpt-4.1-mini" and "error_type" not in summary
-    call = _read(tmp_path / summary["file"])
+    [call] = step["calls"]
+    assert (call["id"], call["component"]) == ("c1", "fake")
     system, human = call["request"]
-    assert (tmp_path / system["prompt_file"]).read_text(encoding="utf-8") == get_prompt(PromptName.EXTRACTION).text
+    assert recorder.prompts[system["prompt"]] == get_prompt(PromptName.EXTRACTION).text
     assert human == {"role": "human", "content": "질문"}
     assert call["output"] == {"value": "ok"}
+    assert call["meta"]["model"] == "openai/gpt-4.1-mini" and call["meta"]["error_type"] is None
     assert call["meta"]["usage"]["input_tokens"] == 100
     assert recorder.info == {}
+    assert _read(tmp_path / "run-1.json")["steps"][0]["calls"] == [call]
 
 
-def test_같은_시스템_프롬프트는_호출이_여러_번이어도_파일_하나로_남긴다(fakes, stub_model, records, tmp_path):
+def test_같은_시스템_프롬프트는_호출이_여러_번이어도_한_번만_남긴다(fakes, stub_model, records, tmp_path):
     agent = fakes.Agent(stub_model(fakes.Answer(value="ok")))
     with trace_run(tmp_path) as recorder:
         agent.run(fakes.question)
         agent.run(fakes.question)
 
-    assert [call["id"] for call in recorder.info["calls"]] == ["c1", "c2"]
-    assert len(list((tmp_path / "prompts").iterdir())) == 1
+    first, second = recorder.info["calls"]
+    assert (first["id"], second["id"]) == ("c1", "c2")
+    assert first["request"][0] == second["request"][0]
+    assert len(recorder.prompts) == 1
 
 
 def test_해석에_실패한_호출은_응답_본문과_실패_단계를_남긴다(fakes, stub_model, records, tmp_path):
@@ -54,9 +56,8 @@ def test_해석에_실패한_호출은_응답_본문과_실패_단계를_남긴�
         with pytest.raises(fakes.Error):
             fakes.Agent(stub_model('{"value": ')).run(fakes.question)
 
-    summary = recorder.info["calls"][0]
-    assert summary["failure_phase"] == "parsing"
-    call = _read(tmp_path / summary["file"])
+    [call] = recorder.info["calls"]
+    assert call["meta"]["failure_phase"] == "parsing"
     assert (call["output"], call["raw"]) == (None, '{"value": ')
 
 
@@ -65,15 +66,14 @@ def test_이미지는_링크만_남기고_data_URI는_본문을_뺀다(fakes, st
     blocks = [{"type": "text", "text": "사진"}, {"type": "image_url", "image_url": {"url": data_uri}},
               {"type": "image_url", "image_url": {"url": "https://example.com/a.jpg"}}]
     agent = fakes.Agent(stub_model(fakes.Answer(value="ok")))
-    with trace_run(tmp_path):
+    with trace_run(tmp_path) as recorder:
         agent._invoke_with_meta([HumanMessage(content=blocks)], subject_id="p-1")
 
-    assert _read(tmp_path / "run-1/calls/c1.json")["request"][0]["content"] == [
+    assert recorder.info["calls"][0]["request"][0]["content"] == [
         {"type": "text", "text": "사진"},
         {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,…(생략)"}},
         {"type": "image_url", "image_url": {"url": "https://example.com/a.jpg"}},
     ]
-    assert not (tmp_path / "run-1/images").exists()
 
 
 def test_판단_호출은_요청과_질문별_답을_남긴다(fakes, stub_model, records, tmp_path):
@@ -89,7 +89,7 @@ def test_판단_호출은_요청과_질문별_답을_남긴다(fakes, stub_model
         _, usage, started_at = agent._call_decision({"product_name": "색연필"}, questions, subject_id="p-1")
         agent._finish_call(usage, "p-1", started_at, decision_questions=questions)
 
-    call = _read(tmp_path / recorder.info["calls"][0]["file"])
+    [call] = recorder.info["calls"]
     assert call["request"]["subject"] == {"product_name": "색연필"}
     assert call["request"]["questions"][0]["name"] == "kind_kids"
     assert call["output"]["answers"]["kind_kids"] is not None
