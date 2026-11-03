@@ -8,6 +8,12 @@ productId가 없으면 파일 이름을 씀.
 trace는 실행 폴더(기본 data/traces/<입력 파일 이름>/)에 run-1.json, run-2.json…으로 쌓임.
 --answer를 주면 그 폴더의 마지막 실행이 남긴 질문에 답해 재진단. 이전 결과·답변은 마지막 실행 파일에서 읽음.
 
+단계 다시 실행: 이전 trace의 실행 입력과 앞 단계 결과를 그대로 쓰고 지정한 단계부터 실제로 돌림.
+결과는 이전 trace와 같은 폴더에 다음 번호로 쌓임.
+
+    python -m app.diagnosis.trace_cli --from data/traces/kc-fan/run-1.json --stage selection          # 선택부터 끝까지
+    python -m app.diagnosis.trace_cli --from data/traces/kc-fan/run-1.json --stage selection --only   # 선택만
+
 모델·외부 API는 실제로 부름 (.env 키 필요, 비용 발생). DATABASE_URL이 없으면 관세 Tool은 CLIP만 조회.
 """
 
@@ -31,6 +37,7 @@ from ..sessions.job import JobDone, JobFailed, JobNeedsInput, ToolProgressStatus
 from .assembly import build_parts
 from .job import build_job
 from .questions import build_questions
+from .replay import STAGES, ReplayError, ReplayStopped, StageReplay, replay_input
 
 AI_ROOT = Path(__file__).resolve().parents[2]
 TRACE_ROOT = AI_ROOT / "data" / "traces"
@@ -157,19 +164,66 @@ def run(source_path: Path, directory: Path, answers: list[str]) -> Path:
     """
     source = read_source(source_path)
     job_input = resume_input(source, directory, answers) if answers else DiagnosisInput(source=source)
+    return _execute(job_input, directory, {"source": str(source_path)})
+
+
+def replay_run(trace_path: Path, stage: str, only: bool, directory: Path) -> Path:
+    """이전 trace의 입력·앞 단계 결과로 지정한 단계부터 다시 돌린다.
+
+    Args:
+        trace_path: 이전 실행의 trace 파일.
+        stage: 실제로 돌리기 시작할 단계.
+        only: 그 단계 하나만 돌리고 멈출지.
+        directory: 실행 폴더.
+
+    Returns:
+        Path: 쓴 trace 파일.
+
+    Raises:
+        TraceInputError: trace 파일을 읽지 못한 경우.
+        ReplayError: 다시 실행할 수 없는 trace인 경우.
+    """
+    try:
+        trace = json.loads(trace_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise TraceInputError(f"trace 파일을 읽지 못했습니다: {trace_path} ({exc})") from exc
+    replay = StageReplay.from_trace(trace, stage, only)
+    info = {"replay": {"from": str(trace_path), "stage": stage, "only": only}}
+    return _execute(replay_input(trace), directory, info, replay)
+
+
+def _execute(job_input: DiagnosisInput, directory: Path, info: dict, replay: StageReplay | None = None) -> Path:
+    """진단 함수를 trace로 감싸 돌리고 결말을 찍는다.
+
+    Args:
+        job_input: 실행 입력.
+        directory: 실행 폴더.
+        info: trace 실행 정보에 남길 값 (입력 출처 등).
+        replay: 단계 다시 실행 설정. 없으면 처음부터.
+
+    Returns:
+        Path: 쓴 trace 파일.
+    """
     run_name = next_run_name(directory)
     # 부품 조립은 실행 밖 (모델 설정 오류면 trace 없이 바로 실패)
-    job = build_job(build_parts(), build_questions)
-    context = ExecutionContext.start(product_id=source.product_id, run_type=RunType.EVALUATION)
+    job = build_job(build_parts(), build_questions, replay)
+    context = ExecutionContext.start(product_id=job_input.source.product_id, run_type=RunType.EVALUATION)
     with trace_run(directory, run_name):
-        trace_note("source", str(source_path))
+        for key, value in info.items():
+            trace_note(key, value)
         with run_log_context(context):
-            outcome = job(job_input, context, _PrintProgress())
+            try:
+                outcome = job(job_input, context, _PrintProgress())
+            except ReplayStopped as exc:
+                outcome = exc
     _print_outcome(outcome)
     return directory / f"{run_name}.json"
 
 
-def _print_outcome(outcome: JobDone | JobNeedsInput | JobFailed) -> None:
+def _print_outcome(outcome: JobDone | JobNeedsInput | JobFailed | ReplayStopped) -> None:
+    if isinstance(outcome, ReplayStopped):
+        print(f"[결말] {outcome.stage} 단계만 다시 실행하고 멈춤", file=sys.stderr)
+        return
     if isinstance(outcome, JobFailed):
         print(f"[결말] 실패 (code={outcome.error_code}, retryable={outcome.retryable})", file=sys.stderr)
         return
@@ -181,15 +235,28 @@ def _print_outcome(outcome: JobDone | JobNeedsInput | JobFailed) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="로컬 진단 trace (서버·콜백 없이)")
-    parser.add_argument("source", type=Path, help="상품 입력 JSON (/diagnose 상품 하나 모양)")
-    parser.add_argument("--out", type=Path, default=None, help="실행 폴더 (기본 data/traces/<입력 파일 이름>)")
+    parser.add_argument("source", type=Path, nargs="?", help="상품 입력 JSON (/diagnose 상품 하나 모양)")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="실행 폴더 (기본: 입력이면 data/traces/<입력 파일 이름>, --from이면 그 trace 폴더)")
     parser.add_argument("--answer", action="append", default=[], metavar="KEY=TEXT",
                         help="마지막 실행 질문에 대한 답변. 질문마다 한 번씩")
+    parser.add_argument("--from", dest="from_trace", type=Path, default=None, help="다시 실행할 이전 trace 파일")
+    parser.add_argument("--stage", choices=STAGES, default=None, help="다시 실행을 시작할 단계 (--from과 같이)")
+    parser.add_argument("--only", action="store_true", help="시작 단계 하나만 돌리고 멈춤 (--from과 같이)")
     args = parser.parse_args(argv)
+    if (args.source is None) == (args.from_trace is None):
+        parser.error("입력 파일과 --from 중 하나만 주세요")
+    if args.from_trace is not None and (args.stage is None or args.answer):
+        parser.error("--from에는 --stage가 필요하고 --answer는 쓸 수 없습니다")
+    if args.from_trace is None and (args.stage is not None or args.only):
+        parser.error("--stage·--only는 --from과 같이 씁니다")
     configure_logging("INFO")
     try:
-        path = run(args.source, args.out or TRACE_ROOT / args.source.stem, args.answer)
-    except TraceInputError as exc:
+        if args.from_trace is not None:
+            path = replay_run(args.from_trace, args.stage, args.only, args.out or args.from_trace.parent)
+        else:
+            path = run(args.source, args.out or TRACE_ROOT / args.source.stem, args.answer)
+    except (TraceInputError, ReplayError) as exc:
         print(exc, file=sys.stderr)
         return 2
     print(path)
