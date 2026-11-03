@@ -6,7 +6,7 @@
     - INFO·WARNING 로그 → 이벤트 앞의 흐름 기록(breadcrumb)만
     - 요청 처리 중 잡지 않은 예외(500) → 이벤트 (FastAPI 연동). 예외 처리기가 응답으로 바꾼 4xx는 안 감
 요청 본문·개인정보·지역 변수(상품 원문·요청 헤더가 담김)는 보내지 않음. 트레이스·로그 전송은 쓰지 않음.
-보내기 직전 내부 인증 헤더를 빼고, 예외 메시지·로그 문구 속 URL의 키(serviceKey·OC)를 가림.
+보내기 직전 내부 인증 헤더를 빼고, 예외 메시지·로그 문구·추가 값·흐름 기록 속 URL의 키(serviceKey·OC)를 가림.
 진단 실행 중 이벤트엔 로그와 같은 실행 정보(진단서·상품·실행 ID, 실행 종류, 단계, 재실행 회차)를 태그로 붙임.
 """
 
@@ -79,7 +79,7 @@ def before_send(event: dict, hint: dict) -> dict:
 
 
 def _scrub(event: dict) -> None:
-    """내부 인증 헤더를 빼고, 예외 메시지·로그 문구·흐름 기록 속 URL의 키를 가린다.
+    """내부 인증 헤더를 빼고, 예외 메시지·로그 문구·추가 값·흐름 기록 속 URL의 키를 가린다.
 
     Args:
         event: 고칠 Sentry 이벤트 (그 자리에서 바꿈).
@@ -96,12 +96,36 @@ def _scrub(event: dict) -> None:
     # 로그 인자 (logger.error("... %s", url)의 url)
     params = logentry.get("params")
     if isinstance(params, list):
-        logentry["params"] = [mask_sensitive_params(param) if isinstance(param, str) else param for param in params]
+        logentry["params"] = [_mask_text(param) if isinstance(param, str) else param for param in params]
+    # 로그 extra 값
+    _mask_values(event.get("extra"))
     for breadcrumb in event.get("breadcrumbs", {}).get("values", []):
         _mask_key(breadcrumb, "message")
+        # 외부 호출 기록의 url·http.query (SDK가 httpx 호출마다 남김), 로그 기록의 extra 값
+        _mask_values(breadcrumb.get("data"))
+
+
+def _mask_values(values: dict | None) -> None:
+    """dict의 문자열 값마다 URL의 키를 가린다. dict가 아니면 그대로."""
+    if isinstance(values, dict):
+        for key in values:
+            _mask_key(values, key)
 
 
 def _mask_key(item: dict, key: str) -> None:
     """item[key]가 문자열이면 URL의 키를 가린다."""
     if isinstance(item.get(key), str):
-        item[key] = mask_sensitive_params(item[key])
+        item[key] = _mask_text(item[key])
+
+
+def _mask_text(text: str) -> str:
+    """URL의 키를 가린다. ?가 없는 쿼리 문자열(serviceKey=...&x=1)도 가림.
+
+    Args:
+        text: 가릴 문자열.
+
+    Returns:
+        str: 키 값이 가려진 문자열.
+    """
+    # 맨 앞 파라미터도 잡히게 ?를 붙여 가린 뒤 다시 뗌
+    return mask_sensitive_params(f"?{text}")[1:]

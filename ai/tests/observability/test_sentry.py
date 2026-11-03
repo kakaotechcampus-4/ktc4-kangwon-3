@@ -7,6 +7,7 @@ import json
 import logging
 import threading
 
+import httpx
 import pytest
 import sentry_sdk
 from fastapi import FastAPI, HTTPException
@@ -126,3 +127,20 @@ def test_내부_인증_헤더·지역_변수는_보내지_않고_URL의_키는_�
     for secret in (key, token, dev_key, raw_text):
         assert secret not in sent
     assert "serviceKey=***" in sent
+
+
+def test_외부_호출_흐름_기록의_쿼리와_로그_추가_값의_키도_가린다(events):
+    key = "SECRET" + "-QUERY"
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200)))
+    client.get(f"https://apis.data.go.kr/a?serviceKey={key}&x=1")
+    client.get(f"https://www.law.go.kr/DRF/lawService.do?OC={key}&target=law")
+
+    logging.getLogger("app.clients").error("조회 실패", extra={"url": f"https://a?serviceKey={key}"})
+
+    sentry_sdk.flush()
+    [event] = events
+    assert key not in json.dumps(event, ensure_ascii=False)
+    # 앞 테스트의 흐름 기록(쿼리 없는 요청 등)도 남아 있음 → 쿼리가 있는 외부 호출 기록만
+    assert [crumb["data"]["http.query"] for crumb in event["breadcrumbs"]["values"]
+            if crumb.get("data", {}).get("http.query")] == ["serviceKey=***&x=1", "OC=***&target=law"]
+    assert event["extra"]["url"] == "https://a?serviceKey=***"
