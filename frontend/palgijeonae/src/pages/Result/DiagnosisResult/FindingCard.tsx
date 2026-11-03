@@ -35,7 +35,7 @@ function FindingCard({ finding }: FindingCardProps) {
 
     return (
         <DefaultBox>
-            <div className="flex w-full flex-col gap-2.5">
+            <div className="flex w-full flex-col gap-5.5">
                 <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
                     <p className="text-xl font-bold text-black">{finding.subject}</p>
                     <div className="flex items-center gap-2.5">
@@ -64,7 +64,7 @@ function FindingCard({ finding }: FindingCardProps) {
                         <img src={toggleIcon} alt="" className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
                     </button>
                     {isExpanded && (
-                        <div id={legalSourcesId} className="flex w-full flex-col gap-3">
+                        <div id={legalSourcesId} className="flex w-full flex-col gap-5">
                             {legalSources.map((legalSource) => (
                                 <LawCard key={legalSource.findingLegalSourceId} legalSource={legalSource} />
                             ))}

@@ -62,7 +62,7 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
                     </HelpTooltip>
                 )}
             </div>
-            <div className="flex w-full flex-col gap-10">
+            <div className="flex w-full flex-col gap-15">
                 {visibleToolReviews.map((toolReview) => (
                     <ToolReviewCard key={toolReview.productToolReviewId} toolReview={toolReview} findingFilter={findingFilter} />
                 ))}
