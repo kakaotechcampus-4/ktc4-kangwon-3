@@ -25,8 +25,9 @@ export function useProductResults(
         enabled: !isInvalidAccess,
     });
 
-    // 존재하지 않는 id로 접근한 경우(404)
-    const isNotFoundError = axios.isAxiosError(query.error) && query.error.response?.status === 404;
+    // 존재하지 않는 id(404) 또는 다른 사용자의 상품·진단서(403)로 접근한 경우
+    const isInaccessibleError = axios.isAxiosError(query.error)
+        && (query.error.response?.status === 404 || query.error.response?.status === 403);
 
-    return { ...query, isNotFoundError };
+    return { ...query, isInaccessibleError };
 }
