@@ -81,7 +81,6 @@ jacoco {
 	toolVersion = '0.8.14'
 }
 
-// 통합 테스트(@Tag("integration"))는 test에서 빼고 integrationTest로 따로 실행한다.
 def integrationTag = 'integration'
 
 tasks.named('test') {
@@ -100,21 +99,68 @@ def integrationTest = tasks.register('integrationTest', Test) {
 		includeTags integrationTag
 	}
 	shouldRunAfter tasks.named('test')
+	finalizedBy 'jacocoIntegrationTestReport'
 }
 
 tasks.named('check') {
-	dependsOn integrationTest
+	dependsOn integrationTest, 'jacocoMergedReport'
 }
 
+def unitCoverageIncludes = [
+	'**/domains/*/domain/entity/**',
+	'**/domains/*/domain/service/**',
+	'**/domains/*/domain/event/**',
+	'**/domains/*/application/usecase/**',
+	'**/domains/*/application/mapper/**',
+	'**/domains/*/application/scheduler/**',
+	'**/domains/*/application/event/**',
+]
+
+def coverageExcludes = ['**/BeforesellingApplication.class']
+
+def unitCoverageClasses = {
+	files(sourceSets.main.output.classesDirs.files.collect { fileTree(dir: it, includes: unitCoverageIncludes) })
+}
+def allCoverageClasses = {
+	files(sourceSets.main.output.classesDirs.files.collect { fileTree(dir: it, excludes: coverageExcludes) })
+}
+
+// 단위: build/reports/jacoco/test/html
 tasks.named('jacocoTestReport') {
 	dependsOn 'test'
 	reports {
 		xml.required = true
 		html.required = true
 	}
-	classDirectories.setFrom(files(classDirectories.files.collect {
-		fileTree(dir: it, exclude: ['**/BeforesellingApplication.class'])
-	}))
+	classDirectories.setFrom(unitCoverageClasses())
+}
+
+// 통합: build/reports/jacoco/jacocoIntegrationTestReport/html
+tasks.register('jacocoIntegrationTestReport', JacocoReport) {
+	description = '통합 테스트 커버리지 리포트를 만든다.'
+	group = 'verification'
+	dependsOn integrationTest
+	executionData integrationTest.get()
+	sourceSets sourceSets.main
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	classDirectories.setFrom(allCoverageClasses())
+}
+
+// 합산(단위 + 통합): build/reports/jacoco/jacocoMergedReport/html
+tasks.register('jacocoMergedReport', JacocoReport) {
+	description = '단위·통합 테스트를 합산한 커버리지 리포트를 만든다.'
+	group = 'verification'
+	dependsOn 'test', integrationTest
+	executionData tasks.named('test').get(), integrationTest.get()
+	sourceSets sourceSets.main
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	classDirectories.setFrom(allCoverageClasses())
 }
 
 tasks.named('bootJar') {
