@@ -1,18 +1,18 @@
 """로컬 진단 trace CLI. 서버·세션·BE 콜백 없이 진단 함수만 돌려 trace 파일을 남김.
 
-    python -m app.diagnosis.trace_cli data/trace-inputs/kc-fan.json
-    python -m app.diagnosis.trace_cli data/trace-inputs/kc-fan.json --answer r1_q1=네 --answer r1_q2=아니요
+    python -m app.diagnosis.trace_cli logs/trace-inputs/kc-fan.json
+    python -m app.diagnosis.trace_cli logs/trace-inputs/kc-fan.json --answer r1_q1=네 --answer r1_q2=아니요
 
 입력 파일은 /diagnose 요청의 상품 하나와 같은 모양 (productId·textBlocks·imageUrls·sourceUrl).
 productId가 없으면 파일 이름을 씀.
-trace는 실행 폴더(기본 data/traces/<입력 파일 이름>/)에 run-1.json, run-2.json…으로 쌓임.
+trace는 실행 폴더(기본 logs/traces/<입력 파일 이름>/)에 run-1.json, run-2.json…으로 쌓임.
 --answer를 주면 그 폴더의 마지막 실행이 남긴 질문에 답해 재진단. 이전 결과·답변은 마지막 실행 파일에서 읽음.
 
 단계 다시 실행: 이전 trace의 실행 입력과 앞 단계 결과를 그대로 쓰고 지정한 단계부터 실제로 돌림.
 결과는 이전 trace와 같은 폴더에 다음 번호로 쌓임.
 
-    python -m app.diagnosis.trace_cli --from data/traces/kc-fan/run-1.json --stage selection          # 선택부터 끝까지
-    python -m app.diagnosis.trace_cli --from data/traces/kc-fan/run-1.json --stage selection --only   # 선택만
+    python -m app.diagnosis.trace_cli --from logs/traces/kc-fan/run-1.json --stage selection          # 선택부터 끝까지
+    python -m app.diagnosis.trace_cli --from logs/traces/kc-fan/run-1.json --stage selection --only   # 선택만
 
 모델·외부 API는 실제로 부름 (.env 키 필요, 비용 발생). DATABASE_URL이 없으면 관세 Tool은 CLIP만 조회.
 """
@@ -40,7 +40,8 @@ from .questions import build_questions
 from .replay import STAGES, ReplayError, ReplayStopped, StageReplay, replay_input
 
 AI_ROOT = Path(__file__).resolve().parents[2]
-TRACE_ROOT = AI_ROOT / "data" / "traces"
+# 상품 원문·모델 응답 원문이 들어가 git이 무시하는 logs/ 아래
+TRACE_ROOT = AI_ROOT / "logs" / "traces"
 _RUN_FILE = re.compile(r"run-(\d+)\.json")
 
 
@@ -237,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="로컬 진단 trace (서버·콜백 없이)")
     parser.add_argument("source", type=Path, nargs="?", help="상품 입력 JSON (/diagnose 상품 하나 모양)")
     parser.add_argument("--out", type=Path, default=None,
-                        help="실행 폴더 (기본: 입력이면 data/traces/<입력 파일 이름>, --from이면 그 trace 폴더)")
+                        help="실행 폴더 (기본: 입력이면 logs/traces/<입력 파일 이름>, --from이면 그 trace 폴더)")
     parser.add_argument("--answer", action="append", default=[], metavar="KEY=TEXT",
                         help="마지막 실행 질문에 대한 답변. 질문마다 한 번씩")
     parser.add_argument("--from", dest="from_trace", type=Path, default=None, help="다시 실행할 이전 trace 파일")
