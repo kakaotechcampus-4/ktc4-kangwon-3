@@ -80,3 +80,17 @@ def test_모델·dataclass·Enum·집합을_JSON_값으로_바꾸고_집합은_�
     assert to_jsonable(value) == {
         "pair": {"left": 1, "right": "red"}, "tags": ["a", "b"], "items": [{"name": "x", "color": "red"}],
     }
+
+
+def test_파일을_못_써도_블록_안의_결과와_예외는_그대로다(tmp_path):
+    blocked = tmp_path / "file"
+    blocked.write_text("폴더 자리에 파일", encoding="utf-8")
+
+    with trace_run(blocked / "run") as recorder:
+        result = "진단 결과"
+    with pytest.raises(ValueError, match="boom"):
+        with trace_run(blocked / "run"):
+            raise ValueError("boom")
+
+    assert result == "진단 결과"
+    assert recorder.save() is None

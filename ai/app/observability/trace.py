@@ -16,6 +16,7 @@ ID는 실행 안에서 나온 순서대로 붙임(s1, c1, …). 같은 입력을
 import dataclasses
 import hashlib
 import json
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -24,6 +25,8 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 def to_jsonable(value: Any) -> Any:
@@ -199,15 +202,19 @@ class TraceRecorder:
         return {"run": self.run_name, "info": self.info, "steps": self.steps, "finish": self.finish,
                 "prompts": self.prompts}
 
-    def save(self) -> Path:
-        """run-N.json을 쓴다. 이미 있으면 덮어씀.
+    def save(self) -> Path | None:
+        """run-N.json을 쓴다. 이미 있으면 덮어씀. 못 쓰면 경고 로그만 남김 (기록이 진단 결과를 바꾸지 않게).
 
         Returns:
-            Path: 쓴 파일 경로.
+            Path | None: 쓴 파일 경로. 못 썼으면 None.
         """
-        self.directory.mkdir(parents=True, exist_ok=True)
         path = self.directory / f"{self.run_name}.json"
-        path.write_text(_dump(self.to_dict()), encoding="utf-8")
+        try:
+            self.directory.mkdir(parents=True, exist_ok=True)
+            path.write_text(_dump(self.to_dict()), encoding="utf-8")
+        except OSError:
+            logger.warning("trace 파일을 쓰지 못함 (path=%s)", path, exc_info=True)
+            return None
         return path
 
 
