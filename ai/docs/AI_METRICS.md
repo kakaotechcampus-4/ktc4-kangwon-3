@@ -19,7 +19,7 @@ AI 서버가 `GET /metrics`로 내보내는 Prometheus 지표와 어디서 재�
 ## 2. 라벨 원칙
 
 - 상품 ID·실행 ID·URL·검색어는 라벨에 넣지 않음. 실행마다 시계열이 늘고 키가 노출될 수 있음
-- 운영·평가·테스트는 실행 종류 `run_type`(production·evaluation·test)으로 나눔
+- 운영·평가·테스트·BE 연동 더미는 실행 종류 `run_type`(production·evaluation·test·dummy)으로 나눔
 - 외부 API는 클라이언트 클래스가 아니라 서버(기관) 단위 `api`로 묶음
 
 ## 3. 지금 있는 지표
