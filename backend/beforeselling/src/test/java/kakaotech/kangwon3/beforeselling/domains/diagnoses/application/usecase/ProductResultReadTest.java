@@ -22,6 +22,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolRevi
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,6 +39,7 @@ import static org.assertj.core.api.Assertions.tuple;
  * 테스트 메서드에 트랜잭션을 걸지 않고 실제 조회 흐름(UseCase)을 그대로 실행해,
  * 지연 로딩되는 진단 결과가 매핑 전에 모두 읽혔는지 검증한다.
  */
+@Tag("integration")
 @SpringBootTest
 @ActiveProfiles("test")
 class ProductResultReadTest {

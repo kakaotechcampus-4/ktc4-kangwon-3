@@ -12,6 +12,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileSer
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.RepeatedTest;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -34,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 실제 트랜잭션을 두 스레드에서 동시에 실행해 removeProduct 의 진단서 락을 검증한다.
  * 타이밍에 따라 경합이 안 날 수도 있어서 여러 번 반복한다.
  */
+@Tag("integration")
 @SpringBootTest
 @ActiveProfiles("test")
 class ProductServiceConcurrencyTest {
