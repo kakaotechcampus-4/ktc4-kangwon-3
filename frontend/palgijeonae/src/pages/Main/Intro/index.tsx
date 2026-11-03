@@ -4,6 +4,8 @@ import Favicon from "@/assets/favicon.svg"
 import Button from "@/components/common/Button"
 import { useAuthStore } from "@/store/useAuthStore.ts"
 
+import DemoButton from "./DemoButton"
+
 function Intro() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
     const isAuthReady = useAuthStore((state) => state.isAuthReady)
@@ -30,6 +32,7 @@ function Intro() {
             {isAuthReady && (
                 <div className="flex w-full flex-wrap items-center gap-2.5">
                     <Button text={isLoggedIn ? "상품 확인 시작하기" : "로그인 후 진단 시작"} onClick={handleButtonClick} fontSize={15} />
+                    <DemoButton />
                 </div>
             )}
         </div>

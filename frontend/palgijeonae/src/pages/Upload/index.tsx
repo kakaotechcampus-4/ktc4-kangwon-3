@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/client";
 import { SourceType } from "@/api/types.ts"
@@ -16,9 +16,15 @@ import InputTypeTabs, { type InputType } from "./InputTypeTabs.tsx";
 import type { Product } from "./types.ts";
 import { validateProduct } from "./validation.ts";
 
+// 메인 페이지의 평가용 체험 버튼(useDemoStart)이 navigate state로 넘겨주는 샘플 상품.
+interface UploadLocationState {
+    demoProducts?: Product[]
+}
+
 function UploadPage() {
     const [inputType, setInputType] = useState<InputType>(SourceType.Url);
-    const [products, setProducts] = useState<Product[]>([]);
+    const location = useLocation();
+    const [products, setProducts] = useState<Product[]>(() => (location.state as UploadLocationState | null)?.demoProducts ?? []);
     const navigate = useNavigate();
 
     const handleAddProduct = (product: Product) => {
