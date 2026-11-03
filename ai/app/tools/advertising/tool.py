@@ -11,6 +11,7 @@
 """
 
 from ...agents.base import ModelLike
+from ...observability.trace import trace_note
 from ...schemas.advertising import AdvertisingClaim, AdvertisingReview
 from ...schemas.agent import ToolSelectionItem
 from ...schemas.product import Product
@@ -73,6 +74,8 @@ class AdvertisingTool(RegulatoryTool):
             if not any(normalize(claim.quote) in normalize(k.quote) or normalize(k.quote) in normalize(claim.quote)
                        for k in kept)
         ]
+        # 모델 인용 원문 대조 결과와 코드가 더한 KC 표기 (모델 출력 전체는 호출 파일에)
+        trace_note("claims", {"kept": kept, "dropped_quotes": dropped, "kc_added": kc_added})
         return self._assemble(decision, lines, kept + kc_added, dropped, review, reviewer.prompt.sha256,
                               kc_added=len(kc_added))
 
