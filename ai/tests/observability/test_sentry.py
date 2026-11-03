@@ -13,6 +13,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sentry_sdk.transport import Transport
 
+from app.domain.context import ExecutionContext, RunType
+from app.observability.logs import run_log_context, set_run_field
 from app.observability.sentry import configure_sentry
 
 DSN = "https://public-key@o0.ingest.sentry.io/1"
@@ -85,3 +87,19 @@ def test_요청_중_잡지_않은_예외는_보내고_HTTP_예외는_보내지_�
     assert _sent(events) == [("error", "요청 처리 버그")]
     # 본문 자리엔 설정으로 뺐다는 표시만
     assert "상품 원문" not in json.dumps(events[0], ensure_ascii=False)
+
+
+def test_진단_실행_중_이벤트엔_로그와_같은_실행_정보를_태그로_붙인다(events):
+    context = ExecutionContext(run_id="run-1", product_id="p-1", run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+
+    with run_log_context(context):
+        set_run_field("stage", "tool_execution")
+        logging.getLogger("app.diagnosis.job").error("Tool 실행 실패")
+    logging.getLogger("app.main").error("세션 정리 실패")
+
+    sentry_sdk.flush()
+    in_run, outside = events
+    assert {key: in_run["tags"][key] for key in ("diagnosis_id", "product_id", "run_id", "run_type", "stage")} == {
+        "diagnosis_id": "d-1", "product_id": "p-1", "run_id": "run-1", "run_type": "production",
+        "stage": "tool_execution"}
+    assert "run_id" not in outside.get("tags", {})

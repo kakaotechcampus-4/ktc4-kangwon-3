@@ -6,12 +6,15 @@
     - INFO·WARNING 로그 → 이벤트 앞의 흐름 기록(breadcrumb)만
     - 요청 처리 중 잡지 않은 예외(500) → 이벤트 (FastAPI 연동). 예외 처리기가 응답으로 바꾼 4xx는 안 감
 요청 본문·개인정보는 보내지 않음. 트레이스·로그 전송은 쓰지 않음.
+진단 실행 중 이벤트엔 로그와 같은 실행 정보(진단서·상품·실행 ID, 실행 종류, 단계, 재실행 회차)를 태그로 붙임.
 """
 
 import logging
 
 import sentry_sdk
 from sentry_sdk.integrations.logging import LoggingIntegration
+
+from .logs import current_run_fields
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +43,26 @@ def configure_sentry(dsn: str, environment: str, **options) -> bool:
         # 오류만. 성능 트레이스는 안 씀
         traces_sample_rate=None,
         integrations=[LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)],
+        before_send=before_send,
         **options,
     )
     logger.info("Sentry 켜짐 (environment=%s)", environment)
     return True
+
+
+def before_send(event: dict, hint: dict) -> dict:
+    """보내기 직전 이벤트에 지금 실행 정보를 태그로 붙인다. 실행 밖(기동·요청 처리 등)이면 그대로.
+
+    이벤트를 남긴 스레드에서 불림 → 로그 줄과 같은 실행 정보.
+
+    Args:
+        event: Sentry 이벤트.
+        hint: 원래 예외 등 (안 씀).
+
+    Returns:
+        dict: 태그를 붙인 이벤트.
+    """
+    fields = current_run_fields()
+    if fields:
+        event.setdefault("tags", {}).update(fields)
+    return event
