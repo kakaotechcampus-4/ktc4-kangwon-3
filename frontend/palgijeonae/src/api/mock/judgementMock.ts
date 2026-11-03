@@ -1,8 +1,10 @@
 import { type DiagnosesDetail, PipelineStage, StageStatus, ToolName } from "@/api/product";
 import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 
-// 로컬에서 BE 없이 테스트할 때만 쓰는 픽스처. 
-// 쓰려면 useJudgementProducts.ts의 import를 "@/api/judgement" 대신 "@/api/mock/judgementMock"으로 바꾸면 된다.
+/**
+ * 로컬에서 BE 없이 테스트할 때만 쓰는 픽스처.
+ * 쓰려면 useJudgementProducts.ts의 import를 "@/api/judgement" 대신 "@/api/mock/judgementMock"으로 바꾸면 된다.
+ */
 
 /** 개발용 진단 상세 정보 목업 데이터 */
 const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
@@ -120,7 +122,7 @@ const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
     updatedAt: "2026-10-30T12:05:00",
 };
 
-/** 개발용 진단 상세 정보 목업 데이터 */
+/** 폴링 호출마다 늘어나는 진행 tick. diagnosesId가 바뀌면 처음부터 다시 센다. */
 let mockPollTick = 0;
 let mockPollDiagnosesId: string | null = null;
 
