@@ -17,6 +17,7 @@ import kakaotech.kangwon3.beforeselling.global.security.oauth2.repository.RedisO
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -42,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Tag("integration")
 @WebMvcTest(UserController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, RefreshTokenCookieProvider.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})

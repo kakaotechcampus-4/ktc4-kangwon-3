@@ -16,6 +16,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeAccepted;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +45,7 @@ import static org.mockito.Mockito.times;
  * 답변 제출 뒤 재진단 요청이 AI에 전달되지 않았을 때, 재요청 대기 표시부터 스케줄러의 재전송·기한 실패까지
  * 실제 DB와 트랜잭션으로 확인한다. AI 서버만 목으로 둔다.
  */
+@Tag("integration")
 @SpringBootTest
 @ActiveProfiles("test")
 class ProductResumeRetryFlowTest {
