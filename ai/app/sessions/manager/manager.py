@@ -17,12 +17,13 @@ from ...config import (
 )
 from ...domain.errors import AIResponseCode
 from ...domain.context import ExecutionContext, RunType
+from ...observability.logs import log_fields, run_log_context
 from ...schemas.agent import ExtractionInput
 from ...schemas.base import utc_now
 from ...schemas.session import DiagnosisSession, SessionAnswer, SessionStatus
 from ..errors import (
-    QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
-    UnknownQuestionKeyError,
+    QueueFullError, ResumeConflictError, SessionConflictError, SessionError, SessionNotFoundError,
+    UnansweredQuestionError, UnknownQuestionKeyError,
 )
 from ..job import DiagnosisJob
 from ..store import SessionStore
@@ -184,24 +185,34 @@ class SessionManager:
             ]
             return apply(session, Resume(context, new_answers), now=self._clock())
 
-        with self._lock:
-            try:
-                self._capacity.check(1, dev=False)
-            except QueueFullError:
-                self._rejected["queue_full"] += 1
-                raise
-            session = self._store.get(product_id)
-            # 다른 경로(운영·더미)로 접수된 세션은 없음으로 봄
-            if session is not None and session.context.run_type is not run_type:
-                session = None
-            # 조회 뒤 정리로 사라져도 없음으로 봄. 같은 상품의 접수·재진단은 이 잠금 안에서만 일어남
-            transition = self._updater.replace(session.context, resume) if session is not None else None
-            if transition is None:
-                raise SessionNotFoundError(f"세션이 없습니다: {product_id}")
-            resumed = transition.session
-            self._capacity.take([resumed.context.run_id], dev=resumed.context.run_type is RunType.TEST)
-            self._accepted[resumed.context.run_type] += 1
+        try:
+            with self._lock:
+                try:
+                    self._capacity.check(1, dev=False)
+                except QueueFullError:
+                    self._rejected["queue_full"] += 1
+                    raise
+                session = self._store.get(product_id)
+                # 다른 경로(운영·더미)로 접수된 세션은 없음으로 봄
+                if session is not None and session.context.run_type is not run_type:
+                    session = None
+                # 조회 뒤 정리로 사라져도 없음으로 봄. 같은 상품의 접수·재진단은 이 잠금 안에서만 일어남
+                transition = self._updater.replace(session.context, resume) if session is not None else None
+                if transition is None:
+                    raise SessionNotFoundError(f"세션이 없습니다: {product_id}")
+                resumed = transition.session
+                self._capacity.take([resumed.context.run_id], dev=resumed.context.run_type is RunType.TEST)
+                self._accepted[resumed.context.run_type] += 1
+        except SessionError as exc:
+            # 라우터가 4xx 응답으로 바꿔 앱 로그가 없으면 거절 이유가 안 보임. 잠금 밖에서 남김
+            fields = {"diagnosis_id": diagnosis_id, "product_id": product_id, "run_id": run_id,
+                      "run_type": run_type.value}
+            with log_fields(fields):
+                logger.warning("재진단 접수 거절: %s (질문 회차 %d, 답변 %d개)", exc, question_round, len(answers))
+            raise
 
+        with run_log_context(resumed.context):
+            logger.info("재진단 접수 (질문 회차 %d, 답변 %d개)", question_round, len(answers))
         self._pool.submit(self._run, resumed.context)
         return resumed
 
@@ -253,11 +264,13 @@ class SessionManager:
         return self._store.purge()
 
     def shutdown(self, *, wait: bool = False) -> None:
-        """새 실행을 받지 않고 관리자를 닫는다.
+        """새 실행을 받지 않고 관리자를 닫는다. 기다리지 않으면 버리는 세션을 경고로 남김.
 
         Args:
             wait: 실행 중인 세션이 끝날 때까지 기다릴지.
         """
+        if not wait:
+            _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0))
         self._pool.shutdown(wait=wait, cancel_futures=not wait)
 
     def _run(self, context: ExecutionContext) -> None:
@@ -303,9 +316,11 @@ class SessionManager:
                     raise SessionConflictError(conflicts)
             except QueueFullError:
                 self._rejected["queue_full"] += 1
+                _log_rejected(diagnosis_id, run_type, len(inputs), "대기열 가득 참")
                 raise
-            except SessionConflictError:
+            except SessionConflictError as exc:
                 self._rejected["conflict"] += 1
+                _log_rejected(diagnosis_id, run_type, len(inputs), f"진행 중인 상품 {', '.join(exc.product_ids)}")
                 raise
 
             for item in inputs:
@@ -328,7 +343,54 @@ class SessionManager:
             self._store.add(sessions)
             self._capacity.take([session.context.run_id for session in sessions], dev=dev)
             self._accepted[run_type] += len(sessions)
-            return sessions
+        for session in sessions:
+            # 입력 모양만. 글·URL 본문은 남기지 않음
+            source = session.source
+            with run_log_context(session.context):
+                logger.info("진단 접수 (글 %d개 %d자, 이미지 %d장, URL %s)", len(source.text_blocks),
+                            sum(len(block) for block in source.text_blocks), len(source.image_urls),
+                            "있음" if source.source_url else "없음")
+        return sessions
+
+
+def _log_rejected(diagnosis_id: str | None, run_type: RunType, count: int, reason: str) -> None:
+    """접수 거절 한 줄. 세션을 만들기 전이라 진단서 ID·실행 종류만 붙임.
+
+    Args:
+        diagnosis_id: BE 진단서 ID. 개발용 진단은 None.
+        run_type: 실행 종류.
+        count: 요청한 상품 수.
+        reason: 거절 이유.
+    """
+    with log_fields({"diagnosis_id": diagnosis_id, "run_type": run_type.value}):
+        logger.warning("진단 접수 거절: %s (상품 %d개)", reason, count)
+
+
+def _log_abandoned(unfinished: list[DiagnosisSession], awaiting: int) -> None:
+    """서버 종료로 버리는 세션 한 줄 (#497). 버릴 세션이 없으면 남기지 않음.
+
+    대기 중은 취소되고, 실행 중은 프로세스가 끝나며 함께 끊김(uvicorn이 종료 신호를 다시 발생시킴).
+    둘 다 결과 콜백이 나가지 않음. 답변 대기 세션은 메모리에만 있어 재시작 뒤 재진단할 수 없음.
+
+    Args:
+        unfinished: 접수·실행 중 세션.
+        awaiting: 답변 대기 세션 수.
+    """
+    running = [s.context.product_id for s in unfinished if s.status is SessionStatus.RUNNING]
+    queued = [s.context.product_id for s in unfinished if s.status is not SessionStatus.RUNNING]
+    # 0개인 항목은 뺌
+    parts, notes = [], []
+    if running:
+        parts.append(f"실행 중 {len(running)}개({', '.join(running)})")
+    if queued:
+        parts.append(f"대기 중 {len(queued)}개({', '.join(queued)})")
+    if running or queued:
+        notes.append("결과 콜백 없음")
+    if awaiting:
+        parts.append(f"답변 대기 {awaiting}개")
+        notes.append("재시작 뒤 재진단 불가")
+    if parts:
+        logger.warning("서버 종료로 진단을 버림: %s (%s)", ", ".join(parts), ", ".join(notes))
 
 
 def _check_answers(session: DiagnosisSession, answers: dict[str, str]) -> None:

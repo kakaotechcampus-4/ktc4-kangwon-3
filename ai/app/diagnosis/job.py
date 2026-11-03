@@ -9,8 +9,10 @@ import logging
 from collections.abc import Callable
 
 from ..agents.verification import VerificationError
+from ..clients.base import mask_sensitive_params
 from ..domain.context import ExecutionContext, PipelineStage
-from ..domain.errors import AIResponseCode, AIServiceError
+from ..domain.errors import AIError, AIResponseCode, AIServiceError
+from ..observability.logs import set_run_field
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
@@ -55,9 +57,9 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder) -> DiagnosisJob:
             result = pipeline.run(job_input.source)
         except AIServiceError as exc:
             # 단계가 정한 실패 코드·재시도 여부를 그대로 (#450). 세션 실행기는 이 실패를 로그로 안 남김 → 원인과 함께 기록
-            logger.warning("진단 단계 실패 (product_id=%s, run_id=%s, stage=%s, code=%s, retryable=%s)",
-                           context.product_id, context.run_id, exc.stage, exc.response_code.code, exc.retryable,
-                           exc_info=exc)
+            # 예상한 실패 → 위치 없이 원인 예외만 한 줄로
+            logger.warning("진단 단계 실패 (stage=%s, code=%s, retryable=%s): %s", exc.stage,
+                           exc.response_code.code, exc.retryable, _error_text(exc.__cause__ or exc))
             return JobFailed(exc.response_code.code, exc.retryable)
         progress.stage(PipelineStage.FINALIZATION)
         if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:
@@ -108,6 +110,7 @@ class _ReportingTool:
     """실행 전후로 Tool 진행 알림. 실행기가 선택된 Tool만 부르므로 started·completed만 보냄.
 
     Tool 예외도 completed (실패 여부는 분야 카드에서 표시). 예외는 실행기가 FAILED 결과로 바꿈.
+    실행기는 원인을 남기지 않아 여기서 남기고 그대로 올림 (#497).
     """
 
     def __init__(self, tool: RegulatoryTool, progress: ProgressReporter) -> None:
@@ -119,8 +122,21 @@ class _ReportingTool:
         self._progress.tool(self.tool_name, "started")
         try:
             return self._tool.execute(product, decision)
+        except AIError as exc:
+            # 예상한 실패(외부 API·모델·Tool 오류)는 원인만
+            logger.warning("Tool 실행 실패 %s: %s", self.tool_name, _error_text(exc))
+            raise
+        except Exception as exc:
+            # 코드 오류 가능성 → 위치까지
+            logger.error("Tool 실행 실패 %s: %s", self.tool_name, _error_text(exc), exc_info=True)
+            raise
         finally:
             self._progress.tool(self.tool_name, "completed")
+
+
+def _error_text(exc: BaseException) -> str:
+    """로그용 예외 설명. 메시지 속 URL의 키는 가림."""
+    return mask_sensitive_params(f"{type(exc).__name__}: {exc}")
 
 
 class _ToolExecution:
@@ -138,6 +154,8 @@ class _ToolExecution:
         return result
 
     def execute_retry(self, product: Product, previous: SelectionResult, request: RetryRequest) -> SelectionResult:
+        # 이후 로그 줄(재실행 Tool·집계·검증)에 회차 표시
+        set_run_field("retry_round", request.retry_round)
         self._progress.stage(PipelineStage.TOOL_EXECUTION)
         return self._executor.execute_retry(product, previous, request)
 

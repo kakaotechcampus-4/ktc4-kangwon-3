@@ -13,10 +13,12 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Protocol
 
+from ...clients.base import mask_sensitive_params
 from ...clients.customs import CLIPClient, CustomsGwClient
 from ...observability.measurements import CacheLookup, measurement_sinks
 from ...schemas.clients.customs_request import CLIPSearchRequest, CustomsGwConfirmationRequest
@@ -166,11 +168,15 @@ class ClipCaseSearch:
         failed: list[str] = []
         errors: list[Exception] = []
         with ThreadPoolExecutor(max_workers=len(queries)) as executor:
-            futures = [(query, executor.submit(self._fetch, query)) for query in queries]
+            # 검색어 스레드 로그에도 실행 정보가 붙게 문맥 복사. 문맥 하나는 한 스레드만 쓸 수 있어 검색어마다 복사
+            futures = [(query, executor.submit(copy_context().run, self._fetch, query)) for query in queries]
             for query, future in futures:
                 try:
                     items.extend(future.result())
                 except Exception as exc:
+                    # 나머지 검색어로 계속해 Tool 실패로 안 남는 경우도 있어 검색어마다 남김 (#497)
+                    logger.warning("결정사례 검색어 실패 %r: %s", query,
+                                   mask_sensitive_params(f"{type(exc).__name__}: {exc}"))
                     failed.append(query)
                     errors.append(exc)
         return items, failed, errors

@@ -1,11 +1,11 @@
-"""호출 1건의 사용량 기록(record_call)과 콘솔 토큰 로그(log_token_usage)."""
+"""호출 1건의 사용량 기록(record_call), 호출 로그(log_call), 토큰 디버그 로그(log_token_usage)."""
 
 import logging
 
 from langchain_core.messages import AIMessage
 
 from app.agents.base import AgentRunMeta
-from app.agents.base.usage_log import log_token_usage, record_call
+from app.agents.base.usage_log import log_call, log_token_usage, record_call
 from app.observability.agent_sinks import agent_sinks
 from app.usage import CallUsage
 
@@ -40,7 +40,7 @@ def test_사용량_로그_sink는_기본으로_등록돼_있다(records):
     assert [(row["agent"], row["subject_id"]) for row in records] == [("fake", "p-1")]
 
 
-def test_콘솔_로그에_토큰·캐시_적중률을_남기고_게이트웨이_원본은_디버그로_남긴다(caplog):
+def test_토큰·캐시_적중률과_게이트웨이_원본은_디버그로_남긴다(caplog):
     raw = AIMessage(content="", response_metadata={"token_usage": {"prompt_tokens": 100}})
 
     with caplog.at_level(logging.DEBUG, logger="app.agents.base.usage_log"):
@@ -62,6 +62,35 @@ def test_콘솔_로그가_실패해도_예외를_내지_않는다(monkeypatch):
     def broken(*args, **kwargs):
         raise OSError("로그 핸들러 오류")
 
-    monkeypatch.setattr("app.agents.base.usage_log.logger.info", broken)
+    monkeypatch.setattr("app.agents.base.usage_log.logger.debug", broken)
 
     log_token_usage("fake", _USAGE, None)
+
+
+def test_호출마다_모델·시간·토큰·비용을_INFO_한_줄로_남긴다(caplog):
+    meta = AgentRunMeta(component="extraction", model="gpt-x", usage=_USAGE, cost_krw=12.345, elapsed_ms=1500)
+
+    with caplog.at_level(logging.INFO, logger="app.agents.base.usage_log"):
+        log_call(meta, "p-1")
+
+    assert [(r.levelname, r.getMessage()) for r in caplog.records] == [
+        ("INFO", "모델 호출 extraction (모델 gpt-x, 1500ms, 토큰 입력 100(캐시 40) 출력 20(추론 0), 12.3원)"),
+    ]
+
+
+def test_실패한_호출은_실패_단계와_원인과_함께_경고로_남긴다(caplog):
+    meta = AgentRunMeta(component="verification", model="gpt-x", elapsed_ms=30000, error_type="TimeoutError",
+                        failure_phase="call")
+
+    log_call(meta, "p-1")
+
+    assert [(r.levelname, r.getMessage()) for r in caplog.records] == [
+        ("WARNING", "모델 호출 실패 verification (모델 gpt-x, 30000ms, call 단계 TimeoutError)"),
+    ]
+
+
+def test_호출_로그_sink는_기본으로_등록돼_있다(records, caplog):
+    with caplog.at_level(logging.INFO, logger="app.agents.base.usage_log"):
+        agent_sinks.publish(AgentRunMeta(component="fake", usage=_USAGE), "p-1")
+
+    assert any(r.getMessage().startswith("모델 호출 fake") for r in caplog.records)

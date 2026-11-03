@@ -38,6 +38,10 @@ DEV_API_KEY_MIN_LENGTH = 32
 _TRUE_VALUES = ("true", "1", "yes", "on")
 _FALSE_VALUES = ("false", "0", "no", "off", "")
 
+# (선택) 앱 로그 레벨. 비우면 INFO
+LOG_LEVEL_ENV = "LOG_LEVEL"
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
+
 
 # 프로필 표 종류. 덮어쓰기 값의 "종류.이름" 앞부분
 PROFILE_TABLES = {"agent": AGENT_PROFILES, "tool": TOOL_PROFILES}
@@ -90,6 +94,7 @@ class Settings:
             개발 단계에서는 DB 없이도 서버를 띄울 수 있게 선택으로 둔다. 비어 있으면 DB 기능을 쓰지 않는다.
         agent_profiles: 에이전트 이름 → 프로필 이름. 기본은 AGENT_PROFILES.
         tool_profiles: Tool 이름 → 프로필 이름. 기본은 TOOL_PROFILES.
+        log_level: 앱 로그 레벨 (LOG_LEVEL). DEBUG·INFO·WARNING·ERROR 중 하나, 기본 INFO.
 
     Raises:
         ConfigError: 필수 설정이 비어 있거나 형식·허용 범위를 벗어난 경우.
@@ -108,6 +113,7 @@ class Settings:
     dev_api_key: str = field(default="", repr=False)
     agent_profiles: dict[str, str] = field(default_factory=lambda: dict(AGENT_PROFILES))
     tool_profiles: dict[str, str] = field(default_factory=lambda: dict(TOOL_PROFILES))
+    log_level: str = "INFO"
 
     def __post_init__(self) -> None:
 
@@ -163,6 +169,10 @@ class Settings:
             wrong = ", ".join(unknown)
             raise ConfigError(f"없는 모델 프로필입니다: {OVERRIDES_ENV}의 {wrong} (허용: {', '.join(MODEL_PROFILES)})")
 
+        # 오타가 조용히 기본 레벨이 되지 않게 기동 실패
+        if self.log_level not in LOG_LEVELS:
+            raise ConfigError(f"{LOG_LEVEL_ENV}는 {', '.join(LOG_LEVELS)} 중 하나여야 합니다: {self.log_level!r}")
+
 
 def load_settings() -> Settings:
     """ai/.env와 환경변수에서 설정을 읽는다. 환경변수가 .env보다 우선한다.
@@ -207,6 +217,7 @@ def load_settings() -> Settings:
         dev_api_key=os.environ.get(DEV_API_KEY_ENV, "").strip(),
         agent_profiles={name: overrides.get(("agent", name), default) for name, default in AGENT_PROFILES.items()},
         tool_profiles={name: overrides.get(("tool", name), default) for name, default in TOOL_PROFILES.items()},
+        log_level=os.environ.get(LOG_LEVEL_ENV, "").strip().upper() or "INFO",
     )
 
 

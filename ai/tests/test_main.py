@@ -4,6 +4,7 @@
 """
 
 import json
+import logging
 import threading
 import time
 
@@ -18,6 +19,7 @@ from app.diagnosis import build_questions
 from app.agents.base import AgentRunMeta
 from app.dummy import job as dummy_job
 from app.observability.agent_sinks import agent_sinks
+from app.observability.logs import APP_LOGGER
 from app.observability.measurements import ClientCall, measurement_sinks
 from app.db import engine as database
 from app.routers import _dummy
@@ -43,6 +45,16 @@ def _wait_until(condition, timeout: float = 5.0) -> None:
         if time.monotonic() > deadline:
             raise AssertionError("조건을 기다리다 시간 초과")
         time.sleep(0.01)
+
+
+@pytest.fixture(autouse=True)
+def _restore_app_logger():
+    """lifespan이 붙인 app 로그 핸들러·레벨을 되돌림. 남으면 이 테스트의 stderr 캡처에 계속 씀."""
+    logger = logging.getLogger(APP_LOGGER)
+    handlers, level = list(logger.handlers), logger.level
+    yield
+    logger.handlers[:] = handlers
+    logger.setLevel(level)
 
 
 @pytest.fixture

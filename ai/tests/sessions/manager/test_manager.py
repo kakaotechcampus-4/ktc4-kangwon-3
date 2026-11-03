@@ -1,5 +1,6 @@
 """진단 세션 관리자의 실행 상한·대기열·실패·시간 초과·진행 알림·재진단·질문 회차를 확인한다."""
 
+import logging
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -7,6 +8,9 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.domain.context import PipelineStage, RunType
+from app.observability.logs import current_run_fields
+from app.observability.measurements import ToolRun, measurement_sinks
+from app.observability.run_summary import current_summary
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
@@ -156,6 +160,57 @@ def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(
     job.release(job.started[0])
     _wait_until(lambda: len(job.started) == 3)
     assert _status(manager,"p-3") is SessionStatus.RUNNING
+
+
+def test_진단_함수_안의_로그에는_그_실행의_정보가_붙고_끝나면_지워진다(managers):
+    seen = {}
+
+    def job(job_input, context, progress):
+        seen[context.product_id] = dict(current_run_fields())
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    sessions = manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert seen["p-1"] == {"diagnosis_id": "d-1", "product_id": "p-1", "run_id": sessions[0].context.run_id,
+                           "run_type": "production"}
+    assert dict(current_run_fields()) == {}
+
+
+def test_단계_알림_뒤_로그_줄에는_지금_단계가_붙는다(managers):
+    seen = []
+
+    def job(job_input, context, progress):
+        seen.append(current_run_fields().get("stage"))
+        progress.stage(PipelineStage.EXTRACTION)
+        seen.append(current_run_fields().get("stage"))
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert seen == [None, "extraction"]
+
+
+def test_실행마다_새_요약에_단계를_모으고_끝나면_지운다(managers):
+    seen = []
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.EXTRACTION)
+        progress.stage(PipelineStage.SELECTION)
+        seen.append(current_summary())
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    _wait_until(lambda: all(_status(manager, p) is SessionStatus.COMPLETED for p in ("p-1", "p-2")))
+
+    assert len(seen) == 2 and seen[0] is not seen[1]
+    # 마지막 단계(선택)는 실행이 끝날 때 닫힘
+    assert all(set(summary.stage_seconds) == {"extraction", "selection"} for summary in seen)
+    assert current_summary() is None
 
 
 def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):
@@ -848,3 +903,169 @@ def test_2회차_답변_뒤에도_질문이_남으면_질문_대신_미완료_�
     assert session.result.verification_status is FinalVerificationStatus.INCOMPLETE
     assert session.result.missing_information[-1] == QUESTION_LIMIT_NOTICE
     assert [a.question_round for a in session.answers] == [1, 2]
+
+
+def _messages(caplog, level=None) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.name.startswith("app.sessions")
+            and (level is None or r.levelname == level)]
+
+
+def test_접수와_실행_시작은_입력_모양·대기_시간과_함께_INFO로_남긴다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    manager = _manager(managers, lambda job_input, context, progress: JobDone(build_dummy_assessment("p-1")))
+
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert "진단 접수 (글 1개 5자, 이미지 0장, URL 없음)" in _messages(caplog, "INFO")
+    assert "진단 시작 (대기 0.0초, 답변 0개)" in _messages(caplog, "INFO")
+
+
+def test_재진단_접수는_회차와_답변_수만_남기고_답변_내용은_남기지_않는다(managers, caplog):
+    manager = _waiting(managers)
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    _resume(manager)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert "재진단 접수 (질문 회차 1, 답변 1개)" in _messages(caplog, "INFO")
+    assert "진단 시작 (대기 0.0초, 답변 1개)" in _messages(caplog, "INFO")
+    assert not any("네" in message for message in _messages(caplog))
+
+
+def test_접수_거절은_이유와_함께_경고로_남긴다(managers, caplog):
+    manager = _manager(managers, _GatedJob(), max_running=1, max_inflight=2)
+    manager.submit("d-1", _inputs("p-1"))
+
+    with pytest.raises(QueueFullError):
+        manager.submit("d-2", _inputs("p-2", "p-3"))
+    with pytest.raises(SessionConflictError):
+        manager.submit("d-3", _inputs("p-1"))
+
+    assert _messages(caplog, "WARNING") == ["진단 접수 거절: 대기열 가득 참 (상품 2개)",
+                                            "진단 접수 거절: 진행 중인 상품 p-1 (상품 1개)"]
+
+
+@pytest.mark.parametrize(("fields", "error", "reason"), [
+    ({"answers": {}}, UnansweredQuestionError, "답하지 않은 질문이 있습니다: battery_only"),
+    ({"answers": {"battery_only": "네", "other": "네"}}, UnknownQuestionKeyError, "이번 회차에 묻지 않은 질문입니다: other"),
+    ({"question_round": 2}, ResumeConflictError, "기다리는 질문과 다른 답변입니다: p-1"),
+    ({"product_id": "p-9"}, SessionNotFoundError, "세션이 없습니다: p-9"),
+])
+def test_재진단_거절은_이유와_함께_경고로_남기고_상품·이전_실행을_붙인다(managers, fields, error, reason):
+    manager = _waiting(managers)
+    run_id = manager.get("p-1").context.run_id
+    request = {"diagnosis_id": "d-1", "product_id": "p-1", "run_id": run_id, "question_round": 1,
+               "answers": {"battery_only": "네"}, **fields}
+
+    seen = []
+    handler = logging.Handler()
+    handler.emit = lambda record: seen.append((record.levelname, record.getMessage(), dict(current_run_fields())))
+    logging.getLogger("app.sessions").addHandler(handler)
+    try:
+        with pytest.raises(error):
+            manager.resume(**request)
+    finally:
+        logging.getLogger("app.sessions").removeHandler(handler)
+
+    [(level, message, run_fields)] = [entry for entry in seen if entry[0] == "WARNING"]
+    assert message.startswith(f"재진단 접수 거절: {reason} (질문 회차 ")
+    assert run_fields == {"diagnosis_id": "d-1", "product_id": request["product_id"], "run_id": run_id,
+                          "run_type": "production"}
+
+
+def _summary_lines(caplog) -> list[str]:
+    return [m for m in _messages(caplog, "INFO") if m.startswith("진단 요약")]
+
+
+@pytest.mark.parametrize(("outcome_for", "ending"), [
+    (lambda pid: JobDone(build_dummy_assessment(pid)),
+     "완료 action_required, 검증 verified_with_warnings, 종료 completed"),
+    (_ask, "답변 대기, 질문 1개"),
+    (lambda pid: JobFailed("AI_PIPELINE_ERROR", retryable=True), "실패 AI_PIPELINE_ERROR, 재시도 가능"),
+])
+def test_실행이_끝나면_결말과_단계·Tool·모델_호출_요약을_한_줄로_남긴다(managers, caplog, outcome_for, ending):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.EXTRACTION)
+        measurement_sinks.publish(ToolRun("radio", "success", 1.25))
+        return outcome_for(context.product_id)
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _summary_lines(caplog))
+
+    [line] = _summary_lines(caplog)
+    assert line.startswith(f"진단 요약: {ending} | 총 ")
+    assert "| 단계(초) extraction " in line
+    assert "| Tool(초) radio success 1.2 | Tool 실행 0회 | 모델 호출 0회(실패 0) 토큰 입력 0 출력 0 | 비용 0.0원" in line
+
+
+def test_진단_함수_예외도_재시도_불가_실패로_요약을_남긴다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _GatedJob(raise_error=True)
+    manager = _manager(managers, job)
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _summary_lines(caplog))
+
+    assert _summary_lines(caplog)[0].startswith("진단 요약: 실패 AI_PIPELINE_ERROR, 재시도 불가 | ")
+
+
+def test_기다리지_않고_닫으면_버리는_실행_중·대기_중·답변_대기_세션을_경고로_남긴다(managers, caplog):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-3"
+                    else JobDone(build_dummy_assessment(product_id)))
+    manager = _manager(managers, job, max_running=2)
+    manager.submit("d-1", _inputs("p-3"))
+    job.release("p-3")
+    _wait_until(lambda: _status(manager, "p-3") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    manager.submit("d-2", _inputs("p-1", "p-2", "p-4"))
+    _wait_until(lambda: {"p-1", "p-2"} <= set(job.started))
+
+    manager.shutdown(wait=False)
+    job.release("p-1")
+    job.release("p-2")
+
+    assert _messages(caplog, "WARNING") == [
+        "서버 종료로 진단을 버림: 실행 중 2개(p-1, p-2), 대기 중 1개(p-4), 답변 대기 1개 "
+        "(결과 콜백 없음, 재시작 뒤 재진단 불가)",
+    ]
+
+
+def test_답변_대기만_남았으면_0개인_항목_없이_답변_대기만_남긴다(managers, caplog):
+    manager = _waiting(managers)
+
+    manager.shutdown(wait=False)
+
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 답변 대기 1개 (재시작 뒤 재진단 불가)"]
+
+
+def test_버릴_세션이_없으면_종료_경고를_남기지_않는다(managers, caplog):
+    manager = _manager(managers, _GatedJob())
+
+    manager.shutdown(wait=False)
+
+    assert _messages(caplog, "WARNING") == []
+
+
+def test_Tool_재실행이_있으면_요약의_Tool_목록을_회차별로_묶는다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("radio", "success", 1.0))
+        measurement_sinks.publish(ToolRun("customs", "success", 2.0))
+        progress.stage(PipelineStage.VERIFICATION)
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("radio", "failed", 0.5, error_type="client"))
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _summary_lines(caplog))
+
+    assert "| Tool(초) [1] radio success 1.0, customs success 2.0 [2] radio failed 0.5 | Tool 실행 2회 |" \
+        in _summary_lines(caplog)[0]
