@@ -91,7 +91,10 @@ function InputForm({ type, onAdd }: InputFormProps) {
                         title="상세페이지 이미지"
                         description="상세 페이지를 캡처한 이미지를 첨부하세요."
                         multiple={true}
-                        isOption={false}
+                        isOption={true}
+                        optionLabel="보조 입력"
+                        helperText="텍스트 입력을 보완하는 참고 자료예요. 이미지만으로는 제출할 수 없어요."
+                        tooltip={"화면을 확대해서 캡처하면 글자를 더 정확하게 인식해요.\n스크롤 캡처를 너무 길게 이어 붙이지 말고, 몇 화면씩 나눠서 올려주세요."}
                         countLabel={`${productImages.length}/${MAX_PRODUCT_IMAGE_COUNT}`}
                         onChange={(newFiles) => {
                             const availableSlots = Math.max(MAX_PRODUCT_IMAGE_COUNT - productImages.length, 0);

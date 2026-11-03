@@ -52,10 +52,9 @@ export const validateProduct = (product: Product): string | null => {
         return product.link?.trim() ? null : "상세페이지 링크를 입력해주세요.";
     }
 
-    const hasContent = Boolean(product.content?.trim());
-    const hasImages = (product.images?.length ?? 0) > 0;
-    if (!hasContent && !hasImages) {
-        return "상세페이지 내용이나 이미지를 입력해주세요.";
+    // 이미지는 보조 입력이라 텍스트 없이 이미지만으로는 제출할 수 없다.
+    if (!product.content?.trim()) {
+        return "상세페이지 내용을 입력해주세요.";
     }
 
     if ((product.images?.length ?? 0) > MAX_PRODUCT_IMAGE_COUNT) {

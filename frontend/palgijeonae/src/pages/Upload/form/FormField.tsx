@@ -8,12 +8,13 @@ interface FormFieldProps {
     value: string
     onChange: (value: string) => void
     maxLength?: number
+    label?: string
 }
 
 const FIELD_CLASSES =
     "box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border";
 
-function FormField({ id, title, placeholder, variant = 'input', value, onChange, maxLength }: FormFieldProps) {
+function FormField({ id, title, placeholder, variant = 'input', value, onChange, maxLength, label = "필수" }: FormFieldProps) {
     // 네이티브 maxLength는 한글 등 IME 조합 중에는 실시간으로 길이를 막지 못하므로 직접 잘라준다.
     const handleChange = (newValue: string) => {
         // 최대 길이 제한이 없다면 바로 반영한다.
@@ -28,8 +29,11 @@ function FormField({ id, title, placeholder, variant = 'input', value, onChange,
 
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
-            <div className="flex w-full items-center gap-3.75">
-                <label className="text-xl leading-6 font-semibold text-black" htmlFor={id}>{title}</label>
+            <div className="flex w-full items-center justify-between gap-3.75">
+                <div className="flex items-center gap-3.75">
+                    <label className="text-xl leading-6 font-semibold text-black" htmlFor={id}>{title}</label>
+                    {label && <span className="text-xs leading-3.5 text-neutral-border">{label}</span>}
+                </div>
                 {maxLength !== undefined && (
                     <span className="text-xs leading-3.5 text-neutral-border">{variant === 'textarea' ? value.length : countGraphemes(value)}/{maxLength}</span>
                 )}
