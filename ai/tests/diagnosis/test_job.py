@@ -9,6 +9,7 @@ from app.agents.verification import VerificationError
 from app.clients.errors import ClientError
 from app.diagnosis import job as job_module
 from app.observability.logs import current_run_fields, run_log_context
+from app.observability.trace import trace_run
 from app.diagnosis.assembly import PipelineParts
 from app.diagnosis.job import _reporting_tools, _ToolExecution, build_job
 from app.domain.context import ExecutionContext, PipelineStage, RunType
@@ -310,3 +311,31 @@ def test_재실행_회차는_다시_실행하는_Tool만_시작·완료를_보�
     execution.execute_retry(product, first, request)
 
     assert progress.tools == [(ToolName.CUSTOMS, "started"), (ToolName.CUSTOMS, "completed")]
+
+
+def test_기록_중이면_단계마다_trace_단계를_열고_나온_값과_재실행_회차를_남긴다(pipeline, tmp_path):
+    job_input = DiagnosisInput(source=SOURCE)
+
+    with trace_run(tmp_path) as recorder:
+        build_job(_parts([]), _no_questions)(job_input, CONTEXT, _Progress())
+
+    assert [(step["kind"], step.get("round")) for step in recorder.steps] == [
+        ("extraction", None), ("selection", None), ("tool_execution", 0), ("aggregation", 0), ("verification", 0),
+        ("tool_execution", 1), ("aggregation", 1), ("verification", 1),
+    ]
+    extraction, selection = recorder.steps[:2]
+    assert extraction["input"] == job_input.model_dump(mode="json")
+    assert extraction["output"]["product_id"] == "p-1"
+    assert (selection["output"], recorder.steps[5]["output"], recorder.steps[-1]["output"]) == (
+        "select", "retried", "verify")
+
+
+def test_검증_단계가_실패하면_검증_trace_단계에_원인을_남긴다(pipeline, tmp_path):
+    with trace_run(tmp_path) as recorder:
+        build_job(_parts([], verification_error=VerificationError("검토 ID 중복")), _no_questions)(
+            DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    verification = recorder.steps[-1]
+    assert verification["kind"] == "verification"
+    assert verification["error"]["type"] == "VerificationError"
+    assert "output" not in verification
