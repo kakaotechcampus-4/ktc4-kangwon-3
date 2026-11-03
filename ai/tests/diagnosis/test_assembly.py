@@ -1,6 +1,7 @@
 """파이프라인 부품 조립을 모델·외부 호출 없이 검증한다."""
 
 from app.diagnosis import assembly
+from app.diagnosis.tracing import TracedImageSplitter
 from app.schemas.schemas import ToolName
 
 
@@ -62,5 +63,6 @@ def test_부품은_에이전트·Tool·추출_단계를_묶고_검증은_모델�
 
     assert isinstance(parts.selector, Selection) and isinstance(parts.verifier, Verification)
     assert parts.extraction._extractor.__class__ is Extraction
+    assert isinstance(parts.extraction._image_splitter, TracedImageSplitter)
     assert set(parts.tools) == set(ToolName)
     assert "from_env" in built

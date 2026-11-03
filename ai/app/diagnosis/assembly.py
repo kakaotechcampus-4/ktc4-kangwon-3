@@ -26,6 +26,7 @@ from ..tools.food_drug import FoodDrugTool
 from ..tools.food_drug.search import evidence_loader as food_drug_evidence_loader
 from ..tools.radio import RadioTool
 from ..tools.radio.search import item_search as radio_item_search
+from .tracing import TracedImageSplitter
 
 
 @dataclass(frozen=True)
@@ -78,7 +79,8 @@ def build_parts() -> PipelineParts:
         ConfigError: 모델·키 설정이 없거나 잘못된 경우.
     """
     return PipelineParts(
-        extraction=ExtractionStep(ExtractionAgent(), UrlSourceBuilder()),
+        # 이미지 자르기는 trace 기록 중에만 전후를 남기는 감싼 것 (동작은 같음)
+        extraction=ExtractionStep(ExtractionAgent(), UrlSourceBuilder(), image_splitter=TracedImageSplitter()),
         selector=SelectionAgent(),
         tools=build_tools(),
         aggregator=ResultAggregator(),
