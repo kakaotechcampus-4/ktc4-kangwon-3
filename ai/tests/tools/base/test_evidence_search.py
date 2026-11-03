@@ -285,7 +285,7 @@ def test_기록_중이면_원문_조각_ID_남긴_조건과_버린_조건_가정
     assert step["assumptions"][-1] == "조건을 읽었습니다."
     assert step["query"] == {"dropped_facts": 1, "dropped_candidates": 0, "not_applicable": 0, "conflicted": []}
     assert step["result"]["findings"] == [
-        {"subject": "후보", "determination": "possibly_required", "risk_level": "medium"},
+        {"id": "f1", "subject": "후보", "determination": "possibly_required", "risk_level": "medium"},
     ]
 
 

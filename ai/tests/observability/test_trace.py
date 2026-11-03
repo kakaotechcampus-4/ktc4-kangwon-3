@@ -7,7 +7,9 @@ from enum import Enum
 import pytest
 from pydantic import BaseModel
 
-from app.observability.trace import current_trace, error_info, to_jsonable, trace_note, trace_run, trace_step
+from app.observability.trace import (
+    current_trace, error_info, to_jsonable, trace_alias, trace_note, trace_run, trace_step,
+)
 
 
 class _Color(Enum):
@@ -121,6 +123,15 @@ def test_실패를_처리하다_난_다른_실패는_앞_실패에_묶지_않는
     fallback = recorder.steps[1]
     assert fallback["error"] == {"type": "TypeError", "message": "대체 처리 실패"}
     assert recorder.finish["at"]["step"] == "s2"
+
+
+def test_실행마다_달라지는_값은_처음_나온_순서대로_번호를_붙이고_기록_중이_아니면_그대로다(tmp_path):
+    assert trace_alias("uuid-a", "f") == "uuid-a"
+    with trace_run(tmp_path):
+        assert [trace_alias(value, "f") for value in ("uuid-a", "uuid-b", "uuid-a")] == ["f1", "f2", "f1"]
+        trace_note("keys", {"uuid-b": "uuid-a 와 uuid-b"})
+
+    assert _read(tmp_path / "run-1.json")["info"] == {"keys": {"f2": "f1 와 f2"}}
 
 
 def test_예외_메시지는_길면_자른다():

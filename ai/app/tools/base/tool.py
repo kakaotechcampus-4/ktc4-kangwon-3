@@ -3,7 +3,7 @@
 from abc import ABC
 from typing import ClassVar
 
-from ...observability.trace import trace_step
+from ...observability.trace import trace_alias, trace_step
 from ...schemas.agent import ToolSelectionItem
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName, ToolResult, ToolStatus
@@ -61,18 +61,19 @@ class RegulatoryTool(ABC):
 
 
 def _trace_result(result: ToolResult) -> dict:
-    """trace에 남길 Tool 결과 요약. 판단 ID는 실행마다 달라 뺌 (두 실행 diff 비교용).
+    """trace에 남길 Tool 결과 요약. 판단 ID는 실행 안 번호(f1, …)로 (두 실행 diff 비교용).
 
     Args:
         result: Tool 결과.
 
     Returns:
-        dict: 상태·판단(제목·판정·위험도)·재질문·할 일.
+        dict: 상태·판단(번호·제목·판정·위험도)·재질문·할 일.
     """
     return {
         "status": result.status.value,
-        "findings": [{"subject": finding.subject, "determination": finding.determination.value,
-                      "risk_level": finding.risk_level.value} for finding in result.findings],
+        "findings": [{"id": trace_alias(finding.finding_id, "f"), "subject": finding.subject,
+                      "determination": finding.determination.value, "risk_level": finding.risk_level.value}
+                     for finding in result.findings],
         "missing_information": result.missing_information,
         "required_actions": result.required_actions,
     }
