@@ -62,8 +62,8 @@
     {
       "type": "stat",
       "id": 2,
-      "title": "접수",
-      "description": "선택 기간에 접수한 상품 진단 수 (재진단 포함)",
+      "title": "AI 서버 수집",
+      "description": "Prometheus가 ai-server:8000/metrics를 가져오는지. DOWN이면 아래 칸이 모두 비거나 멈춤",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -72,6 +72,84 @@
         "h": 4,
         "w": 4,
         "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(up{job=\"ai-app\"})",
+          "legendFormat": "",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "대상 없음",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "index": 0
+                },
+                "1": {
+                  "text": "수집 중",
+                  "index": 1
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "id": 3,
+      "title": "접수",
+      "description": "선택 기간에 접수한 상품 진단 수 (재진단 포함)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 4,
         "y": 1
       },
       "targets": [
@@ -112,7 +190,7 @@
     },
     {
       "type": "stat",
-      "id": 3,
+      "id": 4,
       "title": "완료",
       "description": "결과까지 낸 진단 수",
       "datasource": {
@@ -121,8 +199,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
+        "w": 3,
+        "x": 7,
         "y": 1
       },
       "targets": [
@@ -163,7 +241,7 @@
     },
     {
       "type": "stat",
-      "id": 4,
+      "id": 5,
       "title": "답변 대기",
       "description": "재질문을 보내고 끝난 진단 수",
       "datasource": {
@@ -172,8 +250,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
+        "w": 3,
+        "x": 10,
         "y": 1
       },
       "targets": [
@@ -214,7 +292,7 @@
     },
     {
       "type": "stat",
-      "id": 5,
+      "id": 6,
       "title": "실패",
       "description": "실패로 끝난 진단 수",
       "datasource": {
@@ -223,8 +301,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 12,
+        "w": 3,
+        "x": 13,
         "y": 1
       },
       "targets": [
@@ -277,7 +355,7 @@
     },
     {
       "type": "stat",
-      "id": 6,
+      "id": 7,
       "title": "접수 거절",
       "description": "대기열 가득 참·진행 중 상품으로 거절한 요청 수 (실행 종류 구분 없음)",
       "datasource": {
@@ -286,7 +364,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 3,
         "x": 16,
         "y": 1
       },
@@ -340,7 +418,7 @@
     },
     {
       "type": "stat",
-      "id": 7,
+      "id": 8,
       "title": "자리 사용률",
       "description": "대기 + 실행 중 상품 / 상한(50). 다 차면 접수 거절",
       "datasource": {
@@ -349,8 +427,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
+        "w": 5,
+        "x": 19,
         "y": 1
       },
       "targets": [
@@ -406,7 +484,7 @@
     },
     {
       "type": "row",
-      "id": 8,
+      "id": 9,
       "title": "세션 · 대기열",
       "collapsed": false,
       "gridPos": {
@@ -419,7 +497,7 @@
     },
     {
       "type": "timeseries",
-      "id": 9,
+      "id": 10,
       "title": "접수 · 결말 수",
       "description": "구간마다 접수·결말(completed·awaiting_input·failed) 수",
       "datasource": {
@@ -479,7 +557,7 @@
     },
     {
       "type": "timeseries",
-      "id": 10,
+      "id": 11,
       "title": "자리 사용",
       "description": "all은 대기 + 실행 중(상한 50), 동시 실행 상한은 10",
       "datasource": {
@@ -555,7 +633,7 @@
     },
     {
       "type": "timeseries",
-      "id": 11,
+      "id": 12,
       "title": "대기 · 실행 시간",
       "description": "대기: 접수부터 실행 시작까지, 실행: 시작부터 결말까지 (30m 창)",
       "datasource": {
@@ -631,7 +709,7 @@
     },
     {
       "type": "timeseries",
-      "id": 12,
+      "id": 13,
       "title": "단계별 시간 p95",
       "description": "Tool 재실행 회차의 같은 단계는 따로 셈 (30m 창)",
       "datasource": {
@@ -677,7 +755,7 @@
     },
     {
       "type": "timeseries",
-      "id": 13,
+      "id": 14,
       "title": "실패 코드 · 단계",
       "description": "실행 전 실패는 stage=\"none\"",
       "datasource": {
@@ -731,7 +809,7 @@
     },
     {
       "type": "timeseries",
-      "id": 14,
+      "id": 15,
       "title": "받은 요청 (상태별)",
       "description": "헬스체크·지표 수집 제외. 409·422·429 비율 확인용",
       "datasource": {
@@ -785,7 +863,7 @@
     },
     {
       "type": "row",
-      "id": 15,
+      "id": 16,
       "title": "모델 호출 · 비용 (실행 종류 구분 없음)",
       "collapsed": false,
       "gridPos": {
@@ -798,7 +876,7 @@
     },
     {
       "type": "stat",
-      "id": 16,
+      "id": 17,
       "title": "모델 호출",
       "description": "선택 기간의 모델 호출 수 (재시도 포함)",
       "datasource": {
@@ -849,7 +927,7 @@
     },
     {
       "type": "stat",
-      "id": 17,
+      "id": 18,
       "title": "호출 실패율",
       "description": "ok가 아닌 호출 비율 (call·parsing·finalize 실패)",
       "datasource": {
@@ -915,7 +993,7 @@
     },
     {
       "type": "stat",
-      "id": 18,
+      "id": 19,
       "title": "예상 비용",
       "description": "단가 표로 계산한 예상 비용. 단가를 모르는 모델은 빠짐",
       "datasource": {
@@ -966,7 +1044,7 @@
     },
     {
       "type": "stat",
-      "id": 19,
+      "id": 20,
       "title": "토큰",
       "description": "입력 + 출력 토큰 (cached는 입력에, reasoning은 출력에 포함)",
       "datasource": {
@@ -1017,7 +1095,7 @@
     },
     {
       "type": "timeseries",
-      "id": 20,
+      "id": 21,
       "title": "에이전트별 호출 수",
       "description": "component는 에이전트(기록 이름)",
       "datasource": {
@@ -1071,7 +1149,7 @@
     },
     {
       "type": "timeseries",
-      "id": 21,
+      "id": 22,
       "title": "호출 실패 (에이전트 · 단계)",
       "description": "call: 모델 호출 오류, parsing: 출력 형식 오류, finalize: 후처리 오류",
       "datasource": {
@@ -1125,7 +1203,7 @@
     },
     {
       "type": "timeseries",
-      "id": 22,
+      "id": 23,
       "title": "에이전트별 예상 비용",
       "description": "단가를 모르는 모델은 빠짐",
       "datasource": {
@@ -1179,7 +1257,7 @@
     },
     {
       "type": "timeseries",
-      "id": 23,
+      "id": 24,
       "title": "토큰 (종류별)",
       "description": "cached는 input의 일부, reasoning은 output의 일부라 쌓지 않음",
       "datasource": {
@@ -1229,7 +1307,7 @@
     },
     {
       "type": "timeseries",
-      "id": 24,
+      "id": 25,
       "title": "에이전트별 호출 시간 p95",
       "description": "모델 호출 1건 시간 (30m 창)",
       "datasource": {
@@ -1275,7 +1353,7 @@
     },
     {
       "type": "timeseries",
-      "id": 25,
+      "id": 26,
       "title": "모델별 호출 수",
       "description": "모델을 안 쓴 호출은 model=\"none\"",
       "datasource": {
@@ -1329,7 +1407,7 @@
     },
     {
       "type": "row",
-      "id": 26,
+      "id": 27,
       "title": "Tool · 추출 (실행 종류 구분 없음)",
       "collapsed": false,
       "gridPos": {
@@ -1342,7 +1420,7 @@
     },
     {
       "type": "timeseries",
-      "id": 27,
+      "id": 28,
       "title": "Tool 실행 결과",
       "description": "success·partial·failed·skipped",
       "datasource": {
@@ -1396,7 +1474,7 @@
     },
     {
       "type": "timeseries",
-      "id": 28,
+      "id": 29,
       "title": "Tool 실패 원인",
       "description": "model: 모델 오류, client: 근거 조회 실패, other: 그 밖",
       "datasource": {
@@ -1450,7 +1528,7 @@
     },
     {
       "type": "timeseries",
-      "id": 29,
+      "id": 30,
       "title": "Tool 실행 시간 p95",
       "description": "건너뛴 실행은 빠짐 (30m 창)",
       "datasource": {
@@ -1496,7 +1574,7 @@
     },
     {
       "type": "timeseries",
-      "id": 30,
+      "id": 31,
       "title": "Tool 판단 항목",
       "description": "Tool이 낸 판단 항목 분포",
       "datasource": {
@@ -1550,7 +1628,7 @@
     },
     {
       "type": "timeseries",
-      "id": 31,
+      "id": 32,
       "title": "판매자 구역 자르기",
       "description": "trimmed=false가 늘면 쇼핑몰 화면 변경 의심",
       "datasource": {
@@ -1604,7 +1682,7 @@
     },
     {
       "type": "row",
-      "id": 32,
+      "id": 33,
       "title": "외부 API · 콜백",
       "collapsed": false,
       "gridPos": {
@@ -1617,7 +1695,7 @@
     },
     {
       "type": "stat",
-      "id": 33,
+      "id": 34,
       "title": "외부 API 실패율 (콜백 제외)",
       "description": "ok가 아닌 호출 비율. BE 콜백은 오른쪽 콜백 칸에서 따로 봄",
       "datasource": {
@@ -1684,7 +1762,7 @@
     },
     {
       "type": "stat",
-      "id": 34,
+      "id": 35,
       "title": "콜백 버림",
       "description": "BE에 못 보내고 버린 콜백 이벤트 수. 생기면 BE 화면에서 진단이 멈춘 것처럼 보임",
       "datasource": {
@@ -1747,7 +1825,7 @@
     },
     {
       "type": "stat",
-      "id": 35,
+      "id": 36,
       "title": "콜백 재시도",
       "description": "콜백 재시도 횟수 합",
       "datasource": {
@@ -1798,7 +1876,7 @@
     },
     {
       "type": "stat",
-      "id": 36,
+      "id": 37,
       "title": "콜백 대기",
       "description": "보내기 시작하지 않은 콜백 이벤트 수. 계속 쌓이면 BE 응답 지연 의심",
       "datasource": {
@@ -1849,7 +1927,7 @@
     },
     {
       "type": "timeseries",
-      "id": 37,
+      "id": 38,
       "title": "서버별 외부 API 호출 수",
       "description": "backend는 BE 콜백, llm은 모델 게이트웨이",
       "datasource": {
@@ -1903,7 +1981,7 @@
     },
     {
       "type": "timeseries",
-      "id": 38,
+      "id": 39,
       "title": "외부 API 실패 (서버 · 결과, 콜백 제외)",
       "description": "http_error·api_error·timeout·connect_error·other. BE 콜백은 콜백 결과에서 봄",
       "datasource": {
@@ -1957,7 +2035,7 @@
     },
     {
       "type": "timeseries",
-      "id": 39,
+      "id": 40,
       "title": "서버별 호출 시간 p95",
       "description": "외부 API 호출 1건 시간 (30m 창)",
       "datasource": {
@@ -2003,7 +2081,7 @@
     },
     {
       "type": "timeseries",
-      "id": 40,
+      "id": 41,
       "title": "콜백 결과 · 버린 사유",
       "description": "재시도 끝에 보냈으면 delivered 1건",
       "datasource": {
@@ -2063,7 +2141,7 @@
     },
     {
       "type": "row",
-      "id": 41,
+      "id": 42,
       "title": "캐시 · 정기 작업",
       "collapsed": false,
       "gridPos": {
@@ -2076,7 +2154,7 @@
     },
     {
       "type": "stat",
-      "id": 42,
+      "id": 43,
       "title": "법령 점검 성공 뒤 경과",
       "description": "매일 00:05 점검. 실패 문서 없이 끝난 마지막 점검부터 지난 시간",
       "datasource": {
@@ -2143,7 +2221,7 @@
     },
     {
       "type": "stat",
-      "id": 43,
+      "id": 44,
       "title": "CLIP 적재 성공 뒤 경과",
       "description": "매주 일요일 03:00 적재. 실패 사례 없이 끝난 마지막 적재부터 지난 시간",
       "datasource": {
@@ -2210,7 +2288,7 @@
     },
     {
       "type": "stat",
-      "id": 44,
+      "id": 45,
       "title": "캐시 적중률",
       "description": "hit / (hit + miss + stale). DB를 못 써서 건너뛴 조회는 빠짐",
       "datasource": {
@@ -2260,7 +2338,7 @@
     },
     {
       "type": "timeseries",
-      "id": 45,
+      "id": 46,
       "title": "캐시 조회 결과",
       "description": "hit·miss·stale·skipped",
       "datasource": {
@@ -2314,7 +2392,7 @@
     },
     {
       "type": "timeseries",
-      "id": 46,
+      "id": 47,
       "title": "정기 작업 결과",
       "description": "법령 점검은 매일, CLIP 적재는 매주",
       "datasource": {
