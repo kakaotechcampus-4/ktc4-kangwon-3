@@ -245,11 +245,23 @@ class TraceRecorder:
         return path
 
 
+def image_link(url: str) -> str:
+    """trace에 남길 이미지 주소. 링크는 그대로, data URI는 본문 대신 형식만.
+
+    Args:
+        url: http(s) 주소 또는 data URI.
+
+    Returns:
+        str: 남길 주소.
+    """
+    return url.split(",", 1)[0] + ",…(생략)" if url.startswith("data:") else url
+
+
 def _image_link(block: Any) -> Any:
     """이미지 블록은 링크만. data URI는 본문 대신 형식만 남김 (긴 이미지 조각)."""
     url = block.get("image_url", {}).get("url") if isinstance(block, dict) else None
     if isinstance(url, str) and url.startswith("data:"):
-        return {"type": "image_url", "image_url": {"url": url.split(",", 1)[0] + ",…(생략)"}}
+        return {"type": "image_url", "image_url": {"url": image_link(url)}}
     return block
 
 
