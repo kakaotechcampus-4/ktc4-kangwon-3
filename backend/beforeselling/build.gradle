@@ -3,6 +3,7 @@ plugins {
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'io.sentry.jvm.gradle' version '6.22.0'
+	id 'jacoco'
 }
 
 group = 'kakaotech.kangwon3'
@@ -76,8 +77,44 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+jacoco {
+	toolVersion = '0.8.14'
+}
+
+// 통합 테스트(@Tag("integration"))는 test에서 빼고 integrationTest로 따로 실행한다.
+def integrationTag = 'integration'
+
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags integrationTag
+	}
+	finalizedBy 'jacocoTestReport'
+}
+
+def integrationTest = tasks.register('integrationTest', Test) {
+	description = '통합 테스트(@Tag("integration"))를 실행한다.'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags integrationTag
+	}
+	shouldRunAfter tasks.named('test')
+}
+
+tasks.named('check') {
+	dependsOn integrationTest
+}
+
+tasks.named('jacocoTestReport') {
+	dependsOn 'test'
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	classDirectories.setFrom(files(classDirectories.files.collect {
+		fileTree(dir: it, exclude: ['**/BeforesellingApplication.class'])
+	}))
 }
 
 tasks.named('bootJar') {
