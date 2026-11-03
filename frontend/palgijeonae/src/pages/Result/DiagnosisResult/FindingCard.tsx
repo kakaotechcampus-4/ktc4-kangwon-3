@@ -43,8 +43,8 @@ function FindingCard({ finding }: FindingCardProps) {
                         <DeterminationBadge determination={finding.determination} />
                     </div>
                 </div>
-                <p className="text-base font-medium text-black">{finding.summary}</p>
-                <p className="text-sm leading-relaxed text-neutral-text">{finding.rationale}</p>
+                <p className="text-base font-medium whitespace-pre-line text-black">{finding.summary}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-line text-neutral-text">{finding.rationale}</p>
             </div>
             {firstLegalSource && (
                 <>

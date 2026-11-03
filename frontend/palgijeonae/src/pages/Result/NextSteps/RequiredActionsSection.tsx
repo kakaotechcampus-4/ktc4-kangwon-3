@@ -16,7 +16,7 @@ function RequiredActionsSection({ requiredActions }: RequiredActionsSectionProps
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-text bg-white">
                                 <span className="text-sm leading-tight font-bold text-neutral-text">{index + 1}</span>
                             </div>
-                            <p className="flex-1 text-base leading-relaxed text-black">{action}</p>
+                            <p className="flex-1 text-base leading-relaxed whitespace-pre-line text-black">{action}</p>
                         </DefaultBox>
                     ))
                 ) : (
