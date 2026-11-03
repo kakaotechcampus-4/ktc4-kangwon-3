@@ -10,8 +10,10 @@ import {
 } from "@/api/product";
 import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 
-// 로컬에서 BE 없이 테스트할 때만 쓰는 픽스처. 쓰려면 호출부의 import를
-// "@/api/result" 대신 "@/api/mock/resultMock"으로 바꾸면 된다. 어디서도 안 쓰여도 의도된 상태다.
+/**
+ * 로컬에서 BE 없이 테스트할 때만 쓰는 픽스처.
+ * 쓰려면 호출부의 import를 "@/api/result" 대신 "@/api/mock/resultMock"으로 바꾸면 된다.
+ */
 
 /** 개발용 상품 결과 목업 데이터. 완료 3건 + 미완료(대기/진행중) 2건 + 실패 3건. */
 const MOCK_PRODUCT_RESULTS: ProductResult[] = [
