@@ -12,7 +12,6 @@ import ToolReviewCard from "./ToolReviewCard";
 
 interface DiagnosisResultTabProps {
     product: ProductResult
-    diagnosesId?: string
     onNextStepsClick: () => void
 }
 
@@ -25,11 +24,10 @@ function countFindingsByDetermination(findings: Finding[]): Map<FindingFilter, n
     return counts;
 }
 
-function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: DiagnosisResultTabProps) {
+function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabProps) {
     const { toolReviews } = product;
-    
-    // productId로 접근해 diagnosesId가 없는 경우 경로를 만들지 않는다.
-    const judgementPath = diagnosesId ? `/judgement/${diagnosesId}` : undefined;
+
+    const judgementPath = `/judgement/${product.diagnosesId}`;
     // question은 product 단위로만 접근 가능하다
     const questionPath = `/question/${product.productId}`;
 
