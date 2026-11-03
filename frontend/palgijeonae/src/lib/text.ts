@@ -10,6 +10,11 @@ export function truncateGraphemes(text: string, maxLength: number): string {
     return graphemes.length > maxLength ? graphemes.slice(0, maxLength).join("") : text;
 }
 
+// 상품명 등 화면/음성에 보여줄 텍스트를 줄이되, 원문이 짧으면 그대로 둔다.
+export function truncateWithEllipsis(text: string, maxLength: number): string {
+    return countGraphemes(text) > maxLength ? `${truncateGraphemes(text, maxLength)}...` : text;
+}
+
 // 백엔드 길이 제한(.length, 자바 String.length()와 동일한 UTF-16 코드 유닛 기준)에 맞춰 자르되,
 // 이모지가 코드 유닛 중간에서 잘리지 않도록 grapheme 단위로 묶어서 채운다.
 export function truncateToCodeUnitLength(text: string, maxLength: number): string {
