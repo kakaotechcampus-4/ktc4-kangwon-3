@@ -11,6 +11,12 @@
 이미지는 링크만 남김. 링크가 없는 data URI(긴 이미지 조각)는 본문을 빼고 형식만.
 ID는 실행 안에서 나온 순서대로 붙임(s1, c1, …). 같은 입력을 두 번 돌리면 같은 ID라 diff로 비교 가능.
 실행마다 달라지는 값(시간·토큰·비용)은 호출마다 meta 한 곳에 모음 (diff 때 meta를 빼고 비교).
+
+에러 위치
+    - 예외가 처음 빠져나간 가장 안쪽 단계: error에 예외 이름·메시지·원인(__cause__)과, 실패한 호출이면 그 호출 ID
+    - 그 바깥 단계: 같은 예외(또는 그 예외를 감싼 예외)면 error에 이름과 처음 실패한 단계 ID(from)만
+    - 실패한 호출: error에 이름·메시지, 응답을 받았으면 본문(raw)
+    - 실행이 실패로 끝나면 finish.at에 처음 실패한 단계·경로·호출
 """
 
 import dataclasses
@@ -85,6 +91,7 @@ class TraceRecorder:
         self._open: list[dict[str, Any]] = []
         self._counters: dict[str, int] = {}
         self._call: dict[str, Any] | None = None
+        self._failure: tuple[BaseException, dict[str, Any]] | None = None
 
     def next_id(self, prefix: str) -> str:
         """접두어별로 1부터 차례로 ID를 붙인다.
@@ -118,10 +125,47 @@ class TraceRecorder:
         try:
             yield node
         except BaseException as exc:
-            node["error"] = type(exc).__name__
+            node["error"] = self._step_error(exc, node)
             raise
         finally:
             self._open.pop()
+
+    def _step_error(self, exc: BaseException, node: dict[str, Any]) -> dict[str, Any]:
+        """빠져나간 단계의 error. 안쪽 단계가 이미 남긴 예외면 이름과 그 단계 ID만.
+
+        Args:
+            exc: 단계를 빠져나간 예외.
+            node: 단계 기록.
+
+        Returns:
+            dict[str, Any]: 단계에 남길 error.
+        """
+        if self._failure is not None and _in_chain(self._failure[0], exc):
+            return {"type": type(exc).__name__, "from": self._failure[1]["step"]}
+        error = error_info(exc)
+        calls = node.get("calls") or []
+        # 단계의 마지막 호출이 실패했으면 그 호출에서 난 예외로 봄
+        if calls and "error" in calls[-1]:
+            error["call"] = calls[-1]["id"]
+        self._failure = (exc, {"step": node["id"], "kind": node["kind"],
+                               "path": [open_node["id"] for open_node in self._open], "call": error.get("call")})
+        return error
+
+    def failure_at(self, exc: BaseException) -> dict[str, Any] | None:
+        """이 예외가 처음 빠져나간 단계 위치. 단계 밖에서 난 예외면 열린 단계 밖의 마지막 실패 호출만.
+
+        Args:
+            exc: 실행을 끝낸 예외.
+
+        Returns:
+            dict[str, Any] | None: 단계 ID·종류·경로·호출 ID. 모르면 None.
+        """
+        if self._failure is not None and _in_chain(self._failure[0], exc):
+            return self._failure[1]
+        calls = self.info.get("calls") or []
+        if calls and "error" in calls[-1]:
+            return {"step": None, "kind": None, "path": [], "call": calls[-1]["id"]}
+        return None
 
     def current_step(self) -> dict[str, Any] | None:
         """지금 열린 가장 안쪽 단계. 없으면 None.
@@ -164,6 +208,15 @@ class TraceRecorder:
             self._call["output"] = to_jsonable(output)
             if raw is not None:
                 self._call["raw"] = to_jsonable(raw)
+
+    def set_call_error(self, exc: BaseException) -> None:
+        """시작한 호출의 실패 원인을 남긴다.
+
+        Args:
+            exc: 실패 원인 예외.
+        """
+        if self._call is not None:
+            self._call["error"] = error_info(exc)
 
     def end_call(self, meta: Any) -> str:
         """호출 1건을 실행 정보와 함께 지금 열린 단계의 calls에 넣는다. 열린 단계가 없으면 info의 calls에.
@@ -238,6 +291,46 @@ def _image_link(block: Any) -> Any:
     return block
 
 
+# 예외 메시지 상한 (응답 본문이 통째로 들어가는 메시지 대비)
+_MESSAGE_LIMIT = 1000
+# 원인 예외를 따라갈 깊이
+_CAUSE_DEPTH = 3
+
+
+def error_info(exc: BaseException, depth: int = _CAUSE_DEPTH) -> dict[str, Any]:
+    """trace에 남길 예외 정보. 원인 예외(__cause__)는 몇 단계까지 같이.
+
+    Args:
+        exc: 예외.
+        depth: 따라갈 원인 예외 깊이.
+
+    Returns:
+        dict[str, Any]: 이름·메시지(길면 자름)·원인.
+    """
+    info: dict[str, Any] = {"type": type(exc).__name__, "message": str(exc)[:_MESSAGE_LIMIT]}
+    if exc.__cause__ is not None and depth > 0:
+        info["cause"] = error_info(exc.__cause__, depth - 1)
+    return info
+
+
+def _in_chain(inner: BaseException, exc: BaseException) -> bool:
+    """exc가 inner 자신이거나 inner를 원인으로 감싼 예외인지.
+
+    Args:
+        inner: 안쪽에서 먼저 본 예외.
+        exc: 지금 빠져나가는 예외.
+
+    Returns:
+        bool: 같은 실패면 True.
+    """
+    current: BaseException | None = exc
+    while current is not None:
+        if current is inner:
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
 _trace: ContextVar[TraceRecorder | None] = ContextVar("trace", default=None)
 
 
@@ -245,7 +338,7 @@ _trace: ContextVar[TraceRecorder | None] = ContextVar("trace", default=None)
 def trace_run(directory: Path, run_name: str = "run-1") -> Iterator[TraceRecorder]:
     """이 블록의 실행을 새 trace에 기록하고, 끝나면 run-N.json을 쓴다.
 
-    실패로 빠져나가도 거기까지 기록을 씀. 결말을 안 채웠으면 실패 예외 이름을 결말로 남김.
+    실패로 빠져나가도 거기까지 기록을 씀. 결말을 안 채웠으면 실패 예외와 처음 실패한 위치를 결말로 남김.
 
     Args:
         directory: 실행 폴더.
@@ -260,7 +353,7 @@ def trace_run(directory: Path, run_name: str = "run-1") -> Iterator[TraceRecorde
         yield recorder
     except BaseException as exc:
         if recorder.finish is None:
-            recorder.finish = {"reason": "error", "error": type(exc).__name__}
+            recorder.finish = {"reason": "error", "error": error_info(exc), "at": recorder.failure_at(exc)}
         raise
     finally:
         _trace.reset(token)
