@@ -3,6 +3,7 @@
 import pytest
 from pydantic import BaseModel
 
+from app.observability.trace import trace_run
 from app.prompts import PromptName
 from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Attribute, Product
@@ -269,3 +270,20 @@ def test_모델을_주지_않으면_실행할_때_Tool_프로필로_한_번_만�
 
     assert names == [ToolName.RADIO]
     assert model.calls == ["_Facts", "_Review", "_Facts", "_Review"]
+
+
+def test_기록_중이면_원문_조각_ID_남긴_조건과_버린_조건_가정_조회_기록을_Tool_단계에_남긴다(tmp_path):
+    wrong = _fact("power", "220V", quote="원문에 없는 인용")
+    model = _Model(_Facts(facts=[*FACTS.facts, wrong]), _Review(selections=[_selection("kc")]))
+
+    with trace_run(tmp_path) as recorder:
+        _Tool(model, candidates={"kc": "후보"}).execute(_product(), _decision())
+
+    [step] = recorder.steps
+    assert step["snippet_ids"] == ["listing-0"]
+    assert step["facts"] == {"kept": [fact.model_dump() for fact in FACTS.facts], "dropped": [wrong.model_dump()]}
+    assert step["assumptions"][-1] == "조건을 읽었습니다."
+    assert step["query"] == {"dropped_facts": 1, "dropped_candidates": 0, "not_applicable": 0, "conflicted": []}
+    assert step["result"]["findings"] == [
+        {"subject": "후보", "determination": "possibly_required", "risk_level": "medium"},
+    ]

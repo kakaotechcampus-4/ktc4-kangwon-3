@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.observability.trace import trace_run
 from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName, ToolResult, ToolStatus
@@ -47,3 +48,29 @@ def test_미선택이면_run_없이_SKIPPED와_선택_이유를_돌려준다():
 def test_다른_Tool의_선택_결정이면_ValueError():
     with pytest.raises(ValueError, match="이름"):
         _Tool().execute(PRODUCT, _decision(tool_name=ToolName.CUSTOMS))
+
+
+def test_기록_중이면_Tool_실행을_단계로_남기고_결과는_판단_ID_없이_요약한다(tmp_path):
+    with trace_run(tmp_path) as recorder:
+        _Tool().execute(PRODUCT, _decision())
+        _Tool().execute(PRODUCT, _decision(selected=False))
+
+    assert recorder.steps == [
+        {"id": "s1", "kind": "tool", "tool": "radio_compliance", "selected": True, "reason": "무선 기능",
+         "result": {"status": "success", "findings": [], "missing_information": [], "required_actions": []}},
+        {"id": "s2", "kind": "tool", "tool": "radio_compliance", "selected": False, "reason": "무선 기능",
+         "result": {"status": "skipped", "findings": [], "missing_information": [], "required_actions": []}},
+    ]
+
+
+def test_Tool이_실패하면_단계에_예외_이름을_남기고_예외는_그대로_던진다(tmp_path):
+    class _Broken(_Tool):
+        def _run(self, product, decision):
+            raise RuntimeError("조회 실패")
+
+    with trace_run(tmp_path) as recorder:
+        with pytest.raises(RuntimeError):
+            _Broken().execute(PRODUCT, _decision())
+
+    assert recorder.steps[0]["error"] == "RuntimeError"
+    assert "result" not in recorder.steps[0]

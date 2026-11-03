@@ -6,6 +6,7 @@ from typing import Any, ClassVar, TypeVar
 
 from pydantic import BaseModel
 
+from ...observability.trace import current_trace, trace_note
 from ...schemas.agent import ToolSelectionItem
 from ...schemas.product import Product
 from ...schemas.schemas import Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolResult, ToolStatus
@@ -105,6 +106,7 @@ class EvidenceSearchTool(RegulatoryTool):
             ToolResult: 심사 결과.
         """
         run = self.run_class(product, decision, snippets=product_snippets(product))
+        trace_note("snippet_ids", list(run.snippets))
         if self.tracks_conflicts:
             run.query["conflicted"] = run.conflicted
         if not run.snippets:
@@ -135,6 +137,7 @@ class EvidenceSearchTool(RegulatoryTool):
         run.extracted = facts_step.run(ToolStepInput(self._facts_payload(run), run.product.product_id))
         raw = self._raw_facts(run)
         run.facts = [fact for fact in raw if self._fact_matches(fact, run)]
+        self._trace_facts(raw, run)
         run.query["dropped_facts"] = len(raw) - len(run.facts)
         run.by_field = group_facts(run.facts)
         if run.query["dropped_facts"]:
@@ -144,6 +147,17 @@ class EvidenceSearchTool(RegulatoryTool):
             # 추출 단계가 표시한 모순이 조회 전체를 막지 않게 가정으로만 남김
             run.assumptions.append("추출 단계가 상품 정보의 모순을 표시했습니다: " + "; ".join(run.product.conflicts)
                                    + self.conflict_note)
+
+    def _trace_facts(self, raw: list, run: ToolRun) -> None:
+        """trace에 원문과 대조된 조건과 버린 조건을 남긴다. 기록 중이 아니면 아무것도 안 함.
+
+        Args:
+            raw: 대조 전 조건.
+            run: 실행 상태 (facts 채워짐).
+        """
+        if current_trace() is not None:
+            dropped = [fact for fact in raw if all(fact is not kept for kept in run.facts)]
+            trace_note("facts", {"kept": run.facts, "dropped": dropped})
 
     def _facts_payload(self, run: ToolRun) -> dict[str, Any]:
         """조건 추출 모델 입력. 기본은 힌트와 인용할 원문 조각.
@@ -354,6 +368,9 @@ class EvidenceSearchTool(RegulatoryTool):
             ToolResult: 심사 결과.
         """
         run.missing = list(dict.fromkeys(run.missing))
+        trace_note("conflicted", run.conflicted)
+        trace_note("assumptions", run.assumptions)
+        trace_note("query", run.query)
         if not findings:
             subject, summary, rationale = self.insufficient
             findings = [self._finding(

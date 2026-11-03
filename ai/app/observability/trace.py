@@ -34,10 +34,11 @@ def to_jsonable(value: Any) -> Any:
     Returns:
         Any: dict·list·str·int·float·bool·None으로만 된 값. 모르는 값은 repr 문자열.
     """
-    if value is None or isinstance(value, (bool, int, float, str)):
-        return value
+    # str·int를 상속한 Enum도 값으로 (먼저 검사)
     if isinstance(value, Enum):
         return to_jsonable(value.value)
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
     if isinstance(value, BaseModel):
         return value.model_dump(mode="json")
     if dataclasses.is_dataclass(value) and not isinstance(value, type):

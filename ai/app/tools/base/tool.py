@@ -3,6 +3,7 @@
 from abc import ABC
 from typing import ClassVar
 
+from ...observability.trace import trace_step
 from ...schemas.agent import ToolSelectionItem
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName, ToolResult, ToolStatus
@@ -32,10 +33,15 @@ class RegulatoryTool(ABC):
         """
         if decision.tool_name is not self.tool_name:
             raise ValueError(f"선택 결정의 Tool 이름({decision.tool_name})이 이 Tool({self.tool_name})과 다릅니다.")
-        if not decision.selected:
-            return ToolResult(tool_name=self.tool_name, selected=False, selection_reason=decision.reason,
-                              status=ToolStatus.SKIPPED)
-        return self._run(product, decision)
+        with trace_step("tool", tool=self.tool_name, selected=decision.selected, reason=decision.reason) as step:
+            if not decision.selected:
+                result = ToolResult(tool_name=self.tool_name, selected=False, selection_reason=decision.reason,
+                                    status=ToolStatus.SKIPPED)
+            else:
+                result = self._run(product, decision)
+            if step is not None:
+                step["result"] = _trace_result(result)
+            return result
 
     def _run(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
         """선택된 경우의 실행. 모델·자료 조회 실패는 예외로 전파해 Executor가 기록한다.
@@ -52,3 +58,21 @@ class RegulatoryTool(ABC):
         """
         # execute를 통째로 덮어쓰는 테스트용 가짜 Tool이 있어 추상 메서드로 두지 않음
         raise NotImplementedError
+
+
+def _trace_result(result: ToolResult) -> dict:
+    """trace에 남길 Tool 결과 요약. 판단 ID는 실행마다 달라 뺌 (두 실행 diff 비교용).
+
+    Args:
+        result: Tool 결과.
+
+    Returns:
+        dict: 상태·판단(제목·판정·위험도)·재질문·할 일.
+    """
+    return {
+        "status": result.status.value,
+        "findings": [{"subject": finding.subject, "determination": finding.determination.value,
+                      "risk_level": finding.risk_level.value} for finding in result.findings],
+        "missing_information": result.missing_information,
+        "required_actions": result.required_actions,
+    }
