@@ -1,4 +1,4 @@
-"""Sentry 설정: DSN이 없으면 끄고, 켜면 ERROR 로그·요청 중 잡지 않은 예외만 이벤트로 보낸다.
+"""Sentry 설정: DSN이 없으면 끄고, 켜면 INFO 이상 로그를 보내고 ERROR 로그·요청 중 잡지 않은 예외는 이벤트로도 보낸다.
 
 실제 Sentry로 보내지 않고 메모리 전송으로 받음.
 """
@@ -22,18 +22,24 @@ DSN = "https://public-key@o0.ingest.sentry.io/1"
 
 
 class _MemoryTransport(Transport):
-    """보낼 이벤트를 메모리에 모음."""
+    """보낼 이벤트·로그를 메모리에 모음."""
 
     events: list[dict] = []
+    logs: list[dict] = []
 
     def capture_envelope(self, envelope):
-        _MemoryTransport.events.extend(item.payload.json for item in envelope.items if item.type == "event")
+        for item in envelope.items:
+            if item.type == "event":
+                _MemoryTransport.events.append(item.payload.json)
+            elif item.type == "log":
+                _MemoryTransport.logs.extend(item.payload.json["items"])
 
 
 @pytest.fixture
 def events():
     """메모리 전송으로 Sentry를 켜고 보낸 이벤트를 돌려줌. 끝나면 끔."""
     _MemoryTransport.events = []
+    _MemoryTransport.logs = []
     assert configure_sentry(DSN, "test", transport=_MemoryTransport)
     yield _MemoryTransport.events
     sentry_sdk.init(dsn=None)
@@ -144,3 +150,27 @@ def test_외부_호출_흐름_기록의_쿼리와_로그_추가_값의_키도_�
     assert [crumb["data"]["http.query"] for crumb in event["breadcrumbs"]["values"]
             if crumb.get("data", {}).get("http.query")] == ["serviceKey=***&x=1", "OC=***&target=law"]
     assert event["extra"]["url"] == "https://a?serviceKey=***"
+
+
+def test_INFO_이상_로그는_URL_키를_가리고_실행_정보를_속성으로_붙여_로그로_보낸다(events, caplog):
+    caplog.set_level(logging.INFO, logger="app")
+    key = "SECRET" + "-LOG"
+    context = ExecutionContext(run_id="run-1", product_id="p-1", run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+
+    with run_log_context(context):
+        set_run_field("stage", "selection")
+        logging.getLogger("app.clients").info("호출 %s", f"https://apis.data.go.kr/a?serviceKey={key}&x=1")
+    logging.getLogger("app.main").debug("DEBUG는 안 감")
+
+    sentry_sdk.flush()
+    assert key not in json.dumps(_MemoryTransport.logs, ensure_ascii=False)
+    [log] = [log for log in _MemoryTransport.logs if log["body"].startswith("호출")]
+    attributes = {name: attribute["value"] for name, attribute in log["attributes"].items()}
+    assert (log["level"], log["body"]) == ("info", "호출 https://apis.data.go.kr/a?serviceKey=***&x=1")
+    assert attributes["sentry.message.parameter.0"] == "https://apis.data.go.kr/a?serviceKey=***&x=1"
+    assert {name: attributes[name] for name in ("diagnosis_id", "product_id", "run_id", "run_type", "stage")} == {
+        "diagnosis_id": "d-1", "product_id": "p-1", "run_id": "run-1", "run_type": "production", "stage": "selection"}
+    assert "run_fields" not in attributes
+    assert not any(log["body"] == "DEBUG는 안 감" for log in _MemoryTransport.logs)
+    # 이벤트는 ERROR만
+    assert events == []
