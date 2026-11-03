@@ -34,6 +34,7 @@ public class RateLimitConfig {
     public ProxyManager<String> rateLimitProxyManager(StatefulRedisConnection<String, byte[]> rateLimitRedisConnection) {
         return Bucket4jLettuce.casBasedBuilder(rateLimitRedisConnection)
                 .expirationAfterWrite(ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofSeconds(10)))
+                .requestTimeout(Duration.ofMillis(100))
                 .build();
     }
 
