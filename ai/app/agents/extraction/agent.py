@@ -10,7 +10,7 @@ from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
 from ..base import BaseAgent
 from .errors import ExtractionFailedError
-from .guessed_flags import drop_guessed_false
+from .guessed_flags import drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
 
@@ -73,7 +73,8 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
     def _finalize(self, output: ProductAttributes, input: ExtractionInput) -> Product:
         """모델 출력에 판매자 제목·규칙 추출 결과를 합쳐 Product를 만든다.
 
-        상품 종류로 짐작해 채운 false는 None으로 되돌림(guessed_flags).
+        상품 종류로 짐작해 채운 false와 원문에 부정 표기가 없는 false는 None으로 되돌리고, 코드 규칙이 배터리
+        모순을 찾았으면 배터리 칸을 확정하지 않음(guessed_flags).
         규칙 추출은 모델과 독립으로 실행하고 결과만 합침. product_id·source_url은 요청 값 그대로.
 
         Args:
@@ -86,9 +87,13 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         source, titles = _trim_to_seller_region(input)
         payload = output.model_dump()
         drop_guessed_false(payload)
+        drop_unsupported_false(payload, "\n".join(source.text_blocks))
+        rule_conflicts = detect_battery_capacity_conflict(source.text_blocks)
+        if rule_conflicts:
+            drop_conflicted_battery(payload)
         payload["listing_text"] = _keep_seller_titles(output.listing_text, titles)
         payload["attributes"] = _merge_attributes(output.attributes, extract_rule_based_attributes(source.text_blocks))
-        payload["conflicts"] = _merge_conflicts(output.conflicts, detect_battery_capacity_conflict(source.text_blocks))
+        payload["conflicts"] = _merge_conflicts(output.conflicts, rule_conflicts)
         return Product(product_id=source.product_id, source_url=source.source_url, **payload)
 
 
