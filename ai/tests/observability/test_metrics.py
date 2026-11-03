@@ -71,9 +71,23 @@ def test_대기_중_시간_초과는_실행_시간_없이_실패로_센다():
 
     labels = {"run_type": "production", "outcome": "failed"}
     assert registry.get_sample_value("ai_session_total_seconds_sum", labels) == 600
-    assert registry.get_sample_value("ai_session_run_seconds_count", labels) is None
+    assert registry.get_sample_value("ai_session_run_seconds_count", labels) == 0
     assert registry.get_sample_value(
         "ai_session_failed_total", {"run_type": "production", "error_code": "AI_TIMEOUT", "stage": "none"}) == 1
+
+
+def test_값이_정해진_세션_라벨_조합은_기록_전에도_0으로_있다():
+    _, registry = _metrics()
+
+    for run_type in RunType:
+        labels = {"run_type": run_type.value}
+        assert registry.get_sample_value("ai_session_queue_wait_seconds_count", labels) == 0
+        for outcome in ("completed", "awaiting_input", "failed"):
+            assert registry.get_sample_value("ai_session_finished_total", {**labels, "outcome": outcome}) == 0
+            assert registry.get_sample_value("ai_session_run_seconds_count", {**labels, "outcome": outcome}) == 0
+            assert registry.get_sample_value("ai_session_total_seconds_count", {**labels, "outcome": outcome}) == 0
+        for stage in PipelineStage:
+            assert registry.get_sample_value("ai_session_stage_seconds_count", {**labels, "stage": stage.value}) == 0
 
 
 def test_실행_중_실패는_실패한_단계로_센다():
@@ -347,3 +361,17 @@ def test_HTTP_요청은_라우트·메서드·상태_코드별로_세고_시간�
     assert registry.get_sample_value("ai_http_requests_total", {**labels, "status": "202"}) == 2
     assert registry.get_sample_value("ai_http_requests_total", {**labels, "status": "429"}) == 1
     assert registry.get_sample_value("ai_http_request_seconds_count", labels) == 3
+
+
+def test_값이_정해진_콜백·Tool_라벨_조합은_기록_전에도_0으로_있다():
+    registry = CollectorRegistry()
+    MeasurementMetrics(registry)
+
+    for event_type in ("product_progress", "product_awaiting_input", "product_result", "product_failed"):
+        for result in ("delivered", "dropped"):
+            assert registry.get_sample_value(
+                "ai_callback_sent_total", {"event_type": event_type, "result": result}) == 0
+    for tool_name in ToolName:
+        for status in ("success", "partial", "failed", "skipped"):
+            assert registry.get_sample_value(
+                "ai_tool_runs_total", {"tool_name": tool_name.value, "status": status}) == 0

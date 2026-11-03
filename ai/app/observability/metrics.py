@@ -12,8 +12,9 @@
 에이전트 지표는 실행 컨텍스트가 없어 기록 이름(평가 호출은 extraction-eval 등)으로만 구분.
 """
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import datetime
+from itertools import product
 from threading import Lock
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
@@ -22,11 +23,13 @@ from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
+from ..domain.context import PipelineStage, RunType
 from .measurements import (
     CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, Measurement,
     SellerRegionCut, ToolRun,
 )
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
+from ..schemas.schemas import ToolName, ToolStatus
 from ..sessions.manager import SessionManager
 
 # 세션 소요 시간 구간(초). 세션 최대 시간(SESSION_MAX_DURATION_SECONDS, 600초)까지
@@ -41,6 +44,21 @@ TOOL_RUN_BUCKETS = (1, 2, 5, 10, 20, 30, 60, 120, 300)
 HTTP_REQUEST_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
+# 콜백 이벤트 종류 (app/schemas/callback.py의 event_type)
+_CALLBACK_EVENT_TYPES = ("product_progress", "product_awaiting_input", "product_result", "product_failed")
+
+
+def _preset(metric: Counter | Histogram, *label_values: Iterable[str]) -> None:
+    """값이 정해진 라벨 조합을 0으로 미리 만든다.
+
+    라벨 조합은 처음 기록될 때 생겨서 increase()·rate()가 첫 기록을 못 셈. 미리 0으로 두면 첫 기록부터 셈.
+
+    Args:
+        metric: 라벨을 가진 Counter·Histogram.
+        *label_values: 라벨 순서대로 각 라벨이 가질 값 목록.
+    """
+    for values in product(*label_values):
+        metric.labels(*values)
 
 
 class SessionMetrics:
@@ -78,6 +96,12 @@ class SessionMetrics:
         self._tool = Counter(
             "ai_session_tool_progress", "Tool 진행 알림 수", ["run_type", "tool_name", "status"], registry=registry,
         )
+        run_types = [run_type.value for run_type in RunType]
+        outcomes = list(_OUTCOMES.values())
+        _preset(self._queue_wait, run_types)
+        for metric in (self._run, self._total, self._finished):
+            _preset(metric, run_types, outcomes)
+        _preset(self._stage, run_types, [stage.value for stage in PipelineStage])
         self._lock = Lock()
         # 실행별 지금 단계와 그 시작 시각. 다음 단계 변경·결말 때 앞 단계 소요 시간을 재고 지움
         self._stages: dict[str, tuple[str, datetime]] = {}
@@ -299,6 +323,8 @@ class MeasurementMetrics:
             "ai_clip_ingest_cases", "주간 적재에서 처리(saved·removed·failed)별 CLIP 결정사례 수", ["outcome"],
             registry=registry,
         )
+        _preset(self._callback_sent, _CALLBACK_EVENT_TYPES, ["delivered", "dropped"])
+        _preset(self._tool_runs, [tool.value for tool in ToolName], [status.value for status in ToolStatus])
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
