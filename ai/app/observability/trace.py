@@ -10,6 +10,7 @@
     - prompts: 시스템 프롬프트 원문 (지문 → 원문). 호출에는 지문만
 이미지는 링크만 남김. 링크가 없는 data URI(긴 이미지 조각)는 본문을 빼고 형식만.
 ID는 실행 안에서 나온 순서대로 붙임(s1, c1, …). 같은 입력을 두 번 돌리면 같은 ID라 diff로 비교 가능.
+판단 ID(uuid)도 처음 나온 순서대로 번호(f1, f2, …)로 바꿔 저장 (모델 호출 본문 속 ID 포함).
 실행마다 달라지는 값(시간·토큰·비용)은 호출마다 meta 한 곳에 모음 (diff 때 meta를 빼고 비교).
 
 에러 위치
@@ -23,6 +24,7 @@ import dataclasses
 import hashlib
 import json
 import logging
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -92,6 +94,24 @@ class TraceRecorder:
         self._counters: dict[str, int] = {}
         self._call: dict[str, Any] | None = None
         self._failure: tuple[BaseException, dict[str, Any]] | None = None
+        # 실행마다 달라지는 값(판단 ID uuid 등) → 실행 안 번호. 저장할 때 파일 전체에서 바꿈
+        self._aliases: dict[str, str] = {}
+
+    def alias(self, value: str, prefix: str) -> str:
+        """실행마다 달라지는 값에 실행 안 번호를 붙인다. 같은 값은 같은 번호.
+
+        저장할 때 파일 안 모든 문자열에서 이 값을 번호로 바꿈 (모델 호출 본문 속 값 포함).
+
+        Args:
+            value: 바꿀 값 (판단 ID 등).
+            prefix: 번호 접두어 (판단 f 등).
+
+        Returns:
+            str: 접두어 + 번호 (f1, f2, …).
+        """
+        if value not in self._aliases:
+            self._aliases[value] = self.next_id(prefix)
+        return self._aliases[value]
 
     def next_id(self, prefix: str) -> str:
         """접두어별로 1부터 차례로 ID를 붙인다.
@@ -250,10 +270,15 @@ class TraceRecorder:
         """run-N.json에 쓸 내용.
 
         Returns:
-            dict[str, Any]: 실행 정보·단계·결말.
+            dict[str, Any]: 실행 정보·단계·결말. 번호를 붙인 값은 번호로 바꿈.
         """
-        return {"run": self.run_name, "info": self.info, "steps": self.steps, "finish": self.finish,
+        data = {"run": self.run_name, "info": self.info, "steps": self.steps, "finish": self.finish,
                 "prompts": self.prompts}
+        if not self._aliases:
+            return data
+        # 긴 값부터 (한 값이 다른 값을 품는 경우 대비)
+        pattern = re.compile("|".join(re.escape(value) for value in sorted(self._aliases, key=len, reverse=True)))
+        return _replace_aliases(data, pattern, self._aliases)
 
     def save(self) -> Path | None:
         """run-N.json을 쓴다. 이미 있으면 덮어씀. 못 쓰면 경고 로그만 남김 (기록이 진단 결과를 바꾸지 않게).
@@ -269,6 +294,27 @@ class TraceRecorder:
             logger.warning("trace 파일을 쓰지 못함 (path=%s)", path, exc_info=True)
             return None
         return path
+
+
+def _replace_aliases(value: Any, pattern: re.Pattern[str], aliases: dict[str, str]) -> Any:
+    """JSON 값 안의 모든 문자열(키 포함)에서 번호를 붙인 값을 번호로 바꾼다.
+
+    Args:
+        value: to_jsonable을 거친 값.
+        pattern: 바꿀 값들을 찾는 정규식.
+        aliases: 값 → 번호.
+
+    Returns:
+        Any: 바꾼 값.
+    """
+    if isinstance(value, str):
+        return pattern.sub(lambda match: aliases[match.group(0)], value)
+    if isinstance(value, dict):
+        return {_replace_aliases(key, pattern, aliases): _replace_aliases(item, pattern, aliases)
+                for key, item in value.items()}
+    if isinstance(value, list):
+        return [_replace_aliases(item, pattern, aliases) for item in value]
+    return value
 
 
 def image_link(url: str) -> str:
@@ -415,3 +461,17 @@ def trace_note(key: str, value: Any) -> None:
     recorder = _trace.get()
     if recorder is not None:
         recorder.note(key, value)
+
+
+def trace_alias(value: str, prefix: str) -> str:
+    """기록 중이면 실행마다 달라지는 값의 실행 안 번호. 기록 중이 아니면 값 그대로.
+
+    Args:
+        value: 바꿀 값 (판단 ID 등).
+        prefix: 번호 접두어 (판단 f 등).
+
+    Returns:
+        str: 번호 (f1, f2, …) 또는 값 그대로.
+    """
+    recorder = _trace.get()
+    return value if recorder is None else recorder.alias(value, prefix)
