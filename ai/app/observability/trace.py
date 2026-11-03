@@ -310,6 +310,21 @@ def trace_step(kind: str, **fields: Any) -> Iterator[dict[str, Any] | None]:
         yield node
 
 
+def trace_append(key: str, value: Any) -> None:
+    """기록 중이면 지금 열린 단계의 목록에 값을 하나 더한다. 기록 중이 아니면 아무것도 안 함.
+
+    한 단계에서 여러 번 일어나는 일(후보 고르기 등)을 차례로 남길 때 씀.
+
+    Args:
+        key: 목록 이름.
+        value: 더할 값.
+    """
+    recorder = _trace.get()
+    if recorder is not None:
+        target = recorder.current_step() or recorder.info
+        target.setdefault(key, []).append(to_jsonable(value))
+
+
 def trace_note(key: str, value: Any) -> None:
     """기록 중이면 지금 열린 단계에 값을 남긴다. 기록 중이 아니면 아무것도 안 함.
 
