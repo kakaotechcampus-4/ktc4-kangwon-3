@@ -166,6 +166,8 @@ const FOOD_DRUG_FINDING: Finding = {
 
 // ── 상품 미리보기 데이터 ────────────────────────────────────────────────
 
+// 아래 PREVIEW_PRODUCTS를 만드는 데만 쓰는 내부 값. 외부에서는 PREVIEW_PRODUCTS의 productName/sourceUrl 등을
+// 그대로 읽어서 쓴다(ProductResult와 같은 모양을 유지하기 위해 이 값들은 export하지 않는다).
 const EARPHONE_NAME = "블루투스 5.3 무선 이어폰 TWS 충전케이스 포함";
 const EARPHONE_URL = "https://detail.1688.com/offer/739214086512.html";
 const TABLE_NAME = "접이식 캠핑 테이블 알루미늄";
