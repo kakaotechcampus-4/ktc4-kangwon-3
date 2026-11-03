@@ -3,7 +3,12 @@
 import pytest
 
 from app.agents.extraction import ExtractionAgent
-from app.agents.extraction.guessed_flags import drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
+from app.agents.extraction.guessed_flags import (
+    drop_conflicted_battery,
+    drop_conflicted_fragrance,
+    drop_guessed_false,
+    drop_unsupported_false,
+)
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes
 
@@ -158,3 +163,32 @@ def test_코드_규칙이_배터리_모순을_찾으면_배터리_칸을_확정�
 
     assert (result.battery_included, result.battery_is_the_product) == (None, None)
     assert any("1460mAh" in conflict for conflict in result.conflicts)
+
+
+# --- 향 모순 (drop_conflicted_fragrance) ---
+
+def test_향_모순이면_chemical_product_확정을_모름으로_되돌린다():
+    attributes = {"chemical_product": False, "plant_material": False}
+
+    assert drop_conflicted_fragrance(attributes) == ["chemical_product"]
+    assert (attributes["chemical_product"], attributes["plant_material"]) == (None, False)
+
+
+def test_코드_규칙이_향_모순을_찾으면_chemical_product를_확정하지_않고_모순을_남긴다(stub_model, records):
+    reply = ProductAttributes(chemical_product=False)
+    source = ExtractionInput(product_id="p-4", text_blocks=["차량용 방향제 클립\n향기: Fragrance-Free"])
+
+    result = ExtractionAgent(stub_model(reply)).run(source)
+
+    assert result.chemical_product is None
+    assert any("Fragrance-Free" in conflict for conflict in result.conflicts)
+
+
+def test_향_모순이_없으면_chemical_product를_그대로_둔다(stub_model, records):
+    reply = ProductAttributes(chemical_product=True)
+    source = ExtractionInput(product_id="p-5", text_blocks=["차량용 방향제 클립\n향: 라벤더"])
+
+    result = ExtractionAgent(stub_model(reply)).run(source)
+
+    assert result.chemical_product is True
+    assert result.conflicts == []

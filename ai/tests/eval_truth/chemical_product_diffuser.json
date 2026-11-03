@@ -124,5 +124,11 @@
       "must_not_contain": "해당 상품 무료 배송",
       "evidence": "원문 80행, 판매 사이트 공통 문구"
     }
+  ],
+  "conflicts_required": [
+    {
+      "must_contain": "무향",
+      "evidence": "제목 '향기 디퓨저 스틱'·카테고리 '방향제'와 상세 정보 '향: 무향'이 다르다. chemical_product를 None으로 둔 근거라 모순으로 보고해야 한다 (#532)"
+    }
   ]
 }

@@ -4,10 +4,11 @@
 프롬프트·필드 설명으로 막아 보면 다른 칸까지 비워 두는 놓침이 함께 늘어서, 근거 기준이 분명한 칸만 코드에서 정리한다.
 기준은 추출 프롬프트 원칙 1과 평가 정답표가 쓰는 "false의 근거"와 같다.
 
-세 가지를 되돌린다.
+네 가지를 되돌린다.
     - drop_guessed_false: 페이지가 부정을 말하는 일이 거의 없는 칸. 원문을 보지 않고 false를 전부 되돌림
     - drop_unsupported_false: 페이지가 부정을 말할 수 있는 칸. 원문에 그 표기가 없을 때만 되돌림
     - drop_conflicted_battery: 코드 규칙이 배터리 모순을 찾은 페이지. 배터리 칸의 확정(true·false)을 되돌림
+    - drop_conflicted_fragrance: 코드 규칙이 향 모순을 찾은 페이지. chemical_product 확정을 되돌림
 """
 
 import re
@@ -55,6 +56,8 @@ _NON_PLANT_MATERIAL = re.compile(
 )
 # 코드 규칙이 배터리 모순(용량 표기 + "배터리 미포함")을 찾았을 때 확정하지 않는 칸 (원칙 5)
 _BATTERY_FIELDS = ("battery_included", "battery_is_the_product")
+# 코드 규칙이 향 모순(향 제품 제목 + "무향")을 찾았을 때 확정하지 않는 칸 (원칙 5)
+_FRAGRANCE_FIELDS = ("chemical_product",)
 
 
 def drop_guessed_false(attributes: dict[str, Any]) -> list[str]:
@@ -112,5 +115,22 @@ def drop_conflicted_battery(attributes: dict[str, Any]) -> list[str]:
         list[str]: None으로 바꾼 필드 이름.
     """
     dropped = [name for name in _BATTERY_FIELDS if attributes.get(name) is not None]
+    attributes.update(dict.fromkeys(dropped))
+    return dropped
+
+
+def drop_conflicted_fragrance(attributes: dict[str, Any]) -> list[str]:
+    """향 모순이 있는 페이지에서 chemical_product 확정을 None으로 바꾼다. attributes를 그 자리에서 고친다.
+
+    제목은 방향제·디퓨저인데 상품 정보는 "무향"인 페이지. 모델은 한쪽을 골라 확정함 (#532).
+    호출자가 코드 규칙(detect_fragrance_conflict)으로 모순을 찾았을 때만 부른다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+
+    Returns:
+        list[str]: None으로 바꾼 필드 이름.
+    """
+    dropped = [name for name in _FRAGRANCE_FIELDS if attributes.get(name) is not None]
     attributes.update(dict.fromkeys(dropped))
     return dropped

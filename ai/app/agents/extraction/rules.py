@@ -119,7 +119,7 @@ def detect_battery_capacity_conflict(text_blocks: list[str]) -> list[str]:
     """배터리 용량(mAh) 표기와 '배터리 미포함' 문구가 한 상세페이지에 함께 있으면 모순 후보로 보고한다.
 
     확정이 아닌 검토 후보이고 모델 값을 덮어쓰지 않음. 부속품 배터리 문맥은 빼지만 표현이 다양해 다 못 거름.
-    부정 표현이 없는 모순(예: "디퓨저"인데 "무향")은 정규식으로 못 잡아 모델이 conflicts로 보고.
+    향 제품 제목과 "무향" 표기의 모순은 detect_fragrance_conflict가 따로 잡음.
 
     Args:
         text_blocks: 상품 원문 블록 (용량·미포함 문구가 다른 블록에 있을 수 있어 합쳐서 봄).
@@ -168,6 +168,43 @@ def _has_non_accessory_negation(combined: str) -> bool:
         if not inside_accessory:
             return True
     return False
+
+
+# 제목이 향 제품이라고 내세우는 표현. "Fragrance-Free"는 부정 표기라 빼고 봄
+_FRAGRANCE_CLAIM_PATTERN = re.compile(
+    r"방향제|디퓨저|향기|아로마|향수|fragrance(?!-?\s*free)|aroma|diffuser|perfume|scented", re.IGNORECASE
+)
+# 상품 정보의 향 없음 표기. 스펙표의 예/아니오 항목("향이 있든 없든: 아니요")도 포함
+_NO_FRAGRANCE_PATTERN = re.compile(
+    r"무향|fragrance-?\s*free|unscented|향이 있든 없든\s*[:：]?\s*\n?\s*아니요|향\s*[:：]\s*(?:없음|무향?)", re.IGNORECASE
+)
+
+
+def detect_fragrance_conflict(titles: list[str], text_blocks: list[str]) -> list[str]:
+    """제목은 향 제품(방향제·디퓨저 등)인데 상품 정보에 향 없음 표기가 있으면 모순 후보로 보고한다.
+
+    모델(mini)은 이런 페이지에서 원칙 5를 따르지 않고 한쪽을 골라 chemical_product를 확정함 (#532).
+    프롬프트·출력 순서를 바꿔도 기록하지 않아 코드로 잡음. 제목만 보고 판단해 설명 속 "향기" 같은 말에는 안 걸림.
+
+    Args:
+        titles: 판매자 제목. 비어 있으면 첫 블록의 첫 줄을 제목으로 봄 (직접 붙여 넣은 글).
+        text_blocks: 판매자 영역 원문 블록.
+
+    Returns:
+        list[str]: 모순 후보 문장. 없으면 빈 목록.
+    """
+    if not titles:
+        first = next((line.strip() for block in text_blocks[:1] for line in block.splitlines() if line.strip()), "")
+        titles = [first] if first else []
+    claim = next((match for title in titles if (match := _FRAGRANCE_CLAIM_PATTERN.search(title))), None)
+    negation = _NO_FRAGRANCE_PATTERN.search("\n".join(text_blocks))
+    if claim is None or negation is None:
+        return []
+    shown = " ".join(negation.group(0).split())
+    return [
+        f"상품 제목은 향 제품('{claim.group(0)}')이라고 하지만 상품 정보에는 '{shown}'라고 적혀 있어 "
+        "향 기능 여부가 서로 다릅니다. 확인이 필요합니다."
+    ]
 
 
 def _context(block: str, match: re.Match) -> str:
