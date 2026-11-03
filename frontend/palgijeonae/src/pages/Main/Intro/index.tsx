@@ -1,0 +1,39 @@
+import { useNavigate } from "react-router-dom"
+
+import Favicon from "@/assets/favicon.svg"
+import Button from "@/components/common/Button"
+import { useAuthStore } from "@/store/useAuthStore.ts"
+
+function Intro() {
+    const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
+    const isAuthReady = useAuthStore((state) => state.isAuthReady)
+    const navigate = useNavigate()
+
+    const handleButtonClick = () => {
+        if (isLoggedIn) {
+            navigate("/upload");
+        } else {
+            navigate("/login");
+        }
+    }
+
+    return (
+        <div className="flex w-full flex-col items-start gap-6">
+            <div className="flex w-full flex-row items-center gap-2 py-1">
+                <img src={Favicon} alt="" className="h-13 w-13 shrink-0 object-contain" />
+                <h1 className="text-4xl font-extrabold leading-10 text-black">이 물건, 팔아도 되나요?</h1>
+            </div>
+            <div className="flex w-full flex-col items-start gap-0.5">
+                <p className="text-lg leading-5.5 text-neutral-text">구매대행·사입으로 판매할 상품이 국내 법령에 걸리는지,</p>
+                <p className="text-lg leading-5.5 text-neutral-text">AI 에이전트 전문가가 관련 법령과 규제를 실제로 짚어서 확인합니다.</p>
+            </div>
+            {isAuthReady && (
+                <div className="flex w-full flex-wrap items-center gap-2.5">
+                    <Button text={isLoggedIn ? "상품 확인 시작하기" : "로그인 후 진단 시작"} onClick={handleButtonClick} fontSize={15} />
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default Intro;
