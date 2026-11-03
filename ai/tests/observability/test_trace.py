@@ -108,6 +108,21 @@ def test_잡힌_실패_뒤의_다른_실패는_새_위치로_남긴다(tmp_path)
     assert recorder.finish["at"]["step"] == "s2"
 
 
+def test_실패를_처리하다_난_다른_실패는_앞_실패에_묶지_않는다(tmp_path):
+    with pytest.raises(TypeError):
+        with trace_run(tmp_path) as recorder:
+            try:
+                with trace_step("tool"):
+                    raise ValueError("Tool 실패")
+            except ValueError:
+                with trace_step("fallback"):
+                    raise TypeError("대체 처리 실패")
+
+    fallback = recorder.steps[1]
+    assert fallback["error"] == {"type": "TypeError", "message": "대체 처리 실패"}
+    assert recorder.finish["at"]["step"] == "s2"
+
+
 def test_예외_메시지는_길면_자른다():
     assert len(error_info(ValueError("가" * 5000))["message"]) == 1000
 

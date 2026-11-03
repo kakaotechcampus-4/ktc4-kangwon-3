@@ -14,7 +14,7 @@ ID는 실행 안에서 나온 순서대로 붙임(s1, c1, …). 같은 입력을
 
 에러 위치
     - 예외가 처음 빠져나간 가장 안쪽 단계: error에 예외 이름·메시지·원인(__cause__)과, 실패한 호출이면 그 호출 ID
-    - 그 바깥 단계: 같은 예외(또는 그 예외를 감싼 예외)면 error에 이름과 처음 실패한 단계 ID(from)만
+    - 그 바깥 단계: 같은 예외(또는 from으로 그 예외를 감싼 예외)면 error에 이름과 처음 실패한 단계 ID(from)만
     - 실패한 호출: error에 이름·메시지, 응답을 받았으면 본문(raw)
     - 실행이 실패로 끝나면 finish.at에 처음 실패한 단계·경로·호출
 """
@@ -316,6 +316,8 @@ def error_info(exc: BaseException, depth: int = _CAUSE_DEPTH) -> dict[str, Any]:
 def _in_chain(inner: BaseException, exc: BaseException) -> bool:
     """exc가 inner 자신이거나 inner를 원인으로 감싼 예외인지.
 
+    원인(__cause__, ``raise ... from``)만 따라감. 처리 중 난 예외(__context__)는 다른 실패로 봄.
+
     Args:
         inner: 안쪽에서 먼저 본 예외.
         exc: 지금 빠져나가는 예외.
@@ -327,7 +329,7 @@ def _in_chain(inner: BaseException, exc: BaseException) -> bool:
     while current is not None:
         if current is inner:
             return True
-        current = current.__cause__ or current.__context__
+        current = current.__cause__
     return False
 
 
