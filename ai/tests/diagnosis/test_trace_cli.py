@@ -8,7 +8,7 @@ import json
 import pytest
 
 from app.diagnosis import trace_cli
-from app.diagnosis.trace_cli import TraceInputError, next_run_name, read_source, resume_input, run
+from app.diagnosis.trace_cli import TraceInputError, next_run_name, read_source, replay_run, resume_input, run
 from app.dummy.cases import CASES, DummyCaseName
 from app.observability.trace import trace_finish, trace_note, trace_step
 from app.schemas.callback import PublicQuestionDto
@@ -30,7 +30,7 @@ def source(tmp_path):
 
 @pytest.fixture
 def fake_job(monkeypatch):
-    """추출 input을 남기고, 첫 실행은 질문하고 멈추고 답이 있으면 끝나는 가짜 진단 함수. 받은 입력을 inputs에."""
+    """추출 input·output을 남기고, 첫 실행은 질문하고 멈추고 답이 있으면 끝나는 가짜 진단 함수. 받은 입력을 inputs에."""
     inputs = []
 
     def job(job_input, context, progress):
@@ -38,6 +38,7 @@ def fake_job(monkeypatch):
         result = CASES[DummyCaseName.KC_FAN].build(job_input.source.product_id)
         with trace_step("extraction"):
             trace_note("input", job_input)
+            trace_note("output", result.product)
         if not job_input.answers:
             result = result.model_copy(update={"termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED})
             trace_finish(result.termination_reason.value, result=result, question_round=1, questions=[QUESTION])
@@ -46,7 +47,7 @@ def fake_job(monkeypatch):
         return JobDone(result)
 
     monkeypatch.setattr(trace_cli, "build_parts", lambda: None)
-    monkeypatch.setattr(trace_cli, "build_job", lambda parts, questions: job)
+    monkeypatch.setattr(trace_cli, "build_job", lambda parts, questions, replay=None: job)
     return inputs
 
 
@@ -133,3 +134,29 @@ def test_입력_오류는_종료_코드_2로_알린다(tmp_path, capsys, monkeyp
 
     assert code == 2
     assert "입력 파일" in capsys.readouterr().err
+
+
+def test_다시_실행은_이전_trace의_입력으로_같은_폴더에_다음_번호를_쓰고_다시_실행_정보를_남긴다(source, fake_job, tmp_path):
+    out = tmp_path / "traces"
+    first = run(source, out, [])
+
+    path = replay_run(first, "selection", True, first.parent)
+
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert path == out / "run-2.json"
+    assert saved["info"]["replay"] == {"from": str(first), "stage": "selection", "only": True}
+    assert fake_job[1] == fake_job[0]
+
+
+@pytest.mark.parametrize("argv", [
+    [],
+    ["a.json", "--from", "run-1.json", "--stage", "selection"],
+    ["--from", "run-1.json"],
+    ["--from", "run-1.json", "--stage", "selection", "--answer", "r1_q1=네"],
+    ["a.json", "--only"],
+])
+def test_입력과_다시_실행_옵션을_잘못_섞으면_사용법_오류(argv):
+    with pytest.raises(SystemExit) as exc:
+        trace_cli.main(argv)
+
+    assert exc.value.code == 2

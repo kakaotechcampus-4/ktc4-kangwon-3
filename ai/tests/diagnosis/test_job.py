@@ -12,13 +12,14 @@ from app.observability.logs import current_run_fields, run_log_context
 from app.observability.trace import trace_run
 from app.diagnosis.assembly import PipelineParts
 from app.diagnosis.job import _reporting_tools, _ToolExecution, build_job
+from app.diagnosis.replay import ReplayStopped, StageReplay
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.domain.errors import AIResponseCode, AIServiceError
 from app.dummy.cases import CASES, DummyCaseName
 from app.pipeline.tool_executor import ToolExecutor
 from app.schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from app.schemas.callback import PublicQuestionDto
-from app.schemas.pipeline import RetryRequest
+from app.schemas.pipeline import RetryRequest, SelectionResult
 from app.schemas.product import Product
 from app.schemas.schemas import (
     ExecutionEndReason, FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationResult, VerificationStatus,
@@ -364,3 +365,42 @@ def test_질문하고_멈춘_실행은_질문_회차와_질문을_결말로_남�
     assert recorder.finish["reason"] == "user_input_required"
     assert recorder.finish["question_round"] == 1
     assert recorder.finish["questions"] == [question.model_dump(mode="json")]
+
+
+def _saved_trace():
+    """첫 회차 추출·선택·Tool 실행 결과가 남은 이전 trace."""
+    selection = ToolSelectionResponse(decisions=[
+        ToolSelectionItem(tool_name=tool, selected=False, reason="해당 없음") for tool in ToolName])
+    return {"steps": [
+        {"kind": "extraction", "output": Product(product_id="p-1", listing_text=["저장한 추출"]).model_dump(mode="json")},
+        {"kind": "selection", "output": selection.model_dump(mode="json")},
+        {"kind": "tool_execution", "round": 0, "output": SelectionResult(
+            selection=selection, tool_results=[], tool_result_history=[]).model_dump(mode="json")},
+    ]}
+
+
+def test_다시_실행은_시작_단계_앞은_저장한_결과를_쓰고_재실행_회차는_실제로_돈다(pipeline, tmp_path):
+    calls = []
+    replay = StageReplay.from_trace(_saved_trace(), "aggregation")
+
+    with trace_run(tmp_path) as recorder:
+        build_job(_parts(calls), _no_questions, replay)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert [name for name, _ in calls] == ["aggregate", "verify", "aggregate", "verify"]
+    assert [step.get("replayed", False) for step in recorder.steps] == [True, True, True] + [False] * 5
+    assert recorder.steps[0]["output"]["listing_text"] == ["저장한 추출"]
+    # 저장한 Tool 실행 결과를 집계에 넘김
+    assert isinstance(calls[0][1][1], SelectionResult)
+
+
+def test_하나만_다시_실행하면_시작_단계를_마치고_멈춘다(pipeline, tmp_path):
+    calls = []
+    replay = StageReplay.from_trace(_saved_trace(), "selection", only=True)
+
+    with trace_run(tmp_path) as recorder:
+        with pytest.raises(ReplayStopped):
+            build_job(_parts(calls), _no_questions, replay)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert [name for name, _ in calls] == ["select"]
+    assert [step["kind"] for step in recorder.steps] == ["extraction", "selection"]
+    assert recorder.finish == {"reason": "stopped", "stage": "selection"}
