@@ -10,6 +10,8 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.api.Produ
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
+import kakaotech.kangwon3.beforeselling.global.ratelimit.RateLimit;
+import kakaotech.kangwon3.beforeselling.global.ratelimit.RateLimitPolicy;
 import kakaotech.kangwon3.beforeselling.global.security.annotation.LoginUser;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +70,7 @@ public class ProductController implements ProductApi {
     // 질문 답변 제출. 저장 후 AI 재진단은 비동기로 요청한다.
     @Override
     @PostMapping("/{productId}/answers")
+    @RateLimit(RateLimitPolicy.AI)
     public ResponseEntity<ApiResponse<Void>> answerQuestions(
             @LoginUser UserPrincipal principal,
             @PathVariable UUID productId,
@@ -81,6 +84,7 @@ public class ProductController implements ProductApi {
     // 실패한 상품 진단 재시도. 상태만 바꾸고 AI 진단 요청은 비동기로 보낸다.
     @Override
     @PostMapping("/{productId}/retry")
+    @RateLimit(RateLimitPolicy.AI)
     public ResponseEntity<ApiResponse<Void>> retryDiagnoses(
             @LoginUser UserPrincipal principal,
             @PathVariable UUID productId
