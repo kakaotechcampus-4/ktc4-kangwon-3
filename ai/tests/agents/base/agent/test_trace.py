@@ -94,3 +94,52 @@ def test_판단_호출은_요청과_질문별_답을_남긴다(fakes, stub_model
     assert call["request"]["questions"][0]["name"] == "kind_kids"
     assert call["output"]["answers"]["kind_kids"] is not None
     assert call["meta"]["model"] == "typesafe/jev-latest"
+
+
+def test_응답을_못_받은_호출은_실패_원인을_남기고_단계와_결말이_그_호출을_가리킨다(fakes, stub_model, records, tmp_path):
+    with pytest.raises(fakes.Error):
+        with trace_run(tmp_path) as recorder:
+            with trace_step("selection"):
+                fakes.Agent(stub_model(error=RuntimeError("timeout"))).run(fakes.question)
+
+    [step] = recorder.steps
+    [call] = step["calls"]
+    assert call["error"] == {"type": "RuntimeError", "message": "timeout"}
+    assert "output" not in call
+    assert step["error"]["call"] == "c1"
+    assert step["error"]["cause"] == {"type": "RuntimeError", "message": "timeout"}
+    assert recorder.finish["at"] == {"step": "s1", "kind": "selection", "path": ["s1"], "call": "c1"}
+
+
+def test_후처리_실패도_출력과_실패_원인을_같이_남긴다(fakes, stub_model, records, tmp_path):
+    class _Failing(fakes.Agent):
+        def _finalize(self, output, input):
+            raise ValueError("없는 이미지 번호")
+
+    with trace_run(tmp_path) as recorder:
+        with pytest.raises(ValueError):
+            _Failing(stub_model(fakes.Answer(value="ok"))).run(fakes.question)
+
+    [call] = recorder.info["calls"]
+    assert call["output"] == {"value": "ok"}
+    assert call["error"] == {"type": "ValueError", "message": "없는 이미지 번호"}
+    assert call["meta"]["failure_phase"] == "finalize"
+
+
+def test_길이_초과로_잘린_응답은_받은_본문을_남긴다(fakes, records, fake_gateway, tmp_path):
+    with trace_run(tmp_path) as recorder:
+        with pytest.raises(fakes.Error):
+            fakes.Agent(fake_gateway('{"value": "잘린', "length", [])).run(fakes.question)
+
+    [call] = recorder.info["calls"]
+    assert call["raw"] == '{"value": "잘린'
+    assert call["error"]["type"] == "LengthFinishReasonError"
+    assert call["meta"]["failure_phase"] == "parsing"
+
+
+def test_단계_밖에서_실패한_호출도_결말이_그_호출을_가리킨다(fakes, stub_model, records, tmp_path):
+    with pytest.raises(fakes.Error):
+        with trace_run(tmp_path) as recorder:
+            fakes.Agent(stub_model(error=RuntimeError("timeout"))).run(fakes.question)
+
+    assert recorder.finish["at"] == {"step": None, "kind": None, "path": [], "call": "c1"}

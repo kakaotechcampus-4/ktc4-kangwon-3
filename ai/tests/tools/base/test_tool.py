@@ -63,7 +63,7 @@ def test_기록_중이면_Tool_실행을_단계로_남기고_결과는_판단_ID
     ]
 
 
-def test_Tool이_실패하면_단계에_예외_이름을_남기고_예외는_그대로_던진다(tmp_path):
+def test_Tool이_실패하면_단계에_예외_이름과_메시지를_남기고_예외는_그대로_던진다(tmp_path):
     class _Broken(_Tool):
         def _run(self, product, decision):
             raise RuntimeError("조회 실패")
@@ -72,5 +72,5 @@ def test_Tool이_실패하면_단계에_예외_이름을_남기고_예외는_그
         with pytest.raises(RuntimeError):
             _Broken().execute(PRODUCT, _decision())
 
-    assert recorder.steps[0]["error"] == "RuntimeError"
+    assert recorder.steps[0]["error"] == {"type": "RuntimeError", "message": "조회 실패"}
     assert "result" not in recorder.steps[0]

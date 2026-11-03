@@ -320,6 +320,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             result = self._structured.invoke(messages)
         except (LengthFinishReasonError, ContentFilterFinishReasonError) as exc:
             # 응답은 받았으나 길이 초과·콘텐츠 필터로 출력이 잘림 → 예외에 담긴 사용량 기록
+            if trace is not None:
+                trace.set_call_response(raw=_completion_text(exc.completion))
             self._fail(ModelFailurePhase.PARSING, exc, from_completion(exc.completion), subject_id, started_at,
                        partial_result)
         except Exception as exc:
@@ -541,6 +543,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         Raises:
             AgentError: 항상. 실제 타입은 ``error_class``, 실행 정보는 ``meta``.
         """
+        if (trace := current_trace()) is not None:
+            trace.set_call_error(cause)
         meta = self._finish_call(
             usage, subject_id, started_at, error_type=type(cause).__name__, failure_phase=phase,
             decision_questions=decision_questions,
@@ -579,6 +583,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         """
         # 에이전트 예외가 원인을 감싼 경우 → 원인 이름으로 기록 (모니터링에서 실패 이유를 구분)
         cause = exc.__cause__ if isinstance(exc, AgentError) and exc.__cause__ is not None else exc
+        if (trace := current_trace()) is not None:
+            trace.set_call_error(exc)
         meta = self._finish_call(
             usage, subject_id, started_at, error_type=type(cause).__name__, failure_phase=ModelFailurePhase.FINALIZE,
             decision_questions=decision_questions,
@@ -589,3 +595,18 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             if partial_result is not None:
                 exc.partial_result = partial_result
         raise exc
+
+
+def _completion_text(completion: Any) -> str | None:
+    """잘린 응답의 본문. 모양이 다르면 None.
+
+    Args:
+        completion: 예외에 담긴 ChatCompletion.
+
+    Returns:
+        str | None: 첫 선택지의 본문.
+    """
+    try:
+        return completion.choices[0].message.content
+    except (AttributeError, IndexError, TypeError):
+        return None

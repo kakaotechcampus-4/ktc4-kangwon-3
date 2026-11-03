@@ -7,7 +7,7 @@ from enum import Enum
 import pytest
 from pydantic import BaseModel
 
-from app.observability.trace import current_trace, to_jsonable, trace_note, trace_run, trace_step
+from app.observability.trace import current_trace, error_info, to_jsonable, trace_note, trace_run, trace_step
 
 
 class _Color(Enum):
@@ -70,8 +70,46 @@ def test_실패로_빠져나가도_거기까지_기록과_실패_단계를_남�
                 raise ValueError("boom")
 
     saved = _read(tmp_path / "run-1.json")
-    assert saved["steps"] == [{"id": "s1", "kind": "selection", "error": "ValueError"}]
-    assert saved["finish"] == {"reason": "error", "error": "ValueError"}
+    assert saved["steps"] == [{"id": "s1", "kind": "selection", "error": {"type": "ValueError", "message": "boom"}}]
+    assert saved["finish"] == {
+        "reason": "error", "error": {"type": "ValueError", "message": "boom"},
+        "at": {"step": "s1", "kind": "selection", "path": ["s1"], "call": None},
+    }
+
+
+def test_감싸서_다시_던진_예외는_바깥_단계엔_처음_실패한_단계만_가리키고_결말엔_원인까지_남긴다(tmp_path):
+    with pytest.raises(RuntimeError):
+        with trace_run(tmp_path):
+            with trace_step("rounds"):
+                try:
+                    with trace_step("verification"):
+                        raise KeyError("finding-1")
+                except KeyError as exc:
+                    raise RuntimeError("검증 실패") from exc
+
+    saved = _read(tmp_path / "run-1.json")
+    [rounds] = saved["steps"]
+    assert rounds["steps"][0]["error"] == {"type": "KeyError", "message": "'finding-1'"}
+    assert rounds["error"] == {"type": "RuntimeError", "from": "s2"}
+    assert saved["finish"]["error"] == {"type": "RuntimeError", "message": "검증 실패",
+                                        "cause": {"type": "KeyError", "message": "'finding-1'"}}
+    assert saved["finish"]["at"] == {"step": "s2", "kind": "verification", "path": ["s1", "s2"], "call": None}
+
+
+def test_잡힌_실패_뒤의_다른_실패는_새_위치로_남긴다(tmp_path):
+    with pytest.raises(TypeError):
+        with trace_run(tmp_path) as recorder:
+            with pytest.raises(ValueError):
+                with trace_step("tool"):
+                    raise ValueError("Tool 실패")
+            with trace_step("aggregation"):
+                raise TypeError("집계 실패")
+
+    assert recorder.finish["at"]["step"] == "s2"
+
+
+def test_예외_메시지는_길면_자른다():
+    assert len(error_info(ValueError("가" * 5000))["message"]) == 1000
 
 
 def test_모델·dataclass·Enum·집합을_JSON_값으로_바꾸고_집합은_정렬한다():
