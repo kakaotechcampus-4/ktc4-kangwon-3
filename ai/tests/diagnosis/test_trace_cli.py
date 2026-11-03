@@ -160,3 +160,13 @@ def test_입력과_다시_실행_옵션을_잘못_섞으면_사용법_오류(arg
         trace_cli.main(argv)
 
     assert exc.value.code == 2
+
+
+def test_기본_저장_위치는_커밋된_gitignore가_무시하는_곳이다():
+    import subprocess
+
+    target = trace_cli.TRACE_ROOT / "kc-fan" / "run-1.json"
+    # 상품 원문이 들어가 커밋되면 안 됨. CI(커밋된 .gitignore)에서 확인됨
+    ignored = subprocess.run(["git", "check-ignore", "--no-index", "-q", str(target)], cwd=trace_cli.AI_ROOT)
+
+    assert ignored.returncode == 0
