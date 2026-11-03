@@ -36,7 +36,7 @@ function ToolReviewCard({ toolReview, findingFilter }: ToolReviewCardProps) {
     }
 
     return (
-        <div className="flex w-full flex-col gap-3.5">
+        <div className="flex w-full flex-col gap-5">
             <div className="relative w-full">
                 <SectionIntro title={TOOL_NAME_LABELS[toolReview.toolName]} description={toolReview.message ?? ""} size="2xl" />
                 {statusText && (
