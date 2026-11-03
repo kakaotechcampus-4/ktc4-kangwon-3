@@ -58,7 +58,9 @@ def test_끝나면_run_파일을_쓰고_열린_단계_밖의_값은_실행_정�
 
     assert _read(tmp_path / "run-2.json") == {
         "run": "run-2", "info": {"source": "input.json"}, "steps": [], "finish": {"reason": "completed"},
+        "prompts": {},
     }
+    assert [path.name for path in tmp_path.iterdir()] == ["run-2.json"]
 
 
 def test_실패로_빠져나가도_거기까지_기록과_실패_단계를_남긴다(tmp_path):
@@ -70,16 +72,6 @@ def test_실패로_빠져나가도_거기까지_기록과_실패_단계를_남�
     saved = _read(tmp_path / "run-1.json")
     assert saved["steps"] == [{"id": "s1", "kind": "selection", "error": "ValueError"}]
     assert saved["finish"] == {"reason": "error", "error": "ValueError"}
-
-
-def test_큰_내용은_따로_파일로_쓰고_경로를_돌려준다(tmp_path):
-    with trace_run(tmp_path) as recorder:
-        path = recorder.write_file("calls/c1.json", {"output": _Item(name="램프", color=_Color.RED)})
-        image = recorder.write_bytes("images/i1.png", b"\x89PNG")
-
-    assert path == "calls/c1.json"
-    assert _read(tmp_path / path) == {"output": {"name": "램프", "color": "red"}}
-    assert (tmp_path / image).read_bytes() == b"\x89PNG"
 
 
 def test_모델·dataclass·Enum·집합을_JSON_값으로_바꾸고_집합은_정렬한다():
