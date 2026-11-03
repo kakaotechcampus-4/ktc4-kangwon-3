@@ -37,7 +37,7 @@ function ResultBanner({ product, judgementPath, questionPath, onNextStepsClick }
         : config.action === BannerAction.Question ? questionPath
         : undefined;
 
-    // 옳지 못한 상태(진단 중, 입력 대기 중)에서 결과 페이지에 접근한 경우 화면 이동(Judgement/Question)이 필요.
+    // 진단 결과가 없는 상태(진단 중, 입력 대기 중)에서 결과 페이지에 접근한 경우 화면 이동(Judgement/Question)이 필요.
     const needsPath = config.action === BannerAction.Judgement || config.action === BannerAction.Question;
     // 경로가 필요한 액션인데 경로가 없으면(productId로 접근해 diagnosesId가 없는 경우 등) 버튼 자체를 숨긴다.
     const action = config.action && (!needsPath || actionPath) ? config.action : undefined;
