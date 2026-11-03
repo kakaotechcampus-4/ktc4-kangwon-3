@@ -163,6 +163,45 @@ tasks.register('jacocoMergedReport', JacocoReport) {
 	classDirectories.setFrom(allCoverageClasses())
 }
 
+// 최소 커버리지 기준. 단위: 라인·브랜치 90%, 합산: 라인 85%·브랜치 80%
+tasks.named('jacocoTestCoverageVerification') {
+	dependsOn 'test'
+	classDirectories.setFrom(unitCoverageClasses())
+	violationRules {
+		rule {
+			limit {
+				counter = 'LINE'
+				minimum = 0.90
+			}
+			limit {
+				counter = 'BRANCH'
+				minimum = 0.90
+			}
+		}
+	}
+}
+
+tasks.register('jacocoMergedCoverageVerification', JacocoCoverageVerification) {
+	description = '단위·통합 합산 커버리지가 최소 기준을 넘는지 검사한다.'
+	group = 'verification'
+	dependsOn 'test', integrationTest
+	executionData tasks.named('test').get(), integrationTest.get()
+	sourceSets sourceSets.main
+	classDirectories.setFrom(allCoverageClasses())
+	violationRules {
+		rule {
+			limit {
+				counter = 'LINE'
+				minimum = 0.85
+			}
+			limit {
+				counter = 'BRANCH'
+				minimum = 0.80
+			}
+		}
+	}
+}
+
 tasks.named('bootJar') {
 	archiveFileName = 'app.jar'
 }
