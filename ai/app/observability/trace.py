@@ -187,6 +187,20 @@ class TraceRecorder:
             return {"step": None, "kind": None, "path": [], "call": calls[-1]["id"]}
         return None
 
+    def end(self, reason: str, exc: BaseException | None = None, **fields: Any) -> None:
+        """결말을 남긴다. 실패면 예외 정보와 처음 실패한 위치(at)를 같이.
+
+        Args:
+            reason: 결말 (completed, failed, error 등).
+            exc: 실패 원인 예외. 실패가 아니면 None.
+            **fields: 결말에 같이 남길 값 (실패 코드·최종 결과 등).
+        """
+        finish: dict[str, Any] = {"reason": reason, **to_jsonable(fields)}
+        if exc is not None:
+            finish["error"] = error_info(exc)
+            finish["at"] = self.failure_at(exc)
+        self.finish = finish
+
     def current_step(self) -> dict[str, Any] | None:
         """지금 열린 가장 안쪽 단계. 없으면 None.
 
@@ -401,7 +415,7 @@ def trace_run(directory: Path, run_name: str = "run-1") -> Iterator[TraceRecorde
         yield recorder
     except BaseException as exc:
         if recorder.finish is None:
-            recorder.finish = {"reason": "error", "error": error_info(exc), "at": recorder.failure_at(exc)}
+            recorder.end("error", exc)
         raise
     finally:
         _trace.reset(token)
@@ -461,6 +475,21 @@ def trace_note(key: str, value: Any) -> None:
     recorder = _trace.get()
     if recorder is not None:
         recorder.note(key, value)
+
+
+def trace_finish(reason: str, exc: BaseException | None = None, **fields: Any) -> None:
+    """기록 중이면 결말을 남긴다. 기록 중이 아니면 아무것도 안 함.
+
+    예외를 잡아 결과로 바꾸는 곳(진단 함수의 단계 실패 등)에서 씀. 잡지 않은 예외는 trace_run이 남김.
+
+    Args:
+        reason: 결말 (completed, failed 등).
+        exc: 실패 원인 예외. 실패가 아니면 None.
+        **fields: 결말에 같이 남길 값.
+    """
+    recorder = _trace.get()
+    if recorder is not None:
+        recorder.end(reason, exc, **fields)
 
 
 def trace_alias(value: str, prefix: str) -> str:
