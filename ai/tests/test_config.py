@@ -31,6 +31,8 @@ _VALID_ENV = {
     "AI_DEV_API_ENABLED": None,
     "AI_DEV_API_KEY": None,
     "LOG_LEVEL": None,
+    "SENTRY_DSN": None,
+    "SENTRY_ENVIRONMENT": None,
 }
 
 
@@ -389,3 +391,28 @@ def test_모르는_로그_레벨이면_기동을_막는다(monkeypatch):
 
     with pytest.raises(config.ConfigError, match="LOG_LEVEL"):
         config.load_settings()
+
+
+_SENTRY_DSN = "https://public-key@o0.ingest.sentry.io/1"
+
+
+def test_Sentry는_DSN이_없으면_끄고_있으면_환경_이름과_같이_읽는다(monkeypatch):
+    _env(monkeypatch)
+    assert config.load_settings().sentry_dsn == ""
+
+    _env(monkeypatch, SENTRY_DSN=f" {_SENTRY_DSN} ", SENTRY_ENVIRONMENT=" production ")
+    settings = config.load_settings()
+
+    assert (settings.sentry_dsn, settings.sentry_environment) == (_SENTRY_DSN, "production")
+
+
+@pytest.mark.parametrize(("dsn", "environment", "message"), [
+    (_SENTRY_DSN, "", "SENTRY_ENVIRONMENT"),
+    ("http://public-key@sentry.local/1", "production", "https"),
+])
+def test_Sentry_설정이_틀리면_기동을_막고_DSN은_오류와_repr에_노출하지_않는다(dsn, environment, message):
+    with pytest.raises(config.ConfigError, match=message) as exc_info:
+        _settings(sentry_dsn=dsn, sentry_environment=environment)
+
+    assert dsn not in str(exc_info.value)
+    assert _SENTRY_DSN not in repr(_settings(sentry_dsn=_SENTRY_DSN, sentry_environment="production"))

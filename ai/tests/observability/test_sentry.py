@@ -1,0 +1,87 @@
+"""Sentry 설정: DSN이 없으면 끄고, 켜면 ERROR 로그·요청 중 잡지 않은 예외만 이벤트로 보낸다.
+
+실제 Sentry로 보내지 않고 메모리 전송으로 받음.
+"""
+
+import json
+import logging
+import threading
+
+import pytest
+import sentry_sdk
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+from sentry_sdk.transport import Transport
+
+from app.observability.sentry import configure_sentry
+
+DSN = "https://public-key@o0.ingest.sentry.io/1"
+
+
+class _MemoryTransport(Transport):
+    """보낼 이벤트를 메모리에 모음."""
+
+    events: list[dict] = []
+
+    def capture_envelope(self, envelope):
+        _MemoryTransport.events.extend(item.payload.json for item in envelope.items if item.type == "event")
+
+
+@pytest.fixture
+def events():
+    """메모리 전송으로 Sentry를 켜고 보낸 이벤트를 돌려줌. 끝나면 끔."""
+    _MemoryTransport.events = []
+    assert configure_sentry(DSN, "test", transport=_MemoryTransport)
+    yield _MemoryTransport.events
+    sentry_sdk.init(dsn=None)
+
+
+def _sent(events):
+    sentry_sdk.flush()
+    return [(event["level"], event["exception"]["values"][-1]["value"] if "exception" in event
+             else event["logentry"]["message"]) for event in events]
+
+
+def test_DSN이_없으면_켜지_않는다():
+    assert configure_sentry("", "test") is False
+    assert not sentry_sdk.get_client().is_active()
+
+
+def test_ERROR_로그만_이벤트로_보내고_INFO·WARNING은_보내지_않는다(events):
+    def session_thread():
+        # 세션 스레드에서 잡아 로그로 남기는 실패 (진단 실행기와 같은 모양)
+        try:
+            raise ValueError("코드 오류")
+        except ValueError:
+            logging.getLogger("app.sessions").error("진단 실행 실패", exc_info=True)
+        logging.getLogger("app.diagnosis.job").warning("진단 단계 실패 (예상한 실패)")
+        logging.getLogger("app.sessions").info("진단 시작")
+
+    thread = threading.Thread(target=session_thread)
+    thread.start()
+    thread.join()
+
+    assert _sent(events) == [("error", "코드 오류")]
+    assert events[0]["environment"] == "test"
+    # 앞선 INFO·WARNING은 흐름 기록으로만
+    assert all(crumb["level"] != "error" for crumb in events[0].get("breadcrumbs", {}).get("values", []))
+
+
+def test_요청_중_잡지_않은_예외는_보내고_HTTP_예외는_보내지_않으며_본문은_넣지_않는다(events):
+    app = FastAPI()
+
+    @app.post("/boom")
+    def boom():
+        raise RuntimeError("요청 처리 버그")
+
+    @app.post("/conflict")
+    def conflict():
+        raise HTTPException(status_code=409, detail="진행 중인 상품")
+
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert client.post("/boom", json={"textBlocks": ["상품 원문"]}).status_code == 500
+        assert client.post("/conflict").status_code == 409
+
+    assert _sent(events) == [("error", "요청 처리 버그")]
+    # 본문 자리엔 설정으로 뺐다는 표시만
+    assert "상품 원문" not in json.dumps(events[0], ensure_ascii=False)
