@@ -7,6 +7,7 @@ import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.CryptoProperties;
 import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 // 결과 엔티티는 아직 변경 메서드가 없어(콜백 구현 때 추가) 같은 패키지에서 생성자로 직접 구성한다.
+@Tag("integration")
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)

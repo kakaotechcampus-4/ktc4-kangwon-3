@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.ratelimit;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * 실행: RATE_LIMIT_REDIS_TEST=1 ./gradlew test --tests '*RateLimitRedisManualTest'
  */
+@Tag("integration")
 @SpringBootTest(properties = "rate-limit.ai.capacity=2")
 @ActiveProfiles("test")
 @EnabledIfEnvironmentVariable(named = "RATE_LIMIT_REDIS_TEST", matches = ".+")
