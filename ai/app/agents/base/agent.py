@@ -20,6 +20,7 @@ from ...clients.llm.decision import (
 )
 from ...config import DecisionProfile, agent_decision_profile
 from ...observability.agent_sinks import agent_sinks
+from ...observability.trace import current_trace
 from ...prompts import PromptName, PromptSnapshot, get_prompt
 from ...schemas.clients.decision_request import DecisionQuestion, DecisionRequest
 from ...schemas.clients.decision_response import DecisionResponse
@@ -312,6 +313,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         if self._structured is None:
             raise RuntimeError(f"{self.component_name}: 모델 없이 _invoke를 호출했습니다.")
 
+        if (trace := current_trace()) is not None:
+            trace.begin_call(self.component_name, messages)
         started_at = perf_counter()
         try:
             result = self._structured.invoke(messages)
@@ -329,8 +332,12 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             output = parse_structured_output(result, self.output_schema, self.component_name)
         except Exception as cause:
             # 응답은 받았으나 거절·JSON 오류·스키마 위반·빈 출력 → 쓴 토큰까지 기록
+            if trace is not None:
+                trace.set_call_response(raw=getattr(raw_message, "content", None))
             self._fail(ModelFailurePhase.PARSING, cause, usage, subject_id, started_at, partial_result)
 
+        if trace is not None:
+            trace.set_call_response(output)
         log_token_usage(self.component_name, usage, raw_message)
         return output, usage, started_at
 
@@ -368,6 +375,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
 
         request = DecisionRequest(model=self._decision_model, subject=subject, questions=questions)
         check_request(request)
+        if (trace := current_trace()) is not None:
+            trace.begin_call(self.component_name, request)
         started_at = perf_counter()
         try:
             response = client.decide(request)
@@ -380,6 +389,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             # 응답 자체를 못 받음 (네트워크·타임아웃·인증·4xx·5xx)
             self._fail(ModelFailurePhase.CALL, exc, None, subject_id, started_at, partial_result,
                        decision_questions=request.questions)
+        if trace is not None:
+            trace.set_call_response(response)
         return response, from_decision(response.usage), started_at
 
     def _decision_client_or_none(self) -> DecisionClient | None:
@@ -501,6 +512,8 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         )
         # 사용량 로그(usage.jsonl)도 기본 등록된 sink 중 하나 (usage_log.record_call)
         agent_sinks.publish(meta, subject_id)
+        if (trace := current_trace()) is not None:
+            trace.end_call(meta)
         return meta
 
     def _fail(

@@ -5,11 +5,15 @@
 
 파일 구성 (실행 폴더 아래)
     - run-N.json: 단계(steps)와 결말(finish). 단계 안에 단계가 들어갈 수 있음
-    - 그 밖: 단계 JSON에 다 넣기엔 큰 내용(모델 입출력 등)을 write_file()로 따로 쓰고 경로만 남김
+    - run-N/calls/cK.json: 모델 호출 1건의 보낸 메시지·받은 출력·모델·토큰·비용·시간·실패 단계
+    - 이미지: 링크만 남김. 링크가 없는 data URI(긴 이미지 조각)는 본문을 빼고 형식만
+    - prompts/<지문>.txt: 시스템 프롬프트 원문. 같은 프롬프트는 실행끼리도 한 파일
+    - 그 밖: 단계 JSON에 다 넣기엔 큰 내용을 write_file()로 따로 쓰고 경로만 남김
 ID는 실행 안에서 나온 순서대로 붙임(s1, s2, …). 같은 입력을 두 번 돌리면 같은 ID라 diff로 비교 가능.
 """
 
 import dataclasses
+import hashlib
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -73,6 +77,7 @@ class TraceRecorder:
         self.finish: dict[str, Any] | None = None
         self._open: list[dict[str, Any]] = []
         self._counters: dict[str, int] = {}
+        self._call: dict[str, Any] | None = None
 
     def next_id(self, prefix: str) -> str:
         """접두어별로 1부터 차례로 ID를 붙인다.
@@ -129,6 +134,66 @@ class TraceRecorder:
         target = self._open[-1] if self._open else self.info
         target[key] = to_jsonable(value)
 
+    def begin_call(self, component: str, request: Any) -> None:
+        """모델 호출 1건을 시작한다. 메시지 속 시스템 프롬프트·data URI 이미지는 따로 쓰고 경로만 남김.
+
+        Args:
+            component: 에이전트 이름.
+            request: 보낸 메시지 목록(채팅 모델) 또는 요청 객체(판단 모델).
+        """
+        call_id = self.next_id("c")
+        if isinstance(request, list):
+            request = [self._message(message) for message in request]
+        self._call = {"id": call_id, "component": component, "request": to_jsonable(request)}
+
+    def set_call_response(self, output: Any = None, raw: Any = None) -> None:
+        """시작한 호출의 응답을 남긴다.
+
+        Args:
+            output: 스키마로 검증한 출력. 해석에 실패했으면 None.
+            raw: 해석에 실패한 응답 본문. 성공이면 None.
+        """
+        if self._call is not None:
+            self._call["output"] = to_jsonable(output)
+            if raw is not None:
+                self._call["raw"] = to_jsonable(raw)
+
+    def end_call(self, meta: Any) -> str:
+        """호출 1건을 실행 정보와 함께 파일로 쓰고, 지금 열린 단계의 calls에 요약을 넣는다.
+
+        시작하지 않은 호출이면 실행 정보만 남김.
+
+        Args:
+            meta: 호출 1건의 실행 정보 (AgentRunMeta).
+
+        Returns:
+            str: 호출 ID.
+        """
+        call = self._call or {"id": self.next_id("c"), "component": getattr(meta, "component", None)}
+        self._call = None
+        call["meta"] = to_jsonable(meta)
+        path = self.write_file(f"{self.run_name}/calls/{call['id']}.json", call)
+        summary = {"id": call["id"], "component": call["component"], "file": path}
+        for key in ("model", "elapsed_ms", "cost_krw", "error_type", "failure_phase"):
+            if call["meta"].get(key) is not None:
+                summary[key] = call["meta"][key]
+        (self._open[-1] if self._open else self.info).setdefault("calls", []).append(summary)
+        return call["id"]
+
+    def _message(self, message: Any) -> dict[str, Any]:
+        role, content = getattr(message, "type", None), getattr(message, "content", message)
+        # 시스템 프롬프트는 길고 호출마다 같음 → 지문 이름 파일 하나로
+        if role == "system" and isinstance(content, str):
+            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()[:12]
+            relative = f"prompts/{digest}.txt"
+            if not (self.directory / relative).exists():
+                (self.directory / "prompts").mkdir(parents=True, exist_ok=True)
+                (self.directory / relative).write_text(content, encoding="utf-8")
+            return {"role": role, "prompt_file": relative}
+        if isinstance(content, list):
+            content = [_image_link(block) for block in content]
+        return {"role": role, "content": to_jsonable(content)}
+
     def write_file(self, relative: str, data: Any) -> str:
         """실행 폴더 아래에 JSON 파일을 따로 쓴다.
 
@@ -177,6 +242,14 @@ class TraceRecorder:
         path = self.directory / f"{self.run_name}.json"
         path.write_text(_dump(self.to_dict()), encoding="utf-8")
         return path
+
+
+def _image_link(block: Any) -> Any:
+    """이미지 블록은 링크만. data URI는 본문 대신 형식만 남김 (긴 이미지 조각)."""
+    url = block.get("image_url", {}).get("url") if isinstance(block, dict) else None
+    if isinstance(url, str) and url.startswith("data:"):
+        return {"type": "image_url", "image_url": {"url": url.split(",", 1)[0] + ",…(생략)"}}
+    return block
 
 
 _trace: ContextVar[TraceRecorder | None] = ContextVar("trace", default=None)
