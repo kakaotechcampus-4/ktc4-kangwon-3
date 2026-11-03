@@ -16,6 +16,8 @@ from .seller_region import extract_seller_region
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.EXTRACTION).path
+# 모델에 판매자 제목을 따로 알려 주는 블록의 머리말
+SELLER_TITLE_LABEL = "판매자가 쓴 상품 제목: "
 
 
 class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
@@ -45,6 +47,8 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
     def _build_messages(self, input: ExtractionInput) -> list[SystemMessage | HumanMessage]:
         """판매자 영역만 남긴 글과 이미지 URL로 모델 메시지를 만든다.
 
+        찾은 판매자 제목은 맨 앞 블록에 따로 알려 줌. 가격·옵션 같은 화면 글자 사이에 있으면 모델이 제목을
+        상품 이름 표시로만 보고 제목 속 효능 구절을 medical_claim·cosmetic_claim 근거로 쓰지 않음(#421).
         이미지는 http(s) URL과 data URI를 같게 다룸 (로컬 이미지를 data URI로 바꾸는 건 호출자 몫).
         자르기 결과는 여기서만 측정 기록으로 남김 (_finalize도 자르므로 두 번 세지 않게).
 
@@ -57,8 +61,9 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         Raises:
             ValueError: 글과 이미지가 모두 비어 있는 경우.
         """
-        source, _ = _trim_to_seller_region(input, record=True)
-        content: list[dict[str, Any]] = [{"type": "text", "text": block} for block in source.text_blocks]
+        source, titles = _trim_to_seller_region(input, record=True)
+        blocks = [f"{SELLER_TITLE_LABEL}{title}" for title in titles] + source.text_blocks
+        content: list[dict[str, Any]] = [{"type": "text", "text": block} for block in blocks]
         content += [{"type": "image_url", "image_url": {"url": url}} for url in source.image_urls]
         # 글·이미지가 모두 비어 추출할 내용이 없음
         if not content:
@@ -114,6 +119,7 @@ def _keep_seller_titles(listing_text: list[str], titles: list[str]) -> list[str]
     """판매자 제목 원문이 listing_text에 없으면 맨 앞에 넣는다 (#253 논의 ③).
 
     모델이 제목을 product_name으로만 옮기고 listing_text에서 빼는 경우가 있어(표시광고 검사가 읽는 곳) 코드가 넣음.
+    모델이 제목 블록의 머리말까지 옮기면 판매자 문구가 아니므로 뗌.
 
     Args:
         listing_text: 모델이 뽑은 판매 문구.
@@ -122,6 +128,7 @@ def _keep_seller_titles(listing_text: list[str], titles: list[str]) -> list[str]
     Returns:
         list[str]: 빠진 제목을 앞에 붙인 판매 문구.
     """
+    listing_text = [item.removeprefix(SELLER_TITLE_LABEL) for item in listing_text]
     missing = [title for title in titles if not any(title in item for item in listing_text)]
     return missing + list(listing_text)
 
