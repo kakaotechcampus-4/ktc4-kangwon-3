@@ -103,6 +103,8 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 - 레벨을 바꾸려면 서버 `.env`의 `LOG_LEVEL`을 고치고 컨테이너를 다시 띄움
 - 배포·`docker stop` 때 실행 중이던 진단은 그 자리에서 끊김 (uvicorn이 종료 처리 뒤 SIGTERM을 다시 발생시킴). 버린 상품은 `서버 종료로 진단을 버림` 줄로 확인
 - 모델 호출 사용량 기록(`logs/usage.jsonl`)은 named volume `ai-logs`에 남아 배포 뒤에도 유지. 보기: `docker exec ai-server python -m app.usage`
+  - 10MB를 넘으면 `usage.jsonl.1`부터 한 칸씩 밀고 새 파일로 시작, 5개까지만 보관 (`docker logs` 상한과 같음)
+  - `python -m app.usage`는 지금 파일(`usage.jsonl`)만 집계
 
 ## 6. 새 로그를 넣을 때
 
