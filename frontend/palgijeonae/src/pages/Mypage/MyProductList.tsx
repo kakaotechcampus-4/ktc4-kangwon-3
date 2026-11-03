@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { Link } from "react-router-dom";
 
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
@@ -43,8 +42,8 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                 </p>
             ) : (
                 <div className="flex w-full flex-col gap-3.5">
-                    {products.map((product) => {
-                        const preview = (
+                    {products.map((product) => (
+                        <Link key={product.productId} to={`/result/product/${product.productId}`} className="block w-full cursor-pointer">
                             <ProductPreview
                                 productName={product.productName}
                                 productImageUrl={product.productImageUrl}
@@ -52,16 +51,8 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                                 processingStatus={product.processingStatus}
                                 sourceType={product.sourceType}
                             />
-                        );
-
-                        return product.resultStatus != null ? (
-                            <Link key={product.productId} to={`/result/product/${product.productId}`} className="block w-full cursor-pointer">
-                                {preview}
-                            </Link>
-                        ) : (
-                            <Fragment key={product.productId}>{preview}</Fragment>
-                        );
-                    })}
+                        </Link>
+                    ))}
                 </div>
             )}
             <Pagination page={page} totalPages={totalPages} hasNext={hasNext} onPageChange={onPageChange} pageGroupSize={PAGE_GROUP_SIZE} />
