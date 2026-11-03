@@ -11,11 +11,13 @@ interface ImageUploadFieldProps {
     description: string
     multiple?: boolean
     isOption?: boolean
+    optionLabel?: string
+    helperText?: string
     countLabel?: string
     onChange: (files: File[]) => void
 }
 
-function ImageUploadField({ id, title, description, multiple = false, isOption = false, countLabel, onChange }: ImageUploadFieldProps) {
+function ImageUploadField({ id, title, description, multiple = false, isOption = false, optionLabel = "선택", helperText, countLabel, onChange }: ImageUploadFieldProps) {
     const handleFiles = (fileList: FileList | null) => {
         if (!fileList) {
             return;
@@ -47,11 +49,14 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
 
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
-            <div className="flex w-full items-center gap-3.75">
-                <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
-                {isOption && <span className="text-xs leading-3.5 text-neutral-border">선택</span>}
+            <div className="flex w-full items-center justify-between gap-3.75">
+                <div className="flex items-center gap-3.75">
+                    <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
+                    {isOption && <span className="text-xs leading-3.5 text-neutral-border">{optionLabel}</span>}
+                </div>
                 {countLabel && <span className="text-xs leading-3.5 text-neutral-border">{countLabel}</span>}
             </div>
+            {helperText && <p className="text-sm font-light text-neutral-border">{helperText}</p>}
 
             <label
                 htmlFor={id}
