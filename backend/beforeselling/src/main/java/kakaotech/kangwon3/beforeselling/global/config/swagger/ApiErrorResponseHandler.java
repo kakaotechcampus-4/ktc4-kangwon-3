@@ -7,11 +7,15 @@ import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.examples.Example;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.IntegerSchema;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 
@@ -85,6 +89,11 @@ public class ApiErrorResponseHandler {
 
             content.addMediaType("application/json", mediaType);
             apiResponse.setContent(content);
+            if (status == HttpStatus.TOO_MANY_REQUESTS.value()) {
+                apiResponse.addHeaderObject(HttpHeaders.RETRY_AFTER, new Header()
+                        .description("다시 시도할 수 있을 때까지 남은 초")
+                        .schema(new IntegerSchema()));
+            }
             responses.addApiResponse(String.valueOf(status), apiResponse);
         });
     }
