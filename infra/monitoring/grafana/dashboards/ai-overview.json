@@ -1618,8 +1618,8 @@
     {
       "type": "stat",
       "id": 33,
-      "title": "외부 API 실패율",
-      "description": "ok가 아닌 호출 비율 (모든 서버)",
+      "title": "외부 API 실패율 (콜백 제외)",
+      "description": "ok가 아닌 호출 비율. BE 콜백은 오른쪽 콜백 칸에서 따로 봄",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1637,7 +1637,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_client_calls_total{result!=\"ok\"}[$__range])) / sum(increase(ai_client_calls_total[$__range]))",
+          "expr": "sum(increase(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[$__range])) / sum(increase(ai_client_calls_total{api!=\"backend\"}[$__range]))",
           "legendFormat": "",
           "range": true
         }
@@ -1645,6 +1645,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
+          "noValue": "실패 없음",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -1903,8 +1904,8 @@
     {
       "type": "timeseries",
       "id": 38,
-      "title": "외부 API 실패 (서버 · 결과)",
-      "description": "http_error·api_error·timeout·connect_error·other",
+      "title": "외부 API 실패 (서버 · 결과, 콜백 제외)",
+      "description": "http_error·api_error·timeout·connect_error·other. BE 콜백은 콜백 결과에서 봄",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1922,7 +1923,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (api, result) (increase(ai_client_calls_total{result!=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (api, result) (increase(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[$__rate_interval]))",
           "legendFormat": "{{api}} {{result}}",
           "range": true
         }
