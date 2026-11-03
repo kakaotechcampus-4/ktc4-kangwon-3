@@ -103,3 +103,26 @@ def test_진단_실행_중_이벤트엔_로그와_같은_실행_정보를_태그
         "diagnosis_id": "d-1", "product_id": "p-1", "run_id": "run-1", "run_type": "production",
         "stage": "tool_execution"}
     assert "run_id" not in outside.get("tags", {})
+
+
+def test_내부_인증_헤더·지역_변수는_보내지_않고_URL의_키는_가린다(events):
+    # 이벤트엔 오류 위치 주변 소스 줄도 실림 → 비밀값은 소스에 한 덩어리로 안 나오게 이어 붙임
+    key, token, dev_key, raw_text = ("SECRET" + suffix for suffix in ("-KEY", "-TOKEN", "-DEV", "-RAW-TEXT"))
+    app = FastAPI()
+    url = f"https://apis.data.go.kr/a?serviceKey={key}&x=1"
+
+    @app.post("/boom")
+    def boom():
+        local_text = raw_text  # noqa: F841
+        logging.getLogger("app.clients").info("호출 %s", url)
+        logging.getLogger("app.clients").error("조회 실패 %s", url)
+        raise RuntimeError(f"실패 {url}")
+
+    TestClient(app, raise_server_exceptions=False).post(
+        "/boom", headers={"X-Internal-Token": token, "X-Dev-Api-Key": dev_key})
+
+    sentry_sdk.flush()
+    sent = json.dumps(events, ensure_ascii=False)
+    for secret in (key, token, dev_key, raw_text):
+        assert secret not in sent
+    assert "serviceKey=***" in sent
