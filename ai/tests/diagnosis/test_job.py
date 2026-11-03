@@ -339,3 +339,28 @@ def test_검증_단계가_실패하면_검증_trace_단계에_원인을_남긴�
     assert verification["kind"] == "verification"
     assert verification["error"]["type"] == "VerificationError"
     assert "output" not in verification
+    assert recorder.finish["reason"] == "failed"
+    assert (recorder.finish["stage"], recorder.finish["code"], recorder.finish["retryable"]) == (
+        "verification", AIResponseCode.PIPELINE_ERROR.value.code, True)
+    assert recorder.finish["error"]["cause"]["type"] == "VerificationError"
+    assert recorder.finish["at"]["step"] == verification["id"]
+
+
+def test_끝까지_돈_실행은_종료_이유와_최종_결과를_결말로_남긴다(pipeline, tmp_path):
+    with trace_run(tmp_path) as recorder:
+        build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert recorder.finish == {"reason": "completed", "result": pipeline["result"].model_dump(mode="json")}
+
+
+def test_질문하고_멈춘_실행은_질문_회차와_질문을_결말로_남긴다(pipeline, tmp_path):
+    pipeline["result"] = _result(ExecutionEndReason.USER_INPUT_REQUIRED)
+    question = PublicQuestionDto(question_key="r1_q1", question_order=1, question_text="배터리로만 동작하나요?")
+
+    with trace_run(tmp_path) as recorder:
+        build_job(_parts([]), lambda result, question_round: [question])(
+            DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert recorder.finish["reason"] == "user_input_required"
+    assert recorder.finish["question_round"] == 1
+    assert recorder.finish["questions"] == [question.model_dump(mode="json")]

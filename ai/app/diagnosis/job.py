@@ -6,6 +6,8 @@ Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하
 
 로컬 trace를 켠 실행이면 단계마다 trace 단계를 열고 나온 값(output)을 원래 모양 그대로 남김.
 다음 단계의 입력은 앞 단계의 output이라 따로 안 남김 (추출 입력만 남김). 재실행 회차는 단계마다 round로.
+결말(finish)엔 종료 이유와 최종 결과, 질문하면 질문 회차·질문, 단계 실패면 실패 코드와 처음 실패한 위치.
+답변 뒤 재진단은 새 실행이라 새 파일. 이전 결과·답변은 추출 input에 들어 있음.
 """
 
 import logging
@@ -16,7 +18,7 @@ from ..clients.base import mask_sensitive_params
 from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIError, AIResponseCode, AIServiceError
 from ..observability.logs import set_run_field
-from ..observability.trace import trace_note, trace_step
+from ..observability.trace import trace_finish, trace_note, trace_step
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
@@ -65,10 +67,16 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder) -> DiagnosisJob:
             # 예상한 실패 → 위치 없이 원인 예외만 한 줄로
             logger.warning("진단 단계 실패 (stage=%s, code=%s, retryable=%s): %s", exc.stage,
                            exc.response_code.code, exc.retryable, _error_text(exc.__cause__ or exc))
+            trace_finish("failed", exc, stage=exc.stage, code=exc.response_code.code, retryable=exc.retryable)
             return JobFailed(exc.response_code.code, exc.retryable)
         progress.stage(PipelineStage.FINALIZATION)
         if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:
-            return JobNeedsInput(result, questions(result, _next_round(job_input)))
+            question_round = _next_round(job_input)
+            asked = questions(result, question_round)
+            trace_finish(result.termination_reason.value, result=result, question_round=question_round,
+                         questions=asked)
+            return JobNeedsInput(result, asked)
+        trace_finish(result.termination_reason.value, result=result)
         return JobDone(result)
 
     return run
