@@ -138,6 +138,33 @@ class UserServiceTest {
         assertThat(user.getSocialRefreshToken()).isEqualTo("new-refresh-token");
     }
 
+    @Test
+    @DisplayName("회원 이름을 수정하면 앞뒤 공백을 제거한 이름으로 바뀐다.")
+    void updateName_thenTrimmedNameApplied() {
+        // given
+        User user = createUser(USER_ID);
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+        // when
+        User result = userService.updateName(USER_ID, "  새 이름  ");
+
+        // then
+        assertThat(result.getName()).isEqualTo("새 이름");
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원의 이름을 수정하면 NOT_FOUND 예외가 발생한다.")
+    void updateName_withUnknownId_thenThrow() {
+        // given
+        given(userRepository.findById(USER_ID)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> userService.updateName(USER_ID, "새 이름"))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+    }
+
     private User createUser(UUID id) {
         User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "사용자");
         ReflectionTestUtils.setField(user, "id", id);
