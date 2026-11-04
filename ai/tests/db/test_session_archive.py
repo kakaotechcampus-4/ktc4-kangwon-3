@@ -116,7 +116,7 @@ def test_DB_실패는_경고만_남기고_일정_시간_DB를_건너뛴다(rows,
     archive.remove(["p-1"])
 
     assert len(calls) == 1
-    assert "진단 세션 캐시 저장 실패" in caplog.text
+    assert "진단 세션 DB 저장 실패" in caplog.text
     assert archive.load() == []
 
 

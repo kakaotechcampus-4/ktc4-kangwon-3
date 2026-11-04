@@ -53,7 +53,7 @@ class SessionArchiveDatabase:
                 DiagnosisSessionRepository(db).put(record)
                 db.commit()
         except SQLAlchemyError as exc:
-            self._skip.failed(_NAME, "저장", exc)
+            self._skip.failed(_NAME, "저장", exc, store="DB")
 
     def remove(self, product_ids: Collection[str]) -> None:
         """세션들을 지운다. DB를 못 쓰면 넘어감.
@@ -68,7 +68,7 @@ class SessionArchiveDatabase:
                 DiagnosisSessionRepository(db).delete(product_ids)
                 db.commit()
         except SQLAlchemyError as exc:
-            self._skip.failed(_NAME, "삭제", exc)
+            self._skip.failed(_NAME, "삭제", exc, store="DB")
 
     def load(self) -> list[DiagnosisSession]:
         """보관된 세션을 모두 읽는다. 지금 세션 모양과 안 맞는 행(배포로 바뀐 옛 행)은 경고 후 지움.
@@ -92,5 +92,5 @@ class SessionArchiveDatabase:
                     db.commit()
                 return sessions
         except SQLAlchemyError as exc:
-            self._skip.failed(_NAME, "읽기", exc)
+            self._skip.failed(_NAME, "읽기", exc, store="DB")
             return []
