@@ -2,6 +2,8 @@ import * as Sentry from '@sentry/react'
 import { useEffect } from 'react'
 import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from 'react-router-dom'
 
+import { useAuthStore } from './store/useAuthStore'
+
 const dsn = import.meta.env.VITE_SENTRY_DSN
 
 Sentry.init({
@@ -29,4 +31,12 @@ Sentry.init({
     }),
   ],
   tracesSampleRate: 0.2,
+})
+
+// 로그인 여부만 태그로 남긴다 (유저 식별 정보·토큰은 다루지 않음)
+Sentry.setTag('logged_in', String(useAuthStore.getState().isLoggedIn))
+useAuthStore.subscribe((state, prevState) => {
+  if (state.isLoggedIn !== prevState.isLoggedIn) {
+    Sentry.setTag('logged_in', String(state.isLoggedIn))
+  }
 })
