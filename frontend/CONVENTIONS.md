@@ -14,6 +14,7 @@
 6. [상태 관리](#상태-관리)
 7. [에러 처리](#에러-처리)
 8. [스타일](#스타일)
+9. [접근성](#접근성)
 
 ## 폴더·파일 구조
 
@@ -93,7 +94,7 @@ export default Example;
 
 - 서버 데이터는 TanStack Query로 관리합니다. 페이지 폴더의 `use*.ts` 훅 하나가 조회(`useQuery`) 또는 수정(`useMutation`) 하나를 책임집니다(`useMyProducts.ts`, `useDeleteProduct.ts`). `queryKey`는 `[도메인, 식별자]` 형태로 짓습니다.
 - 수정 후 목록을 다시 불러와야 하면 `invalidateQueries`, 응답으로 캐시만 바로 갱신해도 되면 `setQueryData`를 씁니다.
-- 로그인 등 클라이언트 전역 상태는 Zustand로 관리합니다([`store/useAuthStore.ts`](palgijeonae/src/store/useAuthStore.ts)).
+- 로그인 등 클라이언트 전역 상태는 Zustand로 관리합니다([`store/useAuthStore.ts`](palgijeonae/src/store/useAuthStore.ts)). Access Token은 메모리에만 두고, 새로고침하면 refresh token 쿠키로 다시 발급받습니다.
 
 ## 에러 처리
 
@@ -105,4 +106,12 @@ export default Example;
 
 - Tailwind CSS만 쓰고 별도 CSS 파일은 만들지 않습니다.
 - 색상·폰트는 [`src/index.css`](palgijeonae/src/index.css)의 `@theme` 토큰만 씁니다.
-- 접근성(aria 속성, 키보드 조작, `prefers-reduced-motion` 대응 등)은 [`README.md`의 접근성](README.md#접근성) 절을 참고하세요.
+
+## 접근성
+
+- 상태가 바뀌면 화면 낭독기가 읽도록 `role="status"` 같은 영역에 알립니다.
+- 순서가 있는 단계는 `ol`과 `aria-current`로 현재 단계를 알리고, 색으로만 구분하지 않고 텍스트로도 보충합니다.
+- 탭·토글·툴팁·이미지 확대 창 등에는 맞는 role·aria 속성을 붙입니다. 포커스를 가두는 요소는 닫을 때 원래 위치로 포커스를 돌려줍니다.
+- 버튼을 누를 수 없을 때는 막지 않고 그 이유를 안내합니다.
+- `prefers-reduced-motion` 설정이면 애니메이션을 끕니다.
+- 장식용 이미지는 `alt=""`로 낭독에서 뺍니다.
