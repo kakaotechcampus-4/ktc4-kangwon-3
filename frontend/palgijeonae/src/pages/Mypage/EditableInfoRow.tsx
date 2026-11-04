@@ -13,7 +13,7 @@ interface EditableInfoRowProps {
     onSave: () => void
 }
 
-/** dl 안에서 쓰는 정보 행 하나. editable이면 "{title} 수정" 버튼으로 같은 자리에서 인라인 편집으로 바뀐다. */
+/** 프로필에서 쓰이는 정보 행 하나. editable이면 수정 버튼으로 같은 자리에서 인라인 편집으로 바뀐다. */
 function EditableInfoRow({ title, description, editable = false, maxLength, onChange, disabled = false, onSave }: EditableInfoRowProps) {
     const inputId = useId();
     const [isEditing, setIsEditing] = useState(false);
