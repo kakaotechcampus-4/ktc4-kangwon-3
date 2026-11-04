@@ -5,6 +5,7 @@
 클라이언트의 fetch_parsed/_send/_parse와 같은 구조.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from time import perf_counter
 from typing import Any, ClassVar, Generic, Literal, NoReturn
@@ -26,11 +27,13 @@ from ...schemas.clients.decision_request import DecisionQuestion, DecisionReques
 from ...schemas.clients.decision_response import DecisionResponse
 from ...usage import CallUsage, estimate_krw, from_completion, from_decision, from_response
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
-from .guardrail import attach_guardrail, get_guardrail
+from .guardrail import attach_guardrail, extra_guardrail_path, get_guardrail
 from .meta import AgentResult, AgentRunMeta
 from .parsing import parse_structured_output
 from .protocols import InputT, ModelLike, OutputT, ResultT
 from .usage_log import log_token_usage
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
@@ -91,9 +94,13 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             ValueError: decision_client만 주고 decision_model을 안 준 경우.
             FileNotFoundError: 가드레일을 쓰는데 공통 가드레일 문서가 없는 경우.
         """
-        # 가드레일 문서가 빠졌으면 첫 호출이 아니라 생성(기동) 때 실패
+        # 표시했는데 문서가 빠지면 가드레일 없이 돌아 첫 호출이 아니라 생성(기동) 때 실패
         if self.uses_guardrail:
             get_guardrail(self.prompt_name)
+        # 문서를 두고 표시를 빠뜨리면 적용됐다고 오인만 함 → 경고. 판단 모델만 쓰는 에이전트는 prompt_name 없음
+        elif hasattr(self, "prompt_name") and (extra := extra_guardrail_path(self.prompt_name)).is_file():
+            logger.warning("%s: 가드레일 문서(%s)가 있지만 uses_guardrail이 꺼져 있어 붙지 않음",
+                           self.component_name, extra)
         # 미주입 + 자동 생성 대상이면 프로필로 생성 (검증처럼 creates_default_model=False면 모델 없이 둠)
         if model is None and self.creates_default_model:
             kind, name = self.model_profile or ("agent", self.component_name)

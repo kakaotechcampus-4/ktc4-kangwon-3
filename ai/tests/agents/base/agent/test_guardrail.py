@@ -67,3 +67,14 @@ def test_표시했는데_공통_가드레일_문서가_없으면_생성_때_실�
 def test_모델_없이_클래스로_구한_시스템_프롬프트는_에이전트가_보내는_것과_같다(guarded_rules_only, fakes):
     assert guarded_rules_only.system_prompt() == guarded_rules_only().prompt
     assert fakes.RulesOnly.system_prompt() is get_prompt(PromptName.EXTRACTION)
+
+
+def test_표시하지_않았는데_에이전트별_가드레일_문서가_있으면_경고만_남기고_붙이지_않는다(fakes, tmp_path, monkeypatch, caplog):
+    extra = tmp_path / "guardrail.md"
+    extra.write_text("추가 규칙\n", encoding="utf-8")
+    monkeypatch.setattr("app.agents.base.agent.extra_guardrail_path", lambda name: extra)
+
+    agent = fakes.RulesOnly()
+
+    assert agent.prompt is get_prompt(PromptName.EXTRACTION)
+    assert [r.levelname for r in caplog.records if "uses_guardrail이 꺼져" in r.getMessage()] == ["WARNING"]
