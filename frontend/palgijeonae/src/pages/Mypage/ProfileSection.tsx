@@ -55,7 +55,7 @@ function ProfileSection() {
                         />
                         <div className="flex items-center gap-4">
                             <span className="w-16 shrink-0 text-sm font-semibold text-neutral-label">이메일</span>
-                            <span className="text-base text-black">{userInfo.email}</span>
+                            <span className="text-base text-black">{userInfo.email ?? "표시할 이메일이 없어요"}</span>
                         </div>
                         <div className="flex items-center gap-4">
                             <span className="w-16 shrink-0 text-sm font-semibold text-neutral-label">로그인</span>
