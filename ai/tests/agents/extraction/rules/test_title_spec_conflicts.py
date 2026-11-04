@@ -124,3 +124,14 @@ def test_모순_문장은_양쪽_표기를_원문_그대로_담는다():
     [conflict] = detect_title_spec_conflicts(["남성용 칫솔"], [_spec(("성별", "남녀공용-성인"))])
 
     assert conflict == '제목은 "남성용"인데 스펙표 성별은 "남녀공용-성인"입니다. 판매자 표기가 서로 달라 확인이 필요합니다.'
+
+
+def test_스펙_블록에_제목_줄이_같이_있어도_제목_수치를_스펙_수치로_세지_않는다():
+    # 판매자 구역에는 제목 줄(잘린 제목 포함)이 스펙표와 함께 들어온다. 제목의 "635L"이 스펙 수치로 세이면 모순을 놓친다.
+    title = "대형 635L 스테인리스 스틸 양문형 냉장고, 휴대용 가정용 냉장고"
+    block = "\n".join([title, "대형 635L 스테인리스 스틸 양문형 냉장고...", "상품 정보", "용량", "60L 미만", "냉동실 용량", "60L 미만"])
+
+    conflicts = detect_title_spec_conflicts([title], [block])
+
+    assert len(conflicts) == 1
+    assert "635L" in conflicts[0] and "60L" in conflicts[0]

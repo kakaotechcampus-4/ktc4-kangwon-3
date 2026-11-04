@@ -35,6 +35,18 @@ def _spec_rows(text_blocks: Iterable[str]) -> list[tuple[str, str]]:
     return rows
 
 
+def _without_title_lines(text_blocks: Iterable[str], titles: list[str]) -> list[str]:
+    """판매자 구역에 섞인 제목 줄(잘린 제목 "…" 포함)을 뺀 줄 목록. 제목 수치를 스펙 수치로 세지 않기 위해서다."""
+    kept: list[str] = []
+    for block in text_blocks:
+        for line in block.splitlines():
+            head = line.strip().rstrip(".…").strip()
+            if len(head) >= 10 and any(title.startswith(head) for title in titles):
+                continue
+            kept.append(line)
+    return kept
+
+
 def _values_for(rows: list[tuple[str, str]], key_pattern: re.Pattern[str]) -> list[tuple[str, str]]:
     return [(key, value) for key, value in rows if key_pattern.search(key)]
 
@@ -265,7 +277,7 @@ def detect_title_spec_conflicts(titles: list[str], text_blocks: list[str]) -> li
         list[str]: 모순 후보 문장. 양쪽 표기를 원문 그대로 담는다. 없으면 빈 목록.
     """
     rows = _spec_rows(text_blocks)
-    spec_text = "\n".join(text_blocks)
+    spec_text = "\n".join(_without_title_lines(text_blocks, titles))
     found: list[str] = []
     for conflicts in (
         _gender_conflicts(titles, rows),
