@@ -190,9 +190,35 @@ def _cut_temu(lines: list[str], stripped: list[str]) -> tuple[list[str], str | N
     stop2 = _index(stripped, start2, lambda s: s.startswith("가장 빠른 배송") or s == "판매자")
     stop2 = len(lines) if stop2 is None else stop2
     # 경로 다음에 짧게 잘린 제목("…...")과 전체 제목이 함께 있다. 가장 긴 줄이 전체 제목이다.
+    # 11월 화면은 잘린 제목만 있어 구매 상자 첫 줄에서 전체 제목을 찾음. 가장 긴 줄을 고르기 전에 먼저 찾아야
+    # 리뷰 없는 상품의 안내 문장("하지만 Temu에 비슷한 상품에 대한 리뷰가 …")이 잘린 제목보다 길어도 제목으로 안 잡힘
     candidates = [lines[i].strip() for i in range(top, stop1) if lines[i].strip()]
-    title = max(candidates, key=len) if candidates else None
+    full = next((found for line in candidates
+                 if line.endswith("...") and (found := _temu_full_title(stripped, line))), None)
+    title = full or (max(candidates, key=len) if candidates else None)
     return lines[top:stop1] + lines[start2:stop2] + _temu_box_spec(lines, stripped, stop2), title
+
+
+def _temu_full_title(stripped: list[str], truncated: str) -> str | None:
+    """잘린 제목만 있는 화면에서 구매 상자 첫 줄에 붙어 나오는 전체 제목을 찾는다.
+
+    2026-11 화면은 경로 다음에 잘린 제목("…...")만 있고, 전체 제목은 "가장 빠른 배송: 5일전체 제목"처럼
+    배송 안내 뒤에 붙어 나온다.
+
+    Args:
+        stripped: 앞뒤 공백을 지운 줄 목록.
+        truncated: "..."로 끝나는 잘린 제목.
+
+    Returns:
+        str | None: 잘린 제목으로 시작하는 전체 제목. 못 찾으면 None.
+    """
+    head = truncated.removesuffix("...").strip()
+    if not head:
+        return None
+    for line in stripped:
+        if line.startswith("가장 빠른 배송") and (start := line.find(head)) != -1:
+            return line[start:]
+    return None
 
 
 def _temu_box_spec(lines: list[str], stripped: list[str], box: int) -> list[str]:
