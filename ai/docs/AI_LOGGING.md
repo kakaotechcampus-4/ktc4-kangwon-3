@@ -62,6 +62,7 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | `서버 종료로 진단을 멈춤, DB에 보관: 실행 중 n개(...) 재시작 때 시간 초과 실패, 대기 중 n개(...) 재시작 때 다시 실행, 답변 대기 n개 재시작 때 복원` (0개인 항목은 빠짐) | WARNING | `sessions/manager/manager.py` |
 | `재시작 전 대기 세션 복원, 다시 실행 (답변 n개)` / `재시작 전 답변 대기 세션 복원 (질문 회차 n)` | INFO | `sessions/manager/manager.py` |
 | `재시작 전 실행 중이던 진단을 시간 초과 실패로 끝냄 (정상 종료 처리 없이 끊김)` | WARNING | `sessions/manager/manager.py` |
+| `재시작 전 대기 세션이 최대 시간을 넘겨 실행하지 않고 시간 초과 실패로 끝냄` | WARNING | `sessions/manager/manager.py` |
 | `진단 세션 복원: 대기 n개, 답변 대기 n개, 끊긴 실행 n개, 되살리지 않음 n개` | INFO | `sessions/manager/manager.py` |
 | `보관된 진단 세션을 읽지 못해 지움 (product_id=...)` | WARNING | `db/session_archive.py` |
 | `진단 시작 (대기 N초, 답변 N개)` | INFO | `sessions/manager/runner.py` |

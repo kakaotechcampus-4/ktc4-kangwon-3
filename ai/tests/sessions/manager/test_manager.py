@@ -1211,6 +1211,26 @@ def test_재시작_전_실행_중이던_세션은_다시_돌리지_않고_재시
     assert "재시작 전 실행 중이던 진단을 시간 초과 실패로 끝냄 (정상 종료 처리 없이 끊김)" in _messages(caplog, "WARNING")
 
 
+def test_최대_시간을_넘긴_대기_세션은_되살릴_때_실행하지_않고_시간_초과로_끝낸다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _AnswerJob()
+    clock = _Clock()
+    manager = _manager(managers, job, clock=clock, max_duration=timedelta(minutes=10))
+    seen = []
+    manager.subscribe(lambda e: seen.append((type(e), e.session.context.product_id)))
+    clock.now = START + timedelta(minutes=10)
+
+    manager.restore([_saved("p-1", SessionStatus.ACCEPTED)])
+
+    session = manager.get("p-1")
+    assert (session.status, session.error_code, session.retryable) == (SessionStatus.FAILED, "AI_TIMEOUT", True)
+    assert seen == [(Failed, "p-1")]
+    assert manager.snapshot().inflight == 0
+    time.sleep(0.1)
+    assert job.inputs == []
+    assert "재시작 전 대기 세션이 최대 시간을 넘겨 실행하지 않고 시간 초과 실패로 끝냄" in _messages(caplog, "WARNING")
+
+
 def test_대기·답변_대기·실행_중_말고는_되살리지_않는다(managers, caplog):
     caplog.set_level(logging.INFO, logger="app.sessions")
     manager = _manager(managers, _GatedJob())
