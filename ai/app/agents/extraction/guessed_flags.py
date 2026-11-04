@@ -104,6 +104,40 @@ def drop_unsupported_false(attributes: dict[str, Any], text: str) -> list[str]:
     return dropped
 
 
+# 소재·재질·재료·성분 줄("키\n값" 또는 "키: 값")의 값에 식물성 재질이 적혀 있으면 plant_material을 확정한다.
+# 모델이 "72% Cotton"·"소재: 종이"를 false로 두는 일이 잦다(초안 50건 측정, 2026-11-05).
+# 재질 줄 밖의 낱말(포장 "종이 상자", "나무 심기 프로그램")은 근거가 아니라 줄 단위로만 본다.
+_MATERIAL_ROW = re.compile(
+    r"(?:^|\n)[^\n:：]{0,20}(?:소재|재질|재료|성분|material)[^\n:：]{0,10}[:：]?[ \t]*\n?[ \t]*(?P<value>[^\n]+)",
+    re.IGNORECASE,
+)
+# "면"은 "양면발열"·"면도기"처럼 다른 낱말 안에도 있어 한글 낱말 안의 면은 재질로 보지 않는다.
+_PLANT_MATERIAL = re.compile(
+    r"(?<![가-힣])면(?![가-힣])|cotton|코튼|종이|paper|나무|목재|원목|wood|우드|대나무|bamboo|라탄|등나무|rattan"
+    r"|린넨|리넨|linen|황마|jute|코르크|cork|밀짚|짚|straw|티크|teak|월넛|walnut|오크|oak|소나무|pine",
+    re.IGNORECASE,
+)
+
+
+def confirm_plant_material(attributes: dict[str, Any], text: str) -> list[str]:
+    """소재 줄에 식물성 재질이 적혀 있으면 plant_material을 True로 확정한다. attributes를 그 자리에서 고친다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+        text: 모델이 읽은 판매자 영역 원문. 블록을 합친 글.
+
+    Returns:
+        list[str]: True로 바꾼 필드 이름 (바꿨으면 ["plant_material"]).
+    """
+    if attributes.get("plant_material") is True:
+        return []
+    for row in _MATERIAL_ROW.finditer(text):
+        if _PLANT_MATERIAL.search(row.group("value")):
+            attributes["plant_material"] = True
+            return ["plant_material"]
+    return []
+
+
 def drop_conflicted_battery(attributes: dict[str, Any]) -> list[str]:
     """배터리 모순이 있는 페이지에서 배터리 두 칸의 확정을 None으로 바꾼다. attributes를 그 자리에서 고친다.
 

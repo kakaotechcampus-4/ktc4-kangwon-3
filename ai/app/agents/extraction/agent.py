@@ -11,7 +11,7 @@ from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
 from ..base import BaseAgent
 from .errors import ExtractionFailedError
-from .guessed_flags import drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
+from .guessed_flags import confirm_plant_material, drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
 from .title_spec_conflicts import detect_title_spec_conflicts
@@ -90,6 +90,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         payload = output.model_dump()
         guessed = drop_guessed_false(payload)
         unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))
+        confirmed = confirm_plant_material(payload, "\n".join(source.text_blocks))
         battery_conflicts = detect_battery_capacity_conflict(source.text_blocks)
         conflicted = drop_conflicted_battery(payload) if battery_conflicts else []
         # 제목↔스펙표 모순은 검토 후보로만 남긴다(필드를 None으로 되돌리지 않음). 모델이 거의 보고하지 않아 규칙이 맡는다.
@@ -101,6 +102,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         trace_note("postprocess", {
             "guessed_false_to_none": guessed,
             "unsupported_false_to_none": unsupported,
+            "plant_material_confirmed": confirmed,
             "conflicted_battery_to_none": conflicted,
             "titles_restored": payload["listing_text"][:len(payload["listing_text"]) - len(output.listing_text)],
             "rule_attributes_added": payload["attributes"][len(output.attributes):],

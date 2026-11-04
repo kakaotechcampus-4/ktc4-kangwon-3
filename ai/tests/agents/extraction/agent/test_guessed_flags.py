@@ -168,3 +168,60 @@ def test_코드_규칙이_배터리_모순을_찾으면_배터리_칸을_확정�
 
     assert (result.battery_included, result.battery_is_the_product) == (None, None)
     assert any("1460mAh" in conflict for conflict in result.conflicts)
+
+
+# 소재 줄에 식물성 재질이 적혀 있으면 plant_material을 true로 확정한다 (초안 50건 측정 2026-11-05:
+# "72% Cotton", "소재: 종이"를 모델이 false로 둠). 재질 줄 밖의 낱말("나무 심기", 포장 "종이 상자")은 근거가 아니다.
+from app.agents.extraction.guessed_flags import confirm_plant_material
+
+
+@pytest.mark.parametrize("text", [
+    "소재 구성\n72% Cotton 25% Polyester 3% Spandex",
+    "재료\n면,폴리에스테르,스판덱스",
+    "소재: 종이",
+    "본체재질\n원목",
+    "Material\nBamboo",
+    "성분\n100% 린넨",
+])
+def test_소재_줄에_식물성_재질이_있으면_plant_material을_true로_확정한다(text):
+    attributes = {"plant_material": False}
+
+    assert confirm_plant_material(attributes, text) == ["plant_material"]
+    assert attributes["plant_material"] is True
+
+
+def test_모름이던_plant_material도_소재_줄이_있으면_true가_된다():
+    attributes = {"plant_material": None}
+
+    confirm_plant_material(attributes, "소재\n대나무")
+
+    assert attributes["plant_material"] is True
+
+
+@pytest.mark.parametrize("text", [
+    "성분\n95% 폴리에스테르, 5% Nylon",
+    "소재\n폴리에스테르 섬유\n충전식 휴대용 전기 핫팩 양면발열",
+    "포장\n종이 상자\n재료\n플라스틱",
+    "Temu의 나무 심기 프로그램\n재료\nABS",
+    "소재\n면도기용 스테인리스",
+])
+def test_소재_줄에_식물성_재질이_없으면_건드리지_않는다(text):
+    attributes = {"plant_material": False}
+
+    assert confirm_plant_material(attributes, text) == []
+    assert attributes["plant_material"] is False
+
+
+def test_이미_true면_바꾼_목록에_넣지_않는다():
+    attributes = {"plant_material": True}
+
+    assert confirm_plant_material(attributes, "소재\n원목") == []
+
+
+def test_추출_결과에_식물성_재질_확정이_적용된다(stub_model, records):
+    reply = ProductAttributes(product_name="아기 양말", plant_material=False)
+    agent = ExtractionAgent(stub_model(reply))
+
+    result = agent.run(ExtractionInput(product_id="p", text_blocks=["소재 구성\n72% Cotton 25% Polyester 3% Spandex"]))
+
+    assert result.plant_material is True
