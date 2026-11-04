@@ -40,42 +40,42 @@
 - 서비스 소개
 - 로그인 여부에 따라 상품 업로드 또는 로그인으로 이동
 
-![메인 화면](docs/images/readme-main.png)
+<img src="docs/images/readme-main.png" alt="메인 화면" width="600">
 
 **로그인**
 - 카카오·네이버·구글 소셜 로그인
 
-![로그인 화면](docs/images/readme-login.png)
+<img src="docs/images/readme-login.png" alt="로그인 화면" width="600">
 
 **상품 업로드**
 - URL 또는 텍스트·이미지로 상품 등록
 - 최대 10개까지 한 번에 담아 진단 요청
 
-![상품 업로드 화면](docs/images/readme-upload.png)
+<img src="docs/images/readme-upload.png" alt="상품 업로드 화면" width="600">
 
 **진단 진행**
 - 상품별 진단 진행 상황 확인
 - 먼저 끝난 상품은 바로 결과 확인 가능
 
-![진단 진행 화면](docs/images/readme-judgement.gif)
+<img src="docs/images/readme-judgement.gif" alt="진단 진행 화면" width="600">
 
 **질문 답변**
 - AI가 판단하기 어려운 부분을 질문
 - 답변하면 진단이 이어서 진행
 
-![질문 답변 화면](docs/images/readme-question.png)
+<img src="docs/images/readme-question.png" alt="질문 답변 화면" width="600">
 
 **진단 결과**
 - 판정 결과와 근거 법령 확인
 - 판매 전 해야 할 일 안내
 
-![진단 결과 화면](docs/images/readme-result.png)
+<img src="docs/images/readme-result.png" alt="진단 결과 화면" width="600">
 
 **마이페이지**
 - 진단한 상품 검색·필터·관리
 - 회원 정보 조회·수정, 상품 삭제, 회원 탈퇴
 
-![마이페이지 화면](docs/images/readme-mypage.png)
+<img src="docs/images/readme-mypage.png" alt="마이페이지 화면" width="600">
 
 ## 기술 스택
 
