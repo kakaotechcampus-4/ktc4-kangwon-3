@@ -49,6 +49,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -90,14 +91,15 @@ class UserControllerTest {
     @Test
     @DisplayName("인증 없이 회원 탈퇴를 요청하면 401과 COMMON-004 코드를 응답한다.")
     void withdraw_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(delete("/api/v1/users/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
     }
 
     @Test
-    @DisplayName("인증된 회원이 탈퇴를 요청하면 성공하고 리프레시 토큰 쿠키가 만료된다.")
-    void withdraw_thenSuccessAndExpireCookie() throws Exception {
+    @DisplayName("인증된 회원이 탈퇴를 요청하면 본문 없이 204 응답을 받고 리프레시 토큰 쿠키가 만료된다.")
+    void withdraw_thenNoContentAndExpireCookie() throws Exception {
         // given
         UUID userId = UUID.randomUUID();
         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
@@ -107,8 +109,8 @@ class UserControllerTest {
         mockMvc.perform(delete("/api/v1/users/me")
                         .with(authentication(authentication))
                         .cookie(new Cookie(RefreshTokenCookieProvider.COOKIE_NAME, "refresh")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refresh_token=;")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
         then(userWithdrawalUseCase).should().withdraw(userId, "refresh");

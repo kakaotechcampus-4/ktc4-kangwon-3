@@ -12,6 +12,7 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from app.agents.verification import VerificationAgent
+from app.observability.trace import trace_run
 from app.prompts import PromptName, get_prompt
 from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Product
@@ -289,3 +290,17 @@ def test_인증이_아닌_안전_주장은_실증자료_안내를_받는다():
     result = _run(model, "어린이에게 무해한 소재")
 
     assert "실증자료" in result.required_actions[0]
+
+
+def test_기록_중이면_원문과_대조해_남긴_주장·버린_인용·코드가_더한_KC_표기를_Tool_단계에_남긴다(tmp_path):
+    model = _StubModel([_claim("하중 300kg 버팀"), _claim("세계 최초 특허 구조", "ranking_absolute")])
+
+    with trace_run(tmp_path) as recorder:
+        _run(model, "접이식 캠핑 의자, 하중 300kg 버팀 KC인증 완료")
+
+    [step] = recorder.steps
+    assert step["claims"]["kept"] == [_claim("하중 300kg 버팀")]
+    assert step["claims"]["dropped_quotes"] == ["세계 최초 특허 구조"]
+    assert [claim["quote"] for claim in step["claims"]["kc_added"]] == ["KC인증"]
+    assert [call["component"] for call in step["calls"]] == ["advertising"]
+    assert [finding["subject"] for finding in step["result"]["findings"]] == ["하중 300kg 버팀", "KC인증"]

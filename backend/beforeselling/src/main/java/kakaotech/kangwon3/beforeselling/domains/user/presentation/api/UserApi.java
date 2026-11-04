@@ -56,9 +56,9 @@ public interface UserApi {
                     같은 소셜 계정으로 다시 로그인하면 새 회원으로 자동 가입됩니다.
                     """)
     @ApiResponseExplanations(
-            success = @ApiSuccessResponseExplanation(description = "탈퇴 성공")
+            success = @ApiSuccessResponseExplanation(responseCode = CommonResponseCode.NO_CONTENT, description = "탈퇴 성공")
     )
-    ResponseEntity<ApiResponse<Void>> withdraw(
+    ResponseEntity<Void> withdraw(
             @Parameter(hidden = true) UserPrincipal principal,
             @Parameter(hidden = true) String refreshToken,
             @Parameter(hidden = true) HttpServletResponse response);

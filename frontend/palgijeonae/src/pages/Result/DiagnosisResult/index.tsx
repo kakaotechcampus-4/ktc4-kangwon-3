@@ -50,7 +50,7 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
             <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
                 <FindingFilterBar counts={findingCounts} selected={findingFilter} onSelect={setFindingFilter} />
                 {allFindings.length > 0 && (
-                    <HelpTooltip label="판정·위험도 설명" className="right-0 max-w-none whitespace-nowrap">
+                    <HelpTooltip label="판정·위험도 설명" className="max-w-none whitespace-nowrap">
                         {DETERMINATION_LEGEND_ORDER.map((determination) => (
                             <p key={determination}>
                                 <span className="font-semibold">{DETERMINATION_LABELS[determination]}</span>
@@ -62,7 +62,7 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
                     </HelpTooltip>
                 )}
             </div>
-            <div className="flex w-full flex-col gap-10">
+            <div className="flex w-full flex-col gap-15">
                 {visibleToolReviews.map((toolReview) => (
                     <ToolReviewCard key={toolReview.productToolReviewId} toolReview={toolReview} findingFilter={findingFilter} />
                 ))}

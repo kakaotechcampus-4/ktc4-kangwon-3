@@ -42,7 +42,7 @@ function LawCard({ legalSource }: LawCardProps) {
             {FIELD_ORDER.filter((field) => fieldValues[field]).map((field) => (
                 <div key={field} className="flex items-center gap-4">
                     <p className="w-21 shrink-0 text-sm font-bold text-neutral-muted">{FIELD_LABELS[field]}</p>
-                    <p className="text-sm text-black">{fieldValues[field]}</p>
+                    <p className="text-sm whitespace-pre-line text-black">{fieldValues[field]}</p>
                 </div>
             ))}
             {sourceUrl && (
