@@ -282,6 +282,8 @@ class SessionManager:
         """서버 종료 때 대기열은 취소하고 실행 중인 세션만 상한 시간까지 기다린 뒤 관리자를 닫는다.
 
         기다리는 동안 끝난 세션은 평소처럼 이벤트(결과 콜백)가 나감.
+        남은 세션이 모두 최대 시간을 넘기는 시각이 상한보다 이르면 그때까지만 기다리고,
+        최대 시간을 넘긴 세션은 시간 초과 실패로 끝냄 (정리 루프 주기를 기다리지 않음).
         취소한 대기 세션, 상한을 넘긴 실행 중 세션, 답변 대기 세션은 경고로 남기고 버림.
 
         Args:
@@ -291,12 +293,27 @@ class SessionManager:
         with self._futures_lock:
             running = [future for future in self._futures if not future.cancelled()]
         if running:
+            # 마감이 지난 세션은 결과가 나와도 버려져 더 기다리지 않음
+            wait_seconds = min(timeout, self._seconds_until_all_overdue())
             started_at = perf_counter()
-            logger.info("서버 종료: 실행 중 진단 %d개를 최대 %d초 기다림", len(running), timeout)
-            _, left = wait_futures(running, timeout=timeout)
+            logger.info("서버 종료: 실행 중 진단 %d개를 최대 %.0f초 기다림", len(running), wait_seconds)
+            _, left = wait_futures(running, timeout=wait_seconds)
             logger.info("서버 종료: 실행 중 진단 %d개 끝남, %d개 남음 (%.1f초)",
                         len(running) - len(left), len(left), perf_counter() - started_at)
+        self.expire_overdue()
         _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0))
+
+    def _seconds_until_all_overdue(self) -> float:
+        """끝나지 않은 세션이 모두 최대 시간을 넘길 때까지 남은 시간.
+
+        Returns:
+            float: 남은 시간(초). 끝나지 않은 세션이 없거나 모두 넘겼으면 0.
+        """
+        now = self._clock()
+        remaining = [
+            (session.accepted_at + self._max_duration - now).total_seconds() for session in self._store.unfinished()
+        ]
+        return max([0.0, *remaining])
 
     def _schedule(self, context: ExecutionContext) -> None:
         """세션 실행을 스레드 풀에 예약하고, 끝나면 예약 목록에서 뺀다.

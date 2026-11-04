@@ -173,6 +173,10 @@ def test_서버를_끄는_중에도_최대_시간을_넘긴_진단은_시간_초
         _wait_until(started.is_set)
         # 접수 1초 뒤 시간 초과. 그보다 늦게 풀어 drain 중에 시간 초과가 나게 함
         threading.Timer(2, gate.set).start()
+        manager = main.app.state.session_manager
+    # 멈춘 진단 스레드가 다음 테스트까지 남지 않게 끝날 때까지 기다림
+    gate.set()
+    _wait_until(lambda: manager.snapshot().inflight == 0)
 
     events = [json.loads(request.content) for request in fake_be]
     failed = [event for event in events if event["eventType"] == "product_failed"]

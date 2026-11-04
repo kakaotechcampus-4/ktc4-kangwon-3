@@ -1084,6 +1084,26 @@ def test_drain은_상한_시간을_넘긴_실행_중_세션을_경고로_남기�
     assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 실행 중 1개(p-1) (결과 콜백 없음)"]
 
 
+def test_drain은_실행_중_세션의_최대_시간까지만_기다리고_넘긴_세션은_시간_초과로_끝낸다(managers, caplog):
+    clock = _Clock()
+    job = _GatedJob()
+    manager = _manager(managers, job, clock=clock)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: job.started == ["p-1"])
+    clock.now = START + timedelta(minutes=10)
+
+    started = time.monotonic()
+    manager.drain(timeout=5)
+    elapsed = time.monotonic() - started
+    job.release("p-1")
+
+    assert elapsed < 1
+    session = manager.get("p-1")
+    assert (session.status, session.error_code, session.retryable) == (SessionStatus.FAILED, "AI_TIMEOUT", True)
+    # 시간 초과 실패로 끝나 버리는 세션 경고에서 빠짐
+    assert _messages(caplog, "WARNING") == []
+
+
 def test_drain은_실행_중_세션이_없으면_기다리지_않는다(managers, caplog):
     caplog.set_level(logging.INFO, logger="app.sessions")
     manager = _manager(managers, _GatedJob())
