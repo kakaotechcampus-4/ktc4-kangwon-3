@@ -256,7 +256,7 @@ const slipperAwaiting = makePreviewProduct({
             questionOrder: 2,
             questionText: "공급사가 KC 관련 서류(시험성적서·확인서 등)를 갖고 있나요?",
             helpText: "서류가 없으면 통관 및 판매가 제한될 수 있습니다.",
-            answerText: "",
+            answerText: "확인해보니 아직 받지 못했어요. 공급사에 요청해둔 상태입니다.",
         },
     ],
 });
