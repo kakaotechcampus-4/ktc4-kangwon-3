@@ -264,6 +264,6 @@ def _with_outcome(verdict: GuardVerdict, thresholds: ReviewThresholds) -> GuardV
     if (text is not None and text >= thresholds.text_low) or (image is not None and image >= thresholds.image_low):
         return replace(verdict, outcome=GuardOutcome.SUSPECT)
     # 못 본 부분에 지시가 있을 수 있어 경고 로그로 남김
-    if verdict.failed_calls:
+    if verdict.failed_calls or verdict.skipped_images:
         return replace(verdict, outcome=GuardOutcome.SUSPECT)
     return replace(verdict, outcome=GuardOutcome.PASS)
