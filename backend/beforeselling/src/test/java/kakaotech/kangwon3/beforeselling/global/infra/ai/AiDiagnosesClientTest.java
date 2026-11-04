@@ -202,6 +202,23 @@ class AiDiagnosesClientTest {
                 });
     }
 
+    @Test
+    @DisplayName("409 응답 본문이 JSON 형식이 아니면 충돌 상품이 빈 충돌 예외가 발생한다.")
+    void requestDiagnoses_whenConflictBodyMalformed_thenThrowConflictWithoutProductIds() {
+        // given
+        server.expect(requestTo(DIAGNOSE_URL))
+                .andRespond(withStatus(HttpStatus.CONFLICT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("not-json"));
+
+        // when & then
+        assertThatThrownBy(() -> client.requestDiagnoses(emptyRequest()))
+                .isInstanceOfSatisfying(AiDiagnosesRequestException.class, e -> {
+                    assertThat(e.getFailure()).isEqualTo(AiDiagnosesRequestException.Failure.CONFLICT);
+                    assertThat(e.getConflictProductIds()).isEmpty();
+                });
+    }
+
     @ParameterizedTest
     @ValueSource(ints = {429, 500, 502, 503, 504})
     @DisplayName("AI가 대기열 초과(429)나 서버 오류(5xx)로 응답하면 요청을 받지 않은 것으로 본다.")

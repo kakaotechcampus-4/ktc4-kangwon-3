@@ -199,6 +199,21 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("이미지가 없는 상품을 삭제하면 S3 삭제 이벤트를 발행하지 않는다.")
+    void removeProduct_withoutImages_thenNoS3FileDeleteEvent() {
+        // given
+        Diagnoses diagnoses = createDiagnoses(List.of("상품 A", "상품 B"));
+        ReflectionTestUtils.setField(diagnoses.getProducts().getFirst(), "productImageKey", null);
+        givenLockedDiagnoses(diagnoses);
+
+        // when
+        productService.removeProduct(USER_ID, PRODUCT_ID);
+
+        // then
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
     @DisplayName("상품이 남아 있으면 진단서는 삭제되지 않는다.")
     void removeProduct_withRemainingProducts_thenKeepDiagnoses() {
         // given
