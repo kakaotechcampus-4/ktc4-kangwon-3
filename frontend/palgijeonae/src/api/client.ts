@@ -82,6 +82,9 @@ apiClient.interceptors.response.use(
             const method = error.config?.method?.toUpperCase() ?? 'UNKNOWN'
             const path = toPathTemplate(error.config?.url ?? '')
 
+            // 이슈 제목(에러 타입)은 그대로 두고, 설명만 사용자에게 보여주는 것과 같은 한글 메시지로 바꾼다.
+            error.message = getErrorMessage(error, error.message)
+
             Sentry.withScope((scope) => {
                 scope.setLevel(level)
                 scope.setFingerprint([method, path, code ?? 'UNKNOWN'])
