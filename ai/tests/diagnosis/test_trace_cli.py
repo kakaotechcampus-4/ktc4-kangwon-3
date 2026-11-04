@@ -10,7 +10,7 @@ import pytest
 from app.diagnosis import trace_cli
 from app.diagnosis.trace_cli import TraceInputError, next_run_name, read_source, replay_run, resume_input, run
 from app.dummy.cases import CASES, DummyCaseName
-from app.observability.trace import trace_finish, trace_note, trace_step
+from app.observability.trace import trace_alias, trace_finish, trace_note, trace_step
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason
 from app.sessions.job import JobDone, JobNeedsInput
@@ -30,12 +30,17 @@ def source(tmp_path):
 
 @pytest.fixture
 def fake_job(monkeypatch):
-    """추출 input·output을 남기고, 첫 실행은 질문하고 멈추고 답이 있으면 끝나는 가짜 진단 함수. 받은 입력을 inputs에."""
+    """추출 input·output을 남기고, 첫 실행은 질문하고 멈추고 답이 있으면 끝나는 가짜 진단 함수. 받은 입력을 inputs에.
+
+    판단 ID(실행마다 새 uuid)는 실행 안 번호로 등록.
+    """
     inputs = []
 
     def job(job_input, context, progress):
         inputs.append(job_input)
         result = CASES[DummyCaseName.KC_FAN].build(job_input.source.product_id)
+        for finding in result.findings:
+            trace_alias(finding.finding_id, "f")
         with trace_step("extraction"):
             trace_note("input", job_input)
             trace_note("output", result.product)
@@ -146,6 +151,23 @@ def test_다시_실행은_이전_trace의_입력으로_같은_폴더에_다음_�
     assert path == out / "run-2.json"
     assert saved["info"]["replay"] == {"from": str(first), "stage": "selection", "only": True}
     assert fake_job[1] == fake_job[0]
+
+
+def _finding_ids(path):
+    return [finding["finding_id"] for finding in json.loads(path.read_text(encoding="utf-8"))["finish"]["result"]["findings"]]
+
+
+@pytest.mark.parametrize("resume", [
+    lambda source, first: run(source, first.parent, ["r1_q1=네"]),
+    lambda source, first: replay_run(first, "selection", False, first.parent),
+], ids=["재진단", "다시_실행"])
+def test_이어_실행의_새_ID는_이전_실행_번호_다음부터_붙는다(source, fake_job, tmp_path, resume):
+    first = run(source, tmp_path / "traces", [])
+
+    second = resume(source, first)
+
+    assert _finding_ids(first) == ["f1"]
+    assert _finding_ids(second) == ["f2"]
 
 
 @pytest.mark.parametrize("argv", [

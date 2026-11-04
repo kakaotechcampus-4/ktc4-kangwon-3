@@ -180,5 +180,5 @@ jq '.steps[] | select(.kind == "selection") | .output' logs/traces/kc-fan/run-1.
 - trace 파일에는 상품 원문·모델 응답 원문이 들어감. 예외 메시지 속 URL의 키도 가리지 않음 → `logs/` 밖으로 옮기거나 공유하지 않음 (입력 파일도 `logs/trace-inputs/`처럼 git이 무시하는 곳에)
 - 파일을 못 쓰면 경고 로그만 남기고 진단 결과·예외는 그대로
 - 저장한 결과는 그때 스키마 모양. 스키마가 바뀐 뒤 옛 trace로 단계 다시 실행하면 읽기 오류
-- 재진단할 때 이전 결과는 trace 파일에서 읽어 판단 · 진단서 ID 등이 이미 `f1`, `a1`처럼 번호. 새 실행의 번호와 이름이 겹칠 수 있음 (진단 동작엔 영향 없음)
+- 재진단 · 단계 다시 실행은 이전 결과를 trace 파일에서 읽어 판단 · 진단서 ID 등이 이미 `f1`, `a1`처럼 번호. 새 실행은 그 번호 다음부터 셈 (이전 `f5`까지면 새 판단은 `f6`부터)
 - 이미지 자르기 기록(`app/diagnosis/tracing.py`)은 `ImageSplitter`의 내부 메서드(`_tiles`)·값(`_max_tiles`)에 기대고, 상한 판단을 같은 순서로 다시 셈. `ImageSplitter`를 바꾸면 같이 확인

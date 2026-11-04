@@ -134,6 +134,19 @@ def test_실행마다_달라지는_값은_처음_나온_순서대로_번호를_�
     assert _read(tmp_path / "run-1.json")["info"] == {"keys": {"f2": "f1 와 f2"}}
 
 
+def test_이전_실행_값에_든_번호_다음부터_세고_이전_번호와_단계·호출_번호는_그대로다(tmp_path):
+    earlier = json.dumps({"finding_id": "f3", "issue_id": "i2", "step": "s9", "text": "f7 언급"})
+
+    with trace_run(tmp_path) as recorder:
+        recorder.continue_ids(earlier)
+        with trace_step("tool") as step:
+            pass
+
+        assert [trace_alias("uuid-a", "f"), trace_alias("uuid-b", "i"), trace_alias("uuid-c", "e")] == ["f4", "i3", "e1"]
+        assert [trace_alias("f3", "f"), trace_alias("i2", "i")] == ["f3", "i2"]
+    assert step["id"] == "s1"
+
+
 def test_예외_메시지는_길면_자른다():
     assert len(error_info(ValueError("가" * 5000))["message"]) == 1000
 
