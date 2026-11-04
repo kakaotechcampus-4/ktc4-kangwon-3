@@ -236,7 +236,7 @@ class _ToolExecution:
 def _alias_ids(value: object) -> None:
     """실행마다 달라지는 ID(uuid)를 trace 저장 때 실행 안 번호로 바꾸게 등록한다. 기록 중이 아니면 아무것도 안 함.
 
-    Tool 실행 ID는 e, 진단서 ID는 a, 검증 지적 ID는 i (판단 ID f는 Tool 기록에서). 두 실행 diff 비교용.
+    Tool 실행 ID는 e, 진단서 ID는 a, 검증 지적 ID는 i, 재질문 ID는 q (판단 ID f는 Tool 기록에서). 두 실행 diff 비교용.
 
     Args:
         value: 단계 결과 (Tool 실행 결과·종합 초안·검증 결과). 그 밖의 값은 무시.
@@ -247,9 +247,13 @@ def _alias_ids(value: object) -> None:
                 trace_alias(result.execution_id, "e")
     elif isinstance(value, DraftAssessment):
         trace_alias(value.assessment_id, "a")
+        for question in value.follow_up_questions:
+            trace_alias(question.question_id, "q")
     elif isinstance(value, VerificationResult):
         for issue in value.issues:
             trace_alias(issue.issue_id, "i")
+        for question in value.follow_up_questions:
+            trace_alias(question.question_id, "q")
 
 
 class _Aggregation:

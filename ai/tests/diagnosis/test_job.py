@@ -383,22 +383,26 @@ def test_기록_중이면_Tool_실행_ID를_실행_안_번호로_바꿔_저장�
     assert '"execution_id": "e1"' in text
 
 
-def test_진단서·검증_지적_ID도_실행_안_번호로_바꾸고_같은_ID는_같은_번호다(tmp_path):
+def test_진단서·검증_지적·재질문_ID도_실행_안_번호로_바꾸고_같은_ID는_같은_번호다(tmp_path):
     assessment_id, first_issue, second_issue = "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"
-    draft = DraftAssessment.model_construct(assessment_id=assessment_id)
+    question_id = "44444444-4444-4444-8444-444444444444"
+    question = FollowUpQuestion.model_construct(question_id=question_id)
+    draft = DraftAssessment.model_construct(assessment_id=assessment_id, follow_up_questions=[question])
     verification = VerificationResult.model_construct(issues=[
-        VerificationIssue.model_construct(issue_id=first_issue), VerificationIssue.model_construct(issue_id=second_issue)])
+        VerificationIssue.model_construct(issue_id=first_issue), VerificationIssue.model_construct(issue_id=second_issue)],
+        follow_up_questions=[question])
 
     with trace_run(tmp_path):
         with trace_step("verification"):
             _alias_ids(draft)
             _alias_ids(verification)
             _alias_ids(draft)
-            trace_note("output", [assessment_id, first_issue, second_issue])
+            trace_note("output", [assessment_id, first_issue, second_issue, question_id])
 
     text = (tmp_path / "run-1.json").read_text(encoding="utf-8")
     assert UUID.search(text) is None
-    assert '"a1"' in text and '"i1"' in text and '"i2"' in text and '"a2"' not in text
+    assert all(f'"{alias}"' in text for alias in ("a1", "i1", "i2", "q1"))
+    assert '"a2"' not in text and '"q2"' not in text
 
 
 def test_기록_중이_아니면_ID를_그대로_둔다():

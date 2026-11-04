@@ -99,7 +99,7 @@ venv/bin/python -m app.diagnosis.trace_cli --from logs/traces/kc-fan/run-1.json 
 | `prompts` | 시스템 프롬프트 원문 (지문 → 원문). 호출에는 지문만 |
 
 - ID는 실행 안에서 나온 순서대로 (`s1`, `c1`, …). 같은 입력이면 같은 ID라 diff로 비교 가능
-- 실행마다 새로 만드는 ID(uuid)도 실행 안 번호로 바꿔 저장. 판단 ID `f1`·`f2`…, Tool 실행 ID `e1`…, 진단서 ID `a1`, 검증 지적 ID `i1`…. 검증 호출 본문 속 ID도 같이 바뀜
+- 실행마다 새로 만드는 ID(uuid)도 실행 안 번호로 바꿔 저장. 판단 ID `f1`·`f2`…, Tool 실행 ID `e1`…, 진단서 ID `a1`, 검증 지적 ID `i1`…, 재질문 ID `q1`…. 검증 호출 본문 속 ID도 같이 바뀜
 - 이미지는 링크만. 링크가 없는 data URI(긴 이미지 조각)는 본문 대신 `data:image/jpeg;base64,…(생략)`
 
 ### 3.1 단계
