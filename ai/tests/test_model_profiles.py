@@ -36,22 +36,15 @@ def test_모델이_받지_않는_추론_강도는_거부한다():
         ModelProfile("wrong", OpenAIModel("plain", None), reasoning_effort="low")
 
 
-def test_Gemini는_temperature와_추론_강도를_같이_받는다():
-    gemini = GeminiModel("gemini", None, reasoning_efforts=("low",))
+@pytest.mark.parametrize("model_class", [GeminiModel, ClaudeModel])
+def test_Gemini와_Claude는_temperature와_추론_강도를_같이_받는다(model_class):
+    model = model_class("model", None, reasoning_efforts=("low",))
 
-    profile = ModelProfile("gemini", gemini, temperature=0, reasoning_effort="low")
+    profile = ModelProfile("model", model, temperature=0, reasoning_effort="low")
 
     assert (profile.temperature, profile.reasoning_effort) == (0, "low")
-
-
-@pytest.mark.parametrize("options", [{"temperature": 0}, {"reasoning_effort": "low"}])
-def test_Claude는_게이트웨이를_거치면_temperature도_추론_강도도_못_준다(options):
-    # 추론 강도를 카탈로그에 적어 둬도 구조화 출력과 충돌해 거부
-    claude = ClaudeModel("claude", None, reasoning_efforts=("low",))
-
-    with pytest.raises(ValueError, match="claude:"):
-        ModelProfile("claude", claude, **options)
-    assert ModelProfile("claude", claude).metadata()["temperature"] is None
+    with pytest.raises(ValueError, match="추론 강도"):
+        ModelProfile("wrong", model, reasoning_effort="xhigh")
 
 
 def test_기본_배정은_있는_프로필만_가리키고_프로필_모델은_카탈로그에_있다():
@@ -80,7 +73,8 @@ def test_비용_단가표는_단가를_아는_모델만_카탈로그에서_만�
         model.id: {"input": model.price.input, "cached_input": model.price.cached_input, "output": model.price.output}
         for model in (*CHAT_MODELS.values(), *DECISION_MODELS.values()) if model.price
     }
-    assert set(usage.PRICING_KRW) == {"openai/gpt-4.1-mini", "openai/gpt-6-luna", "typesafe/jev-latest"}
+    assert set(usage.PRICING_KRW) == {"openai/gpt-4.1-mini", "openai/gpt-6-luna", "openai/gpt-6.1-terra",
+                                      "anthropic/claude-haiku-5-5", "typesafe/jev-latest"}
 
 
 def test_Tool_표에_있는_이름은_ToolName_값이다():

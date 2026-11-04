@@ -56,6 +56,13 @@ public class UserService {
     }
 
     @Transactional
+    public User updateName(UUID userId, String name) {
+        User user = getUser(userId);
+        user.updateName(name);
+        return user;
+    }
+
+    @Transactional
     public void updateSocialRefreshToken(UUID userId, String refreshToken) {
         User user = getUser(userId);
         user.updateSocialRefreshToken(refreshToken);

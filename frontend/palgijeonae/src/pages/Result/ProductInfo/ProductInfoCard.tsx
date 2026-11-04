@@ -29,7 +29,7 @@ function ProductInfoCard({ productName, sourceType, sourceUrl, sourceText }: Pro
                         href={sourceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={cn(VALUE_CLASS, "text-primary underline")}
+                        className={cn(VALUE_CLASS, "min-w-0 text-primary underline break-all")}
                     >
                         {sourceUrl}
                     </a>

@@ -21,6 +21,7 @@ class SchedulingConfigTest {
     @Test
     @DisplayName("AI를 호출하는 스케줄러가 막혀도 정리 스케줄러가 돌 수 있도록 스케줄러 스레드를 3개 둔다.")
     void taskScheduler_thenPoolSizeIsThree() {
+        // when & then
         assertThat(taskScheduler.getScheduledThreadPoolExecutor().getCorePoolSize()).isEqualTo(3);
     }
 }

@@ -5,6 +5,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from ...observability.measurements import SellerRegionCut, measurement_sinks
+from ...observability.trace import trace_note
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
@@ -86,14 +87,22 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         """
         source, titles = _trim_to_seller_region(input)
         payload = output.model_dump()
-        drop_guessed_false(payload)
-        drop_unsupported_false(payload, "\n".join(source.text_blocks))
+        guessed = drop_guessed_false(payload)
+        unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))
         rule_conflicts = detect_battery_capacity_conflict(source.text_blocks)
-        if rule_conflicts:
-            drop_conflicted_battery(payload)
+        conflicted = drop_conflicted_battery(payload) if rule_conflicts else []
         payload["listing_text"] = _keep_seller_titles(output.listing_text, titles)
         payload["attributes"] = _merge_attributes(output.attributes, extract_rule_based_attributes(source.text_blocks))
         payload["conflicts"] = _merge_conflicts(output.conflicts, rule_conflicts)
+        # 모델 출력(호출 파일)에서 코드가 바꾼 것만
+        trace_note("postprocess", {
+            "guessed_false_to_none": guessed,
+            "unsupported_false_to_none": unsupported,
+            "conflicted_battery_to_none": conflicted,
+            "titles_restored": payload["listing_text"][:len(payload["listing_text"]) - len(output.listing_text)],
+            "rule_attributes_added": payload["attributes"][len(output.attributes):],
+            "rule_conflicts_added": payload["conflicts"][len(output.conflicts):],
+        })
         return Product(product_id=source.product_id, source_url=source.source_url, **payload)
 
 
@@ -115,6 +124,12 @@ def _trim_to_seller_region(source: ExtractionInput, *, record: bool = False) -> 
         for region in regions:
             if region.site is not None:
                 measurement_sinks.publish(SellerRegionCut(site=region.site, trimmed=region.trimmed))
+        # 블록마다 알아본 쇼핑몰·자르기 여부·찾은 제목·글자 수 전후 (자른 글은 호출 파일에)
+        trace_note("seller_region", [
+            {"site": region.site, "trimmed": region.trimmed, "title": region.title,
+             "chars": [len(block), len(region.text)]}
+            for block, region in zip(source.text_blocks, regions)
+        ])
     trimmed = source.model_copy(update={"text_blocks": [region.text for region in regions]})
     titles = list(dict.fromkeys(region.title for region in regions if region.title))
     return trimmed, titles

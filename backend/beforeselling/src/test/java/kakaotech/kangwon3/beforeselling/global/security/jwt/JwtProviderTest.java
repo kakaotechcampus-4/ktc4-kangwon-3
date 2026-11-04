@@ -122,6 +122,7 @@ class JwtProviderTest {
     @Test
     @DisplayName("형식이 올바르지 않은 문자열을 검증하면 INVALID_ACCESS_TOKEN 예외가 발생한다.")
     void parseMalformedToken_thenThrowInvalidAccess() {
+        // when & then
         assertThatThrownBy(() -> jwtProvider.parse("not.a.jwt", TokenType.ACCESS))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
@@ -139,6 +140,36 @@ class JwtProviderTest {
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(AuthResponseCode.INVALID_ACCESS_TOKEN);
+    }
+
+    @Test
+    @DisplayName("type 클레임이 없으면 서명이 유효해도 INVALID_ACCESS_TOKEN 예외가 발생한다.")
+    void parseTokenWithoutTypeClaim_thenThrowInvalidAccess() {
+        // given
+        String token = Jwts.builder()
+                .id(UUID.randomUUID().toString())
+                .subject(UUID.randomUUID().toString())
+                .claim("role", Role.USER.name())
+                .issuedAt(new Date())
+                .expiration(Date.from(Instant.now().plus(Duration.ofMinutes(30))))
+                .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
+                .compact();
+
+        // when & then
+        assertThatThrownBy(() -> jwtProvider.parse(token, TokenType.ACCESS))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(AuthResponseCode.INVALID_ACCESS_TOKEN);
+    }
+
+    @Test
+    @DisplayName("리프레시 토큰으로 검증할 때 형식이 올바르지 않으면 INVALID_REFRESH_TOKEN 예외가 발생한다.")
+    void parseMalformedRefreshToken_thenThrowInvalidRefresh() {
+        // when & then
+        assertThatThrownBy(() -> jwtProvider.parse("not.a.jwt", TokenType.REFRESH))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(AuthResponseCode.INVALID_REFRESH_TOKEN);
     }
 
     private String tokenWithRawRoleClaim(String rawRole) {

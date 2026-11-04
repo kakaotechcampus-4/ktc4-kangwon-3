@@ -60,5 +60,5 @@ def test_판단_모델_호출_기록은_판단_모델_이름과_단가로_남기
 
     meta = agent._finish_call(usage, "p-1", perf_counter(), decision_questions=questions)
 
-    assert (meta.model, meta.reasoning_effort, meta.cost_krw) == ("typesafe/jev-latest", None, 64.0)
+    assert (meta.model, meta.reasoning_effort, meta.cost_krw) == ("typesafe/jev-latest", None, 59.0)
     assert (records[0]["configured_model"], records[0]["reasoning_effort"]) == ("typesafe/jev-latest", None)

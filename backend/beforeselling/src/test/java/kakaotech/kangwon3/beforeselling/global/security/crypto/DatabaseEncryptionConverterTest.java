@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Base64;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -51,6 +53,7 @@ class DatabaseEncryptionConverterTest {
     @Test
     @DisplayName("null을 암호화하면 null을 반환하고, null을 복호화해도 null을 반환한다.")
     void convert_withNull_thenReturnNull() {
+        // when & then
         assertThat(converter.convertToDatabaseColumn(null)).isNull();
         assertThat(converter.convertToEntityAttribute(null)).isNull();
     }
@@ -58,7 +61,20 @@ class DatabaseEncryptionConverterTest {
     @Test
     @DisplayName("Base64 형식이 아닌 데이터를 복호화하면 IllegalStateException을 던진다.")
     void convertToEntityAttribute_withInvalidBase64_thenThrow() {
+        // when & then
         assertThatThrownBy(() -> converter.convertToEntityAttribute("not-a-valid-base64!!"))
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("암호화 키가 32바이트(AES-256)가 아니면 초기화할 때 IllegalStateException을 던진다.")
+    void init_withInvalidKeyLength_thenThrow() {
+        // given
+        String sixteenByteKey = Base64.getEncoder().encodeToString(new byte[16]);
+        DatabaseEncryptionConverter invalidConverter =
+                new DatabaseEncryptionConverter(new CryptoProperties(sixteenByteKey));
+
+        // when & then
+        assertThatThrownBy(invalidConverter::init).isInstanceOf(IllegalStateException.class);
     }
 }
