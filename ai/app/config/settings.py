@@ -22,7 +22,6 @@ REQUIRED_ENV = {
     "OPENAI_BASE_URL": "base_url",
     "OPENAI_EMBEDDING_MODEL": "embedding_model",
     "DATA_GO_KR_KEY": "data_go_kr_key",
-    "KEY_SAFETYKOREA": "safetykorea_key",
     "LAW_GO_KR_OC": "law_oc",
     "INTERNAL_API_TOKEN": "internal_api_token",
     "BE_BASE_URL": "be_base_url",
@@ -30,6 +29,9 @@ REQUIRED_ENV = {
 
 # BE InternalApiProperties의 @Size(min = 32)와 같은 기준
 INTERNAL_API_TOKEN_MIN_LENGTH = 32
+
+# (선택) SafetyKorea 키. KC 인증 조회를 쓰는 Tool이 없어 비워 두면 꺼짐
+SAFETYKOREA_KEY_ENV = "KEY_SAFETYKOREA"
 
 # (선택) 개발용 진단 엔드포인트. 켤 때만 키 필수
 DEV_API_ENABLED_ENV = "AI_DEV_API_ENABLED"
@@ -83,7 +85,7 @@ class Settings:
         base_url: ML API 주소 (OPENAI_BASE_URL).
         embedding_model: 임베딩 모델 이름 (OPENAI_EMBEDDING_MODEL).
         data_go_kr_key: 공공데이터포털 서비스 키 (DATA_GO_KR_KEY). 관세청 세관장확인·식약처가 사용.
-        safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA).
+        safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA). 선택. 쓰는 Tool이 없어 비어 있으면 SafetyKorea를 쓰지 않음.
         law_oc: 법제처 OC 값 (LAW_GO_KR_OC).
         internal_api_token: BE 내부 API 토큰 (INTERNAL_API_TOKEN). 콜백 X-Internal-Token 헤더 값, BE와 같은 값.
         be_base_url: 콜백을 보낼 BE 주소 (BE_BASE_URL).
@@ -212,6 +214,7 @@ def load_settings() -> Settings:
     # Settings 객체를 생성하고 반환
     return Settings(
         **values,
+        safetykorea_key=os.environ.get(SAFETYKOREA_KEY_ENV, "").strip(),
         database_url=os.environ.get("DATABASE_URL", "").strip(),
         dev_api_enabled=_parse_bool(DEV_API_ENABLED_ENV, os.environ.get(DEV_API_ENABLED_ENV, "")),
         dev_api_key=os.environ.get(DEV_API_KEY_ENV, "").strip(),
