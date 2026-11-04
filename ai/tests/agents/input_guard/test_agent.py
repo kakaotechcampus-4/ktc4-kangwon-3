@@ -161,6 +161,14 @@ def test_판단하지_못한_부분이_있으면_점수가_낮아도_의심으�
     assert (verdict.outcome, verdict.image_scores, verdict.failed_calls) == (GuardOutcome.SUSPECT, [None, 0.02], 1)
 
 
+def test_못_본_이미지가_있으면_판단이_다_성공해도_의심으로_둔다(agent, images):
+    urls = images(["LOW"], skipped=1)
+
+    verdict = agent.run(GuardInput("p-1", ["선풍기"], urls))
+
+    assert (verdict.outcome, verdict.image_scores, verdict.failed_calls) == (GuardOutcome.SUSPECT, [0.02], 0)
+
+
 def test_일시_오류는_한_번_더_불러_판정한다(agent, gateway, records):
     verdict = agent.run(GuardInput("p-1", ["FLAKY"]))
 
