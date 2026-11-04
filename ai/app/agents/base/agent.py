@@ -136,11 +136,20 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         profile = agent_decision_profile(self.component_name)
         return (profile, profile.model.id) if profile else (None, None)
 
+    @classmethod
+    def system_prompt(cls) -> PromptSnapshot:
+        """모델에 보내는 시스템 프롬프트 스냅샷. 모델 없이 클래스로 구함 (평가 기록 지문용).
+
+        Returns:
+            PromptSnapshot: 원문·경로·지문. 가드레일을 쓰면 본문 뒤에 붙이고 지문도 합친 본문 기준.
+        """
+        prompt = get_prompt(cls.prompt_name)
+        return attach_guardrail(prompt) if cls.uses_guardrail else prompt
+
     @property
     def prompt(self) -> PromptSnapshot:
-        """시스템 프롬프트 스냅샷 (원문·경로·지문). 가드레일을 쓰면 본문 뒤에 붙이고 지문도 합친 본문 기준."""
-        prompt = get_prompt(self.prompt_name)
-        return attach_guardrail(prompt) if self.uses_guardrail else prompt
+        """시스템 프롬프트 스냅샷 (원문·경로·지문). ``system_prompt()``와 같음."""
+        return self.system_prompt()
 
     def run(self, input: InputT) -> ResultT:
         """입력을 처리해 결과를 돌려준다.

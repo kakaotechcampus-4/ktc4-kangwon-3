@@ -62,3 +62,8 @@ def test_표시했는데_공통_가드레일_문서가_없으면_생성_때_실�
     with pytest.raises(FileNotFoundError):
         guarded_rules_only()
     fakes.RulesOnly()
+
+
+def test_모델_없이_클래스로_구한_시스템_프롬프트는_에이전트가_보내는_것과_같다(guarded_rules_only, fakes):
+    assert guarded_rules_only.system_prompt() == guarded_rules_only().prompt
+    assert fakes.RulesOnly.system_prompt() is get_prompt(PromptName.EXTRACTION)
