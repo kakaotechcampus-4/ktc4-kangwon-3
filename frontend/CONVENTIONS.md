@@ -1,8 +1,8 @@
 # 프론트엔드 코드 컨벤션
 
-`frontend/palgijeonae` 코드를 작성할 때 따르는 규칙입니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../../CONTRIBUTING.md)를 참고하세요.
+`frontend/palgijeonae` 코드를 작성할 때 따르는 규칙입니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../CONTRIBUTING.md)를 참고하세요.
 
-자동으로 강제되는 규칙(import 정렬, 미사용 import 제거)은 ESLint([`eslint.config.js`](eslint.config.js))가 처리하므로, `npm run lint`(가능하면 `--fix`)를 커밋 전에 돌리면 아래 규칙 상당수가 저절로 맞춰집니다.
+자동으로 강제되는 규칙(import 정렬, 미사용 import 제거)은 ESLint([`eslint.config.js`](palgijeonae/eslint.config.js))가 처리하므로, `npm run lint`(가능하면 `--fix`)를 커밋 전에 돌리면 아래 규칙 상당수가 저절로 맞춰집니다.
 
 ## 목차
 
@@ -47,7 +47,7 @@ src/
 | enum 타입 | PascalCase | `ResultStatus`, `SourceType` |
 | enum 멤버 | PascalCase 키 + BE와 동일한 문자열 값 | `InProgress = "IN_PROGRESS"` |
 
-- 상태값은 느슨한 문자열 리터럴 대신 꼭 enum으로 다룹니다([`api/types.ts`](src/api/types.ts), [`api/product.ts`](src/api/product.ts)). enum에는 멤버별 의미를 설명하는 JSDoc을 답니다.
+- 상태값은 느슨한 문자열 리터럴 대신 꼭 enum으로 다룹니다([`api/types.ts`](palgijeonae/src/api/types.ts), [`api/product.ts`](palgijeonae/src/api/product.ts)). enum에는 멤버별 의미를 설명하는 JSDoc을 답니다.
 
 ## 컴포넌트 작성 규칙
 
@@ -66,7 +66,7 @@ export default Example;
 
 - 함수 선언(`function Example() {}`) 뒤에 `export default Example;`을 파일 맨 아래에 따로 씁니다. `export default function`으로 한 줄에 합치지 않습니다.
 - Props는 `ComponentNameProps` 인터페이스로 정의합니다.
-- 여러 스타일 변형이 필요하면 `class-variance-authority`(`cva`)로 variant를 정의하고, 클래스 조합·조건부 적용은 `cn()`([`lib/cn.ts`](src/lib/cn.ts))으로 합칩니다(예: [`components/common/Button`](src/components/common/Button/index.tsx)).
+- 여러 스타일 변형이 필요하면 `class-variance-authority`(`cva`)로 variant를 정의하고, 클래스 조합·조건부 적용은 `cn()`([`lib/cn.ts`](palgijeonae/src/lib/cn.ts))으로 합칩니다(예: [`components/common/Button`](palgijeonae/src/components/common/Button/index.tsx)).
 - 주석은 한국어로, 코드만 읽어서는 알기 어려운 "왜"를 설명합니다. 코드가 그대로 보여주는 내용은 주석으로 반복하지 않습니다.
 
 ## import 규칙
@@ -78,7 +78,7 @@ export default Example;
 
 ## API·타입 정의 위치
 
-- API 함수는 도메인별로 `src/api/*.ts`에 둡니다(`api/product.ts`, `api/result.ts`, `api/user.ts` ...). `apiClient`([`api/client.ts`](src/api/client.ts))를 사용하고, 함수는 BE 응답의 `data`만 꺼내 돌려줍니다.
+- API 함수는 도메인별로 `src/api/*.ts`에 둡니다(`api/product.ts`, `api/result.ts`, `api/user.ts` ...). `apiClient`([`api/client.ts`](palgijeonae/src/api/client.ts))를 사용하고, 함수는 BE 응답의 `data`만 꺼내 돌려줍니다.
   ```ts
   export async function getMyInfo(): Promise<UserInfo> {
       const response = await apiClient.get("/api/v1/users/me");
@@ -87,21 +87,21 @@ export default Example;
   ```
 - 여러 페이지가 함께 쓰는 도메인 타입·enum은 `api/types.ts`(상태값 등 전역 enum) 또는 해당 도메인 API 파일(`api/product.ts`의 `ToolName`, `Determination` 등)에 둡니다.
 - 한 페이지에서만 쓰는 타입은 그 페이지 폴더의 `types.ts`에 둡니다(`pages/Mypage/types.ts`, `pages/Result/types.ts`).
-- BE API가 아직 준비되지 않았을 때는 `api/*.ts` 함수 내부를 모듈 상태 기반 목업으로 임시 대체하고, 연동되면 `api/mock/*Mock.ts`로 옮깁니다(기존 [`api/mock/`](src/api/mock) 참고). 이미 연동된 API 함수를 다시 목업으로 보고 싶을 때는 호출부의 import만 `@/api/X` → `@/api/mock/XMock`으로 바꾸면 됩니다.
+- BE API가 아직 준비되지 않았을 때는 `api/*.ts` 함수 내부를 모듈 상태 기반 목업으로 임시 대체하고, 연동되면 `api/mock/*Mock.ts`로 옮깁니다(기존 [`api/mock/`](palgijeonae/src/api/mock) 참고). 이미 연동된 API 함수를 다시 목업으로 보고 싶을 때는 호출부의 import만 `@/api/X` → `@/api/mock/XMock`으로 바꾸면 됩니다.
 
 ## 상태 관리
 
 - 서버 데이터는 TanStack Query로 관리합니다. 페이지 폴더의 `use*.ts` 훅 하나가 조회(`useQuery`) 또는 수정(`useMutation`) 하나를 책임집니다(`useMyProducts.ts`, `useDeleteProduct.ts`). `queryKey`는 `[도메인, 식별자]` 형태로 짓습니다.
 - 수정 후 목록을 다시 불러와야 하면 `invalidateQueries`, 응답으로 캐시만 바로 갱신해도 되면 `setQueryData`를 씁니다.
-- 로그인 등 클라이언트 전역 상태는 Zustand로 관리합니다([`store/useAuthStore.ts`](src/store/useAuthStore.ts)).
+- 로그인 등 클라이언트 전역 상태는 Zustand로 관리합니다([`store/useAuthStore.ts`](palgijeonae/src/store/useAuthStore.ts)).
 
 ## 에러 처리
 
-- BE 에러 메시지는 직접 파싱하지 않고 `getErrorMessage(error, fallback)`([`api/client.ts`](src/api/client.ts))로 꺼냅니다. `details[0].message` → `message` → `fallback` 순으로 찾고, 429(`COMMON-011`)는 `Retry-After` 헤더로 만든 전용 문구를 우선합니다.
+- BE 에러 메시지는 직접 파싱하지 않고 `getErrorMessage(error, fallback)`([`api/client.ts`](palgijeonae/src/api/client.ts))로 꺼냅니다. `details[0].message` → `message` → `fallback` 순으로 찾고, 429(`COMMON-011`)는 `Retry-After` 헤더로 만든 전용 문구를 우선합니다.
 - 요청 실패 알림과 삭제·탈퇴 같은 되돌릴 수 없는 액션의 사전 확인은 `alert`/`confirm`으로 처리합니다(커스텀 토스트·모달 없음).
 
 ## 스타일
 
 - Tailwind CSS만 쓰고 별도 CSS 파일은 만들지 않습니다.
-- 색상·폰트는 [`src/index.css`](src/index.css)의 `@theme` 토큰만 씁니다.
+- 색상·폰트는 [`src/index.css`](palgijeonae/src/index.css)의 `@theme` 토큰만 씁니다.
 - 접근성(aria 속성, 키보드 조작, `prefers-reduced-motion` 대응 등)은 [`README.md`의 접근성](README.md#접근성) 절을 참고하세요.
