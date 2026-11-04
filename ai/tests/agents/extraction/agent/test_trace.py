@@ -22,7 +22,8 @@ def test_기록_중이면_블록마다_쇼핑몰·자르기_여부·제목·글�
 
 def test_기록_중이면_되돌린_false·되살린_제목·규칙이_더한_속성과_모순을_남긴다(stub_model, records, aliexpress_page,
                                                        tmp_path):
-    reply = ProductAttributes(food_contact=False, listing_text=["판매자 설명 문장"])
+    reply = ProductAttributes(food_contact=False, wireless_comm=False, battery_included=True,
+                              listing_text=["판매자 설명 문장"])
     source = ExtractionInput(product_id="p-1",
                              text_blocks=[aliexpress_page, "MagSafe 1460mAh 케이스", "배터리 속성 배터리 미포함"])
 
@@ -31,6 +32,9 @@ def test_기록_중이면_되돌린_false·되살린_제목·규칙이_더한_�
 
     post = recorder.info["postprocess"]
     assert post["guessed_false_to_none"] == ["food_contact"]
+    # 무선 통신 부정 표기가 없는 false, 배터리 모순 페이지의 배터리 확정
+    assert post["unsupported_false_to_none"] == ["wireless_comm"]
+    assert post["conflicted_battery_to_none"] == ["battery_included"]
     assert post["titles_restored"] == [_TITLE]
     assert [(attribute["name"], attribute["value"]) for attribute in post["rule_attributes_added"]] == [
         ("배터리 용량", "1460mAh")]
