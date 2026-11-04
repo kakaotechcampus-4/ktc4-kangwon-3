@@ -130,6 +130,27 @@ def test_운영_경로로_접수한_상품은_실제_진단_함수로_돌고_결
     assert events[-1]["assessment"]["status"] == "completed"
 
 
+def test_서버를_끄면_실행_중_진단이_끝날_때까지_기다리고_결과를_BE_콜백으로_보낸다(fake_be, monkeypatch):
+    started, gate = threading.Event(), threading.Event()
+
+    def slow_job(*args):
+        started.set()
+        gate.wait(timeout=5)
+        return _dummy.run_dummy_diagnosis(*args)
+
+    monkeypatch.setattr(main, "build_job", lambda parts, questions: slow_job)
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+        client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        _wait_until(started.is_set)
+        # 종료 처리 중에 진단이 끝나게 함
+        threading.Timer(0.2, gate.set).start()
+
+    events = [json.loads(request.content) for request in fake_be]
+    assert events[-1]["eventType"] == "product_result"
+
+
 def test_운영_경로는_내부_토큰이_없으면_401이고_접수하지_않는다(fake_be):
     with TestClient(main.app) as client:
         response = client.post("/api/ai/v1/diagnose/content", json={

@@ -13,7 +13,7 @@ from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
 from .clients.llm.decision import close_decision_clients
 from .clients.llm.embedding import embed_texts_sync
-from .config import SESSION_SWEEP_SECONDS, get_settings
+from .config import SESSION_DRAIN_SECONDS, SESSION_SWEEP_SECONDS, get_settings
 from .diagnosis import build_job, build_parts, build_questions
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
@@ -146,14 +146,14 @@ async def lifespan(app: FastAPI):
             clip_ingester.cancel()
             with suppress(asyncio.CancelledError):
                 await clip_ingester
-        # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드도 끝까지 못 돎: uvicorn이 종료 처리 뒤
-        # 받은 SIGTERM을 다시 발생시켜 프로세스가 바로 끝남. 버리는 세션은 관리자가 경고로 남김.
-        # BE는 멈춤 감지(15분)로 실패 처리
-        manager.shutdown(wait=False)
+        # 실행 중 세션은 상한 시간까지 기다림(끝난 결과는 콜백으로). 대기열 세션은 취소됨(콜백 없음)
+        # 상한을 넘긴 실행 중 스레드는 uvicorn이 종료 처리 뒤 SIGTERM을 다시 발생시켜 함께 끊김.
+        # 버리는 세션은 관리자가 경고로 남김. BE는 멈춤 감지(15분)로 실패 처리
+        await asyncio.to_thread(manager.drain, SESSION_DRAIN_SECONDS)
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
-        # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
+        # 상한을 넘긴 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
         close_llm_clients()
         close_decision_clients()
         agent_sinks.remove(agent_metrics)
