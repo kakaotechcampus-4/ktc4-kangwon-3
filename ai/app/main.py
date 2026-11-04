@@ -133,9 +133,6 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        sweeper.cancel()
-        with suppress(asyncio.CancelledError):
-            await sweeper
         if law_refresher is not None:
             # 실행 중인 점검 스레드는 끝까지 돎. 닫힌 클라이언트 오류는 그 문서 실패로만 남음
             law_refresher.cancel()
@@ -150,6 +147,10 @@ async def lifespan(app: FastAPI):
         # 상한을 넘긴 실행 중 스레드는 uvicorn이 종료 처리 뒤 SIGTERM을 다시 발생시켜 함께 끊김.
         # 버리는 세션은 관리자가 경고로 남김. BE는 멈춤 감지(15분)로 실패 처리
         await asyncio.to_thread(manager.drain, SESSION_DRAIN_SECONDS)
+        # 정리 루프는 drain 뒤에 멈춤. 기다리는 중 최대 시간을 넘긴 세션도 시간 초과 실패 콜백으로 끝냄
+        sweeper.cancel()
+        with suppress(asyncio.CancelledError):
+            await sweeper
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
