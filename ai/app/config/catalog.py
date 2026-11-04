@@ -5,7 +5,8 @@
 
 새 모델은 회사 클래스 상수 하나 + CHAT_MODELS에 넣기.
     - 구조화 출력(json_schema)·temperature·추론 강도를 한 번씩 호출해 보고 reasoning_efforts를 채움
-    - 단가는 추론 강도와 무관하게 모델당 하나 (세 회사 모두 추론 토큰이 출력 토큰에 포함되어 보고됨)
+    - 단가는 추론 강도와 무관하게 모델당 하나 
+    - 26.11.04. Claude 모델의 경우 추론 강도에 따른 출력 토큰의 변화가 없는 것으로 확인 
 
 판단 모델(/decisions)은 DecisionModel 상수 하나 + DECISION_MODELS에 넣기.
     - 요청·응답 형식이 회사마다 달라 vendor로 클라이언트를 고름 (clients.llm.decision)
@@ -117,11 +118,10 @@ GPT_41_MINI = OpenAIModel(
     Price(input=567.0, cached_input=141.0, output=2268.0),
     price_source="엘리스 ML API 모델 라이브러리 2026-11-03",
 )
-# 캐시 입력은 라이브러리에 표시 없음. OpenAI 최신 계열 비율(입력의 10%)로 추정
 GPT_6_LUNA = OpenAIModel(
     "gpt-6-luna",
     Price(input=141.0, cached_input=14.0, output=708.0),
-    price_source="엘리스 ML API 모델 라이브러리 2026-11-03 (캐시 입력은 입력의 10%로 추정)",
+    price_source="엘리스 ML API 모델 라이브러리 2026-11-03",
     reasoning_efforts=("none", "low", "medium", "high", "xhigh"),
 )
 # 2026-11-03 실호출: temperature는 기본값(1)만, 추론 강도 none~xhigh ("minimal" 거부), high부터 추론 토큰 보고
