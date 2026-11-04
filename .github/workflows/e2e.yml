@@ -1,0 +1,80 @@
+name: E2E
+
+# FE·BE·mock-ai를 함께 띄워 핵심 사용자 흐름을 브라우저로 검증한다.
+# 전체 스택을 띄워 느리므로 PR마다 돌리지 않고, develop에 머지된 뒤와 수동 실행 때만 돈다.
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "frontend/palgijeonae/**"
+      - "backend/beforeselling/**"
+      - "loadtest/mock-ai/**"
+      - "e2e/**"
+      - ".github/workflows/e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 연달아 머지되면 앞선 실행은 취소하고 최신 커밋만 검증한다.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node 22 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            frontend/palgijeonae/package-lock.json
+            e2e/package-lock.json
+
+      - name: FE 의존성 설치
+        working-directory: frontend/palgijeonae
+        run: npm ci
+
+      - name: E2E 의존성·브라우저 설치
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # 실패했을 때 BE·mock-ai 로그를 남기려고 스택은 테스트와 따로 띄우고 내린다.
+      - name: E2E 스택 실행 (BE·DB·Redis·mock-ai)
+        run: |
+          docker compose -f compose.e2e.yml up -d --build --wait
+          docker compose -f compose.e2e.yml exec -T db psql -U e2e -d beforeselling < seed/users.sql
+
+      - name: E2E 테스트
+        env:
+          E2E_KEEP_STACK: "1"
+        run: npx playwright test
+
+      - name: 스택 로그 저장 (실패 시)
+        if: failure()
+        run: docker compose -f compose.e2e.yml logs --no-color > stack.log
+
+      - name: 테스트 결과 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            e2e/stack.log
+          retention-days: 7
+
+      - name: E2E 스택 정리
+        if: always()
+        run: docker compose -f compose.e2e.yml down -v
