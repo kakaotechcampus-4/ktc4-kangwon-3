@@ -6,6 +6,7 @@ import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";
 
+import { useRetryDiagnosis } from "../useRetryDiagnosis";
 import { BANNER_ACTION_LABELS, BannerAction, resolveBannerConfig } from "./bannerConfig";
 
 const ACTION_BUTTON_CLASS = "cursor-pointer rounded-full px-5 py-3 text-sm font-semibold text-white";
@@ -36,15 +37,12 @@ function ResultBanner({ product, judgementPath, questionPath, onNextStepsClick }
         : config.action === BannerAction.Question ? questionPath
         : undefined;
 
-    // 옳지 못한 상태(진단 중, 입력 대기 중)에서 결과 페이지에 접근한 경우 화면 이동(Judgement/Question)이 필요.
+    // 진단 결과가 없는 상태(진단 중, 입력 대기 중)에서 결과 페이지에 접근한 경우 화면 이동(Judgement/Question)이 필요.
     const needsPath = config.action === BannerAction.Judgement || config.action === BannerAction.Question;
     // 경로가 필요한 액션인데 경로가 없으면(productId로 접근해 diagnosesId가 없는 경우 등) 버튼 자체를 숨긴다.
     const action = config.action && (!needsPath || actionPath) ? config.action : undefined;
 
-    // TODO: 재진단 API/플로우가 정해지면 실제 재시도 로직으로 교체
-    const handleRetryClick = () => {
-        alert("재시도 기능은 아직 준비 중이에요.");
-    };
+    const { mutate: runRetryDiagnosis, isPending: isRetrying } = useRetryDiagnosis(product.productId, product.diagnosesId);
 
     return (
         <DefaultBox tone={config.tone}>
@@ -67,8 +65,9 @@ function ResultBanner({ product, judgementPath, questionPath, onNextStepsClick }
                     ) : (
                         <button
                             type="button"
-                            onClick={action === BannerAction.Retry ? handleRetryClick : onNextStepsClick}
-                            className={cn(ACTION_BUTTON_CLASS, config.buttonColorClass)}
+                            onClick={action === BannerAction.Retry ? () => runRetryDiagnosis() : onNextStepsClick}
+                            disabled={action === BannerAction.Retry && isRetrying}
+                            className={cn(ACTION_BUTTON_CLASS, config.buttonColorClass, "disabled:cursor-default disabled:opacity-50")}
                         >
                             {BANNER_ACTION_LABELS[action]}
                         </button>

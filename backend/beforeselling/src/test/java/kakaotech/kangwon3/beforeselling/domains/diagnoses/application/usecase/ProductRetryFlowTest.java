@@ -18,6 +18,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesAccepted;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiDiagnosesRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,7 @@ import static org.mockito.Mockito.timeout;
  * 실패한 상품 재시도부터 커밋 뒤 비동기 진단 요청, 새 실행 식별자 저장, 새 실행의 질문 저장까지 실제 DB와 트랜잭션으로 확인한다.
  * AI 서버만 목으로 둔다.
  */
+@Tag("integration")
 @SpringBootTest
 @ActiveProfiles("test")
 class ProductRetryFlowTest {

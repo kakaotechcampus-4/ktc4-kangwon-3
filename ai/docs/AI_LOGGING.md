@@ -1,6 +1,6 @@
 # AI 서버 로그
 
-AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에서 보는 방법, 오류를 Sentry로 보내는 방식을 정리한다. 로그 논의는 #497, 지표는 [AI_METRICS.md](AI_METRICS.md).
+AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에서 보는 방법, 오류를 Sentry로 보내는 방식을 정리한다. 로그 논의는 #497, 지표는 [AI_METRICS.md](AI_METRICS.md), 로컬 진단 trace는 [AI_TRACE.md](AI_TRACE.md).
 
 ## 1. 설정
 

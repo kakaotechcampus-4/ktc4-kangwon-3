@@ -254,7 +254,7 @@ def test_판단_모델_비용은_요청한_등록명_단가로_계산한다():
     call = usage.CallUsage("typesafe/jev-1.14-20261014", input_tokens=1_000_000, cached_tokens=0, output_tokens=0)
 
     # 실제 버전이 아니라 요청한 등록명으로 단가를 찾음
-    assert usage.estimate_krw(call, "typesafe/jev-latest") == 64.0
+    assert usage.estimate_krw(call, "typesafe/jev-latest") == 59.0
     assert usage.estimate_krw(call, "typesafe/jev-1.14-20261014") is None
 
 

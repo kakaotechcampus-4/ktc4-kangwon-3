@@ -42,7 +42,7 @@ function RiskMeter({ riskLevel }: RiskMeterProps) {
                     />
                 ))}
             </div>
-            <p className={cn("text-sm font-semibold", style.textColorClass)}>{style.label}</p>
+            <p className={cn("text-sm font-semibold whitespace-nowrap", style.textColorClass)}>{style.label}</p>
         </div>
     );
 }

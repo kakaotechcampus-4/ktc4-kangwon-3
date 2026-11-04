@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.infra.mail;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import java.util.Map;
  * 실행: aws sso login 후
  *   MAIL_TEST_TO=받을주소 ./gradlew test --tests '*SesMailManualTest'
  */
+@Tag("integration")
 @SpringBootTest(properties = {
         "app.mail.type=SES_API",
         // application-test.yaml 의 발신 주소(noreply@test.local)는 SES 인증 도메인이 아니라 거부된다.

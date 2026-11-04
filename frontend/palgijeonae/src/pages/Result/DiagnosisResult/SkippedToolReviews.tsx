@@ -18,7 +18,7 @@ function SkippedToolReviews({ toolReviews }: SkippedToolReviewsProps) {
             {toolReviews.map((toolReview) => (
                 <div key={toolReview.productToolReviewId} className="flex w-full items-start gap-3">
                     <p className="w-30 shrink-0 text-sm font-bold text-neutral-text">{TOOL_NAME_LABELS[toolReview.toolName]}</p>
-                    <p className="flex-1 text-sm text-neutral-muted">{toolReview.message}</p>
+                    <p className="flex-1 text-sm whitespace-pre-line text-neutral-muted">{toolReview.message}</p>
                 </div>
             ))}
         </DefaultBox>
