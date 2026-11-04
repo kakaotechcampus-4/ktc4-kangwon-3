@@ -14,8 +14,8 @@ services:
     image: ai-server:${IMAGE_TAG:-latest}
     container_name: ai-server
     restart: unless-stopped
-    # 종료 신호 뒤 강제 종료까지 대기. 진단 최대 시간(600초)에 맞춤 = 실행 중 진단 기다림(SESSION_DRAIN_SECONDS 590초)
-    # + 남은 콜백(5초) + 여유. 배포(up -d --build)로 컨테이너를 바꿀 때도 적용됨. 기본값 10초면 기다리는 중에 강제 종료
+    # 종료 신호 뒤 강제 종료까지 대기. 진단 최대 시간(600초)에 맞춤 = 실행 중 진단 기다림(SESSION_DRAIN_SECONDS 580초)
+    # + 남은 콜백(15초) + 여유. 배포(up -d --build)로 컨테이너를 바꿀 때도 적용됨. 기본값 10초면 기다리는 중에 강제 종료
     stop_grace_period: 600s
     mem_limit: 1g
     logging: *logging

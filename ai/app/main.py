@@ -41,7 +41,8 @@ logger = logging.getLogger(__name__)
 disable_created_metrics()
 
 # 종료 시 남은 콜백을 보내는 최대 대기 시간. 넘으면 버리고 로그만 남김
-CALLBACK_CLOSE_SECONDS = 5.0
+# 콜백 요청 하나의 대기 상한(5초)에 재시도 두어 번이 들어가게 둠
+CALLBACK_CLOSE_SECONDS = 15.0
 
 
 async def _sweep_sessions(manager: SessionManager) -> None:
