@@ -1,4 +1,6 @@
 import * as Sentry from '@sentry/react'
+import { useEffect } from 'react'
+import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from 'react-router-dom'
 
 const dsn = import.meta.env.VITE_SENTRY_DSN
 
@@ -15,4 +17,16 @@ Sentry.init({
     httpHeaders: false,
     httpBodies: [],
   },
+  integrations: [
+    // v7 전용 reactRouterV7BrowserTracingIntegration 대신, SDK 10.59.0+에서 쓸 수 있는
+    // 버전 무관 API(v6·v7·v8 공용)를 쓴다.
+    Sentry.reactRouterBrowserTracingIntegration({
+      useEffect,
+      useLocation,
+      useNavigationType,
+      createRoutesFromChildren,
+      matchRoutes,
+    }),
+  ],
+  tracesSampleRate: 0.2,
 })
