@@ -22,8 +22,8 @@ from .questions import build_questions
 
 logger = logging.getLogger(__name__)
 
-# 차단 때 실패를 늦추는 범위 (초)
-BLOCK_DELAY_SECONDS = (8.0, 20.0)
+# 차단 때 실패를 늦추는 범위 (초). 보통 추출 단계 알림 뒤 결과까지 걸리는 시간에 맞춤
+BLOCK_DELAY_SECONDS = (5.0, 10.0)
 # 차단·의심 로그에 남기는 원문 길이
 EXCERPT_CHARS = 200
 # 차단 실패 콜백의 BE 전용 검토 표시 값 (error.reviewFlag)

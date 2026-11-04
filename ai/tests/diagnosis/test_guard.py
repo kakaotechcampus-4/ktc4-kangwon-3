@@ -5,7 +5,7 @@ import logging
 import pytest
 
 from app.agents.input_guard import GuardInput, GuardOutcome, GuardVerdict
-from app.diagnosis.guard import REVIEW_FLAG_BLOCKED, guard_input, guarded
+from app.diagnosis.guard import BLOCK_DELAY_SECONDS, REVIEW_FLAG_BLOCKED, guard_input, guarded
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.domain.errors import AIResponseCode
 from app.dummy.cases import CASES, DummyCaseName
@@ -70,7 +70,7 @@ def sleeps() -> list[float]:
 
 def _run(guard, sleeps: list[float], job_input: DiagnosisInput = DiagnosisInput(source=SOURCE)):
     job, progress = Job(), Progress()
-    outcome = guarded(job, guard, delay=(8.0, 20.0), sleep=sleeps.append)(job_input, CONTEXT, progress)
+    outcome = guarded(job, guard, delay=BLOCK_DELAY_SECONDS, sleep=sleeps.append)(job_input, CONTEXT, progress)
     return outcome, job, progress
 
 
@@ -105,7 +105,7 @@ def test_차단이면_진단하지_않고_추출_단계_알림_뒤_늦춰_일반
                                 review_flag=REVIEW_FLAG_BLOCKED)
     assert job.calls == 0
     assert progress.stages == [PipelineStage.EXTRACTION]
-    assert len(sleeps) == 1 and 8.0 <= sleeps[0] <= 20.0
+    assert len(sleeps) == 1 and 5.0 <= sleeps[0] <= 10.0
 
 
 @pytest.mark.parametrize("outcome", [GuardOutcome.PASS, GuardOutcome.SUSPECT])
