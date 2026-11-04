@@ -173,7 +173,8 @@ class CustomsTool(EvidenceSearchTool):
         query["requirements"] = {code: [item.law_name for item in requirements if item.hs_code == code]
                                  for code in hs_codes if code not in unresolved}
         case_sources = [_case_source(case) for case, _, _ in chosen]
-        rationale = " ".join(selection.rationale for _, selection, _ in chosen)
+        # 사례마다 이유가 따로라 줄을 나눔 (진단서 판단 근거는 줄바꿈을 그대로 보여 줌)
+        rationale = "\n".join(selection.rationale for _, selection, _ in chosen)
 
         # ④ 법령별 요건 후보와 판매 방식별 할 일
         findings = []

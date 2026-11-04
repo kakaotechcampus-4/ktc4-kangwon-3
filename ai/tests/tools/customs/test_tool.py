@@ -121,6 +121,15 @@ def test_결정사례로_HS_후보를_찾고_그_HS의_세관장확인_요건을
     assert result.query["related_tools"] == {"전기용품 및 생활용품 안전관리법": ToolName.ELECTRICAL.value}
 
 
+def test_고른_결정사례가_여럿이면_사례마다_이유를_줄을_나눠_남긴다():
+    product, facts = product_and_facts()
+    chosen = review(select(), select(JUG_CASE, rationale="무선 주전자로 같은 물품입니다."))
+
+    result, _, _, _ = run(product, facts, chosen)
+
+    assert result.findings[0].rationale == "전기로 물을 끓이는 주전자로 같은 물품입니다.\n무선 주전자로 같은 물품입니다."
+
+
 def test_근거는_관세법_제226조와_고시_별표2_행과_결정사례다():
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()))
