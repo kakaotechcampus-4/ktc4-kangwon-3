@@ -1,3 +1,5 @@
+import apiClient from "./client";
+
 export enum SocialProvider {
     Kakao = "KAKAO",
     Naver = "NAVER",
@@ -10,7 +12,7 @@ export interface UserInfo {
     socialProvider: SocialProvider
 }
 
-// TODO: BE API 연동 시 apiClient 호출로 되돌리고, 아래 목업은 api/mock/userMock.ts로 옮긴다.
+// TODO: 내 정보 조회·수정 API가 develop에 병합되면 apiClient 호출로 되돌리고, 아래 목업은 api/mock/userMock.ts로 옮긴다.
 let mockUserInfo: UserInfo = {
     name: "홍길동",
     email: "hong@example.com",
@@ -28,7 +30,7 @@ export async function updateMyInfo(payload: { name: string }): Promise<UserInfo>
     return mockUserInfo;
 }
 
-/** 회원 탈퇴 */
+/** 회원 탈퇴. develop에 이미 있는 API라 목업 처리하지 않는다. */
 export async function withdraw(): Promise<void> {
-    return;
+    await apiClient.delete("/api/v1/users/me");
 }

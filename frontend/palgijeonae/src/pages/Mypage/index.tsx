@@ -11,6 +11,7 @@ import ProfileSection from "./ProfileSection.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
 import type { ProductFilter } from "./types.ts";
 import { useMyProducts } from "./useMyProducts.ts";
+import WithdrawSection from "./WithdrawSection.tsx";
 
 function MyPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -72,6 +73,7 @@ function MyPage() {
                     }}
                 />
             </div>
+            <WithdrawSection />
         </div>
     );
 }
