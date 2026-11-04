@@ -3,7 +3,6 @@ import Button from "@/components/common/Button";
 import DefaultBox from "@/components/common/DefaultBox";
 import HelpTooltip from "@/components/common/HelpTooltip";
 import PreviewFrame from "@/components/common/PreviewFrame";
-import SectionIntro from "@/components/common/SectionIntro";
 import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/previewMocks";
 import AddedProduct from "@/pages/Upload/AddedProduct";
 import { MAX_PRODUCT_NAME_LENGTH } from "@/pages/Upload/constraints";
@@ -16,10 +15,6 @@ function UploadSlide() {
     return (
         <PreviewFrame label="상품 업로드 화면 미리보기">
             <div className="flex w-full flex-col gap-8">
-                <SectionIntro
-                    title="상품 업로드"
-                    description={"상세페이지를 붙여넣거나 이미지·URL로 추가하세요.\n최대 10개까지의 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다."}
-                />
                 <DefaultBox align="left">
                     <InputTypeTabs selected={SourceType.Url} onSelect={NOOP} />
                     <FormField
@@ -55,9 +50,6 @@ function UploadSlide() {
                     </div>
                 </DefaultBox>
                 <AddedProduct type={SourceType.TextImage} title={PREVIEW_PRODUCTS.slipperAwaiting.productName} onRemove={NOOP} />
-                <div className="flex w-full justify-end">
-                    <Button text="진단 시작하기" onClick={NOOP} fontSize={15} />
-                </div>
             </div>
         </PreviewFrame>
     );
