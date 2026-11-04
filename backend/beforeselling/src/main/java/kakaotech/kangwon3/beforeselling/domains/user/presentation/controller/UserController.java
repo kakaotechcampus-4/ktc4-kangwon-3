@@ -7,6 +7,8 @@ import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.Us
 import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.UserProfileUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.UserWithdrawalUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.presentation.api.UserApi;
+import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
+import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.annotation.LoginUser;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.RefreshTokenCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
