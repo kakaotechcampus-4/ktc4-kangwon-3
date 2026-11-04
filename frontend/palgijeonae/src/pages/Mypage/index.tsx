@@ -65,6 +65,11 @@ function MyPage() {
                     totalPages={pageInfo.totalPages}
                     hasNext={pageInfo.hasNext}
                     onPageChange={setPage}
+                    onProductDeleted={(wasLastOnPage) => {
+                        if (wasLastOnPage && page > 0) {
+                            setPage(page - 1);
+                        }
+                    }}
                 />
             </div>
         </div>
