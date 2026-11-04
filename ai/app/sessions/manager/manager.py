@@ -7,9 +7,11 @@
 
 import logging
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import wait as wait_futures
 from datetime import datetime, timedelta
 from threading import Lock
+from time import perf_counter
 from uuid import uuid4
 
 from ...config import (
@@ -76,6 +78,9 @@ class SessionManager:
         self._accepted: dict[RunType, int] = dict.fromkeys(RunType, 0)
         self._rejected: dict[RejectReason, int] = {"queue_full": 0, "conflict": 0}
         self._awaiting_replaced = 0
+        # 시작 전·실행 중 세션의 실행 예약. 종료 때 실행 중인 것만 기다리려고 둠
+        self._futures: set[Future] = set()
+        self._futures_lock = Lock()
 
     def subscribe(self, listener: SessionListener) -> None:
         """세션 이벤트(시작·단계 변경·Tool 진행·완료·답변 대기·실패)마다 부를 함수를 등록한다.
@@ -135,7 +140,7 @@ class SessionManager:
         """
         sessions = self._accept(diagnosis_id, inputs, run_type)
         for session in sessions:
-            self._pool.submit(self._run, session.context)
+            self._schedule(session.context)
         return sessions
 
     def resume(
@@ -213,7 +218,7 @@ class SessionManager:
 
         with run_log_context(resumed.context):
             logger.info("재진단 접수 (질문 회차 %d, 답변 %d개)", question_round, len(answers))
-        self._pool.submit(self._run, resumed.context)
+        self._schedule(resumed.context)
         return resumed
 
     def submit_dev(self, items: list[ExtractionInput]) -> list[DiagnosisSession]:
@@ -234,7 +239,7 @@ class SessionManager:
         items = [item.model_copy(update={"product_id": f"dev-{uuid4()}"}) for item in items]
         sessions = self._accept(None, items, RunType.TEST)
         for session in sessions:
-            self._pool.submit(self._run, session.context)
+            self._schedule(session.context)
         return sessions
 
     def expire_overdue(self) -> int:
@@ -272,6 +277,46 @@ class SessionManager:
         if not wait:
             _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0))
         self._pool.shutdown(wait=wait, cancel_futures=not wait)
+
+    def drain(self, timeout: float) -> None:
+        """서버 종료 때 대기열은 취소하고 실행 중인 세션만 상한 시간까지 기다린 뒤 관리자를 닫는다.
+
+        기다리는 동안 끝난 세션은 평소처럼 이벤트(결과 콜백)가 나감.
+        취소한 대기 세션, 상한을 넘긴 실행 중 세션, 답변 대기 세션은 경고로 남기고 버림.
+
+        Args:
+            timeout: 실행 중인 세션을 기다릴 최대 시간(초).
+        """
+        self._pool.shutdown(wait=False, cancel_futures=True)
+        with self._futures_lock:
+            running = [future for future in self._futures if not future.cancelled()]
+        if running:
+            started_at = perf_counter()
+            logger.info("서버 종료: 실행 중 진단 %d개를 최대 %d초 기다림", len(running), timeout)
+            _, left = wait_futures(running, timeout=timeout)
+            logger.info("서버 종료: 실행 중 진단 %d개 끝남, %d개 남음 (%.1f초)",
+                        len(running) - len(left), len(left), perf_counter() - started_at)
+        _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0))
+
+    def _schedule(self, context: ExecutionContext) -> None:
+        """세션 실행을 스레드 풀에 예약하고, 끝나면 예약 목록에서 뺀다.
+
+        Args:
+            context: 실행할 세션의 실행 정보.
+        """
+        future = self._pool.submit(self._run, context)
+        with self._futures_lock:
+            self._futures.add(future)
+        future.add_done_callback(self._forget)
+
+    def _forget(self, future: Future) -> None:
+        """끝나거나 취소된 실행 예약을 목록에서 뺀다.
+
+        Args:
+            future: 끝난 실행 예약.
+        """
+        with self._futures_lock:
+            self._futures.discard(future)
 
     def _run(self, context: ExecutionContext) -> None:
         """스레드 풀에서 세션 하나를 실행하고 자리를 반납한다."""
@@ -369,7 +414,8 @@ def _log_rejected(diagnosis_id: str | None, run_type: RunType, count: int, reaso
 def _log_abandoned(unfinished: list[DiagnosisSession], awaiting: int) -> None:
     """서버 종료로 버리는 세션 한 줄 (#497). 버릴 세션이 없으면 남기지 않음.
 
-    대기 중은 취소되고, 실행 중은 프로세스가 끝나며 함께 끊김(uvicorn이 종료 신호를 다시 발생시킴).
+    대기 중은 취소되고, 실행 중(drain이면 상한 시간을 넘긴 것만)은 프로세스가 끝나며 함께 끊김
+    (uvicorn이 종료 신호를 다시 발생시킴).
     둘 다 결과 콜백이 나가지 않음. 답변 대기 세션은 메모리에만 있어 재시작 뒤 재진단할 수 없음.
 
     Args:

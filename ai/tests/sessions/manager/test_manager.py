@@ -1051,6 +1051,48 @@ def test_버릴_세션이_없으면_종료_경고를_남기지_않는다(manager
     assert _messages(caplog, "WARNING") == []
 
 
+def test_drain은_실행_중_세션을_끝까지_기다리고_대기_중_세션은_취소한다(managers, caplog):
+    job = _GatedJob()
+    manager = _manager(managers, job, max_running=1)
+    seen = []
+    manager.subscribe(lambda e: seen.append((type(e), e.session.context.product_id)))
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    _wait_until(lambda: job.started == ["p-1"])
+    threading.Timer(0.1, job.release, ["p-1"]).start()
+
+    manager.drain(timeout=5)
+
+    assert _status(manager, "p-1") is SessionStatus.COMPLETED
+    assert (Completed, "p-1") in seen
+    assert _status(manager, "p-2") is SessionStatus.ACCEPTED
+    assert job.started == ["p-1"]
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 대기 중 1개(p-2) (결과 콜백 없음)"]
+
+
+def test_drain은_상한_시간을_넘긴_실행_중_세션을_경고로_남기고_닫는다(managers, caplog):
+    job = _GatedJob()
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: job.started == ["p-1"])
+
+    started = time.monotonic()
+    manager.drain(timeout=0.1)
+    elapsed = time.monotonic() - started
+    job.release("p-1")
+
+    assert elapsed < 1
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 실행 중 1개(p-1) (결과 콜백 없음)"]
+
+
+def test_drain은_실행_중_세션이_없으면_기다리지_않는다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    manager = _manager(managers, _GatedJob())
+
+    manager.drain(timeout=5)
+
+    assert not [m for m in _messages(caplog) if m.startswith("서버 종료")]
+
+
 def test_Tool_재실행이_있으면_요약의_Tool_목록을_회차별로_묶는다(managers, caplog):
     caplog.set_level(logging.INFO, logger="app.sessions")
 
