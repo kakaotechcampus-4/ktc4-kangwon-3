@@ -25,10 +25,10 @@ function PreviewFrame({ label, children, className, baseWidth, maxHeight }: Prev
         <figure
             ref={figureRef}
             aria-label={label}
-            className={cn(maxHeight && "relative overflow-hidden", className)}
+            className={cn("m-0", maxHeight && "relative overflow-hidden", className)}
             style={maxHeight ? { maxHeight } : undefined}
         >
-            <div inert className="select-none" style={{ width: baseWidth, zoom: scale }}>
+            <div inert className="mx-auto select-none" style={{ width: baseWidth, zoom: scale }}>
                 {children}
             </div>
             {maxHeight && (

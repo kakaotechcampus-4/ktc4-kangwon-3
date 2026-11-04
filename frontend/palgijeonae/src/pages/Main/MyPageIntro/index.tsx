@@ -1,7 +1,6 @@
 import ProductPreview from "@/components/common/ProductPreview";
 import SectionIntro from "@/components/common/SectionIntro";
-import { NOOP, PREVIEW_PRODUCTS, REVISION_NOTICE } from "@/pages/Main/previewMocks";
-import RevisionNoticeBanner from "@/pages/Mypage/RevisionNoticeBanner";
+import { PREVIEW_PRODUCTS } from "@/pages/Main/previewMocks";
 
 // 진단 결과 상태가 서로 다른 예시 3개를 보여준다.
 const EXAMPLE_PRODUCTS = [PREVIEW_PRODUCTS.earphoneResult, PREVIEW_PRODUCTS.table, PREVIEW_PRODUCTS.slipperResult];
