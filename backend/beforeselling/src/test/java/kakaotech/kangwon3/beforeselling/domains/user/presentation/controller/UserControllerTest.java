@@ -77,6 +77,7 @@ class UserControllerTest {
     @Test
     @DisplayName("인증 없이 회원 탈퇴를 요청하면 401과 COMMON-004 코드를 응답한다.")
     void withdraw_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(delete("/api/v1/users/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));

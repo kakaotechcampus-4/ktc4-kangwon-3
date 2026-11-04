@@ -25,6 +25,7 @@ class ProgressEnumJsonTest {
     @Test
     @DisplayName("AI가 보내는 소문자 단계 값을 enum으로 받는다.")
     void read_whenLowerCaseValue_thenConvert() {
+        // when & then
         assertThat(jsonMapper.readValue("\"extraction\"", PipelineStage.class)).isEqualTo(PipelineStage.EXTRACTION);
         assertThat(jsonMapper.readValue("\"tool_execution\"", PipelineStage.class)).isEqualTo(PipelineStage.TOOL_EXECUTION);
         assertThat(jsonMapper.readValue("\"started\"", StageStatus.class)).isEqualTo(StageStatus.STARTED);
@@ -34,6 +35,7 @@ class ProgressEnumJsonTest {
     @ValueSource(strings = {"\"pipeline\"", "\"unknown\"", "\"tool-execution\""})
     @DisplayName("정의되지 않은 단계 값은 거부한다.")
     void read_whenUndefinedValue_thenThrow(String json) {
+        // when & then
         assertThatThrownBy(() -> jsonMapper.readValue(json, PipelineStage.class))
                 .isInstanceOf(JacksonException.class);
     }
@@ -41,6 +43,7 @@ class ProgressEnumJsonTest {
     @Test
     @DisplayName("JSON으로 내보낼 때는 다른 BE enum과 같이 상수 이름(대문자)을 쓴다.")
     void write_thenConstantName() {
+        // when & then
         assertThat(jsonMapper.writeValueAsString(PipelineStage.TOOL_EXECUTION)).isEqualTo("\"TOOL_EXECUTION\"");
     }
 }

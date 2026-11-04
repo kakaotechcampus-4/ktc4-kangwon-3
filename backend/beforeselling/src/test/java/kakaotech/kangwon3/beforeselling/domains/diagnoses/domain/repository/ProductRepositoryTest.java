@@ -71,6 +71,7 @@ class ProductRepositoryTest {
     @Test
     @DisplayName("존재하지 않는 상품 id로 진단서 id를 조회하면 빈 값을 반환한다.")
     void findDiagnosesIdById_withUnknownId_thenReturnEmpty() {
+        // when & then
         assertThat(productRepository.findDiagnosesIdById(UUID.randomUUID())).isEmpty();
     }
 
@@ -251,6 +252,7 @@ class ProductRepositoryTest {
     @Test
     @DisplayName("존재하지 않는 상품을 단건 조회하면 빈 값을 반환한다.")
     void findWithImagesByIdAndUserId_withUnknownId_thenReturnEmpty() {
+        // when & then
         assertThat(productRepository.findWithImagesByIdAndUserId(UUID.randomUUID(), USER_ID)).isEmpty();
     }
 

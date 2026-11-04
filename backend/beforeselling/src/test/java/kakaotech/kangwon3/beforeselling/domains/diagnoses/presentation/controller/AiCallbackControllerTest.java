@@ -133,10 +133,12 @@ class AiCallbackControllerTest {
     @Test
     @DisplayName("내부 토큰 없이 콜백을 보내면 401과 COMMON-004 코드를 응답하고 결과를 반영하지 않는다.")
     void receiveCallback_withoutToken_thenUnauthorized() throws Exception {
+        // when
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(RESULT_JSON))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
 
+        // then
         then(aiCallbackUseCase).should(never()).handleResult(any());
     }
 
@@ -252,10 +254,12 @@ class AiCallbackControllerTest {
     })
     @DisplayName("진행·질문·실패 콜백의 필수 값이 비어 있으면 400과 COMMON-002 코드를 응답하고 반영을 요청하지 않는다.")
     void receiveCallback_withInvalidEvent_thenBadRequest(String template) throws Exception {
+        // when
         mockMvc.perform(callback(template.formatted(COMMON_FIELDS)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"));
 
+        // then
         then(aiCallbackUseCase).shouldHaveNoInteractions();
     }
 
