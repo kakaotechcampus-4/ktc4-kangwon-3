@@ -26,6 +26,7 @@ class OpenAIDecisionClient(DecisionClient):
     서비스 키 : ML API 키 (Authorization: Bearer)
     비고
         `input`은 문자열·메시지 배열만 받아 판단 대상 객체는 `input_json` 파트로 보냄 (객체 그대로면 400).
+        이미지는 `input_image` 파트로 붙임. http 주소·data URI 둘 다 받고 입력 토큰도 같음.
         질문은 배열로 보내고 답도 배열로 오며, 답의 `name`으로 질문을 찾음.
         예/아니오는 `predicate`. 질문 단위로 답을 거부(`refusal`)할 수 있음.
         응답 `model`에는 버전이 없음 (gpt-6-luna).
@@ -40,7 +41,9 @@ class OpenAIDecisionClient(DecisionClient):
         Returns:
             dict: JSON 요청 본문.
         """
-        message = {"type": "message", "role": "user", "content": [{"type": "input_json", "data": request.subject}]}
+        images = [{"type": "input_image", "image_url": image} for image in request.images]
+        content = [{"type": "input_json", "data": request.subject}] + images
+        message = {"type": "message", "role": "user", "content": content}
         return {
             "model": request.model,
             "input": [message],
