@@ -39,6 +39,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -84,8 +85,8 @@ class UserControllerTest {
     }
 
     @Test
-    @DisplayName("인증된 회원이 탈퇴를 요청하면 성공하고 리프레시 토큰 쿠키가 만료된다.")
-    void withdraw_thenSuccessAndExpireCookie() throws Exception {
+    @DisplayName("인증된 회원이 탈퇴를 요청하면 본문 없이 204 응답을 받고 리프레시 토큰 쿠키가 만료된다.")
+    void withdraw_thenNoContentAndExpireCookie() throws Exception {
         // given
         UUID userId = UUID.randomUUID();
         Authentication authentication = UsernamePasswordAuthenticationToken.authenticated(
@@ -95,8 +96,8 @@ class UserControllerTest {
         mockMvc.perform(delete("/api/v1/users/me")
                         .with(authentication(authentication))
                         .cookie(new Cookie(RefreshTokenCookieProvider.COOKIE_NAME, "refresh")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("OK"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refresh_token=;")))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")));
         then(userWithdrawalUseCase).should().withdraw(userId, "refresh");

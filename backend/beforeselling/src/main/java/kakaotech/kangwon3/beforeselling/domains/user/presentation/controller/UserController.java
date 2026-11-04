@@ -3,8 +3,6 @@ package kakaotech.kangwon3.beforeselling.domains.user.presentation.controller;
 import jakarta.servlet.http.HttpServletResponse;
 import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.UserWithdrawalUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.presentation.api.UserApi;
-import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
-import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.annotation.LoginUser;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.RefreshTokenCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
@@ -30,7 +28,7 @@ public class UserController implements UserApi {
      */
     @Override
     @DeleteMapping("/me")
-    public ResponseEntity<ApiResponse<Void>> withdraw(
+    public ResponseEntity<Void> withdraw(
             @LoginUser UserPrincipal principal,
             @CookieValue(name = RefreshTokenCookieProvider.COOKIE_NAME, required = false) String refreshToken,
             HttpServletResponse response
@@ -38,6 +36,6 @@ public class UserController implements UserApi {
         userWithdrawalUseCase.withdraw(principal.userId(), refreshToken);
         refreshTokenCookieProvider.addCookie(response, refreshTokenCookieProvider.expire());
 
-        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
+        return ResponseEntity.noContent().build();
     }
 }
