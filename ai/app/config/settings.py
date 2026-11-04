@@ -42,6 +42,14 @@ _FALSE_VALUES = ("false", "0", "no", "off", "")
 LOG_LEVEL_ENV = "LOG_LEVEL"
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
+# 입력 가드 문턱값 환경변수 → ReviewThresholds 필드. 모두 필수, 값은 저장소에 두지 않음
+REVIEW_THRESHOLD_ENV = {
+    "REVIEW_TEXT_HIGH": "text_high",
+    "REVIEW_TEXT_LOW": "text_low",
+    "REVIEW_IMAGE_HIGH": "image_high",
+    "REVIEW_IMAGE_LOW": "image_low",
+}
+
 
 # 프로필 표 종류. 덮어쓰기 값의 "종류.이름" 앞부분
 PROFILE_TABLES = {"agent": AGENT_PROFILES, "tool": TOOL_PROFILES}
@@ -75,6 +83,34 @@ def parse_profile_overrides(raw: str) -> dict[tuple[str, str], str]:
 
 
 @dataclass(frozen=True)
+class ReviewThresholds:
+    """입력 가드 판단 점수 문턱값. 점수가 high 이상이면 차단, low 이상이면 의심.
+
+    Attributes:
+        text_high: 상품 글·재질문 답변 차단 문턱값 (REVIEW_TEXT_HIGH).
+        text_low: 상품 글·재질문 답변 의심 문턱값 (REVIEW_TEXT_LOW).
+        image_high: 이미지 차단 문턱값 (REVIEW_IMAGE_HIGH).
+        image_low: 이미지 의심 문턱값 (REVIEW_IMAGE_LOW).
+
+    Raises:
+        ConfigError: 0 < low < high ≤ 1이 아닌 경우.
+    """
+
+    text_high: float
+    text_low: float
+    image_high: float
+    image_low: float
+
+    def __post_init__(self) -> None:
+        for low_env, high_env, low, high in (
+            ("REVIEW_TEXT_LOW", "REVIEW_TEXT_HIGH", self.text_low, self.text_high),
+            ("REVIEW_IMAGE_LOW", "REVIEW_IMAGE_HIGH", self.image_low, self.image_high),
+        ):
+            if not 0 < low < high <= 1:
+                raise ConfigError(f"0 < {low_env} < {high_env} ≤ 1이어야 합니다: {low}, {high}")
+
+
+@dataclass(frozen=True)
 class Settings:
     """AI 서버 설정. 키·접속 정보는 repr에 노출하지 않는다.
 
@@ -95,6 +131,7 @@ class Settings:
         agent_profiles: 에이전트 이름 → 프로필 이름. 기본은 AGENT_PROFILES.
         tool_profiles: Tool 이름 → 프로필 이름. 기본은 TOOL_PROFILES.
         log_level: 앱 로그 레벨 (LOG_LEVEL). DEBUG·INFO·WARNING·ERROR 중 하나, 기본 INFO.
+        review_thresholds: 입력 가드 문턱값 (REVIEW_*). load_settings에서는 필수, 직접 만들 때만 비울 수 있음.
 
     Raises:
         ConfigError: 필수 설정이 비어 있거나 형식·허용 범위를 벗어난 경우.
@@ -114,6 +151,7 @@ class Settings:
     agent_profiles: dict[str, str] = field(default_factory=lambda: dict(AGENT_PROFILES))
     tool_profiles: dict[str, str] = field(default_factory=lambda: dict(TOOL_PROFILES))
     log_level: str = "INFO"
+    review_thresholds: ReviewThresholds | None = None
 
     def __post_init__(self) -> None:
 
@@ -198,7 +236,8 @@ def load_settings() -> Settings:
 
     # 필수로 존재해야 하나 값이 없는 환경변수 필터링
     missing = [env_name for env_name, field_name in REQUIRED_ENV.items() if not values[field_name]]
-    
+    missing += [env_name for env_name in REVIEW_THRESHOLD_ENV if not os.environ.get(env_name, "").strip()]
+
     # 필수로 존재해야 하나 누락된 환경변수가 하나라도 존재하는 경우
     if missing:
         raise ConfigError(
@@ -218,7 +257,23 @@ def load_settings() -> Settings:
         agent_profiles={name: overrides.get(("agent", name), default) for name, default in AGENT_PROFILES.items()},
         tool_profiles={name: overrides.get(("tool", name), default) for name, default in TOOL_PROFILES.items()},
         log_level=os.environ.get(LOG_LEVEL_ENV, "").strip().upper() or "INFO",
+        review_thresholds=ReviewThresholds(**{
+            field_name: _parse_float(env_name, os.environ[env_name])
+            for env_name, field_name in REVIEW_THRESHOLD_ENV.items()
+        }),
     )
+
+
+def _parse_float(name: str, raw: str) -> float:
+    """숫자 환경변수를 읽는다.
+
+    Raises:
+        ConfigError: 숫자가 아닌 경우.
+    """
+    try:
+        return float(raw.strip())
+    except ValueError:
+        raise ConfigError(f"{name}은 숫자여야 합니다: {raw.strip()!r}") from None
 
 
 def _parse_bool(name: str, raw: str) -> bool:
