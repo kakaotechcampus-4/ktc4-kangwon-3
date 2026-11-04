@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.domain.context import PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.observability.logs import current_run_fields
 from app.observability.measurements import ToolRun, measurement_sinks
 from app.observability.run_summary import current_summary
@@ -15,7 +15,7 @@ from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
-from app.schemas.session import SessionStatus
+from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.errors import (
     QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
     UnknownQuestionKeyError,
@@ -1111,6 +1111,66 @@ def test_drain은_실행_중_세션이_없으면_기다리지_않는다(managers
     manager.drain(timeout=5)
 
     assert not [m for m in _messages(caplog) if m.startswith("서버 종료")]
+
+
+def _saved(product_id: str, status: SessionStatus, **fields) -> DiagnosisSession:
+    """재시작 전에 보관된 세션."""
+    context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+    return DiagnosisSession(context=context, source=_inputs(product_id)[0], status=status,
+                            accepted_at=START, updated_at=START, **fields)
+
+
+def test_되살린_대기_세션은_같은_실행_ID로_자리를_잡고_다시_돈다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _AnswerJob()
+    manager = _manager(managers, job)
+    first, second = _saved("p-1", SessionStatus.ACCEPTED), _saved("p-2", SessionStatus.ACCEPTED)
+
+    manager.restore([second, first])
+
+    _wait_until(lambda: len(job.inputs) == 2)
+    assert {run_id for _, run_id in job.inputs} == {first.context.run_id, second.context.run_id}
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    assert _status(manager, "p-1") is SessionStatus.AWAITING_INPUT
+    assert "진단 세션 복원: 대기 2개, 답변 대기 0개, 되살리지 않음 0개" in _messages(caplog, "INFO")
+
+
+def test_되살린_대기_세션은_자리를_차지해_상한에_같이_센다(managers):
+    manager = _manager(managers, _GatedJob(), max_running=1, max_inflight=2)
+
+    manager.restore([_saved("p-1", SessionStatus.ACCEPTED), _saved("p-2", SessionStatus.ACCEPTED)])
+
+    assert manager.snapshot().inflight == 2
+    with pytest.raises(QueueFullError):
+        manager.submit("d-2", _inputs("p-3"))
+
+
+def test_되살린_답변_대기_세션은_답을_받아_재진단한다(managers):
+    job = _AnswerJob()
+    manager = _manager(managers, job)
+    awaiting = _saved("p-1", SessionStatus.AWAITING_INPUT, question_round=1, questions=_QUESTIONS,
+                      result=_awaiting_result("p-1"))
+
+    manager.restore([awaiting])
+    assert manager.get("p-1") == awaiting
+    assert manager.snapshot().inflight == 0
+
+    _resume(manager)
+
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+    [(job_input, _)] = job.inputs
+    assert job_input.previous == awaiting.result
+    assert [answer.answer_text for answer in job_input.answers] == ["네"]
+
+
+def test_대기·답변_대기_말고는_되살리지_않는다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    manager = _manager(managers, _GatedJob())
+
+    manager.restore([_saved("p-1", SessionStatus.RUNNING), _saved("p-2", SessionStatus.COMPLETED)])
+
+    assert (manager.get("p-1"), manager.get("p-2")) == (None, None)
+    assert "진단 세션 복원: 대기 0개, 답변 대기 0개, 되살리지 않음 2개" in _messages(caplog, "INFO")
 
 
 def test_Tool_재실행이_있으면_요약의_Tool_목록을_회차별로_묶는다(managers, caplog):

@@ -24,6 +24,10 @@ from app.observability.logs import APP_LOGGER
 from app.observability.measurements import ClientCall, measurement_sinks
 from app.db import engine as database
 from app.routers import _dummy
+from app.domain.context import ExecutionContext, RunType
+from app.schemas.agent import ExtractionInput
+from app.schemas.callback import PublicQuestionDto
+from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.manager import SessionManager
 
 TOKEN = "test-internal-token-0123456789abcdef"
@@ -309,10 +313,29 @@ class _LawFetchers:
         self.closed = True
 
 
-def _db_ready(monkeypatch, created=()) -> tuple[_LawFetchers, list]:
-    """init_db 성공 상태로 만들고, 법령 점검은 실제 조회 대신 호출만 기록한다."""
+class _Archive:
+    """세션 보관소 자리. 기동 때 load가 돌려줄 세션을 정해 두고, 저장·삭제는 상품 ID만 기록한다."""
+
+    def __init__(self, factory=None, saved=()):
+        self.factory = factory
+        self.saved = list(saved)
+        self.calls: list[tuple] = []
+
+    def load(self):
+        return self.saved
+
+    def save(self, session):
+        self.calls.append(("save", session.context.product_id, session.status.value))
+
+    def remove(self, product_ids):
+        self.calls.append(("remove", *product_ids))
+
+
+def _db_ready(monkeypatch, created=(), archive: _Archive | None = None) -> tuple[_LawFetchers, list]:
+    """init_db 성공 상태로 만들고, 법령 점검은 실제 조회 대신 호출만 기록한다. 세션 보관소는 archive(기본: 빈 보관소)."""
     fetchers = _LawFetchers()
     refreshed = []
+    monkeypatch.setattr(main, "SessionArchiveDatabase", lambda factory: archive or _Archive(factory))
     monkeypatch.setattr(main, "init_db", lambda: list(created))
     monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
     monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: fetchers)
@@ -340,6 +363,35 @@ def test_DB가_준비되면_기동_직후_법령_점검을_돌리고_종료_때_
                           {"select": main.applied_version, "on_change": main.log_law_changes}),
                          ("session-factory", ["customs.gw"])]
     assert fetchers.closed is True
+
+
+def _saved(product_id: str, status: SessionStatus) -> DiagnosisSession:
+    """재시작 전에 보관된 세션. 답변 대기면 질문 1회차를 보낸 상태."""
+    context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+    source = ExtractionInput(product_id=product_id, text_blocks=["상품 설명"])
+    if status is not SessionStatus.AWAITING_INPUT:
+        return DiagnosisSession(context=context, source=source, status=status)
+    question = PublicQuestionDto(question_key="voltage", question_order=1, question_text="정격 전압은?")
+    return DiagnosisSession(context=context, source=source, status=status, question_round=1, questions=[question],
+                            result=_dummy.build_dummy_assessment(product_id))
+
+
+def test_DB가_준비되면_재시작_전_대기_세션은_같은_runId로_다시_돌고_답변_대기는_되살린다(fake_be, monkeypatch):
+    queued, awaiting = _saved("p-1", SessionStatus.ACCEPTED), _saved("p-2", SessionStatus.AWAITING_INPUT)
+    archive = _Archive(saved=[queued, awaiting])
+    _db_ready(monkeypatch, archive=archive)
+
+    with TestClient(main.app):
+        _wait_until(lambda: any(json.loads(r.content)["eventType"] == "product_result" for r in fake_be))
+        manager = main.app.state.session_manager
+        restored = manager.get("p-2")
+
+    events = [json.loads(request.content) for request in fake_be]
+    assert {(event["productId"], event["runId"]) for event in events} == {("p-1", queued.context.run_id)}
+    assert events[-1]["eventType"] == "product_result"
+    assert restored == awaiting
+    # 다시 돈 세션은 실행 중 → 완료로 보관소에 반영
+    assert archive.calls[-2:] == [("save", "p-1", "running"), ("remove", "p-1")]
 
 
 def test_법령_점검용_조회_객체는_캐시_조회를_측정_기록으로_남기지_않는다(fake_be, monkeypatch):

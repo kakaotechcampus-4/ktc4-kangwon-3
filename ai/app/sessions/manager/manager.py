@@ -221,6 +221,34 @@ class SessionManager:
         self._schedule(resumed.context)
         return resumed
 
+    def restore(self, sessions: list[DiagnosisSession]) -> None:
+        """재시작 전에 보관해 둔 세션을 되살린다 (#565). 서버 기동 때 접수를 받기 전에 한 번 부름.
+
+        대기 세션은 자리를 잡고 같은 실행 ID로 다시 실행. 이 실행으로 보낸 콜백이 없어 BE는 차이를 모름.
+        접수 시각은 그대로라 오래 내려가 있었으면 실행 전에 시간 초과로 끝남.
+        답변 대기 세션은 저장소에만 넣어 답이 오면 재진단. 그 밖의 상태는 되살리지 않음.
+
+        Args:
+            sessions: 보관소에서 읽은 세션.
+        """
+        queued = sorted((s for s in sessions if s.status is SessionStatus.ACCEPTED), key=lambda s: s.accepted_at)
+        awaiting = [s for s in sessions if s.status is SessionStatus.AWAITING_INPUT]
+        skipped = len(sessions) - len(queued) - len(awaiting)
+        with self._lock:
+            self._store.add([*awaiting, *queued])
+            # 상한 확인 없이 차지함. 보관할 때도 상한 안이었음
+            self._capacity.take([session.context.run_id for session in queued], dev=False)
+        for session in awaiting:
+            with run_log_context(session.context):
+                logger.info("재시작 전 답변 대기 세션 복원 (질문 회차 %d)", session.question_round)
+        for session in queued:
+            with run_log_context(session.context):
+                logger.info("재시작 전 대기 세션 복원, 다시 실행 (답변 %d개)", len(session.answers))
+            self._schedule(session.context)
+        if sessions:
+            logger.info("진단 세션 복원: 대기 %d개, 답변 대기 %d개, 되살리지 않음 %d개",
+                        len(queued), len(awaiting), skipped)
+
     def submit_dev(self, items: list[ExtractionInput]) -> list[DiagnosisSession]:
         """개발용 진단 상품들을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
 
