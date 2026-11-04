@@ -51,7 +51,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         structured_output_options: with_structured_output 추가 옵션 (예: strict)
         creates_default_model: 모델 미주입 시 프로필로 만들지. 검증 에이전트는 규칙 전용 실행 때문에 False
         model_profile: (표 종류, 이름). None이면 ("agent", component_name). Tool 안 에이전트는 ("tool", ToolName 값)
-        uses_guardrail: 시스템 프롬프트 뒤에 가드레일(``guardrail.md``)을 붙일지. 켜면 공통 문서가 없을 때 생성 실패
+        uses_guardrail: 시스템 프롬프트 뒤에 공통·에이전트별 가드레일(``guardrail.md``)을 붙일지. 켜면 둘 중 하나라도 없을 때 생성 실패
     """
 
     component_name: ClassVar[str]
@@ -92,7 +92,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         Raises:
             ConfigError: 모델을 만들어야 하는데 설정이 없거나 잘못된 경우.
             ValueError: decision_client만 주고 decision_model을 안 준 경우.
-            FileNotFoundError: 가드레일을 쓰는데 공통 가드레일 문서가 없는 경우.
+            FileNotFoundError: 가드레일을 쓰는데 공통 또는 에이전트별 가드레일 문서가 없는 경우.
         """
         # 표시했는데 문서가 빠지면 가드레일 없이 돌아 첫 호출이 아니라 생성(기동) 때 실패
         if self.uses_guardrail:

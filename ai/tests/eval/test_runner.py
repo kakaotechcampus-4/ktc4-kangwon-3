@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+import app.agents.base.guardrail as guardrail_module
+from app.agents.base.guardrail import clear_guardrail_cache
 from app.agents.extraction import ExtractionAgent
 from app.config import MODEL_PROFILES
 from app.eval.errors import RawFixtureMissing
@@ -46,11 +48,21 @@ def test_실행_기록에_프롬프트_지문과_커밋이_남는다():
     assert meta["prompt_sha256"] == ExtractionAgent.system_prompt().sha256
 
 
-def test_기록_지문은_가드레일까지_붙인_시스템_프롬프트_기준이다():
+def test_기록_지문은_가드레일까지_붙인_시스템_프롬프트_기준이다(tmp_path, monkeypatch):
     # 가드레일만 바꿔도 모델 입력이 달라지므로 프롬프트 파일 지문과 구분돼야 함
-    meta = run_metadata(runs=1, profile=MODEL_PROFILES["mini"])
+    extra = tmp_path / "guardrail.md"
+    extra.write_text("에이전트 규칙\n", encoding="utf-8")
+    monkeypatch.setattr(guardrail_module, "extra_guardrail_path", lambda name: extra)
+    monkeypatch.setattr(ExtractionAgent, "uses_guardrail", True)
+    clear_guardrail_cache()
 
-    assert ExtractionAgent.uses_guardrail
+    try:
+        meta = run_metadata(runs=1, profile=MODEL_PROFILES["mini"])
+        guarded = ExtractionAgent.system_prompt().sha256
+    finally:
+        clear_guardrail_cache()
+
+    assert meta["prompt_sha256"] == guarded
     assert meta["prompt_sha256"] != prompt_fingerprint(EXTRACTION_PROMPT_PATH)
 
 

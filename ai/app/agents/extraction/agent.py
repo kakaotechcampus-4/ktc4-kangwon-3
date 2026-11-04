@@ -29,8 +29,6 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
 
     component_name = "extraction"
     prompt_name = PromptName.EXTRACTION
-    # 상품 원문 글·이미지를 그대로 받음 → 자료 속 지시문 차단
-    uses_guardrail = True
     output_schema = ProductAttributes
     error_class = ExtractionFailedError
     task_name = "상품 정보 추출"

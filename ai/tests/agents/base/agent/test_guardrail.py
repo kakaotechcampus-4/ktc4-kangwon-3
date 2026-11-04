@@ -17,13 +17,22 @@ def _fresh_cache():
 
 
 @pytest.fixture
-def guarded(fakes):
+def extra(tmp_path, monkeypatch):
+    """가짜 에이전트의 에이전트별 가드레일 문서 (임시 파일)."""
+    path = tmp_path / "guardrail.md"
+    path.write_text("에이전트 규칙\n", encoding="utf-8")
+    monkeypatch.setattr(guardrail_module, "extra_guardrail_path", lambda name: path)
+    return path
+
+
+@pytest.fixture
+def guarded(fakes, extra):
     """가드레일을 쓰는 가짜 에이전트 클래스."""
     return type("GuardedAgent", (fakes.Agent,), {"uses_guardrail": True})
 
 
 @pytest.fixture
-def guarded_rules_only(fakes):
+def guarded_rules_only(fakes, extra):
     """모델 없이 만드는 가드레일 에이전트 클래스 (프롬프트·메시지만 볼 때)."""
     return type("GuardedRulesOnlyAgent", (fakes.RulesOnly,), {"uses_guardrail": True})
 
@@ -35,6 +44,7 @@ def test_표시한_에이전트는_시스템_프롬프트_뒤에_가드레일을
     [system, _] = guarded_rules_only()._messages("상품 설명")
 
     assert prompt.text == original.text.rstrip("\n") + "\n\n" + get_guardrail(PromptName.EXTRACTION).text
+    assert prompt.text.endswith("\n\n에이전트 규칙\n")
     assert system.content == prompt.text
     assert (prompt.name, prompt.path) == (original.name, original.path)
 
@@ -62,6 +72,13 @@ def test_표시했는데_공통_가드레일_문서가_없으면_생성_때_실�
     with pytest.raises(FileNotFoundError):
         guarded_rules_only()
     fakes.RulesOnly()
+
+
+def test_표시했는데_에이전트별_가드레일_문서가_없으면_생성_때_실패한다(guarded_rules_only, extra):
+    extra.unlink()
+
+    with pytest.raises(FileNotFoundError):
+        guarded_rules_only()
 
 
 def test_모델_없이_클래스로_구한_시스템_프롬프트는_에이전트가_보내는_것과_같다(guarded_rules_only, fakes):

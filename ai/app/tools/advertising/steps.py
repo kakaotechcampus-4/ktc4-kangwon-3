@@ -33,8 +33,6 @@ class AdvertisingReviewer(BaseAgent[AdvertisingReviewInput, AdvertisingReview, A
     # Tool 안에서 쓰는 에이전트라 TOOL_PROFILES의 표시·광고 Tool 프로필로 모델을 고름
     model_profile = ("tool", ToolName.LABEL_AD)
     prompt_name = PromptName.ADVERTISING
-    # 판매자 광고 문구를 그대로 받음 → 자료 속 지시문 차단
-    uses_guardrail = True
     output_schema = AdvertisingReview
     error_class = AdvertisingReviewError
 
