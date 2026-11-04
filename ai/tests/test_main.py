@@ -36,6 +36,10 @@ _ENV = {
     "LAW_GO_KR_OC": "test-oc",
     "INTERNAL_API_TOKEN": TOKEN,
     "BE_BASE_URL": "http://be-server:8080",
+    "REVIEW_TEXT_HIGH": "0.85",
+    "REVIEW_TEXT_LOW": "0.3",
+    "REVIEW_IMAGE_HIGH": "0.8",
+    "REVIEW_IMAGE_LOW": "0.3",
 }
 
 
