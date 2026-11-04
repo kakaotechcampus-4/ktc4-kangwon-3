@@ -257,6 +257,18 @@ class AiResumeRequestUseCaseTest {
         assertThatCode(() -> aiResumeRequestUseCase.requestResume(event(), false)).doesNotThrowAnyException();
     }
 
+    @Test
+    @DisplayName("예상하지 못한 예외가 나도 밖으로 던지지 않고 상품 상태를 바꾸지 않는다.")
+    void requestResume_whenUnexpectedException_thenSwallowAndKeepState() {
+        // given
+        given(aiDiagnosesClient.requestResume(any())).willThrow(new IllegalStateException("unexpected"));
+
+        // when & then
+        assertThatCode(() -> aiResumeRequestUseCase.requestResume(event(), false)).doesNotThrowAnyException();
+        then(productService).shouldHaveNoInteractions();
+        then(diagnosesService).shouldHaveNoInteractions();
+    }
+
     private AiResumeRequestedEvent event() {
         return new AiResumeRequestedEvent(DIAGNOSES_ID, PRODUCT_ID, RUN_ID, 1, List.of(
                 new AiResumeRequestedEvent.Answer("sales_type", "구매대행"),
