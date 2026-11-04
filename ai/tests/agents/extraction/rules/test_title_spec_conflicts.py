@@ -135,3 +135,29 @@ def test_스펙_블록에_제목_줄이_같이_있어도_제목_수치를_스펙
 
     assert len(conflicts) == 1
     assert "635L" in conflicts[0] and "60L" in conflicts[0]
+
+
+# 초안 50건·기존 원문 23건에 규칙을 오프라인으로 돌려 찾은 오탐(2026-11-05)
+
+
+def test_티크는_나무라서_스펙표_wood와_모순이_아니다():
+    assert detect_title_spec_conflicts(["티크 엔드그레인 도마"], [_spec(("재료", "wood"))]) == []
+
+
+def test_양면발열의_면은_면_소재가_아니다():
+    assert detect_title_spec_conflicts(
+        ["충전식 휴대용 전기 핫팩 양면발열 손난로"], [_spec(("소재", "폴리에스테르 섬유"))]
+    ) == []
+
+
+def test_제목의_부품_재질은_본체_재료와_달라도_모순이_아니다():
+    # "나무 손잡이 실리콘 조리도구"의 재료가 실리콘인 것은 부품 설명이지 모순이 아니다.
+    assert detect_title_spec_conflicts(["편안한 나무 손잡이 장착 실리콘 조리도구"], [_spec(("재료", "실리콘"))]) == []
+
+
+def test_수치_모순_문장은_같은_스펙_값을_한_번만_적는다():
+    [conflict] = detect_title_spec_conflicts(
+        ["대형 635L 냉장고"], [_spec(("용량", "60L 미만"), ("냉동실 용량", "60L 미만"))]
+    )
+
+    assert conflict.count('"60L"') == 1

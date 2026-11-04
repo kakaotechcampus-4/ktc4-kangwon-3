@@ -154,7 +154,7 @@ def _number_conflicts(titles: list[str], spec_text: str) -> list[str]:
             spec_numbers = {number for _, number in spec_items}
             if any(number in spec_numbers for number in numbers):
                 continue
-            spec_text_list = ", ".join(f'"{text}"' for text, _ in spec_items)
+            spec_text_list = ", ".join(f'"{text}"' for text in dict.fromkeys(text for text, _ in spec_items))
             found.append(
                 f'제목은 "{items[0][0]}"인데 스펙표에는 {spec_text_list}로 적혀 있습니다. 판매자 표기가 서로 달라 확인이 필요합니다.'
             )
@@ -176,11 +176,19 @@ _MATERIAL_SYNONYMS: dict[str, re.Pattern[str]] = {
     "스테인리스": re.compile(r"스테인리스|stainless|스틸|steel", re.IGNORECASE),
     "실리콘": re.compile(r"실리콘|silicone|silica", re.IGNORECASE),
     "세라믹": re.compile(r"세라믹|도자기|ceramic", re.IGNORECASE),
-    "티크": re.compile(r"티크|teak", re.IGNORECASE),
+    "티크": re.compile(r"티크|teak|나무|원목|목재|wood|우드", re.IGNORECASE),
     "라탄": re.compile(r"라탄|등나무|rattan", re.IGNORECASE),
     "실크": re.compile(r"실크|silk|견", re.IGNORECASE),
 }
-_TITLE_MATERIAL = re.compile("|".join(sorted(_MATERIAL_SYNONYMS, key=len, reverse=True)))
+# "면"은 "양면발열"·"표면"처럼 다른 낱말 안에도 들어가므로 한글 낱말 안의 면은 재질로 보지 않는다.
+_TITLE_MATERIAL = re.compile(
+    "|".join(
+        r"(?<![가-힣])면(?![가-힣])" if word == "면" else word
+        for word in sorted(_MATERIAL_SYNONYMS, key=len, reverse=True)
+    )
+)
+# "나무 손잡이"처럼 부품의 재질을 말한 것은 본체 재료와 달라도 모순이 아니다.
+_PART_AFTER_MATERIAL = re.compile(r"^\s*(?:손잡이|뚜껑|받침|장식|프레임|케이스|스탠드|마개|덮개|밑판|다리)")
 
 
 def _material_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[str]:
@@ -192,6 +200,8 @@ def _material_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[
         for match in _TITLE_MATERIAL.finditer(title):
             synonyms = _MATERIAL_SYNONYMS[match.group(0)]
             if any(synonyms.search(value) for _, value in material_rows):
+                continue
+            if _PART_AFTER_MATERIAL.match(title[match.end():]):
                 continue
             key, value = material_rows[0]
             found.append(_sentence(match.group(0), key, value))
