@@ -97,6 +97,7 @@ export default Example;
 
 ## 에러 처리
 
+- 401(`AUTH-001`, 토큰 만료)은 `apiClient`의 응답 인터셉터([`api/client.ts`](palgijeonae/src/api/client.ts))가 자동으로 토큰을 재발급받아 원래 요청을 한 번 재시도합니다. 개별 호출부에서 따로 처리하지 않습니다. 재발급도 실패하면 로그아웃 후 `/login`으로 보냅니다.
 - BE 에러 메시지는 직접 파싱하지 않고 `getErrorMessage(error, fallback)`([`api/client.ts`](palgijeonae/src/api/client.ts))로 꺼냅니다. `details[0].message` → `message` → `fallback` 순으로 찾고, 429(`COMMON-011`)는 `Retry-After` 헤더로 만든 전용 문구를 우선합니다.
 - 요청 실패 알림과 삭제·탈퇴 같은 되돌릴 수 없는 액션의 사전 확인은 `alert`/`confirm`으로 처리합니다(커스텀 토스트·모달 없음).
 
