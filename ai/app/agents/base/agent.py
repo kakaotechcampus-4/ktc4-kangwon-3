@@ -26,6 +26,7 @@ from ...schemas.clients.decision_request import DecisionQuestion, DecisionReques
 from ...schemas.clients.decision_response import DecisionResponse
 from ...usage import CallUsage, estimate_krw, from_completion, from_decision, from_response
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
+from .guardrail import attach_guardrail, get_guardrail
 from .meta import AgentResult, AgentRunMeta
 from .parsing import parse_structured_output
 from .protocols import InputT, ModelLike, OutputT, ResultT
@@ -47,6 +48,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         structured_output_options: with_structured_output 추가 옵션 (예: strict)
         creates_default_model: 모델 미주입 시 프로필로 만들지. 검증 에이전트는 규칙 전용 실행 때문에 False
         model_profile: (표 종류, 이름). None이면 ("agent", component_name). Tool 안 에이전트는 ("tool", ToolName 값)
+        uses_guardrail: 시스템 프롬프트 뒤에 가드레일(``guardrail.md``)을 붙일지. 켜면 공통 문서가 없을 때 생성 실패
     """
 
     component_name: ClassVar[str]
@@ -58,6 +60,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
     structured_output_options: ClassVar[dict[str, Any]] = {}
     creates_default_model: ClassVar[bool] = True
     model_profile: ClassVar[tuple[Literal["agent", "tool"], str] | None] = None
+    uses_guardrail: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -86,7 +89,11 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         Raises:
             ConfigError: 모델을 만들어야 하는데 설정이 없거나 잘못된 경우.
             ValueError: decision_client만 주고 decision_model을 안 준 경우.
+            FileNotFoundError: 가드레일을 쓰는데 공통 가드레일 문서가 없는 경우.
         """
+        # 가드레일 문서가 빠졌으면 첫 호출이 아니라 생성(기동) 때 실패
+        if self.uses_guardrail:
+            get_guardrail(self.prompt_name)
         # 미주입 + 자동 생성 대상이면 프로필로 생성 (검증처럼 creates_default_model=False면 모델 없이 둠)
         if model is None and self.creates_default_model:
             kind, name = self.model_profile or ("agent", self.component_name)
@@ -131,8 +138,9 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
 
     @property
     def prompt(self) -> PromptSnapshot:
-        """시스템 프롬프트 스냅샷 (원문·경로·지문)."""
-        return get_prompt(self.prompt_name)
+        """시스템 프롬프트 스냅샷 (원문·경로·지문). 가드레일을 쓰면 본문 뒤에 붙이고 지문도 합친 본문 기준."""
+        prompt = get_prompt(self.prompt_name)
+        return attach_guardrail(prompt) if self.uses_guardrail else prompt
 
     def run(self, input: InputT) -> ResultT:
         """입력을 처리해 결과를 돌려준다.

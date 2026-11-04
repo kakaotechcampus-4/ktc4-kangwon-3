@@ -5,11 +5,11 @@
     - app/prompts 프롬프트 ``prompts/<이름>.md`` → ``prompts/<이름>.guardrail.md``
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 from pathlib import Path
 
-from ...prompts import PromptName, normalize_newlines, prompt_path
+from ...prompts import PromptName, PromptSnapshot, fingerprint, normalize_newlines, prompt_path
 
 COMMON_GUARDRAIL_PATH = Path(__file__).parent / "guardrail.md"
 
@@ -62,6 +62,22 @@ def get_guardrail(name: PromptName) -> GuardrailSnapshot:
         paths.append(extra)
     parts = [normalize_newlines(path.read_text(encoding="utf-8")).strip() for path in paths]
     return GuardrailSnapshot(name=name, paths=tuple(paths), text="\n\n".join(parts) + "\n")
+
+
+def attach_guardrail(prompt: PromptSnapshot) -> PromptSnapshot:
+    """시스템 프롬프트 뒤에 그 에이전트의 가드레일을 빈 줄로 이어 붙인 스냅샷.
+
+    Args:
+        prompt: 원래 시스템 프롬프트.
+
+    Returns:
+        PromptSnapshot: 이름·경로는 그대로, 본문은 프롬프트 + 가드레일, 지문은 합친 본문 기준.
+
+    Raises:
+        FileNotFoundError: 공통 가드레일 문서가 없는 경우.
+    """
+    text = prompt.text.rstrip("\n") + "\n\n" + get_guardrail(prompt.name).text
+    return replace(prompt, text=text, sha256=fingerprint(text))
 
 
 def clear_guardrail_cache() -> None:
