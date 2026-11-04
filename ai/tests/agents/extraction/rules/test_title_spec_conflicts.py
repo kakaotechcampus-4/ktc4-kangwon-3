@@ -161,3 +161,8 @@ def test_수치_모순_문장은_같은_스펙_값을_한_번만_적는다():
     )
 
     assert conflict.count('"60L"') == 1
+
+
+def test_스테인리스나_구리는_스펙표_재료가_금속이면_모순이_아니다():
+    assert detect_title_spec_conflicts(["스테인리스 주방 수납 선반"], [_spec(("재료", "금속"))]) == []
+    assert detect_title_spec_conflicts(["구리 합금 무릎 보호대"], [_spec(("재료", "Metal"))]) == []

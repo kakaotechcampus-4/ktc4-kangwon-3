@@ -165,7 +165,8 @@ def _number_conflicts(titles: list[str], spec_text: str) -> list[str]:
 _MATERIAL_KEY = re.compile(r"소재|재질|재료|성분|material", re.IGNORECASE)
 # 제목에서 찾을 재질 표기 → 스펙표에서 같은 재질로 볼 표기
 _MATERIAL_SYNONYMS: dict[str, re.Pattern[str]] = {
-    "구리": re.compile(r"구리|copper|동\b", re.IGNORECASE),
+    # 금속류는 스펙표가 "금속"으로만 적어도 같은 재질로 본다.
+    "구리": re.compile(r"구리|copper|동\b|금속|metal", re.IGNORECASE),
     "가죽": re.compile(r"가죽|leather", re.IGNORECASE),
     "순면": re.compile(r"면|cotton|코튼", re.IGNORECASE),
     "면": re.compile(r"면|cotton|코튼", re.IGNORECASE),
@@ -173,7 +174,7 @@ _MATERIAL_SYNONYMS: dict[str, re.Pattern[str]] = {
     "나무": re.compile(r"나무|원목|목재|wood|우드", re.IGNORECASE),
     "대나무": re.compile(r"대나무|bamboo", re.IGNORECASE),
     "유리": re.compile(r"유리|glass", re.IGNORECASE),
-    "스테인리스": re.compile(r"스테인리스|stainless|스틸|steel", re.IGNORECASE),
+    "스테인리스": re.compile(r"스테인리스|stainless|스틸|steel|금속|metal", re.IGNORECASE),
     "실리콘": re.compile(r"실리콘|silicone|silica", re.IGNORECASE),
     "세라믹": re.compile(r"세라믹|도자기|ceramic", re.IGNORECASE),
     "티크": re.compile(r"티크|teak|나무|원목|목재|wood|우드", re.IGNORECASE),
