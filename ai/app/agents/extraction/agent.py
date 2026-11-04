@@ -14,6 +14,7 @@ from .errors import ExtractionFailedError
 from .guessed_flags import drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
+from .title_spec_conflicts import detect_title_spec_conflicts
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.EXTRACTION).path
@@ -89,8 +90,10 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         payload = output.model_dump()
         guessed = drop_guessed_false(payload)
         unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))
-        rule_conflicts = detect_battery_capacity_conflict(source.text_blocks)
-        conflicted = drop_conflicted_battery(payload) if rule_conflicts else []
+        battery_conflicts = detect_battery_capacity_conflict(source.text_blocks)
+        conflicted = drop_conflicted_battery(payload) if battery_conflicts else []
+        # 제목↔스펙표 모순은 검토 후보로만 남긴다(필드를 None으로 되돌리지 않음). 모델이 거의 보고하지 않아 규칙이 맡는다.
+        rule_conflicts = battery_conflicts + detect_title_spec_conflicts(titles, source.text_blocks)
         payload["listing_text"] = _keep_seller_titles(output.listing_text, titles)
         payload["attributes"] = _merge_attributes(output.attributes, extract_rule_based_attributes(source.text_blocks))
         payload["conflicts"] = _merge_conflicts(output.conflicts, rule_conflicts)
