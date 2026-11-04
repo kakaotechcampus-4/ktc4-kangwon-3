@@ -123,9 +123,17 @@ def _cut_aliexpress(lines: list[str], stripped: list[str]) -> tuple[list[str], s
         (남긴 줄, 판매자 제목). 필요한 표지를 못 찾으면 None.
     """
     cart = _index(stripped, 0, lambda s: s == "장바구니")
-    if cart is None:
-        return None
-    top = cart + 1
+    if cart is not None:
+        top = cart + 1
+    else:
+        # 상단 메뉴가 빠진 복사본(innerText로 긁은 일부 페이지)은 로고 줄 "AliExpress", 장바구니 수량 "0",
+        # 제목 순서로 시작한다. 로고 다음의 숫자만 있는 줄을 건너뛰고 제목부터 남긴다.
+        logo = _index(stripped, 0, lambda s: s == "AliExpress")
+        if logo is None:
+            return None
+        top = _index(stripped, logo + 1, lambda s: bool(s) and not s.isdigit())
+        if top is None:
+            return None
     stop1 = _index(stripped, top, lambda s: s in ("AI 상품 요약", "연관 상품"))
     info = [i for i, s in enumerate(stripped) if s == "상품 정보"]
     if stop1 is None or len(info) < 2:
