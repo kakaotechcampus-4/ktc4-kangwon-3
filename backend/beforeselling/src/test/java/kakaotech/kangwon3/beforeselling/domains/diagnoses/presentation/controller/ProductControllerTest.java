@@ -72,6 +72,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -530,13 +531,13 @@ class ProductControllerTest {
     }
 
     @Test
-    @DisplayName("본인의 상품을 삭제하면 성공 응답을 받는다.")
-    void removeProduct_thenSuccess() throws Exception {
+    @DisplayName("본인의 상품을 삭제하면 본문 없이 204 응답을 받는다.")
+    void removeProduct_thenNoContent() throws Exception {
         // when
         mockMvc.perform(delete(BASE_URL + "/{productId}", PRODUCT_ID)
                         .with(authentication(loginUser())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value("OK"));
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
 
         // then
         then(productUseCase).should().removeProduct(USER_ID, PRODUCT_ID);
