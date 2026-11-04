@@ -1,11 +1,15 @@
-"""채팅 모델 카탈로그. 게이트웨이에 등록된 모델과 단가 (#279).
+"""채팅·판단 모델 카탈로그. 게이트웨이에 등록된 모델과 단가 (#279).
 
 엘리스 ML API 게이트웨이는 세 회사 모델을 같은 OpenAI 호환 엔드포인트로 받음 (2026-10-14 실호출 확인).
 호출은 모두 ChatOpenAI 하나로 하고, 회사마다 다른 호출 옵션 규칙만 하위 클래스에 둠.
 
 새 모델은 회사 클래스 상수 하나 + CHAT_MODELS에 넣기.
     - 구조화 출력(json_schema)·temperature·추론 강도를 한 번씩 호출해 보고 reasoning_efforts를 채움
-    - 단가는 추론 강도와 무관하게 모델당 하나 (세 회사 모두 추론 토큰이 출력 토큰에 포함되어 보고됨)
+    - 단가는 추론 강도와 무관하게 모델당 하나 
+    - 26.11.04. Claude 모델의 경우 추론 강도에 따른 출력 토큰의 변화가 없는 것으로 확인 
+
+판단 모델(/decisions)은 DecisionModel 상수 하나 + DECISION_MODELS에 넣기.
+    - 요청·응답 형식이 회사마다 달라 vendor로 클라이언트를 고름 (clients.llm.decision)
 """
 
 from dataclasses import dataclass
@@ -95,38 +99,79 @@ class GeminiModel(ChatModel):
 
 @dataclass(frozen=True)
 class ClaudeModel(ChatModel):
-    """Anthropic Claude 모델. 게이트웨이를 거치면 temperature·추론 강도 둘 다 못 줌.
+    """Anthropic Claude 모델. temperature·추론 강도 둘 다 받음 (Gemini와 같은 규칙).
 
-    2026-10-14 실호출 (claude-haiku-4-5·sonnet-4-5):
-        - temperature: 게이트웨이 오류 500/502 ("AsyncMessages.stream() got an unexpected keyword argument 'temperature'")
-        - reasoning_effort: 구조화 출력이 도구 강제 호출로 바뀌어 거부됨 ("Thinking may not be enabled when tool_choice forces tool use")
-        - 옵션 없이 부르면 json_schema 구조화 출력 동작. 스키마가 도구 정의로 들어가 입력 토큰이 늘어남, 캐시는 공통 필드(cached_prompt_tokens·cache_write_tokens)로 보고됨
-    게이트웨이가 고쳐지면 이 규칙을 풀면 됨.
+    2026-11-03 실호출 (claude-haiku-5-5): json_schema strict 구조화 출력, temperature=0,
+    reasoning_effort none·low·medium·high·xhigh 동작 ("minimal"은 거부).
+        - 스키마가 도구 정의로 들어가 짧은 요청도 입력 토큰이 약 500 늘어남
+        - 추론 강도를 주면 답은 달라지지만 추론 토큰이 사용량에 안 잡힘 (출력 토큰 그대로) → 비용 추정이 실제보다 적을 수 있음
+    2026-10-14 (claude-haiku-4-5·sonnet-4-5)에는 게이트웨이가 temperature(500/502)와
+    구조화 출력 + 추론 강도("Thinking may not be enabled when tool_choice forces tool use")를 거부했음.
     """
 
     vendor: ClassVar[str] = "anthropic"
 
-    def option_errors(self, temperature: float | None, reasoning_effort: str | None) -> list[str]:
-        errors = []
-        if temperature is not None:
-            errors.append(f"{self.id}에는 게이트웨이를 거치면 temperature를 줄 수 없습니다.")
-        if reasoning_effort is not None:
-            errors.append(f"{self.id}의 추론 강도는 구조화 출력과 함께 쓸 수 없습니다.")
-        return errors
 
-
-# 엘리스 단가 = OpenAI 달러 단가 × 약 1,522.5원 (mini: $0.40 / $0.10 / $1.60, 캐시 입력은 입력의 25%)
+# 엘리스 단가 = OpenAI 달러 단가 × 약 1,417.5원 (mini: $0.40 / $0.10 / $1.60, 캐시 입력은 입력의 25%)
 GPT_41_MINI = OpenAIModel(
     "gpt-4.1-mini",
-    Price(input=609.0, cached_input=152.0, output=2436.0),
-    price_source="엘리스 ML API 모델 라이브러리 2026-09-07",
+    Price(input=567.0, cached_input=141.0, output=2268.0),
+    price_source="엘리스 ML API 모델 라이브러리 2026-11-03",
 )
-# 캐시 입력은 라이브러리에 표시 없음. OpenAI 최신 계열 비율(입력의 10%)로 추정
 GPT_6_LUNA = OpenAIModel(
     "gpt-6-luna",
-    Price(input=152.0, cached_input=15.2, output=761.0),
-    price_source="엘리스 ML API 모델 라이브러리 2026-10-14 (캐시 입력은 입력의 10%로 추정)",
+    Price(input=141.0, cached_input=14.0, output=708.0),
+    price_source="엘리스 ML API 모델 라이브러리 2026-11-03",
+    reasoning_efforts=("none", "low", "medium", "high", "xhigh"),
+)
+# 2026-11-03 실호출: temperature는 기본값(1)만, 추론 강도 none~xhigh ("minimal" 거부), high부터 추론 토큰 보고
+GPT_61_TERRA = OpenAIModel(
+    "gpt-6.1-terra",
+    Price(input=1417.0, cached_input=70.0, output=7087.0),
+    price_source="엘리스 ML API 모델 라이브러리 2026-11-03",
+    reasoning_efforts=("none", "low", "medium", "high", "xhigh"),
+)
+# 등록명은 점 대신 하이픈 ("claude-haiku-5.5"는 404)
+CLAUDE_HAIKU_55 = ClaudeModel(
+    "claude-haiku-5-5",
+    Price(input=141.0, cached_input=14.0, output=708.0),
+    price_source="엘리스 ML API 모델 라이브러리 2026-11-03",
     reasoning_efforts=("none", "low", "medium", "high", "xhigh"),
 )
 
-CHAT_MODELS = {model.id: model for model in (GPT_41_MINI, GPT_6_LUNA)}
+CHAT_MODELS = {model.id: model for model in (GPT_41_MINI, GPT_6_LUNA, GPT_61_TERRA, CLAUDE_HAIKU_55)}
+
+
+@dataclass(frozen=True)
+class DecisionModel:
+    """게이트웨이 카탈로그의 판단 모델 1개 (/decisions). temperature·추론 강도 없음.
+
+    Attributes:
+        name: 회사 접두어 없는 모델 이름 (예: "jev-latest").
+        vendor: 카탈로그 등록명 접두어. 요청·응답 형식도 이걸로 고름 (typesafe·openai).
+        price: 1M 토큰당 KRW. 모르면 None (비용 계산 안 함).
+        price_source: 단가 출처·확인일.
+    """
+
+    name: str
+    vendor: str
+    price: Price | None
+    price_source: str = ""
+
+    @property
+    def id(self) -> str:
+        """카탈로그 등록명 (예: "typesafe/jev-latest"). 게이트웨이는 접두어 없는 이름을 거부함."""
+        return f"{self.vendor}/{self.name}"
+
+
+# 버전 고정 ID(jev-1.14 등)는 게이트웨이가 404. 실제 버전은 응답 model로 옴
+# $0.042 × 약 1,417.5원. 출력 토큰은 0으로 보고됨, 캐시 적중은 늘 0이라 캐시 입력은 입력과 같게 둠
+JEV = DecisionModel(
+    "jev-latest", "typesafe",
+    Price(input=59.0, cached_input=59.0, output=0.0),
+    price_source="엘리스 ML API 모델 라이브러리 2026-11-03",
+)
+# 채팅 Luna와 같은 등록명이라 단가도 같게 둠 (비용 단가표가 등록명 하나에 단가 하나). 판단 출력 토큰은 0으로 보고됨
+GPT_6_LUNA_DECISION = DecisionModel("gpt-6-luna", "openai", GPT_6_LUNA.price, price_source=GPT_6_LUNA.price_source)
+
+DECISION_MODELS = {model.id: model for model in (JEV, GPT_6_LUNA_DECISION)}

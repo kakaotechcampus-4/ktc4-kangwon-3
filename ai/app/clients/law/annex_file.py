@@ -33,6 +33,8 @@ class AnnexFileClient(RequestClient[AnnexFileRequest, AnnexFileResponse]):
         timeout: 요청 제한 시간(초). 큰 별표 파일이 있어 기본 30초.
     """
 
+    API = "law"
+
     def __init__(self, timeout: float = 30.0):
         super().__init__(base_url=_BASE_URL, timeout=timeout)
 

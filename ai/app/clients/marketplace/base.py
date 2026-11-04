@@ -64,6 +64,8 @@ class MarketplaceBaseClient(RequestClient[ProductPageRequest, ProductPage]):
         형식 변환만 하고 이미지 고르기는 쓰는 쪽.
     """
 
+    API = "marketplace"
+
     SITE: ClassVar[str]
     # 상품 페이지 도메인 (하위 도메인 포함). 리다이렉트도 이 안에서만 따라감
     DOMAINS: ClassVar[tuple[str, ...]]

@@ -3,6 +3,10 @@
     python -m app.eval.selection_runner --extraction-log logs/eval/20261006-235404.json
     python -m app.eval.selection_runner --extraction-log A.json --extraction-log B.json --runs 10
     python -m app.eval.selection_runner --rescore logs/eval/selection-20261007-120000.json
+    python -m app.eval.selection_runner --extraction-log A.json --selector decision --decision-profile luna
+
+--selector decision이면 판단 선택 에이전트(판단 모델 + 코드 규칙)로 잰다. 판단 프로필 기본값은
+AGENT_DECISION_PROFILES. 판단 호출 실패로 전부 선택한 회차는 실패한 회차로 셈.
 
 추출을 다시 부르지 않는다. 추출 평가가 남긴 결과 파일을 입력으로 쓰므로 선택 호출 비용만 든다.
 추출 결과 하나마다 두 번 선택한다(SELECTION_EVAL.md 1절).
@@ -20,12 +24,16 @@ import time
 from collections import Counter
 from pathlib import Path
 
+from ..agents.decision_selection import QUESTIONS, DecisionSelectionAgent, DecisionSelectionFailedError
 from ..agents.selection import PROMPT_PATH as SELECTION_PROMPT_PATH
 from ..agents.selection import SelectionAgent, SelectionFailedError
-from ..config import agent_profile
+from ..clients.llm.decision import get_decision_client, questions_fingerprint
+from ..config import DECISION_PROFILES, ConfigError, agent_decision_profile, agent_profile
+from ..schemas.agent import ToolSelectionResponse
 from ..schemas.product import Product
 from .grading import Grade, Stability
-from .runner import RESULT_DIR, TRUTH_DIR, describe_metadata, prompt_fingerprint, run_metadata
+from .runner import (RESULT_DIR, TRUTH_DIR, decision_run_metadata, describe_metadata, prompt_fingerprint,
+                     run_metadata)
 from .scoring import load_truth as load_extraction_truth
 from .selection_scoring import (
     Blame,
@@ -68,17 +76,72 @@ def load_extraction_outputs(paths: list[Path]) -> tuple[dict[str, list[dict]], s
     return merged, conditions[0][0], conditions[0][1]
 
 
-def _select(agent: SelectionAgent, product: dict, product_id: str) -> dict | None:
+class DecisionSelector:
+    """판단 선택 에이전트를 평가용으로 감쌈. 판단 호출 실패로 전부 선택한 회차는 실패로 셈.
+
+    Args:
+        agent: 판단 선택 에이전트.
+    """
+
+    def __init__(self, agent: DecisionSelectionAgent) -> None:
+        self._agent = agent
+
+    def run(self, product: Product) -> ToolSelectionResponse:
+        """선택 한 번.
+
+        Args:
+            product: 추출된 상품 정보.
+
+        Returns:
+            ToolSelectionResponse: 6개 Tool 선택 결과.
+
+        Raises:
+            DecisionSelectionFailedError: 판단 호출이 실패해 전부 선택으로 대체된 경우.
+        """
+        result = self._agent.run_with_meta(product)
+        if result.meta.failure_phase is not None:
+            raise DecisionSelectionFailedError(f"판단 호출 실패({result.meta.failure_phase})로 전부 선택됨",
+                                               meta=result.meta)
+        return result.result
+
+
+def decision_selector(runs: int, profile_name: str | None) -> tuple[DecisionSelector, dict]:
+    """판단 선택 평가용 에이전트와 측정 조건을 만든다.
+
+    Args:
+        runs: 픽스처당 회차 수.
+        profile_name: 판단 프로필 이름. None이면 AGENT_DECISION_PROFILES 기본값.
+
+    Returns:
+        tuple[DecisionSelector, dict]: 평가용 에이전트와 측정 조건.
+
+    Raises:
+        ConfigError: 판단 프로필이 없거나 판단 모델 설정이 잘못된 경우.
+    """
+    profile = DECISION_PROFILES[profile_name] if profile_name else agent_decision_profile("decision_selection")
+    if profile is None:
+        raise ConfigError("decision_selection 판단 프로필이 정해지지 않았습니다.")
+    agent = DecisionSelectionAgent(
+        usage_agent="decision-selection-eval", decision_client=get_decision_client(profile),
+        decision_model=profile.model.id,
+    )
+    meta = decision_run_metadata(runs=runs, profile=profile, questions_sha256=questions_fingerprint(list(QUESTIONS)))
+    return DecisionSelector(agent), meta
+
+
+def _select(agent: SelectionAgent | DecisionSelector, product: dict, product_id: str) -> dict | None:
     """선택 한 번. 실패한 회차는 None으로 남긴다(사용량은 에이전트가 직접 기록한다)."""
     try:
         response = agent.run(Product.model_validate({**product, "product_id": product_id}))
-    except SelectionFailedError as exc:
+    except (SelectionFailedError, DecisionSelectionFailedError) as exc:
         print(f"      선택 실패: {exc}", file=sys.stderr)
         return None
     return response.model_dump(mode="json")
 
 
-def run_fixture(agent: SelectionAgent, name: str, products: list[dict], extraction_truth: dict) -> dict:
+def run_fixture(
+    agent: SelectionAgent | DecisionSelector, name: str, products: list[dict], extraction_truth: dict,
+) -> dict:
     """추출 결과마다 모드 A·B로 한 번씩 선택한다. 회차끼리 짝지을 수 있게 순서를 지킨다."""
     result: dict = {"products": products, "A": [], "B": []}
     for index, product in enumerate(products):
@@ -158,14 +221,18 @@ def report_all(results: dict[str, dict]) -> None:
 
 
 def warn_if_prompt_changed(meta: dict | None) -> list[str]:
-    """저장된 결과가 지금 선택 프롬프트로 나온 값인지 확인한다."""
+    """저장된 결과가 지금 선택 프롬프트(판단 선택이면 질문 목록)로 나온 값인지 확인한다."""
     saved = (meta or {}).get("prompt_sha256")
+    label = "판단 질문 목록" if (meta or {}).get("decision_profile") else "선택 프롬프트"
     if not saved:
-        return ["[주의] 기록에 선택 프롬프트 지문이 없습니다. 같은 프롬프트로 잰 값인지 알 수 없습니다."]
-    current = prompt_fingerprint(SELECTION_PROMPT_PATH)
+        return [f"[주의] 기록에 {label} 지문이 없습니다. 같은 {label}으로 잰 값인지 알 수 없습니다."]
+    if label == "판단 질문 목록":
+        current = questions_fingerprint(list(QUESTIONS))
+    else:
+        current = prompt_fingerprint(SELECTION_PROMPT_PATH)
     if saved != current:
         return [
-            f"[주의] 지금과 다른 선택 프롬프트로 나온 결과입니다 "
+            f"[주의] 지금과 다른 {label}으로 나온 결과입니다 "
             f"(기록 {saved[:12]} / 현재 {current[:12]}). 같은 기준선으로 비교하면 안 됩니다."
         ]
     return []
@@ -191,10 +258,16 @@ def main() -> int:
     parser.add_argument("--fixture", action="append", default=[], help="선택 정답표 이름(확장자 제외)")
     parser.add_argument("--runs", type=int, default=5, help="픽스처당 쓸 추출 결과 수 (기본 5)")
     parser.add_argument("--rescore", type=Path, help="저장된 선택 결과를 재채점만 한다")
+    parser.add_argument("--selector", choices=("llm", "decision"), default="llm",
+                        help="llm: 선택 에이전트(기본), decision: 판단 선택 에이전트")
+    parser.add_argument("--decision-profile", choices=sorted(DECISION_PROFILES),
+                        help="판단 선택에 쓸 판단 프로필 (기본: AGENT_DECISION_PROFILES)")
     args = parser.parse_args()
 
     if args.rescore:
         return rescore(args.rescore)
+    if args.decision_profile and args.selector != "decision":
+        parser.error("--decision-profile 은 --selector decision 과 같이 지정하세요.")
     if not args.extraction_log:
         parser.error("--extraction-log 또는 --rescore 를 지정하세요.")
 
@@ -208,8 +281,11 @@ def main() -> int:
         return 1
 
     # 평가로 쓴 비용이 운영 비용과 섞이면 어느 쪽이 얼마인지 볼 수 없다.
-    agent = SelectionAgent(usage_agent="selection-eval")
-    meta = run_metadata(runs=args.runs, profile=agent_profile("selection"), prompt_path=SELECTION_PROMPT_PATH)
+    if args.selector == "decision":
+        agent, meta = decision_selector(args.runs, args.decision_profile)
+    else:
+        agent = SelectionAgent(usage_agent="selection-eval")
+        meta = run_metadata(runs=args.runs, profile=agent_profile("selection"), prompt_path=SELECTION_PROMPT_PATH)
     # 어떤 추출 결과로 잰 선택인지 함께 남긴다. 추출이 바뀌면 모드 B 수치가 달라진다.
     meta["extraction_logs"] = [p.as_posix() for p in args.extraction_log]
     meta["extraction_prompt_sha256"] = extraction_prompt

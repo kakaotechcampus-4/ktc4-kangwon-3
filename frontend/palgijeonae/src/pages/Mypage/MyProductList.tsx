@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";
@@ -41,15 +43,15 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
             ) : (
                 <div className="flex w-full flex-col gap-3.5">
                     {products.map((product) => (
-                        <ProductPreview
-                            key={product.productId}
-                            productName={product.productName}
-                            productImageUrl={product.productImageUrl}
-                            resultStatus={product.resultStatus}
-                            processingStatus={product.processingStatus}
-                            sourceType={product.sourceType}
-                            to={product.resultStatus != null ? `/result/product/${product.productId}` : undefined}
-                        />
+                        <Link key={product.productId} to={`/result/product/${product.productId}`} className="block w-full cursor-pointer">
+                            <ProductPreview
+                                productName={product.productName}
+                                productImageUrl={product.productImageUrl}
+                                resultStatus={product.resultStatus}
+                                processingStatus={product.processingStatus}
+                                sourceType={product.sourceType}
+                            />
+                        </Link>
                     ))}
                 </div>
             )}

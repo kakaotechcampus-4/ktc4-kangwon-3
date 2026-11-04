@@ -1,4 +1,4 @@
-"""세션·에이전트 지표: 세션 이벤트로 소요 시간·횟수를 기록하고, 수집 때 세션 관리자 현황을 읽고, 에이전트 호출 기록을 세는지 확인한다."""
+"""세션·에이전트·측정 지표: 세션 이벤트로 소요 시간·횟수를 기록하고, 수집 때 세션 관리자 현황을 읽고, 에이전트 호출과 측정 기록을 세는지 확인한다."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -6,7 +6,13 @@ from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
-from app.observability.metrics import AgentMetrics, SessionMetrics, SessionSnapshotCollector
+from app.observability.measurements import (
+    CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, SellerRegionCut,
+    ToolRun,
+)
+from app.observability.metrics import (
+    AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
+)
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
@@ -67,7 +73,19 @@ def test_대기_중_시간_초과는_실행_시간_없이_실패로_센다():
     assert registry.get_sample_value("ai_session_total_seconds_sum", labels) == 600
     assert registry.get_sample_value("ai_session_run_seconds_count", labels) is None
     assert registry.get_sample_value(
-        "ai_session_failed_total", {"run_type": "production", "error_code": "AI_TIMEOUT"}) == 1
+        "ai_session_failed_total", {"run_type": "production", "error_code": "AI_TIMEOUT", "stage": "none"}) == 1
+
+
+def test_실행_중_실패는_실패한_단계로_센다():
+    metrics, registry = _metrics()
+    run = _Run()
+    run(Start(), at=1)
+    run(ChangeStage(PipelineStage.EXTRACTION), at=2)
+
+    metrics.on_event(run(Fail("AI_INTERNAL_ERROR", retryable=False), at=5))
+
+    assert registry.get_sample_value("ai_session_failed_total", {
+        "run_type": "production", "error_code": "AI_INTERNAL_ERROR", "stage": "extraction"}) == 1
 
 
 def test_재진단_실행은_재접수_시각부터_따로_잰다():
@@ -115,6 +133,7 @@ class _Manager:
             inflight=5, dev_inflight=1, max_running=2, max_inflight=10, max_dev_inflight=2,
             accepted={run_type: 0 for run_type in RunType} | {RunType.PRODUCTION: 7},
             rejected={"queue_full": 1, "conflict": 4},
+            awaiting_replaced=2,
         )
 
 
@@ -132,6 +151,7 @@ def test_수집_때_세션_관리자_현황을_지표로_낸다():
     assert value("ai_session_accepted_total", run_type="production") == 7
     assert (value("ai_session_rejected_total", reason="queue_full"),
             value("ai_session_rejected_total", reason="conflict")) == (1, 4)
+    assert value("ai_session_awaiting_replaced_total") == 2
 
 
 def _agent_value(registry, name, **labels):
@@ -176,3 +196,154 @@ def test_모델_없는_호출은_none_모델로_센다():
     AgentMetrics(registry).on_run(AgentRunMeta(component="verification"), "p-1")
 
     assert _agent_value(registry, "ai_agent_calls_total", component="verification", model="none", outcome="ok") == 1
+
+
+def test_외부_API_호출을_서버와_결과별로_세고_시간을_서버별로_잰다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (ClientCall(api="law", result="ok", seconds=0.5), ClientCall(api="law", result="ok", seconds=1.5),
+                   ClientCall(api="law", result="api_error", seconds=0.2),
+                   ClientCall(api="data_go_kr", result="timeout", seconds=10.0)):
+        metrics.on_record(record)
+
+    def value(name, **labels):
+        return registry.get_sample_value(name, labels)
+
+    assert value("ai_client_calls_total", api="law", result="ok") == 2
+    assert value("ai_client_calls_total", api="law", result="api_error") == 1
+    assert value("ai_client_calls_total", api="data_go_kr", result="timeout") == 1
+    assert value("ai_client_seconds_sum", api="law") == 2.2
+    assert value("ai_client_seconds_bucket", api="data_go_kr", le="10.0") == 1
+
+
+def test_콜백_결과를_종류와_결과별로_세고_버린_사유와_재시도를_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (CallbackOutcome(event_type="PROGRESS", delivered=True),
+                   CallbackOutcome(event_type="PROGRESS", delivered=True, retries=2),
+                   CallbackOutcome(event_type="COMPLETED", delivered=False, retries=5, drop_reason="retry_exhausted")):
+        metrics.on_record(record)
+
+    def value(name, **labels):
+        return registry.get_sample_value(name, labels)
+
+    assert value("ai_callback_sent_total", event_type="PROGRESS", result="delivered") == 2
+    assert value("ai_callback_sent_total", event_type="COMPLETED", result="dropped") == 1
+    assert value("ai_callback_dropped_total", reason="retry_exhausted") == 1
+    assert (value("ai_callback_retries_total", event_type="PROGRESS"),
+            value("ai_callback_retries_total", event_type="COMPLETED")) == (2, 5)
+
+
+def test_수집_때_콜백_발신함_대기_수를_지표로_낸다():
+    class _Outbox:
+        def pending(self) -> int:
+            return 3
+
+    registry = CollectorRegistry()
+    registry.register(CallbackOutboxCollector(_Outbox()))
+
+    assert registry.get_sample_value("ai_callback_pending", {}) == 3
+
+
+def test_Tool_실행을_분야와_상태별로_세고_실패_원인과_판단을_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (ToolRun(tool_name="electrical", status="success", seconds=12.0,
+                           determinations=("required", "required", "not_required")),
+                   ToolRun(tool_name="electrical", status="failed", seconds=3.0, error_type="client"),
+                   ToolRun(tool_name="radio", status="skipped", seconds=0.0)):
+        metrics.on_record(record)
+
+    def value(name, **labels):
+        return registry.get_sample_value(name, labels)
+
+    assert value("ai_tool_runs_total", tool_name="electrical", status="success") == 1
+    assert value("ai_tool_runs_total", tool_name="radio", status="skipped") == 1
+    assert value("ai_tool_run_seconds_sum", tool_name="electrical", status="success") == 12
+    # 건너뛴 실행은 시간에 넣지 않음
+    assert value("ai_tool_run_seconds_count", tool_name="radio", status="skipped") is None
+    assert value("ai_tool_errors_total", tool_name="electrical", error_type="client") == 1
+    assert (value("ai_tool_findings_total", tool_name="electrical", determination="required"),
+            value("ai_tool_findings_total", tool_name="electrical", determination="not_required")) == (2, 1)
+
+
+def test_판매자_구역_자르기를_쇼핑몰과_성공_여부별로_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (SellerRegionCut(site="aliexpress", trimmed=True), SellerRegionCut(site="aliexpress", trimmed=True),
+                   SellerRegionCut(site="temu", trimmed=False)):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value(
+        "ai_extraction_seller_region_total", {"site": "aliexpress", "trimmed": "true"}) == 2
+    assert registry.get_sample_value("ai_extraction_seller_region_total", {"site": "temu", "trimmed": "false"}) == 1
+
+
+def test_캐시_조회는_캐시_이름과_결과별로_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (CacheLookup("law.text", "hit"), CacheLookup("law.text", "hit"),
+                   CacheLookup("customs.cases", "skipped")):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_cache_lookups_total", {"cache": "law.text", "result": "hit"}) == 2
+    assert registry.get_sample_value("ai_cache_lookups_total", {"cache": "customs.cases", "result": "skipped"}) == 1
+
+
+def test_법령_점검은_결과별로_세고_실패_문서가_없을_때만_마지막_성공_시각을_바꾼다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+    assert registry.get_sample_value("ai_law_refresh_last_success_timestamp") == 0
+
+    for record in (LawRefreshRun("ok", 1000.0), LawRefreshRun("partial", 2000.0), LawRefreshRun("failed", 3000.0)):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_law_refresh_last_success_timestamp") == 1000.0
+    for result in ("ok", "partial", "failed"):
+        assert registry.get_sample_value("ai_law_refresh_runs_total", {"result": result}) == 1
+
+
+def test_법령_변경은_종류·Tool별로_센다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for record in (LawChangeFound("announced", "radio_certification"), LawChangeFound("announced", "radio_certification"),
+                   LawChangeFound("skipped", "customs_requirement")):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_law_changes_total", {"kind": "announced", "tool": "radio_certification"}) == 2
+    assert registry.get_sample_value("ai_law_changes_total", {"kind": "skipped", "tool": "customs_requirement"}) == 1
+
+
+def test_CLIP_적재는_결과별로_세고_사례_수를_더하며_실패_사례가_없을_때만_마지막_성공_시각을_바꾼다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+    assert registry.get_sample_value("ai_clip_ingest_last_success_timestamp") == 0
+
+    for record in (ClipIngestRun("ok", 1000.0, saved=3, removed=1), ClipIngestRun("partial", 2000.0, saved=2, failed=1),
+                   ClipIngestRun("failed", 3000.0), ClipIngestRun("skipped", 4000.0)):
+        metrics.on_record(record)
+
+    assert registry.get_sample_value("ai_clip_ingest_last_success_timestamp") == 1000.0
+    for result in ("ok", "partial", "failed", "skipped"):
+        assert registry.get_sample_value("ai_clip_ingest_runs_total", {"result": result}) == 1
+    for outcome, count in (("saved", 5), ("removed", 1), ("failed", 1)):
+        assert registry.get_sample_value("ai_clip_ingest_cases_total", {"outcome": outcome}) == count
+
+
+def test_HTTP_요청은_라우트·메서드·상태_코드별로_세고_시간은_라우트·메서드별로_잰다():
+    registry = CollectorRegistry()
+    metrics = MeasurementMetrics(registry)
+
+    for status in (202, 202, 429):
+        metrics.on_record(HttpRequest("/api/ai/v1/dummy/diagnose/content", "POST", status, 0.02))
+
+    labels = {"route": "/api/ai/v1/dummy/diagnose/content", "method": "POST"}
+    assert registry.get_sample_value("ai_http_requests_total", {**labels, "status": "202"}) == 2
+    assert registry.get_sample_value("ai_http_requests_total", {**labels, "status": "429"}) == 1
+    assert registry.get_sample_value("ai_http_request_seconds_count", labels) == 3

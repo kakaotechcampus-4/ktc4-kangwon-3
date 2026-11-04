@@ -1,8 +1,23 @@
-"""PipelineManaged 방식의 규제 Tool 실행 경계."""
+"""PipelineManaged 방식의 규제 Tool 실행 경계.
+
+선택된 Tool은 동시에 실행한다 (최대 ``max_parallel``개, 1이면 순차). Tool 단계 시간이 각 Tool 시간의 합이 아니라
+가장 오래 걸린 Tool의 시간이 됨. 결과 목록·실행 이력은 실행이 끝난 순서와 상관없이 ToolName 순서로 고정.
+로그 실행 정보·실행 요약은 문맥 변수로 전달되므로 스레드마다 ``copy_context().run``으로 넘김.
+"""
 
 from collections.abc import Mapping
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
+from time import perf_counter
 from uuid import uuid4
 
+import httpx
+import openai
+
+from ..agents.base import AgentError
+from ..clients.errors import ClientError
+from ..config.session import MAX_PARALLEL_TOOLS
+from ..observability.measurements import ToolRun, measurement_sinks
 from ..schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.base import utc_now
@@ -27,12 +42,23 @@ _FINDING_INVALIDATING_ISSUES = frozenset(
 class ToolExecutor:
     """선택 결정에 따라 규제 Tool을 실행하고 공통 실행 정보를 부여한다."""
 
-    def __init__(self, tools: Mapping[ToolName, RegulatoryTool]) -> None:
+    def __init__(self, tools: Mapping[ToolName, RegulatoryTool], *, max_parallel: int = MAX_PARALLEL_TOOLS) -> None:
+        """
+        Args:
+            tools: ToolName → Tool. 6개 모두.
+            max_parallel: 동시에 실행할 Tool 수. 1이면 순차 실행.
+
+        Raises:
+            ValueError: Tool이 빠졌거나 이름이 다르거나 max_parallel이 1보다 작은 경우.
+        """
         if set(tools) != set(ToolName):
             raise ValueError("6개 규제 Tool 구현이 모두 필요합니다.")
         if any(tool.tool_name != name for name, tool in tools.items()):
             raise ValueError("등록한 Tool 이름과 구현의 tool_name이 다릅니다.")
+        if max_parallel < 1:
+            raise ValueError("max_parallel은 1 이상이어야 합니다.")
         self._tools = dict(tools)
+        self._max_parallel = max_parallel
 
     def execute_initial(
         self,
@@ -44,10 +70,9 @@ class ToolExecutor:
             decision.tool_name: decision
             for decision in selection.decisions
         }
-        tool_results = [
-            self._execute_one(product, decisions[tool_name], retry_round=0)
-            for tool_name in ToolName
-        ]
+        tool_results = self._execute_all(
+            product, [decisions[tool_name] for tool_name in ToolName], retry_round=0,
+        )
         history = [
             result.model_copy(deep=True)
             for result in tool_results
@@ -89,9 +114,8 @@ class ToolExecutor:
             decision.tool_name: decision
             for decision in selection.decisions
         }
-        for tool_name in ToolName:
-            if tool_name not in requested_tools:
-                continue
+        retry_tools = [tool_name for tool_name in ToolName if tool_name in requested_tools]
+        for tool_name in retry_tools:
             decision = decisions[tool_name]
 
             # 최초 미선택 Tool도 Verification 요청을 받으면 실행 대상으로 변경한다.
@@ -101,11 +125,13 @@ class ToolExecutor:
                 "추가 검토를 요청했습니다."
             )
 
-            retry_result = self._execute_one(
-                product,
-                decision,
-                retry_round=retry_request.retry_round,
-            )
+        retry_results = self._execute_all(
+            product,
+            [decisions[tool_name] for tool_name in retry_tools],
+            retry_round=retry_request.retry_round,
+        )
+        # 동시에 실행해도 후처리·이력은 ToolName 순서로
+        for tool_name, retry_result in zip(retry_tools, retry_results):
             # 이력에는 Tool이 이번 회차에 실제로 반환한 결과만 기록한다.
             history.append(retry_result.model_copy(deep=True))
             result = self._retain_unchallenged_findings(
@@ -124,6 +150,35 @@ class ToolExecutor:
             tool_result_history=history,
         )
 
+    def _execute_all(
+        self,
+        product: Product,
+        decisions: list[ToolSelectionItem],
+        *,
+        retry_round: int,
+    ) -> list[ToolResult]:
+        """Tool 여러 개를 실행한다. 선택된 Tool은 동시에, 결과는 받은 순서 그대로.
+
+        Args:
+            product: 상품 정보. Tool마다 복사해서 넘김.
+            decisions: 실행할 Tool의 선택 결정.
+            retry_round: 이번 회차.
+
+        Returns:
+            list[ToolResult]: decisions와 같은 순서의 결과.
+        """
+        selected = sum(decision.selected for decision in decisions)
+        workers = min(self._max_parallel, selected)
+        if workers <= 1:
+            return [self._execute_one(product, decision, retry_round=retry_round) for decision in decisions]
+        with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="tool") as pool:
+            # 문맥은 Tool마다 따로 복사 (같은 Context를 여러 스레드가 동시에 run할 수 없음)
+            futures = [
+                pool.submit(copy_context().run, self._execute_one, product, decision, retry_round=retry_round)
+                for decision in decisions
+            ]
+            return [future.result() for future in futures]
+
     def _execute_one(
         self,
         product: Product,
@@ -136,6 +191,7 @@ class ToolExecutor:
             raise ValueError("retry_round는 0 이상이어야 합니다.")
 
         if not decision.selected:
+            _record(decision.tool_name, ToolStatus.SKIPPED, 0.0)
             return ToolResult(
                 tool_name=decision.tool_name,
                 status=ToolStatus.SKIPPED,
@@ -146,6 +202,7 @@ class ToolExecutor:
 
         execution_id = str(uuid4())
         started_at = utc_now()
+        started = perf_counter()
         try:
             result = ToolResult.model_validate(
                 self._tools[decision.tool_name].execute(
@@ -158,6 +215,7 @@ class ToolExecutor:
             if not result.selected or result.status is ToolStatus.SKIPPED:
                 raise ValueError("선택해 실행한 Tool이 미선택 결과를 반환했습니다.")
         except Exception as exc:
+            _record(decision.tool_name, ToolStatus.FAILED, perf_counter() - started, error_type=_error_type(exc))
             return ToolResult(
                 execution_id=execution_id,
                 retry_round=retry_round,
@@ -169,6 +227,12 @@ class ToolExecutor:
                 executed_at=started_at,
             )
 
+        _record(
+            decision.tool_name, result.status, perf_counter() - started,
+            # 예외 없이 실패를 돌려준 경우 원인을 모름
+            error_type="other" if result.status is ToolStatus.FAILED else None,
+            determinations=tuple(finding.determination.value for finding in result.findings),
+        )
         return result.model_copy(
             update={
                 "execution_id": execution_id,
@@ -239,3 +303,38 @@ class ToolExecutor:
             },
             deep=True,
         )
+
+
+def _record(
+    tool_name: ToolName,
+    status: ToolStatus,
+    seconds: float,
+    *,
+    error_type: str | None = None,
+    determinations: tuple[str, ...] = (),
+) -> None:
+    """Tool 실행 1건을 측정 기록으로 남긴다."""
+    measurement_sinks.publish(ToolRun(
+        tool_name=tool_name.value, status=status.value, seconds=seconds,
+        error_type=error_type, determinations=determinations,
+    ))
+
+
+def _error_type(exc: BaseException) -> str:
+    """Tool 예외의 원인 체인을 보고 모델(model)·근거 조회(client)·그 밖(other)으로 나눈다.
+
+    - 모델 SDK 오류는 안쪽에 httpx 오류를 품고 있어 client보다 먼저 확인함
+    - 근거 조회 실패도 Tool 예외(AgentError)로 감싸져 오므로 client를 실행 정보(meta) 있는 AgentError보다 먼저 확인함
+    """
+    chain: list[BaseException] = []
+    current: BaseException | None = exc
+    while current is not None:
+        chain.append(current)
+        current = current.__cause__
+    if any(isinstance(error, openai.OpenAIError) for error in chain):
+        return "model"
+    if any(isinstance(error, (ClientError, httpx.HTTPError)) for error in chain):
+        return "client"
+    if any(isinstance(error, AgentError) and error.meta is not None for error in chain):
+        return "model"
+    return "other"

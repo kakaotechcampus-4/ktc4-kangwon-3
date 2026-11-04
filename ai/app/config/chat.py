@@ -1,6 +1,6 @@
 """에이전트·Tool이 쓸 모델 프로필 고르기. 모델 생성은 clients.llm."""
 
-from .profiles import MODEL_PROFILES, ModelProfile
+from .profiles import AGENT_DECISION_PROFILES, DECISION_PROFILES, MODEL_PROFILES, DecisionProfile, ModelProfile
 from .errors import ConfigError
 from .settings import Settings, load_settings
 
@@ -37,6 +37,19 @@ def tool_profile(name: str, settings: Settings | None = None) -> ModelProfile:
     """
     resolved = settings or load_settings()
     return _pick("Tool", resolved.tool_profiles, name)
+
+
+def agent_decision_profile(name: str) -> DecisionProfile | None:
+    """에이전트가 쓸 판단 모델 프로필 (AGENT_DECISION_PROFILES).
+
+    Args:
+        name: 에이전트 이름 (BaseAgent.component_name).
+
+    Returns:
+        DecisionProfile | None: 고른 프로필. 판단 모델을 안 쓰는 에이전트면 None.
+    """
+    profile_name = AGENT_DECISION_PROFILES.get(name)
+    return DECISION_PROFILES[profile_name] if profile_name else None
 
 
 def _pick(kind: str, profiles: dict[str, str], name: str) -> ModelProfile:

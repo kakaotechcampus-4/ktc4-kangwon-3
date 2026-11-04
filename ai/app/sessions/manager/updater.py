@@ -88,5 +88,5 @@ class SessionUpdater:
             try:
                 listener(event)
             except Exception:
-                logger.warning("세션 구독자 처리 실패 (product_id=%s, event=%s)",
+                logger.error("세션 구독자 처리 실패 (product_id=%s, event=%s)",
                                event.session.context.product_id, type(event).__name__, exc_info=True)

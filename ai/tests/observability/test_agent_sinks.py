@@ -67,7 +67,7 @@ def test_임시_등록은_예외로_빠져나가도_해제된다():
     assert recorder.records == []
 
 
-def test_sink_오류는_경고만_남기고_나머지_sink에_계속_넘긴다(caplog):
+def test_sink_오류는_오류_로그만_남기고_나머지_sink에_계속_넘긴다(caplog):
     registry, recorder = AgentSinkRegistry(), _Recorder()
 
     def broken(meta, subject_id):
@@ -79,4 +79,6 @@ def test_sink_오류는_경고만_남기고_나머지_sink에_계속_넘긴다(c
     registry.publish(_META, "p-1")
 
     assert recorder.records == [(_META, "p-1")]
-    assert "sink 처리 실패" in caplog.text
+    # 코드 오류 → ERROR와 위치까지
+    [record] = [r for r in caplog.records if "sink 처리 실패" in r.message]
+    assert record.levelname == "ERROR" and record.exc_info is not None

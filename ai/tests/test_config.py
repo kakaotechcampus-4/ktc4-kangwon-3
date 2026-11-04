@@ -30,6 +30,7 @@ _VALID_ENV = {
     "MODEL_PROFILE_OVERRIDES": None,
     "AI_DEV_API_ENABLED": None,
     "AI_DEV_API_KEY": None,
+    "LOG_LEVEL": None,
 }
 
 
@@ -373,3 +374,18 @@ def test_개발용_키가_콜백_토큰과_같으면_기동을_막는다():
 
 def test_개발용_키는_repr에_노출되지_않는다():
     assert _DEV_KEY not in repr(_settings(dev_api_enabled=True, dev_api_key=_DEV_KEY))
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(None, "INFO"), ("", "INFO"), (" debug ", "DEBUG"), ("WARNING", "WARNING")])
+def test_로그_레벨은_비우면_INFO이고_대소문자를_가리지_않는다(monkeypatch, raw, expected):
+    _env(monkeypatch, LOG_LEVEL=raw)
+
+    assert config.load_settings().log_level == expected
+
+
+def test_모르는_로그_레벨이면_기동을_막는다(monkeypatch):
+    # 오타가 조용히 INFO가 되지 않게
+    _env(monkeypatch, LOG_LEVEL="verbose")
+
+    with pytest.raises(config.ConfigError, match="LOG_LEVEL"):
+        config.load_settings()

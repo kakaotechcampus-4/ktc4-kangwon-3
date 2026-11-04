@@ -1,0 +1,132 @@
+{
+  "fixture": "toy_weapon_shaped.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "복잡",
+    "어린이",
+    "무기형태",
+    "전기"
+  ],
+  "summary": "전기 사운드·라이트 장난감 총(Temu). '장난감' 표기와 무관하게 총 형태를 weapon_like=true로 두는지, 제목 '어린이용'으로 for_children=true를 확정하는지, 전지 표기가 없는 전기 상품의 battery_included를 짐작하지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": true,
+      "evidence": "제목 '전기 사운드 & 라이트', '깜빡이는 불빛', '저전압(36V 이하)'",
+      "why_not_other": "전기로 작동한다는 표기가 있다."
+    },
+    "wireless_comm": {
+      "value": null,
+      "evidence": "(블루투스·RF 등 통신 언급 없음)",
+      "why_not_other": "전기 상품이지만 통신 여부가 적혀 있지 않다."
+    },
+    "wireless_charging": {
+      "value": null,
+      "evidence": "(무선충전 언급 없음)",
+      "why_not_other": "전기 상품이지만 충전 방식이 적혀 있지 않다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": null,
+      "evidence": "전원 방식 표기 없음. '저전압(36V 이하)'만 있다",
+      "why_not_other": "전지가 들어 있는 제품도, 따로 넣거나 USB로 쓰는 제품도 있는데 이 페이지는 어느 쪽인지 말하지 않는다. 상품 종류로 짐작하지 않는다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '장난감 총'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": null,
+      "evidence": "(발열 언급 없음)",
+      "why_not_other": "전기 상품이라 발열 언급이 없으면 모름이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "(음식 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "손에 쥔다는 것은 상품 종류에서 나온 추론이다."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "판매자 문구에 질병·신체기능 효과 표방이 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": true,
+      "evidence": "제목 '장난감 총', '리얼리스틱 사격 소리', 색상 옵션 '검은색 장난감 기관단총'",
+      "why_not_other": "프롬프트 원칙 4: '장난감' 표기가 있어도 총 형태·사격 소리를 내는 작동 방식이 확인된다."
+    },
+    "plant_material": {
+      "value": false,
+      "evidence": "스펙표 '본체재질: 플라스틱'",
+      "why_not_other": "재질이 식물성이 아닌 것으로 확인된다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '장난감 총'",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": true,
+      "evidence": "제목 '어린이용 - 생일/휴일 선물, 역할놀이'",
+      "why_not_other": "판매자가 어린이용이라고 밝힌다."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "'어린이용'은 대상 표기이고 '만 O세' 같은 연령 표기는 페이지에 없다(ali_sample과 같은 기준)"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "장난감 총"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "장난감 총",
+        "장난감 총&액세서리",
+        "장난감&게임",
+        "장난감",
+        "전동 장난감 총",
+        "완구"
+      ]
+    }
+  },
+  "listing_text_required": [
+    {
+      "must_contain": "리얼리스틱 사격 소리",
+      "evidence": "판매자 제목(원문 28행). 실총과 닮았다는 표현이라 무기 형태 판단의 근거"
+    },
+    {
+      "must_contain": "어린이용",
+      "evidence": "판매자 제목(원문 28행). 어린이 대상의 근거"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 96행, 판매 사이트 공통 문구"
+    },
+    {
+      "must_not_contain": "해당 상품 무료 배송",
+      "evidence": "원문 112행, 판매 사이트 공통 문구"
+    }
+  ]
+}

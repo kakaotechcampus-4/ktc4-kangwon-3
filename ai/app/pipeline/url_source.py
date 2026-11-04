@@ -5,7 +5,7 @@
     - selected: 후보 이미지를 썸네일로 분류(ImageTriageAgent)해 사양·인증·포장만
     - all: 분류 없이 후보 이미지 전부 (상한까지)
 클라이언트는 형식 변환만, 분류 에이전트는 분류만 하고 이미지를 쓸지·몇 장을 넘길지는 여기서 정함.
-파이프라인(CompliancePipeline) 연결 전 실험 단계 (#320 이후 연결).
+추출 단계(ExtractionStep)가 URL만 있는 상품에 씀 (#320).
 """
 
 from collections.abc import Callable, Mapping

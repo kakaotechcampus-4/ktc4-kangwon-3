@@ -9,7 +9,28 @@ from ...schemas.clients.customs_request import CLIPSearchRequest
 from ...schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
 
 # HS 코드 한 개 (10단위 8414.59-9000, 6단위 9032.89)
-_HS_CODE_RE = re.compile(r"\d{4}\.?\d{2}(?:-?\d{4})?")
+# 10단위는 점 대신 하이픈·공백이 섞인 표기도 있음 (8525-10-9010, 8479. 89-9099, 5407-52.0000)
+# 구분 기호는 점·하이픈으로 시작해야 함 (공백만 있으면 다음 코드와 붙음)
+# 6단위는 점만 허용 (문장 속 "고시2005-16" 같은 숫자를 코드로 읽지 않게)
+_HS_CODE_RE = re.compile(r"\d{4}(?:[.\-][ .\-]*)?\d{2}(?:[ ]*[.\-][ ]*)?\d{4}|\d{4}\.?\d{2}")
+
+
+def parse_hs_codes(text: str) -> list[str]:
+    """결정 HS 코드 문자열에서 코드를 하나씩 꺼낸다. 검색·상세 응답이 함께 쓴다.
+
+    구성품별로 분리 분류된 사례는 여러 코드가 번호·줄바꿈·쉼표로 섞여 옴
+    (예: ①8509.80-9000\\r\\n②8506.10-2000). 세관장확인은 숫자 10자리만 받으므로 점·하이픈은 지움.
+
+    Args:
+        text: 태그를 지운 결정 HS 코드 문자열.
+
+    Returns:
+        list[str]: 숫자만 남긴 HS 코드 목록. 6단위까지만 결정된 사례는 6자리.
+            호(4자리)·류(2자리)까지만 적은 표기와 문장("각각 해당 호에 분류")은 읽지 않음.
+    """
+    codes = [re.sub(r"\D", "", code) for code in _HS_CODE_RE.findall(text)]
+    # 구성품마다 같은 코드를 따로 적은 경우 대비 중복 제거 (순서 유지)
+    return list(dict.fromkeys(codes))
 
 
 class CLIPClient(RequestClient[CLIPSearchRequest, CLIPSearchResponse]):
@@ -22,6 +43,8 @@ class CLIPClient(RequestClient[CLIPSearchRequest, CLIPSearchResponse]):
         응답 본문은 JSON이지만 Content-Type은 text/html로 옴.
         응답에 <em> 태그가 섞여 오고 HS 코드에 점·하이픈이 포함됨 (예: 8414.59-9000).
     """
+
+    API = "customs_clip"
 
     _ENDPOINT = "/clip/prlstclsfsrch/retrieveDmstPrlstClsfCaseLst2.do"
 
@@ -100,20 +123,15 @@ class CLIPClient(RequestClient[CLIPSearchRequest, CLIPSearchResponse]):
         )
 
     def _parse_hs_codes(self, text: str) -> list[str]:
-        """결정 HS 코드 문자열에서 코드를 하나씩 꺼낸다.
-
-        구성품별로 분리 분류된 사례는 여러 코드가 번호·줄바꿈·쉼표로 섞여 옴
-        (예: ①8509.80-9000\\r\\n②8506.10-2000). 세관장확인은 숫자 10자리만 받으므로 점·하이픈은 지움.
+        """결정 HS 코드 문자열에서 코드를 하나씩 꺼낸다(parse_hs_codes).
 
         Args:
             text: 원본 DTRM_HS_SGN 값.
 
         Returns:
-            list[str]: 숫자만 남긴 HS 코드 목록. 6단위까지만 결정된 사례는 6자리.
+            list[str]: 숫자만 남긴 HS 코드 목록.
         """
-        codes = [re.sub(r"\D", "", code) for code in _HS_CODE_RE.findall(self._strip_html(text))]
-        # 구성품마다 같은 코드를 따로 적은 경우 대비 중복 제거 (순서 유지)
-        return list(dict.fromkeys(codes))
+        return parse_hs_codes(self._strip_html(text))
 
     @staticmethod
     def _strip_html(text: str) -> str:
