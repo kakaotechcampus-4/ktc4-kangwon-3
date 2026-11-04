@@ -20,7 +20,7 @@ const RESULT_PREVIEW_PRODUCT = {
 /** 메인 페이지 미리보기: 진단 결과 화면. */
 function ResultSlide() {
     return (
-        <PreviewFrame label="진단 결과 화면 미리보기" baseWidth={864} maxHeight={520}>
+        <PreviewFrame label="진단 결과 화면 미리보기" baseWidth={600} maxHeight={520}>
             <div className="flex w-full flex-col gap-6">
                 <ProductTabs productNames={PRODUCT_NAMES} selected={0} onSelect={NOOP} />
                 <ResultTabs selected={ResultTabKey.DiagnosisResult} onSelect={NOOP} />

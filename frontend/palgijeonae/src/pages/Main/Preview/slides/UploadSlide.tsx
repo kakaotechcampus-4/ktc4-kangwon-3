@@ -13,7 +13,7 @@ import InputTypeTabs from "@/pages/Upload/InputTypeTabs";
 /** 메인 페이지 미리보기: 상품 업로드 화면. */
 function UploadSlide() {
     return (
-        <PreviewFrame label="상품 업로드 화면 미리보기" baseWidth={864} maxHeight={520}>
+        <PreviewFrame label="상품 업로드 화면 미리보기" baseWidth={600} maxHeight={520}>
             <div className="flex w-full flex-col gap-8">
                 <DefaultBox align="left">
                     <InputTypeTabs selected={SourceType.Url} onSelect={NOOP} />

@@ -32,7 +32,7 @@ function AgentCard({ icon, name, role, description, chips, exampleProductName, a
                 )}
             </div>
             <div className="flex flex-col gap-3.5">
-                <p className="whitespace-pre-line text-sm leading-relaxed text-neutral-text">{description}</p>
+                <p className="whitespace-pre-line text-base font-medium leading-relaxed text-neutral-text">{description}</p>
                 <div className="flex flex-wrap gap-1.5">
                     {chips.map((chip) => (
                         <span key={chip} className="rounded-full border border-neutral-border px-3 py-1 text-xs text-neutral-dark">
