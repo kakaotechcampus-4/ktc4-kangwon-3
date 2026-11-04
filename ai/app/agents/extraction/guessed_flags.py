@@ -37,7 +37,9 @@ _NEGATIVE_EVIDENCE: dict[str, tuple[re.Pattern[str], ...]] = {
     ),
     "wireless_charging": (
         re.compile(r"무선 ?충전\s*[:：]?\s*(?:없음|미지원|no|아니요)\b", re.IGNORECASE),
-        # 충전 단자·케이블이 적혀 있으면 유선 충전 제품으로 보고 무선충전 없음을 인정 (정답표 기준)
+        # 충전 단자·케이블이 적혀 있으면 유선 충전 제품으로 보고 무선충전 없음을 인정.
+        # 정답표 기준은 "충전 단자·충전 케이블·자기 충전"(골전도 이어폰)까지. USB 충전·Type-C 등은 같은 뜻으로 넓힌 것
+        # (정답표에서 "USB 충전"만 있는 상품은 무선충전 None)
         re.compile(
             r"USB ?충전|Type-?C|타입 ?C|충전 ?(?:케이블|단자|포트|어댑터)|charging (?:port|cable)|micro ?usb|usb charging"
             r"|유선 ?충전|자기 충전",
@@ -47,10 +49,13 @@ _NEGATIVE_EVIDENCE: dict[str, tuple[re.Pattern[str], ...]] = {
 }
 # 식물성이 아닌 재질 표기. 이 중 하나가 원문에 있어야 plant_material=false를 인정한다.
 # 재질 표기가 없는 페이지의 false는 사진이나 상품 종류로 짐작한 값이다 (프롬프트 "재질 표기가 없으면 None").
+# 영문 약어는 다른 단어 안(CPC의 PC, Type의 pe, App의 pp)에서 안 잡히게 앞뒤를 막고, "PP소재"처럼 한글이 붙은 표기는 잡음.
+# "합성"은 재질 이름으로만 (적합성평가 제외)
 _NON_PLANT_MATERIAL = re.compile(
-    r"플라스틱|ABS|PP\b|PC\b|PE\b|PET|TPU|PVC|실리콘|실리카겔|스테인리스|스틸|금속|알루미늄|합금|유리|세라믹|도자기"
-    r"|나일론|폴리|스판덱스|아크릴|합성|고무|SBR|가죽|레진|수지"
-    r"|metal|steel|alumin|plastic|silicone|glass|ceramic|nylon|polyester|rubber|leather|resin|iron|stainless|acrylic",
+    r"플라스틱|(?<![A-Za-z0-9])(?:ABS|PP|PC|PE|PET|TPU|PVC|SBR)(?![A-Za-z])|실리콘|실리카겔|스테인리스|스틸|금속|알루미늄|합금"
+    r"|유리|세라믹|도자기|나일론|폴리|스판덱스|아크릴|합성(?:수지|섬유|피혁|가죽|고무)|고무|가죽|레진|수지"
+    r"|metal|steel|alumin|plastic|silicone|glass|ceramic|nylon|polyester|rubber|leather|resin"
+    r"|(?<![A-Za-z])iron(?![A-Za-z])|stainless|acrylic",
     re.IGNORECASE,
 )
 # 코드 규칙이 배터리 모순(용량 표기 + "배터리 미포함")을 찾았을 때 확정하지 않는 칸 (원칙 5)

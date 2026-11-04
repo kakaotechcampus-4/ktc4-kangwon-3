@@ -101,12 +101,22 @@ def test_재질_표기가_없는_식물성_소재_false는_모름으로_되돌�
     assert attributes["plant_material"] is None
 
 
-@pytest.mark.parametrize("text", ["재질: 플라스틱", "Material: ABS+Metal", "스테인리스 스틸 본체", "재료: 폴리프로필렌"])
+@pytest.mark.parametrize("text", ["재질: 플라스틱", "Material: ABS+Metal", "스테인리스 스틸 본체", "재료: 폴리프로필렌",
+                                  "PP소재", "재질: PC", "소재: 합성수지"])
 def test_식물성이_아닌_재질이_적혀_있으면_plant_material_false를_인정한다(text):
     attributes = {"plant_material": False}
 
     assert drop_unsupported_false(attributes, text) == []
     assert attributes["plant_material"] is False
+
+
+@pytest.mark.parametrize("text", ["인증정보: CE-Toy; CPC", "충전 단자: Type-C", "전용 앱(App)", "KC 적합성평가",
+                                  "environment friendly"])
+def test_재질이_아닌_단어_안의_약어·합성은_재질_표기로_보지_않는다(text):
+    # CPC의 PC, Type의 pe, App의 pp, 적합성의 합성, environment의 iron
+    attributes = {"plant_material": False}
+
+    assert drop_unsupported_false(attributes, text) == ["plant_material"]
 
 
 def test_이미지만_있는_입력은_글_근거가_없어_false를_모름으로_되돌린다():
