@@ -1,24 +1,29 @@
 import SectionIntro from "@/components/common/SectionIntro";
+import { AGENT_EXAMPLE_FINDINGS } from "@/pages/Main/previewMocks";
 
 import AgentCard from "./AgentCard";
 import { AGENT_DOMAINS } from "./constants";
 
-/** 메인 페이지 "6개 분야 에이전트" 소개 섹션. 아이콘·설명을 좌우로 교차 배치한다. */
+/** 메인 페이지 "6개 분야 에이전트" 소개 섹션. 분야별 역할·설명을 좌우로 교차 배치한다. */
 function AgentIntro() {
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro
-                title="6개 분야 전문 에이전트가 함께 확인해요"
-                description="하나의 상품도 여러 법령에 걸릴 수 있어서, 분야별 에이전트가 나눠서 검토해요."
+                title="6개 분야 에이전트가 나눠서 확인해요"
+                description="통관은 모든 상품을 확인하고, 나머지는 상품에 해당하는 분야만 골라 확인해요."
                 size="2xl"
             />
-            <ul className="flex flex-col gap-10">
+            <ul className="flex flex-col gap-5">
                 {AGENT_DOMAINS.map((domain, index) => (
-                    <li key={domain.key}>
+                    <li key={domain.toolName}>
                         <AgentCard
                             icon={domain.icon}
                             name={domain.name}
+                            role={domain.role}
                             description={domain.description}
+                            chips={domain.chips}
+                            exampleProductName={AGENT_EXAMPLE_FINDINGS[domain.toolName].exampleProductName}
+                            alwaysCheckTag={domain.alwaysCheckTag}
                             reverse={index % 2 === 1}
                         />
                     </li>
