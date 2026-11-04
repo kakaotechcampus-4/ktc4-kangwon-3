@@ -11,9 +11,8 @@ interface ErrorBoundaryState {
 }
 
 /**
- * 렌더 중 발생한 에러를 잡아 폴백 화면을 보여준다.
- * Sentry 전송은 여기서 하지 않는다 — main.tsx의 createRoot onCaughtError(Sentry.reactErrorHandler())가
- * 이 바운더리가 잡는 에러도 함께 중앙에서 보고하므로, 여기서 또 보내면 같은 에러가 중복으로 올라간다.
+ * 하위 트리의 렌더링 에러를 잡아 폴백 화면을 보여주는 바운더리.
+ * 이벤트 핸들러·onError 처리된 API 에러는 안 옴. Sentry 전송은 main.tsx의 onCaughtError가 하므로 이 컴포넌트에서는 제외한다.
  */
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     state: ErrorBoundaryState = { hasError: false };
