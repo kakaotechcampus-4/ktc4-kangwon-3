@@ -10,6 +10,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from threading import Lock
 from typing import TYPE_CHECKING
 
 from ..domain.context import PipelineStage
@@ -39,7 +40,7 @@ class ToolRunSummary:
 
 @dataclass
 class RunSummary:
-    """실행 하나의 요약 재료. 실행 스레드 하나만 씀.
+    """실행 하나의 요약 재료. 단계는 실행 스레드가, Tool·모델 호출은 동시에 도는 Tool 스레드들이 기록함 (잠금).
 
     Attributes:
         clock: 시각 함수(초). 테스트에서 바꿈.
@@ -66,6 +67,7 @@ class RunSummary:
     cost_krw: float = 0.0
     _stage: str | None = None
     _stage_started: float = 0.0
+    _lock: Lock = field(default_factory=Lock, repr=False)
 
     def __post_init__(self) -> None:
         self.started = self.clock()
@@ -98,7 +100,9 @@ class RunSummary:
             run: Tool 실행 측정 기록.
         """
         if run.status != "skipped":
-            self.tools.append(ToolRunSummary(run.tool_name, run.status, run.seconds, max(self.tool_execution_rounds, 1)))
+            with self._lock:
+                self.tools.append(ToolRunSummary(run.tool_name, run.status, run.seconds,
+                                                 max(self.tool_execution_rounds, 1)))
 
     def add_call(self, meta: "AgentRunMeta") -> None:
         """모델 호출 1건을 더한다.
@@ -106,14 +110,15 @@ class RunSummary:
         Args:
             meta: 호출 1건의 실행 정보.
         """
-        self.model_calls += 1
-        if meta.error_type is not None:
-            self.model_failures += 1
-        if meta.usage is not None:
-            self.input_tokens += meta.usage.input_tokens
-            self.output_tokens += meta.usage.output_tokens
-        if meta.cost_krw is not None:
-            self.cost_krw += meta.cost_krw
+        with self._lock:
+            self.model_calls += 1
+            if meta.error_type is not None:
+                self.model_failures += 1
+            if meta.usage is not None:
+                self.input_tokens += meta.usage.input_tokens
+                self.output_tokens += meta.usage.output_tokens
+            if meta.cost_krw is not None:
+                self.cost_krw += meta.cost_krw
 
     def _close_stage(self) -> None:
         if self._stage is not None:

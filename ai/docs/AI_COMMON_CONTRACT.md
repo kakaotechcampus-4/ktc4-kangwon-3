@@ -550,7 +550,7 @@ class ExecutionEvent(BaseModel):
 | 이벤트 (`eventType`) | 필드 | 비고 |
 | --- | --- | --- |
 | 공통 | `eventId`, `diagnosisId`, `productId`, `runId`, `sequence` | eventId는 BE 중복 수신 키. runId는 재진단마다 새로 발급, sequence는 실행마다 1부터 |
-| `product_progress` | `stage`, `stageStatus`(started·completed·skipped), `toolName` | toolName은 Tool 실행 단계에서만. BE는 저장하지 않고 표시만 |
+| `product_progress` | `stage`, `stageStatus`(started·completed·skipped), `toolName` | toolName은 Tool 실행 단계에서만. 선택된 Tool은 동시에 실행돼 Tool끼리는 순서가 섞임(같은 Tool은 started → completed). BE는 저장하지 않고 표시만 |
 | `product_awaiting_input` | `questionRound`(1~2), `questions[]` | 실행의 마지막. 질문 키·순서 중복 금지 |
 | `product_result` | `assessment` (§7.1.3) | 실행의 마지막. 진단서를 콜백에 바로 담음 |
 | `product_failed` | `stage`, `error{code(≤50자), message, retryable}` | 실행의 마지막 |
