@@ -122,6 +122,7 @@ class JwtProviderTest {
     @Test
     @DisplayName("형식이 올바르지 않은 문자열을 검증하면 INVALID_ACCESS_TOKEN 예외가 발생한다.")
     void parseMalformedToken_thenThrowInvalidAccess() {
+        // when & then
         assertThatThrownBy(() -> jwtProvider.parse("not.a.jwt", TokenType.ACCESS))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())

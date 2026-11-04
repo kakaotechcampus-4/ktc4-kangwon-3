@@ -135,8 +135,10 @@ class S3PresignedUrlProviderTest {
     @Test
     @DisplayName("허용되지 않은 확장자로 요청하면 FILE-001 예외가 발생한다.")
     void issuePresignedUrls_withUnsupportedExtension_thenThrowException() {
+        // given
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "malware.exe", 1024L);
 
+        // when & then
         assertThatThrownBy(() -> s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file)))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
@@ -184,9 +186,11 @@ class S3PresignedUrlProviderTest {
     @Test
     @DisplayName("허용 크기를 초과한 파일로 요청하면 FILE-003 예외가 발생한다.")
     void issuePresignedUrls_withExceedFileSize_thenThrowException() {
+        // given
         long exceedSize = DataSize.ofMegabytes(10).toBytes() + 1;
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", exceedSize);
 
+        // when & then
         assertThatThrownBy(() -> s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file)))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())

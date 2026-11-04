@@ -3,6 +3,7 @@
 import pytest
 from pydantic import BaseModel
 
+from app.observability.trace import trace_run
 from app.prompts import PromptName
 from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Attribute, Product
@@ -269,3 +270,51 @@ def test_모델을_주지_않으면_실행할_때_Tool_프로필로_한_번_만�
 
     assert names == [ToolName.RADIO]
     assert model.calls == ["_Facts", "_Review", "_Facts", "_Review"]
+
+
+def test_기록_중이면_원문_조각_ID_남긴_조건과_버린_조건_가정_조회_기록을_Tool_단계에_남긴다(tmp_path):
+    wrong = _fact("power", "220V", quote="원문에 없는 인용")
+    model = _Model(_Facts(facts=[*FACTS.facts, wrong]), _Review(selections=[_selection("kc")]))
+
+    with trace_run(tmp_path) as recorder:
+        _Tool(model, candidates={"kc": "후보"}).execute(_product(), _decision())
+
+    [step] = recorder.steps
+    assert step["snippet_ids"] == ["listing-0"]
+    assert step["facts"] == {"kept": [fact.model_dump() for fact in FACTS.facts], "dropped": [wrong.model_dump()]}
+    assert step["assumptions"][-1] == "조건을 읽었습니다."
+    assert step["query"] == {"dropped_facts": 1, "dropped_candidates": 0, "not_applicable": 0, "conflicted": []}
+    assert step["result"]["findings"] == [
+        {"id": "f1", "subject": "후보", "determination": "possibly_required", "risk_level": "medium"},
+    ]
+
+
+def test_기록_중이면_후보_고르기마다_후보_ID와_선택별_결과·버린_이유를_남긴다(tmp_path):
+    candidates = {f"item-{i}": f"품목 {i}" for i in range(5)}
+    review = _Review(selections=[
+        _selection("item-0", applies=False), _selection("unknown"), _selection("item-1"), _selection("item-1"),
+        _selection("item-2", fields=("power",)), _selection("item-2"), _selection("item-3"), _selection("item-4"),
+    ])
+
+    with trace_run(tmp_path) as recorder:
+        _Tool(_Model(FACTS, review), candidates=candidates).execute(_product(), _decision())
+
+    [pick] = recorder.steps[0]["picks"]
+    assert pick["candidates"] == list(candidates)
+    assert [(selection["id"], selection["outcome"]) for selection in pick["selections"]] == [
+        ("item-0", "not_applicable"), ("unknown", "not_in_candidates"), ("item-1", "chosen"),
+        ("item-1", "duplicate"), ("item-2", "no_confirmed_fact"), ("item-2", "chosen"), ("item-3", "chosen"),
+        ("item-4", "over_limit"),
+    ]
+    assert pick["selections"][2] == {"id": "item-1", "outcome": "chosen", "fact_fields": ["product_type"],
+                                     "rationale": "item-1 근거", "used_fields": ["product_type"]}
+
+
+def test_코드_규칙으로_버린_후보는_rule로_남긴다(tmp_path):
+    tool = _Tool()
+    run = tool.run_class(_product(), _decision(), by_field={"product_type": [FACTS.facts[0]]})
+
+    with trace_run(tmp_path) as recorder:
+        tool._pick(run, [_selection("item-0")], {"item-0": 0}, skip=lambda item: item == 0)
+
+    assert recorder.info["picks"][0]["selections"][0]["outcome"] == "rule"
