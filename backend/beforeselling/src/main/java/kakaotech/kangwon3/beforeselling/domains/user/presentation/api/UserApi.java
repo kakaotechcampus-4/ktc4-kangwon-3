@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiResponseExplanations;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiSuccessResponseExplanation;
-import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
+import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import org.springframework.http.ResponseEntity;
 
@@ -20,9 +20,9 @@ public interface UserApi {
                     같은 소셜 계정으로 다시 로그인하면 새 회원으로 자동 가입됩니다.
                     """)
     @ApiResponseExplanations(
-            success = @ApiSuccessResponseExplanation(description = "탈퇴 성공")
+            success = @ApiSuccessResponseExplanation(responseCode = CommonResponseCode.NO_CONTENT, description = "탈퇴 성공")
     )
-    ResponseEntity<ApiResponse<Void>> withdraw(
+    ResponseEntity<Void> withdraw(
             @Parameter(hidden = true) UserPrincipal principal,
             @Parameter(hidden = true) String refreshToken,
             @Parameter(hidden = true) HttpServletResponse response);
