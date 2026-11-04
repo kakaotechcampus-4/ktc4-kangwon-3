@@ -8,7 +8,7 @@ const QUESTIONS = PREVIEW_PRODUCTS.slipperAwaiting.questions;
 /** 메인 페이지 미리보기: 질문 답변 화면. */
 function QuestionSlide() {
     return (
-        <PreviewFrame label="질문 답변 화면 미리보기" baseWidth={600} maxHeight={520}>
+        <PreviewFrame label="질문 답변 화면 미리보기" baseWidth={1000} maxHeight={520}>
             <div className="flex w-full flex-col gap-6">
                 <ProgressSummary currentAnswered={QUESTIONS.map((question) => Boolean(question.answerText))} />
                 <div className="flex flex-col gap-4">
