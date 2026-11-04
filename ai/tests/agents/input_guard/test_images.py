@@ -7,7 +7,7 @@ import httpx
 import pytest
 from PIL import Image
 
-from app.agents.input_guard.images import MAX_SIDE, prepare_judge_images
+from app.agents.input_guard.images import MAX_SIDE, MIN_SIDE, prepare_judge_images
 
 TALL_URL = "https://bucket.s3.ap-northeast-2.amazonaws.com/products/tall"
 SHORT_URL = "https://bucket.s3.ap-northeast-2.amazonaws.com/products/short"
@@ -36,8 +36,8 @@ def test_짧은_이미지는_한_장_긴_캡처는_조각으로_원래_순서대
 
     result = prepare_judge_images([SHORT_URL, TALL_URL], fetch=images.__getitem__)
 
-    # 짧은 이미지 1장 + 100x400 조각 5개 (추출과 같은 자르기)
-    assert [_decode(uri).size for uri in result.images] == [(300, 300)] + [(100, 100)] * 5
+    # 짧은 이미지 1장 + 100x400 조각 5개 (추출과 같은 자르기, 조각은 짧은 변 하한으로 키움)
+    assert [_decode(uri).size for uri in result.images] == [(300, 300)] + [(MIN_SIDE, MIN_SIDE)] * 5
     assert result.skipped == 0
 
 
@@ -53,12 +53,35 @@ def test_JPEG가_아닌_이미지도_JPEG로_바꾼다(fmt, mode, mime):
 
 @pytest.mark.parametrize(("size", "expected"), [
     ((2000, 1500), (MAX_SIDE, 768)),
-    ((3000, 500), (MAX_SIDE, 171)),
-], ids=["큰 사진", "가로로 긴 배너"])
+], ids=["큰 사진"])
 def test_긴_변이_상한을_넘으면_비율을_지켜_줄인다(size, expected):
     result = prepare_judge_images([SHORT_URL], fetch=lambda url: _image(*size))
 
     assert _decode(result.images[0]).size == expected
+
+
+@pytest.mark.parametrize(("size", "expected"), [
+    ((400, 140), (800, MIN_SIDE)),
+    ((50, 50), (MIN_SIDE, MIN_SIDE)),
+    ((200, 250), (MIN_SIDE, 350)),
+], ids=["작은 배너", "작은 아이콘", "작은 세로 이미지"])
+def test_짧은_변이_하한보다_작으면_비율을_지켜_키운다(size, expected):
+    result = prepare_judge_images([SHORT_URL], fetch=lambda url: _image(*size))
+
+    assert _decode(result.images[0]).size == expected
+
+
+@pytest.mark.parametrize(("size", "expected"), [
+    ((3000, 500), (MAX_SIDE, MIN_SIDE)),
+    ((790, 168), (790, MIN_SIDE)),
+], ids=["줄이면 낮아지는 배너", "키우면 긴 변 상한을 넘는 배너"])
+def test_키우면_긴_변_상한을_넘는_이미지는_흰_여백을_붙인다(size, expected):
+    result = prepare_judge_images([SHORT_URL], fetch=lambda url: _image(*size))
+
+    image = _decode(result.images[0])
+    assert image.size == expected
+    # 위아래 여백은 흰색, 가운데는 원래 이미지
+    assert image.getpixel((5, 2))[0] > 245 and abs(image.getpixel((5, expected[1] // 2))[0] - 200) < 10
 
 
 def test_긴_캡처_조각도_긴_변_상한으로_줄인다():

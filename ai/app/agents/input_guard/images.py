@@ -1,7 +1,8 @@
 """입력 가드가 판단 모델(Jev)에 넣을 이미지를 만든다.
 
-Jev는 base64 PNG·JPEG data URI만 받고, 긴 변이 1536px을 넘으면 400 (11-04 실측, 긴 캡처 통째도 400).
+Jev는 base64 PNG·JPEG data URI만 받고, 긴 변이 1536px을 넘거나 짧은 변이 280px 미만이면 400 (11-04 실측).
 긴 캡처는 추출과 같은 규칙으로 정사각형 조각으로 자르고, 모든 조각·이미지를 긴 변 MAX_SIDE 이하 JPEG로 바꿈.
+짧은 변이 MIN_SIDE 미만(배너·작은 이미지)이면 키우고, 키우면 긴 변 상한을 넘을 때는 흰 여백을 붙임.
 추출 에이전트에는 원래 주소를 그대로 넘기므로 여기서 만든 data URI는 가드에서만 씀.
 """
 
@@ -9,6 +10,7 @@ import base64
 import binascii
 import io
 import logging
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -21,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 # 긴 변 상한. Jev 상한(1536px)보다 작게 줄여 토큰을 아낌 (면적에 비례: 800px 약 2천, 1536px 약 6.4천)
 MAX_SIDE = 1024
+# 짧은 변 하한. Jev 하한 (11-04 실측 279px 400, 280px 통과)
+MIN_SIDE = 280
 # 상품당 판단 이미지(조각 포함) 상한. 넘는 이미지는 보지 않고 넘김 (fail-open)
 MAX_IMAGES = 60
 # 받기·읽기 실패로 보는 예외. 픽셀 수가 Pillow 상한을 넘는 이미지(DecompressionBombError)는 Exception을 바로 상속
@@ -79,13 +83,35 @@ def _pieces(data: bytes) -> list[bytes]:
 
 
 def _shrink_jpeg(data: bytes) -> bytes:
-    """긴 변 MAX_SIDE 이하 RGB JPEG. 작은 이미지는 크기 그대로 형식만 바꿈 (webp·png·투명 배경 포함)."""
+    """긴 변 MAX_SIDE 이하·짧은 변 MIN_SIDE 이상 RGB JPEG (webp·png·투명 배경 포함)."""
     with Image.open(io.BytesIO(data)) as image:
         rgb = image.convert("RGB")
     rgb.thumbnail((MAX_SIDE, MAX_SIDE))
+    rgb = _fit_min_side(rgb)
     buffer = io.BytesIO()
     rgb.save(buffer, format="JPEG", quality=JPEG_QUALITY)
     return buffer.getvalue()
+
+
+def _fit_min_side(image: Image.Image) -> Image.Image:
+    """짧은 변을 MIN_SIDE 이상으로 맞춘다. 키워서 긴 변이 MAX_SIDE 이하면 키우고, 아니면 흰 여백을 붙임.
+
+    Args:
+        image: 긴 변 MAX_SIDE 이하 RGB 이미지.
+
+    Returns:
+        Image.Image: 짧은 변 MIN_SIDE 이상 이미지. 이미 맞으면 받은 이미지.
+    """
+    width, height = image.size
+    if min(width, height) >= MIN_SIDE:
+        return image
+    scale = MIN_SIDE / min(width, height)
+    if math.ceil(max(width, height) * scale) <= MAX_SIDE:
+        # 작은 글씨도 읽히게 키움
+        return image.resize((max(MIN_SIDE, math.ceil(width * scale)), max(MIN_SIDE, math.ceil(height * scale))))
+    canvas = Image.new("RGB", (max(width, MIN_SIDE), max(height, MIN_SIDE)), "white")
+    canvas.paste(image, ((canvas.width - width) // 2, (canvas.height - height) // 2))
+    return canvas
 
 
 def _data_uri(jpeg: bytes) -> str:
