@@ -180,6 +180,33 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+# shadow DOM의 textContent에는 <style>·<script> 내용이 글과 함께 딸려 온다 (알리 #product-description).
+# 선택자로 시작해 "{"로 끝나는 줄부터 "}"까지를 CSS 블록으로, 한 줄에 "선택자{속성}"가 이어진 것을 인라인 CSS로,
+# "window.x=...;"를 스크립트 줄로 보고 걷어 낸다. 상품 문구 안의 중괄호("{S, M, L}")는 선택자 형태가 아니라 남는다.
+_CSS_BLOCK_START = re.compile(r"^[.#@][^{}]*[{,]$")
+_CSS_INLINE = re.compile(r"^[.#@](?:[^{}]*\{[^{}]*\})+$")
+_SCRIPT_LINE = re.compile(r"^window\.[\w.]+\s*=")
+
+
+def clean_description(text: str) -> str:
+    """shadow DOM 글에서 CSS 규칙과 스크립트 줄을 걷어 낸 설명 글을 돌려준다."""
+    kept: list[str] = []
+    in_block = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if in_block:
+            if line.endswith("}"):
+                in_block = False
+            continue
+        if _CSS_BLOCK_START.match(line):
+            in_block = True
+            continue
+        if _CSS_INLINE.match(line) or _SCRIPT_LINE.match(line):
+            continue
+        kept.append(raw)
+    return "\n".join(kept).strip()
+
+
 def export_listing(
     main_data: dict,
     frame_datas: list[dict],
@@ -214,7 +241,7 @@ def export_listing(
     as_pasted = main_data.get("text_as_pasted")
     if as_pasted and as_pasted != main_data["text"]:
         _write(out_dir / "text_as_pasted.txt", header + as_pasted)
-    detail_text = (main_data.get("detail_text") or "").strip()
+    detail_text = clean_description(main_data.get("detail_text") or "")
     if len(detail_text) >= MIN_DESCRIPTION_CHARS:
         _write(out_dir / "description.txt", detail_text)
 

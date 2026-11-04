@@ -340,3 +340,41 @@ def test_일괄_처리는_수집_json이_아닌_파일을_무시한다(tmp_path:
     (downloads / "temu_note.txt").write_text("x", encoding="utf-8")
 
     assert plan_batch(downloads, tmp_path / "_raw", prefix="strat") == []
+
+
+# shadow DOM의 textContent에는 <style>·<script> 내용이 같이 딸려 온다 (알리 #product-description).
+# 북마클릿도 고쳤지만, 이미 받은 JSON에도 남아 있어 저장 단계에서 한 번 더 걷어 낸다.
+_CSS_BLOCK = ".product-description {\nposition: relative;\nmax-width: 944px;\n}\n.product-description span {\nmax-width: 100%;\n}\n"
+_INLINE_CSS = "#detail_decorate_root .magic-0{margin-bottom:10px;overflow:hidden}#detail_decorate_root .magic-1{vertical-align:top}\n"
+_SCRIPT = "window.adminAccountId=2670075647;\n"
+
+
+def test_설명_글에서_css_규칙과_스크립트_줄을_걷어_낸다():
+    clean_description = download_listing.clean_description
+
+    text = _CSS_BLOCK + _INLINE_CSS + "1. IPX8 방수, 염수 분무 방지 구조\n운동 중에 떨어지지 않습니다.\n" + _SCRIPT
+
+    assert clean_description(text) == "1. IPX8 방수, 염수 분무 방지 구조\n운동 중에 떨어지지 않습니다."
+
+
+def test_설명_글의_중괄호가_상품_문구_안에_있으면_남긴다():
+    clean_description = download_listing.clean_description
+
+    assert clean_description("사이즈 {S, M, L} 중 선택\n세탁 시 주의: 30℃ 이하") == "사이즈 {S, M, L} 중 선택\n세탁 시 주의: 30℃ 이하"
+
+
+def test_css만_있던_설명_글은_description_txt를_만들지_않는다(tmp_path: Path):
+    data = _listing("aliexpress", detail_text=_CSS_BLOCK * 3 + _SCRIPT)
+
+    export_listing(data, [], tmp_path / "p", fetch=_fake_fetch({}))
+
+    assert not (tmp_path / "p" / "description.txt").exists()
+
+
+def test_css가_섞인_설명_글은_걷어_낸_뒤_description_txt로_쓴다(tmp_path: Path):
+    body = "골전도 기술을 채택한 오픈형 디자인은 편안한 착용을 보장합니다. " * 3
+    data = _listing("aliexpress", detail_text=_CSS_BLOCK + body + "\n" + _SCRIPT)
+
+    export_listing(data, [], tmp_path / "p", fetch=_fake_fetch({}))
+
+    assert (tmp_path / "p" / "description.txt").read_text(encoding="utf-8") == body.strip()

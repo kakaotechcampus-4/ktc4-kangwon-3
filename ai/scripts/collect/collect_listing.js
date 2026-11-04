@@ -33,6 +33,17 @@
     });
     return out;
   };
+  // shadow root의 textContent는 <style>·<script> 내용까지 섞여 나온다. 글 노드만 모은다.
+  const shadowText = (root) => {
+    const skip = /^(STYLE|SCRIPT|NOSCRIPT|TEMPLATE)$/;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => (n.parentElement && skip.test(n.parentElement.tagName) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+    });
+    const parts = [];
+    let n;
+    while ((n = walker.nextNode())) parts.push(n.nodeValue);
+    return parts.join(String.fromCharCode(10));
+  };
   const findMarkers = () => {
     const found = [];
     allElements(document, [], 0).forEach((el) => {
@@ -155,7 +166,7 @@
     const r = el.getBoundingClientRect();
     const top = r.top + window.scrollY;
     if (top < range.low || top >= range.high) return;
-    const t = (el.shadowRoot.textContent || "").split(String.fromCharCode(10)).map((l) => l.trim()).filter((l) => l).join(String.fromCharCode(10));
+    const t = shadowText(el.shadowRoot).split(String.fromCharCode(10)).map((l) => l.trim()).filter((l) => l).join(String.fromCharCode(10));
     if (t) detailParts.push(t);
   });
   const detailText = detailParts.join(String.fromCharCode(10, 10));
