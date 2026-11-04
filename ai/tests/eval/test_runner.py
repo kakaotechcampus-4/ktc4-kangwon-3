@@ -190,3 +190,64 @@ def test_요약_한_줄에_프로필과_추론_강도를_보인다():
     assert "모델 openai/gpt-6-luna (luna-low, 추론 low)" in describe_metadata(meta)
     # 프로필이 없는 예전 기록은 모델 이름만
     assert "모델 openai/gpt-4.1-mini / " in describe_metadata({"model": "openai/gpt-4.1-mini"})
+
+
+def _truth_like_power_bank(fixture: str) -> dict:
+    from app.eval import runner
+
+    truth = json.loads((runner.TRUTH_DIR / "power_bank.json").read_text(encoding="utf-8"))
+    truth["fixture"] = fixture
+    return truth
+
+
+def _patch_runner_without_llm(runner, monkeypatch, tmp_path, argv: list[str]) -> None:
+    monkeypatch.setattr(runner, "RESULT_DIR", tmp_path / "out")
+    monkeypatch.setattr(runner, "ExtractionAgent", lambda **kwargs: SimpleNamespace(**kwargs))
+    monkeypatch.setattr(runner, "agent_profile", lambda name: MODEL_PROFILES["mini"])
+    monkeypatch.setattr(runner, "run_fixture", lambda *a, **k: [{"product_id": "x"}])
+    monkeypatch.setattr(runner, "score", lambda *a, **k: None)
+    monkeypatch.setattr(runner, "print_report", lambda *a, **k: None)
+    monkeypatch.setattr(sys, "argv", ["runner", *argv])
+
+
+def test_정답표_폴더를_바꿔_확정_전_초안으로도_잰다(tmp_path, monkeypatch):
+    # 수집한 표본의 정답표 초안은 확정 전까지 _raw/truth_drafts에 둔다(#567).
+    # 초안으로 먼저 재서 모델과 어긋난 칸만 검토하려면 러너가 다른 폴더의 정답표를 읽어야 한다.
+    from app.eval import runner
+
+    raw_dir = tmp_path / "raw"
+    (raw_dir / "strat_01").mkdir(parents=True)
+    (raw_dir / "strat_01" / "text.txt").write_text("본문", encoding="utf-8")
+    truth_dir = tmp_path / "drafts"
+    truth_dir.mkdir()
+    (truth_dir / "strat_01_wallet.json").write_text(
+        json.dumps(_truth_like_power_bank("strat_01/text.txt"), ensure_ascii=False), encoding="utf-8"
+    )
+    monkeypatch.setattr(runner, "RAW_DIR", raw_dir)
+    _patch_runner_without_llm(runner, monkeypatch, tmp_path, ["--all", "--runs", "1", "--truth-dir", str(truth_dir)])
+
+    assert runner.main() == 0
+
+    saved = json.loads(next((tmp_path / "out").glob("*.json")).read_text(encoding="utf-8"))
+    assert saved["results"] == {"strat_01_wallet": [{"product_id": "x"}]}
+    # 재채점 때 같은 정답표를 찾을 수 있어야 한다.
+    assert saved["truth_dir"] == str(truth_dir)
+
+
+def test_재채점은_기록된_정답표_폴더를_쓴다(tmp_path, capsys):
+    from app.eval import runner
+
+    truth_dir = tmp_path / "drafts"
+    truth_dir.mkdir()
+    (truth_dir / "strat_01_wallet.json").write_text(
+        json.dumps(_truth_like_power_bank("strat_01/text.txt"), ensure_ascii=False), encoding="utf-8"
+    )
+    saved = tmp_path / "result.json"
+    saved.write_text(json.dumps({
+        "meta": None, "truth_dir": str(truth_dir),
+        "results": {"strat_01_wallet": [{"product_id": "x", "attributes": []}]},
+    }), encoding="utf-8")
+
+    assert rescore(saved) == 0
+
+    assert "strat_01/text.txt" in capsys.readouterr().out
