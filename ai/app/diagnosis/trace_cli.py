@@ -165,7 +165,8 @@ def run(source_path: Path, directory: Path, answers: list[str]) -> Path:
     """
     source = read_source(source_path)
     job_input = resume_input(source, directory, answers) if answers else DiagnosisInput(source=source)
-    return _execute(job_input, directory, {"source": str(source_path)})
+    earlier = job_input.previous.model_dump_json() if job_input.previous else ""
+    return _execute(job_input, directory, {"source": str(source_path)}, earlier=earlier)
 
 
 def replay_run(trace_path: Path, stage: str, only: bool, directory: Path) -> Path:
@@ -190,10 +191,11 @@ def replay_run(trace_path: Path, stage: str, only: bool, directory: Path) -> Pat
         raise TraceInputError(f"trace 파일을 읽지 못했습니다: {trace_path} ({exc})") from exc
     replay = StageReplay.from_trace(trace, stage, only)
     info = {"replay": {"from": str(trace_path), "stage": stage, "only": only}}
-    return _execute(replay_input(trace), directory, info, replay)
+    return _execute(replay_input(trace), directory, info, replay, earlier=json.dumps(trace, ensure_ascii=False))
 
 
-def _execute(job_input: DiagnosisInput, directory: Path, info: dict, replay: StageReplay | None = None) -> Path:
+def _execute(job_input: DiagnosisInput, directory: Path, info: dict, replay: StageReplay | None = None,
+             earlier: str = "") -> Path:
     """진단 함수를 trace로 감싸 돌리고 결말을 찍는다.
 
     Args:
@@ -201,6 +203,7 @@ def _execute(job_input: DiagnosisInput, directory: Path, info: dict, replay: Sta
         directory: 실행 폴더.
         info: trace 실행 정보에 남길 값 (입력 출처 등).
         replay: 단계 다시 실행 설정. 없으면 처음부터.
+        earlier: 이어 쓰는 이전 실행 값의 JSON 문자열 (재진단 이전 결과·다시 실행 원본 trace). 속 ID 번호 다음부터 셈.
 
     Returns:
         Path: 쓴 trace 파일.
@@ -209,7 +212,8 @@ def _execute(job_input: DiagnosisInput, directory: Path, info: dict, replay: Sta
     # 부품 조립은 실행 밖 (모델 설정 오류면 trace 없이 바로 실패)
     job = build_job(build_parts(), build_questions, replay)
     context = ExecutionContext.start(product_id=job_input.source.product_id, run_type=RunType.EVALUATION)
-    with trace_run(directory, run_name):
+    with trace_run(directory, run_name) as recorder:
+        recorder.continue_ids(earlier)
         for key, value in info.items():
             trace_note(key, value)
         with run_log_context(context):

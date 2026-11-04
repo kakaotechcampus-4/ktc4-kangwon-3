@@ -11,6 +11,7 @@
 이미지는 링크만 남김. 링크가 없는 data URI(긴 이미지 조각)는 본문을 빼고 형식만.
 ID는 실행 안에서 나온 순서대로 붙임(s1, c1, …). 같은 입력을 두 번 돌리면 같은 ID라 diff로 비교 가능.
 판단·Tool 실행·진단서·검증 지적·재질문 ID(uuid)도 실행 안 번호(f1, e1, a1, i1, q1, …)로 바꿔 저장 (모델 호출 본문 속 ID 포함).
+재진단·다시 실행은 이전 실행 값 속 번호 다음부터 셈 (continue_ids).
 실행마다 달라지는 값(시간·토큰·비용)은 호출마다 meta 한 곳에 모음 (diff 때 meta를 빼고 비교).
 
 에러 위치
@@ -127,6 +128,19 @@ class TraceRecorder:
         """
         self._counters[prefix] = self._counters.get(prefix, 0) + 1
         return f"{prefix}{self._counters[prefix]}"
+
+    def continue_ids(self, earlier: str) -> None:
+        """이전 실행 값에 이미 들어간 실행 안 번호 다음부터 세게 한다.
+
+        재진단·다시 실행은 이전 결과(번호로 바뀐 ID)를 그대로 씀 → 1부터 세면 새 ID가 같은 번호로 겹침.
+        이전 번호는 자기 자신으로 등록 → 다시 쓴 결과를 등록해도 번호 그대로.
+
+        Args:
+            earlier: 이전 실행 값의 JSON 문자열 (이전 결과·이전 trace).
+        """
+        for prefix, number in _ALIAS_NUMBER.findall(earlier):
+            self._aliases[f"{prefix}{number}"] = f"{prefix}{number}"
+            self._counters[prefix] = max(self._counters.get(prefix, 0), int(number))
 
     @contextmanager
     def step(self, kind: str, **fields: Any) -> Iterator[dict[str, Any]]:
@@ -358,6 +372,8 @@ def _image_link(block: Any) -> Any:
 _MESSAGE_LIMIT = 1000
 # 원인 예외를 따라갈 깊이
 _CAUSE_DEPTH = 3
+# 실행 안 번호로 바꾸는 ID (판단 f·Tool 실행 e·진단서 a·검증 지적 i·재질문 q)의 번호 값
+_ALIAS_NUMBER = re.compile(r'"([feaiq])(\d+)"')
 
 
 def error_info(exc: BaseException, depth: int = _CAUSE_DEPTH) -> dict[str, Any]:
