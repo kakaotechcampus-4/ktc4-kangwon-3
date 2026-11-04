@@ -69,6 +69,13 @@ def test_Temu_잘린_제목만_있으면_구매_상자_첫_줄에서_전체_제�
     assert "가장 빠른 배송" not in region.text
 
 
+def test_Temu_리뷰_없는_상품의_안내_문장이_잘린_제목보다_길어도_전체_제목을_찾는다(temu_page):
+    notice = "아직 상품 리뷰가 없습니다\n하지만 Temu에 비슷한 상품에 대한 리뷰가 138개 있습니다.\n"
+    page = _without_full_title(temu_page).replace("접이식 원목 의자 3단...\n", "접이식 원목 의자 3단...\n" + notice)
+
+    assert extract_seller_region(page).title == "접이식 원목 의자 3단 높이 조절"
+
+
 def test_Temu_잘린_제목의_전체_제목을_못_찾으면_잘린_제목을_쓴다(temu_page):
     page = _without_full_title(temu_page).replace("가장 빠른 배송: 5일접이식 원목 의자 3단 높이 조절", "가장 빠른 배송: 5일")
 

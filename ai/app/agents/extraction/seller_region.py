@@ -190,10 +190,12 @@ def _cut_temu(lines: list[str], stripped: list[str]) -> tuple[list[str], str | N
     stop2 = _index(stripped, start2, lambda s: s.startswith("가장 빠른 배송") or s == "판매자")
     stop2 = len(lines) if stop2 is None else stop2
     # 경로 다음에 짧게 잘린 제목("…...")과 전체 제목이 함께 있다. 가장 긴 줄이 전체 제목이다.
+    # 11월 화면은 잘린 제목만 있어 구매 상자 첫 줄에서 전체 제목을 찾음. 가장 긴 줄을 고르기 전에 먼저 찾아야
+    # 리뷰 없는 상품의 안내 문장("하지만 Temu에 비슷한 상품에 대한 리뷰가 …")이 잘린 제목보다 길어도 제목으로 안 잡힘
     candidates = [lines[i].strip() for i in range(top, stop1) if lines[i].strip()]
-    title = max(candidates, key=len) if candidates else None
-    if title and title.endswith("..."):
-        title = _temu_full_title(stripped, title) or title
+    full = next((found for line in candidates
+                 if line.endswith("...") and (found := _temu_full_title(stripped, line))), None)
+    title = full or (max(candidates, key=len) if candidates else None)
     return lines[top:stop1] + lines[start2:stop2] + _temu_box_spec(lines, stripped, stop2), title
 
 
