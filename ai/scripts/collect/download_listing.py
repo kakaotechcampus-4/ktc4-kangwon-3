@@ -207,9 +207,6 @@ def export_listing(
     site = main_data["site"]
     header = f"# {site} {main_data['url']}\n"
     out_dir.mkdir(parents=True, exist_ok=True)
-    # 같은 폴더에 다시 내보낼 때 이전 실행의 이미지가 번호 뒤에 남지 않게 먼저 지운다
-    for stale in out_dir.glob("img_*"):
-        stale.unlink()
     _write(out_dir / "listing.json", json.dumps(main_data, ensure_ascii=False, indent=1))
     for index, frame in enumerate(frame_datas, start=1):
         _write(out_dir / f"frame_{index:02d}.json", json.dumps(frame, ensure_ascii=False, indent=1))
@@ -227,6 +224,7 @@ def export_listing(
 
     saved = 0
     seen: set[str] = set()
+    written_names: set[str] = set()
     dropped: dict[str, int] = {}
     failures: list[str] = []
     for image, is_frame in candidates:
@@ -245,9 +243,16 @@ def export_listing(
             failures.append(f"{url} ({error})")
             continue
         saved += 1
-        (out_dir / f"img_{saved:02d}{extension_of(url, content_type)}").write_bytes(body)
+        written = out_dir / f"img_{saved:02d}{extension_of(url, content_type)}"
+        written.write_bytes(body)
+        written_names.add(written.name)
         if pause:
             time.sleep(pause)
+    # 같은 폴더에 다시 내보낼 때 이전 실행의 이미지가 번호 뒤에 남지 않게, 다 받은 뒤에 남은 것만 지운다
+    # (먼저 지우면 중간에 실패했을 때 이전 결과까지 잃는다)
+    for stale in out_dir.glob("img_*"):
+        if stale.name not in written_names:
+            stale.unlink()
     return {"saved": saved, "dropped": dropped, "failures": failures, "range": (low, high)}
 
 
