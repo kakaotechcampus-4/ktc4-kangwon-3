@@ -16,6 +16,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeAccepted;
 import kakaotech.kangwon3.beforeselling.global.infra.ai.dto.AiResumeRequest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.timeout;
  * 답변 제출부터 커밋 뒤 비동기 재진단 요청, 새 실행 식별자 저장까지 실제 DB와 트랜잭션으로 확인한다.
  * AI 서버만 목으로 둔다.
  */
+@Tag("integration")
 @SpringBootTest
 @ActiveProfiles("test")
 class ProductAnswerFlowTest {

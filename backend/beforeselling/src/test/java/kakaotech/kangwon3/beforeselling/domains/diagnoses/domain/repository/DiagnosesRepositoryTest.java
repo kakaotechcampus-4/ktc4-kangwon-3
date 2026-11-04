@@ -17,6 +17,7 @@ import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.CryptoProperties;
 import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import java.util.UUID;
 
+@Tag("integration")
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)

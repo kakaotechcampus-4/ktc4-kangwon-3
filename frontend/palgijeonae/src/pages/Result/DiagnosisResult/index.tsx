@@ -12,7 +12,6 @@ import ToolReviewCard from "./ToolReviewCard";
 
 interface DiagnosisResultTabProps {
     product: ProductResult
-    diagnosesId?: string
     onNextStepsClick: () => void
 }
 
@@ -25,11 +24,10 @@ function countFindingsByDetermination(findings: Finding[]): Map<FindingFilter, n
     return counts;
 }
 
-function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: DiagnosisResultTabProps) {
+function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabProps) {
     const { toolReviews } = product;
-    
-    // productId로 접근해 diagnosesId가 없는 경우 경로를 만들지 않는다.
-    const judgementPath = diagnosesId ? `/judgement/${diagnosesId}` : undefined;
+
+    const judgementPath = `/judgement/${product.diagnosesId}`;
     // question은 product 단위로만 접근 가능하다
     const questionPath = `/question/${product.productId}`;
 
@@ -52,7 +50,7 @@ function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: Diagnosi
             <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
                 <FindingFilterBar counts={findingCounts} selected={findingFilter} onSelect={setFindingFilter} />
                 {allFindings.length > 0 && (
-                    <HelpTooltip label="판정·위험도 설명" className="right-0 max-w-none whitespace-nowrap">
+                    <HelpTooltip label="판정·위험도 설명" className="max-w-none whitespace-nowrap">
                         {DETERMINATION_LEGEND_ORDER.map((determination) => (
                             <p key={determination}>
                                 <span className="font-semibold">{DETERMINATION_LABELS[determination]}</span>
@@ -64,7 +62,7 @@ function DiagnosisResultTab({ product, diagnosesId, onNextStepsClick }: Diagnosi
                     </HelpTooltip>
                 )}
             </div>
-            <div className="flex w-full flex-col gap-10">
+            <div className="flex w-full flex-col gap-15">
                 {visibleToolReviews.map((toolReview) => (
                     <ToolReviewCard key={toolReview.productToolReviewId} toolReview={toolReview} findingFilter={findingFilter} />
                 ))}

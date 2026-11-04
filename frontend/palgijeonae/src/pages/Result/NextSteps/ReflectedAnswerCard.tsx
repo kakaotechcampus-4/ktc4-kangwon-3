@@ -16,7 +16,7 @@ function ReflectedAnswerCard({ question }: ReflectedAnswerCardProps) {
             </div>
             <div className="flex w-full items-center gap-3 rounded-xl bg-primary/10 px-4.5 py-3.5">
                 <h4 className="text-base font-bold text-primary">내 답변</h4>
-                <p className="text-base leading-relaxed text-black">{question.answerText ?? "답변 기록이 없어요."}</p>
+                <p className="text-base leading-relaxed whitespace-pre-line text-black">{question.answerText ?? "답변 기록이 없어요."}</p>
             </div>
         </DefaultBox>
     );

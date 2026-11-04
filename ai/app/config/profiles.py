@@ -8,7 +8,9 @@
 
 from dataclasses import asdict, dataclass
 
-from .catalog import GPT_6_LUNA, GPT_6_LUNA_DECISION, GPT_41_MINI, JEV, ChatModel, DecisionModel
+from .catalog import (
+    CLAUDE_HAIKU_55, GPT_6_LUNA, GPT_6_LUNA_DECISION, GPT_41_MINI, GPT_61_TERRA, JEV, ChatModel, DecisionModel,
+)
 
 
 @dataclass(frozen=True)
@@ -58,6 +60,10 @@ MODEL_PROFILES = {profile.name: profile for profile in (
     ModelProfile("mini", GPT_41_MINI, temperature=0),
     ModelProfile("luna-low", GPT_6_LUNA, reasoning_effort="low"),
     ModelProfile("luna-medium", GPT_6_LUNA, reasoning_effort="medium"),
+    ModelProfile("terra-low", GPT_61_TERRA, reasoning_effort="low"),
+    ModelProfile("terra-medium", GPT_61_TERRA, reasoning_effort="medium"),
+    # 추론 강도를 주면 추론 토큰이 사용량에 안 잡혀 비용 비교가 틀어짐 → 비교용은 강도 없이 (catalog.ClaudeModel)
+    ModelProfile("haiku", CLAUDE_HAIKU_55, temperature=0),
 )}
 
 # 에이전트별 기본 프로필. 키는 BaseAgent.component_name
