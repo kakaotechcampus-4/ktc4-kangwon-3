@@ -53,19 +53,9 @@ function ProfileSection() {
                             disabled={isSaving}
                             onSave={handleSave}
                         />
-                        <div className="flex items-center gap-4">
-                            <span className="w-16 shrink-0 text-sm font-semibold text-neutral-label">이메일</span>
-                            <span className="text-base text-black">{userInfo.email ?? "표시할 이메일이 없어요"}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <span className="w-16 shrink-0 text-sm font-semibold text-neutral-label">로그인</span>
-                            <span className="flex items-center gap-2 text-base text-black">
-                                <img src={SOCIAL_PROVIDER_INFO[userInfo.socialProvider].icon} alt="" className="h-5 w-5" />
-                                {SOCIAL_PROVIDER_INFO[userInfo.socialProvider].label} 계정으로 가입
-                            </span>
-                        </div>
+                        <EditableInfoRow title="이메일" description={userInfo.email ?? "표시할 이메일이 없어요"} />
+                        <EditableInfoRow title="로그인" description={`${SOCIAL_PROVIDER_INFO[userInfo.socialProvider].label} 계정으로 가입`} />
                     </div>
-                    <p className="text-sm text-neutral-border">이메일은 소셜 계정 정보를 따르기 때문에 여기서 바꿀 수 없어요.</p>
                 </>
             )}
         </DefaultBox>

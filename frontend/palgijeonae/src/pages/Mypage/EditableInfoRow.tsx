@@ -7,14 +7,15 @@ interface EditableInfoRowProps {
     title: string
     description: string
     editable?: boolean
-    maxLength: number
-    onChange: (value: string) => void
+    // editable일 때만 쓰인다.
+    maxLength?: number
+    onChange?: (value: string) => void
     disabled?: boolean
-    onSave: () => void
+    onSave?: () => void
 }
 
 /** 프로필에서 쓰이는 정보 행 하나. editable이면 수정 버튼으로 같은 자리에서 인라인 편집으로 바뀐다. */
-function EditableInfoRow({ title, description, editable = false, maxLength, onChange, disabled = false, onSave }: EditableInfoRowProps) {
+function EditableInfoRow({ title, description, editable = false, maxLength = Infinity, onChange, disabled = false, onSave }: EditableInfoRowProps) {
     const inputId = useId();
     const [isEditing, setIsEditing] = useState(false);
     const [draftValue, setDraftValue] = useState(description);
@@ -39,7 +40,7 @@ function EditableInfoRow({ title, description, editable = false, maxLength, onCh
 
     const handleChange = (value: string) => {
         setDraftValue(value);
-        onChange(value);
+        onChange?.(value);
     };
 
     const trimmedLength = draftValue.trim().length;
@@ -51,7 +52,7 @@ function EditableInfoRow({ title, description, editable = false, maxLength, onCh
             setIsEditing(false);
             return;
         }
-        onSave();
+        onSave?.();
     };
 
     if (!isEditing) {
