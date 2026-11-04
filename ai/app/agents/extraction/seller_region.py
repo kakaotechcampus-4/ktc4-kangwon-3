@@ -50,7 +50,9 @@ def extract_seller_region(text: str) -> SellerRegion:
     """
     lines = text.replace("​", "").splitlines()
     stripped = [line.strip() for line in lines]
-    head = [line for line in stripped if line][:20]
+    # 브라우저가 innerText로 긁은 글은 화면에 안 보이는 장바구니 서랍(소계·결제하기…) 20여 줄이 맨 앞에
+    # 붙어 "Temu 앱 다운로드" 표지가 밀린다. 표지 문구가 사이트 고유라 창을 넓혀도 다른 쇼핑몰에 잘못 걸리지 않는다.
+    head = [line for line in stripped if line][:60]
 
     for site, detect, cut in _SITES:
         if not detect(head):

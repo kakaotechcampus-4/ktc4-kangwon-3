@@ -94,3 +94,20 @@ def test_AliExpress에_구매자_질문과_면책_조항이_없어도_판매자_
     assert region.trimmed and "판매자 설명 문장" in region.text
     for removed in ("가게 이름", "AliExpress의 약속", "배송 안내 문장"):
         assert removed not in region.text
+
+
+def _with_hidden_cart_drawer(temu_page: str) -> str:
+    # 브라우저 innerText로 긁으면 화면에 안 보이는 장바구니 서랍 글이 맨 앞에 20줄 넘게 붙는다
+    # (수집 북마클릿 #567). "Temu 앱 다운로드" 표지가 그만큼 뒤로 밀린다.
+    drawer = ["소계", *[str(n) for n in range(10)], "원", "결제하기 (0)", "장바구니", "모두 선택 (0)",
+              "무료 배송", "최소 주문 13,000원(판매자 배송 상품 제외)", "배송 보장", "문제 발생 시 환불",
+              "무료 반품", "최대 90일*", "가격 조정", "30일 이내", "배송 보장", "문제 발생 시 환불"]
+    return "\n".join(drawer) + "\n" + temu_page
+
+
+def test_Temu_표지_앞에_숨은_장바구니_서랍_글이_길게_붙어_있어도_알아본다(temu_page):
+    region = extract_seller_region(_with_hidden_cart_drawer(temu_page))
+
+    assert region.site == "temu" and region.trimmed
+    assert region.title == "접이식 원목 의자 3단 높이 조절"
+    assert "결제하기" not in region.text
