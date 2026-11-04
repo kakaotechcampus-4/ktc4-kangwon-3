@@ -128,6 +128,8 @@ def test_고른_결정사례가_여럿이면_사례마다_이유를_줄을_나�
     result, _, _, _ = run(product, facts, chosen)
 
     assert result.findings[0].rationale == "전기로 물을 끓이는 주전자로 같은 물품입니다.\n무선 주전자로 같은 물품입니다."
+    # 요약도 판단 문장과 제출 서류를 줄을 나눔
+    assert "(확정 아님).\n제출 서류: " in result.findings[0].summary
 
 
 def test_근거는_관세법_제226조와_고시_별표2_행과_결정사례다():

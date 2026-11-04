@@ -203,7 +203,7 @@ class CustomsTool(EvidenceSearchTool):
                 subject=f"세관장확인 대상 후보 — {law_name}",
                 summary=(f"HS {', '.join(format_hs(code) for code in codes)}로 분류되면 수입통관 때 「{law_name}」 요건을 "
                          f"세관장에게 확인받아야 할 가능성이 있습니다(확정 아님)."
-                         + (f" 제출 서류: {', '.join(documents)}." if documents else "")),
+                         + (f"\n제출 서류: {', '.join(documents)}." if documents else "")),
                 rationale=rationale, determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=facts, assumptions=[*run.assumptions, *notes],
                 sources=self._sources(evidence, row, omission, case_sources), requirements=law_actions,
