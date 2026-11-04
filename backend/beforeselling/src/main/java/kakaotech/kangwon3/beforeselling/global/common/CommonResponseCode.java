@@ -10,6 +10,7 @@ public enum CommonResponseCode implements BaseResponseCode {
 
     // 2xx Success
     OK(HttpStatus.OK, "OK", "요청이 성공적으로 처리되었습니다."),
+    NO_CONTENT(HttpStatus.NO_CONTENT, "NO_CONTENT", "요청이 성공적으로 처리되었습니다."),
 
     // 400 Bad Request
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON-001", "잘못된 요청입니다."),
