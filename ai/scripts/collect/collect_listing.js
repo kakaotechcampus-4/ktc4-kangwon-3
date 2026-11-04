@@ -2,10 +2,10 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const host = location.hostname;
   const site = host.includes("temu") ? "temu" : host.includes("aliexpress") ? "aliexpress" : host;
-  const MARKERS = ["제품 세부 정보", "상점 정보", "관심 상품 둘러보기", "인기 추천", "리뷰", "설명", "사양", "구매자 질문", "면책 조항", "추천 상품", "개요", "상품 정보", "고객 이용 후기", "함께 볼 만한 상품", "연관 상품", "Description", "Specifications", "Reviews", "Customer Questions", "More to love", "Related products", "Overview"];
-  const DETAIL_START = ["제품 세부 정보", "상품 정보", "개요", "Specifications", "Description", "Overview"];
-  const DETAIL_END = ["관심 상품 둘러보기", "인기 추천", "구매자 질문", "면책 조항", "함께 볼 만한 상품", "Customer Questions", "More to love", "Related products"];
-  const EXPANDERS = ["더보기", "더 보기", "자세한 내용 보기", "View more", "View More", "See more", "Show more"];
+  const MARKERS = ["제품 세부 정보", "상점 정보", "관심 상품 둘러보기", "인기 추천", "리뷰", "설명", "사양", "구매자 질문", "면책 조항", "추천 상품", "개요", "상품 정보", "고객 이용 후기", "함께 볼 만한 상품", "연관 상품", "Product details", "Store Information", "Explore your interests", "Description", "Specifications", "Reviews", "Customer Questions", "More to love", "Related products", "Overview"];
+  const DETAIL_START = ["제품 세부 정보", "상품 정보", "개요", "Product details", "Specifications", "Description", "Overview"];
+  const DETAIL_END = ["관심 상품 둘러보기", "인기 추천", "구매자 질문", "면책 조항", "함께 볼 만한 상품", "Explore your interests", "Customer Questions", "More to love", "Related products"];
+  const EXPANDERS = ["더보기", "더 보기", "자세한 내용 보기", "See all details", "View more", "View More", "See more", "Show more"];
   const startY = window.scrollY;
   const step = Math.max(400, Math.floor(window.innerHeight * 0.8));
   const scrollToBottom = async () => {

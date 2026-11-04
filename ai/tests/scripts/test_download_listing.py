@@ -48,6 +48,12 @@ def test_테무는_제품_세부_정보부터_관심_상품_둘러보기_전까�
     assert detail_range("temu", markers) == (1705, 3823)
 
 
+def test_영문_테무는_product_details부터_explore_your_interests_전까지가_상세_구역이다():
+    markers = [{"text": "Product details", "top": 1900}, {"text": "Store Information", "top": 2100}, {"text": "Explore your interests", "top": 5600}]
+
+    assert detail_range("temu", markers) == (1900, 5600)
+
+
 def test_알리는_개요부터_그_아래_구매자_질문_전까지가_상세_구역이다():
     # "구매자 질문"이 개요 위에도 나올 수 있으므로(화면 탭 줄) 개요 아래 것만 끝으로 본다
     markers = [{"text": "구매자 질문", "top": 500}, {"text": "상품 정보", "top": 3966}, {"text": "개요", "top": 4980}, {"text": "구매자 질문", "top": 19306}]

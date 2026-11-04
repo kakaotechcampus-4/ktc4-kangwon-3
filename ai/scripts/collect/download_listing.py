@@ -50,8 +50,8 @@ _EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
 
 SITE_RULES: dict[str, dict] = {
     "temu": {
-        "start": ("제품 세부 정보",),
-        "end": ("관심 상품 둘러보기", "인기 추천"),
+        "start": ("제품 세부 정보", "Product details"),
+        "end": ("관심 상품 둘러보기", "인기 추천", "Explore your interests"),
         "junk_hosts": ("aimg.kwcdn.com", "commimg.kwcdn.com"),
     },
     "aliexpress": {
