@@ -11,6 +11,7 @@ E2E 테스트용 결과 고정: 상품 텍스트에 [e2e:표시] 또는 sourceUr
 표시가 없는 상품은 기존처럼 확률로 진행하므로 부하 테스트에는 영향이 없다.
     - question       첫 실행이 질문(답변 대기)으로 끝나고, 답변 후 재진단은 결과로 끝남
     - failed         같은 상품의 첫 실행만 실패(재시도 가능). 다시 시도하면 결과로 끝남
+    - failed-final   재시도할 수 없는 실패로 끝남
     - allowed        결과 상태 구매대행 가능 (결과 표시가 없을 때 기본값)
     - certification  결과 상태 사입 인증 필요
     - recheck        결과 상태 재확인 필요
@@ -53,7 +54,7 @@ QUESTION_STAGES = STAGES[:2]
 RESUME_STAGES = STAGES[2:]
 TOOLS = ["CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD"]
 
-E2E_TEXT_MARKER = re.compile(r"\[e2e:([a-z]+)\]")
+E2E_TEXT_MARKER = re.compile(r"\[e2e:([a-z-]+)\]")
 E2E_RESULT_STATUSES = {
     "allowed": "PURCHASING_AGENT_ALLOWED",
     "certification": "DIRECT_IMPORT_CERTIFICATION_REQUIRED",
@@ -171,6 +172,8 @@ def _e2e_plan(product: dict) -> tuple[str | None, str | None]:
     e2e_markers[product_id] = markers
     e2e_attempts[product_id] = e2e_attempts.get(product_id, 0) + 1
 
+    if "failed-final" in markers:
+        return "failed_final", None
     if "question" in markers and e2e_attempts[product_id] == 1:
         return "awaiting_input", None
     if "failed" in markers and e2e_attempts[product_id] == 1:
@@ -245,6 +248,9 @@ async def _run(diagnosis_id: str, product_id: str, run_id: str, stages: list[str
         elif terminal == "failed":
             event = {**base(), "eventType": "product_failed", "stage": last_stage,
                      "error": {"code": "AI_PIPELINE_ERROR", "message": "진단 중 오류가 발생했습니다.", "retryable": True}}
+        elif terminal == "failed_final":
+            event = {**base(), "eventType": "product_failed", "stage": last_stage,
+                     "error": {"code": "AI_EMPTY_SOURCE", "message": "상품 정보를 읽을 수 없습니다.", "retryable": False}}
         else:
             event = {**base(), "eventType": "product_result", "assessment": _assessment(tools, result_status)}
         await _send(event)

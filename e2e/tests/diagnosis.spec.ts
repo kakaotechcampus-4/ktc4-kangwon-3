@@ -1,23 +1,5 @@
-import { type Page } from "@playwright/test";
-
 import { expect, test } from "../fixtures/auth";
-
-// 진단은 mock-ai 기준 상품마다 몇 초가 걸린다. 결과가 나올 때까지 기다리는 상한.
-const DIAGNOSIS_TIMEOUT = 30_000;
-
-async function addTextProduct(page: Page, productName: string, content: string) {
-    await page.getByRole("button", { name: "텍스트 / 이미지" }).click();
-    await page.getByLabel("제품명").fill(productName);
-    await page.getByLabel("제품 상세페이지 내용").fill(content);
-    await page.getByRole("button", { name: "상품 추가하기" }).click();
-}
-
-async function addUrlProduct(page: Page, productName: string, url: string) {
-    await page.getByRole("button", { name: "URL", exact: true }).click();
-    await page.getByLabel("제품명").fill(productName);
-    await page.getByLabel("제품 상세페이지 링크").fill(url);
-    await page.getByRole("button", { name: "상품 추가하기" }).click();
-}
+import { addTextProduct, addUrlProduct, DIAGNOSIS_TIMEOUT } from "../helpers/upload";
 
 test("텍스트로 진단을 요청하면 진행 화면을 거쳐 결과 화면에서 판정을 확인할 수 있다", async ({ page }) => {
     // given
