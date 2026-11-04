@@ -46,10 +46,12 @@ class KakaoUnlinkClientTest {
     @Test
     @DisplayName("KAKAO provider를 반환한다.")
     void provider_thenReturnKakao() {
+        // given
         RestClient restClient = RestClient.builder().build();
         KakaoUnlinkClient client = new KakaoUnlinkClient(restClient,
                 new SocialUnlinkProperties(new SocialUnlinkProperties.Kakao("admin-key-value")));
 
+        // when & then
         assertThat(client.provider()).isEqualTo(SocialProvider.KAKAO);
     }
 }

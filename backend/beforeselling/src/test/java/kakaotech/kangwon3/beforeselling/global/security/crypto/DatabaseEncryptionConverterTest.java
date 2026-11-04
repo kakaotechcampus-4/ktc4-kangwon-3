@@ -51,6 +51,7 @@ class DatabaseEncryptionConverterTest {
     @Test
     @DisplayName("null을 암호화하면 null을 반환하고, null을 복호화해도 null을 반환한다.")
     void convert_withNull_thenReturnNull() {
+        // when & then
         assertThat(converter.convertToDatabaseColumn(null)).isNull();
         assertThat(converter.convertToEntityAttribute(null)).isNull();
     }
@@ -58,6 +59,7 @@ class DatabaseEncryptionConverterTest {
     @Test
     @DisplayName("Base64 형식이 아닌 데이터를 복호화하면 IllegalStateException을 던진다.")
     void convertToEntityAttribute_withInvalidBase64_thenThrow() {
+        // when & then
         assertThatThrownBy(() -> converter.convertToEntityAttribute("not-a-valid-base64!!"))
                 .isInstanceOf(IllegalStateException.class);
     }

@@ -103,6 +103,7 @@ class OAuth2AttributesTest {
     @Test
     @DisplayName("지원하지 않는 제공자이면 UNSUPPORTED_SOCIAL_PROVIDER 예외가 발생한다.")
     void unsupportedProvider_thenThrow() {
+        // when & then
         assertThatThrownBy(() -> OAuth2Attributes.of("apple", Map.of()))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())

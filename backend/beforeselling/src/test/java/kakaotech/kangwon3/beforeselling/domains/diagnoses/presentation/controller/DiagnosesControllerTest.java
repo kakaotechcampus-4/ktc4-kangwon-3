@@ -98,6 +98,7 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("인증 없이 진단을 요청하면 401과 COMMON-004 코드를 응답한다.")
     void createDiagnoses_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(urlTypeRequest())))
@@ -127,10 +128,12 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("제품명 없이 진단을 요청하면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withoutProductName_thenBadRequest() throws Exception {
+        // given
         Map<String, Object> product = urlTypeProduct();
         product.remove("productName");
         Map<String, Object> request = wrap(product);
 
+        // when & then
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -142,12 +145,14 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("제품명이 200자이면 진단을 요청할 수 있다.")
     void createDiagnoses_withProductNameOf200Chars_thenReturnDiagnosesId() throws Exception {
+        // given
         given(diagnosesUseCase.createDiagnoses(any(UUID.class), any()))
                 .willReturn(new DiagnosesCreateResponse(DIAGNOSES_ID));
         Map<String, Object> product = urlTypeProduct();
         product.put("productName", "가".repeat(200));
         Map<String, Object> request = wrap(product);
 
+        // when & then
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -159,10 +164,12 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("제품명이 200자를 넘으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withProductNameOver200Chars_thenBadRequest() throws Exception {
+        // given
         Map<String, Object> product = urlTypeProduct();
         product.put("productName", "가".repeat(201));
         Map<String, Object> request = wrap(product);
 
+        // when & then
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -175,10 +182,12 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("URL 등록 방식인데 상세페이지 URL이 없으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withUrlTypeAndNoSourceUrl_thenBadRequest() throws Exception {
+        // given
         Map<String, Object> product = urlTypeProduct();
         product.remove("sourceUrl");
         Map<String, Object> request = wrap(product);
 
+        // when & then
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -190,11 +199,13 @@ class DiagnosesControllerTest {
     @Test
     @DisplayName("텍스트·이미지 등록 방식인데 본문과 이미지가 모두 없으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withTextImageTypeAndNoContent_thenBadRequest() throws Exception {
+        // given
         Map<String, Object> product = new HashMap<>();
         product.put("productName", "대나무 헬리콥터");
         product.put("sourceType", SourceType.TEXT_IMAGE.name());
         Map<String, Object> request = wrap(product);
 
+        // when & then
         mockMvc.perform(post(BASE_URL)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
