@@ -119,6 +119,7 @@ class UserControllerTest {
     @Test
     @DisplayName("인증 없이 내 정보를 조회하면 401과 COMMON-004 코드를 응답한다.")
     void getMyProfile_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(get("/api/v1/users/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
@@ -165,6 +166,7 @@ class UserControllerTest {
     @Test
     @DisplayName("공백만 있는 이름으로는 수정할 수 없고 400과 COMMON-002 코드를 응답한다.")
     void modifyMyProfile_withBlankName_thenBadRequest() throws Exception {
+        // when & then
         mockMvc.perform(patch("/api/v1/users/me")
                         .with(authentication(loginUser(UUID.randomUUID())))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -179,6 +181,7 @@ class UserControllerTest {
     @Test
     @DisplayName("이름이 20자를 넘으면 수정할 수 없고 400과 COMMON-002 코드를 응답한다.")
     void modifyMyProfile_withTooLongName_thenBadRequest() throws Exception {
+        // when & then
         mockMvc.perform(patch("/api/v1/users/me")
                         .with(authentication(loginUser(UUID.randomUUID())))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -190,11 +193,13 @@ class UserControllerTest {
     @Test
     @DisplayName("이름이 정확히 20자이면 수정할 수 있다.")
     void modifyMyProfile_withNameOf20Chars_thenOk() throws Exception {
+        // given
         UUID userId = UUID.randomUUID();
         String name = "가".repeat(20);
         given(userProfileUseCase.modifyMyProfile(userId, new UserProfileModifyRequest(name)))
                 .willReturn(new UserProfileResponse(name, "user@example.com", SocialProvider.KAKAO));
 
+        // when & then
         mockMvc.perform(patch("/api/v1/users/me")
                         .with(authentication(loginUser(userId)))
                         .contentType(MediaType.APPLICATION_JSON)
