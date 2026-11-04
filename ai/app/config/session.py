@@ -19,8 +19,8 @@ MAX_INFLIGHT_SESSIONS = 50
 MAX_DEV_INFLIGHT_SESSIONS = 3
 # 접수부터 결과까지 최대 시간. 넘으면 시간 초과 실패
 SESSION_MAX_DURATION_SECONDS = 600
-# 서버 종료 때 실행 중 세션을 기다리는 최대 시간. 실행 중 세션은 이 안에 끝나거나 시간 초과라 최대 시간과 같게 둠
-# 컨테이너 종료 대기 시간(docker-compose stop_grace_period)은 이 값 + 콜백 마감보다 길어야 함
-SESSION_DRAIN_SECONDS = SESSION_MAX_DURATION_SECONDS
+# 서버 종료 때 실행 중 세션을 기다리는 최대 시간. 진단은 보통 1~2분이라 최대 시간을 넘기면 사실상 멈춘 진단
+# 컨테이너 종료 대기 시간(docker-compose stop_grace_period 600초)에서 콜백 마감(5초)과 여유(5초)를 뺌
+SESSION_DRAIN_SECONDS = SESSION_MAX_DURATION_SECONDS - 10
 # 시간 초과·보관 시간 정리 주기
 SESSION_SWEEP_SECONDS = 30
