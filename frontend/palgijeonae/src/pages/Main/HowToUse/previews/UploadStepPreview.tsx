@@ -13,7 +13,7 @@ import InputTypeTabs from "@/pages/Upload/InputTypeTabs";
 /** 사용 방법 1단계 미리보기: 텍스트·이미지로 상품을 담는 화면. */
 function UploadStepPreview() {
     return (
-        <PreviewFrame label="상품 담기 화면 미리보기" baseWidth={600}>
+        <PreviewFrame label="상품 담기 화면 미리보기" baseWidth={650}>
             <div className="flex w-full flex-col gap-8">
                 <DefaultBox align="left">
                     <InputTypeTabs selected={SourceType.TextImage} onSelect={NOOP} />
