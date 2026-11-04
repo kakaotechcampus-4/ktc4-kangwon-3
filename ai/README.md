@@ -250,8 +250,7 @@ stateDiagram-v2
 | 데이터 검증 | Pydantic |
 | 지표·테스트 | prometheus-client, pytest |
 
-<details>
-<summary>디렉터리 구조</summary>
+**디렉터리 구조**
 
 ```
 app/
@@ -270,8 +269,6 @@ app/
 ├── eval/            # 품질 평가
 └── config/          # 설정·모델 프로필
 ```
-
-</details>
 
 ---
 
