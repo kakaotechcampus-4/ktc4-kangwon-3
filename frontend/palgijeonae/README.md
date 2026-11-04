@@ -3,7 +3,6 @@
 상품을 팔기 전 상품 진단을 요청하고, 진행 상황과 해야할 일을 포함한 진단서를 보여주는 프로젝트 입니다.
 
 - 서비스: https://palgijeone.com
-- 프로젝트 위치: [`palgijeonae/`](palgijeonae)
 
 ## 목차
 
@@ -25,7 +24,7 @@
 
 ## 화면 구성
 
-라우트는 [`src/App.tsx`](palgijeonae/src/App.tsx)에 있습니다.
+라우트는 [`src/App.tsx`](src/App.tsx)에 있습니다.
 
 | 경로 | 화면 | 로그인 필요 |
 |---|---|---|
@@ -39,7 +38,7 @@
 | `/result/diagnoses/:diagnosesId` | 진단서 전체 결과 | 필요 |
 | `/mypage` | 진단한 상품 목록(검색·필터·페이지), 회원 정보 조회·수정, 상품 삭제, 회원 탈퇴 | 필요 |
 
-- 로그인이 필요한 화면에 로그인하지 않고 들어오면 `/login`으로 보냅니다([`ProtectedRoute`](palgijeonae/src/components/common/ProtectedRoute/index.tsx)).
+- 로그인이 필요한 화면에 로그인하지 않고 들어오면 `/login`으로 보냅니다([`ProtectedRoute`](src/components/common/ProtectedRoute/index.tsx)).
 
 ### 화면별 동작
 
@@ -147,7 +146,7 @@ flowchart LR
     MY[마이페이지] --> RP
 ```
 
-진단 요청은 다음 순서로 보냅니다([`pages/Upload/diagnosisPipeline.ts`](palgijeonae/src/pages/Upload/diagnosisPipeline.ts)).
+진단 요청은 다음 순서로 보냅니다([`pages/Upload/diagnosisPipeline.ts`](src/pages/Upload/diagnosisPipeline.ts)).
 
 1. `POST /api/v1/presigned-url`로 이미지 업로드 URL을 받습니다.
 2. S3에 이미지를 직접 올립니다.
@@ -158,14 +157,14 @@ flowchart LR
 | 종류 | 도구 | 내용 |
 |---|---|---|
 | 서버 데이터 | TanStack Query | 진행 상황, 질문, 결과, 내 상품 목록, 회원 정보. queryKey는 `[도메인, 식별자]` 형태 |
-| 인증 | Zustand ([`useAuthStore`](palgijeonae/src/store/useAuthStore.ts)) | `accessToken`, 로그인 여부, 인증 확인 완료 여부 |
+| 인증 | Zustand ([`useAuthStore`](src/store/useAuthStore.ts)) | `accessToken`, 로그인 여부, 인증 확인 완료 여부 |
 
-- Access Token은 메모리에만 둡니다. 새로고침하면 사라지므로, 앱이 시작될 때 refresh token 쿠키로 다시 발급받습니다([`App.tsx`](palgijeonae/src/App.tsx)).
+- Access Token은 메모리에만 둡니다. 새로고침하면 사라지므로, 앱이 시작될 때 refresh token 쿠키로 다시 발급받습니다([`App.tsx`](src/App.tsx)).
 - 페이지별 데이터는 각 페이지 폴더의 `use*.ts` 훅에서 가져옵니다.
 
 ## API 연동
 
-[`src/api/client.ts`](palgijeonae/src/api/client.ts)의 Axios 인스턴스를 씁니다.
+[`src/api/client.ts`](src/api/client.ts)의 Axios 인스턴스를 씁니다.
 
 - `baseURL`은 `VITE_API_URL`입니다. 쿠키를 보내도록 `withCredentials`를 켭니다.
 - 요청마다 `Authorization: Bearer <accessToken>`을 붙입니다.
@@ -182,7 +181,7 @@ flowchart LR
 
 | 상태 | 처리 |
 |---|---|
-| 로딩 | 공용 [`LoadingSpinner`](palgijeonae/src/components/common/LoadingSpinner/index.tsx). 상황별 문구("진단 요청을 보내는 중...", "로그인 처리 중입니다...") |
+| 로딩 | 공용 [`LoadingSpinner`](src/components/common/LoadingSpinner/index.tsx). 상황별 문구("진단 요청을 보내는 중...", "로그인 처리 중입니다...") |
 | 조회 실패 | 페이지마다 안내 문구와 "다시 시도" 버튼 |
 | 빈 목록 | "확인할 상품이 없어요.", "조건에 맞는 상품이 없어요." 등 |
 | 없는 리소스(404) | 안내 후 메인으로 이동 |
@@ -208,7 +207,7 @@ npm run dev        # http://localhost:5173
 ```
 
 - 환경변수는 `VITE_API_URL`(BE 주소) 하나입니다.
-- 로그인까지 하려면 BE를 로컬에서 띄워야 합니다([BE 로컬 실행](../backend/README.md#로컬-실행)). BE 기본 설정이 `http://localhost:5173`을 CORS와 로그인 리다이렉트 주소로 허용합니다.
+- 로그인까지 하려면 BE를 로컬에서 띄워야 합니다([BE 로컬 실행](../../backend/README.md#로컬-실행)). BE 기본 설정이 `http://localhost:5173`을 CORS와 로그인 리다이렉트 주소로 허용합니다.
 - Vite 프록시는 쓰지 않습니다. 브라우저가 BE로 직접 요청합니다.
 
 | 명령 | 내용 |
@@ -222,8 +221,8 @@ npm run dev        # http://localhost:5173
 
 | 워크플로 | 하는 일 |
 |---|---|
-| [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/` 아래가 바뀐 PR과 develop push에서 `npm ci` → lint → build |
-| [`frontend-deploy.yml`](../.github/workflows/frontend-deploy.yml) | develop의 CI가 성공하면 빌드 결과를 S3에 올리고, SSM으로 EC2의 릴리스 폴더에 풀어 `current` 링크를 바꿈 |
+| [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/` 아래가 바뀐 PR과 develop push에서 `npm ci` → lint → build |
+| [`frontend-deploy.yml`](../../.github/workflows/frontend-deploy.yml) | develop의 CI가 성공하면 빌드 결과를 S3에 올리고, SSM으로 EC2의 릴리스 폴더에 풀어 `current` 링크를 바꿈 |
 
 - 운영에서는 EC2의 nginx가 정적 파일을 서빙합니다. 없는 경로는 `index.html`로 보냅니다(SPA).
 - 중간에 실패하면 기존 `current`가 그대로 서비스됩니다.
@@ -238,7 +237,7 @@ npm run dev        # http://localhost:5173
 
 ## 코드 작성 관례
 
-FE 코드 컨벤션(네이밍, 폴더·파일 구조, 컴포넌트 작성 규칙, import 순서, API·타입 정의 위치 등)은 별도 문서로 정리할 예정입니다. 문서가 추가되면 이 섹션에 링크를 겁니다.
+FE 코드 컨벤션(네이밍, 폴더·파일 구조, 컴포넌트 작성 규칙, import 순서, API·타입 정의 위치 등)은 [`CONVENTIONS.md`](CONVENTIONS.md)에 정리했습니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../../CONTRIBUTING.md)를 참고하세요.
 
 ## 알려진 한계
 
