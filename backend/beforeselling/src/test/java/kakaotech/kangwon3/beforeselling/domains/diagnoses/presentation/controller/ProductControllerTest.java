@@ -121,6 +121,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("인증 없이 상품 목록을 조회하면 401과 COMMON-004 코드를 응답한다.")
     void getProductList_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
@@ -226,6 +227,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("페이지 번호를 음수로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
     void getProductList_withNegativePage_thenBadRequestWithFieldDetail() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL)
                         .param("page", "-1")
                         .with(authentication(loginUser())))
@@ -237,6 +239,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("페이지 크기를 0으로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
     void getProductList_withZeroSize_thenBadRequestWithFieldDetail() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL)
                         .param("size", "0")
                         .with(authentication(loginUser())))
@@ -249,6 +252,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("페이지 크기가 허용 범위를 넘으면 어떤 값이 잘못되었는지 함께 응답한다.")
     void getProductList_withTooLargeSize_thenBadRequestWithFieldDetail() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL)
                         .param("size", "101")
                         .with(authentication(loginUser())))
@@ -261,6 +265,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("지원하지 않는 정렬 기준으로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
     void getProductList_withUnknownSortType_thenBadRequestWithFieldDetail() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL)
                         .param("sortType", "UNKNOWN")
                         .with(authentication(loginUser())))
@@ -272,6 +277,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("검색어가 100자를 넘으면 어떤 값이 잘못되었는지 함께 응답한다.")
     void getProductList_withTooLongKeyword_thenBadRequestWithFieldDetail() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL)
                         .param("keyword", "가".repeat(101))
                         .with(authentication(loginUser())))
@@ -284,6 +290,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("지원하지 않는 결과 필터로 요청하면 어떤 값이 잘못되었는지 함께 응답한다.")
     void getProductList_withUnknownResultStatus_thenBadRequestWithFieldDetail() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL)
                         .param("resultStatus", "UNKNOWN")
                         .with(authentication(loginUser())))
@@ -295,6 +302,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("인증 없이 상품을 단건 조회하면 401과 COMMON-004 코드를 응답한다.")
     void getProduct_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL + "/{productId}", PRODUCT_ID))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
@@ -347,6 +355,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("UUID 형식이 아닌 상품 id로 단건 조회하면 400을 응답한다.")
     void getProduct_withMalformedId_thenBadRequest() throws Exception {
+        // when & then
         mockMvc.perform(get(BASE_URL + "/{productId}", "not-a-uuid")
                         .with(authentication(loginUser())))
                 .andExpect(status().isBadRequest());
@@ -355,6 +364,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("인증 없이 답변을 제출하면 401과 COMMON-004 코드를 응답한다.")
     void answerQuestions_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(answersBody(QUESTION_ID, "구매대행")))
@@ -365,6 +375,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("질문에 답하면 성공 응답을 받고 답변이 그대로 전달된다.")
     void answerQuestions_thenSuccess() throws Exception {
+        // when
         mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -372,6 +383,7 @@ class ProductControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"));
 
+        // then
         then(productUseCase).should().answerQuestions(USER_ID, PRODUCT_ID,
                 new ProductAnswerRequest(List.of(new ProductAnswerRequest.Answer(QUESTION_ID, "구매대행"))));
     }
@@ -379,6 +391,7 @@ class ProductControllerTest {
     @Test
     @DisplayName("같은 질문에 두 번 답하면 400과 COMMON-002 코드를 응답하고 답변을 처리하지 않는다.")
     void answerQuestions_withDuplicateQuestionId_thenBadRequest() throws Exception {
+        // given
         String body = """
                 {"answers": [
                   {"questionId": "%s", "answerText": "구매대행"},
@@ -386,6 +399,7 @@ class ProductControllerTest {
                 ]}
                 """.formatted(QUESTION_ID, QUESTION_ID);
 
+        // when
         mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -394,6 +408,7 @@ class ProductControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON-002"))
                 .andExpect(jsonPath("$.details[0].field").value("questionIdsUnique"));
 
+        // then
         then(productUseCase).should(never()).answerQuestions(any(), any(), any());
     }
 
@@ -405,6 +420,7 @@ class ProductControllerTest {
     })
     @DisplayName("답변이 없거나 질문 ID·답변 내용이 비어 있으면 400과 COMMON-002 코드를 응답한다.")
     void answerQuestions_withInvalidBody_thenBadRequest(String body) throws Exception {
+        // when
         mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -412,12 +428,14 @@ class ProductControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"));
 
+        // then
         then(productUseCase).should(never()).answerQuestions(any(), any(), any());
     }
 
     @Test
     @DisplayName("답변이 500자를 넘으면 400과 COMMON-002 코드를 응답한다.")
     void answerQuestions_withTooLongAnswer_thenBadRequest() throws Exception {
+        // when & then
         mockMvc.perform(post(ANSWERS_URL, PRODUCT_ID)
                         .with(authentication(loginUser()))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -461,21 +479,25 @@ class ProductControllerTest {
     @Test
     @DisplayName("인증 없이 재시도하면 401과 COMMON-004 코드를 응답한다.")
     void retryDiagnoses_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when
         mockMvc.perform(post(RETRY_URL, PRODUCT_ID))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
 
+        // then
         then(productUseCase).should(never()).retryDiagnoses(any(), any());
     }
 
     @Test
     @DisplayName("실패한 상품을 재시도하면 성공 응답을 받고 로그인한 사용자와 상품 ID가 전달된다.")
     void retryDiagnoses_thenSuccess() throws Exception {
+        // when
         mockMvc.perform(post(RETRY_URL, PRODUCT_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"));
 
+        // then
         then(productUseCase).should().retryDiagnoses(USER_ID, PRODUCT_ID);
     }
 
@@ -510,11 +532,13 @@ class ProductControllerTest {
     @Test
     @DisplayName("본인의 상품을 삭제하면 성공 응답을 받는다.")
     void removeProduct_thenSuccess() throws Exception {
+        // when
         mockMvc.perform(delete(BASE_URL + "/{productId}", PRODUCT_ID)
                         .with(authentication(loginUser())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("OK"));
 
+        // then
         then(productUseCase).should().removeProduct(USER_ID, PRODUCT_ID);
     }
 

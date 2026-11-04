@@ -185,6 +185,7 @@ class ProductResultEventJsonTest {
     @Test
     @DisplayName("올바른 결과 이벤트는 검증을 통과한다.")
     void validate_whenValid_thenNoViolation() {
+        // when & then
         assertThat(validator.validate(resultEvent(assessment(List.of(toolReview(List.of(finding(List.of(
                 legalSource("국가법령정보센터")))))))))).isEmpty();
     }
@@ -192,6 +193,7 @@ class ProductResultEventJsonTest {
     @Test
     @DisplayName("진단 결과가 없으면 위반이다.")
     void validate_whenNoAssessment_thenViolation() {
+        // when & then
         assertThat(violatedPaths(resultEvent(null))).containsExactly("assessment");
     }
 
