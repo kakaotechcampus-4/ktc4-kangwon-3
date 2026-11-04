@@ -16,7 +16,8 @@ FORMAT_RULES: dict[str, re.Pattern[str]] = {
     # 줄 맨 앞 # + 공백. 복사한 상세페이지 제목에는 #이 붙지 않음
     "markdown_heading": re.compile(r"^#{1,6}\s", re.MULTILINE),
     # 대화 메시지 형식. "System requirements:"처럼 뒤에 단어가 더 붙은 줄은 제외
-    "role_message": re.compile(r'"role"\s*:|^\s*(system|assistant|user)\s*:', re.MULTILINE | re.IGNORECASE),
+    # user:는 리뷰 작성자 표시("User: 좋아요")와 겹쳐 제외 (11-04 서버 실측 오탐)
+    "role_message": re.compile(r'"role"\s*:|^\s*(system|assistant)\s*:', re.MULTILINE | re.IGNORECASE),
 }
 
 
