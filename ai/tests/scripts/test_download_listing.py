@@ -87,10 +87,11 @@ def test_상세_구역_안의_큰_이미지는_남긴다():
         (_image(2000, width=200, height=200), "작음"),
         (_image(5000), "상세 구역 밖"),
         (_image(2000, alt="품목 사진 다른 상품"), "연관 상품"),
+        (_image(2000, alt="item picture other product"), "연관 상품"),
         (_image(2000, src="https://aimg.kwcdn.com/upload_aimg/banner.png"), "배너·아바타"),
         (_image(2000, src="https://img.kwcdn.com/supplier-public-tag/x/avatar_300x300.jpeg"), "배너·아바타"),
     ],
-    ids=["작은 썸네일", "구역 밖", "연관 상품 alt", "배너 호스트", "판매자 아바타"],
+    ids=["작은 썸네일", "구역 밖", "연관 상품 alt", "영문 연관 상품 alt", "배너 호스트", "판매자 아바타"],
 )
 def test_테무에서_상세_설명이_아닌_이미지는_이유와_함께_거른다(image: dict, reason: str):
     assert keep_image("temu", image, 1705, 3823) == reason

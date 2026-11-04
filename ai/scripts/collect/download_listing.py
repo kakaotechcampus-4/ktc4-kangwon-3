@@ -114,7 +114,7 @@ def keep_image(site: str, image: dict, low: int, high: int, *, is_frame: bool = 
     host = urlparse(image["src"]).hostname or ""
     if host in rule.get("junk_hosts", ()) or "supplier-public-tag" in image["src"]:
         return "배너·아바타"
-    if site == "temu" and image["alt"].startswith("품목 사진"):
+    if site == "temu" and image["alt"].lower().startswith(("품목 사진", "item picture")):
         return "연관 상품"
     if site == "aliexpress" and image["alt"] and image["width"] == 480 and image["height"] == 480:
         return "연관 상품"
