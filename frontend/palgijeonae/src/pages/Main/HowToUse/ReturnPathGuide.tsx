@@ -17,7 +17,7 @@ function ReturnPathRow({ number, children, preview }: ReturnPathRowProps) {
     return (
         <div className="flex flex-col gap-2">
             <div className="flex items-start gap-2 text-xs text-neutral-text">
-                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[#E7EEFB] text-[10px] font-bold text-primary">
+                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[#E7EEFB] text-xs font-bold text-primary">
                     {number}
                 </span>
                 {children}

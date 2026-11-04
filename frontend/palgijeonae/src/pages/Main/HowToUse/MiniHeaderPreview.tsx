@@ -5,7 +5,7 @@ function MiniHeaderPreview() {
     return (
         <div className="flex w-full items-center justify-between gap-2">
             <img src={logo} alt="사이트 로고" className="h-5 w-auto object-contain" />
-            <span className="rounded-full bg-[#E7EEFB] px-3.5 py-1 text-[11px] font-medium text-primary ring-4 ring-primary/20">
+            <span className="rounded-full bg-[#E7EEFB] px-3.5 py-1 text-xs font-medium text-primary ring-4 ring-primary/20">
                 마이페이지
             </span>
         </div>

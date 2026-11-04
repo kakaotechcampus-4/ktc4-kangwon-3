@@ -33,7 +33,7 @@ function Preview() {
                     onTogglePause={togglePause}
                 />
                 <div className="flex w-full flex-col gap-3.5 px-6 py-7">
-                    <p className="text-center text-[15px] text-neutral-text">{currentSlide.caption}</p>
+                    <p className="text-center text-sm text-neutral-text">{currentSlide.caption}</p>
                     <div className="grid w-full grid-cols-1">
                         {PREVIEW_SLIDES.map((slide, slideIndex) => {
                             const isActive = slideIndex === index;
@@ -53,10 +53,10 @@ function Preview() {
                 </div>
             </div>
             <div className="order-2 flex items-center justify-center gap-2.5 md:contents">
-                <div className="md:absolute md:top-1/2 md:left-[-64px] md:-translate-y-1/2">
+                <div className="md:absolute md:top-1/2 md:-left-16 md:-translate-y-1/2">
                     <PreviewNavButton direction="prev" onClick={prev} />
                 </div>
-                <div className="md:absolute md:top-1/2 md:right-[-64px] md:-translate-y-1/2">
+                <div className="md:absolute md:top-1/2 md:-right-16 md:-translate-y-1/2">
                     <PreviewNavButton direction="next" onClick={next} />
                 </div>
             </div>

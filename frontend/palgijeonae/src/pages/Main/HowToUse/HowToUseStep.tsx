@@ -24,7 +24,7 @@ function renderDescription(description: string) {
 function HowToUseStep({ stepNumber, isLast, title, tag, description, tips, preview }: HowToUseStepProps) {
     return (
         <li className={cn("relative", !isLast && "pb-12")}>
-            {!isLast && <span aria-hidden className="absolute top-9 bottom-0 left-[-43px] w-0.5 bg-primary" />}
+            {!isLast && <span aria-hidden className="absolute top-9 bottom-0 -left-11 w-0.5 bg-primary" />}
             <span className="absolute -left-15 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-base font-bold text-white">
                 {stepNumber}
             </span>
@@ -38,7 +38,7 @@ function HowToUseStep({ stepNumber, isLast, title, tag, description, tips, previ
                             </span>
                         )}
                     </h3>
-                    <p className="text-[15px] leading-relaxed whitespace-pre-line text-neutral-text">
+                    <p className="text-sm leading-relaxed whitespace-pre-line text-neutral-text">
                         {renderDescription(description)}
                     </p>
                     <ul className="flex flex-col gap-1.5">
