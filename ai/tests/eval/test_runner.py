@@ -251,3 +251,37 @@ def test_재채점은_기록된_정답표_폴더를_쓴다(tmp_path, capsys):
     assert rescore(saved) == 0
 
     assert "strat_01/text.txt" in capsys.readouterr().out
+
+
+def test_원문_폴더를_옵션으로_바꿔_저장소_밖의_원문으로_잰다(tmp_path, monkeypatch):
+    # 임시 워크트리에서 평가할 때 _raw로 가는 정션을 만들지 않고 원문 폴더를 직접 가리킨다(11/5 사고 재발 방지).
+    from app.eval import runner
+
+    raw_dir = tmp_path / "elsewhere"
+    (raw_dir / "strat_01").mkdir(parents=True)
+    (raw_dir / "strat_01" / "text.txt").write_text("본문", encoding="utf-8")
+    truth_dir = tmp_path / "drafts"
+    truth_dir.mkdir()
+    (truth_dir / "strat_01_wallet.json").write_text(
+        json.dumps(_truth_like_power_bank("strat_01/text.txt"), ensure_ascii=False), encoding="utf-8"
+    )
+    seen = {}
+    _patch_runner_without_llm(runner, monkeypatch, tmp_path,
+                              ["--all", "--runs", "1", "--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir)])
+    monkeypatch.setattr(runner, "run_fixture",
+                        lambda agent, name, runs, raw_dir=None: seen.update(raw_dir=raw_dir) or [{"product_id": "x"}])
+
+    assert runner.main() == 0
+
+    assert seen["raw_dir"] == raw_dir
+
+
+def test_run_fixture는_받은_원문_폴더에서_읽는다(tmp_path):
+    from app.eval.runner import run_fixture
+
+    raw_dir = tmp_path / "elsewhere"
+    raw_dir.mkdir()
+    (raw_dir / "a.txt").write_text("원문", encoding="utf-8")
+    agent = SimpleNamespace(run=lambda source: SimpleNamespace(model_dump=lambda mode: {"text": source.text_blocks[0]}))
+
+    assert run_fixture(agent, "a.txt", 1, raw_dir=raw_dir) == [{"text": "원문"}]
