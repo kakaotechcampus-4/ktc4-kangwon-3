@@ -7,6 +7,7 @@ import { PAGE_SIZE } from "./constraints.ts";
 import MyProductList from "./MyProductList.tsx";
 import NotificationSettings from "./NotificationSettings.tsx";
 import ProductFilterBar from "./ProductFilterBar.tsx";
+import ProfileSection from "./ProfileSection.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
 import type { ProductFilter } from "./types.ts";
 import { useMyProducts } from "./useMyProducts.ts";
@@ -46,6 +47,7 @@ function MyPage() {
                     productListRef.current?.scrollIntoView({ behavior: "smooth" });
                 }}
             />
+            <ProfileSection />
             <NotificationSettings />
             <ProductFilterBar
                 searchTerm={searchTerm}
