@@ -5,7 +5,7 @@ import logging
 import pytest
 
 from app.agents.input_guard import GuardInput, GuardOutcome, GuardVerdict
-from app.diagnosis.guard import guard_input, guarded
+from app.diagnosis.guard import REVIEW_FLAG_BLOCKED, guard_input, guarded
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.domain.errors import AIResponseCode
 from app.dummy.cases import CASES, DummyCaseName
@@ -101,7 +101,8 @@ def test_재진단에서_질문을_찾지_못하면_질문_키로_묶는다():
 def test_차단이면_진단하지_않고_추출_단계_알림_뒤_늦춰_일반_오류로_실패한다(sleeps):
     outcome, job, progress = _run(_guard(GuardOutcome.BLOCK), sleeps)
 
-    assert outcome == JobFailed(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False)
+    assert outcome == JobFailed(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False,
+                                review_flag=REVIEW_FLAG_BLOCKED)
     assert job.calls == 0
     assert progress.stages == [PipelineStage.EXTRACTION]
     assert len(sleeps) == 1 and 8.0 <= sleeps[0] <= 20.0

@@ -73,10 +73,12 @@ class JobFailed:
     Attributes:
         error_code: 실패 코드.
         retryable: 같은 요청을 다시 보내 복구 가능한지.
+        review_flag: BE 전용 검토 표시. 실패 콜백 error에만 실림. 없으면 None.
     """
 
     error_code: str
     retryable: bool
+    review_flag: str | None = None
 
 
 Outcome = JobDone | JobNeedsInput | JobFailed

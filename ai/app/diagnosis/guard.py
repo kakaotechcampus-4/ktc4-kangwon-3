@@ -1,7 +1,7 @@
 """진단 함수 앞에서 입력 가드를 돌리는 곳. 첫 실행은 상품 글·이미지, 재진단은 이번 회차 질문·답변을 봄.
 
 - 차단: 파이프라인을 부르지 않음. 추출 단계 진행 알림 → 무작위로 늦춘 뒤 일반 파이프라인 오류로 끝냄
-  (가드가 있는지 드러나지 않게 보통 실패와 같은 모양)
+  (가드가 있는지 드러나지 않게 보통 실패와 같은 모양). 실패 콜백 error에만 BE 전용 검토 표시를 붙임
 - 의심: 진단은 그대로, 경고 로그만
 - 가드 자체가 실패하면 통과로 봄 (fail-open)
 
@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 BLOCK_DELAY_SECONDS = (8.0, 20.0)
 # 차단·의심 로그에 남기는 원문 길이
 EXCERPT_CHARS = 200
+# 차단 실패 콜백의 BE 전용 검토 표시 값 (error.reviewFlag)
+REVIEW_FLAG_BLOCKED = "r1"
 
 # 가드 입력 → 판정. 운영은 InputGuardAgent().run
 Guard = Callable[[GuardInput], GuardVerdict]
@@ -53,7 +55,7 @@ def guarded(
         # 정상 실행처럼 추출 단계 알림 후 늦춰 실패
         progress.stage(PipelineStage.EXTRACTION)
         sleep(random.uniform(*delay))
-        return JobFailed(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False)
+        return JobFailed(AIResponseCode.PIPELINE_ERROR.value.code, retryable=False, review_flag=REVIEW_FLAG_BLOCKED)
 
     return run
 

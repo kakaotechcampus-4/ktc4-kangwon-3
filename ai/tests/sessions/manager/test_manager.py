@@ -20,7 +20,7 @@ from app.sessions.errors import (
     QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
     UnknownQuestionKeyError,
 )
-from app.sessions.events import AwaitingInput, Completed, Resumed, StageChanged, Started, ToolProgressed
+from app.sessions.events import AwaitingInput, Completed, Failed, Resumed, StageChanged, Started, ToolProgressed
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 from app.sessions.manager import SessionManager
 from app.sessions.manager.runner import QUESTION_LIMIT_NOTICE
@@ -145,6 +145,20 @@ def test_진단_함수가_실패를_돌려주면_그_코드로_실패를_기록�
 
     session = manager.get("p-1")
     assert (session.error_code, session.retryable, session.result) == ("AI_INVALID_REQUEST", False, None)
+
+
+def test_실패의_검토_표시는_세션에_남기지_않고_실패_이벤트로만_넘긴다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: JobFailed("AI_PIPELINE_ERROR", False, review_flag="r1"))
+    manager = _manager(managers, job)
+    seen = []
+    manager.subscribe(lambda e: seen.append(e))
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager,"p-1") is SessionStatus.FAILED)
+
+    assert [e.review_flag for e in seen if isinstance(e, Failed)] == ["r1"]
+    assert "r1" not in manager.get("p-1").model_dump_json()
 
 
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(managers):
