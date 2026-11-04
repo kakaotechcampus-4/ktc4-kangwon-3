@@ -16,10 +16,11 @@ from collections.abc import Callable
 
 from ..agents.verification import VerificationError
 from ..clients.base import mask_sensitive_params
+from ..config.session import MAX_PARALLEL_TOOLS
 from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIError, AIResponseCode, AIServiceError
 from ..observability.logs import set_run_field
-from ..observability.trace import trace_finish, trace_note, trace_step
+from ..observability.trace import current_trace, trace_finish, trace_note, trace_step
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
@@ -56,10 +57,13 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
 
     def run(job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter) -> Outcome:
         state = _RunState(replay)
+        # 기록 중엔 Tool 순차 실행 (기록기가 열린 단계·진행 중 호출을 객체 하나에 둠)
+        max_parallel = 1 if current_trace() else MAX_PARALLEL_TOOLS
+        executor = ToolExecutor(_reporting_tools(parts.tools, progress), max_parallel=max_parallel)
         pipeline = CompliancePipeline(
             extractor=_Extraction(parts, job_input, progress, state),
             selector=_Selection(parts, progress, state),
-            tool_executor=_ToolExecution(ToolExecutor(_reporting_tools(parts.tools, progress)), progress, state),
+            tool_executor=_ToolExecution(executor, progress, state),
             aggregator=_Aggregation(parts, progress, state),
             verifier=_Verification(parts, progress, state),
         )
