@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/react'
 import { useEffect } from 'react'
 import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from 'react-router-dom'
 
+import { getUserIdFromAccessToken } from './lib/jwt'
 import { useAuthStore } from './store/useAuthStore'
 
 const dsn = import.meta.env.VITE_SENTRY_DSN
@@ -33,10 +34,17 @@ Sentry.init({
   tracesSampleRate: 0.2,
 })
 
-// 로그인 여부만 태그로 남긴다 (유저 식별 정보·토큰은 다루지 않음)
-Sentry.setTag('logged_in', String(useAuthStore.getState().isLoggedIn))
+// accessToken(JWT)의 sub(BE userId)를 유저 컨텍스트로 남긴다.
+function syncSentryUser(accessToken: string | null) {
+  const userId = accessToken ? getUserIdFromAccessToken(accessToken) : null
+  Sentry.setUser(userId ? { id: userId } : null)
+}
+
+syncSentryUser(useAuthStore.getState().accessToken)
+
 useAuthStore.subscribe((state, prevState) => {
-  if (state.isLoggedIn !== prevState.isLoggedIn) {
-    Sentry.setTag('logged_in', String(state.isLoggedIn))
+  // login(최초 로그인·재발급)과 logout 모두 accessToken이 바뀌므로 이 변화만 보면 된다.
+  if (state.accessToken !== prevState.accessToken) {
+    syncSentryUser(state.accessToken)
   }
 })
