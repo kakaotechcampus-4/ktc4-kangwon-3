@@ -22,6 +22,8 @@ class SelectionAgent(BaseAgent[Product, ToolSelectionResponse, ToolSelectionResp
 
     component_name = "selection"
     prompt_name = PromptName.SELECTION
+    # 추출값에 원문 문구가 그대로 담길 수 있음 → 자료 속 지시문 차단
+    uses_guardrail = True
     output_schema = ToolSelectionResponse
     error_class = SelectionFailedError
     task_name = "심사 도메인 선택"
