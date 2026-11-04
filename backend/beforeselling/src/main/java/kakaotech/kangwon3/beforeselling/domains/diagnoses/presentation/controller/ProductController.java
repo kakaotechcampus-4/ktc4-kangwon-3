@@ -97,12 +97,12 @@ public class ProductController implements ProductApi {
     // 상품 단건 삭제
     @Override
     @DeleteMapping("/{productId}")
-    public ResponseEntity<ApiResponse<Void>> removeProduct(
+    public ResponseEntity<Void> removeProduct(
             @LoginUser UserPrincipal principal,
             @PathVariable UUID productId
     ) {
         productUseCase.removeProduct(principal.userId(), productId);
 
-        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
+        return ResponseEntity.noContent().build();
     }
 }
