@@ -394,6 +394,21 @@ def test_DB가_준비되면_재시작_전_대기_세션은_같은_runId로_다�
     assert archive.calls[-2:] == [("save", "p-1", "running"), ("remove", "p-1")]
 
 
+def test_DB가_준비되면_재시작_전_실행_중이던_세션은_기동_때_시간_초과_실패_콜백으로_끝낸다(fake_be, monkeypatch):
+    running = _saved("p-1", SessionStatus.RUNNING)
+    archive = _Archive(saved=[running])
+    _db_ready(monkeypatch, archive=archive)
+
+    with TestClient(main.app):
+        _wait_until(lambda: fake_be)
+
+    [event] = [json.loads(request.content) for request in fake_be]
+    assert (event["eventType"], event["runId"], event["sequence"]) == ("product_failed", running.context.run_id, 1)
+    assert (event["error"]["code"], event["error"]["retryable"]) == ("AI_TIMEOUT", True)
+    # 저장소에 다시 넣을 때 같은 내용을 한 번 덮어쓰고, 실패로 끝나 지움
+    assert archive.calls == [("save", "p-1", "running"), ("remove", "p-1")]
+
+
 def test_법령_점검용_조회_객체는_캐시_조회를_측정_기록으로_남기지_않는다(fake_be, monkeypatch):
     fetchers, refreshed = _db_ready(monkeypatch)
     options = []

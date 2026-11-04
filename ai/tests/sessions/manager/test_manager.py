@@ -20,7 +20,7 @@ from app.sessions.errors import (
     QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
     UnknownQuestionKeyError,
 )
-from app.sessions.events import AwaitingInput, Completed, Resumed, StageChanged, Started, ToolProgressed
+from app.sessions.events import AwaitingInput, Completed, Failed, Resumed, StageChanged, Started, ToolProgressed
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 from app.sessions.manager import SessionManager
 from app.sessions.manager.runner import QUESTION_LIMIT_NOTICE
@@ -1132,7 +1132,7 @@ def test_되살린_대기_세션은_같은_실행_ID로_자리를_잡고_다시_
     assert {run_id for _, run_id in job.inputs} == {first.context.run_id, second.context.run_id}
     _wait_until(lambda: manager.snapshot().inflight == 0)
     assert _status(manager, "p-1") is SessionStatus.AWAITING_INPUT
-    assert "진단 세션 복원: 대기 2개, 답변 대기 0개, 되살리지 않음 0개" in _messages(caplog, "INFO")
+    assert "진단 세션 복원: 대기 2개, 답변 대기 0개, 끊긴 실행 0개, 되살리지 않음 0개" in _messages(caplog, "INFO")
 
 
 def test_되살린_대기_세션은_자리를_차지해_상한에_같이_센다(managers):
@@ -1163,14 +1163,32 @@ def test_되살린_답변_대기_세션은_답을_받아_재진단한다(manager
     assert [answer.answer_text for answer in job_input.answers] == ["네"]
 
 
-def test_대기·답변_대기_말고는_되살리지_않는다(managers, caplog):
+def test_재시작_전_실행_중이던_세션은_다시_돌리지_않고_재시도_가능한_시간_초과로_끝낸다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _GatedJob()
+    manager = _manager(managers, job)
+    seen = []
+    manager.subscribe(lambda e: seen.append((type(e), e.session.context.product_id)))
+    running = _saved("p-1", SessionStatus.RUNNING)
+
+    manager.restore([running])
+
+    session = manager.get("p-1")
+    assert (session.status, session.error_code, session.retryable) == (SessionStatus.FAILED, "AI_TIMEOUT", True)
+    assert session.context.run_id == running.context.run_id
+    assert seen == [(Failed, "p-1")]
+    assert (job.started, manager.snapshot().inflight) == ([], 0)
+    assert "재시작 전 실행 중이던 진단을 시간 초과 실패로 끝냄 (정상 종료 처리 없이 끊김)" in _messages(caplog, "WARNING")
+
+
+def test_대기·답변_대기·실행_중_말고는_되살리지_않는다(managers, caplog):
     caplog.set_level(logging.INFO, logger="app.sessions")
     manager = _manager(managers, _GatedJob())
 
-    manager.restore([_saved("p-1", SessionStatus.RUNNING), _saved("p-2", SessionStatus.COMPLETED)])
+    manager.restore([_saved("p-1", SessionStatus.COMPLETED)])
 
-    assert (manager.get("p-1"), manager.get("p-2")) == (None, None)
-    assert "진단 세션 복원: 대기 0개, 답변 대기 0개, 되살리지 않음 2개" in _messages(caplog, "INFO")
+    assert manager.get("p-1") is None
+    assert "진단 세션 복원: 대기 0개, 답변 대기 0개, 끊긴 실행 0개, 되살리지 않음 1개" in _messages(caplog, "INFO")
 
 
 def test_Tool_재실행이_있으면_요약의_Tool_목록을_회차별로_묶는다(managers, caplog):

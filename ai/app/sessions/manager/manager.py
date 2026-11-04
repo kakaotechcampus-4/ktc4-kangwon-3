@@ -226,16 +226,19 @@ class SessionManager:
 
         대기 세션은 자리를 잡고 같은 실행 ID로 다시 실행. 이 실행으로 보낸 콜백이 없어 BE는 차이를 모름.
         접수 시각은 그대로라 오래 내려가 있었으면 실행 전에 시간 초과로 끝남.
-        답변 대기 세션은 저장소에만 넣어 답이 오면 재진단. 그 밖의 상태는 되살리지 않음.
+        답변 대기 세션은 저장소에만 넣어 답이 오면 재진단.
+        실행 중이던 세션은 정상 종료 처리(drain) 없이 끊긴 실행이라 시간 초과 실패(재시도 가능)로 바로 끝냄.
+        BE 멈춘 진단 정리(15분)를 기다리지 않게 함. 그 밖의 상태는 되살리지 않음.
 
         Args:
             sessions: 보관소에서 읽은 세션.
         """
         queued = sorted((s for s in sessions if s.status is SessionStatus.ACCEPTED), key=lambda s: s.accepted_at)
         awaiting = [s for s in sessions if s.status is SessionStatus.AWAITING_INPUT]
-        skipped = len(sessions) - len(queued) - len(awaiting)
+        interrupted = [s for s in sessions if s.status is SessionStatus.RUNNING]
+        skipped = len(sessions) - len(queued) - len(awaiting) - len(interrupted)
         with self._lock:
-            self._store.add([*awaiting, *queued])
+            self._store.add([*awaiting, *queued, *interrupted])
             # 상한 확인 없이 차지함. 보관할 때도 상한 안이었음
             self._capacity.take([session.context.run_id for session in queued], dev=False)
         for session in awaiting:
@@ -245,9 +248,14 @@ class SessionManager:
             with run_log_context(session.context):
                 logger.info("재시작 전 대기 세션 복원, 다시 실행 (답변 %d개)", len(session.answers))
             self._schedule(session.context)
+        for session in interrupted:
+            with run_log_context(session.context):
+                logger.warning("재시작 전 실행 중이던 진단을 시간 초과 실패로 끝냄 (정상 종료 처리 없이 끊김)")
+            # 이벤트로 실패 콜백이 나가고 보관소에서도 지워짐. 실행 자리는 차지하지 않았음
+            self._updater.apply(session.context, Fail(AIResponseCode.TIMEOUT.value.code, retryable=True))
         if sessions:
-            logger.info("진단 세션 복원: 대기 %d개, 답변 대기 %d개, 되살리지 않음 %d개",
-                        len(queued), len(awaiting), skipped)
+            logger.info("진단 세션 복원: 대기 %d개, 답변 대기 %d개, 끊긴 실행 %d개, 되살리지 않음 %d개",
+                        len(queued), len(awaiting), len(interrupted), skipped)
 
     def submit_dev(self, items: list[ExtractionInput]) -> list[DiagnosisSession]:
         """개발용 진단 상품들을 접수한다. 진단서 없이 접수해 콜백은 나가지 않음.
