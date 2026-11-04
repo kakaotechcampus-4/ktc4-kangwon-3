@@ -57,6 +57,7 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | `재진단 접수 (질문 회차 N, 답변 N개)` | INFO | `sessions/manager/manager.py` |
 | `진단 접수 거절: 대기열 가득 참` / `진행 중인 상품 ...` | WARNING | `sessions/manager/manager.py` |
 | `재진단 접수 거절: {이유} (질문 회차 n, 답변 n개)` | WARNING | `sessions/manager/manager.py` |
+| `서버 종료: 실행 중 진단 n개를 최대 N초 기다림` / `n개 끝남, n개 남음 (N초)` | INFO | `sessions/manager/manager.py` |
 | `서버 종료로 진단을 버림: 실행 중 n개(...), 대기 중 n개(...), 답변 대기 n개 (...)` (0개인 항목은 빠짐) | WARNING | `sessions/manager/manager.py` |
 | `진단 시작 (대기 N초, 답변 N개)` | INFO | `sessions/manager/runner.py` |
 | `모델 호출 {이름} (모델, 시간, 토큰, 비용)` | INFO | `agents/base/usage_log.py` |
@@ -101,7 +102,11 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 ```
 
 - 레벨을 바꾸려면 서버 `.env`의 `LOG_LEVEL`을 고치고 컨테이너를 다시 띄움
-- 배포·`docker stop` 때 실행 중이던 진단은 그 자리에서 끊김 (uvicorn이 종료 처리 뒤 SIGTERM을 다시 발생시킴). 버린 상품은 `서버 종료로 진단을 버림` 줄로 확인
+- 배포·`docker stop` 때 실행 중이던 진단은 끝날 때까지 기다림 (drain). 끝난 결과는 평소처럼 콜백으로 나감
+  - 기다리는 시간: 580초(`SESSION_DRAIN_SECONDS`)와 남은 세션이 모두 최대 시간(600초)을 넘기는 시각 중 이른 쪽. 넘긴 세션은 시간 초과 실패 콜백
+  - 이후 남은 콜백을 15초까지 보내고 종료. 컨테이너 종료 대기(`stop_grace_period`)는 600초
+  - 대기 중 세션은 취소되고 답변 대기 세션은 메모리에만 있어 사라짐. 버린 상품은 `서버 종료로 진단을 버림` 줄로 확인
+  - 기다리는 동안 새 요청은 받지 않음. BE는 받지 못한 요청을 대기로 돌렸다가 다시 보냄
 - 모델 호출 사용량 기록(`logs/usage.jsonl`)은 named volume `ai-logs`에 남아 배포 뒤에도 유지. 보기: `docker exec ai-server python -m app.usage`
   - 10MB를 넘으면 `usage.jsonl.1`부터 한 칸씩 밀고 새 파일로 시작, 5개까지만 보관 (`docker logs` 상한과 같음)
   - `python -m app.usage`는 지금 파일(`usage.jsonl`)만 집계
