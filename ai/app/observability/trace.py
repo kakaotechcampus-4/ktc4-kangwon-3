@@ -74,6 +74,9 @@ def _dump(data: Any) -> str:
 class TraceRecorder:
     """실행 하나의 trace. 실행 스레드 하나만 씀.
 
+    열린 단계 스택·진행 중 호출을 객체 하나에 둠 → 기록 중엔 Tool을 순차 실행 (diagnosis/job.py).
+    병렬이면 단계가 서로 안에 들어가고 호출이 섞임. 스레드별로 나눠도 단계·호출 번호가 실행마다 달라져 diff 비교가 깨짐.
+
     Attributes:
         directory: 실행 폴더. 같은 상품의 재진단 실행은 같은 폴더에 run-2.json, run-3.json으로 쌓음.
         run_name: 이 실행의 파일 이름(확장자 뺌).
