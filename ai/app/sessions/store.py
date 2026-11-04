@@ -56,6 +56,11 @@ class SessionStore:
         self._clock = clock
         self._archive = archive
 
+    @property
+    def archived(self) -> bool:
+        """재시작 때 되살릴 세션을 보관소에 같이 기록하는지."""
+        return self._archive is not None
+
     def add(self, sessions: list[DiagnosisSession]) -> None:
         """새 세션들을 넣는다. 같은 상품의 세션이 있으면 교체.
 

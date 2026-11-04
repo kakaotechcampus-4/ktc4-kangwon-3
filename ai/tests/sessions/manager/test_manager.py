@@ -1051,6 +1051,36 @@ def test_버릴_세션이_없으면_종료_경고를_남기지_않는다(manager
     assert _messages(caplog, "WARNING") == []
 
 
+class _NullArchive:
+    def save(self, session):
+        pass
+
+    def remove(self, product_ids):
+        pass
+
+
+def test_DB에_보관하면_종료_경고에_재시작_때_이어갈_일을_남긴다(managers, caplog):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-3"
+                    else JobDone(build_dummy_assessment(product_id)))
+    clock = _Clock()
+    manager = SessionManager(SessionStore(clock=clock, archive=_NullArchive()), job, clock=clock, max_running=1)
+    managers.append(manager)
+    manager.submit("d-1", _inputs("p-3"))
+    job.release("p-3")
+    _wait_until(lambda: _status(manager, "p-3") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    manager.submit("d-2", _inputs("p-1", "p-2"))
+    _wait_until(lambda: job.started == ["p-3", "p-1"])
+
+    manager.drain(timeout=0.1)
+    job.release("p-1")
+
+    assert _messages(caplog, "WARNING") == [
+        "서버 종료로 진단을 멈춤, DB에 보관: 실행 중 1개(p-1) 재시작 때 시간 초과 실패, "
+        "대기 중 1개(p-2) 재시작 때 다시 실행, 답변 대기 1개 재시작 때 복원",
+    ]
+
+
 def test_drain은_실행_중_세션을_끝까지_기다리고_대기_중_세션은_취소한다(managers, caplog):
     job = _GatedJob()
     manager = _manager(managers, job, max_running=1)

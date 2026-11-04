@@ -311,7 +311,8 @@ class SessionManager:
             wait: 실행 중인 세션이 끝날 때까지 기다릴지.
         """
         if not wait:
-            _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0))
+            _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0),
+                           kept=self._store.archived)
         self._pool.shutdown(wait=wait, cancel_futures=not wait)
 
     def drain(self, timeout: float) -> None:
@@ -320,7 +321,7 @@ class SessionManager:
         기다리는 동안 끝난 세션은 평소처럼 이벤트(결과 콜백)가 나감.
         남은 세션이 모두 최대 시간을 넘기는 시각이 상한보다 이르면 그때까지만 기다리고,
         최대 시간을 넘긴 세션은 시간 초과 실패로 끝냄 (정리 루프 주기를 기다리지 않음).
-        취소한 대기 세션, 상한을 넘긴 실행 중 세션, 답변 대기 세션은 경고로 남기고 버림.
+        취소한 대기 세션, 상한을 넘긴 실행 중 세션, 답변 대기 세션은 경고로 남김 (DB에 보관하면 재시작 때 이어감).
 
         Args:
             timeout: 실행 중인 세션을 기다릴 최대 시간(초).
@@ -337,7 +338,8 @@ class SessionManager:
             logger.info("서버 종료: 실행 중 진단 %d개 끝남, %d개 남음 (%.1f초)",
                         len(running) - len(left), len(left), perf_counter() - started_at)
         self.expire_overdue()
-        _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0))
+        _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0),
+                       kept=self._store.archived)
 
     def _seconds_until_all_overdue(self) -> float:
         """끝나지 않은 세션이 모두 최대 시간을 넘길 때까지 남은 시간.
@@ -464,19 +466,23 @@ def _log_rejected(diagnosis_id: str | None, run_type: RunType, count: int, reaso
         logger.warning("진단 접수 거절: %s (상품 %d개)", reason, count)
 
 
-def _log_abandoned(unfinished: list[DiagnosisSession], awaiting: int) -> None:
-    """서버 종료로 버리는 세션 한 줄 (#497). 버릴 세션이 없으면 남기지 않음.
+def _log_abandoned(unfinished: list[DiagnosisSession], awaiting: int, *, kept: bool = False) -> None:
+    """서버 종료로 멈추는 세션 한 줄 (#497). 멈출 세션이 없으면 남기지 않음.
 
     대기 중은 취소되고, 실행 중(drain이면 상한 시간을 넘긴 것만)은 프로세스가 끝나며 함께 끊김
-    (uvicorn이 종료 신호를 다시 발생시킴).
-    둘 다 결과 콜백이 나가지 않음. 답변 대기 세션은 메모리에만 있어 재시작 뒤 재진단할 수 없음.
+    (uvicorn이 종료 신호를 다시 발생시킴). 둘 다 지금은 결과 콜백이 나가지 않음.
+    DB에 보관하면 재시작 때 이어감 (#565). 보관하지 않으면 답변 대기 세션도 사라져 재진단할 수 없음.
 
     Args:
         unfinished: 접수·실행 중 세션.
         awaiting: 답변 대기 세션 수.
+        kept: 재시작 때 되살릴 세션을 DB에 보관하는지.
     """
     running = [s.context.product_id for s in unfinished if s.status is SessionStatus.RUNNING]
     queued = [s.context.product_id for s in unfinished if s.status is not SessionStatus.RUNNING]
+    if kept:
+        _log_kept(running, queued, awaiting)
+        return
     # 0개인 항목은 뺌
     parts, notes = [], []
     if running:
@@ -490,6 +496,26 @@ def _log_abandoned(unfinished: list[DiagnosisSession], awaiting: int) -> None:
         notes.append("재시작 뒤 재진단 불가")
     if parts:
         logger.warning("서버 종료로 진단을 버림: %s (%s)", ", ".join(parts), ", ".join(notes))
+
+
+def _log_kept(running: list[str], queued: list[str], awaiting: int) -> None:
+    """서버 종료로 멈추되 DB에 남아 재시작 때 이어가는 세션 한 줄. 항목마다 재시작 때 할 일을 붙임.
+
+    Args:
+        running: 실행 중 상품 ID.
+        queued: 대기 중 상품 ID.
+        awaiting: 답변 대기 세션 수.
+    """
+    # 0개인 항목은 뺌
+    parts = []
+    if running:
+        parts.append(f"실행 중 {len(running)}개({', '.join(running)}) 재시작 때 시간 초과 실패")
+    if queued:
+        parts.append(f"대기 중 {len(queued)}개({', '.join(queued)}) 재시작 때 다시 실행")
+    if awaiting:
+        parts.append(f"답변 대기 {awaiting}개 재시작 때 복원")
+    if parts:
+        logger.warning("서버 종료로 진단을 멈춤, DB에 보관: %s", ", ".join(parts))
 
 
 def _check_answers(session: DiagnosisSession, answers: dict[str, str]) -> None:
