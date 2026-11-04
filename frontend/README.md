@@ -44,9 +44,13 @@
 
 #### 메인
 
+![메인 화면](docs/images/readme-main.png)
+
 - 로그인 상태면 CTA가 `/upload`로, 아니면 `/login`으로 이동
 
 #### 로그인
+
+![로그인 화면](docs/images/readme-login.png)
 
 - 카카오·네이버·구글 버튼 → BE의 `/oauth2/authorization/{provider}`로 이동, `redirect_uri=/oauth/callback` 전달
 - 이미 로그인된 상태로 들어오면 안내 후 메인으로 이동
@@ -109,8 +113,6 @@
 - 상품 검색·필터·페이지네이션
 - 회원 정보 조회·수정(이름만 인라인 수정), 상품 삭제, 회원 탈퇴
 - 법령 개정 알림 배너 클릭 시 "재확인 필요" 필터로 전환하고 상품 목록까지 스크롤
-
-<!-- TODO: 확인 필요 - 메인/로그인/OAuth 콜백 화면 캡처 -->
 
 ## 기술 스택
 
