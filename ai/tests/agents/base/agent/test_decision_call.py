@@ -48,7 +48,7 @@ def test_판단_답을_돌려주고_판단_모델_이름과_단가로_기록한�
     assert response.answers == {"kind_kids": YesNoAnswer(probability=0.61)}
     # 실제 버전은 사용량에, 기록·비용은 요청한 등록명으로
     assert usage.reported_model == "typesafe/jev-1.14-20261014"
-    assert (meta.model, meta.reasoning_effort, meta.cost_krw, meta.failure_phase) == (JEV, None, 64.0, None)
+    assert (meta.model, meta.reasoning_effort, meta.cost_krw, meta.failure_phase) == (JEV, None, 59.0, None)
     assert [(row["configured_model"], row["ok"]) for row in records] == [(JEV, True)]
 
 
@@ -112,7 +112,7 @@ def test_답을_못_쓴_판단_응답도_쓴_토큰과_비용을_기록한다(fa
         agent._call_decision(SUBJECT, QUESTIONS, subject_id="p-1")
 
     assert caught.value.meta.failure_phase == "parsing"
-    assert (caught.value.meta.usage.input_tokens, caught.value.meta.cost_krw) == (1_000_000, 64.0)
+    assert (caught.value.meta.usage.input_tokens, caught.value.meta.cost_krw) == (1_000_000, 59.0)
     assert records[0]["usage"].reported_model == "typesafe/jev-1.14-20261014"
 
 
