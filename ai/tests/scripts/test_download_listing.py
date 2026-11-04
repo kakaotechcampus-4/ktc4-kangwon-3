@@ -277,11 +277,20 @@ def test_펼치기_전_글이_같으면_text_as_pasted_txt를_만들지_않는�
 
 
 def test_shadow_dom_설명_글이_있으면_description_txt로_따로_쓴다(tmp_path: Path):
-    data = _listing("aliexpress", detail_text="  설명 글  ")
+    data = _listing("aliexpress", detail_text="  " + "설명 글 " * 20)
 
     export_listing(data, [], tmp_path / "p", fetch=_fake_fetch({}))
 
-    assert (tmp_path / "p" / "description.txt").read_text(encoding="utf-8") == "설명 글"
+    assert (tmp_path / "p" / "description.txt").read_text(encoding="utf-8") == ("설명 글 " * 20).strip()
+
+
+def test_설명_글이_아주_짧으면_description_txt를_만들지_않는다(tmp_path: Path):
+    # 번역 확장 같은 브라우저 위젯의 shadow DOM 글("설정빠른 번역몰입 번역")이 섞여 들어오는 경우
+    data = _listing("temu", detail_text="설정빠른 번역몰입 번역")
+
+    export_listing(data, [], tmp_path / "p", fetch=_fake_fetch({}))
+
+    assert not (tmp_path / "p" / "description.txt").exists()
 
 
 # ── 일괄 처리 ──────────────────────────────────────────────────────────────

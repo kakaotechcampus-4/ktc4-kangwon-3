@@ -40,6 +40,8 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTM
 # 알리 CDN은 Accept에 webp·avif가 있으면 그 형식으로 바꿔 준다. 원본 JPEG/PNG만 받는다.
 ACCEPT = "image/jpeg,image/png"
 MIN_IMAGE_SIDE = 300
+# 이보다 짧은 shadow DOM 글은 설명이 아니라 브라우저 위젯(번역 확장 등) 잡음으로 본다
+MIN_DESCRIPTION_CHARS = 50
 PAUSE_SECONDS = 0.5
 PAGE_END = 10**9
 # 북마클릿 파일 이름: <site>_<ISO 시각>.json
@@ -216,7 +218,7 @@ def export_listing(
     if as_pasted and as_pasted != main_data["text"]:
         _write(out_dir / "text_as_pasted.txt", header + as_pasted)
     detail_text = (main_data.get("detail_text") or "").strip()
-    if detail_text:
+    if len(detail_text) >= MIN_DESCRIPTION_CHARS:
         _write(out_dir / "description.txt", detail_text)
 
     low, high = detail_range(site, main_data.get("markers") or [], min_top=min_top, max_top=max_top)
