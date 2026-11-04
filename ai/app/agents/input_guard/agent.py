@@ -2,7 +2,8 @@
 
 순서: 형식 규칙(모델 호출 없음) → 글 판단 1회 → 이미지 판단(장마다 따로, 병렬).
 한 번에 여러 조각을 넣으면 한 조각의 지시가 다른 조각에 묻혀 점수가 흐려짐 (11-04 실측 0.89 → 0.59~0.74).
-판단 호출이 실패하면 그 부분은 못 본 것으로 두고 나머지로 판정 (fail-open).
+판단 호출이 일시 오류(429·5xx·연결·시간 초과)로 실패하면 한 번 더 부름.
+그래도 실패하면 그 부분은 못 본 것으로 두고 나머지로 판정하되, 통과 대신 의심으로 남김 (진단은 막지 않음).
 """
 
 import logging
@@ -13,10 +14,13 @@ from enum import Enum
 from time import perf_counter
 from typing import Any
 
+import httpx
+
 from ...clients.llm.decision import DecisionClient
 from ...config import ConfigError, ReviewThresholds, get_settings
 from ...observability.trace import current_trace
 from ..base import AgentResult, BaseAgent
+from ..base.errors import ModelFailurePhase
 from .errors import InputGuardFailedError
 from .format_rules import format_hits
 from .images import prepare_judge_images
@@ -26,6 +30,8 @@ logger = logging.getLogger(__name__)
 
 # 이미지 판단 동시 호출 수
 MAX_PARALLEL_IMAGES = 10
+# 판단 호출 시도 횟수 (일시 오류일 때만 다시 부름)
+MAX_ATTEMPTS = 2
 # 이미지와 같이 보내는 판단 대상 설명
 _IMAGE_SUBJECT = {"input": "상품 상세 이미지"}
 
@@ -149,7 +155,9 @@ class InputGuardAgent(BaseAgent[GuardInput, None, GuardVerdict]):
         return self._result(_with_outcome(verdict, self._thresholds), started_at)
 
     def _score(self, subject: dict[str, Any], product_id: str, images: list[str] | None = None) -> float | None:
-        """판단 모델 한 번으로 조작 지시가 있을 확률을 받는다. 실패하면 None (실패는 이미 기록됨).
+        """판단 모델로 조작 지시가 있을 확률을 받는다. 일시 오류면 한 번 더 부르고, 그래도 실패하면 None.
+
+        실패한 호출은 시도마다 이미 기록됨.
 
         Args:
             subject: 판단 대상 정보.
@@ -160,13 +168,18 @@ class InputGuardAgent(BaseAgent[GuardInput, None, GuardVerdict]):
             float | None: "예"일 확률. 호출·응답 변환 실패나 답 거부면 None.
         """
         questions = list(QUESTIONS)
-        try:
-            response, usage, started_at = self._call_decision(
-                subject, questions, subject_id=product_id, images=images,
-            )
-        except InputGuardFailedError as exc:
-            logger.warning("입력 확인 판단 실패, 이 부분은 넘김: %s", exc)
-            return None
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                response, usage, started_at = self._call_decision(
+                    subject, questions, subject_id=product_id, images=images,
+                )
+                break
+            except InputGuardFailedError as exc:
+                if attempt < MAX_ATTEMPTS and _transient(exc):
+                    logger.info("입력 확인 판단 일시 오류, 다시 부름: %s", exc)
+                    continue
+                logger.warning("입력 확인 판단 실패, 이 부분은 넘김: %s", exc)
+                return None
         self._finish_call(usage, product_id, started_at, decision_questions=questions)
         return getattr(response.answers[QUESTION_NAME], "probability", None)
 
@@ -217,8 +230,26 @@ class InputGuardAgent(BaseAgent[GuardInput, None, GuardVerdict]):
         raise NotImplementedError(f"{self.component_name}: 판단 모델만 써 채팅 메시지가 없습니다.")
 
 
+def _transient(exc: InputGuardFailedError) -> bool:
+    """다시 부르면 될 수 있는 실패인지. 응답을 못 받은 호출 중 429·5xx·연결·시간 초과만.
+
+    Args:
+        exc: 판단 호출 실패.
+
+    Returns:
+        bool: 일시 오류면 True. 4xx(이미지 크기 등 요청 문제)·응답 변환 실패면 False.
+    """
+    if exc.meta is None or exc.meta.failure_phase != ModelFailurePhase.CALL:
+        return False
+    cause = exc.__cause__
+    if isinstance(cause, httpx.HTTPStatusError):
+        status = cause.response.status_code
+        return status == 429 or status >= 500
+    return isinstance(cause, httpx.TransportError)
+
+
 def _with_outcome(verdict: GuardVerdict, thresholds: ReviewThresholds) -> GuardVerdict:
-    """점수와 문턱값으로 판정을 채운다. 점수가 없는(판단 못 한) 부분은 통과로 봄.
+    """점수와 문턱값으로 판정을 채운다. 판단 못 한 부분이 있으면 통과 대신 의심.
 
     Args:
         verdict: 점수를 채운 판정 (outcome은 무시).
@@ -231,5 +262,8 @@ def _with_outcome(verdict: GuardVerdict, thresholds: ReviewThresholds) -> GuardV
     if (text is not None and text >= thresholds.text_high) or (image is not None and image >= thresholds.image_high):
         return replace(verdict, outcome=GuardOutcome.BLOCK)
     if (text is not None and text >= thresholds.text_low) or (image is not None and image >= thresholds.image_low):
+        return replace(verdict, outcome=GuardOutcome.SUSPECT)
+    # 못 본 부분에 지시가 있을 수 있어 경고 로그로 남김
+    if verdict.failed_calls:
         return replace(verdict, outcome=GuardOutcome.SUSPECT)
     return replace(verdict, outcome=GuardOutcome.PASS)

@@ -1,4 +1,4 @@
-"""InputGuardAgent: 형식 규칙 → 글 판단 → 이미지 판단 순서, 문턱값 판정, 실패 시 통과, 기록.
+"""InputGuardAgent: 형식 규칙 → 글 판단 → 이미지 판단 순서, 문턱값 판정, 일시 오류 재시도, 실패 시 의심, 기록.
 
 판단 클라이언트는 실제 Jev 형식 클라이언트에 가짜 전송을 붙임. 실제 네트워크 요청은 보내지 않는다.
 """
@@ -16,7 +16,7 @@ from app.config import ConfigError, ReviewThresholds
 
 JEV = "typesafe/jev-latest"
 THRESHOLDS = ReviewThresholds(text_high=0.85, text_low=0.3, image_high=0.8, image_low=0.3)
-# 글·이미지에 이 표시가 있으면 그 점수로 답함
+# 글·이미지에 이 표시가 있으면 그 점수로 답함. FAIL은 늘 500, BAD는 400, FLAKY는 처음만 503
 SCORES = {"HIGH": 0.95, "EDGE": 0.82, "MID": 0.5, "FAIL": None}
 
 
@@ -37,6 +37,7 @@ class Gateway:
 
     def __init__(self) -> None:
         self.sent: list[dict] = []
+        self.flaked = False
         self._lock = threading.Lock()
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
@@ -44,6 +45,13 @@ class Gateway:
         with self._lock:
             self.sent.append(body)
         text = json.dumps(body["state"], ensure_ascii=False)
+        if "BAD" in text:
+            return httpx.Response(400)
+        if "FLAKY" in text:
+            with self._lock:
+                first = not self.flaked
+                self.flaked = True
+            return httpx.Response(503) if first else _reply(0.9)
         for mark, score in SCORES.items():
             if mark in text:
                 return httpx.Response(500) if score is None else _reply(score)
@@ -141,15 +149,30 @@ def test_판단에_실패한_부분은_넘기고_나머지로_판정한다(agent
 
     assert (verdict.text_score, verdict.image_scores) == (None, [None, 0.5])
     assert (verdict.outcome, verdict.failed_calls) == (GuardOutcome.SUSPECT, 2)
-    assert sorted(row["ok"] for row in records) == [False, False, True]
+    # 500은 한 번 더 불러 실패 호출이 부분마다 2번
+    assert sorted(row["ok"] for row in records) == [False, False, False, False, True]
 
 
-def test_모든_판단이_실패하면_통과로_둔다(agent, images):
-    urls = images(["FAIL"])
+def test_판단하지_못한_부분이_있으면_점수가_낮아도_의심으로_둔다(agent, images):
+    urls = images(["FAIL", "LOW"])
 
-    verdict = agent.run(GuardInput("p-1", ["FAIL"], urls))
+    verdict = agent.run(GuardInput("p-1", ["선풍기"], urls))
 
-    assert (verdict.outcome, verdict.failed_calls) == (GuardOutcome.PASS, 2)
+    assert (verdict.outcome, verdict.image_scores, verdict.failed_calls) == (GuardOutcome.SUSPECT, [None, 0.02], 1)
+
+
+def test_일시_오류는_한_번_더_불러_판정한다(agent, gateway, records):
+    verdict = agent.run(GuardInput("p-1", ["FLAKY"]))
+
+    assert (verdict.outcome, verdict.text_score, verdict.failed_calls) == (GuardOutcome.BLOCK, 0.9, 0)
+    assert len(gateway.sent) == 2
+    assert [row["ok"] for row in records] == [False, True]
+
+
+def test_요청_문제인_4xx는_다시_부르지_않는다(agent, gateway):
+    verdict = agent.run(GuardInput("p-1", ["BAD"]))
+
+    assert (verdict.outcome, verdict.failed_calls, len(gateway.sent)) == (GuardOutcome.SUSPECT, 1, 1)
 
 
 def test_못_본_이미지_수를_판정에_남긴다(agent, images):
