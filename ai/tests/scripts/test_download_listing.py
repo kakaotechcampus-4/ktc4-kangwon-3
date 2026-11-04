@@ -103,6 +103,22 @@ def test_알리에서_alt가_있는_480_정사각형은_연관_상품이다():
     assert keep_image("aliexpress", related, 4980, 19306) == "연관 상품"
 
 
+def test_알리에서_접힌_설명_구역_아래로_밀려난_원본_이미지는_구역_끝을_넘어도_남긴다():
+    # "개요"가 접힌 채면 설명 이미지의 레이아웃 위치가 끝 표지("구매자 질문") 아래로 밀린다.
+    # 설명 이미지는 썸네일 꼬리 없는 원본 주소이고 alt가 없어 구분할 수 있다.
+    overflowed = _image(7177, width=2048, height=2048, src="https://ae-pic-a1.aliexpress-media.com/kf/S0044180b4a9eb8d5bf68fe2n.jpg")
+
+    assert keep_image("aliexpress", overflowed, 3578, 5454) is None
+
+
+def test_알리에서_구역_끝을_넘은_썸네일_주소_이미지는_여전히_거른다():
+    category_tile = _image(6328, width=960, height=960, alt="식품과 식료품", src="https://ae-pic-a1.aliexpress-media.com/kf/S9.png_960x960.png_.avif")
+    gallery_above = _image(505, width=1000, height=1000, src="https://ae-pic-a1.aliexpress-media.com/kf/Sgallery.jpg")
+
+    assert keep_image("aliexpress", category_tile, 3578, 5454) == "상세 구역 밖"
+    assert keep_image("aliexpress", gallery_above, 3578, 5454) == "상세 구역 밖"
+
+
 def test_아직_안_불러온_lazy_이미지는_크기가_0이어도_남긴다():
     assert keep_image("temu", _image(2000, width=0, height=0, lazy=True), 1705, 3823) is None
 
@@ -218,6 +234,20 @@ def test_내보내기는_같은_원본_주소의_이미지를_한_번만_받는�
 
     assert fetch.calls == ["https://img.kwcdn.com/product/fancy/a.jpg?imageView2/2/w/1600/q/85"]
     assert summary["dropped"] == {"중복": 1}
+
+
+def test_같은_폴더에_다시_내보내면_이전_이미지_파일을_지우고_새로_쓴다(tmp_path: Path):
+    out = tmp_path / "p"
+    out.mkdir()
+    (out / "img_01.jpg").write_bytes(b"old1")
+    (out / "img_02.jpg").write_bytes(b"old2")
+    images = [_image(2000, src="https://img.kwcdn.com/product/fancy/a.jpg")]
+    fetch = _fake_fetch({"https://img.kwcdn.com/product/fancy/a.jpg?imageView2/2/w/1600/q/85": (b"A", "image/jpeg")})
+
+    export_listing(_listing("temu", images=images), [], out, fetch=fetch)
+
+    assert (out / "img_01.jpg").read_bytes() == b"A"
+    assert not (out / "img_02.jpg").exists()
 
 
 def test_내보내기는_받기_실패한_이미지를_건너뛰고_실패_목록에_남긴다(tmp_path: Path):

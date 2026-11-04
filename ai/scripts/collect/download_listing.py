@@ -46,6 +46,8 @@ PAGE_END = 10**9
 _COLLECTED_JSON = re.compile(r"^(temu|aliexpress)_\d{4}-\d{2}-\d{2}T.*\.json$")
 # 알리 썸네일 주소: 원본 경로 뒤에 "_480x480q75.jpg_.avif" 같은 꼬리가 붙는다
 _ALI_ORIGINAL = re.compile(r"^(.*?\.(?:jpg|jpeg|png|webp))(?:_.*)?$", re.IGNORECASE)
+# 알리 썸네일 꼬리: "…jpg_480x480q75.jpg_.avif", "…png_960x960.png_.avif"
+_ALI_THUMBNAIL_SUFFIX = re.compile(r"_\d+x\d+", re.IGNORECASE)
 _EXTENSIONS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/avif": ".avif", "image/gif": ".gif"}
 
 SITE_RULES: dict[str, dict] = {
@@ -91,6 +93,19 @@ def detail_range(site: str, markers: list[dict], *, min_top: int | None = None, 
     return low, high
 
 
+def _is_ali_overflowed_description(site: str, image: dict, low: int) -> bool:
+    """알리 "개요"가 접힌 채라 끝 표지 아래로 밀려난 설명 이미지인지.
+
+    접힌 구역은 overflow만 가려서 안쪽 이미지의 레이아웃 위치가 끝 표지("구매자 질문")를 넘어간다.
+    설명 이미지는 썸네일 꼬리(`_480x480…`)가 없는 원본 주소이고 alt가 없어, 연관 상품(alt 있음)·
+    카테고리 타일(썸네일 꼬리)과 구분된다. 갤러리 원본은 구역 시작 위에 있어 low로 걸러진다.
+    """
+    if site != "aliexpress" or image["top"] < low or image["alt"]:
+        return False
+    bare = image["src"].split("?")[0]
+    return not _ALI_THUMBNAIL_SUFFIX.search(bare) and bool(_ALI_ORIGINAL.match(bare))
+
+
 def keep_image(site: str, image: dict, low: int, high: int, *, is_frame: bool = False) -> str | None:
     """상세 설명 이미지로 남기면 None, 거르면 그 이유.
 
@@ -108,7 +123,7 @@ def keep_image(site: str, image: dict, low: int, high: int, *, is_frame: bool = 
         return "작음"
     if is_frame:
         return None
-    if not (low <= image["top"] < high):
+    if not (low <= image["top"] < high) and not _is_ali_overflowed_description(site, image, low):
         return "상세 구역 밖"
     rule = SITE_RULES.get(site, {})
     host = urlparse(image["src"]).hostname or ""
@@ -190,6 +205,9 @@ def export_listing(
     site = main_data["site"]
     header = f"# {site} {main_data['url']}\n"
     out_dir.mkdir(parents=True, exist_ok=True)
+    # 같은 폴더에 다시 내보낼 때 이전 실행의 이미지가 번호 뒤에 남지 않게 먼저 지운다
+    for stale in out_dir.glob("img_*"):
+        stale.unlink()
     _write(out_dir / "listing.json", json.dumps(main_data, ensure_ascii=False, indent=1))
     for index, frame in enumerate(frame_datas, start=1):
         _write(out_dir / f"frame_{index:02d}.json", json.dumps(frame, ensure_ascii=False, indent=1))
