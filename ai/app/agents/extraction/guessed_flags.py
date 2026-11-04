@@ -138,6 +138,50 @@ def confirm_plant_material(attributes: dict[str, Any], text: str) -> list[str]:
     return []
 
 
+# 판매자 글의 효능·미용 표방 문구. 프롬프트는 "상품 이름 안에 있어도 표방"이라고 하지만 모델(gpt-4.1-mini)이
+# 제목의 '스트레스 완화'·'치아 미백 효과'를 false로 두는 일이 잦다(초안 50건 측정, 2026-11-05). 표현이 분명한 것만 잡는다.
+# 부정("통증 없는 이어폰")은 "완화·개선" 같은 효능 동사를 요구해 걸리지 않게 하고, 촉감 설명(skin-friendly)은 넣지 않는다.
+_RELIEF = r"(?:완화|경감|해소|개선|감소|줄여|relief|reliev|improve)"
+_MEDICAL_CLAIM = re.compile(
+    r"(?:통증|피로|스트레스|가려움|두통|염증|부종|불면|근육통|관절통|생리통)\s*(?:을|를)?\s*" + _RELIEF
+    + r"|(?:pain|stress|itch|headache|sunburn|fatigue|inflammation)\s*" + _RELIEF
+    + r"|headache\s*reli[ef]"
+    + r"|혈액\s*순환|blood\s*circulation|circulation\s*improve"
+    + r"|관절\s*(?:을|를)?\s*(?:안정|보호|지지)|근육\s*이완|경락"
+    + r"|자세\s*교정|교정기|교정\s*벨트|교정\s*밴드"
+    + r"|(?:여드름|무좀|습진|탈모|비염|불면증)\s*(?:치료|개선|완화)"
+    + r"|지방\s*(?:연소|분해|감소)|체중\s*감소|슬리밍|셀룰라이트|fat\s*(?:loss|burn)|weight\s*loss|slimming"
+    + r"|수면\s*(?:개선|질)|sleep\s*quality|면역|혈압|혈당|당뇨",
+    re.IGNORECASE,
+)
+_COSMETIC_CLAIM = re.compile(
+    r"미백|whitening|주름\s*(?:개선|완화|제거)|wrinkle|리프팅|lifting|탄력\s*(?:강화|개선|회복)|elasticity"
+    + r"|모공\s*(?:클리너|축소|케어|청소|관리)|pore|블랙헤드|blackhead|각질\s*(?:제거|케어|관리)|exfoliat"
+    + r"|피부\s*(?:톤|결|재생|탄력|미백|보습|광채)|피부톤|skin\s*(?:tone|brighten|rejuvenat)"
+    + r"|붓기\s*(?:완화|제거|감소|빼)|puffiness"
+    + r"|(?:머릿결|모발|헤어)\s*(?:윤기|보호|케어|손상\s*개선)|윤기\s*있고|건강한\s*모발|smooth\s*hair|frizz|hair\s*care",
+    re.IGNORECASE,
+)
+
+
+def confirm_claims(attributes: dict[str, Any], text: str) -> list[str]:
+    """판매자 글에 효능·미용 표방 문구가 있으면 medical_claim·cosmetic_claim을 True로 확정한다. attributes를 그 자리에서 고친다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+        text: 모델이 읽은 판매자 영역 원문. 블록을 합친 글.
+
+    Returns:
+        list[str]: True로 바꾼 필드 이름.
+    """
+    confirmed: list[str] = []
+    for name, pattern in (("medical_claim", _MEDICAL_CLAIM), ("cosmetic_claim", _COSMETIC_CLAIM)):
+        if attributes.get(name) is not True and pattern.search(text):
+            attributes[name] = True
+            confirmed.append(name)
+    return confirmed
+
+
 def drop_conflicted_battery(attributes: dict[str, Any]) -> list[str]:
     """배터리 모순이 있는 페이지에서 배터리 두 칸의 확정을 None으로 바꾼다. attributes를 그 자리에서 고친다.
 
