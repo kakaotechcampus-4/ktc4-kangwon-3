@@ -20,7 +20,7 @@ from ..config.session import MAX_PARALLEL_TOOLS
 from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIError, AIResponseCode, AIServiceError
 from ..observability.logs import set_run_field
-from ..observability.trace import current_trace, trace_finish, trace_note, trace_step
+from ..observability.trace import current_trace, trace_alias, trace_finish, trace_note, trace_step
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
@@ -211,6 +211,7 @@ class _ToolExecution:
         self._progress.stage(PipelineStage.TOOL_EXECUTION)
         with trace_step("tool_execution", round=0):
             result = self._state.saved("tool_execution") or self._executor.execute_initial(product, selection)
+            _alias_ids(result)
             trace_note("output", result)
         self._state.done("tool_execution")
         # 선택 안 된 Tool은 실행기가 부르지 않아 여기서 알림. 재실행 회차에는 보내지 않음
@@ -227,8 +228,28 @@ class _ToolExecution:
         # 재실행 요청(실행할 Tool·검증 결과·직전 Tool 결과)은 앞 단계 output과 같아 회차만
         with trace_step("tool_execution", round=request.retry_round):
             result = self._executor.execute_retry(product, previous, request)
+            _alias_ids(result)
             trace_note("output", result)
             return result
+
+
+def _alias_ids(value: object) -> None:
+    """실행마다 달라지는 ID(uuid)를 trace 저장 때 실행 안 번호로 바꾸게 등록한다. 기록 중이 아니면 아무것도 안 함.
+
+    Tool 실행 ID는 e, 진단서 ID는 a, 검증 지적 ID는 i (판단 ID f는 Tool 기록에서). 두 실행 diff 비교용.
+
+    Args:
+        value: 단계 결과 (Tool 실행 결과·종합 초안·검증 결과). 그 밖의 값은 무시.
+    """
+    if isinstance(value, SelectionResult):
+        for result in (*value.tool_results, *value.tool_result_history):
+            if result.execution_id:
+                trace_alias(result.execution_id, "e")
+    elif isinstance(value, DraftAssessment):
+        trace_alias(value.assessment_id, "a")
+    elif isinstance(value, VerificationResult):
+        for issue in value.issues:
+            trace_alias(issue.issue_id, "i")
 
 
 class _Aggregation:
@@ -241,6 +262,7 @@ class _Aggregation:
         self._progress.stage(PipelineStage.AGGREGATION)
         with trace_step("aggregation", round=self._state.retry_round):
             draft = self._state.saved("aggregation") or self._aggregator.aggregate(product, selection_result)
+            _alias_ids(draft)
             trace_note("output", draft)
         self._state.done("aggregation")
         return draft
@@ -257,6 +279,7 @@ class _Verification:
         try:
             with trace_step("verification", round=self._state.retry_round):
                 verification = self._verifier.run(draft)
+                _alias_ids(verification)
                 trace_note("output", verification)
         except VerificationError as exc:
             # 검토 ID 중복 등 모델 실수·호출 실패. 다시 돌리면 통과 가능 → 재시도 가능
