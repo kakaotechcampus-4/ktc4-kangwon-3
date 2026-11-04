@@ -80,3 +80,28 @@ def test_추출_결과에_표방_확정이_적용된다(stub_model, records):
     result = agent.run(ExtractionInput(product_id="p", text_blocks=["반사요법 도구로 스트레스 완화"]))
 
     assert result.medical_claim is True
+
+
+# 초안 50건·기존 원문에 규칙을 오프라인으로 돌려 찾은 오탐·놓침 (2026-11-05)
+
+
+@pytest.mark.parametrize("text", [
+    "가벼운 무게감을 제공하여 장시간 스타일링 작업 시 팔의 피로를 줄여줍니다",
+    "품목 유형\n교정기 및 지지대",
+    "Raffles Quay, #14-06, Singapore (048580)",
+    "uplifting music for shopping",
+])
+def test_인체공학_설명·카테고리_이름·영어_낱말_속_일치는_표방이_아니다(text):
+    attributes = {"medical_claim": False, "cosmetic_claim": False}
+
+    assert confirm_claims(attributes, text) == []
+
+
+def test_판매자_전체_제목에만_있는_표방도_잡는다(stub_model, records, temu_page):
+    # Temu는 잘린 제목 줄 뒤 구매 상자에 전체 제목이 있고, 판매자 구역 글에는 전체 제목이 빠질 수 있다.
+    page = temu_page.replace("접이식 원목 의자 3단 높이 조절", "접이식 원목 의자 3단 높이 조절, 모공 클리너 블랙헤드 제거")
+    agent = ExtractionAgent(stub_model(ProductAttributes(product_name="의자", cosmetic_claim=False)))
+
+    result = agent.run(ExtractionInput(product_id="p", text_blocks=[page]))
+
+    assert result.cosmetic_claim is True

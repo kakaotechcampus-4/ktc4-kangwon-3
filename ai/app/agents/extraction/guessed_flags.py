@@ -141,25 +141,27 @@ def confirm_plant_material(attributes: dict[str, Any], text: str) -> list[str]:
 # 판매자 글의 효능·미용 표방 문구. 프롬프트는 "상품 이름 안에 있어도 표방"이라고 하지만 모델(gpt-4.1-mini)이
 # 제목의 '스트레스 완화'·'치아 미백 효과'를 false로 두는 일이 잦다(초안 50건 측정, 2026-11-05). 표현이 분명한 것만 잡는다.
 # 부정("통증 없는 이어폰")은 "완화·개선" 같은 효능 동사를 요구해 걸리지 않게 하고, 촉감 설명(skin-friendly)은 넣지 않는다.
-_RELIEF = r"(?:완화|경감|해소|개선|감소|줄여|relief|reliev|improve)"
+# 영어는 낱말 경계로 막는다("Singapore"의 pore, "uplifting"의 lifting). 한국어 "피로"는 "팔의 피로를 줄여" 같은
+# 인체공학 설명에도 쓰여 "피로 회복"만, "교정기"는 쇼핑몰 분류 "교정기 및 지지대"에도 있어 "자세·등·체형 교정"만 본다.
+_KO_RELIEF = r"(?:완화|경감|해소|개선|감소|줄여)"
 _MEDICAL_CLAIM = re.compile(
-    r"(?:통증|피로|스트레스|가려움|두통|염증|부종|불면|근육통|관절통|생리통)\s*(?:을|를)?\s*" + _RELIEF
-    + r"|(?:pain|stress|itch|headache|sunburn|fatigue|inflammation)\s*" + _RELIEF
-    + r"|headache\s*reli[ef]"
-    + r"|혈액\s*순환|blood\s*circulation|circulation\s*improve"
-    + r"|관절\s*(?:을|를)?\s*(?:안정|보호|지지)|근육\s*이완|경락"
-    + r"|자세\s*교정|교정기|교정\s*벨트|교정\s*밴드"
+    r"(?:통증|스트레스|가려움|두통|염증|부종|불면|근육통|관절통|생리통)\s*(?:을|를)?\s*" + _KO_RELIEF
+    + r"|피로\s*회복|혈액\s*순환|관절\s*(?:을|를)?\s*(?:안정|보호|지지)|근육\s*이완|경락"
+    + r"|(?:자세|등|체형|척추|굽은\s*등)\s*(?:을|를)?\s*교정"
     + r"|(?:여드름|무좀|습진|탈모|비염|불면증)\s*(?:치료|개선|완화)"
-    + r"|지방\s*(?:연소|분해|감소)|체중\s*감소|슬리밍|셀룰라이트|fat\s*(?:loss|burn)|weight\s*loss|slimming"
-    + r"|수면\s*(?:개선|질)|sleep\s*quality|면역|혈압|혈당|당뇨",
+    + r"|지방\s*(?:연소|분해|감소)|체중\s*감소|슬리밍|셀룰라이트|수면\s*(?:개선|질)|면역|혈압|혈당|당뇨"
+    + r"|\b(?:(?:pain|stress|itch|headache|sunburn|inflammation)\s*(?:relief|reliev\w*|improve\w*)"
+    + r"|headache\s*reli[ef]\w*|blood\s*circulation|circulation\s*improve\w*|fat\s*(?:loss|burn\w*)|weight\s*loss"
+    + r"|slimming|sleep\s*quality|posture\s*correct\w*)\b",
     re.IGNORECASE,
 )
 _COSMETIC_CLAIM = re.compile(
-    r"미백|whitening|주름\s*(?:개선|완화|제거)|wrinkle|리프팅|lifting|탄력\s*(?:강화|개선|회복)|elasticity"
-    + r"|모공\s*(?:클리너|축소|케어|청소|관리)|pore|블랙헤드|blackhead|각질\s*(?:제거|케어|관리)|exfoliat"
-    + r"|피부\s*(?:톤|결|재생|탄력|미백|보습|광채)|피부톤|skin\s*(?:tone|brighten|rejuvenat)"
-    + r"|붓기\s*(?:완화|제거|감소|빼)|puffiness"
-    + r"|(?:머릿결|모발|헤어)\s*(?:윤기|보호|케어|손상\s*개선)|윤기\s*있고|건강한\s*모발|smooth\s*hair|frizz|hair\s*care",
+    r"미백|주름\s*(?:개선|완화|제거)|리프팅|탄력\s*(?:강화|개선|회복)"
+    + r"|모공\s*(?:클리너|축소|케어|청소|관리)|블랙헤드|각질\s*(?:제거|케어|관리)"
+    + r"|피부\s*(?:톤|결|재생|탄력|미백|보습|광채)|피부톤|붓기\s*(?:완화|제거|감소|빼)"
+    + r"|(?:머릿결|모발|헤어)\s*(?:윤기|보호|케어|손상\s*개선)|윤기\s*있고|건강한\s*모발"
+    + r"|\b(?:whitening|wrinkles?|lifting|elasticity|pores?|blackheads?|exfoliat\w*|puffiness|frizz"
+    + r"|skin\s*(?:tone|brighten\w*|rejuvenat\w*)|smooth\s*hair|hair\s*care)\b",
     re.IGNORECASE,
 )
 

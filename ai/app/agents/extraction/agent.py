@@ -91,7 +91,8 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         guessed = drop_guessed_false(payload)
         unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))
         confirmed = confirm_plant_material(payload, "\n".join(source.text_blocks))
-        confirmed += confirm_claims(payload, "\n".join(source.text_blocks))
+        # 표방 문구는 판매자 제목에 자주 있다. Temu는 잘린 제목 줄만 구역에 남고 전체 제목은 따로 찾으므로 제목도 합쳐 본다.
+        confirmed += confirm_claims(payload, "\n".join([*titles, *source.text_blocks]))
         battery_conflicts = detect_battery_capacity_conflict(source.text_blocks)
         conflicted = drop_conflicted_battery(payload) if battery_conflicts else []
         # 제목↔스펙표 모순은 검토 후보로만 남긴다(필드를 None으로 되돌리지 않음). 모델이 거의 보고하지 않아 규칙이 맡는다.
