@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from prometheus_client import CollectorRegistry
 
 from app.domain.context import ExecutionContext, PipelineStage, RunType
@@ -375,3 +376,23 @@ def test_값이_정해진_콜백·Tool_라벨_조합은_기록_전에도_0으로
         for status in ("success", "partial", "failed", "skipped"):
             assert registry.get_sample_value(
                 "ai_tool_runs_total", {"tool_name": tool_name.value, "status": status}) == 0
+
+
+@pytest.mark.parametrize(("name", "labels"), [
+    ("ai_callback_dropped_total", {"reason": "retry_exhausted"}),
+    ("ai_callback_dropped_total", {"reason": "error"}),
+    ("ai_client_calls_total", {"api": "law", "result": "timeout"}),
+    ("ai_client_calls_total", {"api": "llm", "result": "ok"}),
+    ("ai_tool_errors_total", {"tool_name": "radio_compliance", "error_type": "model"}),
+    ("ai_cache_lookups_total", {"cache": "law.text", "result": "stale"}),
+    ("ai_cache_lookups_total", {"cache": "customs.cases", "result": "skipped"}),
+    ("ai_law_refresh_runs_total", {"result": "partial"}),
+    ("ai_clip_ingest_runs_total", {"result": "skipped"}),
+    ("ai_clip_ingest_cases_total", {"outcome": "saved"}),
+])
+def test_값이_정해진_버림·실패·캐시·정기_작업_라벨_조합은_기록_전에도_0으로_있다(name, labels):
+    # 처음 기록될 때 생기면 increase()가 재시작 뒤 첫 버림·실패를 못 셈
+    registry = CollectorRegistry()
+    MeasurementMetrics(registry)
+
+    assert registry.get_sample_value(name, labels) == 0

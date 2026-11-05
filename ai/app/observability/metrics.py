@@ -46,6 +46,21 @@ HTTP_REQUEST_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
 # 콜백 이벤트 종류 (app/schemas/callback.py의 event_type)
 _CALLBACK_EVENT_TYPES = ("product_progress", "product_awaiting_input", "product_result", "product_failed")
+# 콜백 버린 사유 (app/callbacks/outbox.py)
+_CALLBACK_DROP_REASONS = ("retry_exhausted", "not_retryable", "shutdown", "error")
+# 외부 API 서버·호출 결과 (app/clients 각 클라이언트의 API, measurements.ClientCall)
+_CLIENT_APIS = ("law", "data_go_kr", "customs_clip", "safety_korea", "radio", "marketplace", "backend", "llm")
+_CLIENT_RESULTS = ("ok", "http_error", "api_error", "timeout", "connect_error", "other")
+# Tool 실패 원인 (app/pipeline/tool_executor.py)
+_TOOL_ERROR_TYPES = ("client", "model", "other")
+# 응답 캐시 이름 (app/db/law_cache.py·customs_cache.py)과 결정사례 DB (app/tools/customs/search.py)
+_RESPONSE_CACHES = ("law.eflaw_search", "law.text", "admrul.search", "admrul.text", "customs.gw")
+_CACHE_RESULTS = ("hit", "miss", "stale", "skipped")
+_CASE_CACHE, _CASE_CACHE_RESULTS = "customs.cases", ("hit", "miss", "skipped")
+# 정기 작업 결과 (app/db/law_cache.py·clip_ingest.py)
+_LAW_REFRESH_RESULTS = ("ok", "partial", "failed")
+_CLIP_INGEST_RESULTS = ("ok", "partial", "failed", "skipped")
+_CLIP_INGEST_OUTCOMES = ("saved", "removed", "failed")
 
 
 def _preset(metric: Counter | Histogram, *label_values: Iterable[str]) -> None:
@@ -326,6 +341,15 @@ class MeasurementMetrics:
         _preset(self._callback_sent, _CALLBACK_EVENT_TYPES, ["delivered", "dropped"])
         _preset(self._tool_runs, [tool.value for tool in ToolName], [status.value for status in ToolStatus])
         _preset(self._seller_region, ["aliexpress", "temu"], ["true", "false"])
+        # 기동 직후·재시작 뒤 첫 버림·실패·정기 작업 결과도 세게 함
+        _preset(self._callback_dropped, _CALLBACK_DROP_REASONS)
+        _preset(self._client_calls, _CLIENT_APIS, _CLIENT_RESULTS)
+        _preset(self._tool_errors, [tool.value for tool in ToolName], _TOOL_ERROR_TYPES)
+        _preset(self._cache_lookups, _RESPONSE_CACHES, _CACHE_RESULTS)
+        _preset(self._cache_lookups, [_CASE_CACHE], _CASE_CACHE_RESULTS)
+        _preset(self._law_refresh_runs, _LAW_REFRESH_RESULTS)
+        _preset(self._clip_ingest_runs, _CLIP_INGEST_RESULTS)
+        _preset(self._clip_ingest_cases, _CLIP_INGEST_OUTCOMES)
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
