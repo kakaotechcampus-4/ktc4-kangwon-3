@@ -15,7 +15,7 @@ import java.util.Map;
  * MAIL_TEST_TO 가 없으면 건너뛰므로 CI 와 평소 테스트에서는 실행되지 않는다.
  *
  * 실행: aws sso login 후
- *   MAIL_TEST_TO=받을주소 ./gradlew test --tests '*SesMailManualTest'
+ *   MAIL_TEST_TO=받을주소 ./gradlew integrationTest --tests '*SesMailManualTest'
  */
 @Tag("integration")
 @SpringBootTest(properties = {
