@@ -1,0 +1,102 @@
+# E2E 테스트 스택. FE는 Playwright가 빌드·실행하고, 여기서는 BE·DB·Redis·mock-ai만 띄운다.
+# 실행: docker compose -f e2e/compose.e2e.yml up -d --build --wait
+# 모든 값은 E2E 전용 더미다. 운영·로컬 개발 환경과 겹치지 않게 호스트 포트를 2xxxx로 둔다.
+name: e2e
+
+x-secrets: &secrets
+  INTERNAL_API_TOKEN: e2e-internal-api-token-at-least-32-characters
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: beforeselling
+      POSTGRES_USER: e2e
+      POSTGRES_PASSWORD: e2e
+    # 테스트마다 새로 시작하므로 데이터는 메모리에만 둔다.
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - "25432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U e2e -d beforeselling"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "26379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build:
+      context: ../backend/beforeselling
+      target: local
+    image: beforeselling-app:e2e
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *secrets
+      SPRING_PROFILES_ACTIVE: local
+      TZ: Asia/Seoul
+      DB_URL: jdbc:postgresql://db:5432/beforeselling
+      DB_USERNAME: e2e
+      DB_PASSWORD: e2e
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AI_BASE_URL: http://mock-ai:8000
+      JWT_SECRET: e2e-jwt-secret-key-must-be-at-least-32-bytes-long-0123456789
+      # AES-256 키(32바이트 Base64). 소셜 refresh_token 암호화용 더미
+      TOKEN_ENCRYPTION_KEY: ZTJlLWRhdGFiYXNlLWVuY3J5cHRpb24ta2V5LTMyYiE=
+      KAKAO_CLIENT_ID: e2e-dummy
+      KAKAO_CLIENT_SECRET: e2e-dummy
+      KAKAO_ADMIN_KEY: e2e-dummy
+      NAVER_CLIENT_ID: e2e-dummy
+      NAVER_CLIENT_SECRET: e2e-dummy
+      GOOGLE_CLIENT_ID: e2e-dummy
+      GOOGLE_CLIENT_SECRET: e2e-dummy
+      S3_BUCKET_NAME: e2e-dummy-bucket
+      # Playwright가 띄우는 FE(vite preview) 주소
+      CORS_ALLOWED_ORIGINS: http://localhost:4173
+      FRONTEND_REDIRECT_URIS: http://localhost:4173/oauth/callback
+      COOKIE_SECURE: "false"
+      MAIL_TYPE: NONE
+      SENTRY_DSN: ""
+      # 테스트가 빨리 끝나도록 폴링을 줄이고, 연속 진단 요청이 처리율 제한에 걸리지 않게 한도를 늘린다.
+      DIAGNOSES_POLL_INTERVAL: 1s
+      RATE_LIMIT_AI_CAPACITY: "1000"
+    ports:
+      - "28080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/actuator/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  mock-ai:
+    build: ../loadtest/mock-ai
+    image: mock-ai:e2e
+    environment:
+      <<: *secrets
+      BE_BASE_URL: http://app:8080
+      # 상품 하나가 몇 초 안에 끝나게 한다. 표시가 없는 상품은 질문·실패 없이 결과로 끝난다.
+      MOCK_DURATION_MIN_S: "2"
+      MOCK_DURATION_MAX_S: "3"
+      MOCK_FIRST_CALLBACK_DELAY_MS: "200"
+      MOCK_QUESTION_RATIO: "0"
+      MOCK_FAIL_RATIO: "0"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
