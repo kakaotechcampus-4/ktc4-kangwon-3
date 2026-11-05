@@ -151,7 +151,7 @@ holdout = 대표·조건 변형·대조를 dev와 다른 상품으로 + 엣지 5
   "fixture": "tests/fixtures/pipeline/usb_fan.txt",
   "split": "dev",
   "branches": ["EL-LV", "EL-BHINT", "AD-RANK"],
-  "selection": {"customs_requirements": true, "radio_compliance": true, "children_product_safety": false},
+  "selection": {"customs_requirements": true, "electrical_safety": true, "labeling_advertising_detection": true, "radio_compliance": false, "food_drug_safety": false, "children_product_safety": false},
   "tools": {
     "customs_requirements": {"expected_hs": ["8414.51"]},
     "electrical_safety": {"expected_rows": [], "acceptable_rows": ["conf-10-12", "cert-10-02"]},
