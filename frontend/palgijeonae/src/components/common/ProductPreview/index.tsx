@@ -3,6 +3,10 @@ import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES, SOURCE_TYPE_INFO } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";
+import { truncateWithEllipsis } from "@/lib/text";
+
+// 제목이 길어도 레이아웃이 깨지지 않도록 화면에 보여줄 제목 길이를 제한한다.
+const MAX_DISPLAY_TITLE_LENGTH = 40;
 
 interface ProductPreviewProps {
     productName: string
@@ -16,6 +20,8 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
+    const displayTitle = truncateWithEllipsis(productName, MAX_DISPLAY_TITLE_LENGTH);
+    const isProductNameLong = productName.length > MAX_DISPLAY_TITLE_LENGTH;
 
     return (
         <DefaultBox>
@@ -33,7 +39,7 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
                             className="w-5 h-5" />
                         <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
                     </div>
-                    <h3 className="text-xl font-bold text-black">{productName}</h3>
+                    <h3 title={isProductNameLong ? productName : undefined} className="text-xl font-bold text-black">{displayTitle}</h3>
                 </div>
             </div>
         </DefaultBox>
