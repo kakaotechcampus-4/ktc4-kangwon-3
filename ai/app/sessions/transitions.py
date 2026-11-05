@@ -92,10 +92,12 @@ class Fail:
     Attributes:
         error_code: 실패 코드.
         retryable: 같은 요청을 다시 보내 복구 가능한지.
+        review_flag: BE 전용 검토 표시. 세션에는 남기지 않고 실패 이벤트로만 넘김. 없으면 None.
     """
 
     error_code: str
     retryable: bool
+    review_flag: str | None = None
 
 
 Change = Start | ChangeStage | ReportTool | Complete | AskUser | Resume | Fail
@@ -204,9 +206,9 @@ def apply(session: DiagnosisSession, change: Change, *, now: datetime) -> Transi
                 answers=[*session.answers, *answers], accepted_at=now, started_at=None, stage_started_at=None,
             )
             return Transition(updated, (Resumed(updated),))
-        case Fail(error_code=error_code, retryable=retryable):
+        case Fail(error_code=error_code, retryable=retryable, review_flag=review_flag):
             updated = _replace(session, now, status=status, error_code=error_code, retryable=retryable)
-            return Transition(updated, (Failed(updated, error_code, retryable),))
+            return Transition(updated, (Failed(updated, error_code, retryable, review_flag),))
         case _:
             # 표에 줄만 추가하고 처리를 빠뜨린 경우
             assert_never(change)

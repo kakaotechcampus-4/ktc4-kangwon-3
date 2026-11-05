@@ -22,7 +22,8 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-    networks: [monitoring, be_appnet]
+    # be-ai-net: AI 서버(ai-server:8000/metrics) 수집용
+    networks: [monitoring, be_appnet, be-ai-net]
 
   # 호스트 eth0 트래픽을 보려면 host 네트워크가 필요하고
   # 외부 노출을 막기 위해 0.0.0.0이 아닌 docker0 게이트웨이(172.17.0.1)에만 바인딩
@@ -101,4 +102,7 @@ volumes:
 networks:
   monitoring:
   be_appnet:
+    external: true
+  # BE·AI 배포 워크플로가 만드는 BE-AI 공용 네트워크
+  be-ai-net:
     external: true

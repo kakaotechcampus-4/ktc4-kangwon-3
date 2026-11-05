@@ -50,6 +50,7 @@ jobs:
       - name: 빌드
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
         run: npm run build
 
       - name: AWS 자격증명 설정

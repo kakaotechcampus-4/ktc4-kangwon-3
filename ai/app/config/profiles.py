@@ -114,4 +114,6 @@ DECISION_PROFILES = {profile.name: profile for profile in (
 AGENT_DECISION_PROFILES: dict[str, str] = {
     # 10-29 선택 실험 기준. Luna와 비교 측정 후 확정
     "decision_selection": "jev",
+    # 11-04 실측: Luna는 은근한 지시·작은 글씨 이미지를 놓치고 가드 회피 문구에 속음
+    "input_guard": "jev",
 }

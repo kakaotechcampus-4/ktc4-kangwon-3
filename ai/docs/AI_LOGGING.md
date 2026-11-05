@@ -1,6 +1,6 @@
 # AI 서버 로그
 
-AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에서 보는 방법을 정리한다. 로그 논의는 #497, 지표는 [AI_METRICS.md](AI_METRICS.md), 로컬 진단 trace는 [AI_TRACE.md](AI_TRACE.md).
+AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에서 보는 방법, 로그·오류를 Sentry로 보내는 방식을 정리한다. 로그 논의는 #497, 지표는 [AI_METRICS.md](AI_METRICS.md), 로컬 진단 trace는 [AI_TRACE.md](AI_TRACE.md).
 
 ## 1. 설정
 
@@ -60,6 +60,9 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | `서버 종료: 실행 중 진단 n개를 최대 N초 기다림` / `n개 끝남, n개 남음 (N초)` | INFO | `sessions/manager/manager.py` |
 | `서버 종료로 진단을 버림: 실행 중 n개(...), 대기 중 n개(...), 답변 대기 n개 (...)` (0개인 항목은 빠짐) | WARNING | `sessions/manager/manager.py` |
 | `진단 시작 (대기 N초, 답변 N개)` | INFO | `sessions/manager/runner.py` |
+| `입력 확인 통과 (글 점수, 이미지 점수)` | INFO | `diagnosis/guard.py` |
+| `입력 확인 차단` / `입력 확인 의심: 형식, 점수, 못 본 이미지, 실패 호출, 발췌` | WARNING | `diagnosis/guard.py` |
+| `입력 확인 실패, 확인 없이 진단` | WARNING | `diagnosis/guard.py` |
 | `모델 호출 {이름} (모델, 시간, 토큰, 비용)` | INFO | `agents/base/usage_log.py` |
 | `모델 호출 실패 {이름} (...)` | WARNING | `agents/base/usage_log.py` |
 | `Tool 실행 실패 {Tool}: {원인}` | WARNING·ERROR | `diagnosis/job.py` |
@@ -117,3 +120,45 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 - 실행 밖에서도 불리는 코드(발신함 종료, 시간 초과 처리, 접수)는 ID를 메시지에 넣음
 - 스레드를 새로 띄우면 `copy_context().run`으로 실행 정보를 넘김
 - 레벨은 3장 기준. 예외를 잡아 실패 결과로 바꾸는 곳은 원인을 남김 (안 남기면 원인이 어디에도 안 보임)
+- ERROR는 Sentry 이벤트가 됨 (7장). 예상한 실패를 ERROR로 남기면 Sentry 알림이 쌓임
+
+## 7. Sentry 로그·오류 전송
+
+진단은 세션 스레드에서 돌고 실패를 잡아 로그로 남겨서, 요청 예외만 보내면 대부분 안 잡힘. 그래서 3장 레벨 기준을 그대로 씀. 설정은 `app/observability/sentry.py`.
+
+### 7.1 켜기
+
+- 환경변수 `SENTRY_DSN`(Sentry 프로젝트 주소, `https://`로 시작)이 있으면 켜짐, 비우면 꺼짐. 켜면 `SENTRY_ENVIRONMENT`(운영·개발 구분 이름) 필수. 아니면 기동 실패
+- lifespan 시작 때 `configure_logging()` 바로 다음에 켬. 기동 로그에 `Sentry 켜짐 (environment=..., 로그 INFO)` 또는 `Sentry 꺼짐 (SENTRY_DSN 없음)`
+- 비워 두면 꺼진 채로 기동 → 서버 `.env`에 두 값이 없어도 배포는 막히지 않음. 켤 때 서버 `.env`에 두 값을 넣고 컨테이너를 다시 띄움
+- 로컬·테스트는 비워 둠
+- `SENTRY_LOG_LEVEL`: Logs로 보낼 최소 레벨. `INFO`(기본)·`WARNING`·`ERROR`·`OFF`. `OFF`면 로그 전송을 끄고 오류 이벤트만 보냄. 모르는 값이면 기동 실패
+  - 할당량(로그 5GB)이 차 가면 서버 `.env`만 바꿔 `WARNING` → `OFF` 순으로 줄이고 컨테이너를 다시 띄움
+
+### 7.2 보내는 것
+
+| 대상 | Sentry에서 |
+|---|---|
+| ERROR 로그 (traceback 포함) | 이벤트 |
+| 요청 처리 중 잡지 않은 예외 (500) | 이벤트 |
+| 예외 처리기가 응답으로 바꾼 4xx | 안 감 |
+| INFO 이상 로그 | 로그 (Logs 화면, `SENTRY_LOG_LEVEL` 이상만). 이벤트 앞의 흐름 기록(breadcrumb)에도 남음 |
+| DEBUG 로그 | 안 감 |
+
+- 진단 실행 중 이벤트·로그에는 2.1 실행 정보를 붙임 (이벤트는 태그, 로그는 속성) → Sentry에서 진단서·상품·실행·단계별로 걸러 봄. 실행 밖에는 없음
+  - 상품 하나의 흐름: Logs 화면에서 `product_id:<상품 ID>`로 검색 (5장 `grep`과 같은 용도)
+- 로그는 `docker logs`와 같은 내용 (3장 기준이라 상품 원문·모델 응답 원문·진단서 본문 없음). 외부 라이브러리는 WARNING 이상만
+- 성능 트레이스는 쓰지 않음
+
+### 7.3 안 보내는 것
+
+| 대상 | 방법 |
+|---|---|
+| 요청 본문 (상품 원문) | `max_request_body_size="never"`. 기본값은 개인정보 설정과 상관없이 본문을 보냄 |
+| IP·쿠키 | `send_default_pii=False` |
+| 오류 위치별 지역 변수 | `include_local_variables=False`. 요청 헤더·상품 원문·키가 든 URL이 그대로 실림 |
+| 내부 인증 헤더 (`X-Internal-Token`·`X-Dev-Api-Key`) | 보내기 직전 뺌. `Authorization`·`Cookie`는 SDK가 가림 |
+| URL의 키 (`serviceKey`·`OC`) | 예외 메시지, 로그 문구·인자·`extra`(이벤트·로그 둘 다), 흐름 기록(외부 호출의 `url`·`http.query` 포함)에서 `***`로 가림 |
+
+- 예외 메시지 속 상품 원문은 가리지 않음 (검증 오류 메시지에 입력값이 들어가는 경우 등). 메시지를 지우면 원인을 못 봄
+- 오류 위치 주변 소스 줄은 감 (코드라 비밀값 없음)

@@ -8,13 +8,14 @@ from fastapi import APIRouter, FastAPI
 from prometheus_client import CollectorRegistry, disable_created_metrics
 from sqlalchemy.exc import SQLAlchemyError
 
+from .agents.input_guard import InputGuardAgent
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
 from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
 from .clients.llm.decision import close_decision_clients
 from .clients.llm.embedding import embed_texts_sync
 from .config import SESSION_DRAIN_SECONDS, SESSION_SWEEP_SECONDS, get_settings
-from .diagnosis import build_job, build_parts, build_questions
+from .diagnosis import build_job, build_parts, build_questions, guarded
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
@@ -24,6 +25,7 @@ from .observability.measurements import measurement_sinks
 from .observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
+from .observability.sentry import configure_sentry
 from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
                  log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
                  run_weekly_clip_ingest)
@@ -73,6 +75,8 @@ async def lifespan(app: FastAPI):
     # 설정이 없으면 app 로그가 WARNING 이상만 나옴. 이후 기동 로그부터 이 레벨로
     configure_logging(settings.log_level)
     logger.info("환경변수 검증 완료 (로그 레벨 %s)", settings.log_level)
+    # 오류 전송. 이후 기동·진단 중 ERROR 로그와 요청 처리 중 잡지 않은 예외가 감
+    configure_sentry(settings.sentry_dsn, settings.sentry_environment, settings.sentry_log_level)
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
@@ -86,7 +90,7 @@ async def lifespan(app: FastAPI):
         logger.warning("DB 준비 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     else:
         logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
-        # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
+        # 법령 점검: 기동 30초 뒤 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
         session_factory = get_session_factory()
         law_fetchers = build_law_fetchers(settings.law_oc, session_factory, measure=False)
 
@@ -104,7 +108,8 @@ async def lifespan(app: FastAPI):
     presenter = ResultPresenter()
     # 진단 세션 (#264). 운영(/diagnose)·샌드박스는 실제 파이프라인 ([콜백 5/5]), BE 연동용(/dummy)은 케이스 더미
     # 에이전트·Tool은 여기서 한 번 만들어 모든 진단이 같이 씀. 모델 설정 오류면 기동을 막음
-    pipeline_job = build_job(build_parts(), build_questions)
+    # 입력 가드는 접수 뒤 실행 첫머리에서 (차단은 늦춘 일반 실패)
+    pipeline_job = guarded(build_job(build_parts(), build_questions), InputGuardAgent().run)
     job = by_run_type({
         RunType.PRODUCTION: pipeline_job,
         RunType.TEST: pipeline_job,
