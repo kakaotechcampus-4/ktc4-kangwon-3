@@ -20,8 +20,8 @@ interface ReturnPathRowProps {
 function ReturnPathRow({ number, children, preview }: ReturnPathRowProps) {
     return (
         <div className="flex w-full flex-col gap-2">
-            <div className="flex items-start gap-2 text-xs text-neutral-text">
-                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[#E7EEFB] text-xs font-bold text-primary">
+            <div className="flex items-center gap-2 text-base text-neutral-text">
+                <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-ful text-base font-bold text-primary">
                     {number}
                 </span>
                 {children}
@@ -41,7 +41,7 @@ const JUDGEMENT_PREVIEW_PATH = "/judgement/preview-diagnoses";
 function ReturnPathGuide() {
     return (
         <DefaultBox variant="dashed" align="left" className="gap-2">
-            <p className="text-sm font-bold text-black">화면을 떠났다면 이렇게 돌아와요</p>
+            <p className="text-lg font-bold text-black">화면을 떠났다면 이렇게 돌아와요</p>
             <ReturnPathRow number={1} preview={<MiniHeaderPreview />}>
                 오른쪽 위 <b className="font-semibold text-black">마이페이지</b> 클릭
             </ReturnPathRow>

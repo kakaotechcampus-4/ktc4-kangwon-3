@@ -2,14 +2,12 @@ import type { CSSProperties } from "react";
 
 import { cn } from "@/lib/cn";
 
-import { PREVIEW_SLIDES } from "./constants";
+import { PREVIEW_SLIDES, PREVIEW_DURATION } from "./constants";
 import PreviewIndicator from "./PreviewIndicator";
 import { usePreviewCarousel } from "./usePreviewCarousel";
 
-// 슬라이드 한 장이 자동 전환되기까지 걸리는 시간.
-const PREVIEW_DURATION = "10s";
 
-/** 메인 페이지 서비스 미리보기 캐러셀. 4개 화면을 자동으로(또는 수동으로) 넘겨가며 보여준다. */
+/** 메인 페이지 서비스 미리보기 캐러셀. 4개 화면을 자동으로 넘겨가며 보여준다. */
 function Preview() {
     const { index, goTo, next, prefersReducedMotion } = usePreviewCarousel(PREVIEW_SLIDES.length);
     const currentSlide = PREVIEW_SLIDES[index];
@@ -21,7 +19,7 @@ function Preview() {
             aria-roledescription="carousel"
             aria-label="서비스 미리보기"
         >
-            <div className="w-full overflow-hidden rounded-[20px] border border-neutral-border bg-neutral-border/5">
+            <div className="w-full overflow-hidden rounded-2xl border border-neutral-border bg-neutral-bg">
                 <PreviewIndicator
                     slides={PREVIEW_SLIDES}
                     index={index}
@@ -38,7 +36,7 @@ function Preview() {
                                 <div
                                     key={slide.key}
                                     className={cn(
-                                        "col-start-1 row-start-1 transition-opacity duration-450",
+                                        "col-start-1 row-start-1 overflow-hidden p-5 rounded-xl border-2 border-neutral-line bg-white transition-opacity duration-450",
                                         isActive ? "visible opacity-100" : "invisible opacity-0",
                                     )}
                                 >

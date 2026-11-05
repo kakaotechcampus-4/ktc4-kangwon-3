@@ -31,12 +31,6 @@ function PreviewFrame({ label, children, className, baseWidth, maxHeight }: Prev
             <div inert className="mx-auto select-none" style={{ width: baseWidth, zoom: scale }}>
                 {children}
             </div>
-            {maxHeight && (
-                <div
-                    aria-hidden
-                    className="pointer-events-none absolute right-0 bottom-0 left-0 h-16 bg-gradient-to-t from-white to-transparent"
-                />
-            )}
         </figure>
     );
 }

@@ -5,6 +5,9 @@ import QuestionSlide from "./slides/QuestionSlide";
 import ResultSlide from "./slides/ResultSlide";
 import UploadSlide from "./slides/UploadSlide";
 
+// 슬라이드 한 장이 자동 전환되기까지 걸리는 시간.
+export const PREVIEW_DURATION = "10s";
+
 export interface PreviewSlideInfo {
     key: string
     label: string

@@ -12,7 +12,7 @@ interface DemoProductSeed {
     thumbnail: string
 }
 
-// AI 테스트에 실제로 썼던 상품 중, 서로 다른 규제 분야를 보여주도록 3개를 골랐다(장난감/도검류/전기용품).
+// AI 테스트에 실제로 썼던 상품 중, 서로 다른 규제 분야를 보여주도록 3개 선정.
 const DEMO_PRODUCT_SEEDS: DemoProductSeed[] = [
     {
         title: "인기 있는 역할 놀이 나무 햄버거 샌드위치 장난감 어린이용",
@@ -31,14 +31,14 @@ const DEMO_PRODUCT_SEEDS: DemoProductSeed[] = [
     },
 ];
 
-// 번들된 썸네일 에셋을 fetch해서 File로 바꾼다. 같은 origin이라 CORS 걱정 없이 바로 쓸 수 있다.
+// 번들된 썸네일 에셋을 fetch해서 File로 바꾼다. 
 async function assetToFile(assetUrl: string, fileName: string): Promise<File> {
     const response = await fetch(assetUrl);
     const blob = await response.blob();
     return new File([blob], fileName, { type: blob.type });
 }
 
-/** 예시 상품 3개를 썸네일까지 이미 담긴 상태로 업로드 페이지로 이동시킨다. 로그인 여부는 ProtectedRoute가 처리한다. */
+/** 예시 상품 3개를 썸네일까지 이미 담긴 상태로 업로드 페이지로 이동시킨다. */
 export function useDemoStart() {
     const navigate = useNavigate();
 
