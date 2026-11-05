@@ -44,6 +44,13 @@ _FALSE_VALUES = ("false", "0", "no", "off", "")
 LOG_LEVEL_ENV = "LOG_LEVEL"
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
+# (선택) Sentry 오류 전송. DSN이 비면 끔, 넣으면 환경 이름 필수
+SENTRY_DSN_ENV = "SENTRY_DSN"
+SENTRY_ENVIRONMENT_ENV = "SENTRY_ENVIRONMENT"
+# (선택) Sentry로 보낼 로그 레벨. 비우면 INFO, OFF면 로그 전송 끄고 오류 이벤트만
+SENTRY_LOG_LEVEL_ENV = "SENTRY_LOG_LEVEL"
+SENTRY_LOG_LEVELS = ("INFO", "WARNING", "ERROR", "OFF")
+
 
 # 프로필 표 종류. 덮어쓰기 값의 "종류.이름" 앞부분
 PROFILE_TABLES = {"agent": AGENT_PROFILES, "tool": TOOL_PROFILES}
@@ -97,6 +104,11 @@ class Settings:
         agent_profiles: 에이전트 이름 → 프로필 이름. 기본은 AGENT_PROFILES.
         tool_profiles: Tool 이름 → 프로필 이름. 기본은 TOOL_PROFILES.
         log_level: 앱 로그 레벨 (LOG_LEVEL). DEBUG·INFO·WARNING·ERROR 중 하나, 기본 INFO.
+        sentry_dsn: Sentry 프로젝트 주소 (SENTRY_DSN). 비면 Sentry를 쓰지 않음.
+        sentry_environment: Sentry 환경 이름 (SENTRY_ENVIRONMENT). DSN을 넣으면 필수.
+            운영 이벤트에 로컬 오류가 섞이지 않게 기본값을 두지 않음.
+        sentry_log_level: Sentry로 보낼 로그 레벨 (SENTRY_LOG_LEVEL). INFO·WARNING·ERROR·OFF 중 하나, 기본 INFO.
+            OFF면 로그 전송을 끄고 오류 이벤트만 보냄 (할당량이 차면 서버 .env만 바꿔 줄임).
 
     Raises:
         ConfigError: 필수 설정이 비어 있거나 형식·허용 범위를 벗어난 경우.
@@ -116,6 +128,9 @@ class Settings:
     agent_profiles: dict[str, str] = field(default_factory=lambda: dict(AGENT_PROFILES))
     tool_profiles: dict[str, str] = field(default_factory=lambda: dict(TOOL_PROFILES))
     log_level: str = "INFO"
+    sentry_dsn: str = field(default="", repr=False)
+    sentry_environment: str = ""
+    sentry_log_level: str = "INFO"
 
     def __post_init__(self) -> None:
 
@@ -175,6 +190,16 @@ class Settings:
         if self.log_level not in LOG_LEVELS:
             raise ConfigError(f"{LOG_LEVEL_ENV}는 {', '.join(LOG_LEVELS)} 중 하나여야 합니다: {self.log_level!r}")
 
+        # Sentry. DSN에 키가 들어 있어 실제 값은 출력하지 않음
+        if self.sentry_dsn:
+            if not self.sentry_dsn.startswith("https://"):
+                raise ConfigError(f"{SENTRY_DSN_ENV}는 https://로 시작해야 합니다.")
+            if not self.sentry_environment:
+                raise ConfigError(f"{SENTRY_DSN_ENV}를 넣으면 {SENTRY_ENVIRONMENT_ENV}도 필요합니다.")
+        if self.sentry_log_level not in SENTRY_LOG_LEVELS:
+            raise ConfigError(
+                f"{SENTRY_LOG_LEVEL_ENV}는 {', '.join(SENTRY_LOG_LEVELS)} 중 하나여야 합니다: {self.sentry_log_level!r}")
+
 
 def load_settings() -> Settings:
     """ai/.env와 환경변수에서 설정을 읽는다. 환경변수가 .env보다 우선한다.
@@ -221,6 +246,9 @@ def load_settings() -> Settings:
         agent_profiles={name: overrides.get(("agent", name), default) for name, default in AGENT_PROFILES.items()},
         tool_profiles={name: overrides.get(("tool", name), default) for name, default in TOOL_PROFILES.items()},
         log_level=os.environ.get(LOG_LEVEL_ENV, "").strip().upper() or "INFO",
+        sentry_dsn=os.environ.get(SENTRY_DSN_ENV, "").strip(),
+        sentry_environment=os.environ.get(SENTRY_ENVIRONMENT_ENV, "").strip(),
+        sentry_log_level=os.environ.get(SENTRY_LOG_LEVEL_ENV, "").strip().upper() or "INFO",
     )
 
 

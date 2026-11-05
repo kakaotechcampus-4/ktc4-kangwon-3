@@ -63,7 +63,9 @@ def fake_be(monkeypatch):
     monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
     for name, value in _ENV.items():
         monkeypatch.setenv(name, value)
-    for name in ("DATABASE_URL", "MODEL_PROFILE_OVERRIDES", "AI_DEV_API_ENABLED", "AI_DEV_API_KEY"):
+    # 셸에 SENTRY_DSN이 있어도 테스트 오류를 실제 Sentry로 보내지 않음
+    for name in ("DATABASE_URL", "MODEL_PROFILE_OVERRIDES", "AI_DEV_API_ENABLED", "AI_DEV_API_KEY",
+                 "SENTRY_DSN", "SENTRY_ENVIRONMENT"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     monkeypatch.setattr(dummy_job, "STAGE_SECONDS", 0)
