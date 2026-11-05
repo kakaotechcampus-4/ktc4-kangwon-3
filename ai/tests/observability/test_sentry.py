@@ -5,6 +5,7 @@
 
 import json
 import logging
+import os
 import threading
 
 import httpx
@@ -35,6 +36,20 @@ class _MemoryTransport(Transport):
                 _MemoryTransport.logs.extend(item.payload.json["items"])
 
 
+def _turn_off() -> None:
+    """Sentry를 끔.
+
+    ``init(dsn=None)``은 환경변수 ``SENTRY_DSN``을 대신 읽음. 로컬 ``ai/.env``를 읽은 테스트
+    프로세스에선 실제 Sentry가 켜져 이후 테스트 오류가 전송됨 → 잠시 지우고 부른 뒤 되돌림.
+    """
+    dsn = os.environ.pop("SENTRY_DSN", None)
+    try:
+        sentry_sdk.init(dsn=None)
+    finally:
+        if dsn is not None:
+            os.environ["SENTRY_DSN"] = dsn
+
+
 @pytest.fixture
 def events():
     """메모리 전송으로 Sentry를 켜고 보낸 이벤트를 돌려줌. 끝나면 끔."""
@@ -42,7 +57,7 @@ def events():
     _MemoryTransport.logs = []
     assert configure_sentry(DSN, "test", transport=_MemoryTransport)
     yield _MemoryTransport.events
-    sentry_sdk.init(dsn=None)
+    _turn_off()
 
 
 def _sent(events):
@@ -191,4 +206,16 @@ def test_로그_레벨을_올리거나_끄면_그_아래_로그는_보내지_않
         assert [log["body"] for log in _MemoryTransport.logs] == expected
         assert _sent(_MemoryTransport.events) == [("error", "오류")]
     finally:
-        sentry_sdk.init(dsn=None)
+        _turn_off()
+
+
+def test_끌_때_환경변수_SENTRY_DSN이_있어도_다시_켜지지_않는다(monkeypatch):
+    # .env를 읽은 로컬 테스트 프로세스와 같은 상태
+    monkeypatch.setenv("SENTRY_DSN", DSN)
+    assert configure_sentry(DSN, "test", transport=_MemoryTransport)
+
+    _turn_off()
+
+    # is_active()는 DSN이 없어도 True → 보낼 곳(전송)이 없는지로 확인
+    assert sentry_sdk.get_client().transport is None
+    assert os.environ["SENTRY_DSN"] == DSN
