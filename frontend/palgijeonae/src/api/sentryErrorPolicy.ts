@@ -38,11 +38,14 @@ export function classifyApiError({ status, code, retried }: ApiErrorClassifyInpu
     return status >= 500 ? 'error' : null
 }
 
-// 같은 엔드포인트에서 난 에러를 하나의 이슈로 묶기 위해 쿼리스트링을 떼고 숫자 id 구간을 :id로 치환한다.
+// UUID 형태의 경로 구간
+const UUID_SEGMENT_PATTERN = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
+
+// 같은 엔드포인트에서 난 에러를 하나의 이슈로 묶기 위해 쿼리스트링을 떼고 UUID id 구간을 :id로 치환한다.
 export function toPathTemplate(url: string): string {
     return url
         .split('?')[0]
         .split('/')
-        .map((segment) => (/^\d+$/.test(segment) ? ':id' : segment))
+        .map((segment) => (UUID_SEGMENT_PATTERN.test(segment) ? ':id' : segment))
         .join('/')
 }
