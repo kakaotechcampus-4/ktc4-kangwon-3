@@ -98,6 +98,8 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - `reason`: `retry_exhausted`(재시도 초과)·`not_retryable`(4xx 등)·`shutdown`(종료 중)·`error`(예상 못 한 오류)
 - 버린 이벤트가 생기면 BE 화면에서 진단이 멈춘 것처럼 보임
 - 재는 곳: `CallbackOutbox` (HTTP 단위 결과는 `ai_client_calls{api="backend"}`)
+- BE 도착 맞춰 보기: `delivered`는 BE가 2xx로 응답한 이벤트 수라 BE `http_server_requests_seconds_count{uri=~"/internal/.*", status=~"2.."}`와 같아야 함. 대시보드 "콜백 도착" 패널
+  - BE 배포 직후엔 새 BE의 콜백 시계열이 첫 요청 때 생겨 첫 1건이 안 세짐 → AI 쪽이 1건 많을 수 있음. 그 밖의 차이는 어긋남 신호
 
 ### 3.5 Tool
 
