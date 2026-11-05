@@ -119,23 +119,27 @@ _PLANT_MATERIAL = re.compile(
 )
 
 
-def confirm_plant_material(attributes: dict[str, Any], text: str) -> list[str]:
-    """소재 줄에 식물성 재질이 적혀 있으면 plant_material을 True로 확정한다. attributes를 그 자리에서 고친다.
+def drop_contradicted_plant_false(attributes: dict[str, Any], text: str) -> tuple[list[str], list[str]]:
+    """소재 줄에 식물성 재질이 있는데 plant_material이 False면 None으로 되돌리고 모순 문장을 만든다.
+
+    코드는 식물성 여부를 대신 정하지 않는다(True로 확정하지 않음). 페이지 표기와 모델의 False가 어긋나는
+    명확한 경우만 '애매함'으로 돌려 판단 단계로 넘긴다. attributes를 그 자리에서 고친다.
 
     Args:
         attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
         text: 모델이 읽은 판매자 영역 원문. 블록을 합친 글.
 
     Returns:
-        list[str]: True로 바꾼 필드 이름 (바꿨으면 ["plant_material"]).
+        tuple[list[str], list[str]]: None으로 바꾼 필드 이름, conflicts에 넣을 문장.
     """
-    if attributes.get("plant_material") is True:
-        return []
+    if attributes.get("plant_material") is not False:
+        return [], []
     for row in _MATERIAL_ROW.finditer(text):
-        if _PLANT_MATERIAL.search(row.group("value")):
-            attributes["plant_material"] = True
-            return ["plant_material"]
-    return []
+        value = row.group("value").strip()
+        if _PLANT_MATERIAL.search(value):
+            attributes["plant_material"] = None
+            return ["plant_material"], [f'소재 표기 "{value}"에 식물성 재질이 있어 확인이 필요합니다.']
+    return [], []
 
 
 # 판매자 글의 효능·미용 표방 문구. 프롬프트는 "상품 이름 안에 있어도 표방"이라고 하지만 모델(gpt-4.1-mini)이
@@ -166,22 +170,35 @@ _COSMETIC_CLAIM = re.compile(
 )
 
 
-def confirm_claims(attributes: dict[str, Any], text: str) -> list[str]:
-    """판매자 글에 효능·미용 표방 문구가 있으면 medical_claim·cosmetic_claim을 True로 확정한다. attributes를 그 자리에서 고친다.
+def drop_contradicted_claim_false(attributes: dict[str, Any], text: str) -> tuple[list[str], list[str]]:
+    """효능·미용 표방 문구가 있는데 medical_claim·cosmetic_claim이 False면 None으로 되돌리고 모순 문장을 만든다.
+
+    코드는 표방 여부를 대신 정하지 않는다(True로 확정하지 않음). 표방은 해석이 갈리는 칸이라, 페이지 문구와
+    모델의 False가 어긋나는 명확한 경우만 '애매함'으로 돌려 판단 단계로 넘긴다. attributes를 그 자리에서 고친다.
 
     Args:
         attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
-        text: 모델이 읽은 판매자 영역 원문. 블록을 합친 글.
+        text: 모델이 읽은 판매자 제목과 판매자 영역 원문. 합친 글.
 
     Returns:
-        list[str]: True로 바꾼 필드 이름.
+        tuple[list[str], list[str]]: None으로 바꾼 필드 이름, conflicts에 넣을 문장.
     """
-    confirmed: list[str] = []
-    for name, pattern in (("medical_claim", _MEDICAL_CLAIM), ("cosmetic_claim", _COSMETIC_CLAIM)):
-        if attributes.get(name) is not True and pattern.search(text):
-            attributes[name] = True
-            confirmed.append(name)
-    return confirmed
+    dropped: list[str] = []
+    conflicts: list[str] = []
+    for name, pattern, kind in (
+        ("medical_claim", _MEDICAL_CLAIM, "효능 표방"),
+        ("cosmetic_claim", _COSMETIC_CLAIM, "미용 효과 표방"),
+    ):
+        if attributes.get(name) is not False:
+            continue
+        match = pattern.search(text)
+        if match:
+            attributes[name] = None
+            dropped.append(name)
+            sentence = f'판매자 문구 "{match.group(0).strip()}"가 {kind}일 수 있어 확인이 필요합니다.'
+            if sentence not in conflicts:
+                conflicts.append(sentence)
+    return dropped, conflicts
 
 
 def drop_conflicted_battery(attributes: dict[str, Any]) -> list[str]:

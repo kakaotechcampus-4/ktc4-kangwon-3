@@ -170,9 +170,10 @@ def test_코드_규칙이_배터리_모순을_찾으면_배터리_칸을_확정�
     assert any("1460mAh" in conflict for conflict in result.conflicts)
 
 
-# 소재 줄에 식물성 재질이 적혀 있으면 plant_material을 true로 확정한다 (초안 50건 측정 2026-11-05:
-# "72% Cotton", "소재: 종이"를 모델이 false로 둠). 재질 줄 밖의 낱말("나무 심기", 포장 "종이 상자")은 근거가 아니다.
-from app.agents.extraction.guessed_flags import confirm_plant_material
+# 소재 줄에 식물성 재질이 적혀 있는데 모델이 plant_material=false로 두면 '애매함'(None)으로 되돌리고 모순으로 남긴다
+# (초안 50건 측정 2026-11-05: "72% Cotton", "소재: 종이"를 모델이 false로 둠). 코드는 true로 확정하지 않는다.
+# 재질 줄 밖의 낱말("나무 심기", 포장 "종이 상자")은 근거가 아니다.
+from app.agents.extraction.guessed_flags import drop_contradicted_plant_false
 
 
 @pytest.mark.parametrize("text", [
@@ -183,19 +184,30 @@ from app.agents.extraction.guessed_flags import confirm_plant_material
     "Material\nBamboo",
     "성분\n100% 린넨",
 ])
-def test_소재_줄에_식물성_재질이_있으면_plant_material을_true로_확정한다(text):
+def test_소재_줄의_식물성_재질과_어긋나는_plant_material_false는_모름으로_되돌린다(text):
     attributes = {"plant_material": False}
 
-    assert confirm_plant_material(attributes, text) == ["plant_material"]
-    assert attributes["plant_material"] is True
+    dropped, conflicts = drop_contradicted_plant_false(attributes, text)
+
+    assert dropped == ["plant_material"]
+    assert attributes["plant_material"] is None
+    assert len(conflicts) == 1
 
 
-def test_모름이던_plant_material도_소재_줄이_있으면_true가_된다():
-    attributes = {"plant_material": None}
+def test_식물성_모순_문장에는_소재_표기를_그대로_담는다():
+    attributes = {"plant_material": False}
 
-    confirm_plant_material(attributes, "소재\n대나무")
+    _, conflicts = drop_contradicted_plant_false(attributes, "소재 구성\n72% Cotton 25% Polyester")
 
-    assert attributes["plant_material"] is True
+    assert conflicts == ['소재 표기 "72% Cotton 25% Polyester"에 식물성 재질이 있어 확인이 필요합니다.']
+
+
+@pytest.mark.parametrize("value", [None, True])
+def test_코드는_식물성_소재를_true로_확정하지_않고_모름이나_true는_그대로_둔다(value):
+    attributes = {"plant_material": value}
+
+    assert drop_contradicted_plant_false(attributes, "소재\n대나무") == ([], [])
+    assert attributes["plant_material"] is value
 
 
 @pytest.mark.parametrize("text", [
@@ -205,23 +217,18 @@ def test_모름이던_plant_material도_소재_줄이_있으면_true가_된다()
     "Temu의 나무 심기 프로그램\n재료\nABS",
     "소재\n면도기용 스테인리스",
 ])
-def test_소재_줄에_식물성_재질이_없으면_건드리지_않는다(text):
+def test_소재_줄에_식물성_재질이_없으면_false를_그대로_둔다(text):
     attributes = {"plant_material": False}
 
-    assert confirm_plant_material(attributes, text) == []
+    assert drop_contradicted_plant_false(attributes, text) == ([], [])
     assert attributes["plant_material"] is False
 
 
-def test_이미_true면_바꾼_목록에_넣지_않는다():
-    attributes = {"plant_material": True}
-
-    assert confirm_plant_material(attributes, "소재\n원목") == []
-
-
-def test_추출_결과에_식물성_재질_확정이_적용된다(stub_model, records):
+def test_추출_결과에_식물성_false_되돌리기가_적용되고_모순으로_남는다(stub_model, records):
     reply = ProductAttributes(product_name="아기 양말", plant_material=False)
     agent = ExtractionAgent(stub_model(reply))
 
     result = agent.run(ExtractionInput(product_id="p", text_blocks=["소재 구성\n72% Cotton 25% Polyester 3% Spandex"]))
 
-    assert result.plant_material is True
+    assert result.plant_material is None
+    assert any("72% Cotton" in c for c in result.conflicts)

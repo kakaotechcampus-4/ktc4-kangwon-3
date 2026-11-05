@@ -11,7 +11,13 @@ from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
 from ..base import BaseAgent
 from .errors import ExtractionFailedError
-from .guessed_flags import confirm_claims, confirm_plant_material, drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
+from .guessed_flags import (
+    drop_conflicted_battery,
+    drop_contradicted_claim_false,
+    drop_contradicted_plant_false,
+    drop_guessed_false,
+    drop_unsupported_false,
+)
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
 from .title_spec_conflicts import detect_title_spec_conflicts
@@ -90,13 +96,16 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         payload = output.model_dump()
         guessed = drop_guessed_false(payload)
         unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))
-        confirmed = confirm_plant_material(payload, "\n".join(source.text_blocks))
+        # 코드는 O/X를 대신 정하지 않는다. 페이지 근거와 어긋나는 false만 '애매함'(None)으로 돌리고 근거를 모순으로 남긴다.
+        plant_dropped, plant_conflicts = drop_contradicted_plant_false(payload, "\n".join(source.text_blocks))
         # 표방 문구는 판매자 제목에 자주 있다. Temu는 잘린 제목 줄만 구역에 남고 전체 제목은 따로 찾으므로 제목도 합쳐 본다.
-        confirmed += confirm_claims(payload, "\n".join([*titles, *source.text_blocks]))
+        claim_dropped, claim_conflicts = drop_contradicted_claim_false(payload, "\n".join([*titles, *source.text_blocks]))
         battery_conflicts = detect_battery_capacity_conflict(source.text_blocks)
         conflicted = drop_conflicted_battery(payload) if battery_conflicts else []
         # 제목↔스펙표 모순은 검토 후보로만 남긴다(필드를 None으로 되돌리지 않음). 모델이 거의 보고하지 않아 규칙이 맡는다.
-        rule_conflicts = battery_conflicts + detect_title_spec_conflicts(titles, source.text_blocks)
+        rule_conflicts = (
+            battery_conflicts + detect_title_spec_conflicts(titles, source.text_blocks) + plant_conflicts + claim_conflicts
+        )
         payload["listing_text"] = _keep_seller_titles(output.listing_text, titles)
         payload["attributes"] = _merge_attributes(output.attributes, extract_rule_based_attributes(source.text_blocks))
         payload["conflicts"] = _merge_conflicts(output.conflicts, rule_conflicts)
@@ -104,7 +113,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         trace_note("postprocess", {
             "guessed_false_to_none": guessed,
             "unsupported_false_to_none": unsupported,
-            "rule_confirmed_true": confirmed,
+            "contradicted_false_to_none": plant_dropped + claim_dropped,
             "conflicted_battery_to_none": conflicted,
             "titles_restored": payload["listing_text"][:len(payload["listing_text"]) - len(output.listing_text)],
             "rule_attributes_added": payload["attributes"][len(output.attributes):],

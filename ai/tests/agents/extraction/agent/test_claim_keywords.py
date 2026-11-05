@@ -1,15 +1,15 @@
-"""판매자 글의 효능·미용 표방 문구를 코드 규칙으로 잡아 medical_claim·cosmetic_claim을 확정한다.
+"""판매자 글의 효능·미용 표방 문구와 어긋나는 medical_claim·cosmetic_claim false를 '애매함'(None)으로 되돌린다.
 
 초안 50건 측정(2026-11-05)에서 모델은 제목의 '스트레스 완화', '가려움 완화', '관절을 안정화', '블랙헤드 제거',
-'치아 미백 효과'를 표방으로 보지 않고 false로 뒀다(C1). 프롬프트는 이미 "상품 이름 안에 있어도 표방"이라고 하지만
-gpt-4.1-mini가 따르지 않아, 표현이 분명한 문구만 규칙으로 확정한다. 부정("통증 없는 이어폰")과 촉감 설명("skin-friendly")은
-표방이 아니라 잡지 않는다.
+'치아 미백 효과'를 표방으로 보지 않고 false로 뒀다(C1). 코드는 표방 여부를 대신 정하지 않는다(true로 확정하지 않음).
+페이지 문구와 모델의 false가 어긋나는 명확한 경우만 None으로 돌리고, 근거 문구를 conflicts에 남겨 판단 단계로 넘긴다.
+부정("통증 없는 이어폰")과 촉감 설명("skin-friendly")은 표방이 아니라 잡지 않는다.
 """
 
 import pytest
 
 from app.agents.extraction import ExtractionAgent
-from app.agents.extraction.guessed_flags import confirm_claims
+from app.agents.extraction.guessed_flags import drop_contradicted_claim_false
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes
 
@@ -26,11 +26,14 @@ from app.schemas.product import ProductAttributes
     "근육 이완 보드, 경락선 개통 마사지기",
     "혈액순환 개선에 도움",
 ])
-def test_몸이_달라진다는_문구가_있으면_medical_claim을_true로_확정한다(text):
+def test_몸이_달라진다는_문구와_어긋나는_medical_claim_false는_모름으로_되돌린다(text):
     attributes = {"medical_claim": False, "cosmetic_claim": None}
 
-    assert "medical_claim" in confirm_claims(attributes, text)
-    assert attributes["medical_claim"] is True
+    dropped, conflicts = drop_contradicted_claim_false(attributes, text)
+
+    assert dropped == ["medical_claim"]
+    assert attributes["medical_claim"] is None
+    assert len(conflicts) == 1
 
 
 @pytest.mark.parametrize("text", [
@@ -44,11 +47,30 @@ def test_몸이_달라진다는_문구가_있으면_medical_claim을_true로_확
     "Cold Cooling Face Ice Massager for Morning Puffiness",
     "건강한 모발 추출 및 가려움 완화",
 ])
-def test_겉모습이_달라진다는_문구가_있으면_cosmetic_claim을_true로_확정한다(text):
+def test_겉모습이_달라진다는_문구와_어긋나는_cosmetic_claim_false는_모름으로_되돌린다(text):
     attributes = {"medical_claim": None, "cosmetic_claim": False}
 
-    assert "cosmetic_claim" in confirm_claims(attributes, text)
-    assert attributes["cosmetic_claim"] is True
+    dropped, _ = drop_contradicted_claim_false(attributes, text)
+
+    assert "cosmetic_claim" in dropped
+    assert attributes["cosmetic_claim"] is None
+
+
+def test_모순_문장에는_근거가_된_판매자_문구를_그대로_담는다():
+    attributes = {"medical_claim": False, "cosmetic_claim": False}
+
+    _, conflicts = drop_contradicted_claim_false(attributes, "발 지압 매트, 반사요법 도구로 스트레스 완화")
+
+    assert conflicts == ['판매자 문구 "스트레스 완화"가 효능 표방일 수 있어 확인이 필요합니다.']
+
+
+@pytest.mark.parametrize("value", [None, True])
+def test_코드는_표방을_true로_확정하지_않고_모름이나_true는_그대로_둔다(value):
+    # 코드는 명확한 오류(근거와 어긋나는 false)를 애매함으로 돌리는 안전장치까지만 한다.
+    attributes = {"medical_claim": value, "cosmetic_claim": value}
+
+    assert drop_contradicted_claim_false(attributes, "통증 완화 미백 효과") == ([], [])
+    assert attributes == {"medical_claim": value, "cosmetic_claim": value}
 
 
 @pytest.mark.parametrize("text", [
@@ -63,23 +85,18 @@ def test_겉모습이_달라진다는_문구가_있으면_cosmetic_claim을_true
 def test_부정·촉감·일반_문구는_표방으로_보지_않는다(text):
     attributes = {"medical_claim": False, "cosmetic_claim": False}
 
-    assert confirm_claims(attributes, text) == []
+    assert drop_contradicted_claim_false(attributes, text) == ([], [])
     assert attributes == {"medical_claim": False, "cosmetic_claim": False}
 
 
-def test_이미_true인_칸은_바꾼_목록에_넣지_않는다():
-    attributes = {"medical_claim": True, "cosmetic_claim": True}
-
-    assert confirm_claims(attributes, "통증 완화 미백 효과") == []
-
-
-def test_추출_결과에_표방_확정이_적용된다(stub_model, records):
+def test_추출_결과에_표방_false_되돌리기가_적용되고_모순으로_남는다(stub_model, records):
     reply = ProductAttributes(product_name="발 지압 매트", medical_claim=False)
     agent = ExtractionAgent(stub_model(reply))
 
     result = agent.run(ExtractionInput(product_id="p", text_blocks=["반사요법 도구로 스트레스 완화"]))
 
-    assert result.medical_claim is True
+    assert result.medical_claim is None
+    assert any("스트레스 완화" in c for c in result.conflicts)
 
 
 # 초안 50건·기존 원문에 규칙을 오프라인으로 돌려 찾은 오탐·놓침 (2026-11-05)
@@ -94,7 +111,7 @@ def test_추출_결과에_표방_확정이_적용된다(stub_model, records):
 def test_인체공학_설명·카테고리_이름·영어_낱말_속_일치는_표방이_아니다(text):
     attributes = {"medical_claim": False, "cosmetic_claim": False}
 
-    assert confirm_claims(attributes, text) == []
+    assert drop_contradicted_claim_false(attributes, text) == ([], [])
 
 
 def test_판매자_전체_제목에만_있는_표방도_잡는다(stub_model, records, temu_page):
@@ -104,4 +121,4 @@ def test_판매자_전체_제목에만_있는_표방도_잡는다(stub_model, re
 
     result = agent.run(ExtractionInput(product_id="p", text_blocks=[page]))
 
-    assert result.cosmetic_claim is True
+    assert result.cosmetic_claim is None
