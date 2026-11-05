@@ -2221,7 +2221,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(increase(ai_callback_sent_total{result=\"delivered\"}[$__range]))) - (sum(increase(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[$__range])))",
+          "expr": "(sum(increase(ai_callback_sent_total{result=\"delivered\"}[$__range]))) - (sum(increase(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[$__range])) or vector(0))",
           "legendFormat": "",
           "range": true
         }
