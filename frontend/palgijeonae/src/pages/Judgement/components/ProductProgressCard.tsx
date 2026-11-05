@@ -93,8 +93,8 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                             alt=""
                             className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
                         />
-                        <div className="flex flex-col items-start gap-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <div className="flex flex-col items-start gap-2">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
                                 <h2 className="text-lg font-bold text-black">{truncateWithEllipsis(productName, MAX_PRODUCT_NAME_LENGTH)}</h2>
                                 <StatusBadge processingStatus={processingStatus} />
                             </div>
