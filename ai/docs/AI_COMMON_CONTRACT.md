@@ -553,7 +553,7 @@ class ExecutionEvent(BaseModel):
 | `product_progress` | `stage`, `stageStatus`(started·completed·skipped), `toolName` | toolName은 Tool 실행 단계에서만. 선택된 Tool은 동시에 실행돼 Tool끼리는 순서가 섞임(같은 Tool은 started → completed). BE는 저장하지 않고 표시만 |
 | `product_awaiting_input` | `questionRound`(1~2), `questions[]` | 실행의 마지막. 질문 키·순서 중복 금지 |
 | `product_result` | `assessment` (§7.1.3) | 실행의 마지막. 진단서를 콜백에 바로 담음 |
-| `product_failed` | `stage`, `error{code(≤50자), message, retryable}` | 실행의 마지막 |
+| `product_failed` | `stage`, `error{code(≤50자), message, retryable, reviewFlag}` | 실행의 마지막. `reviewFlag`는 BE 전용 검토 표시(보통 null), FE로 넘기지 않음 |
 
 질문 `PublicQuestionDto`: `questionKey`(≤50자), `questionOrder`(1부터), `questionText`, `helpText`.
 

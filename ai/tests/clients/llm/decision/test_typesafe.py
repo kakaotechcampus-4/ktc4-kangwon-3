@@ -8,7 +8,7 @@ import json
 import httpx
 import pytest
 
-from app.clients.llm.decision import DecisionResponseError
+from app.clients.llm.decision import DecisionRequestError, DecisionResponseError
 from app.clients.llm.decision.typesafe import TypeSafeDecisionClient
 from app.schemas.clients.decision_response import ChoiceAnswer, DecisionUsage, ScoreAnswer, YesNoAnswer
 
@@ -60,6 +60,31 @@ def test_판단_대상은_state에_질문은_이름_키_맵으로_보낸다(wire
             "kid_use": {"type": "score", "instructions": "어린이가 쓰는 정도", "criteria": ["low: 거의 없음", "mid", "high"]},
         },
     }
+
+
+def test_이미지가_있으면_state를_판단_대상_글과_이미지_블록_배열로_보낸다(wire, client, decision_request):
+    sent = wire(client, lambda request: httpx.Response(200, json=JEV_BODY))
+    images = ["data:image/jpeg;base64,AAAA", "data:image/png;base64,BBBB"]
+
+    client.decide(decision_request.model_copy(update={"images": images}))
+
+    assert json.loads(sent[0].content)["state"] == [
+        {"type": "text", "text": '{"product_name": "색연필 24색 세트", "for_children": false}'},
+        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,AAAA"}},
+        {"type": "image_url", "image_url": {"url": "data:image/png;base64,BBBB"}},
+    ]
+
+
+@pytest.mark.parametrize("image", [
+    "https://bucket.s3.ap-northeast-2.amazonaws.com/products/detail-1",
+    "data:image/webp;base64,AAAA",
+], ids=["http 주소", "webp"])
+def test_PNG_JPEG_data_URI가_아닌_이미지는_보내지_않고_DecisionRequestError(wire, client, decision_request, image):
+    sent = wire(client, lambda request: httpx.Response(200, json=JEV_BODY))
+
+    with pytest.raises(DecisionRequestError, match="data URI"):
+        client.decide(decision_request.model_copy(update={"images": ["data:image/jpeg;base64,AAAA", image]}))
+    assert sent == []
 
 
 def test_답과_토큰을_공통_응답으로_바꾼다(wire, client, decision_request):

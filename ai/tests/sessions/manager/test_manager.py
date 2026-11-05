@@ -147,6 +147,20 @@ def test_진단_함수가_실패를_돌려주면_그_코드로_실패를_기록�
     assert (session.error_code, session.retryable, session.result) == ("AI_INVALID_REQUEST", False, None)
 
 
+def test_실패의_검토_표시는_세션에_남기지_않고_실패_이벤트로만_넘긴다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: JobFailed("AI_PIPELINE_ERROR", False, review_flag="r1"))
+    manager = _manager(managers, job)
+    seen = []
+    manager.subscribe(lambda e: seen.append(e))
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager,"p-1") is SessionStatus.FAILED)
+
+    assert [e.review_flag for e in seen if isinstance(e, Failed)] == ["r1"]
+    assert "r1" not in manager.get("p-1").model_dump_json()
+
+
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(managers):
     job = _GatedJob()
     manager = _manager(managers, job, max_running=2)
@@ -1132,6 +1146,28 @@ def test_drain은_실행_중_세션의_최대_시간까지만_기다리고_넘�
     assert (session.status, session.error_code, session.retryable) == (SessionStatus.FAILED, "AI_TIMEOUT", True)
     # 시간 초과 실패로 끝나 버리는 세션 경고에서 빠짐
     assert _messages(caplog, "WARNING") == []
+
+
+def test_drain은_늦게_접수돼_취소한_대기_세션의_최대_시간까지_기다리지_않는다(managers, caplog):
+    clock = _Clock()
+    job = _GatedJob()
+    manager = _manager(managers, job, clock=clock, max_running=1, max_duration=timedelta(minutes=10))
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: job.started == ["p-1"])
+    clock.now = START + timedelta(minutes=5)
+    manager.submit("d-2", _inputs("p-2"))
+    # 실행 중 세션만 최대 시간을 넘김, 대기 세션은 5분 남음
+    clock.now = START + timedelta(minutes=10)
+
+    started = time.monotonic()
+    manager.drain(timeout=5)
+    elapsed = time.monotonic() - started
+    job.release("p-1")
+
+    assert elapsed < 1
+    assert manager.get("p-1").status is SessionStatus.FAILED
+    assert _status(manager, "p-2") is SessionStatus.ACCEPTED
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 대기 중 1개(p-2) (결과 콜백 없음)"]
 
 
 def test_drain은_실행_중_세션이_없으면_기다리지_않는다(managers, caplog):

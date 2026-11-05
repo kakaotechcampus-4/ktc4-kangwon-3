@@ -79,7 +79,7 @@ class SessionManager:
         self._rejected: dict[RejectReason, int] = {"queue_full": 0, "conflict": 0}
         self._awaiting_replaced = 0
         # 시작 전·실행 중 세션의 실행 예약. 종료 때 실행 중인 것만 기다리려고 둠
-        self._futures: set[Future] = set()
+        self._futures: dict[Future, ExecutionContext] = {}
         self._futures_lock = Lock()
 
     def subscribe(self, listener: SessionListener) -> None:
@@ -328,7 +328,7 @@ class SessionManager:
         """서버 종료 때 대기열은 취소하고 실행 중인 세션만 상한 시간까지 기다린 뒤 관리자를 닫는다.
 
         기다리는 동안 끝난 세션은 평소처럼 이벤트(결과 콜백)가 나감.
-        남은 세션이 모두 최대 시간을 넘기는 시각이 상한보다 이르면 그때까지만 기다리고,
+        실행 중인 세션이 모두 최대 시간을 넘기는 시각이 상한보다 이르면 그때까지만 기다리고,
         최대 시간을 넘긴 세션은 시간 초과 실패로 끝냄 (정리 루프 주기를 기다리지 않음).
         취소한 대기 세션, 상한을 넘긴 실행 중 세션, 답변 대기 세션은 경고로 남김 (DB에 보관하면 재시작 때 이어감).
 
@@ -337,28 +337,34 @@ class SessionManager:
         """
         self._pool.shutdown(wait=False, cancel_futures=True)
         with self._futures_lock:
-            running = [future for future in self._futures if not future.cancelled()]
+            running = {future: context for future, context in self._futures.items() if not future.cancelled()}
         if running:
             # 마감이 지난 세션은 결과가 나와도 버려져 더 기다리지 않음
-            wait_seconds = min(timeout, self._seconds_until_all_overdue())
+            run_ids = {context.run_id for context in running.values()}
+            wait_seconds = min(timeout, self._seconds_until_all_overdue(run_ids))
             started_at = perf_counter()
             logger.info("서버 종료: 실행 중 진단 %d개를 최대 %.0f초 기다림", len(running), wait_seconds)
-            _, left = wait_futures(running, timeout=wait_seconds)
+            _, left = wait_futures(list(running), timeout=wait_seconds)
             logger.info("서버 종료: 실행 중 진단 %d개 끝남, %d개 남음 (%.1f초)",
                         len(running) - len(left), len(left), perf_counter() - started_at)
         self.expire_overdue()
         _log_abandoned(self._store.unfinished(), self._store.count_by_status().get(SessionStatus.AWAITING_INPUT, 0),
                        kept=self._store.archived)
 
-    def _seconds_until_all_overdue(self) -> float:
-        """끝나지 않은 세션이 모두 최대 시간을 넘길 때까지 남은 시간.
+    def _seconds_until_all_overdue(self, run_ids: set[str]) -> float:
+        """실행 중인 세션이 모두 최대 시간을 넘길 때까지 남은 시간.
+
+        Args:
+            run_ids: 실행 중인 세션의 run_id. 취소한 대기 세션은 기다리지 않아 뺌.
 
         Returns:
-            float: 남은 시간(초). 끝나지 않은 세션이 없거나 모두 넘겼으면 0.
+            float: 남은 시간(초). 실행 중인 세션이 없거나 모두 넘겼으면 0.
         """
         now = self._clock()
         remaining = [
-            (session.accepted_at + self._max_duration - now).total_seconds() for session in self._store.unfinished()
+            (session.accepted_at + self._max_duration - now).total_seconds()
+            for session in self._store.unfinished()
+            if session.context.run_id in run_ids
         ]
         return max([0.0, *remaining])
 
@@ -370,7 +376,7 @@ class SessionManager:
         """
         future = self._pool.submit(self._run, context)
         with self._futures_lock:
-            self._futures.add(future)
+            self._futures[future] = context
         future.add_done_callback(self._forget)
 
     def _forget(self, future: Future) -> None:
@@ -380,7 +386,7 @@ class SessionManager:
             future: 끝난 실행 예약.
         """
         with self._futures_lock:
-            self._futures.discard(future)
+            self._futures.pop(future, None)
 
     def _run(self, context: ExecutionContext) -> None:
         """스레드 풀에서 세션 하나를 실행하고 자리를 반납한다."""

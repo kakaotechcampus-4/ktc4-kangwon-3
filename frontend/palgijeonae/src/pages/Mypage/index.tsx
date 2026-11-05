@@ -7,9 +7,11 @@ import { PAGE_SIZE } from "./constraints.ts";
 import MyProductList from "./MyProductList.tsx";
 import NotificationSettings from "./NotificationSettings.tsx";
 import ProductFilterBar from "./ProductFilterBar.tsx";
+import ProfileSection from "./ProfileSection.tsx";
 import RevisionNoticeBanner from "./RevisionNoticeBanner.tsx";
 import type { ProductFilter } from "./types.ts";
 import { useMyProducts } from "./useMyProducts.ts";
+import WithdrawSection from "./WithdrawSection.tsx";
 
 function MyPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -46,6 +48,7 @@ function MyPage() {
                     productListRef.current?.scrollIntoView({ behavior: "smooth" });
                 }}
             />
+            <ProfileSection />
             <NotificationSettings />
             <ProductFilterBar
                 searchTerm={searchTerm}
@@ -63,8 +66,14 @@ function MyPage() {
                     totalPages={pageInfo.totalPages}
                     hasNext={pageInfo.hasNext}
                     onPageChange={setPage}
+                    onProductDeleted={(wasLastOnPage) => {
+                        if (wasLastOnPage && page > 0) {
+                            setPage(page - 1);
+                        }
+                    }}
                 />
             </div>
+            <WithdrawSection />
         </div>
     );
 }

@@ -155,6 +155,8 @@ class PublicErrorDto(ApiModel):
     code: NonBlankStr = Field(max_length=50)  # BE Product.error_code 칸 길이
     message: NonBlankStr
     retryable: bool | None = None
+    # BE 전용 검토 표시 (공개 응답에 안 실림). 없으면 null
+    review_flag: str | None = None
 
 
 class ProductFailedEvent(ProductEventBase):
