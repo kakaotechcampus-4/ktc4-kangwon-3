@@ -155,6 +155,8 @@ def test_판단마다_판매_안내를_연결하고_출처_이름은_다른_규�
     assert finding.requirements and set(finding.requirements) <= set(result.required_actions)
     assert all(source.source_name == "법제처 국가법령정보" for source in finding.legal_sources)
     assert "확정 아님" in finding.summary
+    # 판단 문장과 판매 안내는 줄을 나눔 (진단서가 줄바꿈을 그대로 보여 줌)
+    assert finding.summary.split("\n")[0].endswith("(확정 아님).")
 
 
 def test_추출_단계의_상품_모순은_품목_조회를_막지_않고_가정으로만_남긴다():
