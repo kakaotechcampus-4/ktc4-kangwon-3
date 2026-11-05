@@ -10,6 +10,7 @@ interface AgentCardProps {
     reverse: boolean
 }
 
+/** 에이전트 소개 카드 1장. 아이콘·이름·역할 패널과 설명·키워드 칩을 좌우로 나란히 보여주고, reverse면 좌우를 뒤집는다. */
 function AgentCard({ icon, name, role, description, chips, alwaysCheckTag, reverse }: AgentCardProps) {
     return (
         <div

@@ -16,6 +16,7 @@ interface ReturnPathRowProps {
     preview: ReactNode
 }
 
+/** 복귀 경로 안내의 한 행. 번호와 설명 문구 아래에 해당 경로의 미리보기를 줄여서 보여준다. */
 function ReturnPathRow({ number, children, preview }: ReturnPathRowProps) {
     return (
         <div className="flex w-full flex-col gap-2">

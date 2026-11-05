@@ -21,6 +21,7 @@ function renderDescription(description: string) {
     ));
 }
 
+/** 사용 방법 타임라인의 한 단계. 번호 원·연결선과 함께 제목·설명·팁을 왼쪽에, 미리보기를 오른쪽에 보여준다. */
 function HowToUseStep({ stepNumber, isLast, title, tag, description, tips, preview }: HowToUseStepProps) {
     return (
         <li className={cn("relative @container", !isLast && "pb-12")}>
