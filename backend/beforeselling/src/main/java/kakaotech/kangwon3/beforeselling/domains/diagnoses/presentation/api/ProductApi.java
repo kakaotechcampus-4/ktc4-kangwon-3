@@ -152,12 +152,12 @@ public interface ProductApi {
                     진단서에 남은 상품이 없으면 진단서도 함께 정리됩니다.
                     """)
     @ApiResponseExplanations(
-            success = @ApiSuccessResponseExplanation(description = "삭제 성공"),
+            success = @ApiSuccessResponseExplanation(responseCode = CommonResponseCode.NO_CONTENT, description = "삭제 성공"),
             errors = {
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
-    ResponseEntity<ApiResponse<Void>> removeProduct(
+    ResponseEntity<Void> removeProduct(
             @Parameter(hidden = true) UserPrincipal principal,
             UUID productId);
 }

@@ -10,6 +10,7 @@ public enum CommonResponseCode implements BaseResponseCode {
 
     // 2xx Success
     OK(HttpStatus.OK, "OK", "요청이 성공적으로 처리되었습니다."),
+    NO_CONTENT(HttpStatus.NO_CONTENT, "NO_CONTENT", "요청이 성공적으로 처리되었습니다."),
 
     // 400 Bad Request
     BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON-001", "잘못된 요청입니다."),
@@ -28,6 +29,9 @@ public enum CommonResponseCode implements BaseResponseCode {
     // 409 Conflict
     LOCK_CONFLICT(HttpStatus.CONFLICT, "COMMON-009", "다른 요청과 충돌했습니다. 잠시 후 다시 시도해주세요."),
     CONFLICT(HttpStatus.CONFLICT, "COMMON-010", "현재 상태에서는 처리할 수 없는 요청입니다."),
+
+    // 429 Too Many Requests
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "COMMON-011", "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 
     // 405 Method Not Allowed
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "COMMON-007", "요청 메소드를 지원하지 않습니다."),

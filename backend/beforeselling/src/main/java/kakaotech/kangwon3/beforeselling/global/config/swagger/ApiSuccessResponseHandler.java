@@ -8,6 +8,7 @@ import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 
@@ -31,6 +32,13 @@ public class ApiSuccessResponseHandler {
         // 기본 200 OK 응답이 존재하면 제거
         responses.remove("200");
 
+        HttpStatus status = apiSuccessResponseExplanation.responseCode().getStatus();
+        if (status == HttpStatus.NO_CONTENT) {
+            responses.addApiResponse(String.valueOf(status.value()),
+                    new ApiResponse().description(apiSuccessResponseExplanation.description()));
+            return;
+        }
+
         Schema<?> responseSchema = new Schema<>()
                 .addProperty("code", new Schema<>().example(apiSuccessResponseExplanation.responseCode().getCode()))
                 .addProperty("message", new Schema<>().example(apiSuccessResponseExplanation.responseCode().getMessage()))
@@ -51,6 +59,6 @@ public class ApiSuccessResponseHandler {
                                         new MediaType().schema(responseSchema)
                                 )
                 );
-        responses.addApiResponse(String.valueOf(apiSuccessResponseExplanation.responseCode().getStatus().value()), apiResponse);
+        responses.addApiResponse(String.valueOf(status.value()), apiResponse);
     }
 }

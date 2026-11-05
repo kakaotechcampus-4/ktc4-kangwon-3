@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { ProductResult } from "@/api/product";
+import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
 import ProductTabs from "@/components/common/ProductTabs";
@@ -72,7 +73,6 @@ function ResultPage() {
     const tabPanels: Record<ResultTabKey, ReactNode> | null = currentProduct ? {
         [ResultTabKey.DiagnosisResult]: <DiagnosisResultTab
                                             product={currentProduct}
-                                            diagnosesId={diagnosesId}
                                             onNextStepsClick={handleNextStepsClick} />,
         [ResultTabKey.NextSteps]: <NextStepTab 
                                         product={currentProduct}/>,
@@ -116,6 +116,9 @@ function ResultPage() {
                     </div>
                 </div>
             )}
+            <div className="flex w-full justify-end">
+                <Button text="메인페이지로 이동" onClick={() => navigate("/")} fontSize={15} />
+            </div>
         </div>
     );
 }

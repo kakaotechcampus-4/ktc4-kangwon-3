@@ -22,7 +22,6 @@ REQUIRED_ENV = {
     "OPENAI_BASE_URL": "base_url",
     "OPENAI_EMBEDDING_MODEL": "embedding_model",
     "DATA_GO_KR_KEY": "data_go_kr_key",
-    "KEY_SAFETYKOREA": "safetykorea_key",
     "LAW_GO_KR_OC": "law_oc",
     "INTERNAL_API_TOKEN": "internal_api_token",
     "BE_BASE_URL": "be_base_url",
@@ -31,12 +30,19 @@ REQUIRED_ENV = {
 # BE InternalApiProperties의 @Size(min = 32)와 같은 기준
 INTERNAL_API_TOKEN_MIN_LENGTH = 32
 
+# (선택) SafetyKorea 키. KC 인증 조회를 쓰는 Tool이 없어 비워 두면 꺼짐
+SAFETYKOREA_KEY_ENV = "KEY_SAFETYKOREA"
+
 # (선택) 개발용 진단 엔드포인트. 켤 때만 키 필수
 DEV_API_ENABLED_ENV = "AI_DEV_API_ENABLED"
 DEV_API_KEY_ENV = "AI_DEV_API_KEY"
 DEV_API_KEY_MIN_LENGTH = 32
 _TRUE_VALUES = ("true", "1", "yes", "on")
 _FALSE_VALUES = ("false", "0", "no", "off", "")
+
+# (선택) 앱 로그 레벨. 비우면 INFO
+LOG_LEVEL_ENV = "LOG_LEVEL"
+LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 
 
 # 프로필 표 종류. 덮어쓰기 값의 "종류.이름" 앞부분
@@ -79,7 +85,7 @@ class Settings:
         base_url: ML API 주소 (OPENAI_BASE_URL).
         embedding_model: 임베딩 모델 이름 (OPENAI_EMBEDDING_MODEL).
         data_go_kr_key: 공공데이터포털 서비스 키 (DATA_GO_KR_KEY). 관세청 세관장확인·식약처가 사용.
-        safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA).
+        safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA). 선택. 쓰는 Tool이 없어 비어 있으면 SafetyKorea를 쓰지 않음.
         law_oc: 법제처 OC 값 (LAW_GO_KR_OC).
         internal_api_token: BE 내부 API 토큰 (INTERNAL_API_TOKEN). 콜백 X-Internal-Token 헤더 값, BE와 같은 값.
         be_base_url: 콜백을 보낼 BE 주소 (BE_BASE_URL).
@@ -90,6 +96,7 @@ class Settings:
             개발 단계에서는 DB 없이도 서버를 띄울 수 있게 선택으로 둔다. 비어 있으면 DB 기능을 쓰지 않는다.
         agent_profiles: 에이전트 이름 → 프로필 이름. 기본은 AGENT_PROFILES.
         tool_profiles: Tool 이름 → 프로필 이름. 기본은 TOOL_PROFILES.
+        log_level: 앱 로그 레벨 (LOG_LEVEL). DEBUG·INFO·WARNING·ERROR 중 하나, 기본 INFO.
 
     Raises:
         ConfigError: 필수 설정이 비어 있거나 형식·허용 범위를 벗어난 경우.
@@ -108,6 +115,7 @@ class Settings:
     dev_api_key: str = field(default="", repr=False)
     agent_profiles: dict[str, str] = field(default_factory=lambda: dict(AGENT_PROFILES))
     tool_profiles: dict[str, str] = field(default_factory=lambda: dict(TOOL_PROFILES))
+    log_level: str = "INFO"
 
     def __post_init__(self) -> None:
 
@@ -163,6 +171,10 @@ class Settings:
             wrong = ", ".join(unknown)
             raise ConfigError(f"없는 모델 프로필입니다: {OVERRIDES_ENV}의 {wrong} (허용: {', '.join(MODEL_PROFILES)})")
 
+        # 오타가 조용히 기본 레벨이 되지 않게 기동 실패
+        if self.log_level not in LOG_LEVELS:
+            raise ConfigError(f"{LOG_LEVEL_ENV}는 {', '.join(LOG_LEVELS)} 중 하나여야 합니다: {self.log_level!r}")
+
 
 def load_settings() -> Settings:
     """ai/.env와 환경변수에서 설정을 읽는다. 환경변수가 .env보다 우선한다.
@@ -202,11 +214,13 @@ def load_settings() -> Settings:
     # Settings 객체를 생성하고 반환
     return Settings(
         **values,
+        safetykorea_key=os.environ.get(SAFETYKOREA_KEY_ENV, "").strip(),
         database_url=os.environ.get("DATABASE_URL", "").strip(),
         dev_api_enabled=_parse_bool(DEV_API_ENABLED_ENV, os.environ.get(DEV_API_ENABLED_ENV, "")),
         dev_api_key=os.environ.get(DEV_API_KEY_ENV, "").strip(),
         agent_profiles={name: overrides.get(("agent", name), default) for name, default in AGENT_PROFILES.items()},
         tool_profiles={name: overrides.get(("tool", name), default) for name, default in TOOL_PROFILES.items()},
+        log_level=os.environ.get(LOG_LEVEL_ENV, "").strip().upper() or "INFO",
     )
 
 

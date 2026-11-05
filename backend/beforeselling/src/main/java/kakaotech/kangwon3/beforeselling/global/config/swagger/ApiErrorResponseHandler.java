@@ -7,11 +7,15 @@ import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.examples.Example;
+import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.IntegerSchema;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 
@@ -26,12 +30,13 @@ public class ApiErrorResponseHandler {
 
     /**
      * bearerAuth를 요구하는(= @SecurityRequirements로 공개 처리되지 않은) 모든 API에
-     * 공통으로 발생 가능한 인증 에러. 매 API마다 개별 명시할 필요 없이 자동으로 401 응답에 추가된다.
+     * 공통으로 발생 가능한 에러(인증 401, 처리율 제한 429). 매 API마다 개별 명시할 필요 없이 자동으로 추가된다.
      */
-    private static final List<CommonAuthError> COMMON_AUTH_ERRORS = List.of(
-            new CommonAuthError(CommonResponseCode.class, "UNAUTHORIZED"),
-            new CommonAuthError(AuthResponseCode.class, "EXPIRED_ACCESS_TOKEN"),
-            new CommonAuthError(AuthResponseCode.class, "INVALID_ACCESS_TOKEN")
+    private static final List<CommonError> COMMON_AUTHENTICATED_ERRORS = List.of(
+            new CommonError(CommonResponseCode.class, "UNAUTHORIZED"),
+            new CommonError(AuthResponseCode.class, "EXPIRED_ACCESS_TOKEN"),
+            new CommonError(AuthResponseCode.class, "INVALID_ACCESS_TOKEN"),
+            new CommonError(CommonResponseCode.class, "TOO_MANY_REQUESTS")
     );
 
     public void handleApiErrorResponse(
@@ -47,7 +52,7 @@ public class ApiErrorResponseHandler {
                     .forEach(exampleHolders::add);
         }
         if (requiresAuthentication(operation)) {
-            COMMON_AUTH_ERRORS.forEach(
+            COMMON_AUTHENTICATED_ERRORS.forEach(
                     error -> exampleHolders.add(createExampleHolder(error.exceptionCode(), error.name()))
             );
         }
@@ -84,6 +89,11 @@ public class ApiErrorResponseHandler {
 
             content.addMediaType("application/json", mediaType);
             apiResponse.setContent(content);
+            if (status == HttpStatus.TOO_MANY_REQUESTS.value()) {
+                apiResponse.addHeaderObject(HttpHeaders.RETRY_AFTER, new Header()
+                        .description("다시 시도할 수 있을 때까지 남은 초")
+                        .schema(new IntegerSchema()));
+            }
             responses.addApiResponse(String.valueOf(status), apiResponse);
         });
     }
@@ -116,7 +126,7 @@ public class ApiErrorResponseHandler {
         return example;
     }
 
-    private record CommonAuthError(Class<? extends BaseResponseCode> exceptionCode, String name) {
+    private record CommonError(Class<? extends BaseResponseCode> exceptionCode, String name) {
     }
 
     @Getter

@@ -5,6 +5,8 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from app.domain.context import ExecutionContext, RunType
+from app.observability.logs import current_run_fields, run_log_context
 from app.observability.measurements import CacheLookup, measurement_sinks
 from app.schemas.clients.customs_response import CustomsGwConfirmation, CustomsGwConfirmationResponse
 from app.tools.common.law import EvidenceUnavailable
@@ -40,6 +42,30 @@ def test_일부_검색어가_시간_초과여도_나머지로_찾고_실패한_�
     found = search.search(["실리콘 주걱", "주방용품"], ["실리콘 주걱"], top_k=5)
     assert found.failed_terms == ("주방용품",)
     assert SPATULA_CASE in [case.case_id for case in found.cases]
+
+
+def test_실패한_검색어는_원인과_함께_경고로_남긴다(caplog):
+    search, _, _ = clip({"주방용품": httpx.ReadTimeout("느림")})
+
+    search.collect(["실리콘 주걱", "주방용품"])
+
+    assert [(r.levelname, r.getMessage()) for r in caplog.records if r.name == "app.tools.customs.search"] == [
+        ("WARNING", "결정사례 검색어 실패 '주방용품': ReadTimeout: 느림"),
+    ]
+
+
+def test_검색어별_스레드에도_실행_정보가_넘어가_로그_줄에_붙는다():
+    seen = []
+
+    def factory():
+        seen.append(dict(current_run_fields()))
+        return FakeClip([], {})
+
+    context = ExecutionContext.start(product_id="p-1", run_type=RunType.PRODUCTION)
+    with run_log_context(context):
+        ClipCaseSearch(factory).collect(["실리콘 주걱", "주방용품"])
+
+    assert [fields["product_id"] for fields in seen] == ["p-1", "p-1"]
 
 
 def test_모든_검색어가_실패하면_오류를_올린다():

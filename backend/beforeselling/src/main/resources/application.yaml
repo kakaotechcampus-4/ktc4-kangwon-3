@@ -94,6 +94,15 @@ diagnoses:
   poll-interval: ${DIAGNOSES_POLL_INTERVAL:3s}
   request-retry-deadline: ${DIAGNOSES_REQUEST_RETRY_DEADLINE:10m}
 
+# 로그인 사용자별 요청 한도. period 동안 capacity번
+rate-limit:
+  default-policy:
+    capacity: ${RATE_LIMIT_DEFAULT_CAPACITY:300}
+    period: ${RATE_LIMIT_DEFAULT_PERIOD:1m}
+  ai:
+    capacity: ${RATE_LIMIT_AI_CAPACITY:20}
+    period: ${RATE_LIMIT_AI_PERIOD:1m}
+
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

@@ -30,6 +30,7 @@ _VALID_ENV = {
     "MODEL_PROFILE_OVERRIDES": None,
     "AI_DEV_API_ENABLED": None,
     "AI_DEV_API_KEY": None,
+    "LOG_LEVEL": None,
 }
 
 
@@ -123,8 +124,7 @@ def test_필수_환경변수가_모두_있으면_설정을_읽는다(monkeypatch
 
 @pytest.mark.parametrize(
     "missing",
-    ["OPENAI_EMBEDDING_MODEL", "DATA_GO_KR_KEY", "KEY_SAFETYKOREA", "LAW_GO_KR_OC",
-     "INTERNAL_API_TOKEN", "BE_BASE_URL"],
+    ["OPENAI_EMBEDDING_MODEL", "DATA_GO_KR_KEY", "LAW_GO_KR_OC", "INTERNAL_API_TOKEN", "BE_BASE_URL"],
 )
 def test_모델_이름과_외부_API_키가_없으면_설정_로딩에_실패한다(monkeypatch, missing):
     # 코드에 기본값이 없으므로 하나라도 빠지면 조용히 메워지지 않고 lifespan에서 기동이 실패해야 한다.
@@ -141,11 +141,19 @@ def test_DATABASE_URL이_없어도_설정_로딩은_성공한다(monkeypatch):
     assert config.load_settings().database_url == ""
 
 
+@pytest.mark.parametrize("value", [None, "   "])
+def test_KEY_SAFETYKOREA가_없거나_비어도_설정_로딩은_성공한다(monkeypatch, value):
+    # KC 인증 조회를 쓰는 Tool이 없어 선택. 비어 있으면 SafetyKorea를 쓰지 않는다.
+    _env(monkeypatch, KEY_SAFETYKOREA=value)
+
+    assert config.load_settings().safetykorea_key == ""
+
+
 def test_빈_값도_없는_것으로_본다(monkeypatch):
     # .env.example처럼 "KEY=" 로 비워두거나 공백만 넣은 경우다.
-    _env(monkeypatch, KEY_SAFETYKOREA="   ")
+    _env(monkeypatch, LAW_GO_KR_OC="   ")
 
-    with pytest.raises(config.ConfigError, match="KEY_SAFETYKOREA"):
+    with pytest.raises(config.ConfigError, match="LAW_GO_KR_OC"):
         config.load_settings()
 
 
@@ -160,13 +168,13 @@ def test_빠진_필수_환경변수는_한_번에_모두_알려준다(monkeypatc
     for name in ("OPENAI_API_KEY", "DATA_GO_KR_KEY", "LAW_GO_KR_OC"):
         assert name in message
     # 있는 값과 선택 설정은 빠진 목록에 넣지 않는다.
-    assert "KEY_SAFETYKOREA" not in message
+    assert "INTERNAL_API_TOKEN" not in message
     assert "DATABASE_URL" not in message
 
 
 @pytest.mark.parametrize(
     "field_name",
-    ["embedding_model", "data_go_kr_key", "safetykorea_key", "law_oc", "internal_api_token", "be_base_url"],
+    ["embedding_model", "data_go_kr_key", "law_oc", "internal_api_token", "be_base_url"],
 )
 def test_Settings를_직접_만들어도_필수_값이_비면_거부한다(field_name):
     with pytest.raises(config.ConfigError, match="필수 설정이 비어 있습니다"):
@@ -175,6 +183,10 @@ def test_Settings를_직접_만들어도_필수_값이_비면_거부한다(field
 
 def test_DATABASE_URL은_비어_있으면_허용한다():
     assert _settings(database_url="").database_url == ""
+
+
+def test_SafetyKorea_키는_비어_있으면_허용한다():
+    assert _settings(safetykorea_key="").safetykorea_key == ""
 
 
 def test_DB_접속_문자열이_postgresql이_아니면_거부하고_값은_노출하지_않는다():
@@ -212,13 +224,13 @@ def test_get_settings는_한_번_읽은_설정을_계속_재사용한다(monkeyp
 
 def test_get_settings는_검증에_실패한_결과를_캐시하지_않는다(monkeypatch):
     # 설정을 고친 뒤 다시 호출하면 새로 읽어야 한다. 실패가 캐시되면 고쳐도 계속 실패한다.
-    _env(monkeypatch, KEY_SAFETYKOREA=None)
-    with pytest.raises(config.ConfigError, match="KEY_SAFETYKOREA"):
+    _env(monkeypatch, LAW_GO_KR_OC=None)
+    with pytest.raises(config.ConfigError, match="LAW_GO_KR_OC"):
         config.get_settings()
 
-    monkeypatch.setenv("KEY_SAFETYKOREA", "fixed-key")
+    monkeypatch.setenv("LAW_GO_KR_OC", "fixed-oc")
 
-    assert config.get_settings().safetykorea_key == "fixed-key"
+    assert config.get_settings().law_oc == "fixed-oc"
 
 
 def test_에이전트마다_기본_프로필을_쓴다(monkeypatch):
@@ -373,3 +385,18 @@ def test_개발용_키가_콜백_토큰과_같으면_기동을_막는다():
 
 def test_개발용_키는_repr에_노출되지_않는다():
     assert _DEV_KEY not in repr(_settings(dev_api_enabled=True, dev_api_key=_DEV_KEY))
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(None, "INFO"), ("", "INFO"), (" debug ", "DEBUG"), ("WARNING", "WARNING")])
+def test_로그_레벨은_비우면_INFO이고_대소문자를_가리지_않는다(monkeypatch, raw, expected):
+    _env(monkeypatch, LOG_LEVEL=raw)
+
+    assert config.load_settings().log_level == expected
+
+
+def test_모르는_로그_레벨이면_기동을_막는다(monkeypatch):
+    # 오타가 조용히 INFO가 되지 않게
+    _env(monkeypatch, LOG_LEVEL="verbose")
+
+    with pytest.raises(config.ConfigError, match="LOG_LEVEL"):
+        config.load_settings()

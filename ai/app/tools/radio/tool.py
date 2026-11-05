@@ -215,7 +215,7 @@ class RadioTool(EvidenceSearchTool):
         return RegulatoryFinding(
             tool_name=self.tool_name, subject=f"{kind} 대상기자재 후보 — {item.name}",
             determination=Determination.POSSIBLY_REQUIRED, risk_level=RiskLevel.MEDIUM,
-            summary=(f"방송통신기자재 {kind} 대상일 가능성이 있습니다({item.section} > {' > '.join(item.path)}). "
+            summary=(f"방송통신기자재 {kind} 대상일 가능성이 있습니다({item.section} > {' > '.join(item.path)}).\n"
                      "판매 목적 수입은 판매 전 적합성평가가 필요합니다."
                      + (" 개인 사용 목적 반입은 면제 대상일 수 있습니다(시행령 별표 6의2)."
                         if candidates.personal_use is not None else "")),

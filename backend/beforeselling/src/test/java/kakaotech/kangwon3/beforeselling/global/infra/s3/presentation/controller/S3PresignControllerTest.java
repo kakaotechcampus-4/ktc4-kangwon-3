@@ -21,6 +21,7 @@ import kakaotech.kangwon3.beforeselling.global.security.jwt.JwtProvider;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -47,6 +48,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Tag("integration")
 @WebMvcTest(S3PresignController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
@@ -89,9 +91,11 @@ class S3PresignControllerTest {
     @Test
     @DisplayName("인증 없이 Presigned URL을 요청하면 401과 COMMON-004 코드를 응답한다.")
     void issuePresignedUrls_withoutAuthentication_thenUnauthorized() throws Exception {
+        // given
         PresignedUrlRequest request = new PresignedUrlRequest(List.of(
                 new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", 1024)));
 
+        // when & then
         mockMvc.perform(post("/api/v1/presigned-url")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -129,8 +133,10 @@ class S3PresignControllerTest {
     @Test
     @DisplayName("파일 목록이 비어있으면 400과 COMMON-002 코드를 응답한다.")
     void issuePresignedUrls_withEmptyFiles_thenBadRequest() throws Exception {
+        // given
         PresignedUrlRequest request = new PresignedUrlRequest(List.of());
 
+        // when & then
         mockMvc.perform(post("/api/v1/presigned-url")
                         .with(authentication(authenticationOf(USER_ID)))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -142,10 +148,12 @@ class S3PresignControllerTest {
     @Test
     @DisplayName("파일명이 255자를 초과하면 400과 COMMON-002 코드를 응답한다.")
     void issuePresignedUrls_withFileNameExceedingMaxLength_thenBadRequest() throws Exception {
+        // given
         String tooLongFileName = "가".repeat(256) + ".jpg";
         PresignedUrlRequest request = new PresignedUrlRequest(List.of(
                 new PresignedUrlRequest.FileMeta(FileType.PRODUCT_MAIN, tooLongFileName, 1024)));
 
+        // when & then
         mockMvc.perform(post("/api/v1/presigned-url")
                         .with(authentication(authenticationOf(USER_ID)))
                         .contentType(MediaType.APPLICATION_JSON)

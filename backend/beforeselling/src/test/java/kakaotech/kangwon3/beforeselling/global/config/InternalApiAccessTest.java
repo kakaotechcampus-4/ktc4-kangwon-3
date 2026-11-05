@@ -2,6 +2,7 @@ package kakaotech.kangwon3.beforeselling.global.config;
 
 import kakaotech.kangwon3.beforeselling.global.security.filter.InternalTokenFilter;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,6 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Tag("integration")
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -31,6 +33,7 @@ class InternalApiAccessTest {
     @Test
     @DisplayName("내부 토큰 없이 내부 API를 호출하면 401을 응답한다.")
     void internalApi_withoutToken_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(post(INTERNAL_URI))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
@@ -39,6 +42,7 @@ class InternalApiAccessTest {
     @Test
     @DisplayName("틀린 내부 토큰으로 호출하면 401을 응답한다.")
     void internalApi_withWrongToken_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(post(INTERNAL_URI).header(InternalTokenFilter.HEADER_NAME, internalToken + "x"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
@@ -47,6 +51,7 @@ class InternalApiAccessTest {
     @Test
     @DisplayName("사용자 Bearer 토큰으로는 내부 API를 호출할 수 없다.")
     void internalApi_withBearerToken_thenUnauthorized() throws Exception {
+        // when & then
         // 내부 체인에는 JWT 필터가 없으므로 사용자 토큰은 인증으로 인정되지 않는다.
         mockMvc.perform(post(INTERNAL_URI).header(HttpHeaders.AUTHORIZATION, "Bearer any-access-token"))
                 .andExpect(status().isUnauthorized())
@@ -56,6 +61,7 @@ class InternalApiAccessTest {
     @Test
     @DisplayName("올바른 내부 토큰이면 보안 체인을 통과한다.")
     void internalApi_withValidToken_thenPassSecurity() throws Exception {
+        // when & then
         // 본문 없이 보내 콜백 컨트롤러의 역직렬화에서 400. 401이 아니면 인증 통과다.
         mockMvc.perform(post(INTERNAL_URI).header(InternalTokenFilter.HEADER_NAME, internalToken))
                 .andExpect(status().isBadRequest());

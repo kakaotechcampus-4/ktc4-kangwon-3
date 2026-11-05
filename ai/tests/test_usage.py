@@ -254,7 +254,7 @@ def test_판단_모델_비용은_요청한_등록명_단가로_계산한다():
     call = usage.CallUsage("typesafe/jev-1.14-20261014", input_tokens=1_000_000, cached_tokens=0, output_tokens=0)
 
     # 실제 버전이 아니라 요청한 등록명으로 단가를 찾음
-    assert usage.estimate_krw(call, "typesafe/jev-latest") == 64.0
+    assert usage.estimate_krw(call, "typesafe/jev-latest") == 59.0
     assert usage.estimate_krw(call, "typesafe/jev-1.14-20261014") is None
 
 
@@ -271,3 +271,33 @@ def test_같은_등록명에_단가가_다르면_단가표를_만들_때_실패�
 
 def test_단가를_모르는_모델은_단가표에서_뺀다():
     assert usage.build_pricing({"openai/unknown": SimpleNamespace(price=None)}) == {}
+
+
+def test_기록_파일이_상한을_넘으면_한_칸씩_밀고_보관_개수만_남긴다(tmp_path, monkeypatch):
+    target = tmp_path / "usage.jsonl"
+    monkeypatch.setattr(usage, "USAGE_LOG", target)
+    monkeypatch.setattr(usage, "USAGE_LOG_MAX_BYTES", 1)
+    monkeypatch.setattr(usage, "USAGE_LOG_BACKUPS", 2)
+
+    for subject_id in ("p1", "p2", "p3", "p4"):
+        usage.record("verification", None, subject_id=subject_id)
+
+    def subject(path):
+        return json.loads(path.read_text(encoding="utf-8"))["subject_id"]
+
+    # 상한 1바이트 → 기록마다 앞 파일을 밀고, 2개 넘는 옛 파일(p1)은 지움
+    assert subject(target) == "p4"
+    assert subject(tmp_path / "usage.jsonl.1") == "p3"
+    assert subject(tmp_path / "usage.jsonl.2") == "p2"
+    assert not (tmp_path / "usage.jsonl.3").exists()
+
+
+def test_상한_전에는_한_파일에_이어_쓴다(tmp_path, monkeypatch):
+    target = tmp_path / "usage.jsonl"
+    monkeypatch.setattr(usage, "USAGE_LOG", target)
+
+    for subject_id in ("p1", "p2"):
+        usage.record("verification", None, subject_id=subject_id)
+
+    assert len(target.read_text(encoding="utf-8").splitlines()) == 2
+    assert not (tmp_path / "usage.jsonl.1").exists()

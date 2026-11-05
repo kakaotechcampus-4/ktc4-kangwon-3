@@ -19,6 +19,7 @@ from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
 from .observability.http_requests import record_http_requests
+from .observability.logs import configure_logging
 from .observability.measurements import measurement_sinks
 from .observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
@@ -68,7 +69,9 @@ async def lifespan(app: FastAPI):
 
     ## 에러가 발생하면 서버가 뜨지 않도록, try-except로 잡지 않고 그대로 전파한다.
     settings = get_settings()
-    logger.info("환경변수 검증 완료")
+    # 설정이 없으면 app 로그가 WARNING 이상만 나옴. 이후 기동 로그부터 이 레벨로
+    configure_logging(settings.log_level)
+    logger.info("환경변수 검증 완료 (로그 레벨 %s)", settings.log_level)
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
@@ -143,8 +146,9 @@ async def lifespan(app: FastAPI):
             clip_ingester.cancel()
             with suppress(asyncio.CancelledError):
                 await clip_ingester
-        # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드는 프로세스 종료 때 끝까지 돌지만
-        # 발신함이 먼저 닫혀 이후 콜백은 버려짐. BE는 멈춤 감지(15분)로 실패 처리
+        # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드도 끝까지 못 돎: uvicorn이 종료 처리 뒤
+        # 받은 SIGTERM을 다시 발생시켜 프로세스가 바로 끝남. 버리는 세션은 관리자가 경고로 남김.
+        # BE는 멈춤 감지(15분)로 실패 처리
         manager.shutdown(wait=False)
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
