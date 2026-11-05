@@ -325,6 +325,7 @@ class MeasurementMetrics:
         )
         _preset(self._callback_sent, _CALLBACK_EVENT_TYPES, ["delivered", "dropped"])
         _preset(self._tool_runs, [tool.value for tool in ToolName], [status.value for status in ToolStatus])
+        _preset(self._seller_region, ["aliexpress", "temu"], ["true", "false"])
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.
