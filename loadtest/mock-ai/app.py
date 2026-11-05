@@ -6,12 +6,23 @@
       (순서는 ai/app/callbacks/events.py와 같게: 앞 단계 completed + 새 단계 started, Tool 실행 단계 안에서 Tool 진행)
     - 큐나 동시 처리 제한 없이 모두 받는다.
 콜백 재시도는 실제 AI(ai/app/callbacks/http.py)처럼 5xx·타임아웃·409 COMMON-009만 지수 백오프로 최대 5회.
+
+E2E 테스트용 결과 고정: 상품 텍스트에 [e2e:표시] 또는 sourceUrl에 e2e=표시(쉼표로 여러 개)가 있으면 확률 대신 표시대로 진행한다.
+표시가 없는 상품은 기존처럼 확률로 진행하므로 부하 테스트에는 영향이 없다.
+    - question       첫 실행이 질문(답변 대기)으로 끝나고, 답변 후 재진단은 결과로 끝남
+    - failed         같은 상품의 첫 실행만 실패(재시도 가능). 다시 시도하면 결과로 끝남
+    - failed-final   재시도할 수 없는 실패로 끝남
+    - allowed        결과 상태 구매대행 가능 (결과 표시가 없을 때 기본값)
+    - certification  결과 상태 사입 인증 필요
+    - recheck        결과 상태 재확인 필요
 """
 import asyncio
 import logging
 import os
 import random
+import re
 import time
+from urllib.parse import parse_qs, urlparse
 from uuid import uuid4
 
 import httpx
@@ -43,6 +54,13 @@ QUESTION_STAGES = STAGES[:2]
 RESUME_STAGES = STAGES[2:]
 TOOLS = ["CUSTOMS", "CHILDREN", "ELECTRICAL", "RADIO", "FOOD_DRUG", "LABEL_AD"]
 
+E2E_TEXT_MARKER = re.compile(r"\[e2e:([a-z-]+)\]")
+E2E_RESULT_STATUSES = {
+    "allowed": "PURCHASING_AGENT_ALLOWED",
+    "certification": "DIRECT_IMPORT_CERTIFICATION_REQUIRED",
+    "recheck": "RECHECK_REQUIRED",
+}
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("mock-ai")
 # 요청마다 INFO 로그를 남겨 부하 중 로그가 넘치지 않게
@@ -66,6 +84,9 @@ app = FastAPI(title="mock-ai")
 client: httpx.AsyncClient | None = None
 # 백그라운드 작업이 GC되지 않게 참조를 잡아 둔다.
 tasks: set[asyncio.Task] = set()
+# E2E 표시가 있는 상품의 표시와 접수 횟수. 재진단(/resume)과 다시 시도(/content 재요청)에 같은 표시를 이어 쓴다.
+e2e_markers: dict[str, set[str]] = {}
+e2e_attempts: dict[str, int] = {}
 
 
 @app.on_event("startup")
@@ -105,9 +126,13 @@ async def diagnose(request: Request) -> JSONResponse:
     accepted = []
     for product in body.get("products", []):
         run_id = str(uuid4())
-        ask_question = random.random() < QUESTION_RATIO
+        terminal, result_status = _e2e_plan(product)
+        if terminal is None:
+            ask_question = random.random() < QUESTION_RATIO
+        else:
+            ask_question = terminal == "awaiting_input"
         stages = QUESTION_STAGES if ask_question else STAGES
-        _spawn(_run(diagnosis_id, product["productId"], run_id, stages, ask_question))
+        _spawn(_run(diagnosis_id, product["productId"], run_id, stages, ask_question, terminal, result_status))
         accepted.append({"productId": product["productId"], "runId": run_id, "status": "accepted"})
 
     ACCEPTED.labels("content", "accepted").inc()
@@ -121,7 +146,9 @@ async def resume(request: Request) -> JSONResponse:
         return rejected
 
     run_id = str(uuid4())
-    _spawn(_run(body["diagnosisId"], body["productId"], run_id, RESUME_STAGES, False))
+    markers = e2e_markers.get(body["productId"])
+    terminal, result_status = ("result", _result_status(markers)) if markers else (None, None)
+    _spawn(_run(body["diagnosisId"], body["productId"], run_id, RESUME_STAGES, False, terminal, result_status))
     ACCEPTED.labels("resume", "accepted").inc()
     return _accepted({"productId": body["productId"], "runId": run_id, "status": "accepted"})
 
@@ -135,6 +162,41 @@ async def _maybe_reject(endpoint: str) -> JSONResponse | None:
     return None
 
 
+def _e2e_plan(product: dict) -> tuple[str | None, str | None]:
+    """E2E 표시가 있으면 (마지막 콜백 종류, 결과 상태)를 돌려준다. 표시가 없으면 (None, None)으로 기존 확률을 쓴다."""
+    markers = _markers_of(product)
+    if not markers:
+        return None, None
+
+    product_id = product["productId"]
+    e2e_markers[product_id] = markers
+    e2e_attempts[product_id] = e2e_attempts.get(product_id, 0) + 1
+
+    if "failed-final" in markers:
+        return "failed_final", None
+    if "question" in markers and e2e_attempts[product_id] == 1:
+        return "awaiting_input", None
+    if "failed" in markers and e2e_attempts[product_id] == 1:
+        return "failed", None
+    return "result", _result_status(markers)
+
+
+def _markers_of(product: dict) -> set[str]:
+    markers = {marker for text in product.get("textBlocks") or [] for marker in E2E_TEXT_MARKER.findall(text)}
+    source_url = product.get("sourceUrl")
+    if source_url:
+        for value in parse_qs(urlparse(source_url).query).get("e2e", []):
+            markers.update(marker for marker in value.split(",") if marker)
+    return markers
+
+
+def _result_status(markers: set[str]) -> str:
+    for marker, result_status in E2E_RESULT_STATUSES.items():
+        if marker in markers:
+            return result_status
+    return E2E_RESULT_STATUSES["allowed"]
+
+
 def _accepted(data: dict) -> JSONResponse:
     return JSONResponse(status_code=202, content={"code": "OK", "message": "진단 요청이 접수되었습니다.", "data": data})
 
@@ -145,14 +207,16 @@ def _spawn(coro) -> None:
     task.add_done_callback(tasks.discard)
 
 
-async def _run(diagnosis_id: str, product_id: str, run_id: str, stages: list[str], ask_question: bool) -> None:
+async def _run(diagnosis_id: str, product_id: str, run_id: str, stages: list[str], ask_question: bool,
+               terminal: str | None = None, result_status: str | None = None) -> None:
     """실행 하나의 콜백을 순서대로 보낸다. 같은 실행의 콜백은 앞 콜백이 끝난 뒤에 보낸다(BE가 sequence로 순서를 본다)."""
     started_at = time.monotonic()
     RUNS_INFLIGHT.inc()
     try:
         tools = random.sample(TOOLS, k=random.randint(1, 2))
         steps = _progress_steps(stages, tools)
-        terminal = "awaiting_input" if ask_question else ("failed" if random.random() < FAIL_RATIO else "result")
+        if terminal is None:
+            terminal = "awaiting_input" if ask_question else ("failed" if random.random() < FAIL_RATIO else "result")
 
         # 전체 처리 시간을 단계 사이에 고르게 나눈다. 질문 실행은 전체의 30%만 쓰고 나머지는 재진단 실행이 쓴다.
         total = random.uniform(DURATION_MIN_S, DURATION_MAX_S)
@@ -184,8 +248,11 @@ async def _run(diagnosis_id: str, product_id: str, run_id: str, stages: list[str
         elif terminal == "failed":
             event = {**base(), "eventType": "product_failed", "stage": last_stage,
                      "error": {"code": "AI_PIPELINE_ERROR", "message": "진단 중 오류가 발생했습니다.", "retryable": True}}
+        elif terminal == "failed_final":
+            event = {**base(), "eventType": "product_failed", "stage": last_stage,
+                     "error": {"code": "AI_EMPTY_SOURCE", "message": "상품 정보를 읽을 수 없습니다.", "retryable": False}}
         else:
-            event = {**base(), "eventType": "product_result", "assessment": _assessment(tools)}
+            event = {**base(), "eventType": "product_result", "assessment": _assessment(tools, result_status)}
         await _send(event)
         RUN_DURATION.labels(terminal).observe(time.monotonic() - started_at)
     except Exception:
@@ -264,11 +331,13 @@ def _questions() -> list[dict]:
     ]
 
 
-def _assessment(tools: list[str]) -> dict:
-    certification_required = random.random() < 0.5
+def _assessment(tools: list[str], result_status: str | None = None) -> dict:
+    if result_status is None:
+        result_status = random.choice(["DIRECT_IMPORT_CERTIFICATION_REQUIRED", "PURCHASING_AGENT_ALLOWED"])
+    certification_required = result_status != "PURCHASING_AGENT_ALLOWED"
     return {
         "status": "COMPLETED",
-        "resultStatus": "DIRECT_IMPORT_CERTIFICATION_REQUIRED" if certification_required else "PURCHASING_AGENT_ALLOWED",
+        "resultStatus": result_status,
         "summary": "부하 테스트용 진단 결과입니다. 분야별 검토 결과를 확인하세요.",
         "toolReviews": [_tool_review(tool, certification_required) for tool in tools],
         "requiredActions": ["KC 인증 여부를 판매자에게 확인하세요."] if certification_required else [],

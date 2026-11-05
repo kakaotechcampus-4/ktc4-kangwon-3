@@ -1,5 +1,7 @@
+import * as Sentry from '@sentry/react'
 import axios from 'axios'
 
+import { classifyApiError, toPathTemplate } from '@/api/sentryErrorPolicy'
 import { useAuthStore } from '@/store/useAuthStore'
 
 const API_URL = import.meta.env.VITE_API_URL
@@ -60,6 +62,37 @@ apiClient.interceptors.response.use(
 
         useAuthStore.getState().logout()
         window.location.href = '/login'
+        throw error
+    }
+)
+
+// 전송 여부·레벨 판단은 상태코드가 아닌 BE 에러 코드 기준(sentryErrorPolicy)으로 한다.
+apiClient.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (axios.isCancel(error)) {
+            throw error
+        }
+
+        const status = error.response?.status
+        const code = error.response?.data?.code
+        const level = classifyApiError({ status, code, retried: Boolean(error.config?._retried) })
+
+        if (level) {
+            const method = error.config?.method?.toUpperCase() ?? 'UNKNOWN'
+            const path = toPathTemplate(error.config?.url ?? '')
+
+            // 이슈 제목(에러 타입)은 그대로 두고, 설명만 사용자에게 보여주는 것과 같은 한글 메시지로 바꾼다.
+            error.message = getErrorMessage(error, error.message)
+
+            Sentry.withScope((scope) => {
+                scope.setLevel(level)
+                scope.setFingerprint([method, path, code ?? 'UNKNOWN'])
+                scope.setContext('api_error', { method, url: path, status, code })
+                Sentry.captureException(error)
+            })
+        }
+
         throw error
     }
 )

@@ -76,8 +76,10 @@ class DecisionRequest(BaseModel):
         model: 카탈로그 모델 이름 (예: "typesafe/jev-latest", "openai/gpt-6-luna").
         subject: 판단 대상 정보 (예: 상품 정보). Jev는 state, Luna는 JSON 입력으로 보냄.
         questions: 질문 목록. Luna가 400개까지 받음.
+        images: 판단 대상 정보와 같이 볼 이미지. Jev는 base64 PNG·JPEG data URI만 받음.
     """
 
     model: str = Field(min_length=1)
     subject: dict[str, Any]
     questions: list[DecisionQuestion] = Field(min_length=1, max_length=400)
+    images: list[str] = Field(default_factory=list)

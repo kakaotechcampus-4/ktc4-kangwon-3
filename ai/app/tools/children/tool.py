@@ -280,12 +280,12 @@ class ChildrenTool(EvidenceSearchTool):
         if item.scopes:
             sources.append(_notice_source(candidates, item))
         notes = ["모델 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."]
-        summary = (f"이 품목으로 분류되면 {item.scheme.value}대상 어린이제품일 가능성이 있습니다(확정 아님). "
+        summary = (f"이 품목으로 분류되면 {item.scheme.value}대상 어린이제품일 가능성이 있습니다(확정 아님).\n"
                    f"적용 안전기준: {', '.join(item.standards)}.")
         if run.state is True:
             sources.append(definitions.law.source(f"{_LAW_REF} 제1호", definitions.children_product))
         elif run.state is None:
-            summary += " 사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다."
+            summary += "\n사용 대상 연령을 확인하지 못했습니다. 만 13세 이하 대상일 때 적용됩니다."
         return self._finding(
             subject=f"{item.scheme.value}대상 어린이제품 후보 — {item.name}", summary=summary, rationale=rationale,
             determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,

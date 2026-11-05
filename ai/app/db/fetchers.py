@@ -63,18 +63,19 @@ class DbSkip:
         with self._lock:
             return self._monotonic() >= self._skip_until
 
-    def failed(self, name: str, action: str, error: Exception) -> None:
+    def failed(self, name: str, action: str, error: Exception, *, store: str = "캐시") -> None:
         """DB 실패를 기록하고 일정 시간 건너뛰게 한다.
 
         Args:
             name: 실패한 조회 이름(로그용).
             action: 실패한 동작(로그용, 예: "조회").
             error: 실패 원인.
+            store: 실패한 저장소 종류(로그용, 예: "캐시"·"DB").
         """
         with self._lock:
             self._skip_until = self._monotonic() + CACHE_DB_RETRY_SECONDS
-        logger.warning("%s 캐시 %s 실패 — %d초 동안 DB 건너뜀: %s",
-                       name, action, CACHE_DB_RETRY_SECONDS, type(error).__name__)
+        logger.warning("%s %s %s 실패 — %d초 동안 DB 건너뜀: %s",
+                       name, store, action, CACHE_DB_RETRY_SECONDS, type(error).__name__)
 
 
 # 프로세스 공용 DB 건너뛰기 상태

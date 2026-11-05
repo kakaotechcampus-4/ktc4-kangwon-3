@@ -374,6 +374,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         *,
         subject_id: str,
         partial_result: object | None = None,
+        images: list[str] | None = None,
     ) -> tuple[DecisionResponse, CallUsage, float]:
         """판단 모델에 질문하고 질문 이름별 답을 받는다. 실패는 바로 기록하고, 성공 기록은 후처리 뒤 호출부가 남김.
 
@@ -385,6 +386,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             questions: 질문 목록. 이름이 겹치지 않아야 함.
             subject_id: 사용량 기록 대상 ID (상품 ID).
             partial_result: 실패 시 예외에 담을 부분 결과.
+            images: 판단 대상 정보와 같이 볼 이미지. None이면 이미지 없음.
 
         Returns:
             tuple[DecisionResponse, CallUsage, float]: 질문 이름별 답, 사용량, 호출 시작 시각(perf_counter).
@@ -399,7 +401,9 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         if client is None:
             raise RuntimeError(f"{self.component_name}: 판단 모델 없이 _call_decision을 호출했습니다.")
 
-        request = DecisionRequest(model=self._decision_model, subject=subject, questions=questions)
+        request = DecisionRequest(
+            model=self._decision_model, subject=subject, questions=questions, images=images or [],
+        )
         check_request(request)
         if (trace := current_trace()) is not None:
             trace.begin_call(self.component_name, request)

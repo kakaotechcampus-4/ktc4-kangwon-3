@@ -1,5 +1,7 @@
 """TypeSafe 판단 형식 클라이언트 (Jev, `typesafe/jev-latest`)."""
 
+import json
+
 from ....schemas.clients.decision_request import (
     ChoiceQuestion,
     DecisionOption,
@@ -11,11 +13,16 @@ from ....schemas.clients.decision_request import (
 from ....schemas.clients.decision_response import (
     ChoiceAnswer,
     DecisionAnswer,
+    DecisionResponse,
     DecisionUsage,
     ScoreAnswer,
     YesNoAnswer,
 )
 from .base import DecisionClient
+from .errors import DecisionRequestError
+
+# Jev가 받는 이미지 (게이트웨이 400 문구: base64 data URL, PNG·JPEG만)
+_IMAGE_PREFIXES = ("data:image/png;base64,", "data:image/jpeg;base64,", "data:image/jpg;base64,")
 
 
 class TypeSafeDecisionClient(DecisionClient):
@@ -25,9 +32,29 @@ class TypeSafeDecisionClient(DecisionClient):
     서비스 키 : ML API 키 (Authorization: Bearer)
     비고
         판단 대상은 `state`에 객체 그대로, 질문은 이름을 키로 한 맵으로 보냄.
+        이미지가 있으면 `state`를 배열로 바꿔 판단 대상 JSON 글 뒤에 이미지 블록을 붙임.
+        이미지는 base64 PNG·JPEG data URI만 받음 (http 주소·webp·긴 이미지 통째는 400).
         예/아니오는 `noul`, 점수 단계는 설명 문자열 배열(낮은 순)이고 답은 단계 번호로 옴.
         응답 `model`에 실제 버전이 옴 (예: typesafe/jev-1.14-20261014).
     """
+
+    def decide(self, request: DecisionRequest) -> DecisionResponse:
+        """이미지 형식을 먼저 확인하고 질문을 보낸다. 나머지는 DecisionClient.decide와 같음.
+
+        Args:
+            request: 판단 요청.
+
+        Returns:
+            DecisionResponse: 질문 이름별 답과 토큰 사용량.
+
+        Raises:
+            DecisionRequestError: base64 PNG·JPEG data URI가 아닌 이미지가 있는 경우. 요청은 보내지 않음.
+                그 밖은 DecisionClient.decide와 같음.
+        """
+        bad = [image[:40] for image in request.images if not image.startswith(_IMAGE_PREFIXES)]
+        if bad:
+            raise DecisionRequestError(f"Jev는 base64 PNG·JPEG data URI 이미지만 받음: {bad}")
+        return super().decide(request)
 
     def _to_payload(self, request: DecisionRequest) -> dict:
         """공통 요청을 TypeSafe 요청 본문으로 바꾼다.
@@ -40,7 +67,7 @@ class TypeSafeDecisionClient(DecisionClient):
         """
         return {
             "model": request.model,
-            "state": request.subject,
+            "state": _state(request),
             "questions": {question.name: _question_payload(question) for question in request.questions},
         }
 
@@ -79,6 +106,14 @@ class TypeSafeDecisionClient(DecisionClient):
             ValueError: 모르는 답 종류이거나 값이 범위를 벗어난 경우.
         """
         return {name: _answer(answer) for name, answer in body["answers"].items()}
+
+
+def _state(request: DecisionRequest) -> dict | list[dict]:
+    """판단 대상 정보와 이미지를 TypeSafe state로 바꾼다. 이미지가 없으면 객체 그대로."""
+    if not request.images:
+        return request.subject
+    text ={"type": "text", "text": json.dumps(request.subject, ensure_ascii=False)}
+    return [text] + [{"type": "image_url", "image_url": {"url": image}} for image in request.images]
 
 
 def _question_payload(question: DecisionQuestion) -> dict:
