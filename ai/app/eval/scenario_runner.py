@@ -146,12 +146,28 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.truth_dir or not args.raw_dir:
         parser.error("--truth-dir와 --raw-dir가 필요합니다 (재채점은 --rescore).")
+    if args.extraction_truth_dir and not args.extraction_truth_dir.is_dir():
+        # 경로를 잘못 주면 원인 분류가 조용히 전부 '분류 안 함'이 된다. 모델을 돌리기 전에 멈춘다.
+        parser.error(f"--extraction-truth-dir 폴더가 없습니다: {args.extraction_truth_dir}")
     items = plan_products(args.truth_dir, args.raw_dir, args.input_file)
+    # 정답표 형식 오류도 모델을 돌리기 전에 잡는다.
+    truths, extraction = _load_truths(args.truth_dir, args.extraction_truth_dir, [i.name for i in items])
     extractor, selector, meta = build_agents()
     meta["runs"] = args.runs
     print(f"상품 {len(items)}개 × {args.runs}회, 입력 {args.input_file}", file=sys.stderr)
+
+    def safe_run(item: ProductInput) -> dict:
+        # 재시도하지 않는 예외(빈 구역의 ValueError, 규칙 코드 버그 등) 하나로 전체 결과를 잃지 않게,
+        # 그 상품만 전 회차 실패로 남긴다. 실패 회차는 채점에서 '전부 빠뜨림'이라 숫자가 부풀지 않는다.
+        try:
+            return run_product(extractor, selector, item, args.runs, args.retries)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  {item.name} 예상 밖 실패: {type(exc).__name__}: {str(exc)[:120]}", file=sys.stderr)
+            return {"runs": [{"extracted": None, "selection": None} for _ in range(args.runs)], "retries": 0,
+                    "input_fallback": item.fallback, "input": item.text_path.name, "error": type(exc).__name__}
+
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
-        results = list(pool.map(lambda item: run_product(extractor, selector, item, args.runs, args.retries), items))
+        results = list(pool.map(safe_run, items))
     products = {item.name: result for item, result in zip(items, results)}
 
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
@@ -161,7 +177,6 @@ def main(argv: list[str] | None = None) -> int:
         "extraction_truth_dir": str(args.extraction_truth_dir) if args.extraction_truth_dir else None,
         "input_file": args.input_file, "products": products,
     }, ensure_ascii=False, indent=1), encoding="utf-8")
-    truths, extraction = _load_truths(args.truth_dir, args.extraction_truth_dir, [i.name for i in items])
     _write_report(args.report, summarize(products, truths, extraction), meta, args.title)
     print(f"\n실행 결과 저장: {out}", file=sys.stderr)
     return 0

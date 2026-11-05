@@ -147,7 +147,7 @@ def test_빠뜨림_목록에_상품·회차·Tool·원인이_남는다():
 
     s = summarize({"p": product}, truths, {"p": ext_truth})
 
-    assert s["misses"] == [{"product": "p", "run": 0, "tool": "radio_compliance", "cause": CAUSE_EXTRACTION_FALSE}]
+    assert s["misses"] == [{"product": "p", "run": 0, "tool": "radio_compliance", "cause": CAUSE_EXTRACTION_FALSE, "image_only": False}]
 
 
 def test_보고서에_핵심_숫자가_들어간다():
@@ -160,3 +160,40 @@ def test_보고서에_핵심_숫자가_들어간다():
     assert "개발 표본 (펼친 글)" in md
     assert "무누락" in md and "1/1" in md
     assert "openai/gpt-4.1-mini" in md
+
+
+# 최종 검토 반영 (2026-11-05)
+from app.eval.scenario_scoring import CAUSE_NOT_IN_INPUT  # noqa: E402
+
+
+def test_글_입력에_근거가_없는_Tool의_빠뜨림은_선택_탓으로_찍지_않는다():
+    truths = {"p": _truth({"customs_requirements", "electrical_safety"}, image_only=frozenset({"electrical_safety"}))}
+    ext_truth = {"booleans": {"electrical_powered": {"value": False}}}
+    product = _product(_response({"customs_requirements"}), extracted={"electrical_powered": False})
+
+    s = summarize({"p": product}, truths, {"p": ext_truth})
+
+    assert s["causes"][CAUSE_SELECTION_MISSED] == 0
+    assert s["causes"][CAUSE_NOT_IN_INPUT] == 1
+    assert s["misses"][0]["image_only"] is True
+
+
+def test_Tool_하나를_뺀_무누락_상품_수를_낸다():
+    truths = {"p": _truth({"customs_requirements", "labeling_advertising_detection"}), "q": _truth({"customs_requirements"})}
+    only_customs = _response({"customs_requirements"})
+    products = {"p": _product(only_customs, only_customs), "q": _product(only_customs, only_customs)}
+
+    s = summarize(products, truths, {"p": None, "q": None})
+
+    assert s["pass_all_runs"] == 1
+    assert s["pass_all_runs_excluding"]["labeling_advertising_detection"] == 2
+    assert s["pass_all_runs_excluding"]["customs_requirements"] == 1
+
+
+def test_보고서에_Tool_하나를_뺀_무누락이_찍힌다():
+    truths = {"p": _truth({"customs_requirements", "labeling_advertising_detection"})}
+    s = summarize({"p": _product(_response({"customs_requirements"}))}, truths, {"p": None})
+
+    md = render_report(s, {}, "t")
+
+    assert "표시광고 빼고" in md and "1/1" in md

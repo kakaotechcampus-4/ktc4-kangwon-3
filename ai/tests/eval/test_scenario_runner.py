@@ -139,3 +139,40 @@ def test_저장한_결과를_재채점하면_같은_숫자가_나온다(tmp_path
 
     assert "0/1" in first
     assert rescored.read_text(encoding="utf-8") == first
+
+
+# 최종 검토 반영 (2026-11-05)
+
+
+class _CrashingExtractor:
+    def run(self, source):
+        raise RuntimeError("규칙 코드 버그")
+
+
+def test_예상_밖_예외가_나도_그_상품만_실패로_남기고_결과를_저장한다(tmp_path, monkeypatch):
+    truth_dir, raw_dir = tmp_path / "truth", tmp_path / "raw"
+    _write_truth(truth_dir, "strat_01", "strat_01/text.txt")
+    _write_raw(raw_dir, "strat_01", "text.txt")
+    monkeypatch.setattr(scenario_runner, "RESULT_DIR", tmp_path / "out")
+    monkeypatch.setattr(scenario_runner, "build_agents", lambda: (_CrashingExtractor(), _FakeSelector(), {"model": "가짜"}))
+
+    assert scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir), "--runs", "2"]) == 0
+
+    saved = json.loads(next((tmp_path / "out").glob("scenario-*.json")).read_text(encoding="utf-8"))
+    product = saved["products"]["strat_01"]
+    assert product["runs"] == [{"extracted": None, "selection": None}] * 2
+    assert product["error"] == "RuntimeError"
+
+
+def test_없는_추출_정답_폴더를_주면_모델을_돌리기_전에_멈춘다(tmp_path, monkeypatch):
+    truth_dir, raw_dir = tmp_path / "truth", tmp_path / "raw"
+    _write_truth(truth_dir, "strat_01", "strat_01/text.txt")
+    _write_raw(raw_dir, "strat_01", "text.txt")
+    built = []
+    monkeypatch.setattr(scenario_runner, "build_agents", lambda: built.append(1) or (_FakeExtractor(), _FakeSelector(), {}))
+
+    with pytest.raises(SystemExit):
+        scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir),
+                              "--extraction-truth-dir", str(tmp_path / "없는폴더")])
+
+    assert built == []
