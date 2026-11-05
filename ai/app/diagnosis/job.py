@@ -2,6 +2,7 @@
 
 파이프라인(pipeline/runner.py)은 진행 알림을 모름. 단계 객체를 감싸 부를 때마다 단계 알림을 보냄.
 재실행 회차에는 Tool 실행·집계·검증 알림이 다시 나감.
+검증 모델 검토가 실패하면 규칙 검사 결과로 진행 (통과는 재확인 필요로 바꿈). 규칙 결과도 없으면 재시도 가능 실패.
 Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하는 Tool만 started·completed가 다시 나감.
 
 로컬 trace를 켠 실행이면 단계마다 trace 단계를 열고 나온 값(output)을 원래 모양 그대로 남김.
@@ -29,6 +30,7 @@ from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import (
     DraftAssessment, ExecutionEndReason, FinalAssessment, ToolName, ToolResult, ToolStatus, VerificationResult,
+    VerificationStatus,
 )
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
@@ -286,9 +288,35 @@ class _Verification:
                 _alias_ids(verification)
                 trace_note("output", verification)
         except VerificationError as exc:
-            # 검토 ID 중복 등 모델 실수·호출 실패. 다시 돌리면 통과 가능 → 재시도 가능
-            raise AIServiceError(
-                response_code=AIResponseCode.PIPELINE_ERROR.value, stage=PipelineStage.VERIFICATION, retryable=True,
-            ) from exc
+            if not isinstance(exc.partial_result, VerificationResult):
+                # 규칙 검사 결과도 없음. 다시 돌리면 통과 가능 → 재시도 가능
+                raise AIServiceError(
+                    response_code=AIResponseCode.PIPELINE_ERROR.value, stage=PipelineStage.VERIFICATION,
+                    retryable=True,
+                ) from exc
+            # 검토 ID 실수·모델 호출 실패. Tool 판단과 규칙 검사 결과는 버리지 않고 진행
+            verification = _rules_only(exc.partial_result)
+            _alias_ids(verification)
+            logger.warning("검증 모델 검토 실패, 규칙 검사 결과로 진행 (status=%s): %s",
+                           verification.status.value, _error_text(exc))
         self._state.done("verification")
         return verification
+
+
+def _rules_only(rules: VerificationResult) -> VerificationResult:
+    """모델 검토 없이 규칙 검사 결과만 남은 검증 결과. 모델 검토를 못 했으니 통과는 재확인 필요로 바꿈.
+
+    Tool 재실행·질문이 필요하다는 규칙 결과는 그대로 둠 (다음 행동은 규칙만으로도 정해짐).
+
+    Args:
+        rules: 검증 에이전트가 실패 전에 만든 규칙 검사 결과.
+
+    Returns:
+        VerificationResult: 통과 상태면 재확인 필요로 바꾼 결과, 아니면 규칙 결과 그대로.
+    """
+    if rules.status not in (VerificationStatus.APPROVED, VerificationStatus.APPROVED_WITH_WARNINGS):
+        return rules
+    return rules.model_copy(update={
+        "status": VerificationStatus.REVISION_REQUIRED,
+        "review_summary": "검증 모델 검토를 마치지 못해 규칙 검사 결과만 반영함",
+    })
