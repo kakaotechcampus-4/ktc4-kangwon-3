@@ -121,9 +121,11 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 ### 7.1 켜기
 
 - 환경변수 `SENTRY_DSN`(Sentry 프로젝트 주소, `https://`로 시작)이 있으면 켜짐, 비우면 꺼짐. 켜면 `SENTRY_ENVIRONMENT`(운영·개발 구분 이름) 필수. 아니면 기동 실패
-- lifespan 시작 때 `configure_logging()` 바로 다음에 켬. 기동 로그에 `Sentry 켜짐 (environment=...)` 또는 `Sentry 꺼짐 (SENTRY_DSN 없음)`
+- lifespan 시작 때 `configure_logging()` 바로 다음에 켬. 기동 로그에 `Sentry 켜짐 (environment=..., 로그 INFO)` 또는 `Sentry 꺼짐 (SENTRY_DSN 없음)`
 - 비워 두면 꺼진 채로 기동 → 서버 `.env`에 두 값이 없어도 배포는 막히지 않음. 켤 때 서버 `.env`에 두 값을 넣고 컨테이너를 다시 띄움
 - 로컬·테스트는 비워 둠
+- `SENTRY_LOG_LEVEL`: Logs로 보낼 최소 레벨. `INFO`(기본)·`WARNING`·`ERROR`·`OFF`. `OFF`면 로그 전송을 끄고 오류 이벤트만 보냄. 모르는 값이면 기동 실패
+  - 할당량(로그 5GB)이 차 가면 서버 `.env`만 바꿔 `WARNING` → `OFF` 순으로 줄이고 컨테이너를 다시 띄움
 
 ### 7.2 보내는 것
 
@@ -132,7 +134,7 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 | ERROR 로그 (traceback 포함) | 이벤트 |
 | 요청 처리 중 잡지 않은 예외 (500) | 이벤트 |
 | 예외 처리기가 응답으로 바꾼 4xx | 안 감 |
-| INFO 이상 로그 | 로그 (Logs 화면). 이벤트 앞의 흐름 기록(breadcrumb)에도 남음 |
+| INFO 이상 로그 | 로그 (Logs 화면, `SENTRY_LOG_LEVEL` 이상만). 이벤트 앞의 흐름 기록(breadcrumb)에도 남음 |
 | DEBUG 로그 | 안 감 |
 
 - 진단 실행 중 이벤트·로그에는 2.1 실행 정보를 붙임 (이벤트는 태그, 로그는 속성) → Sentry에서 진단서·상품·실행·단계별로 걸러 봄. 실행 밖에는 없음

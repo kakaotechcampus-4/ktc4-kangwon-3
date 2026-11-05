@@ -4,6 +4,7 @@
 그래서 로그 기준(AI_LOGGING.md 3절)을 그대로 씀.
     - ERROR 로그(예상 못 한 예외, traceback 포함) → 이벤트
     - INFO 이상 로그 → 로그 (Sentry Logs 화면에서 검색). 이벤트 앞의 흐름 기록(breadcrumb)에도 남음
+      보낼 로그 레벨은 SENTRY_LOG_LEVEL. OFF면 로그 전송 없이 흐름 기록만
     - 요청 처리 중 잡지 않은 예외(500) → 이벤트 (FastAPI 연동). 예외 처리기가 응답으로 바꾼 4xx는 안 감
 요청 본문·개인정보·지역 변수(상품 원문·요청 헤더가 담김)는 보내지 않음. 성능 트레이스는 쓰지 않음.
 보내기 직전 내부 인증 헤더를 빼고, 예외 메시지·로그 문구·추가 값·흐름 기록 속 URL의 키(serviceKey·OC)를 가림.
@@ -26,12 +27,13 @@ logger = logging.getLogger(__name__)
 _SECRET_HEADERS = frozenset({INTERNAL_TOKEN_HEADER.lower(), DEV_API_KEY_HEADER.lower()})
 
 
-def configure_sentry(dsn: str, environment: str, **options) -> bool:
+def configure_sentry(dsn: str, environment: str, log_level: str = "INFO", **options) -> bool:
     """Sentry 로그·오류 전송을 켠다. DSN이 비면 아무것도 안 함.
 
     Args:
         dsn: Sentry 프로젝트 주소. 비면 끔.
         environment: 환경 이름 (운영·개발 구분).
+        log_level: 로그로 보낼 최소 레벨 (INFO·WARNING·ERROR). OFF면 로그 전송 끔.
         **options: sentry_sdk.init에 그대로 넘길 값 (테스트의 전송 바꾸기 등).
 
     Returns:
@@ -40,6 +42,8 @@ def configure_sentry(dsn: str, environment: str, **options) -> bool:
     if not dsn:
         logger.info("Sentry 꺼짐 (SENTRY_DSN 없음)")
         return False
+    # OFF면 로그 전송 없음 (흐름 기록·오류 이벤트는 그대로)
+    logs_level = None if log_level == "OFF" else logging.getLevelName(log_level)
     sentry_sdk.init(
         dsn=dsn,
         environment=environment,
@@ -52,14 +56,14 @@ def configure_sentry(dsn: str, environment: str, **options) -> bool:
         # 오류 위치별 지역 변수를 보내지 않음. 요청 헤더(내부 토큰)·상품 원문·키가 든 URL이 그대로 실림
         include_local_variables=False,
         # 로그 전송. 외부 라이브러리는 configure_logging이 WARNING 이상만 남김 (요청 주소 속 키 방지)
-        enable_logs=True,
+        enable_logs=logs_level is not None,
         integrations=[LoggingIntegration(level=logging.INFO, event_level=logging.ERROR,
-                                         sentry_logs_level=logging.INFO)],
+                                         sentry_logs_level=logs_level)],
         before_send=before_send,
         before_send_log=before_send_log,
         **options,
     )
-    logger.info("Sentry 켜짐 (environment=%s)", environment)
+    logger.info("Sentry 켜짐 (environment=%s, 로그 %s)", environment, log_level)
     return True
 
 

@@ -174,3 +174,21 @@ def test_INFO_이상_로그는_URL_키를_가리고_실행_정보를_속성으�
     assert not any(log["body"] == "DEBUG는 안 감" for log in _MemoryTransport.logs)
     # 이벤트는 ERROR만
     assert events == []
+
+
+@pytest.mark.parametrize(("log_level", "expected"), [("WARNING", ["경고", "오류"]), ("OFF", [])])
+def test_로그_레벨을_올리거나_끄면_그_아래_로그는_보내지_않고_ERROR_이벤트는_그대로_보낸다(log_level, expected):
+    _MemoryTransport.events = []
+    _MemoryTransport.logs = []
+    assert configure_sentry(DSN, "test", log_level, transport=_MemoryTransport)
+    try:
+        app_logger = logging.getLogger("app.main")
+        app_logger.info("정보")
+        app_logger.warning("경고")
+        app_logger.error("오류")
+        sentry_sdk.flush()
+
+        assert [log["body"] for log in _MemoryTransport.logs] == expected
+        assert _sent(_MemoryTransport.events) == [("error", "오류")]
+    finally:
+        sentry_sdk.init(dsn=None)

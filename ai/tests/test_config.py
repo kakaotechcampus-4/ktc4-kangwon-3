@@ -33,6 +33,7 @@ _VALID_ENV = {
     "LOG_LEVEL": None,
     "SENTRY_DSN": None,
     "SENTRY_ENVIRONMENT": None,
+    "SENTRY_LOG_LEVEL": None,
 }
 
 
@@ -404,6 +405,21 @@ def test_Sentry는_DSN이_없으면_끄고_있으면_환경_이름과_같이_읽
     settings = config.load_settings()
 
     assert (settings.sentry_dsn, settings.sentry_environment) == (_SENTRY_DSN, "production")
+
+
+@pytest.mark.parametrize(("raw", "expected"), [(None, "INFO"), ("", "INFO"), (" warning ", "WARNING"), ("off", "OFF")])
+def test_Sentry_로그_레벨은_비우면_INFO이고_대소문자를_가리지_않는다(monkeypatch, raw, expected):
+    _env(monkeypatch, SENTRY_LOG_LEVEL=raw)
+
+    assert config.load_settings().sentry_log_level == expected
+
+
+def test_모르는_Sentry_로그_레벨이면_기동을_막는다(monkeypatch):
+    # 오타가 조용히 INFO 전송이 되지 않게
+    _env(monkeypatch, SENTRY_LOG_LEVEL="DEBUG")
+
+    with pytest.raises(config.ConfigError, match="SENTRY_LOG_LEVEL"):
+        config.load_settings()
 
 
 @pytest.mark.parametrize(("dsn", "environment", "message"), [

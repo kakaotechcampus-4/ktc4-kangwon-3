@@ -74,7 +74,7 @@ async def lifespan(app: FastAPI):
     configure_logging(settings.log_level)
     logger.info("환경변수 검증 완료 (로그 레벨 %s)", settings.log_level)
     # 오류 전송. 이후 기동·진단 중 ERROR 로그와 요청 처리 중 잡지 않은 예외가 감
-    configure_sentry(settings.sentry_dsn, settings.sentry_environment)
+    configure_sentry(settings.sentry_dsn, settings.sentry_environment, settings.sentry_log_level)
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
