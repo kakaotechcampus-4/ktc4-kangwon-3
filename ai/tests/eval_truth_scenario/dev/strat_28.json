@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_28/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "KOSHARE 정전압 1.5V Type-C 충전식 리튬이온 AA 배터리(Temu). 전지 자체가 상품이라 전기를 고르고, 무선 기능이 없는 건전지라 전파는 고르지 않으며, 제목의 '1500사이클', '2시간 고속 충전', '고용량 대용량'과 용량 표기 불일치(4255mWh/4225mWh)로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "Temu 해외 직구 수입품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 'KOSHARE 정전압 1.5V Type-C 충전식 리튬이온 배터리'(101행), 스펙표 '재사용 가능성: 충전식', '배터리 속성: 충전식 배터리'(92~97행), 이미지 'TYPE-C charging port'와 케이블이 꽂힌 전지(img_02). 무선 통신·무선충전·차폐 언급 없음",
+      "why_not_other": "AA 규격 전지 자체가 상품이고 충전은 Type-C 유선이다. 전지 셀에는 통신 기능이 들어갈 구조가 아니어서 해당 없음으로 보았다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '전자기기 > 배터리&보조배터리'(40~41행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "기기에 넣어 쓰는 전지라 음식·피부·점막 접촉 용도가 아니다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 '정전압 1.5V Type-C 충전식 리튬이온 배터리 … 1.5V AA 4255mWh'(101행), 카테고리 '배터리&보조배터리'(41행), 스펙표 '배터리 속성: 충전식 배터리'(96~97행)",
+      "why_not_other": "전지 자체가 상품이고 전압·용량 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표·이미지에 어린이 대상·연령 표기 없음. 카테고리 '전자기기 > 배터리&보조배터리'(40~41행)",
+      "why_not_other": "범용 전지이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '1500사이클, 2시간 고속 충전, … 고용량 대용량 4225mWh 장시간 전력 공급'(101행), 같은 제목 안 '4255mWh'와 '4225mWh' 불일치(101행), 이미지 'Real large capacity without false labeling'(img_01)",
+      "why_not_other": "'1500사이클', '2시간 고속 충전', '장시간'이 기준 (5)의 과장 가능 수치이고, 용량 수치가 제목 안에서 어긋난다. 리뷰 '가성비 최고입니다'(54행)는 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "전파는 기준의 '전자기기인데 무선 여부 불명이면 true' 규칙을 전지 셀에는 적용하지 않고 false로 두었다. 기능(전력 공급)과 충전 방식(Type-C 유선)이 페이지에 명시돼 있어서다. 이 판단이 기준과 다르면 true로 바꿔야 한다."
+}

@@ -1,0 +1,40 @@
+{
+  "fixture": "strat_10/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 비전동 ABS 발 지압 매트(롤러 10개). 제목 '반사요법 도구로 스트레스 완화', 설명 '경혈을 정확히 자극', 이미지 'RELIEVE FOOT PAIN', 'IMPROVE CIRCULATION'으로 의료 효능 표방이 있어 식약·표시광고를 고른다. 스펙표가 '전자식: 아니요', '전원 공급: 전기 없음'으로 비전자임을 직접 밝힌다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 185~186행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '전자식: 아니요'(원문 171~172행), '전원 공급: 전기 없음'(원문 177~178행), description '통합 구조는 회로 부품이 없으며'(description.txt 2행)",
+      "why_not_other": "회로 부품이 없는 비전자 제품으로 확인된다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '반사요법 도구로 스트레스 완화'(원문 10행), description '용천과 태계와 같은 주요 경혈을 정확히 자극', '경락을 완화', '의료 등급 실리콘'(description.txt 1~2행), 이미지 'RELIEVE FOOT PAIN', 'IMPROVE CIRCULATION', 'promote blood circulation'(img_02·04)",
+      "why_not_other": "통증 완화·혈액순환 등 의료 효능 표방이 판매자 제목·설명·이미지에 있다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '전자식: 아니요'(원문 171~172행), '배터리 포함 여부: no'(원문 173~174행), '전원 공급: 전기 없음'(원문 177~178행), '전압: 없음'(원문 181~182행), 제목 '비전동'(원문 10행)",
+      "why_not_other": "전기 부재가 스펙표에 직접 적혀 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표에 연령 표기 없음, 이미지 'UNISEX FIT FOR ALL'(img_02), 이미지의 발은 성인",
+      "why_not_other": "어린이 대상 문구가 없고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '스트레스 완화'(원문 10행), description '생체 공학적 경혈 자극 시스템', '의료 등급 실리콘'(description.txt 2행), 이미지 'RELIEVE FOOT PAIN', 'IMPROVE CIRCULATION', 'Stimulate acupoints and relieve soreness'(img_02·04)",
+      "why_not_other": "효능·의료 주장과 미검증 등급 표방('의료 등급', '식품 등급 ABS')이 있다. AI 요약(원문 21~29행)은 근거로 쓰지 않았다."
+    }
+  }
+}

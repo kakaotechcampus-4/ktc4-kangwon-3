@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_02/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "신생아용 유리 젖병(알리). 음식 접촉·어린이 대상이 확인되고, 제목의 '배앓이 방지'가 효능 표방인지 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(알리익스프레스, 원산지 중국)",
+      "why_not_other": "통관은 해외 직구 수입품이면 사실상 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 유리', '유형: 젖병'(177~184행)",
+      "why_not_other": "유리 젖병으로 전자 부품이 없어 무선 통신·충전·차폐와 무관하다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '유아 수유병 신생아용'(10행), 스펙표 '유형: 젖병', 'Always test the temperature of the milk before feeding'(166행)",
+      "why_not_other": "젖병은 음식(분유·모유) 접촉 제품이다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 유리', 전원·전지 표기 없음(170~184행)",
+      "why_not_other": "전기 구동·전지·발열 기능이 없는 비전자 제품이다. '내열성'은 소재 성질이지 발열 기능이 아니다."
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "제목 '유아 수유병 신생아용'(10행), 스펙표 '연령대: 0~6M,7~12M'(181~182행)",
+      "why_not_other": "영아 대상 연령 표기가 있다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '배앓이 방지 실리콘 젖꼭지'(10행), 키워드 'Anti-colic baby bottle'(198행)",
+      "why_not_other": "'배앓이 방지'는 건강 효능 표방으로 기준 (1)·(4)에 해당한다. '누수 방지'는 기능 설명이라 단독으로는 근거로 보지 않았다."
+    }
+  },
+  "notes": "상세 이미지는 배너(img_01)와 로딩 자리 표시(img_02)뿐이라 이미지 근거는 없다."
+}

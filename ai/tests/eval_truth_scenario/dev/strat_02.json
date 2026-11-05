@@ -1,0 +1,42 @@
+{
+  "fixture": "strat_02/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 HUANG FU 고정날 야외용 칼(블레이드 9.1cm 강철, 플라스틱 손잡이, 칼집). 비전자 제품이라 전파·전기는 고르지 않는다. 용도는 '캠핑·목공'이고 음식 조리 언급은 없어 식약이 애매하다. 설명 글(description.txt)의 '날카로움을 보장'이 표시광고 근거다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '중국'(원문 193~194행), 알리익스프레스 해외 직구 상품. 칼이라 통관 시 도검류 확인도 필요하다",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '블레이드 소재: 강철', '손잡이 소재: 플라스틱'(원문 197~200행), 유형 '다기능 나이프'(원문 189~190행). 이미지(img_01~09) 칼·칼집뿐",
+      "why_not_other": "전자 부품이 없는 칼로 구성이 확인된다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "제목 '캠핑용 칼'(원문 4행), description '캠핑, 하이킹 및 기타 야외 활동에 필수적인 도구'(description.txt 2행), 스펙표 'DIY 용품: 목공'(원문 201~202행)",
+      "why_not_other": "음식 접촉·효능·미용 표방이 없고, 귓구멍·점막에 넣는 용도도 아니다. (사용자 기준 기준5, 11/5)"
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '블레이드 소재: 강철', '손잡이 소재: 플라스틱'(원문 197~200행). 전원·전지 표기 없음",
+      "why_not_other": "비전자 칼로 구성이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "경고 '구매하기 전에 관할 지역의 해당 법률 및 규정을 준수하십시오'(원문 26행), 이미지 사용자 성인 손(img_08)",
+      "why_not_other": "어린이 대상 표기가 없고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "description '고급 강철로 제작된 이 칼은 … 내구성과 날카로움을 보장합니다'(description.txt 8행), '장시간 사용 시 피로를 줄여줍니다'(description.txt 6행), 제목 '고품질의'(원문 4행)",
+      "why_not_other": "'보장한다'는 절대적 표현이고 '피로를 줄여준다'는 효과 표방이다. AI 상품 요약(원문 19~23행)은 근거로 쓰지 않았다.",
+      "image_only": true
+    }
+  },
+  "notes": "애매: 식약 — 캠핑용 칼의 음식 접촉은 페이지에 적혀 있지 않고 용도는 '목공'으로만 적혀 있다. 원칙 1로 true. 표시광고 근거는 text.txt가 아닌 description.txt(알리 설명 글)에 있다. [기준5: food_drug_safety True→False] [labeling_advertising_detection: 근거가 설명 글·이미지에만 있어 글 입력 밖으로 표시]"
+}

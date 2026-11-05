@@ -1,0 +1,43 @@
+{
+  "fixture": "strat_19/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 heenvn 테슬라 모델 Y 주니퍼·모델 3 하이랜드용 ABS 센터 콘솔 수납함. 글(제목·스펙표)은 품명·재질·호환 차종 나열뿐이라 통관만 확실하다. 상세 이미지(img_01)에 'Light-up function', 'Illuminates Your Items'가 있어 전기를 애매하게 고르고, 'Surpassing It'·경쟁 제품 비교표로 표시광고를 고르는데 두 근거 모두 이미지에만 있는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 189~190행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 'ABS 센터 콘솔 오거나이저 트레이 암레스트 수납함'(10행), 스펙표 '유형: 팔걸이 박스 수납'(185~186행). 이미지 구성 '3M adhesive tape', 'Magnetic closure', 'Fluid Silicone Lining'(img_01)",
+      "why_not_other": "플라스틱 수납함이라 무선 통신·무선충전·전파 차폐 기능이 없다. 이미지 'Charging Port Cutout — Charging port cut'(img_01)은 차량 충전 단자 자리를 뚫어 둔 구멍이지 무선충전 기능이 아니다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "스펙표 '유형: 팔걸이 박스 수납'(185~186행), 이미지 'Cup Holder Insert'(img_01). 음식 접촉·의료·미용 문구 없음",
+      "why_not_other": "차량 수납 트레이이고 컵홀더 인서트는 컵을 받치는 부품이라 음식에 직접 닿지 않는다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "image_only": true,
+      "evidence": "이미지 'Light-up function'(img_01 중단, Center Console Organizer Tray 설명), 'Illuminates Your Items for Easy Access'(img_01 하단). 글(제목·스펙표)에는 전원·전지·조명 표기 없음",
+      "why_not_other": "트레이 기능 목록에 'Light-up function'이 있어 LED 조명이 내장됐을 수 있다. 장면상 차량 앰비언트 조명이 비치는 것으로도 보여 확신할 수 없지만 원칙 1에 따라 고른다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '테슬라 모델 Y … 센터 콘솔 오거나이저'(10행), 스펙표 Fitment(191~194행). 어린이 대상 표기·연령 없음",
+      "why_not_other": "차량용 액세서리이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "image_only": true,
+      "evidence": "이미지 'Adhering to Tesla's Design Philosophy, And Surpassing It', 비교표 'Others: Reduced space, no big cup fit / Wigoo: No cup holder space loss', 'Others: Single-layer rigid material, prone to scratches … / Wigoo: Double-layer design to prevent scratches and impacts', 'OEM-like fit'(img_01). 글(제목·스펙표)은 품명·재질·호환 차종 나열뿐",
+      "why_not_other": "제조사 디자인을 '뛰어넘는다'는 우월 표현과 근거 없는 타사 비교 광고가 이미지에 있다. 글만 보면 스펙 나열이라 고를 근거가 없다. AI 요약 '완벽하게 조화', '극대화'(25~26행)는 판매자 문구가 아니라 근거가 아니다."
+    }
+  },
+  "notes": "애매: electrical_safety는 'Light-up function'이 내장 LED인지 차량 조명을 받는 구조인지 이미지로 판별되지 않는다. 사용자 확인 필요. 이미지 비교표 브랜드 'Wigoo'가 스펙표 브랜드 'heenvn'(188행)과 다르다."
+}

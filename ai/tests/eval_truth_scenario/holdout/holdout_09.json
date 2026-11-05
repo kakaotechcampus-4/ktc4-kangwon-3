@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_09/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "야광 Qi 무선 충전 패드(Temu, SD-9). 무선 충전과 USB 전원이 스펙표에 명시된 전자기기. 표시광고는 '15W 고속'·'Qi 호환'이 근거가 되는지 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 중국)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "스펙표 '충전 기능: 무선'(94~95행), '무선 속성: 무선 충전 기능 포함'(100~101행), 제목 'Qi 호환 충전기'(121행)",
+      "why_not_other": "무선 충전이 명시되어 선택한다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '휴대폰&액세서리 > 무선 충전기'(43~44행), 스펙표에 식품 접촉·의료·미용 관련 내용 없음",
+      "why_not_other": "충전 패드라 음식 접촉·의료·미용 표방이 없다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 모드: USB'(87~88행), '작동 전압: ≤36V'(89~90행), 제목 '15W 고속 충전'(121행)",
+      "why_not_other": "전기 구동이고 전압·전력 표기가 있다. '배터리 미포함'(99행)이지만 전기 구동만으로 충분하다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령·어린이 대상 표기 없음. 카테고리 '휴대폰&액세서리'(43행)",
+      "why_not_other": "범용 휴대폰 액세서리이며 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '15W 고속 충전 패드', '초슬림 Qi 호환 충전기'(121행). 이미지 'FAST CHARGER'(img_01)",
+      "why_not_other": "'15W 고속', 'Qi 호환'은 사양이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: labeling_advertising_detection — '15W 고속'·'Qi 호환'이 사양 설명인지 과장·해외 인증 표방인지 갈릴 수 있어 원칙 1로 true. 인증정보는 '이 제품에 적용되지 않습니다'(93행). [기준3: labeling_advertising_detection True→False]"
+}

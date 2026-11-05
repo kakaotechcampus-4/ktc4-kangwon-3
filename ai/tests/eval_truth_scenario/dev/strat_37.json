@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_37/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "Temu '일본산 원목 수제 스푼' 1개(18.5cm). 음식에 닿는 식기라 식약을 고르고, 목재 비전자 제품이라 전파·전기는 해당 없다. 제목의 '일본산'이 원산지 근거 없이 쓰였는지(스펙표에 원산지 없음) 때문에 표시광고가 경계선이다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "Temu 해외 직구 상품(105행 '관세 등을 포함')",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 목재'(84~85행). 이미지(img_01)는 나무 스푼 한 개",
+      "why_not_other": "전원부 없는 나무 식기라 무선 통신·무선충전·전파 차폐 근거가 없다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '가정용 수프 스푼, 죽 스푼, 혼합 스푼, 커피 스푼, 꿀 스푼, 디저트 스푼 … 나무 식기'(93행)",
+      "why_not_other": "입과 음식에 직접 닿는 식기다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 목재'(84~85행). 전원·전지·전압 표기 없음",
+      "why_not_other": "나무 식기로 구성이 확인되는 비전자 제품이다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표에 연령·어린이 표기 없음. 제목 '호텔 레스토랑용 나무 식기'(93행)",
+      "why_not_other": "어린이 대상 표기·연령이 없고 학용품·완구도 아닌 범용 제품이라 고르지 않는다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '일본산 원목 수제 스푼'(93행). 스펙표(84~90행)에는 원산지 항목이 없고 판매자는 Temu 판매자 'XYXZR'(71행)",
+      "why_not_other": "'일본산·수제'는 다섯 유형에 들지 않는다(스펙표에 원산지가 없는 점은 notes). 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: labeling_advertising_detection. 기준의 5가지 유형에 원산지 표방은 명시돼 있지 않다. '일본산'·'수제'를 미검증 표방으로 볼지 사용자 확인 필요. 이를 빼면 제목은 용도 나열이라 false다. '#4 베스트셀러'(97행)·'45% 할인'(103행)은 플랫폼 배지·가격 표시라 근거로 쓰지 않았다. [기준3: labeling_advertising_detection True→False]"
+}

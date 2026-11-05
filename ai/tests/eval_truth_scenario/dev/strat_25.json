@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_25/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "KOILAGER 10000mAh 마그네틱 무선 보조배터리(Temu, 22.5W/PD20, 리튬 폴리머). 제목의 '무선 보조 배터리'로 전파, 전지 제품 자체로 전기를 고르고, 제목의 '초강력'으로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '광둥, 중국'(114~115행), Temu 해외 직구 수입품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 '휴대용 10000mAh 초강력 마그네틱 무선 보조 배터리'(124행), 이미지 '15W magnetic suction wireless charging'(img_02), 'it still supports wireless charging'(img_01), 코일 단면(img_04)",
+      "why_not_other": "무선충전 기능이 있어 기준상 선택한다. 스펙표는 '충전 기능: 범용'(89~90행)뿐이지만 제목 글에 '무선 보조 배터리'가 있어 image_only가 아니다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '휴대폰&액세서리 > 보조 배터리'(40~41행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "보조배터리라 음식 접촉이 없고 피부·점막에 작용하는 용도도 아니다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 모드: 배터리 전원/USB 이중 사용', '작동 전압: ≤36V', '충전식 배터리: 리튬 배터리 폴리머', '배터리 용량(mAh): 10000'(91~102행), 제목 '22.5W/PD20 고속 충전'(124행)",
+      "why_not_other": "전지 자체가 상품이고 전압·용량·전력 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표·이미지에 어린이 대상·연령 표기 없음. 이미지는 휴대폰과 보조배터리뿐",
+      "why_not_other": "성인용 전자 액세서리이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '초강력 마그네틱 무선 보조 배터리, 22.5W/PD20 고속 충전 지원'(124행), 이미지 '22.5W Super Fast Charging'(img_02), 'Efficient output Full vitality'(img_04)",
+      "why_not_other": "'초강력'이 기준 (5)의 과장 가능 표현에 해당한다. 리뷰(54~72행)와 연관 상품 제목(166행 이후)은 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "117행 '주의: 화재 및 화상 위험 …'은 테무 배터리 표준 경고문으로 보여 표시광고 근거로 쓰지 않았다."
+}

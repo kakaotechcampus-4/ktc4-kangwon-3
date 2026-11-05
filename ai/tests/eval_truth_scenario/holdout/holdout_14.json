@@ -1,0 +1,40 @@
+{
+  "fixture": "holdout_14/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "고양이 키캡 키보드 모양 키체인(피짓 장난감, Temu). 이용 가능 연령 3+와 CE-Toy 인증 표기가 있어 어린이제품 대상이고, '스트레스 해소'가 효능 표방이다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 중국)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "소재 플라스틱(86~87행), 체인 재질 나일론 로프·합금철(90~91행). 전원·전지·무선 표기 없음",
+      "why_not_other": "비전자 키링으로 구성이 확인된다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '차량 용품 > 열쇠고리&키 홀더'(42~43행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "'스트레스 해소'(116행)는 심리적 효과 표현으로 표시광고에서 다루며, 의료기기 수준의 효능 주장은 아니다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "소재 플라스틱(86~87행), 나일론 로프·합금철(90~91행). 전원·전지·LED 표기 없음. 이미지도 키캡 장식뿐(img_01)",
+      "why_not_other": "비전자 제품으로 구성이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "'이용 가능 연령대:3+'(115행), '인증정보: CE-Toy; CPC'(92행), 제목 '스트레스 해소 액세서리'(116행)",
+      "why_not_other": "만 13세 이하를 포함하는 연령 표기와 완구 인증 표기가 있다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '스트레스 해소'(116행 두 번), '인증정보: CE-Toy; CPC'(92행)",
+      "why_not_other": "'스트레스 해소'는 효능 표방(1), CE-Toy·CPC는 해외 인증 표기(3)에 해당한다."
+    }
+  }
+}

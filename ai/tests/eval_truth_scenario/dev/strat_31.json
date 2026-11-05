@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_31/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "Temu USB 전원 차량용 가습기·디퓨저(7색 무드 라이트). 스펙표 '전원 모드: USB'·'작동 전압 ≤36V'로 전기를 고르고, 무선 여부가 페이지에 없는 전자기기라 전파도 고른다. 제목 '스마트'는 통신 근거가 아니다. 제목 '완벽한 선물'과 '향기 디스펜서'(스펙표는 '향료 없음')로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '광둥, 중국'(109~110행), Temu 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '전원 모드: USB'(86~87행), '작동 전압: ≤36V'(88~89행)로 전자기기. 블루투스·WiFi·앱·리모컨 언급은 제목·스펙표·이미지 어디에도 없음. 제목 '스마트'(116행)는 통신 근거 아님",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 유선 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "제목 '가습기, 디퓨저 … 향기 디스펜서'(116행), 스펙표 '향료 없음(빈병, 화학성분 없음)'(94~95행). 음식 접촉·의료·미용 효능 문구 없음. 이미지 'Humidification', 'fragrant', 'Nano Atomization'(img_02)",
+      "why_not_other": "차량 공기에 미스트를 뿌리는 기기로 음식 접촉이 없고, 질병·건강·미용 효과를 표방하지 않는다. 'fragrant'는 향 기능 표기이지 효능 표방이 아니다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 모드: USB'(86~87행), '작동 전압: ≤36V'(88~89행), '배터리 속성: 배터리 미포함'(90~91행), 이미지 'USB Interface', 'Seven Color Lamp'(img_02)",
+      "why_not_other": "USB로 구동되는 전기 제품이고 전압 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '침실, 책상, 사무실에 이상적 | 크리스마스, 할로윈, 생일을 위한 완벽한 선물'(116행). 연령·어린이 표기 없음. 이미지 속 사용자는 성인(img_03)",
+      "why_not_other": "어린이 대상 표기·연령이 없고 학용품·완구도 아닌 범용 제품이라 고르지 않는다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '모든 차종에 적합'·'완벽한 선물'(116행), 제목 '에어 프레셔너 … 스마트 자동차 향기 디스펜서'(116행) vs 스펙표 '향기 유래 포함: 향료 없음(빈병, 화학성분 없음)'(94~95행)",
+      "why_not_other": "'완벽'은 기준의 절대 표현이고, 향 제품처럼 부른 제목이 스펙표의 '향료 없음'과 어긋나 오인 표시 소지가 있다. 연관 상품의 '배터리 없음'(150행)과 리뷰는 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "애매: radio_compliance는 USB 유선 가습기라 실제 무선 기능은 없을 가능성이 높지만 페이지가 무선 여부를 밝히지 않아 기준대로 true. 표시광고 근거 '완벽한 선물'은 선물 문구라 약하지만 '향기 디스펜서' vs '향료 없음' 어긋남이 있어 true 판단은 흔들리지 않는다. [기준1: radio_compliance True→False]"
+}

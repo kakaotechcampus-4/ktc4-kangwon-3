@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_15/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "핀백 2D 플랫 패션 배지 4개 세트(Temu). 비전자 액세서리. '동급생', '백팩', '애니메이션 배지'가 어린이 대상 문맥인지 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 중국)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "소재 플라스틱(55~56행), 뒷 버클 철 합금(61~62행)",
+      "why_not_other": "비전자 배지라 무선 기능이 없다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '주얼리&액세서리 > 남성 넥타이&액세서리'(42~43행), 배지(63~64행)",
+      "why_not_other": "옷·가방에 다는 장식품이라 음식 접촉·의료·미용 표방이 없다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "소재 플라스틱(55~56행), 뒷 버클 철 합금(61~62행). 이미지도 안전핀 뒷면뿐(img_01)",
+      "why_not_other": "비전자 제품으로 구성이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '가족, 동급생, 친구들 사이에서 재미있는', '백팩, 애니메이션 배지'(89행)",
+      "why_not_other": "연령 표기가 없고 학용품·완구가 아니다. 어린이도 쓸 수 있다는 것만으로는 어린이제품이 아니다. (사용자 기준 기준4, 11/5)"
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '창의적인 아이디어를 완벽하게 표현', '고품질 배지에 적합'(89행)",
+      "why_not_other": "'완벽하게'는 최상급·절대 표현(2)이다. 가게 소개 '고품질이고 저렴한 제품'(85행)은 가게 단위 소개라 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "애매: children_product_safety — 연령 표기가 없고 '동급생'·'백팩'·'애니메이션' 문맥만 있어 판단이 갈린다. 원칙 1로 true. [기준4: children_product_safety True→False]"
+}

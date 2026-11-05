@@ -1,0 +1,42 @@
+{
+  "fixture": "holdout_03/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "2200W 스마트 에어프라이어·피자 오븐(알리). 전기·식품 접촉은 명확하고, 제목 '스마트'만 있고 무선 기능은 확인되지 않는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(알리익스프레스, 원산지 중국)",
+      "why_not_other": "통관은 해외 직구 수입품이면 사실상 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 'ROUNY 2200W 스마트 에어프라이어'(10행). 이미지 10·17은 터치 패널만 보이고 WiFi·앱·블루투스 표기 없음, 스펙표에도 무선 항목 없음(146~158행)",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 유선 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '에어프라이어', '피자 오븐'(10행), description.txt '닭날개 32개를 담을 수 있습니다', 이미지 1 'BPA FREE Food-Grade Material'",
+      "why_not_other": "음식을 직접 담아 조리하는 기구다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 '2200W'(10행), 스펙표 '전압: 220-240V용'(157~158행), 옵션 '220V-240V EU 플러그'(19행), 이미지 17 'Power 2200 W'",
+      "why_not_other": "전기 구동·발열 기능이 있고 전력·전압 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없음. 이미지 18 'not intended for use by persons (including children) ... unless supervised'",
+      "why_not_other": "어린이 대상이 아닌 가정용 주방 가전이다. 이미지 14의 아이는 생활 장면 사진일 뿐이다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "description.txt '열 손실 없이 진행 상황을 모니터링', '뒤집힐 염려가 없으며'. 이미지 7 'FITS A WHOLE 12-INCH PIZZA PERFECTLY', 이미지 11 'THE ULTIMATE RACK', 'perfect, professional-grade crunch', 이미지 15 'Zero plastic smell', 이미지 5 '3X THE COOKING SURFACE', 이미지 16 상자 'PRO-LEVEL APPLIANCE'",
+      "why_not_other": "절대·최상급 표현('PERFECTLY', 'ULTIMATE', 'Zero', '열 손실 없이')과 비교 수치('3X')가 있어 기준 (2)·(5)에 해당한다. 텍스트 근거(description.txt)도 있어 image_only로 두지 않았다.",
+      "image_only": true
+    }
+  },
+  "notes": "애매: 전파는 '스마트' 표기뿐이고 무선 기능 근거가 없지만 전자기기라 원칙 1로 true. 페이지에 무선이 없다고 적혀 있지도 않다. 스펙표 'KC 인증정보: 확인되지 않음'(147~148행). [기준1: radio_compliance True→False]"
+}

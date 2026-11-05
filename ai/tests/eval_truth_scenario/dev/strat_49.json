@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_49/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 소닉 실리콘 안면 클렌징 브러시(USB 충전, 리튬 폴리머 400mAh, 작동 전압 ≤36V). 전기·전지 표기가 뚜렷하고, 무선 통신 여부가 확인되지 않는 전자기기라 전파도 고르며, 제목의 '모공 클리너, 블랙헤드 제거 및 각질 마사저'가 미용 효과 표방으로 식약·표시광고를 고르는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품. 스펙표 '원산지: 저장, 중국'(116~117행)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '전원 모드: USB 충전'(94~95행), '인증정보: CE-RoHS; CE-EMC(Electric)'(100행), 제목 '전기 페이스 스크러버'(121행)",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 유선 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '안면 클렌징 브러시 … 모공 클리너, 블랙헤드 제거 및 각질 마사저, 여성 및 남성용 피부 관리 도구'(121행), img_03 'GENTLE SKIN CARE FOR ALL'과 거품 낸 얼굴에 대고 쓰는 장면",
+      "why_not_other": "얼굴 피부에 직접 쓰는 미용 기기이고 모공·블랙헤드·각질 개선(미용 효과)을 표방한다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 모드: USB 충전', '작동 전압: ≤36V', '배터리 속성: 충전식 배터리', '충전식 배터리: 리튬 배터리 폴리머', '배터리 용량(mAh): 400'(94~104행), 카테고리 '전기제품 > 개인 관리 가전제품'(43~44행)",
+      "why_not_other": "전기 구동·전지 포함·전압·mAh 표기가 모두 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '여성 및 남성용'(121행), img_03 성인 남녀 사용 장면, 어린이 대상·연령 표기 없음",
+      "why_not_other": "성인용 미용 기기이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '모공 클리너, 블랙헤드 제거 및 각질 마사저, 피부 관리 도구'(121행), 스펙표 '인증정보: CE-RoHS; CE-EMC(Electric)'(100행), img_03 'GENTLE SKIN CARE FOR ALL'",
+      "why_not_other": "블랙헤드 제거·모공 관리는 미용 효과 표방(기준 (1)·(4))이고 CE 해외 인증 표기(기준 (3))도 있다. 리뷰 '정밀세안'(72행)은 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "전파는 무선 표기가 없지만 '무선 여부 미확인 전자기기' 기준과 CE-EMC 표기로 true. 원문 37행 '카테고리 / 샤워기헤드'는 내비게이션 잔여물이다. [기준1: radio_compliance True→False]"
+}

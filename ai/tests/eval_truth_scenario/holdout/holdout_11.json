@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_11/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "QILIEASY 핸드헬드 스틱 무선(코드리스) 진공청소기(Temu). 18650 리튬 충전지·정격전력 100W 표기. 제목 '무선'은 코드리스 뜻이고 CE-EMC·'초강력' 표기가 있다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 중국)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '길이: 무선'·'코드 유형: 무선'(78~81행)은 코드리스 뜻. 블루투스·WiFi 표기 없음. '인증정보: CE-EMC'(65행)",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 유선 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '전기제품 > 진공청소기&바닥 관리'(43~44행), 기체 재질 ABS(70~71행)",
+      "why_not_other": "청소기라 음식 접촉·의료·미용 표방이 없다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "'작동 전압: ≤36V'(59~60행), 'USB 충전'(61~62행), '리튬 배터리-18650 시리즈'(66~67행), '정격전력(W): 100'(76~77행)",
+      "why_not_other": "전기 구동·전지 포함·정격 표기가 모두 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령·어린이 대상 표기 없음. '가정, 애완동물 청소 및 자동차 청소에 적합'(114행)",
+      "why_not_other": "가정용 청소기이며 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '20000Pa 초강력 흡입력'(114행), '인증정보: CE-EMC(Electric); CE-RoHS'(65행)",
+      "why_not_other": "'초강력'과 '20000Pa'는 과장 가능한 수치·표현(5), CE 표기는 해외 인증 표기(3)에 해당한다."
+    }
+  },
+  "notes": "애매: radio_compliance — 코드리스 청소기라 무선 통신이 없을 가능성이 크지만 페이지로 확인되지 않아 원칙상 true. [기준1: radio_compliance True→False]"
+}

@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_04/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "1000mAh 블루투스 통화 스마트워치(알리). 전파·전기는 명확하고, 심박수·혈중 산소 측정 표방이 식약·표시광고에 걸리는지 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(알리익스프레스, 원산지 중국)",
+      "why_not_other": "통관은 해외 직구 수입품이면 사실상 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "스펙표 '블루투스 호환 버전 5.2'(188~189행), '앱 다운로드 가능: 예'(204~205행), 기능 '응답 전화, 다이얼 전화, 푸시 메시지'(248~249행)",
+      "why_not_other": "블루투스 통신과 앱 연동·통화 기능이 있다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "제목 '심박수 측정'(10행), 스펙표 '측정 지표: 심박수 모니터, 여성 건강 모니터링, 혈액 산소 모니터, 수면 모니터링'(192~193행)",
+      "why_not_other": "음식 접촉·효능·미용 표방이 없고, 귓구멍·점막에 넣는 용도도 아니다. (사용자 기준 기준5, 11/5)"
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 '1000mAh 배터리'(10행), 스펙표 '배터리 분리 가능: 아니요'(206~207행), '배터리 용량(mAh) >450mAh'(258~259행)",
+      "why_not_other": "전지 내장 전자기기이고 용량 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 '부서: 남녀공용-성인'(176~177행), '적용 연령대: 성인'(212~213행), 제목 '남성용'",
+      "why_not_other": "성인용 표시가 있다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '울트라', '심박수 측정'(10행), 스펙표 '혈액 산소 모니터', '여성 건강 모니터링'(193행)",
+      "why_not_other": "'울트라', 측정 기능 표기는 효능 표방이 아니다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: 식약·표시광고 모두 심박수·혈중 산소 '측정' 표기를 의료 효능 표방으로 볼지에 달려 있어 true로 두었다. 상세 이미지는 로딩 자리 표시(img_01)뿐이라 이미지 근거는 없다. [기준3: labeling_advertising_detection True→False] [기준5: food_drug_safety True→False]"
+}

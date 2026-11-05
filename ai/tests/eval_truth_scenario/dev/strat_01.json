@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_01/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 MAGKING MagSafe 자석 카드지갑(PU, 3단 접이, RFID 차단 소재). 전파 차폐(RFID 차단)로 전파를 고르는 케이스다. 이미지의 초록 번개 아이콘은 MagSafe 부착 표시이고, 판매자가 '무선충전할 때는 지갑을 떼라'(img_21~25)고 적어 무선충전 기능이 없다. 재질이 PU로 명시된 비전자 제품이다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '중국 / Guangdong'(원문 171~174행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 'MagSafe 지갑 RFID 차단 마그네틱 카드 홀더'(원문 4행), 상세 이미지 'RFID BLOCKING MATERIAL — Wallet contains RFID material inside, Protect your private information from unauthorized scans'(img_11~20)",
+      "why_not_other": "RFID 차단(전파 차폐)이 제목과 이미지에 상품 기능으로 명시돼 있다. 무선 통신·무선충전은 없지만(img_21~25 '무선충전할 때는 지갑을 떼라') 차폐 하나로 선택 기준을 충족한다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "품목 유형 '카드 및 신분증 홀더'(원문 179~180행), 주요 소재 '푸(PU)'(원문 169~170행). 판매자 글·이미지에 음식 접촉·의료·미용 표방이 없다",
+      "why_not_other": "손에 쥐고 휴대하는 일반 지갑이라 피부 접촉으로도 고르지 않는다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "주요 소재 '푸(PU)'(원문 169~170행), 여밈 방식 '걸쇠'(원문 177~178행), 이미지 'combined by the Magsafe Magnetic'(img_01~05). 전원·전지·정격 표기 없음",
+      "why_not_other": "PU 지갑과 자석으로 구성이 확인된다. 초록 번개 아이콘(img_06~10·26~35)은 MagSafe 표시이고, img_21~25가 충전 기능이 없음을 직접 말한다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 '성별: 남녀공용'(원문 175~176행), 이미지 사용자 전부 성인(img_16~25)",
+      "why_not_other": "연령·어린이 대상 문구가 없고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "상세 이미지 'Protect your private information from unauthorized scans'(img_11~20), 'SECURE STORAGE FOR CARD PROTECTION'(img_16~20). 제목 'MagSafe'(원문 4행)",
+      "why_not_other": "'unauthorized scans' 보호는 기능 설명이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: 표시광고 — 'Protect your private information from unauthorized scans'를 효능 표방으로 볼지 단순 기능 설명으로 볼지 갈린다. 원칙 1로 true. 근거가 이미지에만 있다. [기준3: labeling_advertising_detection True→False]"
+}

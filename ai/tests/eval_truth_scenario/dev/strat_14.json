@@ -1,0 +1,43 @@
+{
+  "fixture": "strat_14/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 영문 페이지 HiMISS 어린이용 나무 코너 주방 놀이세트(핑크, Ages 3+, Recommend Age 3-6Y, Material Wood). 완구라 어린이는 확실하다. text.txt는 재질 Wood뿐이지만 description.txt(판매자 상세 글)에 'Turning knobs with fun sound effects'가 있어 소리 모듈(전지) 가능성으로 전기를 고르고, 같은 글의 'meets ASTM and CPSIA safety requirements', 'BPA-free, non-toxic'로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 'Origin: Mainland China / CN / Guangdong'(원문 142~145행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목·스펙표·description.txt·이미지 어디에도 블루투스·WiFi·리모컨·앱·무선충전·전파 차폐 언급 없음. 스펙표 'Material: Wood'(138~139행), 태그 'Pretend Play Toys'(151행)",
+      "why_not_other": "나무 놀이 가구이고 전자 부품은 '소리 효과' 한 줄로만 추정된다. 소리 모듈이 있어도 통신 기능을 시사하는 문구가 없어 고르지 않았다. 연관 상품의 'Lights & Sounds'(20행)는 다른 상품이다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "태그 'Pretend Play Toys'(151행), 이미지 'READY FOR PRETEND COOKING — Cookware and utensils included'(img_05), description.txt 'play utensils and assorted cookware'. 의료·미용 효능 문구 없음",
+      "why_not_other": "포함된 냄비·식기는 흉내 놀이용 장난감이라 실제 음식 접촉 용도가 아니다. 'Communication Ability/Self-confidence Developing'(135행)은 놀이 발달 문구로 의료·미용 효능 표방이 아니다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "description.txt 'Realistic Kitchen Features & Sounds', 'Turning knobs with fun sound effects make pretend cooking more interactive'. 이미지 냉장고 디지털 표시창('3 15')·레인지 후드·전자레인지 제어 패널(img_08). text.txt 스펙표에는 'Material: Wood'(138~139행)뿐이고 전원·전지 표기 없음",
+      "why_not_other": "소리 효과가 나는 손잡이는 통상 전지 구동 소리 모듈을 뜻한다. 다만 기계식 딸깍 소리일 수도 있고 전원 표기가 없어 확정할 수 없다. 원칙 1(모르면 고름)에 따라 고른다.",
+      "image_only": true
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "제목 'Corner Kids Wooden Play Kitchen Set … Gift For Boys & Girls Ages 3+'(10행), 스펙표 'Recommend Age: 3-6Y'(146~147행), 태그 'Kids Play Kitchen', 'Pretend Play Toys'(150~151행), 이미지 'MADE FOR THE PLAYROOM — A cozy fit for kids rooms'(img_03)",
+      "why_not_other": "어린이 대상 연령 표기가 있는 완구다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "description.txt 'Made with BPA-free, non-toxic materials, this wooden kitchen meets ASTM and CPSIA safety requirements', 'helps reduce tipping risks'. text.txt 스펙표 'Function: Communication Ability/Self-confidence Developing'(134~135행)",
+      "why_not_other": "미국 안전 기준(ASTM·CPSIA) 충족과 BPA-free·무독성을 근거 없이 표방한다(유형 3). 스펙표의 의사소통 능력·자신감 발달도 효능 표방(유형 1)으로 볼 수 있다. 플랫폼 배너 'FREE GIFT · Free shipping'(img_09)은 근거가 아니다.",
+      "image_only": true
+    }
+  },
+  "notes": "애매: electrical_safety는 description.txt의 '소리 효과' 한 줄과 이미지의 디지털 패널 모양에 기대며, text.txt만 보면 재질 Wood뿐이라 근거가 없다. 소리 모듈이 실제 전지 구동인지 사용자 확인 필요. radio_compliance는 소리 모듈이 있어도 통신 문구가 없어 false로 뒀는데, '전자기기인데 무선 여부 미확인이면 true' 기준을 엄격히 적용하면 true가 될 수 있다. labeling_advertising_detection의 가장 강한 근거(ASTM·CPSIA)는 description.txt에만 있고 text.txt에는 스펙표 Function 칸만 있다. [electrical_safety: 근거가 설명 글·이미지에만 있어 글 입력 밖으로 표시] [labeling_advertising_detection: 근거가 설명 글·이미지에만 있어 글 입력 밖으로 표시]"
+}

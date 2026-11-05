@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_07/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 사슴 캐릭터 USB 충전식 전기 손난로(3000mAh, 보조배터리·야간 조명 겸용). 발열·전지로 전기를 고른다. 무선 기능 언급은 없지만 부재 표기도 없는 전자기기라 전파는 원칙대로 고른다. 제목 '겨울 학생용 선물'과 캐릭터 디자인으로 어린이가 애매하다. 스펙표 'CCC' 인증 표기와 이미지 'heal the fatigue of the day'로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 179~180행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "블루투스·WiFi·무선충전 언급 없음. 충전은 'Type-c fast charging input', 'Usb output'(img_02), 케이블로 콘센트에 연결한 사진(img_06). 스펙표에 무선 여부 항목이 없다(원문 172~180행)",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 유선 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "제목 '손난로'(원문 10행), 이미지 'Silky material, comfortable to hold'(img_04), 'Product material: Abs+pc+digital components'(img_07)",
+      "why_not_other": "손에 쥐는 일반 용도라 피부 접촉만으로 고르지 않는다. 'warm your hands and heart'(img_03)는 발열 기능 표현이고 'calm down and heal the fatigue of the day'(img_05)는 야간 조명 분위기 문구라 의료 효능 표방으로 보지 않았다(표시광고에서 다룸)."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 'USB 전기 손난로 3000mAh 휴대용 미니 파워뱅크'(원문 10행), 스펙표 '배터리 포함: 예'(원문 175~176행), 이미지 'Charging input 5V', 'Heating temperature 65-55-45℃'(img_07)",
+      "why_not_other": "전기 구동·전지 내장·발열 기능이 모두 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '귀여운 애완동물 … 겨울 학생용 선물'(원문 10행), 이미지 'High-end, adorable pet designs'(img_01) 사슴 캐릭터 디자인",
+      "why_not_other": "연령 표기가 없고 학용품·완구가 아니다. 어린이도 쓸 수 있다는 것만으로는 어린이제품이 아니다. (사용자 기준 기준4, 11/5)"
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 '인증서: 중국강제인증 (CCC)'(원문 173~174행), 이미지 'calm down and heal the fatigue of the day'(img_05), 'Type-c fast flash charging'(img_06), 'High-end'(img_01)",
+      "why_not_other": "해외 인증(CCC) 표기와 피로 회복 효과 표방이 있다."
+    }
+  },
+  "notes": "애매: 전파 — 무선 언급도 부재 표기도 없는 전자기기라 CRITERIA대로 true. 애매: 어린이 — '학생용 선물'과 캐릭터 디자인만 있고 연령 표기는 없다. 원칙 1로 true. [기준1: radio_compliance True→False] [기준4: children_product_safety True→False]"
+}

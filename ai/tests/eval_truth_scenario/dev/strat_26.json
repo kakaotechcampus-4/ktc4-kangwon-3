@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_26/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "ANKRIYUL 무선 스테레오 OWS 클립형 이어버드(Temu, 충전 케이스 포함, 리튬 폴리머). 판매자 글에 '블루투스'가 없어 '연결성: 무선'·'휴대폰과 호환'·'CE-RED'로 전파를 잡아야 하고, 귀에 거는 이어폰이라 식약 선택이 애매하며, 인증 표기와 '통증 없는'·'노이즈 최소화'로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "Temu 해외 직구 수입품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "스펙표 '연결성: 무선'(84~85행), 제목 'ANKRIYUL 무선 스테레오 이어버드 … 휴대폰과 호환'(94행), '인증정보: FCC ID; CE-RED(Electric); …'(90행)",
+      "why_not_other": "휴대폰과 무선으로 연결되는 이어폰이라 무선 통신이 있다. '블루투스'라는 단어는 리뷰(60행)에만 있어 근거로 쓰지 않았지만 판매자 글만으로 충분하다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "제목 '통증 없는 OWS 이어폰'(94행), 이미지 'CLIP EARBUDS' 귀에 거는 C자 클립형(img_01)",
+      "why_not_other": "음식 접촉·효능·미용 표방이 없고, 귓구멍·점막에 넣는 용도도 아니다. (사용자 기준 기준5, 11/5)"
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '배터리 속성: 충전식 배터리', '충전식 배터리: 리튬 배터리 폴리머'(86~89행), 제목 '충전 케이스 포함'(94행), '인증정보: … CE-EMC(Electric)'(90행)",
+      "why_not_other": "전기 구동이고 리튬 전지가 들어 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표·이미지에 어린이 대상·연령 표기 없음. 제목 '스포츠 헤드셋'(94행)",
+      "why_not_other": "성인용 전자기기이고 학용품·완구가 아니다. 리뷰 '아들것도 구매해서'(65행)는 구매자 문구라 근거로 쓰지 않았다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '노이즈 최소화 헤드폰, 통증 없는 OWS 이어폰'(94행), '인증정보: FCC ID; CE-RED(Electric); CE-RoHS; CE-EMC(Electric)'(90행)",
+      "why_not_other": "'통증 없는'은 신체 효과에 가까운 절대적 표현이고, '노이즈 최소화'는 검증이 필요한 성능 표방이다. 해외 인증(FCC, CE)을 인증 정보로 표기한 것도 기준 (3)에 해당한다."
+    }
+  },
+  "notes": "애매: 식약은 귀에 거는 오픈형(OWS) 이어폰이라 피부·점막 반응 용도인지 '입는 일반 용도'인지 갈린다. 프롬프트 예시 1의 이어폰 판단에 맞춰 true로 두었으니 사용자 확인 필요. 스펙표가 매우 짧고(84~90행) 상세 이미지는 1장뿐이다. [기준5: food_drug_safety True→False]"
+}

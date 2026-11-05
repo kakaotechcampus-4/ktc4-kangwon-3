@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_27/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "KE3 남성용 스포츠 스마트워치(Temu, 브랜드 EIGIIS, 통화·플래시라이트·IPX8·300mAh). '전화 받기/걸기'·폰 호환·앱 연동·CE-RED로 전파, 충전식 배터리로 전기를 고르고, 피트니스 트래커와 '의료 기기가 아닙니다' 고지 때문에 식약 선택이 애매하며, 인증 표기·'IPX8'·배터리 수명으로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "Temu 해외 직구 수입품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 '전화 받기/걸기 … 아이폰 및 안드로이드 폰 호환'(103행), 스펙 '시스템: Android 8.0 이상, iPhone 8.0 이상'(97행), '항상 모든 휴대폰 기능에 대한 앱 접근 권한을 승인하고'(99행), '인증정보: CE-RED(Electric); … FCC ID; UKCA-Radio(Electric)'(92행), 이미지 휴대폰 날씨 연동(img_03)",
+      "why_not_other": "휴대폰과 통화·앱 연동을 하는 무선 통신 기기다. '블루투스' 단어는 판매자 글에 없지만 통화·앱 연동으로 충분하다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "제목 '피트니스 트래커, 만보기'(103행), 판매자 고지 '이 앱은 의료 기기가 아닙니다 … 임상 진단 … 사용해서는 안 됩니다'(96행), '전문 의료 기기가 아닙니다! 데이터는 참고용입니다!'(99행), 이미지 시계 화면의 하트 아이콘 수치(img_03)",
+      "why_not_other": "음식 접촉·효능·미용 표방이 없고, 귓구멍·점막에 넣는 용도도 아니다. (사용자 기준 기준5, 11/5)"
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 모드: USB 충전', '작동 전압: ≤36V', '배터리 속성: 충전식 배터리'(86~91행), 스펙 '배터리: 300mAh'(97행), 구성품 '충전 케이블'(98행)",
+      "why_not_other": "전기 구동이고 전지가 들어 있으며 전압·용량 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '스포츠 스마트워치 for 남성'(103행), 적용 시나리오 '야외 스포츠, 야생 모험, 체육관, 파티, 비즈니스 행사'(97행). 연령 표기 없음",
+      "why_not_other": "성인 남성용으로 표시돼 있고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "'인증정보: CE-RED(Electric); CE-RoHS; CE-EMC(Electric); FCC ID; UKCA-Radio(Electric)'(92행), 스펙 '배터리 수명: 5-7일', '등급: IPX8'(97행), 제목 'IPX8 아웃도어 스포츠 워치, HD 터치'(103행), 이미지 'A Battery that Goes Above and Beyound'(img_02)",
+      "why_not_other": "해외 인증 표기가 기준 (3)에, 'IPX8'·'배터리 수명 5-7일'이 기준 (5)의 검증 필요 수치에 해당한다. 리뷰 '100% 정말 좋아해요!'(72행)는 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "애매: 식약. 의료 효능 문구는 없고 판매자가 오히려 의료기기 아님을 고지했다. 손목 착용 일반 용도로 보면 false가 맞을 수 있으니 사용자 확인 필요. '충전 방식: 자기 흡입 충전'(97행)은 자석 접점 케이블 충전으로 보이나, 무선충전으로 읽어도 전파 선택 결과는 같다. [기준5: food_drug_safety True→False]"
+}

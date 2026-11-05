@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_13/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "MIXIAOHE 셀프 접착 클러스터 인조 속눈썹(Temu). 눈가에 붙이는 미용용품이라 식약 대상이고, '글루프리'가 표시광고 근거가 되는지 보는 케이스. 상세 이미지 없음.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 중국)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "카테고리 '인조 속눈썹'(44행), 속눈썹 길이·컬 스펙(93~96행). 전자 부품 없음",
+      "why_not_other": "비전자 미용 소모품이라 무선 기능이 없다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "카테고리 '뷰티 & 맞춤 케어 > 인조 속눈썹'(43~44행), '접착식'(100행), 제목 '셀프접착 익스텐션'(119행)",
+      "why_not_other": "눈가 피부에 접착하는 미용용품으로 기준이 든 '속눈썹'에 해당한다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "속눈썹 스펙(91~100행)뿐이고 전원·전지 표기 없음",
+      "why_not_other": "비전자 제품으로 구성이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령·어린이 대상 표기 없음. '초보자용'(100·119행)은 화장 초보 뜻",
+      "why_not_other": "제목 'Sweet Girl'은 브랜드 라인명이고 어린이 대상 문맥이 아니다. 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '글루프리 가짜 속눈썹', '노리무벌', '리얼리틱 속눈썹'(119행)",
+      "why_not_other": "'글루프리'는 사양 설명이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: labeling_advertising_detection — '글루프리'가 별도 풀이 필요 없다는 사양 설명인지, 접착 성분 무첨가 표방인지 갈린다. 원칙 1로 true. [기준3: labeling_advertising_detection True→False]"
+}
