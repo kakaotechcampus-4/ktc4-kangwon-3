@@ -10,17 +10,23 @@ html {
     --font-sans: 'Pretendard Variable', 'Pretendard', sans-serif;
     /* Primary - CTA 버튼 (진단서 확인하기, 상품 추가하기 등) */
     --color-primary: #1058FC;
+    --color-primary-soft: #E7EEFB;    /* 에이전트 소개 카드 배경 */
 
     /* 진행 카드 반복 애니메이션 (Judgement/ProductProgressCard) */
     --animate-progress-sweep: progress-sweep 1.6s ease-in-out infinite;
     --animate-segment-breathe: segment-breathe 1.6s ease-in-out infinite;
+
+    /* 메인 미리보기 캐러셀 진행 바 (Main/Preview). 재생 시간은 --preview-duration으로 조절. */
+    --animate-preview-progress: preview-progress var(--preview-duration, 5s) linear forwards;
 
     /* Neutral - 텍스트, 테두리, 비활성 탭 */
     --color-neutral-dark: #646464;    /* 선택된 탭 배경, 보조 설명 텍스트 */
     --color-neutral-border: #767676;  /* 카드 테두리, placeholder, 비활성 텍스트 */
     --color-neutral-label: #6E7682;   /* 진단 근거 상세 라벨(주관부처, 근거조문 등) */
     --color-neutral-muted: #57626F;   /* 진단 근거 상세 본문 텍스트 */
-    --color-neutral-text: #3B3B3B; 
+    --color-neutral-text: #3B3B3B;
+    --color-neutral-line: #E3E5E8;    /* 카드 테두리(연한 구분선) */
+    --color-neutral-bg: #F3F6FC;      /* 카드 배경, 페이지 배경 */
 
     /* Status - 진단 결과 상태 (배지, 태그, 경고 배너 공통) */
     --color-status-success: #2F7A4D;
@@ -35,3 +41,4 @@ html {
 
 @keyframes progress-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 @keyframes segment-breathe { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.85; } }
+@keyframes preview-progress { from { width: 0; } to { width: 100%; } }

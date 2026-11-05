@@ -1,0 +1,34 @@
+import SectionIntro from "@/components/common/SectionIntro";
+
+import AgentCard from "./AgentCard";
+import { AGENT_DOMAINS } from "./constants";
+
+/** 메인 페이지 "6개 분야 에이전트" 소개 섹션. 분야별 역할·설명을 좌우로 교차 배치한다. */
+function AgentIntro() {
+    return (
+        <div className="flex w-full flex-col gap-8">
+            <SectionIntro
+                title="6개 분야 에이전트가 나눠서 확인해요"
+                description="AI가 확인이 필요한 분야만 골라, 각 분야 에이전트가 실제 법령과 규제를 확인해요."
+                size="2xl"
+            />
+            <ul className="flex flex-col gap-5">
+                {AGENT_DOMAINS.map((domain, index) => (
+                    <li key={domain.toolName}>
+                        <AgentCard
+                            icon={domain.icon}
+                            name={domain.name}
+                            role={domain.role}
+                            description={domain.description}
+                            chips={domain.chips}
+                            alwaysCheckTag={domain.alwaysCheckTag}
+                            reverse={index % 2 === 1}
+                        />
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+export default AgentIntro;

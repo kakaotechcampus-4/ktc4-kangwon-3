@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/client";
 import { SourceType } from "@/api/types.ts"
@@ -8,24 +8,23 @@ import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
-import { cn } from "@/lib/cn";
 
 import AddedProductList from "./AddedProductList.tsx";
 import { submitDiagnosis } from "./diagnosisPipeline.ts";
 import InputForm from "./InputForm.tsx";
+import InputTypeTabs, { type InputType } from "./InputTypeTabs.tsx";
 import type { Product } from "./types.ts";
 import { validateProduct } from "./validation.ts";
 
-const INPUT_TYPE_TABS = [
-    { key: SourceType.Url, label: "URL" },
-    { key: SourceType.TextImage, label: "텍스트 / 이미지" },
-] as const;
-
-type InputType = typeof INPUT_TYPE_TABS[number]["key"];
+// 메인 페이지의 평가용 체험 버튼(useDemoStart)이 navigate state로 넘겨주는 샘플 상품.
+interface UploadLocationState {
+    demoProducts?: Product[]
+}
 
 function UploadPage() {
     const [inputType, setInputType] = useState<InputType>(SourceType.Url);
-    const [products, setProducts] = useState<Product[]>([]);
+    const location = useLocation();
+    const [products, setProducts] = useState<Product[]>(() => (location.state as UploadLocationState | null)?.demoProducts ?? []);
     const navigate = useNavigate();
 
     const handleAddProduct = (product: Product) => {
@@ -72,21 +71,7 @@ function UploadPage() {
                 <>
                     {products.length < 10 ? (
                         <DefaultBox align="left">
-                            <div className="flex flex-row w-full gap-4">
-                                {INPUT_TYPE_TABS.map(({ key, label }) => (
-                                    <button
-                                        key={key}
-                                        type="button"
-                                        onClick={() => setInputType(key)}
-                                        className={cn(
-                                            "flex cursor-pointer items-center justify-center rounded-lg border px-6 py-2 text-base font-medium",
-                                            inputType === key ? "border-neutral-border" : "border-transparent",
-                                        )}
-                                    >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
+                            <InputTypeTabs selected={inputType} onSelect={setInputType} />
                             <InputForm type={inputType} onAdd={handleAddProduct} />
                         </DefaultBox>
                     ) : (
