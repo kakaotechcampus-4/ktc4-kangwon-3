@@ -30,7 +30,7 @@ Tool 코드는 클라이언트 자리에 조회 객체를 넣기만 하고 데�
 
 | 시점 | 할 일 |
 |---|---|
-| 기동 | vector 확장과 표 생성(`init_db`, 있으면 건너뜀) → 법령 점검 1회 → 만료된 `customs.gw` 행 정리 |
+| 기동 | vector 확장과 표 생성(`init_db`, 있으면 건너뜀) → 30초 뒤 법령 점검 1회(`LAW_REFRESH_START_DELAY_SECONDS`) → 만료된 `customs.gw` 행 정리 |
 | 매일 00:05 KST (`LAW_REFRESH_AT`) | 법령 점검 → 만료된 `customs.gw` 행 정리 |
 | 매주 일요일 03:00 KST (`CLIP_INGEST_WEEKLY_AT`) | 결정사례 적재. `hs_cases`가 비어 있으면 건너뜀(첫 적재는 아래 CLI·덤프로). 기동 때는 돌지 않음 |
 

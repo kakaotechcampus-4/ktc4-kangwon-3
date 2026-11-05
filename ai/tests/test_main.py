@@ -253,6 +253,9 @@ def _db_ready(monkeypatch, created=()) -> tuple[_LawFetchers, list]:
     monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: fetchers)
     monkeypatch.setattr(main, "refresh_laws", lambda f, sources, **kwargs: refreshed.append((f, sources, kwargs)))
     monkeypatch.setattr(main, "purge_expired_responses", lambda factory, clients: refreshed.append((factory, clients)))
+    # 첫 점검 전 대기(30초) 없이 바로
+    run_law_refresh = main.run_law_refresh
+    monkeypatch.setattr(main, "run_law_refresh", lambda refresh: run_law_refresh(refresh, start_delay=0))
     return fetchers, refreshed
 
 

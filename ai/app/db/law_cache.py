@@ -15,7 +15,7 @@ from typing import NamedTuple
 from sqlalchemy.orm import Session
 
 from ..clients.law import AdmrulSearchClient, AdmrulTextClient, EflawSearchClient, LawTextClient
-from ..config import LAW_REFRESH_AT, LAW_SEARCH_RECHECK_SECONDS
+from ..config import LAW_REFRESH_AT, LAW_REFRESH_START_DELAY_SECONDS, LAW_SEARCH_RECHECK_SECONDS
 from ..observability.measurements import LawChangeFound, LawRefreshRun, measurement_sinks
 from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
 from ..schemas.clients.law_response import (
@@ -197,16 +197,19 @@ def seconds_until(now: datetime, at: tuple[int, int]) -> float:
 
 
 async def run_law_refresh(refresh: Callable[[], object], *, at: tuple[int, int] = LAW_REFRESH_AT,
+                          start_delay: float = LAW_REFRESH_START_DELAY_SECONDS,
                           now: Callable[[], datetime] = lambda: datetime.now(KST),
                           sleep: Callable[[float], object] = asyncio.sleep) -> None:
-    """기동 직후 한 번, 이후 매일 at(KST) 시각에 법령 점검을 실행한다. 취소될 때까지 돈다.
+    """기동 뒤 start_delay초에 한 번, 이후 매일 at(KST) 시각에 법령 점검을 실행한다. 취소될 때까지 돈다.
 
     Args:
         refresh: 점검 함수(보통 refresh_laws를 묶은 것). 동기라 스레드에서 실행한다.
         at: 매일 실행할 (시, 분).
+        start_delay: 기동 뒤 첫 점검까지 기다릴 시간(초). 첫 점검 결과가 지표 첫 수집보다 늦게 나오게 함.
         now: 현재 시각. 테스트용.
         sleep: 대기 함수. 테스트용.
     """
+    await sleep(start_delay)
     while True:
         try:
             await asyncio.to_thread(refresh)

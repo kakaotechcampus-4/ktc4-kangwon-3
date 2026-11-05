@@ -156,7 +156,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - DB 없이 뜬 서버(DATABASE_URL 없음)는 세지 않음
 - 재는 곳: `CachedFetcherBase.fetch_parsed`, `DatabaseFirstCaseSearch._near`
 - 법령 점검: 문서 하나라도 실패하면 `partial`, 전부 실패하면 `failed`. 실패한 문서는 법령이 낡은 채 남아 `ok`만 성공 시각을 바꿈
-  - 재는 곳: `refresh_laws` (기동 직후 1번, 매일 00:05 KST)
+  - 재는 곳: `refresh_laws` (기동 30초 뒤 1번, 매일 00:05 KST). 기동 직후 바로 돌면 몇 초 만에 끝나 첫 수집 전에 1이 돼 안 세짐
 - 법령 변경 `kind`: `announced`(새 판 발표)·`applied`(근거로 고르는 판이 바뀜)·`skipped`(시행일이 됐지만 나중 판이 있어 안 씀, 사람이 확인할 것). `tool`은 그 문서를 근거로 쓰는 Tool
   - 같은 날 재기동하면 그날의 `applied`·`skipped`를 다시 셀 수 있음 (변경 로그와 같음)
 - CLIP 주간 적재: 상세 하나라도 실패하면 `partial`, 저장한 사례 없이 실패만 있으면 `failed`, 목록 수집·임베딩·저장 오류도 `failed`. hs_cases가 비어(초기 적재 전) 건너뛰면 `skipped`
