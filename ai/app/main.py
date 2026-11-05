@@ -14,7 +14,7 @@ from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
 from .clients.llm.decision import close_decision_clients
 from .clients.llm.embedding import embed_texts_sync
-from .config import SESSION_SWEEP_SECONDS, get_settings
+from .config import SESSION_DRAIN_SECONDS, SESSION_SWEEP_SECONDS, get_settings
 from .diagnosis import build_job, build_parts, build_questions, guarded
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
@@ -43,7 +43,8 @@ logger = logging.getLogger(__name__)
 disable_created_metrics()
 
 # 종료 시 남은 콜백을 보내는 최대 대기 시간. 넘으면 버리고 로그만 남김
-CALLBACK_CLOSE_SECONDS = 5.0
+# 콜백 요청 하나의 대기 상한(5초)에 재시도 두어 번이 들어가게 둠
+CALLBACK_CLOSE_SECONDS = 15.0
 
 
 async def _sweep_sessions(manager: SessionManager) -> None:
@@ -138,9 +139,6 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        sweeper.cancel()
-        with suppress(asyncio.CancelledError):
-            await sweeper
         if law_refresher is not None:
             # 실행 중인 점검 스레드는 끝까지 돎. 닫힌 클라이언트 오류는 그 문서 실패로만 남음
             law_refresher.cancel()
@@ -151,14 +149,18 @@ async def lifespan(app: FastAPI):
             clip_ingester.cancel()
             with suppress(asyncio.CancelledError):
                 await clip_ingester
-        # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드도 끝까지 못 돎: uvicorn이 종료 처리 뒤
-        # 받은 SIGTERM을 다시 발생시켜 프로세스가 바로 끝남. 버리는 세션은 관리자가 경고로 남김.
-        # BE는 멈춤 감지(15분)로 실패 처리
-        manager.shutdown(wait=False)
+        # 실행 중 세션은 상한 시간까지 기다림(끝난 결과는 콜백으로). 대기열 세션은 취소됨(콜백 없음)
+        # 상한을 넘긴 실행 중 스레드는 uvicorn이 종료 처리 뒤 SIGTERM을 다시 발생시켜 함께 끊김.
+        # 버리는 세션은 관리자가 경고로 남김. BE는 멈춤 감지(15분)로 실패 처리
+        await asyncio.to_thread(manager.drain, SESSION_DRAIN_SECONDS)
+        # 정리 루프는 drain 뒤에 멈춤. 기다리는 중 최대 시간을 넘긴 세션도 시간 초과 실패 콜백으로 끝냄
+        sweeper.cancel()
+        with suppress(asyncio.CancelledError):
+            await sweeper
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
-        # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
+        # 상한을 넘긴 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
         close_llm_clients()
         close_decision_clients()
         agent_sinks.remove(agent_metrics)

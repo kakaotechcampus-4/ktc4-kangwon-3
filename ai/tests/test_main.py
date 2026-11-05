@@ -7,6 +7,7 @@ import json
 import logging
 import threading
 import time
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -23,6 +24,7 @@ from app.observability.logs import APP_LOGGER
 from app.observability.measurements import ClientCall, measurement_sinks
 from app.db import engine as database
 from app.routers import _dummy
+from app.sessions.manager import SessionManager
 
 TOKEN = "test-internal-token-0123456789abcdef"
 # lifespan이 만든 실제 진단 함수의 조립 인자 (부품, 질문 변환)
@@ -134,6 +136,57 @@ def test_운영_경로로_접수한_상품은_실제_진단_함수로_돌고_결
     events = [json.loads(request.content) for request in fake_be]
     assert next(event["stage"] for event in events if event["eventType"] == "product_progress") == "extraction"
     assert events[-1]["assessment"]["status"] == "completed"
+
+
+def test_서버를_끄면_실행_중_진단이_끝날_때까지_기다리고_결과를_BE_콜백으로_보낸다(fake_be, monkeypatch):
+    started, gate = threading.Event(), threading.Event()
+
+    def slow_job(*args):
+        started.set()
+        gate.wait(timeout=5)
+        return _dummy.run_dummy_diagnosis(*args)
+
+    monkeypatch.setattr(main, "build_job", lambda parts, questions: slow_job)
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+        client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        _wait_until(started.is_set)
+        # 종료 처리 중에 진단이 끝나게 함
+        threading.Timer(0.2, gate.set).start()
+
+    events = [json.loads(request.content) for request in fake_be]
+    assert events[-1]["eventType"] == "product_result"
+
+
+def test_서버를_끄는_중에도_최대_시간을_넘긴_진단은_시간_초과_실패_콜백으로_끝낸다(fake_be, monkeypatch):
+    started, gate = threading.Event(), threading.Event()
+
+    def stuck_job(*args):
+        started.set()
+        gate.wait(timeout=5)
+        return _dummy.run_dummy_diagnosis(*args)
+
+    monkeypatch.setattr(main, "build_job", lambda parts, questions: stuck_job)
+    monkeypatch.setattr(main, "SessionManager", lambda store, job: SessionManager(
+        store, job, max_duration=timedelta(seconds=1)))
+    monkeypatch.setattr(main, "SESSION_SWEEP_SECONDS", 0.2)
+    monkeypatch.setattr(main, "SESSION_DRAIN_SECONDS", 3)
+    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+        client.post("/api/ai/v1/diagnose/content", json={
+            "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
+        })
+        _wait_until(started.is_set)
+        # 접수 1초 뒤 시간 초과. 그보다 늦게 풀어 drain 중에 시간 초과가 나게 함
+        threading.Timer(2, gate.set).start()
+        manager = main.app.state.session_manager
+    # 멈춘 진단 스레드가 다음 테스트까지 남지 않게 끝날 때까지 기다림
+    gate.set()
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+
+    events = [json.loads(request.content) for request in fake_be]
+    failed = [event for event in events if event["eventType"] == "product_failed"]
+    assert [(event["error"]["code"], event["error"]["retryable"]) for event in failed] == [("AI_TIMEOUT", True)]
 
 
 def test_운영_경로는_내부_토큰이_없으면_401이고_접수하지_않는다(fake_be):
