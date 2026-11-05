@@ -195,7 +195,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             )
             result = self._merge(rules, review)
         except VerificationError as exc:
-            # _check_scope 실패 (검토 ID 중복·누락·없는 ID 참조)
+            # _check_scope 실패 (검토 ID 누락·없는 ID 참조)
             self._append_trace(
                 trace,
                 action="review_validation_failed",
@@ -341,24 +341,21 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
 
     @staticmethod
     def _check_scope(review: _Review, draft: DraftAssessment) -> None:
-        """모델이 모든 판단을 한 번씩 검토했고 없는 ID를 만들지 않았는지 확인한다.
+        """모델이 모든 판단을 검토했고 없는 ID를 만들지 않았는지 확인한다. 같은 ID 중복은 판단에 영향이 없어 통과.
 
         Args:
             review: 모델 검토 결과.
             draft: 검증한 심사 초안.
 
         Raises:
-            VerificationError: 검토 ID 중복·누락·없는 ID 참조.
+            VerificationError: 검토 ID 누락·없는 ID 참조.
         """
         expected = {f.finding_id for f in draft.findings}
-        checked = review.checked_finding_ids
-        # 같은 판단을 두 번 이상 검토했다고 보고
-        if len(checked) != len(set(checked)):
-            raise VerificationError("checked_finding_ids에 중복이 있습니다.")
+        checked = set(review.checked_finding_ids)
         # 검토한 ID 집합이 입력 판단과 다름 (빠뜨렸거나 없는 ID를 만듦)
-        if set(checked) != expected:
-            missing = sorted(expected - set(checked))
-            unknown = sorted(set(checked) - expected)
+        if checked != expected:
+            missing = sorted(expected - checked)
+            unknown = sorted(checked - expected)
             raise VerificationError(
                 f"검토 범위가 입력과 다릅니다. 누락 {missing}, 존재하지 않는 ID {unknown}"
             )
@@ -427,7 +424,8 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             issues=issues,
             additional_tools_required=tools,
             follow_up_questions=list(questions.values()),
-            checked_finding_ids=list(review.checked_finding_ids),
+            # 모델이 같은 ID를 두 번 적은 경우 한 번만 남김 (순서 유지)
+            checked_finding_ids=list(dict.fromkeys(review.checked_finding_ids)),
         )
         merged.status = self._status(merged)
         summary_parts = [f"검증 상태 {merged.status.value}, 지적 {len(issues)}건."]
