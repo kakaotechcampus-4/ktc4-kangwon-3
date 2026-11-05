@@ -28,8 +28,8 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
             <div className="flex w-full flex-row gap-4">
                 <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"
-                    className="w-23 h-23 object-cover rounded-lg border border-neutral-border" />
-                <div className="flex flex-col items-start gap-2">
+                    className="w-23 h-23 shrink-0 object-cover rounded-lg border border-neutral-border" />
+                <div className="flex min-w-0 flex-col items-start gap-2">
                     <div className="flex items-center gap-2">
                         <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
                             {badge.label}
