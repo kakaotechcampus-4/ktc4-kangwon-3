@@ -22,7 +22,7 @@ Tool 판정·검증·재질문은 아직 포함하지 않는다(법제처 API가
 |---|---|
 | 선택 정답 (개발 50, 홀드아웃 15) | `tests/eval_truth_scenario/dev/`, `tests/eval_truth_scenario/holdout/` |
 | 상품 원문 (글) | [팀 노션](https://app.notion.com/p/ZIP-3f15a820b2b88076ba5fd83f164adc4f) `scenario_raw_text.zip` |
-| 상세 이미지 (정답 근거 확인용, 실행엔 불필요) | 같은 페이지 `scenario_raw_images.zip` |
+| 상세 이미지 (정답 근거 확인용, 실행엔 불필요) | 용량(140MB) 때문에 노션에 없음. 필요하면 gityhb에게 요청 |
 
 - 저장소가 public이라 상용 페이지 원문은 올리지 않는다(`tests/fixtures/README.md`). zip을 `ai/tests/fixtures/_raw/`에 그대로 풀고,
   zip 안 `MANIFEST_scenario.txt`의 지문(줄바꿈을 LF로 맞춘 SHA-256 앞 12자)으로 같은 원문인지 확인한다.
