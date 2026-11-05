@@ -26,6 +26,10 @@ _VALID_ENV = {
     "LAW_GO_KR_OC": "test-oc",
     "INTERNAL_API_TOKEN": "test-internal-token-0123456789abcdef",
     "BE_BASE_URL": "http://be-server:8080",
+    "REVIEW_TEXT_HIGH": "0.9",
+    "REVIEW_TEXT_LOW": "0.4",
+    "REVIEW_IMAGE_HIGH": "0.7",
+    "REVIEW_IMAGE_LOW": "0.2",
     # 셸에 남은 덮어쓰기 값이 테스트에 섞이지 않게 기본은 지움
     "MODEL_PROFILE_OVERRIDES": None,
     "AI_DEV_API_ENABLED": None,
@@ -403,6 +407,48 @@ def test_모르는_로그_레벨이면_기동을_막는다(monkeypatch):
 
     with pytest.raises(config.ConfigError, match="LOG_LEVEL"):
         config.load_settings()
+
+
+def test_입력_가드_문턱값을_숫자로_읽는다(monkeypatch):
+    _env(monkeypatch, REVIEW_TEXT_HIGH=" 0.85 ")
+
+    thresholds = config.load_settings().review_thresholds
+
+    assert thresholds == config.ReviewThresholds(text_high=0.85, text_low=0.4, image_high=0.7, image_low=0.2)
+
+
+@pytest.mark.parametrize("missing", list(config.REVIEW_THRESHOLD_ENV))
+@pytest.mark.parametrize("value", [None, "  "], ids=["없음", "공백"])
+def test_입력_가드_문턱값이_하나라도_비면_기동을_막는다(monkeypatch, missing, value):
+    # 기본값으로 채우지 않음
+    _env(monkeypatch, **{missing: value})
+
+    with pytest.raises(config.ConfigError, match=missing):
+        config.load_settings()
+
+
+def test_입력_가드_문턱값이_숫자가_아니면_기동을_막는다(monkeypatch):
+    _env(monkeypatch, REVIEW_IMAGE_LOW="0.2점")
+
+    with pytest.raises(config.ConfigError, match="REVIEW_IMAGE_LOW"):
+        config.load_settings()
+
+
+@pytest.mark.parametrize(("text_low", "text_high"), [
+    (0.9, 0.4), (0.5, 0.5), (0.0, 0.9), (0.4, 1.5), (float("nan"), 0.9),
+], ids=["순서 거꾸로", "같음", "0", "1 초과", "NaN"])
+def test_입력_가드_문턱값은_0_LOW_HIGH_1_순서여야_한다(text_low, text_high):
+    with pytest.raises(config.ConfigError, match="REVIEW_TEXT_LOW"):
+        config.ReviewThresholds(text_high=text_high, text_low=text_low, image_high=0.7, image_low=0.2)
+
+
+def test_이미지_문턱값도_따로_검사한다():
+    with pytest.raises(config.ConfigError, match="REVIEW_IMAGE_LOW"):
+        config.ReviewThresholds(text_high=0.9, text_low=0.4, image_high=0.2, image_low=0.7)
+
+
+def test_Settings를_직접_만들면_문턱값을_비울_수_있다():
+    assert _settings().review_thresholds is None
 
 
 _SENTRY_DSN = "https://public-key@o0.ingest.sentry.io/1"

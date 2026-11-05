@@ -16,6 +16,10 @@ _REQUIRED_ENV = {
     "LAW_GO_KR_OC": "test",
     "INTERNAL_API_TOKEN": "t" * 40,
     "BE_BASE_URL": "http://localhost:8080",
+    "REVIEW_TEXT_HIGH": "0.85",
+    "REVIEW_TEXT_LOW": "0.3",
+    "REVIEW_IMAGE_HIGH": "0.8",
+    "REVIEW_IMAGE_LOW": "0.3",
 }
 
 

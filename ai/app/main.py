@@ -8,13 +8,14 @@ from fastapi import APIRouter, FastAPI
 from prometheus_client import CollectorRegistry, disable_created_metrics
 from sqlalchemy.exc import SQLAlchemyError
 
+from .agents.input_guard import InputGuardAgent
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
 from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
 from .clients.llm.decision import close_decision_clients
 from .clients.llm.embedding import embed_texts_sync
 from .config import SESSION_SWEEP_SECONDS, get_settings
-from .diagnosis import build_job, build_parts, build_questions
+from .diagnosis import build_job, build_parts, build_questions, guarded
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
@@ -106,7 +107,8 @@ async def lifespan(app: FastAPI):
     presenter = ResultPresenter()
     # 진단 세션 (#264). 운영(/diagnose)·샌드박스는 실제 파이프라인 ([콜백 5/5]), BE 연동용(/dummy)은 케이스 더미
     # 에이전트·Tool은 여기서 한 번 만들어 모든 진단이 같이 씀. 모델 설정 오류면 기동을 막음
-    pipeline_job = build_job(build_parts(), build_questions)
+    # 입력 가드는 접수 뒤 실행 첫머리에서 (차단은 늦춘 일반 실패)
+    pipeline_job = guarded(build_job(build_parts(), build_questions), InputGuardAgent().run)
     job = by_run_type({
         RunType.PRODUCTION: pipeline_job,
         RunType.TEST: pipeline_job,
