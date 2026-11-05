@@ -6,12 +6,11 @@ interface AgentCardProps {
     role: string
     description: string
     chips: string[]
-    exampleProductName: string
     alwaysCheckTag?: string
     reverse: boolean
 }
 
-function AgentCard({ icon, name, role, description, chips, exampleProductName, alwaysCheckTag, reverse }: AgentCardProps) {
+function AgentCard({ icon, name, role, description, chips, alwaysCheckTag, reverse }: AgentCardProps) {
     return (
         <div
             className={cn(
@@ -40,7 +39,6 @@ function AgentCard({ icon, name, role, description, chips, exampleProductName, a
                         </span>
                     ))}
                 </div>
-                <p className="text-xs text-neutral-label">예시 · {exampleProductName}</p>
             </div>
         </div>
     );

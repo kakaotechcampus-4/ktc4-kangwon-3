@@ -22,7 +22,6 @@ function AgentIntro() {
                             role={domain.role}
                             description={domain.description}
                             chips={domain.chips}
-                            exampleProductName={AGENT_EXAMPLE_FINDINGS[domain.toolName].exampleProductName}
                             alwaysCheckTag={domain.alwaysCheckTag}
                             reverse={index % 2 === 1}
                         />

@@ -7,6 +7,9 @@ import ResultBanner from "@/pages/Result/DiagnosisResult/ResultBanner";
 
 import MiniHeaderPreview from "./MiniHeaderPreview";
 
+// 설명 글에 비해 미리보기 요소가 커 보이지 않도록 줄이는 배율.
+const PREVIEW_ZOOM = 0.6;
+
 interface ReturnPathRowProps {
     number: number
     children: ReactNode
@@ -15,14 +18,18 @@ interface ReturnPathRowProps {
 
 function ReturnPathRow({ number, children, preview }: ReturnPathRowProps) {
     return (
-        <div className="flex flex-col gap-2">
+        <div className="flex w-full flex-col gap-2">
             <div className="flex items-start gap-2 text-xs text-neutral-text">
                 <span className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-[#E7EEFB] text-xs font-bold text-primary">
                     {number}
                 </span>
                 {children}
             </div>
-            <div className="ml-6.5">{preview}</div>
+            <div className="ml-6.5 min-w-0">
+                <div inert className="select-none" style={{ zoom: PREVIEW_ZOOM }}>
+                    {preview}
+                </div>
+            </div>
         </div>
     );
 }

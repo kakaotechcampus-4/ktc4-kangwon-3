@@ -288,18 +288,13 @@ export const PREVIEW_PRODUCTS = {
 
 // ── 에이전트 소개 섹션 예시 ──────────────────────────────────────────────
 
-interface AgentExample {
-    finding: Finding
-    exampleProductName: string
-}
-
-export const AGENT_EXAMPLE_FINDINGS: Record<ToolName, AgentExample> = {
-    [ToolName.Customs]: { finding: CUSTOMS_FINDING, exampleProductName: TABLE_NAME },
-    [ToolName.Children]: { finding: CHILDREN_FINDING, exampleProductName: SLIPPER_NAME },
-    [ToolName.Electrical]: { finding: ELECTRICAL_FINDING, exampleProductName: EARPHONE_NAME },
-    [ToolName.Radio]: { finding: RADIO_FINDING, exampleProductName: EARPHONE_NAME },
-    [ToolName.FoodDrug]: { finding: FOOD_DRUG_FINDING, exampleProductName: "실리콘 접이식 도시락통 3종" },
-    [ToolName.LabelAd]: { finding: LABEL_AD_FINDING, exampleProductName: EARPHONE_NAME },
+export const AGENT_EXAMPLE_FINDINGS: Record<ToolName, Finding> = {
+    [ToolName.Customs]: CUSTOMS_FINDING,
+    [ToolName.Children]: CHILDREN_FINDING,
+    [ToolName.Electrical]: ELECTRICAL_FINDING,
+    [ToolName.Radio]: RADIO_FINDING,
+    [ToolName.FoodDrug]: FOOD_DRUG_FINDING,
+    [ToolName.LabelAd]: LABEL_AD_FINDING,
 };
 
 // ── 마이페이지 안내 섹션 ────────────────────────────────────────────────
