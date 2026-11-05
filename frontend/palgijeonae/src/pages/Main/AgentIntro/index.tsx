@@ -9,7 +9,7 @@ function AgentIntro() {
         <div className="flex w-full flex-col gap-8">
             <SectionIntro
                 title="6개 분야 에이전트가 나눠서 확인해요"
-                description="통관은 모든 상품을 확인하고, 나머지는 상품에 해당하는 분야만 골라 확인해요."
+                description="AI가 확인이 필요한 분야만 골라, 각 분야 에이전트가 실제 법령과 규제를 확인해요."
                 size="2xl"
             />
             <ul className="flex flex-col gap-5">
