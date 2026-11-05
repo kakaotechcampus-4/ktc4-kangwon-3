@@ -218,7 +218,7 @@ class ElectricalTool(EvidenceSearchTool):
             # requirements: 재실행에서 이 판단이 빠지면 ToolExecutor가 이 판단의 할 일만 함께 지울 수 있게 연결
             findings.append(self._finding(
                 subject=f"{scheme}대상 후보 — {item_name(block)}",
-                summary=f"이 품목으로 분류되면 {scheme}대상 전기용품일 가능성이 있습니다(확정 아님). "
+                summary=f"이 품목으로 분류되면 {scheme}대상 전기용품일 가능성이 있습니다(확정 아님).\n"
                         f"{PURCHASE_SUMMARY[status]}",
                 rationale=selection.rationale, determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=[f for name in used for f in by_field[name]], assumptions=[*run.assumptions, *notes],

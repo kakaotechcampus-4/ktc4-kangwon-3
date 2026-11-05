@@ -82,8 +82,8 @@ def _run_session(job: DiagnosisJob, context: ExecutionContext, updater: SessionU
                 updater.apply(context, Complete(result))
             case JobNeedsInput(result=result, questions=questions):
                 updater.apply(context, AskUser(result, questions))
-            case JobFailed(error_code=error_code, retryable=retryable):
-                updater.apply(context, Fail(error_code, retryable))
+            case JobFailed(error_code=error_code, retryable=retryable, review_flag=review_flag):
+                updater.apply(context, Fail(error_code, retryable, review_flag))
             case _:
                 assert_never(outcome)
     except Exception:

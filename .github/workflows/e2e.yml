@@ -75,6 +75,38 @@ jobs:
             e2e/stack.log
           retention-days: 7
 
+      - name: Discord 알림 (실패 시)
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_E2E_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK" ]; then
+            echo "::warning::DISCORD_E2E_WEBHOOK이 없어 알림을 건너뜁니다."
+            exit 0
+          fi
+          TITLE=$(printf '%s' "$COMMIT_MSG" | head -n 1 | cut -c1-200)
+          jq -n \
+            --arg run "$RUN_URL" \
+            --arg ref "$GITHUB_REF_NAME" \
+            --arg sha "${GITHUB_SHA::7}" \
+            --arg actor "$GITHUB_ACTOR" \
+            --arg title "${TITLE:-수동 실행}" \
+            '{embeds: [{
+               title: "❌ E2E 테스트 실패",
+               url: $run,
+               color: 15548997,
+               description: "실행 화면 아래 Artifacts에서 e2e-report를 받아 확인하세요.",
+               fields: [
+                 {name: "브랜치", value: $ref, inline: true},
+                 {name: "커밋", value: $sha, inline: true},
+                 {name: "실행자", value: $actor, inline: true},
+                 {name: "커밋 메시지", value: $title}
+               ]
+             }]}' \
+          | curl -fsS -X POST -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
+
       - name: E2E 스택 정리
         if: always()
         run: docker compose -f compose.e2e.yml down -v

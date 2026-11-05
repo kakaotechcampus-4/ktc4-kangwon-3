@@ -8,13 +8,14 @@ from fastapi import APIRouter, FastAPI
 from prometheus_client import CollectorRegistry, disable_created_metrics
 from sqlalchemy.exc import SQLAlchemyError
 
+from .agents.input_guard import InputGuardAgent
 from .callbacks import CallbackOutbox, EventBuilder, connect_callbacks
 from .clients.backend import BackendCallbackClient
 from .clients.llm import close_llm_clients
 from .clients.llm.decision import close_decision_clients
 from .clients.llm.embedding import embed_texts_sync
-from .config import SESSION_SWEEP_SECONDS, get_settings
-from .diagnosis import build_job, build_parts, build_questions
+from .config import SESSION_DRAIN_SECONDS, SESSION_SWEEP_SECONDS, get_settings
+from .diagnosis import build_job, build_parts, build_questions, guarded
 from .domain.context import RunType
 from .dummy import run_case_diagnosis
 from .observability.agent_sinks import agent_sinks
@@ -24,9 +25,10 @@ from .observability.measurements import measurement_sinks
 from .observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
-from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
-                 log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
-                 run_weekly_clip_ingest)
+from .observability.sentry import configure_sentry
+from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, SessionArchiveDatabase, build_law_fetchers,
+                 get_session_factory, init_db, log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh,
+                 run_scheduled_clip_ingest, run_weekly_clip_ingest)
 from .routers import diagnose, dummy, health, metrics, sandbox
 from .results.presenter import ResultPresenter
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
@@ -41,7 +43,8 @@ logger = logging.getLogger(__name__)
 disable_created_metrics()
 
 # 종료 시 남은 콜백을 보내는 최대 대기 시간. 넘으면 버리고 로그만 남김
-CALLBACK_CLOSE_SECONDS = 5.0
+# 콜백 요청 하나의 대기 상한(5초)에 재시도 두어 번이 들어가게 둠
+CALLBACK_CLOSE_SECONDS = 15.0
 
 
 async def _sweep_sessions(manager: SessionManager) -> None:
@@ -72,6 +75,8 @@ async def lifespan(app: FastAPI):
     # 설정이 없으면 app 로그가 WARNING 이상만 나옴. 이후 기동 로그부터 이 레벨로
     configure_logging(settings.log_level)
     logger.info("환경변수 검증 완료 (로그 레벨 %s)", settings.log_level)
+    # 오류 전송. 이후 기동·진단 중 ERROR 로그와 요청 처리 중 잡지 않은 예외가 감
+    configure_sentry(settings.sentry_dsn, settings.sentry_environment, settings.sentry_log_level)
 
     # 설정을 고쳐야 하는 문제(엔진 생성 실패 등 ConfigError)는 여기서 그대로 터져 기동을 막는다.
     # 개발 단계에서 의도적으로 비워둔 DATABASE_URL과, 아직 뜨지 않은 DB는 경고만 남긴다.
@@ -85,7 +90,7 @@ async def lifespan(app: FastAPI):
         logger.warning("DB 준비 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     else:
         logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
-        # 법령 점검: 기동 직후 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
+        # 법령 점검: 기동 30초 뒤 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
         session_factory = get_session_factory()
         law_fetchers = build_law_fetchers(settings.law_oc, session_factory, measure=False)
 
@@ -103,13 +108,16 @@ async def lifespan(app: FastAPI):
     presenter = ResultPresenter()
     # 진단 세션 (#264). 운영(/diagnose)·샌드박스는 실제 파이프라인 ([콜백 5/5]), BE 연동용(/dummy)은 케이스 더미
     # 에이전트·Tool은 여기서 한 번 만들어 모든 진단이 같이 씀. 모델 설정 오류면 기동을 막음
-    pipeline_job = build_job(build_parts(), build_questions)
+    # 입력 가드는 접수 뒤 실행 첫머리에서 (차단은 늦춘 일반 실패)
+    pipeline_job = guarded(build_job(build_parts(), build_questions), InputGuardAgent().run)
     job = by_run_type({
         RunType.PRODUCTION: pipeline_job,
         RunType.TEST: pipeline_job,
         RunType.DUMMY: run_case_diagnosis,
     })
-    manager = SessionManager(SessionStore(), job)
+    # 재시작 때 되살릴 세션은 DB에 같이 보관 (#565). DB가 없으면 메모리에만 둬 재시작 때 사라짐
+    archive = None if session_factory is None else SessionArchiveDatabase(session_factory)
+    manager = SessionManager(SessionStore(archive=archive), job)
     # BE 콜백 (#317)
     sender = BackendCallbackClient(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
@@ -127,15 +135,15 @@ async def lifespan(app: FastAPI):
     measurement_sinks.add(measurement_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
+    # 콜백·지표 구독을 다 붙인 뒤 되살림 (복원한 세션의 결과도 콜백으로 나가게)
+    if archive is not None:
+        manager.restore(await asyncio.to_thread(archive.load))
     # 샌드박스 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
     app.state.assessment_presenter = presenter
     sweeper = asyncio.create_task(_sweep_sessions(manager))
     try:
         yield
     finally:
-        sweeper.cancel()
-        with suppress(asyncio.CancelledError):
-            await sweeper
         if law_refresher is not None:
             # 실행 중인 점검 스레드는 끝까지 돎. 닫힌 클라이언트 오류는 그 문서 실패로만 남음
             law_refresher.cancel()
@@ -146,14 +154,18 @@ async def lifespan(app: FastAPI):
             clip_ingester.cancel()
             with suppress(asyncio.CancelledError):
                 await clip_ingester
-        # 대기열 세션은 취소됨(콜백 없음). 실행 중 스레드도 끝까지 못 돎: uvicorn이 종료 처리 뒤
-        # 받은 SIGTERM을 다시 발생시켜 프로세스가 바로 끝남. 버리는 세션은 관리자가 경고로 남김.
-        # BE는 멈춤 감지(15분)로 실패 처리
-        manager.shutdown(wait=False)
+        # 실행 중 세션은 상한 시간까지 기다림(끝난 결과는 콜백으로). 대기열 세션은 취소됨(콜백 없음)
+        # 상한을 넘긴 실행 중 스레드는 uvicorn이 종료 처리 뒤 SIGTERM을 다시 발생시켜 함께 끊김.
+        # 버리는 세션은 관리자가 경고로 남김. BE는 멈춤 감지(15분)로 실패 처리
+        await asyncio.to_thread(manager.drain, SESSION_DRAIN_SECONDS)
+        # 정리 루프는 drain 뒤에 멈춤. 기다리는 중 최대 시간을 넘긴 세션도 시간 초과 실패 콜백으로 끝냄
+        sweeper.cancel()
+        with suppress(asyncio.CancelledError):
+            await sweeper
         # 세션 관리자를 먼저 멈춘 뒤 남은 콜백을 보냄. 시간 안에 못 보낸 이벤트는 발신함이 로그로 남김
         await asyncio.to_thread(outbox.close, CALLBACK_CLOSE_SECONDS)
         sender.close()
-        # 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
+        # 상한을 넘긴 실행 중 스레드의 남은 모델 호출은 실패함. 결과 콜백은 이미 버려지는 상태라 영향 없음
         close_llm_clients()
         close_decision_clients()
         agent_sinks.remove(agent_metrics)

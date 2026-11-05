@@ -140,6 +140,20 @@ def test_실패와_시간_초과는_마지막_단계와_공개_문구로_보낸�
         "AI_TIMEOUT", "진단 시간이 초과되었습니다.", True)
 
 
+def test_검토_표시는_실패_error에_BE_전용_필드로_싣고_없으면_null():
+    run, _, _ = _running()
+    builder = _builder()
+
+    [flagged] = builder.build(run(Fail("AI_PIPELINE_ERROR", retryable=False, review_flag="r1")))
+    [plain] = _builder().build(_running()[0](Fail("AI_PIPELINE_ERROR", retryable=False)))
+
+    assert flagged.model_dump(mode="json", by_alias=True)["error"] == {
+        "code": "AI_PIPELINE_ERROR", "message": "진단 실행 중 오류가 발생했습니다.", "retryable": False,
+        "reviewFlag": "r1",
+    }
+    assert plain.error.review_flag is None
+
+
 def test_대기_중_시간_초과는_단계_없이_실패로_보낸다():
     run = _Run()
 

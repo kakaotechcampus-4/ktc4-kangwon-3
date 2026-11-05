@@ -101,8 +101,8 @@ class EventBuilder:
                     return self._progress(session, run, stage)
                 case ToolProgressed(session=session, tool_name=tool_name, status=status):
                     return self._tool(session, run, tool_name, status)
-                case Failed(session=session, error_code=error_code, retryable=retryable):
-                    last = self._failed(session, run, error_code, retryable)
+                case Failed(session=session, error_code=error_code, retryable=retryable, review_flag=review_flag):
+                    last = self._failed(session, run, error_code, retryable, review_flag)
                 case Completed() if content is _CONVERSION_FAILED:
                     # 마지막 이벤트가 빠지지 않게 실패로 끝냄. 세션 관리자의 파이프라인 오류와 같게 재시도 불가
                     last = self._failed(event.session, run, AIResponseCode.PIPELINE_ERROR.value.code, False)
@@ -156,13 +156,15 @@ class EventBuilder:
         run.stage = stage
         return events
 
-    def _failed(self, session: DiagnosisSession, run: _RunState, code: str, retryable: bool) -> ProductFailedEvent:
-        """실패 이벤트. 단계는 실패 시점 세션의 마지막 단계, 모르는 코드는 기본 문구."""
+    def _failed(
+        self, session: DiagnosisSession, run: _RunState, code: str, retryable: bool, review_flag: str | None = None,
+    ) -> ProductFailedEvent:
+        """실패 이벤트. 단계는 실패 시점 세션의 마지막 단계, 모르는 코드는 기본 문구. 검토 표시는 BE 전용."""
         return ProductFailedEvent(
             **self._base(session, run),
             stage=_public_stage(session.stage),
             error=PublicErrorDto(code=code, message=_ERROR_MESSAGES.get(code, _DEFAULT_ERROR_MESSAGE),
-                                 retryable=retryable),
+                                 retryable=retryable, review_flag=review_flag),
         )
 
     def _base(self, session: DiagnosisSession, run: _RunState) -> dict:

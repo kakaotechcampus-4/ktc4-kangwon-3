@@ -92,10 +92,12 @@ class Fail:
     Attributes:
         error_code: 실패 코드.
         retryable: 같은 요청을 다시 보내 복구 가능한지.
+        review_flag: BE 전용 검토 표시. 세션에는 남기지 않고 실패 이벤트로만 넘김. 없으면 None.
     """
 
     error_code: str
     retryable: bool
+    review_flag: str | None = None
 
 
 Change = Start | ChangeStage | ReportTool | Complete | AskUser | Resume | Fail
@@ -125,21 +127,26 @@ class StatusTraits:
         blocks_new_accept: 같은 상품의 새 접수를 막는지 (실행 중).
         times_out: 접수 후 최대 시간이 지나면 시간 초과로 실패시키는지.
         retention: 지울 때 쓰는 보관 시간 종류. None이면 지우지 않음 (시간 초과 처리가 맡음).
+        archived: 재시작 때 되살리려고 DB에 보관하는지 (#565). 끝난 세션은 결과 콜백이 이미 나가 보관 안 함.
     """
 
     blocks_new_accept: bool
     times_out: bool
     retention: Retention | None
+    archived: bool
 
 
 # 상태를 추가하면 TRANSITIONS 줄과 여기 한 줄을 같이 추가
 STATUS_TRAITS: dict[SessionStatus, StatusTraits] = {
-    SessionStatus.ACCEPTED: StatusTraits(blocks_new_accept=True, times_out=True, retention=None),
-    SessionStatus.RUNNING: StatusTraits(blocks_new_accept=True, times_out=True, retention=None),
+    SessionStatus.ACCEPTED: StatusTraits(blocks_new_accept=True, times_out=True, retention=None, archived=True),
+    # 재시작 때 남아 있으면 정상 종료 처리 없이 끊긴 실행
+    SessionStatus.RUNNING: StatusTraits(blocks_new_accept=True, times_out=True, retention=None, archived=True),
     # 실행은 끝나 새 접수가 오면 새 세션으로 교체 (BE 재시도, #451). 질문을 보낸 시각부터 따로 보관
-    SessionStatus.AWAITING_INPUT: StatusTraits(blocks_new_accept=False, times_out=False, retention="awaiting_input"),
-    SessionStatus.COMPLETED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended"),
-    SessionStatus.FAILED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended"),
+    SessionStatus.AWAITING_INPUT: StatusTraits(
+        blocks_new_accept=False, times_out=False, retention="awaiting_input", archived=True,
+    ),
+    SessionStatus.COMPLETED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended", archived=False),
+    SessionStatus.FAILED: StatusTraits(blocks_new_accept=False, times_out=False, retention="ended", archived=False),
 }
 
 
@@ -204,9 +211,9 @@ def apply(session: DiagnosisSession, change: Change, *, now: datetime) -> Transi
                 answers=[*session.answers, *answers], accepted_at=now, started_at=None, stage_started_at=None,
             )
             return Transition(updated, (Resumed(updated),))
-        case Fail(error_code=error_code, retryable=retryable):
+        case Fail(error_code=error_code, retryable=retryable, review_flag=review_flag):
             updated = _replace(session, now, status=status, error_code=error_code, retryable=retryable)
-            return Transition(updated, (Failed(updated, error_code, retryable),))
+            return Transition(updated, (Failed(updated, error_code, retryable, review_flag),))
         case _:
             # 표에 줄만 추가하고 처리를 빠뜨린 경우
             assert_never(change)
