@@ -140,7 +140,7 @@ def render_report(summary: dict, meta: dict, title: str) -> str:
         f"| 무누락 상품 (모든 회차에서 빠뜨림 0) | {s['pass_all_runs']}/{s['products']} ({s['pass_rate_all_runs']:.0%}) |",
         f"| 회차 평균 무누락률 | {s['pass_rate_per_run']:.0%} |",
         f"| 실패 회차 / 재시도 | {s['failed_runs']} / {s['retries']} |",
-        f"| 이미지에만 근거가 있어 놓친 Tool | {s['image_only_misses']} |",
+        f"| 글 입력에 근거가 없어(이미지·설명 글에만) 놓친 Tool | {s['image_only_misses']} |",
         f"| 펼치기 전 글이 없어 펼친 글로 대체한 상품 | {s['input_fallbacks']} |",
         "",
         "| Tool | 빠뜨림 | 과잉 선택 |",
