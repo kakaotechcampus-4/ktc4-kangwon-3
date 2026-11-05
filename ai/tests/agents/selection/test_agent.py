@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from app.agents.selection import SelectionAgent, SelectionFailedError
+from app.agents.selection import ALWAYS_RUN_REASON, SelectionAgent, SelectionFailedError
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName
@@ -19,11 +19,11 @@ def _response(*selected: ToolName) -> ToolSelectionResponse:
     ])
 
 
-def test_모델이_낸_6개_Tool_판단을_그대로_돌려준다(stub_model, records):
+def test_모델이_낸_6개_Tool_판단을_돌려준다(stub_model, records):
     result = SelectionAgent(stub_model(_response(ToolName.CUSTOMS, ToolName.ELECTRICAL))).run(_PRODUCT)
 
     assert [d.tool_name for d in result.decisions] == list(ToolName)
-    assert {d.tool_name for d in result.decisions if d.selected} == {ToolName.CUSTOMS, ToolName.ELECTRICAL}
+    assert {d.tool_name for d in result.decisions if d.selected} == {ToolName.CUSTOMS, ToolName.ELECTRICAL, ToolName.LABEL_AD}
 
 
 def test_상품_정보를_JSON으로_사용자_메시지에_담는다(stub_model, records):
@@ -89,3 +89,22 @@ def test_요청_본문은_선택_스키마_클래스를_넘길_때와_같다(fak
         agent.run(product)
 
     assert actual == expected
+
+
+# 표시광고 항상 실행 (#588)
+
+
+def test_모델이_표시광고를_안_골라도_표시광고는_선택으로_고정한다(stub_model, records):
+    result = SelectionAgent(stub_model(_response(ToolName.CUSTOMS))).run(_PRODUCT)
+
+    decisions = {d.tool_name: d for d in result.decisions}
+    assert decisions[ToolName.LABEL_AD].selected is True
+    assert decisions[ToolName.LABEL_AD].reason == ALWAYS_RUN_REASON
+    assert {name for name, d in decisions.items() if d.selected} == {ToolName.CUSTOMS, ToolName.LABEL_AD}
+
+
+def test_모델이_표시광고를_고르면_모델의_이유를_그대로_둔다(stub_model, records):
+    result = SelectionAgent(stub_model(_response(ToolName.LABEL_AD))).run(_PRODUCT)
+
+    label_ad = next(d for d in result.decisions if d.tool_name is ToolName.LABEL_AD)
+    assert (label_ad.selected, label_ad.reason) == (True, f"{ToolName.LABEL_AD} 판단")
