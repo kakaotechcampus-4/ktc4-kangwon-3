@@ -1,13 +1,13 @@
-"""Sentry 오류 전송 설정.
+"""Sentry 로그·오류 전송 설정.
 
 진단은 세션 스레드에서 돌고 실패를 잡아 로그로 남김 → 요청 예외만으로는 대부분 안 잡힘.
 그래서 로그 기준(AI_LOGGING.md 3절)을 그대로 씀.
     - ERROR 로그(예상 못 한 예외, traceback 포함) → 이벤트
-    - INFO·WARNING 로그 → 이벤트 앞의 흐름 기록(breadcrumb)만
+    - INFO 이상 로그 → 로그 (Sentry Logs 화면에서 검색). 이벤트 앞의 흐름 기록(breadcrumb)에도 남음
     - 요청 처리 중 잡지 않은 예외(500) → 이벤트 (FastAPI 연동). 예외 처리기가 응답으로 바꾼 4xx는 안 감
-요청 본문·개인정보·지역 변수(상품 원문·요청 헤더가 담김)는 보내지 않음. 트레이스·로그 전송은 쓰지 않음.
+요청 본문·개인정보·지역 변수(상품 원문·요청 헤더가 담김)는 보내지 않음. 성능 트레이스는 쓰지 않음.
 보내기 직전 내부 인증 헤더를 빼고, 예외 메시지·로그 문구·추가 값·흐름 기록 속 URL의 키(serviceKey·OC)를 가림.
-진단 실행 중 이벤트엔 로그와 같은 실행 정보(진단서·상품·실행 ID, 실행 종류, 단계, 재실행 회차)를 태그로 붙임.
+진단 실행 중 이벤트·로그엔 로그 줄과 같은 실행 정보(진단서·상품·실행 ID, 실행 종류, 단계, 재실행 회차)를 붙임.
 """
 
 import logging
@@ -27,7 +27,7 @@ _SECRET_HEADERS = frozenset({INTERNAL_TOKEN_HEADER.lower(), DEV_API_KEY_HEADER.l
 
 
 def configure_sentry(dsn: str, environment: str, **options) -> bool:
-    """Sentry를 켠다. DSN이 비면 아무것도 안 함.
+    """Sentry 로그·오류 전송을 켠다. DSN이 비면 아무것도 안 함.
 
     Args:
         dsn: Sentry 프로젝트 주소. 비면 끔.
@@ -49,11 +49,14 @@ def configure_sentry(dsn: str, environment: str, **options) -> bool:
         max_request_body_size="never",
         # 오류만. 성능 트레이스는 안 씀
         traces_sample_rate=None,
-        # 로그 전송(enable_logs)도 안 씀. INFO까지 보내면 상품 하나에 수십 건이라 할당량이 금방 참
         # 오류 위치별 지역 변수를 보내지 않음. 요청 헤더(내부 토큰)·상품 원문·키가 든 URL이 그대로 실림
         include_local_variables=False,
-        integrations=[LoggingIntegration(level=logging.INFO, event_level=logging.ERROR)],
+        # 로그 전송. 외부 라이브러리는 configure_logging이 WARNING 이상만 남김 (요청 주소 속 키 방지)
+        enable_logs=True,
+        integrations=[LoggingIntegration(level=logging.INFO, event_level=logging.ERROR,
+                                         sentry_logs_level=logging.INFO)],
         before_send=before_send,
+        before_send_log=before_send_log,
         **options,
     )
     logger.info("Sentry 켜짐 (environment=%s)", environment)
@@ -77,6 +80,29 @@ def before_send(event: dict, hint: dict) -> dict:
     if fields:
         event.setdefault("tags", {}).update(fields)
     return event
+
+
+def before_send_log(log: dict, hint: dict) -> dict:
+    """보내기 직전 로그의 URL 키를 가리고 지금 실행 정보를 속성으로 붙인다.
+
+    로그는 before_send를 거치지 않음 → 따로 가림. 로그를 남긴 스레드에서 불림.
+
+    Args:
+        log: Sentry 로그 (body·attributes).
+        hint: 쓰지 않음.
+
+    Returns:
+        dict: 정리하고 속성을 붙인 로그.
+    """
+    _mask_key(log, "body")
+    attributes = log.setdefault("attributes", {})
+    # 로그 줄용 값. 실행 정보는 아래에서 필드별로, 시각은 로그 자체에 있음
+    attributes.pop("run_fields", None)
+    attributes.pop("asctime", None)
+    # 로그 인자(sentry.message.parameter.N)·extra 값
+    _mask_values(attributes)
+    attributes.update(current_run_fields())
+    return log
 
 
 def _scrub(event: dict) -> None:
