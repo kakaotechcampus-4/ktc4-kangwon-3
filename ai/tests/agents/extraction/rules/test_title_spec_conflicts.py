@@ -5,7 +5,7 @@
 단위 붙은 수치, 재질, 전원 방식, 계절)을 규칙으로 잡고, 모순 문장에는 양쪽 표기를 원문 그대로 넣는다.
 """
 
-from app.agents.extraction.title_spec_conflicts import detect_title_spec_conflicts
+from app.agents.extraction.title_spec_conflicts import detect_power_conflicts, detect_title_spec_conflicts
 
 # 스펙표는 "키" 줄 다음에 "값" 줄이 오거나(알리·테무), "키: 값" 한 줄이다(테무 옵션).
 
@@ -166,3 +166,18 @@ def test_수치_모순_문장은_같은_스펙_값을_한_번만_적는다():
 def test_스테인리스나_구리는_스펙표_재료가_금속이면_모순이_아니다():
     assert detect_title_spec_conflicts(["스테인리스 주방 수납 선반"], [_spec(("재료", "금속"))]) == []
     assert detect_title_spec_conflicts(["구리 합금 무릎 보호대"], [_spec(("재료", "Metal"))]) == []
+
+
+def test_전원_모순만_따로_돌려준다():
+    # 추출 에이전트가 electrical_powered를 확정하지 않을지 정할 때 쓴다. 다른 유형(계절)은 넣지 않는다
+    blocks = [_spec(("전자식", "아니요"), ("전원 공급", "교류"), ("계절", "봄/가을"))]
+    titles = ["봄/여름용 초음파 마사지기"]
+
+    power = detect_power_conflicts(titles, blocks)
+
+    assert len(power) == 1 and "교류" in power[0]
+    assert len(detect_title_spec_conflicts(titles, blocks)) == 2
+
+
+def test_전원_표기가_서로_맞으면_전원_모순이_없다():
+    assert detect_power_conflicts(["USB 충전식 손난로"], [_spec(("전자식", "예"), ("전원 공급", "USB"))]) == []

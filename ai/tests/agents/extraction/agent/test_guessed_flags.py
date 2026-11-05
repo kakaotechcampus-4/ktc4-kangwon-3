@@ -1,9 +1,14 @@
-"""상품 종류로 짐작해 채운 false, 원문에 부정 표기가 없는 false, 배터리 모순 페이지의 배터리 확정을 None(모름)으로 되돌리는 후처리."""
+"""상품 종류로 짐작해 채운 false, 원문에 부정 표기가 없는 false, 배터리·전원 모순 페이지의 확정을 None(모름)으로 되돌리는 후처리."""
 
 import pytest
 
 from app.agents.extraction import ExtractionAgent
-from app.agents.extraction.guessed_flags import drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
+from app.agents.extraction.guessed_flags import (
+    drop_conflicted_battery,
+    drop_conflicted_power,
+    drop_guessed_false,
+    drop_unsupported_false,
+)
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes
 
@@ -232,3 +237,37 @@ def test_추출_결과에_식물성_false_되돌리기가_적용되고_모순으
 
     assert result.plant_material is None
     assert any("72% Cotton" in c for c in result.conflicts)
+
+
+# 스펙표가 "전자식: 아니요"인데 "전원 공급: 교류"처럼 전원 방식을 서로 다르게 적으면 electrical_powered를 확정하지 않는다
+# (초안 50건 측정 2026-11-05: strat_16 캐비테이션 마사지기를 모델이 3회 모두 false로 둠. 실제는 교류 전원 제품)
+
+@pytest.mark.parametrize("value", [True, False])
+def test_전원_모순이면_electrical_powered_확정을_모름으로_되돌린다(value):
+    attributes = {"electrical_powered": value, "heating": False}
+
+    assert drop_conflicted_power(attributes) == ["electrical_powered"]
+    assert (attributes["electrical_powered"], attributes["heating"]) == (None, False)
+
+
+def test_이미_모름인_전원_칸은_바꾼_목록에_넣지_않는다():
+    assert drop_conflicted_power({"electrical_powered": None}) == []
+
+
+def test_코드_규칙이_전원_모순을_찾으면_전기_여부와_그에_기댄_false를_확정하지_않는다(stub_model, records):
+    reply = ProductAttributes(electrical_powered=False, heating=False, battery_included=False)
+    source = ExtractionInput(product_id="p-6", text_blocks=["초음파 바디 마사지기\n전자식\n아니요\n전원 공급\n교류"])
+
+    result = ExtractionAgent(stub_model(reply)).run(source)
+
+    assert result.electrical_powered is None
+    # 전기 여부를 모르게 됐으므로 전기를 쓰지 않는다는 데 기댄 발열·배터리 false도 모름
+    assert (result.heating, result.battery_included) == (None, None)
+    assert any("전자식" in conflict and "교류" in conflict for conflict in result.conflicts)
+
+
+def test_전원_모순이_없으면_electrical_powered를_그대로_둔다(stub_model, records):
+    reply = ProductAttributes(electrical_powered=False)
+    source = ExtractionInput(product_id="p-7", text_blocks=["발 지압 매트\n전자식\n아니요\n전원 공급\n전기 없음"])
+
+    assert ExtractionAgent(stub_model(reply)).run(source).electrical_powered is False

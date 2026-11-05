@@ -10,7 +10,8 @@
 - 전원 방식: 스펙표 "전자식: 아니요"인데 "전원 공급: 교류", 제목 "충전식"인데 "전원 공급: 전기 없음"
 - 계절: 제목 "봄/여름용"인데 스펙표 "계절: 봄/가을"
 
-검토 후보일 뿐 모델 값을 덮어쓰지 않는다. 문장에는 양쪽 표기를 원문 그대로 넣어 사람이 바로 대조할 수 있게 한다.
+검토 후보일 뿐 모델 값을 덮어쓰지 않는다. 전원 방식 모순만은 예외로, 추출 에이전트가 detect_power_conflicts로 따로 찾아
+electrical_powered를 확정하지 않는다(배터리 모순과 같은 원칙 5). 다른 유형은 바로 대응하는 O/X 칸이 없다. 문장에는 양쪽 표기를 원문 그대로 넣어 사람이 바로 대조할 수 있게 한다.
 """
 
 import re
@@ -252,6 +253,20 @@ def _power_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[str
         for key, value in unpowered:
             found.append(_sentence(powered_text, key, value))
     return found
+
+
+
+def detect_power_conflicts(titles: list[str], text_blocks: list[str]) -> list[str]:
+    """전원 방식 모순만 돌려준다. 추출 에이전트가 electrical_powered를 확정하지 않을지 정할 때 쓴다.
+
+    Args:
+        titles: 판매자 제목(판매자 구역에서 찾은 것).
+        text_blocks: 판매자 구역 원문 블록(스펙표 포함).
+
+    Returns:
+        list[str]: 전원 방식 모순 문장. 없으면 빈 목록.
+    """
+    return _power_conflicts(titles, _spec_rows(text_blocks))
 
 
 # --- 6. 계절 ----------------------------------------------------------------------------

@@ -4,10 +4,13 @@
 프롬프트·필드 설명으로 막아 보면 다른 칸까지 비워 두는 놓침이 함께 늘어서, 근거 기준이 분명한 칸만 코드에서 정리한다.
 기준은 추출 프롬프트 원칙 1과 평가 정답표가 쓰는 "false의 근거"와 같다.
 
-세 가지를 되돌린다.
+여섯 가지를 되돌린다. 어느 것도 칸을 true·false로 정하지 않는다.
     - drop_guessed_false: 페이지가 부정을 말하는 일이 거의 없는 칸. 원문을 보지 않고 false를 전부 되돌림
     - drop_unsupported_false: 페이지가 부정을 말할 수 있는 칸. 원문에 그 표기가 없을 때만 되돌림
+    - drop_contradicted_plant_false: 소재 줄에 식물성 재질이 있는데 plant_material이 false. 되돌리고 모순으로 남김
+    - drop_contradicted_claim_false: 효능·미용 표방 문구가 있는데 medical_claim·cosmetic_claim이 false. 되돌리고 모순으로 남김
     - drop_conflicted_battery: 코드 규칙이 배터리 모순을 찾은 페이지. 배터리 칸의 확정(true·false)을 되돌림
+    - drop_conflicted_power: 코드 규칙이 전원 방식 모순을 찾은 페이지. electrical_powered 확정을 되돌림
 """
 
 import re
@@ -60,6 +63,8 @@ _NON_PLANT_MATERIAL = re.compile(
 )
 # 코드 규칙이 배터리 모순(용량 표기 + "배터리 미포함")을 찾았을 때 확정하지 않는 칸 (원칙 5)
 _BATTERY_FIELDS = ("battery_included", "battery_is_the_product")
+# 코드 규칙이 전원 방식 모순("전자식: 아니요" + "전원 공급: 교류" 등)을 찾았을 때 확정하지 않는 칸 (원칙 5)
+_POWER_FIELDS = ("electrical_powered",)
 
 
 def drop_guessed_false(attributes: dict[str, Any]) -> list[str]:
@@ -214,5 +219,24 @@ def drop_conflicted_battery(attributes: dict[str, Any]) -> list[str]:
         list[str]: None으로 바꾼 필드 이름.
     """
     dropped = [name for name in _BATTERY_FIELDS if attributes.get(name) is not None]
+    attributes.update(dict.fromkeys(dropped))
+    return dropped
+
+
+def drop_conflicted_power(attributes: dict[str, Any]) -> list[str]:
+    """전원 방식 모순이 있는 페이지에서 electrical_powered 확정을 None으로 바꾼다. attributes를 그 자리에서 고친다.
+
+    스펙표가 "전자식: 아니요"인데 "전원 공급: 교류"처럼 서로 다르게 적은 페이지. 모델은 한쪽을 골라 확정함
+    (초안 50건 측정 2026-11-05: strat_16에서 3회 모두 false, 실제는 교류 전원 제품).
+    호출자가 코드 규칙(detect_power_conflicts)으로 모순을 찾았을 때만 부른다. 다른 false 정리보다 먼저 불러야
+    전기 여부를 모르는 상품의 발열·배터리·무선 false도 같은 기준으로 정리된다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+
+    Returns:
+        list[str]: None으로 바꾼 필드 이름.
+    """
+    dropped = [name for name in _POWER_FIELDS if attributes.get(name) is not None]
     attributes.update(dict.fromkeys(dropped))
     return dropped

@@ -35,6 +35,7 @@ def test_기록_중이면_되돌린_false·되살린_제목·규칙이_더한_�
     # 무선 통신 부정 표기가 없는 false, 배터리 모순 페이지의 배터리 확정
     assert post["unsupported_false_to_none"] == ["wireless_comm"]
     assert post["conflicted_battery_to_none"] == ["battery_included"]
+    assert post["conflicted_power_to_none"] == []
     assert post["titles_restored"] == [_TITLE]
     assert [(attribute["name"], attribute["value"]) for attribute in post["rule_attributes_added"]] == [
         ("배터리 용량", "1460mAh")]
