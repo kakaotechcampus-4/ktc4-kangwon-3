@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 import { cn } from "@/lib/cn";
 
-import { PREVIEW_SLIDES, PREVIEW_DURATION } from "./constants";
+import { PREVIEW_DURATION,PREVIEW_SLIDES } from "./constants";
 import PreviewIndicator from "./PreviewIndicator";
 import { usePreviewCarousel } from "./usePreviewCarousel";
 

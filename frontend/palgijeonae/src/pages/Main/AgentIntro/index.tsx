@@ -1,5 +1,4 @@
 import SectionIntro from "@/components/common/SectionIntro";
-import { AGENT_EXAMPLE_FINDINGS } from "@/pages/Main/previewMocks";
 
 import AgentCard from "./AgentCard";
 import { AGENT_DOMAINS } from "./constants";
