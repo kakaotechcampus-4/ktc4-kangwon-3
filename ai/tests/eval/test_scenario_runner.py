@@ -176,3 +176,21 @@ def test_없는_추출_정답_폴더를_주면_모델을_돌리기_전에_멈춘
                               "--extraction-truth-dir", str(tmp_path / "없는폴더")])
 
     assert built == []
+
+
+def test_재채점은_저장된_정답_경로_대신_지정한_정답_폴더를_쓸_수_있다(tmp_path, monkeypatch):
+    # 결과 JSON에는 측정한 PC의 절대 경로가 남는다. 다른 PC에서는 --truth-dir로 다시 가리킨다.
+    truth_dir, raw_dir = tmp_path / "truth", tmp_path / "raw"
+    _write_truth(truth_dir, "strat_01", "strat_01/text.txt", selected={"customs_requirements", "radio_compliance"})
+    _write_raw(raw_dir, "strat_01", "text.txt")
+    monkeypatch.setattr(scenario_runner, "RESULT_DIR", tmp_path / "out")
+    monkeypatch.setattr(scenario_runner, "build_agents", lambda: (_FakeExtractor(), _FakeSelector(), {"model": "가짜"}))
+    scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir), "--runs", "1"])
+    saved_path = next((tmp_path / "out").glob("scenario-*.json"))
+    moved = tmp_path / "moved_truth"
+    truth_dir.rename(moved)
+    report = tmp_path / "again.md"
+
+    assert scenario_runner.main(["--rescore", str(saved_path), "--truth-dir", str(moved), "--report", str(report)]) == 0
+
+    assert "0/1" in report.read_text(encoding="utf-8")

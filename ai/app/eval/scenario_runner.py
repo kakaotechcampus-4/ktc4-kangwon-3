@@ -3,7 +3,7 @@
     cd ai
     python -m app.eval.scenario_runner --truth-dir <정답 폴더> --raw-dir <원문 폴더> [--extraction-truth-dir <추출 정답 폴더>]
         [--input-file text_as_pasted.txt] [--runs 3] [--retries 2] --report <보고서.md> --title "개발 표본 (펼친 글)"
-    python -m app.eval.scenario_runner --rescore logs/eval/scenario-<시각>.json --report <보고서.md> --title "..."
+    python -m app.eval.scenario_runner --rescore logs/eval/scenario-<시각>.json [--truth-dir <정답 폴더>] --report <보고서.md> --title "..."
 
 상품마다 추출 N회 → 추출 결과마다 선택 1회. 실패한 회차는 최대 retries번 다시 시도하고, 그래도 실패하면 빈 회차로
 남겨 채점에서 "골라야 할 Tool 전부 빠뜨림"으로 센다. 원문은 --raw-dir로 직접 가리킨다(워크트리에 링크를 만들지 않음).
@@ -126,7 +126,7 @@ def _write_report(path: Path | None, summary: dict, meta: dict, title: str) -> N
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="사용자 시나리오 끝단 평가 (추출 → 선택)")
-    parser.add_argument("--truth-dir", type=Path, help="선택 정답 폴더")
+    parser.add_argument("--truth-dir", type=Path, help="선택 정답 폴더 (재채점에서 주면 저장된 경로 대신 씀)")
     parser.add_argument("--raw-dir", type=Path, help="원문 폴더 (정답 fixture 경로의 기준)")
     parser.add_argument("--extraction-truth-dir", type=Path, help="추출 정답 폴더 (있으면 빠뜨림 원인을 분류)")
     parser.add_argument("--input-file", default="text.txt", help="상품 폴더 안의 입력 파일 (기본 text.txt)")
@@ -139,8 +139,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.rescore:
         saved = json.loads(args.rescore.read_text(encoding="utf-8"))
-        etd = Path(saved["extraction_truth_dir"]) if saved.get("extraction_truth_dir") else None
-        truths, extraction = _load_truths(Path(saved["truth_dir"]), etd, list(saved["products"]))
+        # 저장된 경로는 측정한 PC 기준이라, 다른 PC에서는 --truth-dir·--extraction-truth-dir로 다시 가리킨다
+        truth_dir = args.truth_dir or Path(saved["truth_dir"])
+        etd = args.extraction_truth_dir or (Path(saved["extraction_truth_dir"]) if saved.get("extraction_truth_dir") else None)
+        truths, extraction = _load_truths(truth_dir, etd, list(saved["products"]))
         _write_report(args.report, summarize(saved["products"], truths, extraction), saved["meta"], args.title)
         return 0
 
