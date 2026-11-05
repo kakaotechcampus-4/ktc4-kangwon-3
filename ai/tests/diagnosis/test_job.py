@@ -207,6 +207,24 @@ def test_지난_회차에_물은_질문은_다시_묻지_않고_그대로_끝낸
     assert outcome.result.termination_reason is ExecutionEndReason.COMPLETED
 
 
+def test_두_회차_전에_물은_질문도_상품_정보의_답변_줄로_찾아_다시_묻지_않는다(pipeline):
+    # 3회차: 1회차 질문(전압)은 직전 결과의 질문 칸엔 없고 상품 정보의 답변 줄에만 남음
+    pipeline["result"] = _missing(_result(), {ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."]})
+    second = _result()
+    previous = second.model_copy(update={
+        "product": second.product.model_copy(update={"listing_text": [
+            *second.product.listing_text, "[사용자 답변] 정격 전압 정보가 필요합니다. → 잘 모르겠어요"]}),
+        "follow_up_questions": [FollowUpQuestion(question="무선 기능 정보가 필요합니다.", reason="전파 판단에 필요한 정보예요.")],
+    })
+    job_input = DiagnosisInput(source=SOURCE, previous=previous, answers=[
+        SessionAnswer(question_round=2, question_key="r2_q1", answer_text="없어요")])
+
+    outcome = build_job(_parts([]), _no_questions)(job_input, CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobDone)
+    assert outcome.result.termination_reason is ExecutionEndReason.COMPLETED
+
+
 def test_Tool_실행기는_조립한_Tool을_진행_알림으로_감싸_실행마다_만든다(pipeline):
     tool = _FakeTool(ToolName.RADIO)
     parts = _parts([])

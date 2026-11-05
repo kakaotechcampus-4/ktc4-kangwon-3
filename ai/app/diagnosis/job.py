@@ -36,7 +36,7 @@ from ..schemas.schemas import (
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
 from ..tools.base import RegulatoryTool
-from .answers import with_answers
+from .answers import ANSWER_PREFIX, with_answers
 from .assembly import PipelineParts
 from .replay import StageReplay
 
