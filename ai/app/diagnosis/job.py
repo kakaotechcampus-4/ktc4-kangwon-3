@@ -109,6 +109,10 @@ def _ask_missing_information(result: FinalAssessment, previous: FinalAssessment 
         FinalAssessment: 새 질문이 있으면 질문을 더하고 답변 대기로 바꾼 결과, 없으면 그대로.
     """
     asked = {question.question.strip() for question in (previous.follow_up_questions if previous else [])}
+    # 직전 결과에는 그 전 회차 질문이 없어서, 상품 정보에 남은 답변 줄에서도 모음
+    if previous is not None:
+        asked |= {line.removeprefix(ANSWER_PREFIX).split(" → ")[0].strip()
+                  for line in previous.product.listing_text if line.startswith(ANSWER_PREFIX)}
     existing = {question.question.strip() for question in result.follow_up_questions}
     added: dict[str, FollowUpQuestion] = {}
     for tool_result in result.tool_results:
