@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import SectionIntro from "@/components/common/SectionIntro";
 import { cn } from "@/lib/cn";
 
 import { PREVIEW_DURATION,PREVIEW_SLIDES } from "./constants";
@@ -14,11 +15,12 @@ function Preview() {
 
     return (
         <div
-            className="w-full"
+            className="w-full flex flex-col gap-8"
             style={{ "--preview-duration": PREVIEW_DURATION } as CSSProperties}
             aria-roledescription="carousel"
             aria-label="서비스 미리보기"
         >
+            <SectionIntro title='"팔기전에" 사용 전 미리 보여 드려요' description="쉽고 간단하게 사용할 수 있어요. 자세한 사용 방법은 아래에서 확인하세요." size="2xl" />
             <div className="w-full overflow-hidden rounded-2xl border border-neutral-border bg-neutral-bg">
                 <PreviewIndicator
                     slides={PREVIEW_SLIDES}
