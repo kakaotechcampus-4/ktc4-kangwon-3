@@ -30,6 +30,9 @@ API 키 없이 CI에서 돈다.
 `advertising_inputs.zip`에 따로 둔다. 풀어서 이 디렉터리에 넣고, zip 안 `MANIFEST.txt`의 지문이
 `tests/eval_truth_advertising/*.json`의 `inputs_sha256_12`와 같은지 확인한다(다르면 러너가 실행하지 않는다).
 
+사용자 시나리오 평가 원문(개발 `strat_NN/` 50개, 홀드아웃 `holdout_scenario/` 15개)은 같은 노션 페이지의 `scenario_raw_text.zip`에 둔다.
+이 디렉터리에 그대로 풀고 `MANIFEST_scenario.txt`로 지문을 확인한다. 상세 이미지는 `scenario_raw_images.zip`(정답 근거 확인용). `docs/SCENARIO_EVAL.md` 참고.
+
 ```bash
 python scripts/try_extraction.py --text tests/fixtures/_raw/power_bank.txt
 ```
