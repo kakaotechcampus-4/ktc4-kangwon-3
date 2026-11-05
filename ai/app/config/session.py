@@ -11,9 +11,10 @@ MAX_RUNNING_SESSIONS = 10
 # 진단 하나에서 동시에 실행하는 Tool 수. 1이면 순차 실행 (Tool 단계 시간 = 각 Tool 시간의 합)
 # 진단 동시 실행과 곱해져 모델 호출이 최대 MAX_RUNNING_SESSIONS × 이 값만큼 동시에 나감. 게이트웨이 거절(429)이 보이면 낮춤
 MAX_PARALLEL_TOOLS = 6
-# 대기 + 실행 중 세션 상한. 넘으면 접수 거절
-# t3.medium, AI 컨테이너 1GB 기준 최악 약 360MB (대기 세션당 약 5MB 추정)
-MAX_INFLIGHT_SESSIONS = 50
+# 대기 + 실행 중 세션 상한. 넘으면 접수 거절 → BE가 대기로 돌렸다가 재요청
+# 대기는 실행 자리가 날 때까지 잠깐 쥐는 용도라 실행 상한의 두 배 정도만 둠
+# t3.medium, AI 컨테이너 1GB 기준 최악 약 210MB (50개일 때 약 360MB에서 대기 세션당 약 5MB 추정으로 30개분 뺌)
+MAX_INFLIGHT_SESSIONS = 20
 # 샌드박스 진단 대기 + 실행 중 상한. 운영 진단 실행 자리를 덜 차지하게 따로 둠 (전체 상한에도 같이 셈)
 # 실제 파이프라인(모델 호출)이라 3개. 샌드박스 요청 상품 수 상한도 이 값
 MAX_DEV_INFLIGHT_SESSIONS = 3

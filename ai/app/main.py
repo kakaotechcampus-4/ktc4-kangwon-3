@@ -26,9 +26,9 @@ from .observability.metrics import (
     AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
 )
 from .observability.sentry import configure_sentry
-from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, build_law_fetchers, get_session_factory, init_db,
-                 log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh, run_scheduled_clip_ingest,
-                 run_weekly_clip_ingest)
+from .db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, SessionArchiveDatabase, build_law_fetchers,
+                 get_session_factory, init_db, log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh,
+                 run_scheduled_clip_ingest, run_weekly_clip_ingest)
 from .routers import diagnose, dummy, health, metrics, sandbox
 from .results.presenter import ResultPresenter
 from .routers.exception_handlers import VALIDATION_ERROR_RESPONSES, register_exception_handlers
@@ -115,7 +115,9 @@ async def lifespan(app: FastAPI):
         RunType.TEST: pipeline_job,
         RunType.DUMMY: run_case_diagnosis,
     })
-    manager = SessionManager(SessionStore(), job)
+    # 재시작 때 되살릴 세션은 DB에 같이 보관 (#565). DB가 없으면 메모리에만 둬 재시작 때 사라짐
+    archive = None if session_factory is None else SessionArchiveDatabase(session_factory)
+    manager = SessionManager(SessionStore(archive=archive), job)
     # BE 콜백 (#317)
     sender = BackendCallbackClient(settings.be_base_url, settings.internal_api_token)
     outbox = CallbackOutbox(sender)
@@ -133,6 +135,9 @@ async def lifespan(app: FastAPI):
     measurement_sinks.add(measurement_metrics)
     app.state.metrics_registry = registry
     app.state.session_manager = manager
+    # 콜백·지표 구독을 다 붙인 뒤 되살림 (복원한 세션의 결과도 콜백으로 나가게)
+    if archive is not None:
+        manager.restore(await asyncio.to_thread(archive.load))
     # 샌드박스 진단 상태 조회도 콜백과 같은 변환기로 공개 진단서를 만듦
     app.state.assessment_presenter = presenter
     sweeper = asyncio.create_task(_sweep_sessions(manager))
