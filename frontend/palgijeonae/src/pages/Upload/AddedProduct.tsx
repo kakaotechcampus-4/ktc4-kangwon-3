@@ -45,7 +45,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
 
     return (
         <DefaultBox>
-            <div className="relative flex w-full gap-5 py-2">
+            <div className="relative flex w-full gap-5 pb-4">
                 <img src={thumbnail ? thumbnail : defaultThumbnail}
                     alt="상품 썸네일"
                     className="w-20 h-20 object-cover rounded-lg border border-neutral-border" />
