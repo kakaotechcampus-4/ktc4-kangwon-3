@@ -79,6 +79,10 @@ public class User extends BaseEntity {
         this.socialRefreshToken = socialRefreshToken;
     }
 
+    public void updateName(String name) {
+        this.name = name.trim();
+    }
+
     private static String resolveName(String name) {
         if (name == null || name.isBlank()) {
             return DEFAULT_NAME;

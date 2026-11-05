@@ -247,8 +247,8 @@ class FoodDrugTool(EvidenceSearchTool):
             subject="식품용 기구·용기 후보 — 수입신고 대상",
             summary=("음식에 직접 닿는 용도로 보여, 식품용 기구(식품위생법 제2조 제4호)라면 판매 목적으로 수입할 때 "
                      "수입신고 대상일 가능성이 있습니다(확정 아님)."),
-            rationale="상품 원문에 음식·음료에 직접 닿는 쓰임이 적혀 있습니다: "
-                      + "; ".join(f"'{fact.quote}'" for fact in by_field["food_contact"]),
+            rationale="상품 원문에 음식·음료에 직접 닿는 쓰임이 적혀 있습니다:\n"
+                      + "\n".join(f"'{fact.quote}'" for fact in by_field["food_contact"]),
             determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
             facts=facts, assumptions=[*assumptions, *notes], sources=sources, requirements=todo,
         )], todo
@@ -277,7 +277,7 @@ class FoodDrugTool(EvidenceSearchTool):
         sources = [] if evidence is None else [evidence.food_item.source(), evidence.imported_scope.source(),
                                                *_import_sources(evidence)]
         if claims:
-            summary += (f" 기능성 표방 문구({', '.join(claims)})가 있어 건강기능식품(건강기능식품에 관한 법률 제3조) 해당 여부도 "
+            summary += (f"\n기능성 표방 문구({', '.join(claims)})가 있어 건강기능식품(건강기능식품에 관한 법률 제3조) 해당 여부도 "
                         "확인이 필요합니다.")
             todo = [*todo, health_food_action(label, claims)]
             if evidence is not None:
@@ -285,8 +285,8 @@ class FoodDrugTool(EvidenceSearchTool):
         return [self._finding(
             subject="식품·건강기능식품 후보 — 수입신고 대상",
             summary=summary,
-            rationale="상품 원문에 먹거나 마시는 상품이라는 근거가 있습니다: "
-                      + "; ".join(f"'{fact.quote}'" for fact in by_field["edible"]),
+            rationale="상품 원문에 먹거나 마시는 상품이라는 근거가 있습니다:\n"
+                      + "\n".join(f"'{fact.quote}'" for fact in by_field["edible"]),
             determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM, facts=facts,
             assumptions=[*assumptions, "건강기능식품의 인정된 기능성 원료 대조는 하지 않았습니다."],
             sources=sources, requirements=todo,
@@ -339,8 +339,8 @@ class FoodDrugTool(EvidenceSearchTool):
             subject="화장품 후보 — 화장품책임판매업 등록 대상",
             summary=("몸에 바르거나 뿌려 쓰는 상품으로 보여, 화장품(화장품법 제2조 제1호)이라면 수입해 판매하거나 수입대행을 "
                      "알선할 때 화장품책임판매업 등록이 필요할 가능성이 있습니다(확정 아님)."),
-            rationale="상품 원문에 몸에 바르거나 뿌려 쓰는 상품이라는 근거가 있습니다: "
-                      + "; ".join(f"'{fact.quote}'" for fact in by_field["skin_applied"]),
+            rationale="상품 원문에 몸에 바르거나 뿌려 쓰는 상품이라는 근거가 있습니다:\n"
+                      + "\n".join(f"'{fact.quote}'" for fact in by_field["skin_applied"]),
             determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM, facts=facts,
             assumptions=[*assumptions, *notes],
             sources=[] if evidence is None else [evidence.cosmetic_definition.source(),
@@ -353,9 +353,9 @@ class FoodDrugTool(EvidenceSearchTool):
             todo = [*todo, action]
             findings.append(self._finding(
                 subject="기능성화장품 후보 — " + ", ".join(f"시행규칙 제2조 제{item.number}호" for item in types),
-                summary=(f"피부·모발 효과 문구({', '.join(beauty)})가 기능성화장품 범위에 해당할 수 있습니다(확정 아님). "
+                summary=(f"피부·모발 효과 문구({', '.join(beauty)})가 기능성화장품 범위에 해당할 수 있습니다(확정 아님).\n"
                          "기능성화장품으로 판매하려면 품목별 심사 또는 보고서 제출이 필요합니다."),
-                rationale="해당할 수 있는 범위: " + " / ".join(f"제{item.number}호 {item.text}" for item in types),
+                rationale="해당할 수 있는 범위:\n" + "\n".join(f"제{item.number}호 {item.text}" for item in types),
                 determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=claim_facts, assumptions=list(assumptions),
                 sources=[evidence.functional_definition.source(), *(evidence.functional_scope.doc.source(
@@ -444,7 +444,7 @@ class FoodDrugTool(EvidenceSearchTool):
             actions.extend(item_actions)
             findings.append(self._finding(
                 subject=f"의료기기 후보 — {item.name} ({item.grade}등급)",
-                summary=(f"이 품목으로 분류되면 의료기기({item.grade}등급)일 가능성이 있습니다(확정 아님). "
+                summary=(f"이 품목으로 분류되면 의료기기({item.grade}등급)일 가능성이 있습니다(확정 아님).\n"
                          f"품목 정의: {item.definition}"),
                 rationale=selection.rationale, determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=[fact for fact in facts if fact.field in used], assumptions=[*assumptions, *notes],

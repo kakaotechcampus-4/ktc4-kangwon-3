@@ -22,7 +22,6 @@ REQUIRED_ENV = {
     "OPENAI_BASE_URL": "base_url",
     "OPENAI_EMBEDDING_MODEL": "embedding_model",
     "DATA_GO_KR_KEY": "data_go_kr_key",
-    "KEY_SAFETYKOREA": "safetykorea_key",
     "LAW_GO_KR_OC": "law_oc",
     "INTERNAL_API_TOKEN": "internal_api_token",
     "BE_BASE_URL": "be_base_url",
@@ -30,6 +29,9 @@ REQUIRED_ENV = {
 
 # BE InternalApiProperties의 @Size(min = 32)와 같은 기준
 INTERNAL_API_TOKEN_MIN_LENGTH = 32
+
+# (선택) SafetyKorea 키. KC 인증 조회를 쓰는 Tool이 없어 비워 두면 꺼짐
+SAFETYKOREA_KEY_ENV = "KEY_SAFETYKOREA"
 
 # (선택) 개발용 진단 엔드포인트. 켤 때만 키 필수
 DEV_API_ENABLED_ENV = "AI_DEV_API_ENABLED"
@@ -49,6 +51,13 @@ REVIEW_THRESHOLD_ENV = {
     "REVIEW_IMAGE_HIGH": "image_high",
     "REVIEW_IMAGE_LOW": "image_low",
 }
+
+# (선택) Sentry 오류 전송. DSN이 비면 끔, 넣으면 환경 이름 필수
+SENTRY_DSN_ENV = "SENTRY_DSN"
+SENTRY_ENVIRONMENT_ENV = "SENTRY_ENVIRONMENT"
+# (선택) Sentry로 보낼 로그 레벨. 비우면 INFO, OFF면 로그 전송 끄고 오류 이벤트만
+SENTRY_LOG_LEVEL_ENV = "SENTRY_LOG_LEVEL"
+SENTRY_LOG_LEVELS = ("INFO", "WARNING", "ERROR", "OFF")
 
 
 # 프로필 표 종류. 덮어쓰기 값의 "종류.이름" 앞부분
@@ -119,7 +128,7 @@ class Settings:
         base_url: ML API 주소 (OPENAI_BASE_URL).
         embedding_model: 임베딩 모델 이름 (OPENAI_EMBEDDING_MODEL).
         data_go_kr_key: 공공데이터포털 서비스 키 (DATA_GO_KR_KEY). 관세청 세관장확인·식약처가 사용.
-        safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA).
+        safetykorea_key: SafetyKorea AuthKey (KEY_SAFETYKOREA). 선택. 쓰는 Tool이 없어 비어 있으면 SafetyKorea를 쓰지 않음.
         law_oc: 법제처 OC 값 (LAW_GO_KR_OC).
         internal_api_token: BE 내부 API 토큰 (INTERNAL_API_TOKEN). 콜백 X-Internal-Token 헤더 값, BE와 같은 값.
         be_base_url: 콜백을 보낼 BE 주소 (BE_BASE_URL).
@@ -132,6 +141,11 @@ class Settings:
         tool_profiles: Tool 이름 → 프로필 이름. 기본은 TOOL_PROFILES.
         log_level: 앱 로그 레벨 (LOG_LEVEL). DEBUG·INFO·WARNING·ERROR 중 하나, 기본 INFO.
         review_thresholds: 입력 가드 문턱값 (REVIEW_*). load_settings에서는 필수, 직접 만들 때만 비울 수 있음.
+        sentry_dsn: Sentry 프로젝트 주소 (SENTRY_DSN). 비면 Sentry를 쓰지 않음.
+        sentry_environment: Sentry 환경 이름 (SENTRY_ENVIRONMENT). DSN을 넣으면 필수.
+            운영 이벤트에 로컬 오류가 섞이지 않게 기본값을 두지 않음.
+        sentry_log_level: Sentry로 보낼 로그 레벨 (SENTRY_LOG_LEVEL). INFO·WARNING·ERROR·OFF 중 하나, 기본 INFO.
+            OFF면 로그 전송을 끄고 오류 이벤트만 보냄 (할당량이 차면 서버 .env만 바꿔 줄임).
 
     Raises:
         ConfigError: 필수 설정이 비어 있거나 형식·허용 범위를 벗어난 경우.
@@ -152,6 +166,9 @@ class Settings:
     tool_profiles: dict[str, str] = field(default_factory=lambda: dict(TOOL_PROFILES))
     log_level: str = "INFO"
     review_thresholds: ReviewThresholds | None = None
+    sentry_dsn: str = field(default="", repr=False)
+    sentry_environment: str = ""
+    sentry_log_level: str = "INFO"
 
     def __post_init__(self) -> None:
 
@@ -211,6 +228,16 @@ class Settings:
         if self.log_level not in LOG_LEVELS:
             raise ConfigError(f"{LOG_LEVEL_ENV}는 {', '.join(LOG_LEVELS)} 중 하나여야 합니다: {self.log_level!r}")
 
+        # Sentry. DSN에 키가 들어 있어 실제 값은 출력하지 않음
+        if self.sentry_dsn:
+            if not self.sentry_dsn.startswith("https://"):
+                raise ConfigError(f"{SENTRY_DSN_ENV}는 https://로 시작해야 합니다.")
+            if not self.sentry_environment:
+                raise ConfigError(f"{SENTRY_DSN_ENV}를 넣으면 {SENTRY_ENVIRONMENT_ENV}도 필요합니다.")
+        if self.sentry_log_level not in SENTRY_LOG_LEVELS:
+            raise ConfigError(
+                f"{SENTRY_LOG_LEVEL_ENV}는 {', '.join(SENTRY_LOG_LEVELS)} 중 하나여야 합니다: {self.sentry_log_level!r}")
+
 
 def load_settings() -> Settings:
     """ai/.env와 환경변수에서 설정을 읽는다. 환경변수가 .env보다 우선한다.
@@ -251,6 +278,7 @@ def load_settings() -> Settings:
     # Settings 객체를 생성하고 반환
     return Settings(
         **values,
+        safetykorea_key=os.environ.get(SAFETYKOREA_KEY_ENV, "").strip(),
         database_url=os.environ.get("DATABASE_URL", "").strip(),
         dev_api_enabled=_parse_bool(DEV_API_ENABLED_ENV, os.environ.get(DEV_API_ENABLED_ENV, "")),
         dev_api_key=os.environ.get(DEV_API_KEY_ENV, "").strip(),
@@ -261,6 +289,9 @@ def load_settings() -> Settings:
             field_name: _parse_float(env_name, os.environ[env_name])
             for env_name, field_name in REVIEW_THRESHOLD_ENV.items()
         }),
+        sentry_dsn=os.environ.get(SENTRY_DSN_ENV, "").strip(),
+        sentry_environment=os.environ.get(SENTRY_ENVIRONMENT_ENV, "").strip(),
+        sentry_log_level=os.environ.get(SENTRY_LOG_LEVEL_ENV, "").strip().upper() or "INFO",
     )
 
 

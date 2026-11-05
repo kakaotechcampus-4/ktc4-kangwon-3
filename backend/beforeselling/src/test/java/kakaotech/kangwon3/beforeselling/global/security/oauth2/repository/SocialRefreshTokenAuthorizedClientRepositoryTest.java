@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(MockitoExtension.class)
 class SocialRefreshTokenAuthorizedClientRepositoryTest {
@@ -94,6 +95,26 @@ class SocialRefreshTokenAuthorizedClientRepositoryTest {
         // when & then
         assertThatCode(() -> repository.saveAuthorizedClient(authorizedClient, principal, null, null))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 제공자의 refresh_token은 저장하지 않는다.")
+    void saveAuthorizedClient_withUnsupportedProvider_thenSkip() {
+        // given
+        OAuth2AuthorizedClient authorizedClient = authorizedClient("apple", "refresh-token");
+
+        // when
+        repository.saveAuthorizedClient(authorizedClient, authenticationOf(customOAuth2User()), null, null);
+
+        // then
+        then(userService).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("인가 클라이언트는 보관하지 않으므로 조회하면 항상 없다.")
+    void loadAuthorizedClient_thenNull() {
+        // when & then
+        assertThat((OAuth2AuthorizedClient) repository.loadAuthorizedClient("naver", null, null)).isNull();
     }
 
     private CustomOAuth2User customOAuth2User() {
