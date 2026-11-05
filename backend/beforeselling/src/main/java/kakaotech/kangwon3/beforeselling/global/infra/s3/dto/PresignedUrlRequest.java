@@ -11,7 +11,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.s3.FileType;
 import java.util.List;
 
 public record PresignedUrlRequest(
-        @NotEmpty @Valid List<FileMeta> files
+        @NotEmpty List<@Valid FileMeta> files
 ) {
 
     public record FileMeta(
