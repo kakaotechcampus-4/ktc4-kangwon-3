@@ -71,13 +71,15 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
         )
         try:
             result = pipeline.run(job_input.source)
-        except AIServiceError as exc:
-            # 단계가 정한 실패 코드·재시도 여부를 그대로 (#450). 세션 실행기는 이 실패를 로그로 안 남김 → 원인과 함께 기록
+        except (AIServiceError, VerificationError) as exc:
+            failure = _stage_failure(exc)
+            # 세션 실행기는 이 실패를 로그로 안 남김 → 원인과 함께 기록
             # 예상한 실패 → 위치 없이 원인 예외만 한 줄로
-            logger.warning("진단 단계 실패 (stage=%s, code=%s, retryable=%s): %s", exc.stage,
-                           exc.response_code.code, exc.retryable, error_text(exc.__cause__ or exc))
-            trace_finish("failed", exc, stage=exc.stage, code=exc.response_code.code, retryable=exc.retryable)
-            return JobFailed(exc.response_code.code, exc.retryable)
+            logger.warning("진단 단계 실패 (stage=%s, code=%s, retryable=%s): %s", failure.stage,
+                           failure.response_code.code, failure.retryable, error_text(failure.__cause__ or failure))
+            trace_finish("failed", failure, stage=failure.stage, code=failure.response_code.code,
+                         retryable=failure.retryable)
+            return JobFailed(failure.response_code.code, failure.retryable)
         progress.stage(PipelineStage.FINALIZATION)
         if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:
             question_round = _next_round(job_input)
@@ -89,6 +91,25 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
         return JobDone(result)
 
     return run
+
+
+def _stage_failure(exc: AIServiceError | VerificationError) -> AIServiceError:
+    """단계 실패를 세션 실패로 바꾼다.
+
+    Args:
+        exc: 파이프라인에서 올라온 단계 실패.
+
+    Returns:
+        AIServiceError: 단계가 정한 실패는 그대로 (#450), 검증 실패는 재시도 가능한 파이프라인 오류 (원인은 검증 실패).
+    """
+    if isinstance(exc, AIServiceError):
+        return exc
+    # 검토 ID 중복 등 모델 실수·호출 실패. 다시 돌리면 통과 가능 → 재시도 가능
+    failure = AIServiceError(
+        response_code=AIResponseCode.PIPELINE_ERROR.value, stage=PipelineStage.VERIFICATION, retryable=True,
+    )
+    failure.__cause__ = exc
+    return failure
 
 
 def _next_round(job_input: DiagnosisInput) -> int:
@@ -225,15 +246,9 @@ class _Verification:
         self._state = state
 
     def run(self, draft: DraftAssessment) -> VerificationResult:
-        try:
-            with trace_step("verification", round=self._state.retry_round):
-                verification = self._verifier.run(draft)
-                _alias_ids(verification)
-                trace_note("output", verification)
-        except VerificationError as exc:
-            # 검토 ID 중복 등 모델 실수·호출 실패. 다시 돌리면 통과 가능 → 재시도 가능
-            raise AIServiceError(
-                response_code=AIResponseCode.PIPELINE_ERROR.value, stage=PipelineStage.VERIFICATION, retryable=True,
-            ) from exc
+        with trace_step("verification", round=self._state.retry_round):
+            verification = self._verifier.run(draft)
+            _alias_ids(verification)
+            trace_note("output", verification)
         self._state.done("verification")
         return verification
