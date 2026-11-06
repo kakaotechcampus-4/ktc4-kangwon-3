@@ -2155,7 +2155,7 @@
       "type": "timeseries",
       "id": 48,
       "title": "콜백 도착 (AI 전달 ↔ BE 2xx 응답)",
-      "description": "AI가 BE 2xx 응답을 받은 이벤트 수와 BE가 콜백 경로에 2xx로 응답한 수. 평소엔 두 선이 겹침. BE 배포 직후엔 새 BE의 첫 콜백이 안 세져 AI 쪽이 1건 많을 수 있음",
+      "description": "AI가 BE 2xx 응답을 받은 이벤트 수와 BE가 콜백 경로에 2xx로 응답한 수. 평소엔 두 선이 겹침. BE 배포 때 옛 BE가 마지막 수집 뒤 받은 콜백은 안 남아 AI 쪽이 많을 수 있음",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2215,7 +2215,7 @@
       "type": "stat",
       "id": 49,
       "title": "콜백 도착 차이",
-      "description": "기간 동안 AI 전달 − BE 2xx 응답. 양수면 BE가 덜 셈, 음수면 AI 밖에서 콜백 경로로 들어온 요청. BE 배포 직후엔 새 BE의 첫 콜백이 안 세져 AI 쪽이 1건 많을 수 있음",
+      "description": "기간 동안 AI 전달 − BE 2xx 응답. 양수면 BE가 덜 셈, 음수면 AI 밖에서 콜백 경로로 들어온 요청. BE 배포 때 옛 BE가 마지막 수집 뒤 받은 콜백은 안 남아 AI 쪽이 많을 수 있음",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
