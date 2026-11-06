@@ -1,8 +1,6 @@
 """실제 진단 함수. 파이프라인을 실행마다 조립해 돌리고, 결과로 세션 결말을 정함.
 
-파이프라인(pipeline/runner.py)은 진행 알림을 모름. 단계 객체를 감싸 부를 때마다 단계 알림을 보냄.
-재실행 회차에는 Tool 실행·집계·검증 알림이 다시 나감.
-Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하는 Tool만 started·completed가 다시 나감.
+파이프라인(pipeline/runner.py)은 진행 알림을 모름. 단계·Tool hook으로 붙임 (diagnosis/progress.py).
 
 로컬 trace를 켠 실행이면 단계마다 trace 단계를 열고 나온 값(output)을 원래 모양 그대로 남김.
 다음 단계의 입력은 앞 단계의 output이라 따로 안 남김 (추출 입력만 남김). 재실행 회차는 단계마다 round로.
@@ -19,8 +17,8 @@ from ..clients.base import mask_sensitive_params
 from ..config.session import MAX_PARALLEL_TOOLS
 from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIError, AIResponseCode, AIServiceError
-from ..observability.logs import set_run_field
 from ..observability.trace import current_trace, trace_alias, trace_finish, trace_note, trace_step
+from ..pipeline.hooks import chain_stage_hooks
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
@@ -28,14 +26,16 @@ from ..schemas.callback import PublicQuestionDto
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import (
-    DraftAssessment, ExecutionEndReason, FinalAssessment, ToolName, ToolResult, ToolStatus, VerificationResult,
+    DraftAssessment, ExecutionEndReason, FinalAssessment, ToolName, ToolResult, VerificationResult,
 )
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
 from ..tools.base import RegulatoryTool
 from .answers import with_answers
 from .assembly import PipelineParts
+from .progress import ProgressStageHook, ProgressToolHook
 from .replay import StageReplay
+from .run_log import mark_retry_round
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +59,16 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
         state = _RunState(replay)
         # 기록 중엔 Tool 순차 실행 (기록기가 열린 단계·진행 중 호출을 객체 하나에 둠)
         max_parallel = 1 if current_trace() else MAX_PARALLEL_TOOLS
-        executor = ToolExecutor(_reporting_tools(parts.tools, progress), max_parallel=max_parallel)
+        executor = ToolExecutor(_reporting_tools(parts.tools), max_parallel=max_parallel,
+                                tool_hook=ProgressToolHook(progress))
         pipeline = CompliancePipeline(
-            extractor=_Extraction(parts, job_input, progress, state),
-            selector=_Selection(parts, progress, state),
-            tool_executor=_ToolExecution(executor, progress, state),
-            aggregator=_Aggregation(parts, progress, state),
-            verifier=_Verification(parts, progress, state),
+            extractor=_Extraction(parts, job_input, state),
+            selector=_Selection(parts, state),
+            tool_executor=_ToolExecution(executor, state),
+            aggregator=_Aggregation(parts, state),
+            verifier=_Verification(parts, state),
+            # 앞이 바깥: 회차 로그 필드 → 진행 알림
+            stage_hook=chain_stage_hooks(mark_retry_round, ProgressStageHook(progress)),
         )
         try:
             result = pipeline.run(job_input.source)
@@ -128,15 +131,12 @@ class _Extraction:
     재진단이면 이전 추출 결과에 이번 회차 답변을 붙여 선택 단계부터 다시 돎.
     """
 
-    def __init__(self, parts: PipelineParts, job_input: DiagnosisInput, progress: ProgressReporter,
-                 state: _RunState) -> None:
+    def __init__(self, parts: PipelineParts, job_input: DiagnosisInput, state: _RunState) -> None:
         self._step = parts.extraction
         self._job_input = job_input
-        self._progress = progress
         self._state = state
 
     def run(self, source: ExtractionInput) -> Product:
-        self._progress.stage(PipelineStage.EXTRACTION)
         with trace_step("extraction"):
             trace_note("input", self._job_input)
             # 저장한 추출 결과엔 답변이 이미 붙어 있음
@@ -148,13 +148,11 @@ class _Extraction:
 
 
 class _Selection:
-    def __init__(self, parts: PipelineParts, progress: ProgressReporter, state: _RunState) -> None:
+    def __init__(self, parts: PipelineParts, state: _RunState) -> None:
         self._selector = parts.selector
-        self._progress = progress
         self._state = state
 
     def run(self, product: Product) -> ToolSelectionResponse:
-        self._progress.stage(PipelineStage.SELECTION)
         with trace_step("selection"):
             selection = self._state.saved("selection") or self._selector.run(product)
             trace_note("output", selection)
@@ -162,26 +160,22 @@ class _Selection:
         return selection
 
 
-def _reporting_tools(tools: dict[ToolName, RegulatoryTool],
-                     progress: ProgressReporter) -> dict[ToolName, "_ReportingTool"]:
-    """Tool마다 진행 알림을 보내는 감싸개를 씌운다. 이번 실행의 진행 알림으로 묶음."""
-    return {name: _ReportingTool(tool, progress) for name, tool in tools.items()}
+def _reporting_tools(tools: dict[ToolName, RegulatoryTool]) -> dict[ToolName, "_ReportingTool"]:
+    """Tool마다 실패 로그 감싸개를 씌운다."""
+    return {name: _ReportingTool(tool) for name, tool in tools.items()}
 
 
 class _ReportingTool:
-    """실행 전후로 Tool 진행 알림. 실행기가 선택된 Tool만 부르므로 started·completed만 보냄.
+    """Tool 실패 원인 로그. 예외는 실행기가 FAILED 결과로 바꿈.
 
-    Tool 예외도 completed (실패 여부는 분야 카드에서 표시). 예외는 실행기가 FAILED 결과로 바꿈.
     실행기는 원인을 남기지 않아 여기서 남기고 그대로 올림 (#497).
     """
 
-    def __init__(self, tool: RegulatoryTool, progress: ProgressReporter) -> None:
+    def __init__(self, tool: RegulatoryTool) -> None:
         self._tool = tool
-        self._progress = progress
         self.tool_name = tool.tool_name
 
     def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
-        self._progress.tool(self.tool_name, "started")
         try:
             return self._tool.execute(product, decision)
         except AIError as exc:
@@ -192,8 +186,6 @@ class _ReportingTool:
             # 코드 오류 가능성 → 위치까지
             logger.error("Tool 실행 실패 %s: %s", self.tool_name, _error_text(exc), exc_info=True)
             raise
-        finally:
-            self._progress.tool(self.tool_name, "completed")
 
 
 # 로그에 남길 감싼 원인의 최대 단계 (Tool 오류 ← 조회 오류 ← HTTP 오류 정도면 충분)
@@ -214,29 +206,20 @@ def _error_text(exc: BaseException) -> str:
 
 
 class _ToolExecution:
-    def __init__(self, executor: ToolExecutor, progress: ProgressReporter, state: _RunState | None = None) -> None:
+    def __init__(self, executor: ToolExecutor, state: _RunState | None = None) -> None:
         self._executor = executor
-        self._progress = progress
         self._state = state or _RunState()
 
     def execute_initial(self, product: Product, selection: ToolSelectionResponse) -> SelectionResult:
-        self._progress.stage(PipelineStage.TOOL_EXECUTION)
         with trace_step("tool_execution", round=0):
             result = self._state.saved("tool_execution") or self._executor.execute_initial(product, selection)
             _alias_ids(result)
             trace_note("output", result)
         self._state.done("tool_execution")
-        # 선택 안 된 Tool은 실행기가 부르지 않아 여기서 알림. 재실행 회차에는 보내지 않음
-        for tool_result in result.tool_results:
-            if tool_result.status is ToolStatus.SKIPPED:
-                self._progress.tool(tool_result.tool_name, "skipped")
         return result
 
     def execute_retry(self, product: Product, previous: SelectionResult, request: RetryRequest) -> SelectionResult:
-        # 이후 로그 줄(재실행 Tool·집계·검증)에 회차 표시
-        set_run_field("retry_round", request.retry_round)
         self._state.retry_round = request.retry_round
-        self._progress.stage(PipelineStage.TOOL_EXECUTION)
         # 재실행 요청(실행할 Tool·검증 결과·직전 Tool 결과)은 앞 단계 output과 같아 회차만
         with trace_step("tool_execution", round=request.retry_round):
             result = self._executor.execute_retry(product, previous, request)
@@ -269,13 +252,11 @@ def _alias_ids(value: object) -> None:
 
 
 class _Aggregation:
-    def __init__(self, parts: PipelineParts, progress: ProgressReporter, state: _RunState) -> None:
+    def __init__(self, parts: PipelineParts, state: _RunState) -> None:
         self._aggregator = parts.aggregator
-        self._progress = progress
         self._state = state
 
     def aggregate(self, product: Product, selection_result: SelectionResult) -> DraftAssessment:
-        self._progress.stage(PipelineStage.AGGREGATION)
         with trace_step("aggregation", round=self._state.retry_round):
             draft = self._state.saved("aggregation") or self._aggregator.aggregate(product, selection_result)
             _alias_ids(draft)
@@ -285,13 +266,11 @@ class _Aggregation:
 
 
 class _Verification:
-    def __init__(self, parts: PipelineParts, progress: ProgressReporter, state: _RunState) -> None:
+    def __init__(self, parts: PipelineParts, state: _RunState) -> None:
         self._verifier = parts.verifier
-        self._progress = progress
         self._state = state
 
     def run(self, draft: DraftAssessment) -> VerificationResult:
-        self._progress.stage(PipelineStage.VERIFICATION)
         try:
             with trace_step("verification", round=self._state.retry_round):
                 verification = self._verifier.run(draft)

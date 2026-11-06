@@ -23,11 +23,11 @@ from app.dummy.cases import CASES, DummyCaseName
 from app.pipeline.tool_executor import ToolExecutor
 from app.schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from app.schemas.callback import PublicQuestionDto
-from app.schemas.pipeline import RetryRequest, SelectionResult
+from app.schemas.pipeline import SelectionResult
 from app.schemas.product import Product
 from app.schemas.schemas import (
     DraftAssessment, ExecutionEndReason, FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationIssue,
-    VerificationResult, VerificationStatus,
+    VerificationResult,
 )
 from app.schemas.session import DiagnosisInput, SessionAnswer
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
@@ -93,16 +93,22 @@ def pipeline(monkeypatch):
             return "retried"
 
     class _Pipeline:
-        def __init__(self, extractor, selector, tool_executor, aggregator, verifier):
+        def __init__(self, extractor, selector, tool_executor, aggregator, verifier, stage_hook):
             self.stages = (extractor, selector, tool_executor, aggregator, verifier)
+            self.hook = stage_hook
 
         def run(self, source):
             extractor, selector, executor, aggregator, verifier = self.stages
-            product = extractor.run(source)
-            selected = executor.execute_initial(product, selector.run(product))
-            verifier.run(aggregator.aggregate(product, selected))
-            retried = executor.execute_retry(product, selected, SimpleNamespace(retry_round=1))
-            verifier.run(aggregator.aggregate(product, retried))
+            hook = self.hook
+            product = hook("extraction", 0, lambda: extractor.run(source))
+            selection = hook("selection", 0, lambda: selector.run(product))
+            selected = hook("tool_execution", 0, lambda: executor.execute_initial(product, selection))
+            draft = hook("aggregation", 0, lambda: aggregator.aggregate(product, selected))
+            hook("verification", 0, lambda: verifier.run(draft))
+            retried = hook("tool_execution", 1,
+                           lambda: executor.execute_retry(product, selected, SimpleNamespace(retry_round=1)))
+            draft = hook("aggregation", 1, lambda: aggregator.aggregate(product, retried))
+            hook("verification", 1, lambda: verifier.run(draft))
             return state["result"]
 
     monkeypatch.setattr(job_module, "ToolExecutor", _Executor)
@@ -152,7 +158,7 @@ def test_재진단은_추출_결과에_이번_회차_답변을_붙여_선택_단
     assert selected_product.listing_text == ["무선 선풍기", "[사용자 답변] 배터리로만 동작하나요? → 네"]
 
 
-def test_Tool_실행기는_조립한_Tool을_진행_알림으로_감싸_실행마다_만든다(pipeline):
+def test_Tool_실행기는_조립한_Tool을_실패_로그로_감싸_실행마다_만든다(pipeline):
     tool = _FakeTool(ToolName.RADIO)
     parts = _parts([])
     parts.tools[ToolName.RADIO] = tool
@@ -248,34 +254,9 @@ class _FakeTool:
                           selection_reason=decision.reason)
 
 
-def _executor(progress, failing=frozenset()):
-    tools = {name: _FakeTool(name, failing=name in failing) for name in ToolName}
-    return _ToolExecution(ToolExecutor(_reporting_tools(tools, progress)), progress)
-
-
 def _selection(selected):
     return ToolSelectionResponse(decisions=[
         ToolSelectionItem(tool_name=name, selected=name in selected, reason="이유") for name in ToolName])
-
-
-def test_첫_실행은_선택한_Tool마다_시작·완료를_보내고_나머지는_건너뜀을_보낸다():
-    progress = _Progress()
-
-    _executor(progress).execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
-    assert sorted(progress.tools[2:]) == sorted((name, "skipped") for name in ToolName if name is not ToolName.RADIO)
-
-
-def test_Tool이_예외를_내도_완료를_보내고_결과는_실패로_남는다():
-    progress = _Progress()
-
-    result = _executor(progress, failing={ToolName.RADIO}).execute_initial(
-        Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
-    radio = next(r for r in result.tool_results if r.tool_name is ToolName.RADIO)
-    assert radio.status is ToolStatus.FAILED
 
 
 class _RaisingTool:
@@ -293,7 +274,7 @@ class _RaisingTool:
 ])
 def test_Tool_실패는_원인을_남기고_예상한_오류는_위치_없이_코드_오류는_위치까지_남긴다(caplog, error, level, traceback):
     tools = {name: _RaisingTool(name, error) for name in ToolName}
-    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools, _Progress())), _Progress())
+    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools)))
 
     execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
 
@@ -316,7 +297,7 @@ def test_Tool_실패_로그에_감싼_원인까지_남긴다(caplog):
     except CustomsToolError as wrapped:
         error = wrapped
     tools = {name: _RaisingTool(name, error) for name in ToolName}
-    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools, _Progress())), _Progress())
+    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools)))
 
     execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.CUSTOMS}))
 
@@ -326,33 +307,18 @@ def test_Tool_실패_로그에_감싼_원인까지_남긴다(caplog):
     assert "← ClientError: 연결 실패" in message
     assert "SECRET" not in message
 
-def test_재실행_회차는_다시_실행하는_Tool만_시작·완료를_보내고_건너뜀은_다시_보내지_않는다():
-    progress = _Progress()
-    execution = _executor(progress)
-    product = Product(product_id="p-1")
-    first = execution.execute_initial(product, _selection({ToolName.RADIO}))
-    progress.tools.clear()
-    verification = VerificationResult(status=VerificationStatus.TOOLS_REQUIRED,
-                                      additional_tools_required=[ToolName.CUSTOMS])
-    request = RetryRequest(retry_round=1, requested_tools=[ToolName.CUSTOMS], verification=verification,
-                           latest_tool_results=first.tool_results)
-
-    execution.execute_retry(product, first, request)
-
-    assert progress.tools == [(ToolName.CUSTOMS, "started"), (ToolName.CUSTOMS, "completed")]
-
 
 def test_기록_중이_아니면_Tool을_병렬_상한까지_동시에_실행한다(pipeline):
     build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
-    assert pipeline["executor_options"] == {"max_parallel": MAX_PARALLEL_TOOLS}
+    assert pipeline["executor_options"]["max_parallel"] == MAX_PARALLEL_TOOLS
 
 
 def test_기록_중이면_Tool을_순차로_실행한다(pipeline, tmp_path):
     with trace_run(tmp_path):
         build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
-    assert pipeline["executor_options"] == {"max_parallel": 1}
+    assert pipeline["executor_options"]["max_parallel"] == 1
 
 
 class _TracingTool:
@@ -372,7 +338,7 @@ def test_기록_중에는_Tool_단계가_서로_안에_들어가지_않고_나�
     selected = {ToolName.CUSTOMS, ToolName.ELECTRICAL, ToolName.RADIO}
 
     class _Pipeline:
-        def __init__(self, extractor, selector, tool_executor, aggregator, verifier):
+        def __init__(self, extractor, selector, tool_executor, aggregator, verifier, stage_hook):
             self.stages = (extractor, selector, tool_executor)
 
         def run(self, source):
@@ -399,7 +365,8 @@ UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
 
 def test_기록_중이면_Tool_실행_ID를_실행_안_번호로_바꿔_저장한다(tmp_path):
     with trace_run(tmp_path):
-        _executor(_Progress()).execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
+        _ToolExecution(ToolExecutor({name: _FakeTool(name) for name in ToolName})).execute_initial(
+            Product(product_id="p-1"), _selection({ToolName.RADIO}))
 
     text = (tmp_path / "run-1.json").read_text(encoding="utf-8")
     assert UUID.search(text) is None
