@@ -173,11 +173,43 @@ def test_전원_모순만_따로_돌려준다():
     blocks = [_spec(("전자식", "아니요"), ("전원 공급", "교류"), ("계절", "봄/가을"))]
     titles = ["봄/여름용 초음파 마사지기"]
 
-    power = detect_power_conflicts(titles, blocks)
+    power = detect_power_conflicts(blocks)
 
     assert len(power) == 1 and "교류" in power[0]
     assert len(detect_title_spec_conflicts(titles, blocks)) == 2
 
 
 def test_전원_표기가_서로_맞으면_전원_모순이_없다():
-    assert detect_power_conflicts(["USB 충전식 손난로"], [_spec(("전자식", "예"), ("전원 공급", "USB"))]) == []
+    assert detect_power_conflicts([_spec(("전자식", "예"), ("전원 공급", "USB"))]) == []
+
+
+def test_제목과_스펙표의_전원_모순은_전기_여부를_되돌리지_않고_검토_후보로만_남긴다():
+    # 제목 낱말(배터리·USB)은 전기 제품이 아닌 상품에도 자주 나온다 (#580 리뷰)
+    titles, blocks = ["USB 케이블 정리함"], [_spec(("전원 공급", "없음"))]
+
+    assert detect_power_conflicts(blocks) == []
+    assert len(detect_title_spec_conflicts(titles, blocks)) == 1
+
+
+def test_정전기와_충전기의_전기는_전기_제품_표기가_아니다():
+    blocks = [_spec(("전원 공급", "없음"))]
+
+    assert detect_title_spec_conflicts(["정전기 방지 나무 빗"], blocks) == []
+    assert detect_title_spec_conflicts(["충전기 거치대 원목"], blocks) == []
+
+
+def test_제목_재질_중_하나가_스펙표에_있으면_재질_모순이_아니다():
+    # 실제 페이지 holdout_02: 본체는 유리이고 실리콘은 젖꼭지 재질이다
+    title = "유리 젖병 와이드 넥 배앓이 방지 실리콘 젖꼭지"
+
+    assert detect_title_spec_conflicts([title], [_spec(("재료", "유리"))]) == []
+
+
+def test_재질의_쓰임새를_말한_제목은_재질_모순이_아니다():
+    assert detect_title_spec_conflicts(["유리 세정제 스프레이"], [_spec(("재료", "플라스틱"))]) == []
+    assert detect_title_spec_conflicts(["가죽 클리너 세트"], [_spec(("재료", "플라스틱"))]) == []
+    assert detect_title_spec_conflicts(["가죽용 크림"], [_spec(("재료", "플라스틱"))]) == []
+
+
+def test_유리_용기는_쓰임새가_아니라_재질_표기다():
+    assert len(detect_title_spec_conflicts(["유리 용기 3개 세트"], [_spec(("재료", "플라스틱"))])) == 1

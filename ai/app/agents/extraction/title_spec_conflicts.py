@@ -7,11 +7,12 @@
 - 연령 범위: 제목 "0-2 세"인데 스펙표 "1~3세"
 - 단위 붙은 수치(L·ml·mAh·mWh·W): 제목 "635L"인데 스펙표 "60L 미만", 제목 안의 "4255mWh"와 "4225mWh"
 - 재질: 제목 "구리 합금"인데 스펙표 성분에 구리가 없음
-- 전원 방식: 스펙표 "전자식: 아니요"인데 "전원 공급: 교류", 제목 "충전식"인데 "전원 공급: 전기 없음"
+- 전원 방식: 스펙표끼리 "전자식: 아니요"인데 "전원 공급: 교류", 제목 "충전식"인데 "전원 공급: 전기 없음"
 - 계절: 제목 "봄/여름용"인데 스펙표 "계절: 봄/가을"
 
-검토 후보일 뿐 모델 값을 덮어쓰지 않는다. 전원 방식 모순만은 예외로, 추출 에이전트가 detect_power_conflicts로 따로 찾아
-electrical_powered를 확정하지 않는다(배터리 모순과 같은 원칙 5). 다른 유형은 바로 대응하는 O/X 칸이 없다. 문장에는 양쪽 표기를 원문 그대로 넣어 사람이 바로 대조할 수 있게 한다.
+검토 후보일 뿐 모델 값을 덮어쓰지 않는다. 스펙표끼리의 전원 방식 모순만은 예외로, 추출 에이전트가 detect_power_conflicts로 따로 찾아
+electrical_powered를 확정하지 않는다(배터리 모순과 같은 원칙 5). 제목 낱말(배터리·USB)은 전기 제품이 아닌 상품에도 나와
+제목↔스펙표 전원 모순은 후보로만 남긴다. 다른 유형은 바로 대응하는 O/X 칸이 없다. 문장에는 양쪽 표기를 원문 그대로 넣어 사람이 바로 대조할 수 있게 한다.
 """
 
 import re
@@ -189,8 +190,9 @@ _TITLE_MATERIAL = re.compile(
         for word in sorted(_MATERIAL_SYNONYMS, key=len, reverse=True)
     )
 )
-# "나무 손잡이"처럼 부품의 재질을 말한 것은 본체 재료와 달라도 모순이 아니다.
-_PART_AFTER_MATERIAL = re.compile(r"^\s*(?:손잡이|뚜껑|받침|장식|프레임|케이스|스탠드|마개|덮개|밑판|다리)")
+# "나무 손잡이"처럼 부품의 재질을 말하거나 "유리 세정제"·"가죽용"처럼 쓰임새를 말한 것은 본체 재료와 달라도 모순이 아니다.
+# "유리 용기"는 재질 표기이므로 "용" 뒤에 "기"가 오면 쓰임새로 보지 않는다.
+_PART_AFTER_MATERIAL = re.compile(r"^\s*(?:손잡이|뚜껑|받침|장식|프레임|케이스|스탠드|마개|덮개|밑판|다리|세정제|클리너|용(?!기))")
 
 
 def _material_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[str]:
@@ -199,10 +201,11 @@ def _material_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[
         return []
     found: list[str] = []
     for title in titles:
-        for match in _TITLE_MATERIAL.finditer(title):
-            synonyms = _MATERIAL_SYNONYMS[match.group(0)]
-            if any(synonyms.search(value) for _, value in material_rows):
-                continue
+        matches = list(_TITLE_MATERIAL.finditer(title))
+        # 제목 재질 중 하나라도 스펙표에 있으면 나머지는 부품 재질로 본다 ("유리 젖병 … 실리콘 젖꼭지" + 재료 "유리")
+        if any(_MATERIAL_SYNONYMS[match.group(0)].search(value) for match in matches for _, value in material_rows):
+            continue
+        for match in matches:
             if _PART_AFTER_MATERIAL.match(title[match.end():]):
                 continue
             key, value = material_rows[0]
@@ -217,11 +220,11 @@ _NO = re.compile(r"아니요|아니오|no\b|없음", re.IGNORECASE)
 _POWER_KEY = re.compile(r"전원|전압|전력")
 _POWERED_VALUE = re.compile(r"교류|직류|AC|DC|\d+\s*V|USB|배터리|전지|충전|콘센트", re.IGNORECASE)
 _NO_POWER_VALUE = re.compile(r"전기\s*없음|전기가\s*없는|없음|해당\s*없음|비전동|수동")
-# 뜻이 분명한 표기부터 본다. "비전동"·"무전원"은 전기 제품이 아니라는 말이라 뺀다.
+# 뜻이 분명한 표기부터 본다. "비전동"·"무전원"은 전기 제품이 아니라는 말이고, "정전기"·"충전기"의 전기는 전기 제품 표기가 아니라 뺀다.
 _TITLE_POWERED = (
     re.compile(r"충전식"),
     re.compile(r"(?<!비)전동"),
-    re.compile(r"(?<!무)전기(?!\s*없)"),
+    re.compile(r"(?<![무정충])전기(?!\s*없)"),
     re.compile(r"배터리"),
     re.compile(r"USB", re.IGNORECASE),
 )
@@ -235,17 +238,20 @@ def _title_powered(title: str) -> str | None:
     return None
 
 
-def _power_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[str]:
-    found: list[str] = []
+def _spec_power_conflicts(rows: list[tuple[str, str]]) -> list[str]:
+    """스펙표끼리 전원 방식을 다르게 적은 모순. 양쪽 다 판매자가 항목으로 적은 값이라 근거가 분명하다."""
     electric_no = [(key, value) for key, value in _values_for(rows, _ELECTRIC_KEY) if _NO.search(value)]
-    power_rows = _values_for(rows, _POWER_KEY)
-    powered = [(key, value) for key, value in power_rows if _POWERED_VALUE.search(value) and not _NO_POWER_VALUE.search(value)]
-    if electric_no and powered:
-        (key, value), (power_key, power_value) = electric_no[0], powered[0]
-        found.append(
-            f'스펙표 {key}은 "{value}"인데 {power_key}은 "{power_value}"입니다. 판매자 표기가 서로 달라 확인이 필요합니다.'
-        )
-    unpowered = [(key, value) for key, value in power_rows if _NO_POWER_VALUE.search(value)]
+    powered = [(key, value) for key, value in _values_for(rows, _POWER_KEY) if _POWERED_VALUE.search(value) and not _NO_POWER_VALUE.search(value)]
+    if not (electric_no and powered):
+        return []
+    (key, value), (power_key, power_value) = electric_no[0], powered[0]
+    return [f'스펙표 {key}은 "{value}"인데 {power_key}은 "{power_value}"입니다. 판매자 표기가 서로 달라 확인이 필요합니다.']
+
+
+def _title_power_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[str]:
+    """제목은 전기 제품처럼 적었는데 스펙표 전원은 없다고 적은 모순. 검토 후보로만 쓴다."""
+    found: list[str] = []
+    unpowered = [(key, value) for key, value in _values_for(rows, _POWER_KEY) if _NO_POWER_VALUE.search(value)]
     for title in titles:
         powered_text = _title_powered(title)
         if not powered_text:
@@ -255,18 +261,16 @@ def _power_conflicts(titles: list[str], rows: list[tuple[str, str]]) -> list[str
     return found
 
 
-
-def detect_power_conflicts(titles: list[str], text_blocks: list[str]) -> list[str]:
-    """전원 방식 모순만 돌려준다. 추출 에이전트가 electrical_powered를 확정하지 않을지 정할 때 쓴다.
+def detect_power_conflicts(text_blocks: list[str]) -> list[str]:
+    """스펙표끼리의 전원 방식 모순만 돌려준다. 추출 에이전트가 electrical_powered를 확정하지 않을지 정할 때 쓴다.
 
     Args:
-        titles: 판매자 제목(판매자 구역에서 찾은 것).
         text_blocks: 판매자 구역 원문 블록(스펙표 포함).
 
     Returns:
         list[str]: 전원 방식 모순 문장. 없으면 빈 목록.
     """
-    return _power_conflicts(titles, _spec_rows(text_blocks))
+    return _spec_power_conflicts(_spec_rows(text_blocks))
 
 
 # --- 6. 계절 ----------------------------------------------------------------------------
@@ -310,7 +314,8 @@ def detect_title_spec_conflicts(titles: list[str], text_blocks: list[str]) -> li
         _age_conflicts(titles, rows),
         _number_conflicts(titles, spec_text),
         _material_conflicts(titles, rows),
-        _power_conflicts(titles, rows),
+        _spec_power_conflicts(rows),
+        _title_power_conflicts(titles, rows),
         _season_conflicts(titles, rows),
     ):
         for sentence in conflicts:

@@ -122,3 +122,46 @@ def test_판매자_전체_제목에만_있는_표방도_잡는다(stub_model, re
     result = agent.run(ExtractionInput(product_id="p", text_blocks=[page]))
 
     assert result.cosmetic_claim is None
+
+
+# 옷·운동용품에 흔한 낱말은 피부 효능과 붙었을 때만 표방으로 본다 (#580 리뷰)
+
+
+@pytest.mark.parametrize("text", [
+    "Anti-Wrinkle 셔츠 구김 방지",
+    "High Elasticity 레깅스",
+    "Weight Lifting 벨트",
+    "리프팅 스트랩 헬스장",
+    "Breathable pores 메쉬 운동화",
+    "슬리밍 핏 청바지",
+    "Slimming Fit Jeans",
+])
+def test_옷·운동용품의_낱말은_표방이_아니다(text):
+    attributes = {"medical_claim": False, "cosmetic_claim": False}
+
+    assert drop_contradicted_claim_false(attributes, text) == ([], [])
+    assert attributes == {"medical_claim": False, "cosmetic_claim": False}
+
+
+@pytest.mark.parametrize("text", [
+    "얼굴 리프팅 및 탄력을 위한 미용 장치",
+    "페이스 리프팅 마사지기",
+    "리프팅 효과 크림",
+    "Facial lifting device",
+    "Reduce wrinkles and fine lines",
+    "skin elasticity booster",
+    "Pore cleaner vacuum",
+    "Minimize pores serum",
+])
+def test_피부_효능과_붙은_낱말은_미용_표방으로_잡는다(text):
+    attributes = {"cosmetic_claim": False}
+
+    dropped, conflicts = drop_contradicted_claim_false(attributes, text)
+
+    assert dropped == ["cosmetic_claim"] and len(conflicts) == 1
+
+
+def test_슬리밍_뒤에_핏이_없으면_효능_표방으로_잡는다():
+    attributes = {"medical_claim": False}
+
+    assert drop_contradicted_claim_false(attributes, "슬리밍 벨트 뱃살")[0] == ["medical_claim"]

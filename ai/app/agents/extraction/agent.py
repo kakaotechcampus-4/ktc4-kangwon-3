@@ -86,7 +86,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
             - 상품 종류로 짐작한 false, 원문에 부정 표기가 없는 false
             - 소재 줄·효능 표방 문구와 어긋나는 false (근거를 conflicts에 남김)
             - 코드 규칙이 배터리 모순을 찾은 페이지의 배터리 칸, 전원 방식 모순을 찾은 페이지의 electrical_powered
-        제목↔스펙표 모순은 conflicts에만 남기고 칸은 그대로 둠 (전원 방식만 예외).
+        제목↔스펙표 모순은 conflicts에만 남기고 칸은 그대로 둠 (전원 방식도 스펙표끼리 모순일 때만 칸을 되돌림).
         규칙 추출은 모델과 독립으로 실행하고 결과만 합침. product_id·source_url은 요청 값 그대로.
 
         Args:
@@ -99,7 +99,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         source, titles = _trim_to_seller_region(input)
         payload = output.model_dump()
         # 전기 여부를 먼저 정리해야 아래 false 정리(발열·배터리·무선)가 전기 여부를 모르는 상품 기준으로 돈다
-        power_conflicts = detect_power_conflicts(titles, source.text_blocks)
+        power_conflicts = detect_power_conflicts(source.text_blocks)
         power_dropped = drop_conflicted_power(payload) if power_conflicts else []
         guessed = drop_guessed_false(payload)
         unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))

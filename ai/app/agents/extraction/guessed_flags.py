@@ -10,7 +10,7 @@
     - drop_contradicted_plant_false: 소재 줄에 식물성 재질이 있는데 plant_material이 false. 되돌리고 모순으로 남김
     - drop_contradicted_claim_false: 효능·미용 표방 문구가 있는데 medical_claim·cosmetic_claim이 false. 되돌리고 모순으로 남김
     - drop_conflicted_battery: 코드 규칙이 배터리 모순을 찾은 페이지. 배터리 칸의 확정(true·false)을 되돌림
-    - drop_conflicted_power: 코드 규칙이 전원 방식 모순을 찾은 페이지. electrical_powered 확정을 되돌림
+    - drop_conflicted_power: 코드 규칙이 스펙표끼리의 전원 방식 모순을 찾은 페이지. electrical_powered 확정을 되돌림
 """
 
 import re
@@ -63,7 +63,7 @@ _NON_PLANT_MATERIAL = re.compile(
 )
 # 코드 규칙이 배터리 모순(용량 표기 + "배터리 미포함")을 찾았을 때 확정하지 않는 칸 (원칙 5)
 _BATTERY_FIELDS = ("battery_included", "battery_is_the_product")
-# 코드 규칙이 전원 방식 모순("전자식: 아니요" + "전원 공급: 교류" 등)을 찾았을 때 확정하지 않는 칸 (원칙 5)
+# 코드 규칙이 스펙표끼리의 전원 방식 모순("전자식: 아니요" + "전원 공급: 교류")을 찾았을 때 확정하지 않는 칸 (원칙 5)
 _POWER_FIELDS = ("electrical_powered",)
 
 
@@ -109,7 +109,7 @@ def drop_unsupported_false(attributes: dict[str, Any], text: str) -> list[str]:
     return dropped
 
 
-# 소재·재질·재료·성분 줄("키\n값" 또는 "키: 값")의 값에 식물성 재질이 적혀 있으면 plant_material을 확정한다.
+# 소재·재질·재료·성분 줄("키\n값" 또는 "키: 값")의 값에 식물성 재질이 적혀 있으면 plant_material false를 되돌린다.
 # 모델이 "72% Cotton"·"소재: 종이"를 false로 두는 일이 잦다(초안 50건 측정, 2026-11-05).
 # 재질 줄 밖의 낱말(포장 "종이 상자", "나무 심기 프로그램")은 근거가 아니라 줄 단위로만 본다.
 _MATERIAL_ROW = re.compile(
@@ -117,9 +117,10 @@ _MATERIAL_ROW = re.compile(
     re.IGNORECASE,
 )
 # "면"은 "양면발열"·"면도기"처럼 다른 낱말 안에도 있어 한글 낱말 안의 면은 재질로 보지 않는다.
+# 영어는 낱말 단위로 본다("Soak"의 oak, "Spine"의 pine). "Cotton소재"처럼 한글이 붙은 표기는 잡는다.
 _PLANT_MATERIAL = re.compile(
-    r"(?<![가-힣])면(?![가-힣])|cotton|코튼|종이|paper|나무|목재|원목|wood|우드|대나무|bamboo|라탄|등나무|rattan"
-    r"|린넨|리넨|linen|황마|jute|코르크|cork|밀짚|짚|straw|티크|teak|월넛|walnut|오크|oak|소나무|pine",
+    r"(?<![가-힣])면(?![가-힣])|코튼|종이|나무|목재|원목|우드|대나무|라탄|등나무|린넨|리넨|황마|코르크|밀짚|짚|티크|월넛|오크|소나무"
+    r"|(?<![A-Za-z])(?:cotton|paper|wood(?:en)?|plywood|hardwood|bamboo|rattan|linen|jute|cork|straw|teak|walnut|oak|pine)(?![A-Za-z])",
     re.IGNORECASE,
 )
 
@@ -150,7 +151,8 @@ def drop_contradicted_plant_false(attributes: dict[str, Any], text: str) -> tupl
 # 판매자 글의 효능·미용 표방 문구. 프롬프트는 "상품 이름 안에 있어도 표방"이라고 하지만 모델(gpt-4.1-mini)이
 # 제목의 '스트레스 완화'·'치아 미백 효과'를 false로 두는 일이 잦다(초안 50건 측정, 2026-11-05). 표현이 분명한 것만 잡는다.
 # 부정("통증 없는 이어폰")은 "완화·개선" 같은 효능 동사를 요구해 걸리지 않게 하고, 촉감 설명(skin-friendly)은 넣지 않는다.
-# 영어는 낱말 경계로 막는다("Singapore"의 pore, "uplifting"의 lifting). 한국어 "피로"는 "팔의 피로를 줄여" 같은
+# 영어는 낱말 경계로 막는다("Singapore"의 pore, "uplifting"의 lifting). 옷·운동용품에 흔한 낱말(리프팅·lifting·wrinkle·
+# elasticity·pore)은 피부 부위나 효능 낱말과 붙었을 때만, "슬리밍 핏"은 표방이 아니라 뺀다. 한국어 "피로"는 "팔의 피로를 줄여" 같은
 # 인체공학 설명에도 쓰여 "피로 회복"만, "교정기"는 쇼핑몰 분류 "교정기 및 지지대"에도 있어 "자세·등·체형 교정"만 본다.
 _KO_RELIEF = r"(?:완화|경감|해소|개선|감소|줄여)"
 _MEDICAL_CLAIM = re.compile(
@@ -158,19 +160,23 @@ _MEDICAL_CLAIM = re.compile(
     + r"|피로\s*회복|혈액\s*순환|관절\s*(?:을|를)?\s*(?:안정|보호|지지)|근육\s*이완|경락"
     + r"|(?:자세|등|체형|척추|굽은\s*등)\s*(?:을|를)?\s*교정"
     + r"|(?:여드름|무좀|습진|탈모|비염|불면증)\s*(?:치료|개선|완화)"
-    + r"|지방\s*(?:연소|분해|감소)|체중\s*감소|슬리밍|셀룰라이트|수면\s*(?:개선|질)|면역|혈압|혈당|당뇨"
+    + r"|지방\s*(?:연소|분해|감소)|체중\s*감소|슬리밍(?!\s*핏)|셀룰라이트|수면\s*(?:개선|질)|면역|혈압|혈당|당뇨"
     + r"|\b(?:(?:pain|stress|itch|headache|sunburn|inflammation)\s*(?:relief|reliev\w*|improve\w*)"
     + r"|headache\s*reli[ef]\w*|blood\s*circulation|circulation\s*improve\w*|fat\s*(?:loss|burn\w*)|weight\s*loss"
-    + r"|slimming|sleep\s*quality|posture\s*correct\w*)\b",
+    + r"|slimming(?!\s*fit)|sleep\s*quality|posture\s*correct\w*)\b",
     re.IGNORECASE,
 )
 _COSMETIC_CLAIM = re.compile(
-    r"미백|주름\s*(?:개선|완화|제거)|리프팅|탄력\s*(?:강화|개선|회복)"
+    r"미백|주름\s*(?:개선|완화|제거)|탄력\s*(?:강화|개선|회복)"
+    + r"|(?:얼굴|페이스|피부|턱|눈가|목)\s*리프팅|리프팅\s*(?:및\s*탄력|효과|케어|크림|마스크|앰플|세럼|마사지)"
     + r"|모공\s*(?:클리너|축소|케어|청소|관리)|블랙헤드|각질\s*(?:제거|케어|관리)"
     + r"|피부\s*(?:톤|결|재생|탄력|미백|보습|광채)|피부톤|붓기\s*(?:완화|제거|감소|빼)"
     + r"|(?:머릿결|모발|헤어)\s*(?:윤기|보호|케어|손상\s*개선)|윤기\s*있고|건강한\s*모발"
-    + r"|\b(?:whitening|wrinkles?|lifting|elasticity|pores?|blackheads?|exfoliat\w*|puffiness|frizz"
-    + r"|skin\s*(?:tone|brighten\w*|rejuvenat\w*)|smooth\s*hair|hair\s*care)\b",
+    + r"|\b(?:whitening|blackheads?|exfoliat\w*|puffiness|frizz"
+    + r"|skin\s*(?:tone|brighten\w*|rejuvenat\w*)|smooth\s*hair|hair\s*care)\b"
+    + r"|\b(?:face|facial|skin|eye|neck)\b[^\n.]{0,30}\b(?:wrinkles?|lifting|elasticity|pores?)\b"
+    + r"|\b(?:wrinkles?|elasticity|pores?)\s+(?:reduc\w*|remov\w*|improv\w*|clean\w*|minimi\w*|vacuum\w*|care|treatment)\b"
+    + r"|\b(?:reduc\w*|remov\w*|improv\w*|clean\w*|minimi\w*|tighten\w*)\s+(?:\w+\s+){0,2}(?:wrinkles?|elasticity|pores?)\b",
     re.IGNORECASE,
 )
 

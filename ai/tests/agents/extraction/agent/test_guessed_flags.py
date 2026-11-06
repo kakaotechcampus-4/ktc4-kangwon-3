@@ -271,3 +271,27 @@ def test_전원_모순이_없으면_electrical_powered를_그대로_둔다(stub_
     source = ExtractionInput(product_id="p-7", text_blocks=["발 지압 매트\n전자식\n아니요\n전원 공급\n전기 없음"])
 
     assert ExtractionAgent(stub_model(reply)).run(source).electrical_powered is False
+
+
+@pytest.mark.parametrize("value", ["Soak resistant coating", "Spine support plastic", "Strawberry scent ABS"])
+def test_영어_낱말_속_일치는_식물성_재질이_아니다(value):
+    attributes = {"plant_material": False}
+
+    assert drop_contradicted_plant_false(attributes, f"Material: {value}") == ([], [])
+
+
+@pytest.mark.parametrize("value", ["Oak", "Pine wood", "Wooden frame", "Plywood", "대나무", "Cotton소재"])
+def test_영어_재질_낱말은_낱말_단위로_잡는다(value):
+    attributes = {"plant_material": False}
+
+    assert drop_contradicted_plant_false(attributes, f"Material: {value}")[0] == ["plant_material"]
+
+
+def test_제목과_스펙표의_전원_모순은_전기_여부와_그에_기댄_false를_되돌리지_않는다(stub_model, records):
+    # "정전기 방지 빗" 같은 제목이 발열·배터리·무선 false까지 함께 모름으로 만들던 문제 (#580 리뷰)
+    reply = ProductAttributes(electrical_powered=False, heating=False, battery_included=False, wireless_comm=False)
+    source = ExtractionInput(product_id="p-8", text_blocks=["USB 케이블 정리함\n재질\n플라스틱\n전원 공급\n없음"])
+
+    result = ExtractionAgent(stub_model(reply)).run(source)
+
+    assert (result.electrical_powered, result.heating, result.battery_included, result.wireless_comm) == (False,) * 4
