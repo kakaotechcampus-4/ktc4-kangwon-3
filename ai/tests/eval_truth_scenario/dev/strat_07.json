@@ -14,7 +14,7 @@
     "radio_compliance": {
       "selected": false,
       "evidence": "블루투스·WiFi·무선충전 언급 없음. 충전은 'Type-c fast charging input', 'Usb output'(img_02), 케이블로 콘센트에 연결한 사진(img_06). 스펙표에 무선 여부 항목이 없다(원문 172~180행)",
-      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 유선 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
     },
     "food_drug_safety": {
       "selected": false,
@@ -37,5 +37,5 @@
       "why_not_other": "해외 인증(CCC) 표기와 피로 회복 효과 표방이 있다."
     }
   },
-  "notes": "애매: 전파 — 무선 기능이 페이지에 없는 전자기기라 false. 애매: 어린이 — '학생용 선물'과 캐릭터 디자인만 있고 연령 표기가 없어 false. [기준1: radio_compliance True→False] [기준4: children_product_safety True→False]"
+  "notes": "애매: 전파 — 무선 기능이 페이지에 없는 전자기기라 false. 애매: 어린이 — '학생용 선물'과 캐릭터 디자인만 있고 연령 표기가 없고 학용품·완구가 아니라 false. [기준1: radio_compliance True→False] [기준4: children_product_safety True→False]"
 }

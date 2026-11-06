@@ -37,5 +37,5 @@
       "why_not_other": "'완벽하게'는 최상급·절대 표현(2)이다. 가게 소개 '고품질이고 저렴한 제품'(85행)은 가게 단위 소개라 근거로 쓰지 않았다."
     }
   },
-  "notes": "애매: children_product_safety — 연령 표기가 없고 '동급생'·'백팩'·'애니메이션' 문맥만 있어 판단이 갈린다. 연령 표기가 없어 false. [기준4: children_product_safety True→False]"
+  "notes": "애매: children_product_safety — 연령 표기가 없고 '동급생'·'백팩'·'애니메이션' 문맥만 있어 판단이 갈린다. 연령 표기가 없고 학용품·완구가 아니라 false. [기준4: children_product_safety True→False]"
 }
