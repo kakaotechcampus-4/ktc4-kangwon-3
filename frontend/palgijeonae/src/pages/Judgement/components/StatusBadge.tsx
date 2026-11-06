@@ -19,7 +19,7 @@ interface StatusBadgeProps {
 /** 진행 카드 상단에 붙는 상태 배지. 진행 중/답변 필요/완료/실패를 색으로 구분해 보여준다. */
 function StatusBadge({ processingStatus }: StatusBadgeProps) {
     return (
-        <div className={cn("rounded-full border px-3 py-1 text-sm font-medium", PROGRESS_STATUS_BADGE_CLASSNAME[processingStatus])}>
+        <div className={cn("shrink-0 rounded-full border px-3 py-1 text-sm font-medium whitespace-nowrap", PROGRESS_STATUS_BADGE_CLASSNAME[processingStatus])}>
             {PROCESSING_STATUS_LABELS[processingStatus]}
         </div>
     );

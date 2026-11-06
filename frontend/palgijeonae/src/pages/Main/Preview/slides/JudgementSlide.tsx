@@ -10,7 +10,7 @@ function JudgementSlide() {
     return (
         <PreviewFrame label="진단 진행 화면 미리보기" baseWidth={1000} maxHeight={520}>
             <div className="flex w-full flex-col gap-6">
-                <StatusSummaryBar products={JUDGEMENT_PRODUCTS} pollIntervalMs={3000} />
+                <StatusSummaryBar products={JUDGEMENT_PRODUCTS} />
                 <ul className="flex flex-col gap-4">
                     {JUDGEMENT_PRODUCTS.map((product) => (
                         <li key={product.productId}>

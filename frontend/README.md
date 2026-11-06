@@ -60,7 +60,8 @@
 - 상품별 진단 진행 상황 확인
 - 먼저 끝난 상품은 바로 결과 확인 가능
 
-<img src="docs/images/readme-judgement.gif" alt="진단 진행 화면" width="600">
+<img src="docs/images/readme-judgement.gif" alt="진단 진행 화면 gif" width="600">
+<img src="docs/images/readme-judgement.png" alt="진단 진행 화면 png" width="600">
 
 **질문 답변**
 - AI가 판단하기 어려운 부분을 질문

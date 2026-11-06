@@ -72,7 +72,7 @@ function UploadPage() {
                     {products.length < 10 ? (
                         <DefaultBox align="left">
                             <InputTypeTabs selected={inputType} onSelect={setInputType} />
-                            <InputForm type={inputType} onAdd={handleAddProduct} />
+                            <InputForm key={inputType} type={inputType} onAdd={handleAddProduct} />
                         </DefaultBox>
                     ) : (
                         <DefaultBox className="border-status-warning bg-status-warning-bg">
