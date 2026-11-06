@@ -28,3 +28,6 @@ logging:
   level:
     org.hibernate.SQL: warn
     org.springframework.security: warn
+
+sentry:
+  traces-sample-rate: 0.1
