@@ -425,7 +425,7 @@
       "type": "stat",
       "id": 8,
       "title": "자리 사용률",
-      "description": "대기 + 실행 중 상품 / 상한(50). 다 차면 접수 거절",
+      "description": "대기 + 실행 중 상품 / 상한. 다 차면 접수 거절",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -564,7 +564,7 @@
       "type": "timeseries",
       "id": 11,
       "title": "자리 사용",
-      "description": "all은 대기 + 실행 중(상한 50), 동시 실행 상한은 10",
+      "description": "사용 all은 대기 + 실행 중, dev는 그중 샌드박스. 상한 all을 넘으면 접수 거절",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2316,7 +2316,8 @@
           },
           "expr": "time() - (ai_law_refresh_last_success_timestamp > 0)",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -2383,7 +2384,8 @@
           },
           "expr": "time() - (ai_clip_ingest_last_success_timestamp > 0)",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
