@@ -152,6 +152,17 @@ def test_외부_호출_흐름_기록의_쿼리와_로그_추가_값의_키도_�
     assert event["extra"]["url"] == "https://a?serviceKey=***"
 
 
+def test_외부_요청에_추적_헤더를_붙이지_않는다(events):
+    sent: list[httpx.Headers] = []
+    client = httpx.Client(transport=httpx.MockTransport(lambda request: sent.append(request.headers) or httpx.Response(200)))
+
+    client.get("https://apis.data.go.kr/1220000/retrieveCcctLworCd/getRetrieveCcctLworCd?hsSgn=8513101000")
+
+    [headers] = sent
+    assert "sentry-trace" not in headers
+    assert "baggage" not in headers
+
+
 def test_INFO_이상_로그는_URL_키를_가리고_실행_정보를_속성으로_붙여_로그로_보낸다(events, caplog):
     caplog.set_level(logging.INFO, logger="app")
     key = "SECRET" + "-LOG"
