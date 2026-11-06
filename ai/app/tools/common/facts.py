@@ -55,10 +55,25 @@ def object_particle(word: str) -> str:
     Returns:
         str: "을" 또는 "를". 마지막 글자가 한글이 아니면 "를".
     """
+    return "을" if _ends_with_final_consonant(word) else "를"
+
+
+def topic_particle(word: str) -> str:
+    """보조사 은·는. 마지막 글자에 받침이 있으면 "은", 없으면 "는".
+
+    Args:
+        word: 조사를 붙일 낱말.
+
+    Returns:
+        str: "은" 또는 "는". 마지막 글자가 한글이 아니면 "는".
+    """
+    return "은" if _ends_with_final_consonant(word) else "는"
+
+
+def _ends_with_final_consonant(word: str) -> bool:
+    """마지막 글자가 받침 있는 한글인지. 한글이 아니면 False."""
     last = word.rstrip()[-1:]
-    if not ("가" <= last <= "힣"):
-        return "를"
-    return "을" if (ord(last) - ord("가")) % 28 else "를"
+    return "가" <= last <= "힣" and (ord(last) - ord("가")) % 28 != 0
 
 
 def group_facts(facts: list) -> dict[str, list]:
