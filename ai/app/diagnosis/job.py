@@ -3,6 +3,7 @@
 파이프라인(pipeline/runner.py)은 진행 알림을 모름. 단계 객체를 감싸 부를 때마다 단계 알림을 보냄.
 재실행 회차에는 Tool 실행·집계·검증 알림이 다시 나감.
 검증 모델 검토가 실패하면 규칙 검사 결과로 진행 (통과는 재확인 필요로 바꿈). 규칙 결과도 없으면 재시도 가능 실패.
+파이프라인이 끝난 뒤 Tool의 부족한 정보가 남아 있으면 판매자 질문으로 넘김 (지난 회차에 물은 질문은 빼고).
 Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하는 Tool만 started·completed가 다시 나감.
 
 로컬 trace를 켠 실행이면 단계마다 trace 단계를 열고 나온 값(output)을 원래 모양 그대로 남김.
@@ -24,18 +25,19 @@ from ..observability.logs import set_run_field
 from ..observability.trace import current_trace, trace_alias, trace_finish, trace_note, trace_step
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
+from ..results.presenter import FIELD_LABELS
 from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import (
-    DraftAssessment, ExecutionEndReason, FinalAssessment, ToolName, ToolResult, ToolStatus, VerificationResult,
-    VerificationStatus,
+    DraftAssessment, ExecutionEndReason, FinalAssessment, FinalVerificationStatus, FollowUpQuestion, ToolName,
+    ToolResult, ToolStatus, VerificationResult, VerificationStatus,
 )
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
 from ..tools.base import RegulatoryTool
-from .answers import with_answers
+from .answers import ANSWER_PREFIX, with_answers
 from .assembly import PipelineParts
 from .replay import StageReplay
 
@@ -78,6 +80,7 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
                            exc.response_code.code, exc.retryable, _error_text(exc.__cause__ or exc))
             trace_finish("failed", exc, stage=exc.stage, code=exc.response_code.code, retryable=exc.retryable)
             return JobFailed(exc.response_code.code, exc.retryable)
+        result = _ask_missing_information(result, job_input.previous)
         progress.stage(PipelineStage.FINALIZATION)
         if result.termination_reason is ExecutionEndReason.USER_INPUT_REQUIRED:
             question_round = _next_round(job_input)
@@ -89,6 +92,52 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
         return JobDone(result)
 
     return run
+
+
+def _ask_missing_information(result: FinalAssessment, previous: FinalAssessment | None) -> FinalAssessment:
+    """Tool이 남긴 부족한 정보를 판매자 질문으로 넘긴다.
+
+    파이프라인은 Tool의 부족한 정보(missing_information, Tool이 만든 질문 문장)를 질문 칸으로 옮기지 않음.
+    검증 모델이 질문을 안 만들면 답할 기회 없이 끝나서 여기서 옮김 (#495).
+    지난 회차에 물은 질문은 다시 묻지 않음 (답했는데도 남았으면 답으로도 못 정한 것).
+    질문 회차 상한은 세션 실행기가 봄.
+
+    Args:
+        result: 파이프라인 결과.
+        previous: 지난 실행 결과. 첫 실행이면 None.
+
+    Returns:
+        FinalAssessment: 새 질문이 있으면 질문을 더하고 답변 대기로 바꾼 결과, 없으면 그대로.
+    """
+    asked = {question.question.strip() for question in (previous.follow_up_questions if previous else [])}
+    # 직전 결과에는 그 전 회차 질문이 없어서, 상품 정보에 남은 답변 줄에서도 모음
+    if previous is not None:
+        asked |= {line.removeprefix(ANSWER_PREFIX).split(" → ")[0].strip()
+                  for line in previous.product.listing_text if line.startswith(ANSWER_PREFIX)}
+    existing = {question.question.strip() for question in result.follow_up_questions}
+    added: dict[str, FollowUpQuestion] = {}
+    for tool_result in result.tool_results:
+        for text in (text.strip() for text in tool_result.missing_information):
+            if not text or text in asked or text in existing:
+                continue
+            # 여러 Tool이 같은 정보를 물으면 질문 하나에 관련 Tool을 모음
+            if text in added:
+                if tool_result.tool_name not in added[text].related_tools:
+                    added[text].related_tools.append(tool_result.tool_name)
+                continue
+            added[text] = FollowUpQuestion(question=text, reason="", related_tools=[tool_result.tool_name])
+    if not added:
+        return result
+    for question in added.values():
+        labels = ", ".join(FIELD_LABELS[tool] for tool in question.related_tools)
+        question.reason = f"{labels} 판단에 필요한 정보예요."
+    logger.info("Tool의 부족한 정보로 질문 %d개 추가 (종료 사유 %s → user_input_required)",
+                len(added), result.termination_reason.value)
+    return result.model_copy(update={
+        "termination_reason": ExecutionEndReason.USER_INPUT_REQUIRED,
+        "verification_status": FinalVerificationStatus.INCOMPLETE,
+        "follow_up_questions": [*result.follow_up_questions, *added.values()],
+    })
 
 
 def _next_round(job_input: DiagnosisInput) -> int:

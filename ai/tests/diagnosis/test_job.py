@@ -26,8 +26,8 @@ from app.schemas.callback import PublicQuestionDto
 from app.schemas.pipeline import RetryRequest, SelectionResult
 from app.schemas.product import Product
 from app.schemas.schemas import (
-    DraftAssessment, ExecutionEndReason, FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationIssue,
-    VerificationResult, VerificationStatus,
+    DraftAssessment, ExecutionEndReason, FinalVerificationStatus, FollowUpQuestion, ToolName, ToolResult, ToolStatus,
+    VerificationIssue, VerificationResult, VerificationStatus,
 )
 from app.schemas.session import DiagnosisInput, SessionAnswer
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
@@ -152,6 +152,80 @@ def test_재진단은_추출_결과에_이번_회차_답변을_붙여_선택_단
     assert selected_product.listing_text == ["무선 선풍기", "[사용자 답변] 배터리로만 동작하나요? → 네"]
 
 
+def _missing(result, missing: dict[ToolName, list[str]]):
+    """Tool 결과에 부족한 정보(Tool이 만든 질문 문장)를 넣은 결과."""
+    return result.model_copy(update={"tool_results": [
+        tool_result.model_copy(update={"missing_information": missing.get(tool_result.tool_name, [])})
+        for tool_result in result.tool_results
+    ]})
+
+
+def _questions(result, question_round):
+    return [PublicQuestionDto(question_key=f"r{question_round}_q{order}", question_order=order,
+                              question_text=question.question, help_text=question.reason)
+            for order, question in enumerate(result.follow_up_questions, start=1)]
+
+
+def test_Tool의_부족한_정보가_남으면_질문으로_넘겨_답변을_기다린다(pipeline):
+    pipeline["result"] = _missing(_result(), {
+        ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."],
+        ToolName.RADIO: ["정격 전압 정보가 필요합니다.", "무선 기능 정보가 필요합니다."],
+    })
+
+    outcome = build_job(_parts([]), _questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobNeedsInput)
+    assert outcome.result.verification_status is FinalVerificationStatus.INCOMPLETE
+    # 같은 문장은 질문 하나로, 관련 Tool을 모음
+    assert [(q.question, q.related_tools, q.reason) for q in outcome.result.follow_up_questions] == [
+        ("정격 전압 정보가 필요합니다.", [ToolName.RADIO, ToolName.ELECTRICAL], "전파, 전기용품 판단에 필요한 정보예요."),
+        ("무선 기능 정보가 필요합니다.", [ToolName.RADIO], "전파 판단에 필요한 정보예요."),
+    ]
+    assert [q.question_key for q in outcome.questions] == ["r1_q1", "r1_q2"]
+
+
+def test_검증이_낸_질문과_같은_문장은_다시_넣지_않는다(pipeline):
+    asked = FollowUpQuestion(question="정격 전압 정보가 필요합니다.", reason="검증 질문")
+    pipeline["result"] = _missing(_result(ExecutionEndReason.USER_INPUT_REQUIRED), {
+        ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."]}).model_copy(update={
+            "follow_up_questions": [asked], "verification_status": FinalVerificationStatus.INCOMPLETE})
+
+    outcome = build_job(_parts([]), _questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert [q.reason for q in outcome.result.follow_up_questions] == ["검증 질문"]
+
+
+def test_지난_회차에_물은_질문은_다시_묻지_않고_그대로_끝낸다(pipeline):
+    pipeline["result"] = _missing(_result(), {ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."]})
+    previous = _result().model_copy(update={"follow_up_questions": [
+        FollowUpQuestion(question="정격 전압 정보가 필요합니다.", reason="전기용품 판단에 필요한 정보예요.")]})
+    job_input = DiagnosisInput(source=SOURCE, previous=previous, answers=[
+        SessionAnswer(question_round=1, question_key="r1_q1", answer_text="잘 모르겠어요")])
+
+    outcome = build_job(_parts([]), _no_questions)(job_input, CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobDone)
+    assert outcome.result.termination_reason is ExecutionEndReason.COMPLETED
+
+
+def test_두_회차_전에_물은_질문도_상품_정보의_답변_줄로_찾아_다시_묻지_않는다(pipeline):
+    # 3회차: 1회차 질문(전압)은 직전 결과의 질문 칸엔 없고 상품 정보의 답변 줄에만 남음
+    pipeline["result"] = _missing(_result(), {ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."]})
+    second = _result()
+    previous = second.model_copy(update={
+        "product": second.product.model_copy(update={"listing_text": [
+            *second.product.listing_text, "[사용자 답변] 정격 전압 정보가 필요합니다. → 잘 모르겠어요"]}),
+        "follow_up_questions": [FollowUpQuestion(question="무선 기능 정보가 필요합니다.", reason="전파 판단에 필요한 정보예요.")],
+    })
+    job_input = DiagnosisInput(source=SOURCE, previous=previous, answers=[
+        SessionAnswer(question_round=2, question_key="r2_q1", answer_text="없어요")])
+
+    outcome = build_job(_parts([]), _no_questions)(job_input, CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobDone)
+    assert outcome.result.termination_reason is ExecutionEndReason.COMPLETED
+
+
 def test_Tool_실행기는_조립한_Tool을_진행_알림으로_감싸_실행마다_만든다(pipeline):
     tool = _FakeTool(ToolName.RADIO)
     parts = _parts([])
@@ -208,6 +282,20 @@ def test_검증_모델이_실패해도_규칙이_정한_Tool_재실행은_그대
     build_job(_parts([], verification_error=error), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
     assert pipeline["verifications"][0] is rules
+
+
+def test_검증_모델이_실패해_규칙_결과로_진행해도_Tool의_부족한_정보는_질문으로_넘긴다(pipeline):
+    rules = VerificationResult(status=VerificationStatus.APPROVED, checked_finding_ids=[])
+    error = VerificationError("검토 범위가 입력과 다릅니다.", partial_result=rules)
+    pipeline["result"] = _missing(_result(), {ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."]})
+
+    outcome = build_job(_parts([], verification_error=error), _questions)(
+        DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert [v.status for v in pipeline["verifications"]] == [VerificationStatus.REVISION_REQUIRED] * 2
+    assert isinstance(outcome, JobNeedsInput)
+    assert outcome.result.verification_status is FinalVerificationStatus.INCOMPLETE
+    assert [q.question for q in outcome.result.follow_up_questions] == ["정격 전압 정보가 필요합니다."]
 
 
 def test_단계_실패는_원인을_경고로_남긴다(pipeline, caplog):
