@@ -295,3 +295,88 @@ def test_제목과_스펙표의_전원_모순은_전기_여부와_그에_기댄_
     result = ExtractionAgent(stub_model(reply)).run(source)
 
     assert (result.electrical_powered, result.heating, result.battery_included, result.wireless_comm) == (False,) * 4
+
+
+# 소재 줄이 동물성 소재(가죽·울·실크 등)인데 모델이 plant_material=true로 두면 '애매함'(None)으로 되돌린다
+# (2026-11-06 실사이트 소가죽 지갑: "소재: 탑 레이어 소가죽"을 5회 모두 true로 내 식물방역법 안내가 나감).
+# 원문 어디든 식물성 재질 표기가 있으면 손대지 않는다 (부품 일부가 식물성이면 true가 맞음).
+from app.agents.extraction.guessed_flags import drop_contradicted_plant_true
+
+
+@pytest.mark.parametrize("text", [
+    "소재\n탑 레이어 소가죽\n라이닝 재료\n아크릴",
+    "소재: 양가죽",
+    "재질\n100% 울",
+    "소재\n스웨이드",
+    "성분\n뉴질랜드산 양모 80%, 나일론 20%",
+    "Material\nGenuine Leather",
+    "안감 소재\n거위털 90%",
+])
+def test_소재_줄이_동물성_소재이고_식물성_표기가_없는_plant_material_true는_모름으로_되돌린다(text):
+    attributes = {"plant_material": True}
+
+    assert drop_contradicted_plant_true(attributes, text) == ["plant_material"]
+    assert attributes["plant_material"] is None
+
+
+@pytest.mark.parametrize("text", [
+    "소재\n소가죽\n손잡이 소재\n대나무",
+    "소재\n소가죽\n라이닝 재료\n면",
+    "소가죽 지갑, 원목 선물 상자 포함\n소재\n소가죽",
+    "소재\n소가죽\n포장\n종이 상자",
+    "소재\n비건 레더 (선인장 가죽)",
+    "소재\n식물성 태닝 가죽",
+    "Material\nCork Leather",
+])
+def test_원문에_식물성_표기가_있으면_plant_material_true를_그대로_둔다(text):
+    attributes = {"plant_material": True}
+
+    assert drop_contradicted_plant_true(attributes, text) == []
+    assert attributes["plant_material"] is True
+
+
+@pytest.mark.parametrize("text", [
+    "소재\n세라믹",
+    "색상: 가죽 브라운\n소재\n스테인리스 스틸",
+    "남성 지갑&카드 케이스\n진가죽 지갑",
+    "서울 배송\n소재\n플라스틱",
+    "",
+])
+def test_소재_줄에_동물성_소재가_없으면_plant_material_true를_그대로_둔다(text):
+    # 사진이나 코드가 모르는 낱말이 근거일 수 있어, 동물성 소재가 적힌 페이지에서만 되돌린다
+    attributes = {"plant_material": True}
+
+    assert drop_contradicted_plant_true(attributes, text) == []
+    assert attributes["plant_material"] is True
+
+
+@pytest.mark.parametrize("value", [None, False])
+def test_식물성_true_되돌리기는_모름이나_false를_건드리지_않는다(value):
+    attributes = {"plant_material": value}
+
+    assert drop_contradicted_plant_true(attributes, "소재\n소가죽") == []
+    assert attributes["plant_material"] is value
+
+
+def test_추출_결과에_식물성_true_되돌리기가_적용되고_모순은_남기지_않는다(stub_model, records):
+    reply = ProductAttributes(product_name="소가죽 지갑", plant_material=True)
+    agent = ExtractionAgent(stub_model(reply))
+
+    result = agent.run(ExtractionInput(product_id="p", text_blocks=["소재\n탑 레이어 소가죽\n라이닝 재료\n아크릴"]))
+
+    assert result.plant_material is None
+    assert result.conflicts == []
+
+
+def test_판매자_제목에_식물성_표기가_있으면_추출_결과의_true를_그대로_둔다(stub_model, records):
+    # Temu는 전체 제목이 판매자 구역 밖(구매 상자)에 있어 제목도 함께 본다
+    page = "\n".join([
+        "Temu 앱 다운로드", "카테고리", "홈", "지갑", "소가죽 지갑, 대나무...", "리뷰 3건",
+        "제품 세부 정보", "소재", "소가죽", "가장 빠른 배송: 5일소가죽 지갑, 대나무 케이스 포함", "판매자",
+    ])
+    reply = ProductAttributes(product_name="소가죽 지갑", plant_material=True)
+    agent = ExtractionAgent(stub_model(reply))
+
+    result = agent.run(ExtractionInput(product_id="p", text_blocks=[page]))
+
+    assert result.plant_material is True

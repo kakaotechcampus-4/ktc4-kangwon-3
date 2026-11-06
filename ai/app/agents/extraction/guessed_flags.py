@@ -4,10 +4,11 @@
 프롬프트·필드 설명으로 막아 보면 다른 칸까지 비워 두는 놓침이 함께 늘어서, 근거 기준이 분명한 칸만 코드에서 정리한다.
 기준은 추출 프롬프트 원칙 1과 평가 정답표가 쓰는 "false의 근거"와 같다.
 
-여섯 가지를 되돌린다. 어느 것도 칸을 true·false로 정하지 않는다.
+일곱 가지를 되돌린다. 어느 것도 칸을 true·false로 정하지 않는다.
     - drop_guessed_false: 페이지가 부정을 말하는 일이 거의 없는 칸. 원문을 보지 않고 false를 전부 되돌림
     - drop_unsupported_false: 페이지가 부정을 말할 수 있는 칸. 원문에 그 표기가 없을 때만 되돌림
     - drop_contradicted_plant_false: 소재 줄에 식물성 재질이 있는데 plant_material이 false. 되돌리고 모순으로 남김
+    - drop_contradicted_plant_true: 소재 줄이 동물성 소재이고 원문에 식물성 표기가 없는데 plant_material이 true. 되돌림
     - drop_contradicted_claim_false: 효능·미용 표방 문구가 있는데 medical_claim·cosmetic_claim이 false. 되돌리고 모순으로 남김
     - drop_conflicted_battery: 코드 규칙이 배터리 모순을 찾은 페이지. 배터리 칸의 확정(true·false)을 되돌림
     - drop_conflicted_power: 코드 규칙이 스펙표끼리의 전원 방식 모순을 찾은 페이지. electrical_powered 확정을 되돌림
@@ -146,6 +147,52 @@ def drop_contradicted_plant_false(attributes: dict[str, Any], text: str) -> tupl
             attributes["plant_material"] = None
             return ["plant_material"], [f'소재 표기 "{value}"에 식물성 재질이 있어 확인이 필요합니다.']
     return [], []
+
+
+# 소재 줄의 동물성 소재. 모델(gpt-4.1-mini)이 "소재: 소가죽"·"100% 울"·"Genuine Leather"를 식물성 소재로 낸다
+# (2026-11-06 실사이트 소가죽 지갑 원문 5회 모두 true, 소재 줄만 나일론으로 바꾸면 3회 모두 false).
+# "울"은 "서울"·"거울"·"울트라" 안에서 안 잡히게 한글 낱말 안의 울은 보지 않고, 영어는 낱말 단위로 본다.
+_ANIMAL_MATERIAL = re.compile(
+    r"가죽|레더|스웨이드|누벅|누버크|모피|양모|양털|캐시미어|모헤어|알파카|실크|깃털|오리털|거위털|구스다운|덕다운"
+    r"|(?<![가-힣])울(?![가-힣])"
+    r"|(?<![A-Za-z])(?:leather|suede|nubuck|cowhide|sheepskin|fur|wool|cashmere|mohair|alpaca|silk|feathers?|down)"
+    r"(?![A-Za-z])",
+    re.IGNORECASE,
+)
+# _PLANT_MATERIAL에 없는 식물 유래 표기. 이 낱말이 있으면 true를 되돌리지 않는다 (넓게 잡아도 true가 남는 안전한 쪽).
+# 식물로 만든 가죽 대체재("선인장 가죽")와 식물성 태닝, 재생 섬유(레이온 등)까지 넣는다.
+_PLANT_ORIGIN_HINT = re.compile(
+    r"식물|비건|삼베|대마|갈대|왕골|해초|위커|버들|합판|베니어|펄프|크라프트|코코넛|야자|편백|히노키|선인장|버섯|파인애플"
+    r"|레이온|비스코스|모달|텐셀|리오셀"
+    r"|(?<![A-Za-z])(?:plant|vegan|hemp|seagrass|wicker|willow|veneer|mdf|pulp|kraft|coconut|palm|cactus|mushroom"
+    r"|pineapple|rayon|viscose|modal|tencel|lyocell)(?![A-Za-z])",
+    re.IGNORECASE,
+)
+
+
+def drop_contradicted_plant_true(attributes: dict[str, Any], text: str) -> list[str]:
+    """소재 줄이 동물성 소재이고 원문에 식물성 표기가 없는데 plant_material이 True면 None으로 되돌린다.
+
+    모델이 가죽·울·실크 같은 동물성 천연 소재를 식물성으로 내는 경우만 본다. 원문 어디든 식물성 재질이나
+    식물 유래 표기가 있으면 손대지 않는다 (부품 일부가 식물성이면 true가 맞음). 소재 줄에 동물성 소재가 없는
+    페이지도 손대지 않는다 (사진이나 코드가 모르는 낱말이 근거일 수 있음). 페이지가 모순된 것은 아니라서
+    conflicts에는 남기지 않는다. attributes를 그 자리에서 고친다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+        text: 모델이 읽은 판매자 제목과 판매자 영역 원문. 합친 글.
+
+    Returns:
+        list[str]: None으로 바꾼 필드 이름.
+    """
+    if attributes.get("plant_material") is not True:
+        return []
+    if _PLANT_MATERIAL.search(text) or _PLANT_ORIGIN_HINT.search(text):
+        return []
+    if not any(_ANIMAL_MATERIAL.search(row.group("value")) for row in _MATERIAL_ROW.finditer(text)):
+        return []
+    attributes["plant_material"] = None
+    return ["plant_material"]
 
 
 # 판매자 글의 효능·미용 표방 문구. 프롬프트는 "상품 이름 안에 있어도 표방"이라고 하지만 모델(gpt-4.1-mini)이
