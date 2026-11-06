@@ -1,5 +1,6 @@
 """실제 진단 함수를 모델·외부 호출 없이 검증한다. 파이프라인은 단계를 차례로 부르는 가짜로 바꿈."""
 
+import logging
 import time
 from dataclasses import replace
 from types import SimpleNamespace
@@ -158,6 +159,30 @@ def test_Tool_실행기는_조립한_Tool과_진행_알림·실패_로그_hook�
         f"Tool 실행 실패 {ToolName.RADIO}: RuntimeError: 조회 실패"]
 
 
+def test_Tool_실패_로그는_시작과_완료_알림_사이에_남는다(pipeline):
+    events = []
+
+    class _EventProgress(_Progress):
+        def tool(self, tool_name, status):
+            events.append(status)
+
+    # 실패 로그를 진행 알림과 같은 목록에
+    handler = logging.Handler()
+    handler.emit = lambda record: events.append(record.getMessage())
+    run_log = logging.getLogger("app.diagnosis.run_log")
+    run_log.addHandler(handler)
+    try:
+        build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _EventProgress())
+        hook = pipeline["executor_options"]["tool_hook"]
+        failing = _FakeTool(ToolName.RADIO, failing=True)
+        with pytest.raises(RuntimeError):
+            hook(ToolName.RADIO, lambda: failing.execute(None, None))
+    finally:
+        run_log.removeHandler(handler)
+
+    assert events == ["started", f"Tool 실행 실패 {ToolName.RADIO}: RuntimeError: 조회 실패", "completed"]
+
+
 def test_단계가_정한_실패는_코드와_재시도_여부를_그대로_실패로_돌려준다(pipeline):
     error = AIServiceError(response_code=AIResponseCode.UNSUPPORTED_SITE.value, retryable=True)
     progress = _Progress()
@@ -201,6 +226,25 @@ def test_재실행_회차부터는_로그_줄에_회차가_붙는다(pipeline):
         build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
     assert [fields.get("retry_round") for fields in seen] == [None, "1"]
+
+
+def test_재실행_회차의_단계_알림은_로그_줄에_회차가_붙은_뒤에_나간다(pipeline):
+    # 단계 알림 경로(세션 상태 변경·콜백)에서 남는 로그 줄에도 회차 표시
+    seen = []
+
+    class _FieldProgress(_Progress):
+        def stage(self, stage):
+            seen.append((stage, current_run_fields().get("retry_round")))
+
+    with run_log_context(CONTEXT):
+        build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _FieldProgress())
+
+    S = PipelineStage
+    assert seen == [
+        (S.EXTRACTION, None), (S.SELECTION, None), (S.TOOL_EXECUTION, None), (S.AGGREGATION, None),
+        (S.VERIFICATION, None), (S.TOOL_EXECUTION, "1"), (S.AGGREGATION, "1"), (S.VERIFICATION, "1"),
+        (S.FINALIZATION, "1"),
+    ]
 
 
 def test_예상_밖_예외는_그대로_올려_세션이_파이프라인_오류로_기록하게_한다(pipeline):
