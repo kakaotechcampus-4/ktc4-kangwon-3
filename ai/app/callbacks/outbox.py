@@ -181,7 +181,7 @@ class CallbackOutbox:
                 # 중간 재시도는 DEBUG. 재시도 횟수는 버림 로그에 남김 (BE 장애 때 Sentry 로그 절약, #612)
                 logger.debug("콜백 재시도 예정 %d/%d: %s (event_id=%s)",
                              attempt + 1, self._max_retries, reason, event.event_id)
-        _drop(event, "retry_exhausted", f"재시도 {self._max_retries}회 초과", retries=self._max_retries)
+        _drop(event, "retry_exhausted", f"재시도 {self._max_retries}회 초과({reason})", retries=self._max_retries)
 
     def _delay(self, attempt: int) -> float:
         """attempt번째 재시도 전 대기 시간. 상한 안에서 2배씩, 절반~전체 사이로 흩뜨림."""
