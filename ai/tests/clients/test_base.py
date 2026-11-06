@@ -1,5 +1,6 @@
 """외부 통신 클라이언트 공통 베이스(연결)와 공통 도구(키 가리기)를 검증한다."""
 
+import json
 import socket
 import sys
 
@@ -67,4 +68,26 @@ def test_mask_sensitive_params는_키_값만_대소문자_구분_없이_가린�
 
     masked = mask_sensitive_params(text)
 
-    assert masked == '근거 "https://x.kr/a?ServiceKey=***&type=XML&oc=***" 참고, serviceKey=k3'
+    assert masked == '근거 "https://x.kr/a?ServiceKey=***&type=XML&oc=***" 참고, serviceKey=***'
+
+
+@pytest.mark.parametrize(("text", "expected"), [
+    ("공공데이터 serviceKey=k1 인증 실패", "공공데이터 serviceKey=*** 인증 실패"),
+    ("키serviceKey=k1", "키serviceKey=***"),
+    ("OC=k1&target=law", "OC=***&target=law"),
+    ("mykey=1, my_serviceKey=2", "mykey=1, my_serviceKey=2"),
+    ("과전류(OC=120%) 보호, 키OC=k1", "과전류(OC=120%) 보호, 키OC=k1"),
+    ("(serviceKey=a%2Bb/c==), 다음", "(serviceKey=***), 다음"),
+    # httpx가 인코딩하지 않는 ~
+    ("serviceKey=abc~def&type=XML", "serviceKey=***&type=XML"),
+])
+def test_mask_sensitive_params는_URL_쿼리_밖의_serviceKey도_가리고_OC는_쿼리일_때만_가린다(text, expected):
+    assert mask_sensitive_params(text) == expected
+
+
+def test_mask_sensitive_params는_JSON_문자열의_이스케이프를_깨지_않는다():
+    text = json.dumps({"url": "https://x.kr/a?serviceKey=k1", "note": 'serviceKey="k2" 참고'}, ensure_ascii=False)
+
+    masked = json.loads(mask_sensitive_params(text))
+
+    assert masked["url"] == "https://x.kr/a?serviceKey=***"

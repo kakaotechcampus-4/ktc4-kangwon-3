@@ -178,9 +178,10 @@ class CallbackOutbox:
                     _drop(event, "not_retryable", f"재시도 대상 아님({reason})", retries=attempt)
                     return
             if attempt < self._max_retries:
-                logger.warning("콜백 재시도 예정 %d/%d: %s (event_id=%s)",
-                               attempt + 1, self._max_retries, reason, event.event_id)
-        _drop(event, "retry_exhausted", f"재시도 {self._max_retries}회 초과", retries=self._max_retries)
+                # 중간 재시도는 DEBUG. 재시도 횟수는 버림 로그에 남김 (BE 장애 때 Sentry 로그 절약, #612)
+                logger.debug("콜백 재시도 예정 %d/%d: %s (event_id=%s)",
+                             attempt + 1, self._max_retries, reason, event.event_id)
+        _drop(event, "retry_exhausted", f"재시도 {self._max_retries}회 초과({reason})", retries=self._max_retries)
 
     def _delay(self, attempt: int) -> float:
         """attempt번째 재시도 전 대기 시간. 상한 안에서 2배씩, 절반~전체 사이로 흩뜨림."""
@@ -204,5 +205,6 @@ def _drop(event: PublicProductEvent, drop_reason: str, reason: str, *, retries: 
     """버린 이벤트를 로그와 측정 기록으로 남긴다. drop_reason은 지표용 사유, reason은 로그용 설명."""
     _record(event, retries=retries, drop_reason=drop_reason)
     # 본문(진단서·질문)은 남기지 않고 식별자만
-    logger.warning("콜백 이벤트를 보내지 못함: %s (event_id=%s, event_type=%s, product_id=%s, run_id=%s, sequence=%d)",
-                   reason, event.event_id, event.event_type, event.product_id, event.run_id, event.sequence)
+    logger.warning("콜백 이벤트를 보내지 못함: %s (재시도 %d회, event_id=%s, event_type=%s, product_id=%s, run_id=%s, "
+                   "sequence=%d)", reason, retries, event.event_id, event.event_type, event.product_id, event.run_id,
+                   event.sequence)
