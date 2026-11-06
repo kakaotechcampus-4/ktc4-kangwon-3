@@ -7,15 +7,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.tools.customs import CustomsToolError
 from app.agents.verification import VerificationError
-from app.clients.errors import ClientError
 from app.config.session import MAX_PARALLEL_TOOLS
 from app.diagnosis import job as job_module
 from app.observability.logs import current_run_fields, run_log_context
 from app.observability.trace import trace_note, trace_run, trace_step
 from app.diagnosis.assembly import PipelineParts
-from app.diagnosis.job import _alias_ids, _reporting_tools, _ToolExecution, build_job
+from app.diagnosis.job import _alias_ids, _ToolExecution, build_job
 from app.diagnosis.replay import ReplayStopped, StageReplay
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.domain.errors import AIResponseCode, AIServiceError
@@ -158,15 +156,21 @@ def test_재진단은_추출_결과에_이번_회차_답변을_붙여_선택_단
     assert selected_product.listing_text == ["무선 선풍기", "[사용자 답변] 배터리로만 동작하나요? → 네"]
 
 
-def test_Tool_실행기는_조립한_Tool을_실패_로그로_감싸_실행마다_만든다(pipeline):
-    tool = _FakeTool(ToolName.RADIO)
+def test_Tool_실행기는_조립한_Tool과_진행_알림·실패_로그_hook으로_실행마다_만든다(pipeline, caplog):
     parts = _parts([])
-    parts.tools[ToolName.RADIO] = tool
+    parts.tools[ToolName.RADIO] = _FakeTool(ToolName.RADIO)
+    progress = _Progress()
 
-    build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+    build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, progress)
 
-    wrapped = pipeline["executor_tools"][ToolName.RADIO]
-    assert (wrapped._tool, wrapped.tool_name) == (tool, ToolName.RADIO)
+    assert pipeline["executor_tools"] is parts.tools
+    hook = pipeline["executor_options"]["tool_hook"]
+    failing = _FakeTool(ToolName.RADIO, failing=True)
+    with pytest.raises(RuntimeError):
+        hook(ToolName.RADIO, lambda: failing.execute(None, None))
+    assert progress.tools == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
+    assert [r.getMessage() for r in caplog.records if r.getMessage().startswith("Tool 실행 실패")] == [
+        f"Tool 실행 실패 {ToolName.RADIO}: RuntimeError: 조회 실패"]
 
 
 def test_단계가_정한_실패는_코드와_재시도_여부를_그대로_실패로_돌려준다(pipeline):
@@ -257,55 +261,6 @@ class _FakeTool:
 def _selection(selected):
     return ToolSelectionResponse(decisions=[
         ToolSelectionItem(tool_name=name, selected=name in selected, reason="이유") for name in ToolName])
-
-
-class _RaisingTool:
-    def __init__(self, tool_name, error):
-        self.tool_name = tool_name
-        self.error = error
-
-    def execute(self, product, decision):
-        raise self.error
-
-
-@pytest.mark.parametrize(("error", "level", "traceback"), [
-    (ClientError("응답 없음 https://apis.data.go.kr/x?serviceKey=SECRET&page=1"), "WARNING", False),
-    (RuntimeError("버그"), "ERROR", True),
-])
-def test_Tool_실패는_원인을_남기고_예상한_오류는_위치_없이_코드_오류는_위치까지_남긴다(caplog, error, level, traceback):
-    tools = {name: _RaisingTool(name, error) for name in ToolName}
-    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools)))
-
-    execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    [record] = [r for r in caplog.records if r.name == "app.diagnosis.job"]
-    assert record.levelname == level
-    assert record.getMessage().startswith(f"Tool 실행 실패 {ToolName.RADIO}: {type(error).__name__}: ")
-    assert "SECRET" not in record.getMessage()
-    assert (record.exc_info is not None) is traceback
-
-
-
-def test_Tool_실패_로그에_감싼_원인까지_남긴다(caplog):
-    # 통관 Tool은 요건 조회의 모든 예외를 "세관장확인 요건 조회에 실패했습니다"로 감싼다.
-    # 바깥 문장만 남으면 서버에서 실제 원인(시간 초과·연결 실패 등)을 알 수 없다.
-    try:
-        try:
-            raise ClientError("연결 실패 https://apis.data.go.kr/x?serviceKey=SECRET")
-        except ClientError as cause:
-            raise CustomsToolError("세관장확인 요건 조회에 실패했습니다.") from cause
-    except CustomsToolError as wrapped:
-        error = wrapped
-    tools = {name: _RaisingTool(name, error) for name in ToolName}
-    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools)))
-
-    execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.CUSTOMS}))
-
-    [record] = [r for r in caplog.records if r.name == "app.diagnosis.job"]
-    message = record.getMessage()
-    assert message.startswith(f"Tool 실행 실패 {ToolName.CUSTOMS}: CustomsToolError: 세관장확인 요건 조회에 실패했습니다.")
-    assert "← ClientError: 연결 실패" in message
-    assert "SECRET" not in message
 
 
 def test_기록_중이_아니면_Tool을_병렬_상한까지_동시에_실행한다(pipeline):

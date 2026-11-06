@@ -13,29 +13,25 @@ import logging
 from collections.abc import Callable
 
 from ..agents.verification import VerificationError
-from ..clients.base import mask_sensitive_params
 from ..config.session import MAX_PARALLEL_TOOLS
 from ..domain.context import ExecutionContext, PipelineStage
-from ..domain.errors import AIError, AIResponseCode, AIServiceError
+from ..domain.errors import AIResponseCode, AIServiceError
 from ..observability.trace import current_trace, trace_alias, trace_finish, trace_note, trace_step
-from ..pipeline.hooks import chain_stage_hooks
+from ..pipeline.hooks import chain_stage_hooks, chain_tool_hooks
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
-from ..schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
+from ..schemas.agent import ExtractionInput, ToolSelectionResponse
 from ..schemas.callback import PublicQuestionDto
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
-from ..schemas.schemas import (
-    DraftAssessment, ExecutionEndReason, FinalAssessment, ToolName, ToolResult, VerificationResult,
-)
+from ..schemas.schemas import DraftAssessment, ExecutionEndReason, FinalAssessment, VerificationResult
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
-from ..tools.base import RegulatoryTool
 from .answers import with_answers
 from .assembly import PipelineParts
 from .progress import ProgressStageHook, ProgressToolHook
 from .replay import StageReplay
-from .run_log import mark_retry_round
+from .run_log import error_text, log_tool_failure, mark_retry_round
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +55,11 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
         state = _RunState(replay)
         # 기록 중엔 Tool 순차 실행 (기록기가 열린 단계·진행 중 호출을 객체 하나에 둠)
         max_parallel = 1 if current_trace() else MAX_PARALLEL_TOOLS
-        executor = ToolExecutor(_reporting_tools(parts.tools), max_parallel=max_parallel,
-                                tool_hook=ProgressToolHook(progress))
+        executor = ToolExecutor(
+            parts.tools, max_parallel=max_parallel,
+            # 앞이 바깥: 진행 알림 → 실패 로그
+            tool_hook=chain_tool_hooks(ProgressToolHook(progress), log_tool_failure),
+        )
         pipeline = CompliancePipeline(
             extractor=_Extraction(parts, job_input, state),
             selector=_Selection(parts, state),
@@ -76,7 +75,7 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
             # 단계가 정한 실패 코드·재시도 여부를 그대로 (#450). 세션 실행기는 이 실패를 로그로 안 남김 → 원인과 함께 기록
             # 예상한 실패 → 위치 없이 원인 예외만 한 줄로
             logger.warning("진단 단계 실패 (stage=%s, code=%s, retryable=%s): %s", exc.stage,
-                           exc.response_code.code, exc.retryable, _error_text(exc.__cause__ or exc))
+                           exc.response_code.code, exc.retryable, error_text(exc.__cause__ or exc))
             trace_finish("failed", exc, stage=exc.stage, code=exc.response_code.code, retryable=exc.retryable)
             return JobFailed(exc.response_code.code, exc.retryable)
         progress.stage(PipelineStage.FINALIZATION)
@@ -158,51 +157,6 @@ class _Selection:
             trace_note("output", selection)
         self._state.done("selection")
         return selection
-
-
-def _reporting_tools(tools: dict[ToolName, RegulatoryTool]) -> dict[ToolName, "_ReportingTool"]:
-    """Tool마다 실패 로그 감싸개를 씌운다."""
-    return {name: _ReportingTool(tool) for name, tool in tools.items()}
-
-
-class _ReportingTool:
-    """Tool 실패 원인 로그. 예외는 실행기가 FAILED 결과로 바꿈.
-
-    실행기는 원인을 남기지 않아 여기서 남기고 그대로 올림 (#497).
-    """
-
-    def __init__(self, tool: RegulatoryTool) -> None:
-        self._tool = tool
-        self.tool_name = tool.tool_name
-
-    def execute(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
-        try:
-            return self._tool.execute(product, decision)
-        except AIError as exc:
-            # 예상한 실패(외부 API·모델·Tool 오류)는 원인만
-            logger.warning("Tool 실행 실패 %s: %s", self.tool_name, _error_text(exc))
-            raise
-        except Exception as exc:
-            # 코드 오류 가능성 → 위치까지
-            logger.error("Tool 실행 실패 %s: %s", self.tool_name, _error_text(exc), exc_info=True)
-            raise
-
-
-# 로그에 남길 감싼 원인의 최대 단계 (Tool 오류 ← 조회 오류 ← HTTP 오류 정도면 충분)
-_MAX_ERROR_CAUSES = 4
-
-
-def _error_text(exc: BaseException) -> str:
-    """로그용 예외 설명. 감싼 원인(__cause__)까지 ← 로 이어 붙이고, 메시지 속 URL의 키는 가림.
-
-    Tool은 외부 조회 오류를 공통 Tool 예외로 감싸므로 바깥 문장만으로는 실패 원인을 알 수 없다.
-    """
-    parts: list[str] = []
-    current: BaseException | None = exc
-    while current is not None and len(parts) <= _MAX_ERROR_CAUSES:
-        parts.append(f"{type(current).__name__}: {current}")
-        current = current.__cause__
-    return mask_sensitive_params(" ← ".join(parts))
 
 
 class _ToolExecution:
