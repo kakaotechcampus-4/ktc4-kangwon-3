@@ -5,7 +5,7 @@ import logging
 from contextlib import asynccontextmanager, suppress
 
 from fastapi import APIRouter, FastAPI
-from prometheus_client import CollectorRegistry, disable_created_metrics
+from prometheus_client import CollectorRegistry, ProcessCollector, disable_created_metrics
 from sqlalchemy.exc import SQLAlchemyError
 
 from .agents.input_guard import InputGuardAgent
@@ -127,6 +127,8 @@ async def lifespan(app: FastAPI):
     manager.subscribe(SessionMetrics(registry).on_event)
     registry.register(SessionSnapshotCollector(manager))
     registry.register(CallbackOutboxCollector(outbox))
+    # 프로세스 시작 시각 등. 대시보드 횟수 식이 재시작을 알아보는 데 씀
+    ProcessCollector(registry=registry)
     # 에이전트 지표. 등록표는 앱 전체 공용이라 종료 때 해제 (lifespan을 다시 띄워도 옛 registry에 안 쌓이게)
     agent_metrics = AgentMetrics(registry).on_run
     agent_sinks.add(agent_metrics)

@@ -312,6 +312,13 @@ def test_metrics에_콜백_발신함_대기_수가_나온다(fake_be):
     assert "ai_callback_pending 0.0" in text
 
 
+def test_metrics에_프로세스_시작_시각이_나온다(fake_be):
+    with TestClient(main.app) as client:
+        text = client.get("/metrics").text
+
+    assert "process_start_time_seconds " in text
+
+
 class _LawFetchers:
     closed = False
 
