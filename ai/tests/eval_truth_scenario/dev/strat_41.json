@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_41/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 kasili 2pcs 치아 미백 칫솔(남성용 강모, 나일론 강모·ABS 막대 수동 칫솔). 구강(점막)에 닿는 구강용품이며 제목이 '치아 세정 및 미백 효과'를 표방해 식약·표시광고를 고르는 케이스. 전기·전파 요소는 없다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품. 스펙표 '원산지: 광둥, 중국'(109~110행)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '강모 소재: 나일론'(90~91행), '브러시 막대 소재: ABS 플라스틱'(96~97행). 이미지 img_01·img_02도 수동 칫솔",
+      "why_not_other": "재질이 전부 명시된 비전자 제품이라 무선 통신·충전·차폐 요소가 없다. 연관 상품의 '무선 USB 충전 코털 정리기'(318행)는 다른 상품이다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "카테고리 '구강 관리 제품'(41행), 제목 '치아 미백 칫솔 … 치아 세정 및 미백 효과, 스테인 리무버 브러시, 구강 위생'(112행), img_01 'One brush removes stubborn stains such as teeth, cigarette stains, tartars'",
+      "why_not_other": "칫솔은 구강 점막에 닿는 구강용품이고 치아 미백(미용 효과)을 표방한다. 기준의 '칫솔 등'에 해당한다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '강모 소재: 나일론'(90~91행), '브러시 막대 소재: ABS 플라스틱'(96~97행), '포함된 구성품: 아니요'(92~93행). 전원·전지·정격 표기 없음",
+      "why_not_other": "구성이 나일론 강모와 ABS 막대뿐인 수동 칫솔로 확인된다. 연관 상품 전동 제품(147·318행)은 다른 상품."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 '대상 고객: 남녀공용-성인'(84~85행), 제목 '남성용'(112행), img_01 '男士专用'",
+      "why_not_other": "성인 대상이 명시돼 있고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '치아 세정 및 미백 효과', '고품질 칫솔', '전문 치과 관리'(112행), img_01·img_02 'Tightly planted bristles increment +30%', 'One brush removes stubborn stains … tartars'",
+      "why_not_other": "미백 효과 표방(효능·미용 주장)이 판매자 제목에 있어 텍스트만으로도 선택된다. 이미지의 '+30%' 수치·치석 제거 주장은 추가 근거다."
+    }
+  },
+  "notes": "이미지의 'tartars'(치석) 제거는 의료 효능 표방으로 볼 여지도 있으나 식약은 미용·구강용품 근거로 이미 true다. 제목 '남성용'과 스펙표 '남녀공용-성인'이 어긋나지만 어느 쪽이든 성인 대상이라 어린이 판단에 영향 없다."
+}

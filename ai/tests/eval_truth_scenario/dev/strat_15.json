@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_15/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 HongYue 스테인리스 상하 2도어 냉장고. 'Usage: Food Storage'로 식약, 전압 220V·컴프레서로 전기를 고르고, 'app-controlled: No'로 전파는 해당 없음이 확인된다. 제목 '대형 635L'과 스펙표 용량(60L 미만·≥300L·100L+100L), 에너지 등급(3등급 vs Grade 1)이 서로 어긋나 과장 가능 수치로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 164~165행), 'place of origin: Guangdong, China'(176~177행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 'app-controlled: No'(180~181행). 제목·스펙표·이미지(img_07 도어 터치 패널 'NO FROST', 'POWER COOL', 'LOCK 3s')에 블루투스·WiFi·리모컨·무선충전 표기 없음",
+      "why_not_other": "판매자가 앱 연동이 없다고 명시했고 그 밖의 무선 기능 문구가 없다. 유선 전원 코드(img_06·11)로 동작하는 가전이다. 제목 '태양열 컴프레서'는 전원 방식이지 무선 통신이 아니다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "스펙표 'Keyword: Food Insurance Freezing'(212~213행), 'Function: Beverage Meat Fruit Fresh'(222~223행), 'Usage: Food Storage'(224~225행), 이미지 냉장·냉동실 내부 선반·야채칸(img_05·09)",
+      "why_not_other": "식품을 보관하는 기구라 음식 접촉에 해당한다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전압: 220V용'(162~163행), 'feature: COMPRESSOR'(186~187행), 'power (w): 0.8'(200~201행), 'power source: Electric'(202~203행), 'Cooling system: Compressor Cooling'(226~227행), 이미지 컴프레서 라벨 '230V'·3핀 플러그(img_11)",
+      "why_not_other": "전기 구동 가전이고 전압·전력 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 'application: HOUSEHOLD'(182~183행), 제목 '가정용 냉장고'(10행). 어린이 대상 표기·연령 없음",
+      "why_not_other": "가정용 대형 가전이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '대형 635L … (태양열 컴프레서 포함)'(10행) vs 스펙표 '용량: 60L 미만'(154~155행), 'capacity: ≥300 L'(166~167행), 'freezer capacity: 100L', 'fridge capacity: 100L'(188~191행). '에너지 소비 등급: 3등급'(150~151행) vs 'energy efficiency rating: Grade 1'(170~171행). 이미지 인증서(Intertek·BSCI)가 'Wuyi Xinlan Tools Co.,LTD' 명의(img_15)",
+      "why_not_other": "제목의 '635L'은 스펙표 어디에도 맞지 않는 용량 수치라 과장 가능 수치(5)이고, 에너지 효율 'Grade 1'도 '3등급'과 충돌해 근거 없는 효율 표방일 수 있다. 이미지에는 다른 회사 인증서를 걸어 미검증 인증 표방(3) 소지도 있다. AI 요약 '완벽한 선택'(24행)과 description.txt의 가게 소개 '업계 최고 수준'은 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "description.txt는 '에너지 효율 등급 1급', '공랭식 무결빙', 크기 800*700*1830 등 text.txt와 또 다른 값을 적는다. 스펙표 'installation: Portable'과 제목 '휴대용'도 97kg(description.txt) 대형 냉장고와 어긋난다. 모두 표시광고 선택을 강화하는 방향이다."
+}

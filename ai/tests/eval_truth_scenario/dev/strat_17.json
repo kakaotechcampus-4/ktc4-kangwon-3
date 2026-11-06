@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_17/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 abay 자동 회전 고양이 사냥 후드 장난감. 스펙표가 '전기적인 것인지: 네', '배터리 포함: 예', '스마트 기기 여부: no'를 직접 적어 전기는 고르고 전파는 해당 없음이 확인된다. 어린이가 아니라 고양이용 장난감이라 어린이는 고르지 않는다. 상세 이미지가 없어(img_01 빈 자리표시) 글만으로 판단한다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 203~204행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '스마트 기기 여부: no'(193~194행). 제목·스펙표에 블루투스·WiFi·리모컨·앱·무선충전 언급 없음",
+      "why_not_other": "전기 장난감이지만 판매자가 스마트 기기가 아니라고 밝혀 무선 통신이 없다는 근거가 있다. 연관 상품의 '조절 가능한 리모컨'(46행)은 다른 상품이다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "스펙표 '장난감 유형: 삑삑이 장난감'(197~198행), '재료: 옷감,플라스틱'(199~200행), '유형: 고양이'(205~206행). 음식 접촉·의료·미용 문구 없음",
+      "why_not_other": "반려동물 놀이용 장난감이라 음식 접촉·사람 피부·점막 용도가 아니고 효능 표방도 없다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '배터리 포함: 예'(187~188행), '전기적인 것인지: 네'(189~190행), 제목 '자동 회전'(10행)",
+      "why_not_other": "전지를 포함한 전기 구동 장난감이다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 '유형: 고양이'(205~206행), 제목 '고양이 놀리기 스틱 애완동물 게임 … 고양이 인터랙티브'(10행). 어린이 대상 표기·연령 없음",
+      "why_not_other": "장난감이지만 사용 대상이 고양이로 명시된 반려동물 용품이라 어린이 완구로 보지 않았다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '… 고양이 인터랙티브 히든 후드 장난감 고양이 에너지 소모'(10행)",
+      "why_not_other": "'고양이 에너지 소모'는 용도 설명이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: labeling_advertising_detection은 제목의 '고양이 에너지 소모' 한 구절이 유일한 근거다. 반려동물 활동량 설명이라 효능 표방으로 보지 않아 false. children_product_safety는 사용 대상이 고양이로 명시된 장난감이라 어린이 완구로 보지 않아 false. [기준3: labeling_advertising_detection True→False]"
+}

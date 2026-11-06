@@ -94,3 +94,36 @@ def test_AliExpress에_구매자_질문과_면책_조항이_없어도_판매자_
     assert region.trimmed and "판매자 설명 문장" in region.text
     for removed in ("가게 이름", "AliExpress의 약속", "배송 안내 문장"):
         assert removed not in region.text
+
+
+def _with_hidden_cart_drawer(temu_page: str) -> str:
+    # 브라우저 innerText로 긁으면 화면에 안 보이는 장바구니 서랍 글이 맨 앞에 20줄 넘게 붙는다
+    # (수집 북마클릿 #567). "Temu 앱 다운로드" 표지가 그만큼 뒤로 밀린다.
+    drawer = ["소계", *[str(n) for n in range(10)], "원", "결제하기 (0)", "장바구니", "모두 선택 (0)",
+              "무료 배송", "최소 주문 13,000원(판매자 배송 상품 제외)", "배송 보장", "문제 발생 시 환불",
+              "무료 반품", "최대 90일*", "가격 조정", "30일 이내", "배송 보장", "문제 발생 시 환불"]
+    return "\n".join(drawer) + "\n" + temu_page
+
+
+def test_Temu_표지_앞에_숨은_장바구니_서랍_글이_길게_붙어_있어도_알아본다(temu_page):
+    region = extract_seller_region(_with_hidden_cart_drawer(temu_page))
+
+    assert region.site == "temu" and region.trimmed
+    assert region.title == "접이식 원목 의자 3단 높이 조절"
+    assert "결제하기" not in region.text
+
+
+def _without_top_menu(aliexpress_page: str) -> str:
+    # 북마클릿 innerText로 긁은 일부 AliExpress 복사본은 상단 메뉴("장바구니"까지)가 빠지고
+    # "AliExpress" 로고 줄, 장바구니 수량 "0", 제목 순서로 시작한다(#567 strat_01~03).
+    lines = aliexpress_page.splitlines()
+    cart = lines.index("장바구니")
+    return "\n".join(["AliExpress", "0", *lines[cart + 1:]])
+
+
+def test_AliExpress_상단_메뉴가_빠진_복사본도_로고_줄_다음_제목부터_남긴다(aliexpress_page):
+    region = extract_seller_region(_without_top_menu(aliexpress_page))
+
+    assert region.site == "aliexpress" and region.trimmed
+    assert region.title == extract_seller_region(aliexpress_page).title
+    assert "연관 상품" not in region.text

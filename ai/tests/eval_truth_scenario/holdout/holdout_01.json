@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_01/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "카본 오징어 낚싯대(알리). 비전자·비식품 스포츠 용품이고, 상세 설명의 '초고감도' 같은 성능 강조가 표시광고에 걸리는지 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(알리익스프레스, 원산지 중국)",
+      "why_not_other": "통관은 해외 직구 수입품이면 사실상 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 탄소'(193~194행), 상세 이미지 1~7은 카본 블랭크·릴시트·가이드·EVA 그립뿐",
+      "why_not_other": "전자 부품이 없는 낚싯대라 무선 통신·충전·차폐와 무관하다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "대상 어종 '오징어, 갑오징어, 문어'(description.txt 2행), 재료 탄소·EVA",
+      "why_not_other": "음식 접촉 용도가 아니고 의료·미용 효능 표방도 없다. 그립(EVA)은 손에 쥐는 일반 용도다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 탄소', '고농도 화학 물질: 없음'(179~194행), 전원·전지 표기 없음",
+      "why_not_other": "전기 구동·전지·발열 기능이 없는 비전자 제품으로 구성이 확인된다. 이미지 4의 'Fast Heat Dissipation'은 가이드 링의 마찰열 이야기로 발열 기능이 아니다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없음. 대상 어종·보트 낚시 용도(10행, 196~198행)",
+      "why_not_other": "어린이 대상 표기가 없고 학용품·완구도 아닌 성인 레저 용품이다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "상세 설명 '●초고감도 및 경량 설계', '매우 높은 감도'(description.txt 2행), 이미지 6 'ultra-high sensitivity', 이미지 4 'High Quality Guide Ring'",
+      "why_not_other": "'초고감도'는 수치 없는 성능 묘사다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: 표시광고는 '초고감도'(description.txt)를 수치 없는 성능 묘사로 보아 false. [기준3: labeling_advertising_detection True→False]"
+}

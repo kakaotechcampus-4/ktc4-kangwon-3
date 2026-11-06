@@ -1,9 +1,14 @@
-"""상품 종류로 짐작해 채운 false, 원문에 부정 표기가 없는 false, 배터리 모순 페이지의 배터리 확정을 None(모름)으로 되돌리는 후처리."""
+"""상품 종류로 짐작해 채운 false, 원문에 부정 표기가 없는 false, 배터리·전원 모순 페이지의 확정을 None(모름)으로 되돌리는 후처리."""
 
 import pytest
 
 from app.agents.extraction import ExtractionAgent
-from app.agents.extraction.guessed_flags import drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
+from app.agents.extraction.guessed_flags import (
+    drop_conflicted_battery,
+    drop_conflicted_power,
+    drop_guessed_false,
+    drop_unsupported_false,
+)
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import ProductAttributes
 
@@ -168,3 +173,125 @@ def test_코드_규칙이_배터리_모순을_찾으면_배터리_칸을_확정�
 
     assert (result.battery_included, result.battery_is_the_product) == (None, None)
     assert any("1460mAh" in conflict for conflict in result.conflicts)
+
+
+# 소재 줄에 식물성 재질이 적혀 있는데 모델이 plant_material=false로 두면 '애매함'(None)으로 되돌리고 모순으로 남긴다
+# (초안 50건 측정 2026-11-05: "72% Cotton", "소재: 종이"를 모델이 false로 둠). 코드는 true로 확정하지 않는다.
+# 재질 줄 밖의 낱말("나무 심기", 포장 "종이 상자")은 근거가 아니다.
+from app.agents.extraction.guessed_flags import drop_contradicted_plant_false
+
+
+@pytest.mark.parametrize("text", [
+    "소재 구성\n72% Cotton 25% Polyester 3% Spandex",
+    "재료\n면,폴리에스테르,스판덱스",
+    "소재: 종이",
+    "본체재질\n원목",
+    "Material\nBamboo",
+    "성분\n100% 린넨",
+])
+def test_소재_줄의_식물성_재질과_어긋나는_plant_material_false는_모름으로_되돌린다(text):
+    attributes = {"plant_material": False}
+
+    dropped, conflicts = drop_contradicted_plant_false(attributes, text)
+
+    assert dropped == ["plant_material"]
+    assert attributes["plant_material"] is None
+    assert len(conflicts) == 1
+
+
+def test_식물성_모순_문장에는_소재_표기를_그대로_담는다():
+    attributes = {"plant_material": False}
+
+    _, conflicts = drop_contradicted_plant_false(attributes, "소재 구성\n72% Cotton 25% Polyester")
+
+    assert conflicts == ['소재 표기 "72% Cotton 25% Polyester"에 식물성 재질이 있어 확인이 필요합니다.']
+
+
+@pytest.mark.parametrize("value", [None, True])
+def test_코드는_식물성_소재를_true로_확정하지_않고_모름이나_true는_그대로_둔다(value):
+    attributes = {"plant_material": value}
+
+    assert drop_contradicted_plant_false(attributes, "소재\n대나무") == ([], [])
+    assert attributes["plant_material"] is value
+
+
+@pytest.mark.parametrize("text", [
+    "성분\n95% 폴리에스테르, 5% Nylon",
+    "소재\n폴리에스테르 섬유\n충전식 휴대용 전기 핫팩 양면발열",
+    "포장\n종이 상자\n재료\n플라스틱",
+    "Temu의 나무 심기 프로그램\n재료\nABS",
+    "소재\n면도기용 스테인리스",
+])
+def test_소재_줄에_식물성_재질이_없으면_false를_그대로_둔다(text):
+    attributes = {"plant_material": False}
+
+    assert drop_contradicted_plant_false(attributes, text) == ([], [])
+    assert attributes["plant_material"] is False
+
+
+def test_추출_결과에_식물성_false_되돌리기가_적용되고_모순으로_남는다(stub_model, records):
+    reply = ProductAttributes(product_name="아기 양말", plant_material=False)
+    agent = ExtractionAgent(stub_model(reply))
+
+    result = agent.run(ExtractionInput(product_id="p", text_blocks=["소재 구성\n72% Cotton 25% Polyester 3% Spandex"]))
+
+    assert result.plant_material is None
+    assert any("72% Cotton" in c for c in result.conflicts)
+
+
+# 스펙표가 "전자식: 아니요"인데 "전원 공급: 교류"처럼 전원 방식을 서로 다르게 적으면 electrical_powered를 확정하지 않는다
+# (초안 50건 측정 2026-11-05: strat_16 캐비테이션 마사지기를 모델이 3회 모두 false로 둠. 실제는 교류 전원 제품)
+
+@pytest.mark.parametrize("value", [True, False])
+def test_전원_모순이면_electrical_powered_확정을_모름으로_되돌린다(value):
+    attributes = {"electrical_powered": value, "heating": False}
+
+    assert drop_conflicted_power(attributes) == ["electrical_powered"]
+    assert (attributes["electrical_powered"], attributes["heating"]) == (None, False)
+
+
+def test_이미_모름인_전원_칸은_바꾼_목록에_넣지_않는다():
+    assert drop_conflicted_power({"electrical_powered": None}) == []
+
+
+def test_코드_규칙이_전원_모순을_찾으면_전기_여부와_그에_기댄_false를_확정하지_않는다(stub_model, records):
+    reply = ProductAttributes(electrical_powered=False, heating=False, battery_included=False)
+    source = ExtractionInput(product_id="p-6", text_blocks=["초음파 바디 마사지기\n전자식\n아니요\n전원 공급\n교류"])
+
+    result = ExtractionAgent(stub_model(reply)).run(source)
+
+    assert result.electrical_powered is None
+    # 전기 여부를 모르게 됐으므로 전기를 쓰지 않는다는 데 기댄 발열·배터리 false도 모름
+    assert (result.heating, result.battery_included) == (None, None)
+    assert any("전자식" in conflict and "교류" in conflict for conflict in result.conflicts)
+
+
+def test_전원_모순이_없으면_electrical_powered를_그대로_둔다(stub_model, records):
+    reply = ProductAttributes(electrical_powered=False)
+    source = ExtractionInput(product_id="p-7", text_blocks=["발 지압 매트\n전자식\n아니요\n전원 공급\n전기 없음"])
+
+    assert ExtractionAgent(stub_model(reply)).run(source).electrical_powered is False
+
+
+@pytest.mark.parametrize("value", ["Soak resistant coating", "Spine support plastic", "Strawberry scent ABS"])
+def test_영어_낱말_속_일치는_식물성_재질이_아니다(value):
+    attributes = {"plant_material": False}
+
+    assert drop_contradicted_plant_false(attributes, f"Material: {value}") == ([], [])
+
+
+@pytest.mark.parametrize("value", ["Oak", "Pine wood", "Wooden frame", "Plywood", "대나무", "Cotton소재"])
+def test_영어_재질_낱말은_낱말_단위로_잡는다(value):
+    attributes = {"plant_material": False}
+
+    assert drop_contradicted_plant_false(attributes, f"Material: {value}")[0] == ["plant_material"]
+
+
+def test_제목과_스펙표의_전원_모순은_전기_여부와_그에_기댄_false를_되돌리지_않는다(stub_model, records):
+    # "정전기 방지 빗" 같은 제목이 발열·배터리·무선 false까지 함께 모름으로 만들던 문제 (#580 리뷰)
+    reply = ProductAttributes(electrical_powered=False, heating=False, battery_included=False, wireless_comm=False)
+    source = ExtractionInput(product_id="p-8", text_blocks=["USB 케이블 정리함\n재질\n플라스틱\n전원 공급\n없음"])
+
+    result = ExtractionAgent(stub_model(reply)).run(source)
+
+    assert (result.electrical_powered, result.heating, result.battery_included, result.wireless_comm) == (False,) * 4

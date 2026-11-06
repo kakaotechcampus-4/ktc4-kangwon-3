@@ -143,9 +143,16 @@ def describe_metadata(meta: dict) -> str:
     )
 
 
-def run_fixture(agent: ExtractionAgent, name: str, runs: int) -> list[dict]:
-    """픽스처 하나를 N회 추출한다. 실패한 회차도 결과로 남긴다."""
-    path = RAW_DIR / name
+def run_fixture(agent: ExtractionAgent, name: str, runs: int, raw_dir: Path | None = None) -> list[dict]:
+    """픽스처 하나를 N회 추출한다. 실패한 회차도 결과로 남긴다.
+
+    Args:
+        agent: 추출 에이전트.
+        name: 정답표의 fixture 경로 (원문 폴더 기준 상대 경로).
+        runs: 회차 수.
+        raw_dir: 원문 폴더. None이면 RAW_DIR. 임시 워크트리에서 잴 때 저장소 밖 원문을 직접 가리킨다.
+    """
+    path = (raw_dir or RAW_DIR) / name
     if not path.exists():
         # 상용 상세페이지 원문은 저장소가 public이라 커밋하지 않는다
         # (tests/fixtures/README.md). 평가를 돌리려면 원문을 따로 받아야 한다.
@@ -222,16 +229,24 @@ def warn_if_prompt_changed(meta: dict | None) -> list[str]:
     return []
 
 
-def rescore(path: Path) -> int:
-    """저장된 실행 결과를 LLM 재호출 없이 다시 채점한다."""
+def rescore(path: Path, truth_dir: Path | None = None) -> int:
+    """저장된 실행 결과를 LLM 재호출 없이 다시 채점한다.
+
+    Args:
+        path: 러너가 남긴 결과 파일.
+        truth_dir: 정답표 폴더. None이면 결과 파일에 기록된 폴더, 그것도 없으면 TRUTH_DIR.
+    """
     saved = json.loads(path.read_text(encoding="utf-8"))
     meta = saved.get("meta")
     for line in warn_if_prompt_changed(meta):
         print(line, file=sys.stderr)
     if meta:
         print(f"측정 조건: {describe_metadata(meta)}", file=sys.stderr)
+    # 확정 전 초안(_raw/truth_drafts)으로 잰 결과는 그 초안으로 다시 채점해야 한다.
+    if truth_dir is None:
+        truth_dir = Path(saved["truth_dir"]) if saved.get("truth_dir") else TRUTH_DIR
     for name, outputs in saved["results"].items():
-        truth = load_truth(TRUTH_DIR / f"{name}.json")
+        truth = load_truth(truth_dir / f"{name}.json")
         print_report(score(truth, [o for o in outputs if not o.get("_failed")]))
     return 0
 
@@ -243,21 +258,31 @@ def main() -> int:
     parser.add_argument("--all", action="store_true", help="정답표가 있는 픽스처 전부")
     parser.add_argument("--runs", type=int, default=5, help="픽스처당 실행 횟수 (기본 5)")
     parser.add_argument("--rescore", type=Path, help="저장된 실행 결과를 재채점만 한다")
+    parser.add_argument(
+        "--truth-dir", type=Path, default=None,
+        help="정답표 폴더 (기본 tests/eval_truth). 확정 전 초안(_raw/truth_drafts)으로 잴 때 지정",
+    )
+    parser.add_argument(
+        "--raw-dir", type=Path, default=None,
+        help="원문 폴더 (기본 tests/fixtures/_raw). 임시 워크트리에서 저장소 밖 원문을 쓸 때 지정 (정션을 만들지 않는다)",
+    )
     args = parser.parse_args()
 
     if args.rescore:
-        return rescore(args.rescore)
+        return rescore(args.rescore, args.truth_dir)
 
-    names = [p.stem for p in sorted(TRUTH_DIR.glob("*.json"))] if args.all else args.fixture
+    truth_dir = args.truth_dir or TRUTH_DIR
+    raw_dir = args.raw_dir or RAW_DIR
+    names = [p.stem for p in sorted(truth_dir.glob("*.json"))] if args.all else args.fixture
     if not names:
         parser.error("--all 또는 --fixture 를 지정하세요.")
 
     # 모델을 만들기 전에 원문이 다 있는지 먼저 본다. 뒤쪽 픽스처가 없으면
     # 앞쪽에 쓴 API 호출이 통째로 낭비된다.
-    missing = [n for n in names if not (RAW_DIR / load_truth(TRUTH_DIR / f"{n}.json")["fixture"]).exists()]
+    missing = [n for n in names if not (raw_dir / load_truth(truth_dir / f"{n}.json")["fixture"]).exists()]
     if missing:
         print(f"원문 픽스처가 없습니다: {', '.join(missing)}", file=sys.stderr)
-        print(f"저장소에는 축약본만 들어 있습니다. 원문을 {RAW_DIR} 에 넣어주세요 "
+        print(f"저장소에는 축약본만 들어 있습니다. 원문을 {raw_dir} 에 넣어주세요 "
               f"(tests/fixtures/README.md 참고).", file=sys.stderr)
         return 1
 
@@ -272,20 +297,21 @@ def main() -> int:
 
     results: dict[str, list[dict]] = {}
     for name in names:
-        truth = load_truth(TRUTH_DIR / f"{name}.json")
+        truth = load_truth(truth_dir / f"{name}.json")
         print(f"  {truth['fixture']} x{args.runs}", file=sys.stderr)
-        results[name] = run_fixture(agent, truth["fixture"], args.runs)
+        results[name] = run_fixture(agent, truth["fixture"], args.runs, raw_dir=raw_dir)
 
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     out = RESULT_DIR / f"{stamp}.json"
+    # 정답표 폴더를 같이 남긴다. 초안으로 잰 결과를 확정본 폴더로 재채점하면 다른 정답표와 대조하게 된다.
     out.write_text(
-        json.dumps({"meta": meta, "results": results}, ensure_ascii=False, indent=2),
+        json.dumps({"meta": meta, "truth_dir": str(truth_dir), "results": results}, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
     for name, outputs in results.items():
-        truth = load_truth(TRUTH_DIR / f"{name}.json")
+        truth = load_truth(truth_dir / f"{name}.json")
         ok_runs = [o for o in outputs if not o.get("_failed")]
         if not ok_runs:
             print(f"\n### {name}: 전 회차 실패")

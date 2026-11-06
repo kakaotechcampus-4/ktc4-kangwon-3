@@ -1,4 +1,4 @@
-"""모델 검토 범위 검사: 모든 판단을 한 번씩, 없는 ID 참조 금지. 실패해도 규칙 결과·실행 정보 보존."""
+"""모델 검토 범위 검사: 모든 판단 검토(중복은 합침), 없는 ID 참조 금지. 실패해도 규칙 결과·실행 정보 보존."""
 
 import pytest
 
@@ -23,11 +23,12 @@ def test_검토_범위가_다르면_실패_trace와_규칙_결과를_남긴다(s
     assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "finalize")]
 
 
-def test_검토_범위에_중복이_있으면_실패한다(samples, stub_model, records):
+def test_검토_범위에_같은_ID가_두_번_있으면_합쳐서_통과한다(samples, stub_model, records):
     agent = VerificationAgent(stub_model(samples.review(checked_finding_ids=["f1", "f1"])))
 
-    with pytest.raises(VerificationError, match="중복"):
-        agent.run(samples.draft())
+    result = agent.run(samples.draft())
+
+    assert result.checked_finding_ids == ["f1"]
 
 
 def test_존재하지_않는_판단_ID를_참조하면_실패한다(samples, stub_model, records):

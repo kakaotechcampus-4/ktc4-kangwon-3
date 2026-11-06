@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_21/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "스테인리스 스틸 RFID 도난 방지 메탈 카드홀더(Temu). 판매자 설명 글 없이 제목·스펙표·상세 이미지뿐이다. 제목의 'RFID 도난 방지·스키밍 방지'로 전파 차폐를 잡고, 비전자 금속 케이스라 전기는 고르지 않으며, 제목의 '완벽'으로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '광둥, 중국'(114~115행), Temu 해외 직구 수입품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 'RFID 도난 방지 메탈 카드 홀더 - 초슬림 마그네틱 잠금, 스키밍 방지'(118행), 상세 이미지 'RFID Protection', 케이스 각인 'EMF Blocking'(img_01·img_02)",
+      "why_not_other": "RFID 차단은 전파 차폐 기능이라 기준상 선택한다. 제목 글만으로도 근거가 있어 image_only가 아니다. '마그네틱 잠금'은 자석 걸쇠라 근거로 쓰지 않았다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '남성 지갑&카드 케이스'(41행), 스펙표 '소재: 스테인리스 스틸', '라이닝 재료: 폴리에스테르'(83~86행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "카드를 보관하는 지갑이라 음식 접촉이 없고 손에 쥐는 일반 용도다. 'EMF Blocking'은 카드 보호 맥락이지 인체 보호 효능 표방으로 보지 않았다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '소재: 스테인리스 스틸'(83~84행), '라이닝 재료: 폴리에스테르'(85~86행), '관리 설명: 세탁 불가능'(93~94행). 전원·전지·정격 표기 없음, 이미지도 금속 케이스뿐",
+      "why_not_other": "구성이 금속 케이스와 직물 안감으로 확인되는 비전자 제품이다. 제조사명 '선전 산렌 전자상품 무역 유한공사'(109행)는 회사 이름일 뿐이다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '유니섹스 보안 지갑 (여행 및 일상 사용에 완벽)'(118행), 스펙표 '경우: 외출'(87~88행). 연령·어린이 표기 없음, 이미지의 손도 성인",
+      "why_not_other": "어린이 대상 표기가 없고 학용품·완구가 아닌 성인용 지갑이다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '여행 및 일상 사용에 완벽'(118행), 상세 이미지 'RFID Protection', 'EMF Blocking'(img_01·img_02)",
+      "why_not_other": "판매자 제목의 '완벽'이 절대적 표현에 해당한다. 차단 성능 표방('EMF Blocking')도 미검증 성능 주장 후보다. 리뷰(53~69행)와 연관 상품 제목(153행 이후)은 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "판매자 설명 글이 없다(116~117행 '상점 정보 / 자세히 보기' 뒤 바로 제목). 옵션 색상은 검은색/은의/골든(131~133행)인데 img_01은 'BLUE'라 다른 리스팅 이미지 재사용 흔적이 있다(선택 판단엔 영향 없음)."
+}

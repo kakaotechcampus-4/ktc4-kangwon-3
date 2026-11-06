@@ -17,8 +17,9 @@ from contextlib import contextmanager
 from datetime import datetime
 from itertools import product
 from threading import Lock
+from typing import get_args
 
-from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, ProcessCollector
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metric
 from prometheus_client.registry import Collector
 
@@ -31,7 +32,8 @@ from .measurements import (
     SellerRegionCut, ToolRun, measurement_sinks,
 )
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
-from ..schemas.schemas import ToolName, ToolStatus
+from ..schemas.schemas import Determination, ToolName, ToolStatus
+from ..sessions.job import ToolProgressStatus
 from ..sessions.manager import SessionManager
 
 # 세션 소요 시간 구간(초). 세션 최대 시간(SESSION_MAX_DURATION_SECONDS, 600초)까지
@@ -61,6 +63,8 @@ _CACHE_RESULTS = ("hit", "miss", "stale", "skipped")
 _CASE_CACHE, _CASE_CACHE_RESULTS = "customs.cases", ("hit", "miss", "skipped")
 # 정기 작업 결과 (app/db/law_cache.py·clip_ingest.py)
 _LAW_REFRESH_RESULTS = ("ok", "partial", "failed")
+# 법령 변경 종류 (app/db/law_changes.py의 LawChangeKind)
+_LAW_CHANGE_KINDS = ("announced", "applied", "skipped")
 _CLIP_INGEST_RESULTS = ("ok", "partial", "failed", "skipped")
 _CLIP_INGEST_OUTCOMES = ("saved", "removed", "failed")
 
@@ -119,6 +123,7 @@ class SessionMetrics:
         for metric in (self._run, self._total, self._finished):
             _preset(metric, run_types, outcomes)
         _preset(self._stage, run_types, [stage.value for stage in PipelineStage])
+        _preset(self._tool, run_types, [tool.value for tool in ToolName], get_args(ToolProgressStatus))
         self._lock = Lock()
         # 실행별 지금 단계와 그 시작 시각. 다음 단계 변경·결말 때 앞 단계 소요 시간을 재고 지움
         self._stages: dict[str, tuple[str, datetime]] = {}
@@ -342,6 +347,8 @@ class MeasurementMetrics:
         )
         _preset(self._callback_sent, _CALLBACK_EVENT_TYPES, ["delivered", "dropped"])
         _preset(self._tool_runs, [tool.value for tool in ToolName], [status.value for status in ToolStatus])
+        _preset(self._callback_retries, _CALLBACK_EVENT_TYPES)
+        _preset(self._tool_findings, [tool.value for tool in ToolName], [value.value for value in Determination])
         _preset(self._seller_region, ["aliexpress", "temu"], ["true", "false"])
         # 기동 직후·재시작 뒤 첫 버림·실패·정기 작업 결과도 세게 함
         _preset(self._callback_dropped, _CALLBACK_DROP_REASONS)
@@ -350,6 +357,7 @@ class MeasurementMetrics:
         _preset(self._cache_lookups, _RESPONSE_CACHES, _CACHE_RESULTS)
         _preset(self._cache_lookups, [_CASE_CACHE], _CASE_CACHE_RESULTS)
         _preset(self._law_refresh_runs, _LAW_REFRESH_RESULTS)
+        _preset(self._law_changes, _LAW_CHANGE_KINDS, [tool.value for tool in ToolName])
         _preset(self._clip_ingest_runs, _CLIP_INGEST_RESULTS)
         _preset(self._clip_ingest_cases, _CLIP_INGEST_OUTCOMES)
 
@@ -436,6 +444,8 @@ def app_metrics(manager: SessionManager, outbox: CallbackOutbox) -> Iterator[Col
     manager.subscribe(SessionMetrics(registry).on_event)
     registry.register(SessionSnapshotCollector(manager))
     registry.register(CallbackOutboxCollector(outbox))
+    # 프로세스 시작 시각 등. 대시보드 횟수 식이 재시작을 알아보는 데 씀
+    ProcessCollector(registry=registry)
     # 에이전트·측정 sink는 앱 전체 공용이라 나갈 때 뗌 (다시 띄워도 옛 registry에 안 쌓이게)
     on_run, on_record = AgentMetrics(registry).on_run, MeasurementMetrics(registry).on_record
     agent_sinks.add(on_run)

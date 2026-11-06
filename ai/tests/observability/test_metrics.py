@@ -89,6 +89,10 @@ def test_값이_정해진_세션_라벨_조합은_기록_전에도_0으로_있�
             assert registry.get_sample_value("ai_session_total_seconds_count", {**labels, "outcome": outcome}) == 0
         for stage in PipelineStage:
             assert registry.get_sample_value("ai_session_stage_seconds_count", {**labels, "stage": stage.value}) == 0
+        for tool_name in ToolName:
+            for status in ("started", "completed", "skipped"):
+                assert registry.get_sample_value("ai_session_tool_progress_total", {
+                    **labels, "tool_name": tool_name.value, "status": status}) == 0
 
 
 def test_실행_중_실패는_실패한_단계로_센다():
@@ -415,6 +419,10 @@ def test_값이_정해진_콜백·Tool_라벨_조합은_기록_전에도_0으로
     ("ai_law_refresh_runs_total", {"result": "partial"}),
     ("ai_clip_ingest_runs_total", {"result": "skipped"}),
     ("ai_clip_ingest_cases_total", {"outcome": "saved"}),
+    ("ai_callback_retries_total", {"event_type": "product_result"}),
+    ("ai_tool_findings_total", {"tool_name": "customs_requirements", "determination": "required"}),
+    ("ai_tool_findings_total", {"tool_name": "food_drug_safety", "determination": "not_applicable"}),
+    ("ai_law_changes_total", {"kind": "applied", "tool": "electrical_safety"}),
 ])
 def test_값이_정해진_버림·실패·캐시·정기_작업_라벨_조합은_기록_전에도_0으로_있다(name, labels):
     # 처음 기록될 때 생기면 increase()가 재시작 뒤 첫 버림·실패를 못 셈

@@ -7,8 +7,11 @@ from functools import lru_cache
 
 import httpx
 
-# data.go.kr serviceKey, 법제처 OC
-_SENSITIVE_PARAM_RE = re.compile(r"([?&](?:serviceKey|OC)=)[^&\s'\"]+", re.IGNORECASE)
+# data.go.kr serviceKey: URL 쿼리 밖도 가림, 영문·숫자에 붙은 이름은 제외
+# 법제처 OC: 쿼리 맨 앞·?·& 뒤만 (문장 속 OC=는 과전류 표기와 겹침)
+# 값은 키에 쓰는 문자(base64·URL 인코딩·ID)만. 뒤의 )·,·\"(JSON)를 먹지 않음
+_SENSITIVE_PARAM_RE = re.compile(r"((?:(?<![A-Za-z0-9_])serviceKey|(?<![^?&])OC)=)[A-Za-z0-9%+/=._~-]+",
+                                 re.IGNORECASE)
 
 # 응답 없는 연결을 OS가 끊기까지의 상한(초). langchain-openai 기본값과 같음
 DEAD_CONNECTION_SECONDS = 120
@@ -23,7 +26,7 @@ SocketOption = tuple[int, int, int]
 
 
 def mask_sensitive_params(text: str) -> str:
-    """텍스트 속 URL의 키 쿼리 파라미터 값을 ``***``로 가린다.
+    """텍스트 속 ``serviceKey=``·``OC=`` 값을 ``***``로 가린다. ``serviceKey=``는 URL 쿼리가 아니어도 가림.
 
     Args:
         text: 가릴 텍스트.

@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_45/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 영문 페이지 KOSHARE 1.5V Type-C 충전식 리튬 AA 전지(4255mWh, 2/4/8개). 전지 자체가 상품이라 전기를 고르고, 유선(Type-C) 충전만 확인돼 전파는 고르지 않는 케이스. 제목의 'Safe And Fast Charging', 'Large Capacity'와 용량 수치가 표시광고 근거인지 본다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(테무). img_08·img_09 전지 인쇄 제조사 'Dongguan Puji Electronics Co., Ltd'",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다. 리튬 전지라 통관 확인 대상이기도 하다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 'Type-C Rechargeable Lithium Battery'(108행), 스펙표 'Power Supply: USB Charging (built-in Battery)'(103~104행), img_04·img_07 Type-C 케이블을 꽂아 충전하는 장면",
+      "why_not_other": "충전은 유선 Type-C로 확인되고 통신 기능이 없는 AA 전지 셀이다. 'intelligent chip'(img_06·img_09)은 보호 회로 설명이고, img_05 'Gamepad wireless signal is more stable'은 전지를 넣는 기기의 무선 신호를 말한다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 'Household Batteries'(43행), 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "전지로 음식·피부 접촉 용도가 없다. 카테고리 상위 'Health & Household'(42행)는 분류명이다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 'KOSHARE 1.5V Constant Voltage Output Type-C Rechargeable Lithium Battery … AA 4255Mwh'(108행), 스펙표 'Battery Type: Lithium Battery', 'Reusability: Rechargeable'(99~102행), 옵션 '4255mWh-TC-Black-4pcs'(125행)",
+      "why_not_other": "전지 자체가 상품이고 전압·용량 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 'Suitable for Office And Home AA Electronic Devices'(108행), 어린이 대상·연령 표기 없음",
+      "why_not_other": "범용 가정·사무용 전지이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 'Intelligent, Safe And Fast Charging', 'AA 4255Mwh Large Capacity'(108행), img_05 'perfect use experience', img_07 '1.5 hours full', img_09 'durable'",
+      "why_not_other": "'Safe' 안전 표방과 'Large Capacity'·4255mWh 용량 수치는 기준 (2)·(5)의 과장 가능 표현에 해당한다. 리뷰 'Works perfectly'(77행)는 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "전파는 충전 방식(Type-C 유선)과 품목(전지)으로 해당 없음이 확인되어 false."
+}
