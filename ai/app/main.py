@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
         logger.warning("DB 준비 실패 — DB 의존 기능은 동작하지 않습니다: %s", e)
     else:
         logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
-        # 법령 점검: 기동 30초 뒤 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
+        # 법령 점검: 매일 (기동 때는 안 돎). 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
         session_factory = get_session_factory()
         law_fetchers = build_law_fetchers(settings.law_oc, session_factory, measure=False)
 
