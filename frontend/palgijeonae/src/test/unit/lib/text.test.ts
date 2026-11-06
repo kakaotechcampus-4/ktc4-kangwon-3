@@ -88,6 +88,13 @@ describe('truncateWithEllipsis', () => {
     expect(truncateWithEllipsis(`${EMOJI}${EMOJI}${EMOJI}`, 2)).toBe(`${EMOJI}${EMOJI}...`)
     expect(truncateWithEllipsis(`${FAMILY}${FAMILY}`, 2)).toBe(`${FAMILY}${FAMILY}`)
   })
+
+  // 상품 카드·상품 미리보기가 제목을 보여줄 때 쓰는 한도(40자). 컴포넌트의 상수는 export되지 않아서 같은 값으로 확인한다.
+  it('상품 제목 한도(40자): 40자는 그대로, 41자부터 40자 뒤에 ...를 붙인다', () => {
+    expect(truncateWithEllipsis('가'.repeat(40), 40)).toBe('가'.repeat(40))
+    expect(truncateWithEllipsis('가'.repeat(41), 40)).toBe(`${'가'.repeat(40)}...`)
+    expect(truncateWithEllipsis('가'.repeat(100), 40)).toBe(`${'가'.repeat(40)}...`)
+  })
 })
 
 describe('truncateToCodeUnitLength', () => {

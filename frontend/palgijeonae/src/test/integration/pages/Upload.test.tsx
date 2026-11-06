@@ -92,14 +92,16 @@ describe('업로드 화면 - 상품 추가', () => {
     })
   })
 
-  it('긴 제품명은 목록에서 40자로 줄여 보여주고, 원본은 title 속성에 둔다', async () => {
+  // 말줄임 규칙(글자 수 경계, 이모지 등)은 단위 테스트가 다룬다. (unit/lib/text.test.ts) 여기서는 목록에서 줄여 보이고 원본이 보존되는지만 확인한다.
+  it('긴 제품명은 목록에서 줄여 보여주고, 원본은 title 속성에 보존한다', async () => {
     const page = renderUploadPage()
-    const longTitle = '가'.repeat(45)
-    const shownTitle = `${'가'.repeat(40)}...`
+    const longTitle = '가'.repeat(60)
 
     await page.addUrlProduct({ title: longTitle })
 
-    expect(page.productNames()).toEqual([shownTitle])
+    const [shownTitle] = page.productNames()
+    expect(shownTitle).toMatch(/\.\.\.$/)
+    expect(shownTitle.length).toBeLessThan(longTitle.length)
     expect(page.productTooltip(shownTitle)).toBe(longTitle)
   })
 
@@ -209,10 +211,11 @@ describe('업로드 화면 - 입력 검증', () => {
     expect(page.productNames()).toEqual([])
   })
 
-  it.each(['abc', 'www.example.com', '/mypage', 'javascript:alert(1)'])('링크가 http(s)로 시작하지 않으면 안내한다: %s', async (link) => {
+  // 어떤 형식이 http(s)가 아닌지는 단위 테스트가 다룬다. (unit/pages/Upload/validation.test.ts, unit/lib/url.test.ts) 여기서는 화면에 안내가 뜨는지만 확인한다.
+  it('링크가 http(s)로 시작하지 않으면 안내하고 추가하지 않는다', async () => {
     const page = renderUploadPage()
 
-    await page.addUrlProduct({ title: '이어폰', link })
+    await page.addUrlProduct({ title: '이어폰', link: 'www.example.com' })
 
     expectNotified(UPLOAD_MESSAGES.LINK_MUST_BE_HTTP)
     expect(page.productNames()).toEqual([])
