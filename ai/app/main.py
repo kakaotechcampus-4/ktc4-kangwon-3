@@ -176,10 +176,14 @@ async def _sweep_sessions(manager: SessionManager, interval: float) -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def _lifespan(app: FastAPI, build_parts: Callable[[Settings], AppParts]):
     """서버 기동 시 필수 설정과 외부 연결을 검증하고 진단 세션 관리자를 띄운다.
 
     검증 실패 시 예외가 전파되어 서버가 뜨지 않는다. 종료 시 정리 작업과 세션 관리자를 닫는다.
+
+    Args:
+        app: 띄울 앱.
+        build_parts: 설정으로 기동 부품을 만드는 함수.
     """
 
     ## 에러가 발생하면 서버가 뜨지 않도록, try-except로 잡지 않고 그대로 전파한다.
@@ -190,7 +194,7 @@ async def lifespan(app: FastAPI):
     # 오류 전송. 이후 기동·진단 중 ERROR 로그와 요청 처리 중 잡지 않은 예외가 감
     configure_sentry(settings.sentry_dsn, settings.sentry_environment, settings.sentry_log_level)
 
-    parts = production_parts(settings)
+    parts = build_parts(settings)
     database = parts.database
     background = [] if database is None else [asyncio.create_task(run()) for run in database.background]
 
@@ -254,24 +258,46 @@ async def lifespan(app: FastAPI):
         measurement_sinks.remove(measurement_metrics)
 
 
-app = FastAPI(
-    title="팔기전에 AI",
-    description="해외 수입품 국내 판매 규제 진단 API",
-    version="0.1.0",
-    lifespan=lifespan,
-)
-register_exception_handlers(app)
-# HTTP 요청 지표 (라우트 템플릿 기준)
-app.middleware("http")(record_http_requests)
+def create_app(build_parts: Callable[[Settings], AppParts] | None = None) -> FastAPI:
+    """앱을 만든다. 부품은 기동(lifespan 시작) 때 만들어 import만으로는 외부 연결이 생기지 않음.
 
-api_v1 = APIRouter(prefix="/api/ai/v1")
-api_v1.include_router(health.router)
-# 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
-api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
-api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
-# 샌드박스 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
-api_v1.include_router(sandbox.router, responses=VALIDATION_ERROR_RESPONSES)
+    Args:
+        build_parts: 설정으로 기동 부품을 만드는 함수. None이면 운영 부품(production_parts).
+            테스트는 가짜 부품을 돌려주는 함수를 넣음.
 
-app.include_router(api_v1)
-# Prometheus 수집 경로 (BE /actuator/prometheus 대응). 외부 공개 경로(/api/ai/) 밖에 둠
-app.include_router(metrics.router)
+    Returns:
+        FastAPI: 라우터·예외 처리·요청 지표를 붙인 앱.
+    """
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # 기동 때 찾음 (운영 부품 함수를 테스트에서 바꿔치기해도 반영)
+        async with _lifespan(app, build_parts or production_parts):
+            yield
+
+    app = FastAPI(
+        title="팔기전에 AI",
+        description="해외 수입품 국내 판매 규제 진단 API",
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    register_exception_handlers(app)
+    # HTTP 요청 지표 (라우트 템플릿 기준)
+    app.middleware("http")(record_http_requests)
+
+    api_v1 = APIRouter(prefix="/api/ai/v1")
+    api_v1.include_router(health.router)
+    # 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
+    api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
+    api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
+    # 샌드박스 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
+    api_v1.include_router(sandbox.router, responses=VALIDATION_ERROR_RESPONSES)
+
+    app.include_router(api_v1)
+    # Prometheus 수집 경로 (BE /actuator/prometheus 대응). 외부 공개 경로(/api/ai/) 밖에 둠
+    app.include_router(metrics.router)
+    return app
+
+
+# uvicorn app.main:app
+app = create_app()
