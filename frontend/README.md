@@ -1,7 +1,5 @@
 # 팔기전에 FE
 
-상품을 팔기 전 상품 진단을 요청하고, 진행 상황과 해야할 일을 포함한 진단서를 보여주는 프로젝트 입니다.
-
 - 서비스: https://palgijeone.com
 
 ## 목차
@@ -9,18 +7,16 @@
 1. [화면](#화면)
 2. [기술 스택](#기술-스택)
 3. [디렉터리 구조](#디렉터리-구조)
-4. [화면 흐름](#화면-흐름)
-5. [로컬 실행](#로컬-실행)
+4. [로컬 실행](#로컬-실행)
+5. [린트와 테스트](#린트와-테스트)
 6. [빌드와 배포](#빌드와-배포)
-7. [린트와 테스트](#린트와-테스트)
-8. [코드 작성 관례](#코드-작성-관례)
-9. [알려진 한계](#알려진-한계)
+7. [코드 작성 관례](#코드-작성-관례)
 
 ---
 
 ## 화면
 
-라우트는 [`src/App.tsx`](palgijeonae/src/App.tsx)에 있습니다.
+라우트 : [`src/App.tsx`](palgijeonae/src/App.tsx)
 
 | 경로 | 화면 | 로그인 필요 |
 |---|---|---|
@@ -34,67 +30,29 @@
 | `/result/diagnoses/:diagnosesId` | 진단서 전체 결과 | 필요 |
 | `/mypage` | 진단한 상품 목록(검색·필터·페이지), 회원 정보 조회·수정, 상품 삭제, 회원 탈퇴 | 필요 |
 
-- 로그인이 필요한 화면에 로그인하지 않고 들어오면 `/login`으로 보냅니다.
 
-**메인**
-- 로그인 여부에 따라 상품 업로드 또는 로그인으로 이동
-- 미리 등록된 예시 상품으로 진단 버튼
-- 서비스 화면 미리보기 캐러셀
-- 서비스 사용 방법 설명서
-- 6가지 검증 에이전트 소개
+```mermaid
+flowchart LR
+    M[메인] -->|로그인 안 됨| L[로그인]
+    L --> O[소셜 로그인] --> CB[OAuth 콜백] --> M
+    M -->|로그인 됨| U[상품 입력]
+    U -->|진단 요청| J[진행 상황]
+    J -->|답변 필요| Q[질문 답변]
+    Q -->|제출| J
+    J -->|상품 완료| RP[상품 결과]
+    J -->|전체 완료| RD[진단서]
+    MY[마이페이지] --> RP
+```
 
-<img src="docs/images/readme-main.png" alt="메인 화면" width="600">
-
-**로그인**
-- 카카오·네이버·구글 소셜 로그인
-
-<img src="docs/images/readme-login.png" alt="로그인 화면" width="600">
-
-**상품 업로드**
-- URL 또는 텍스트·이미지로 상품 등록
-- 최대 10개까지 한 번에 담아 진단 요청
-
-<img src="docs/images/readme-upload.png" alt="상품 업로드 화면" width="600">
-
-**진단 진행**
-- 상품별 진단 진행 상황 확인
-- 먼저 끝난 상품은 바로 결과 확인 가능
-
-<img src="docs/images/readme-judgement.gif" alt="진단 진행 화면 gif" width="600">
-<img src="docs/images/readme-judgement.png" alt="진단 진행 화면 png" width="600">
-
-**질문 답변**
-- AI가 판단하기 어려운 부분을 질문
-- 답변하면 진단이 이어서 진행
-
-<img src="docs/images/readme-question.png" alt="질문 답변 화면" width="600">
-
-**진단 결과**
-- 판정 결과와 근거 법령 확인
-- 판매 전 해야 할 일 안내
-
-<img src="docs/images/readme-result.png" alt="진단 결과 화면" width="600">
-
-**마이페이지**
-- 진단한 상품 검색·필터·관리
-- 회원 정보 조회·수정, 상품 삭제, 회원 탈퇴
-
-<img src="docs/images/readme-mypage.png" alt="마이페이지 화면" width="600">
+화면별 실제 모습은 [루트 README 주요 기능](../README.md#주요-기능)에서 확인할 수 있습니다.
 
 ## 기술 스택
 
-| 분류 | 사용 기술 |
+| 구분 | 주요 기술 |
 |---|---|
-| 프레임워크 | React 19, TypeScript 6, Vite 8 |
-| 라우팅 | React Router 7 |
-| 서버 상태 | TanStack Query 5 |
-| 클라이언트 상태 | Zustand 5 |
-| HTTP | Axios |
-| 스타일 | Tailwind CSS 4, class-variance-authority, tailwind-merge, Pretendard 글꼴 |
-| 린트 | ESLint 10 (typescript-eslint, react-hooks, import 정렬, 미사용 import 제거) |
-| 테스트 | Vitest, React Testing Library, user-event, MSW(API 모킹), jsdom |
-
-Node는 CI와 같은 22를 기준으로 합니다.
+| FE | ![React 19](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white) ![React Router](https://img.shields.io/badge/React_Router-CA4245?style=for-the-badge&logo=reactrouter&logoColor=white) ![TanStack Query](https://img.shields.io/badge/TanStack_Query-FF4154?style=for-the-badge&logo=reactquery&logoColor=white) ![Zustand](https://img.shields.io/badge/Zustand-443E38?style=for-the-badge) ![Axios](https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white) ![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white) ![ESLint](https://img.shields.io/badge/ESLint-4B32C3?style=for-the-badge&logo=eslint&logoColor=white) |
+| 테스트 | ![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=for-the-badge&logo=vitest&logoColor=white) ![Testing Library](https://img.shields.io/badge/Testing_Library-E33332?style=for-the-badge&logo=testinglibrary&logoColor=white) ![MSW](https://img.shields.io/badge/MSW-FF6A33?style=for-the-badge&logo=mockserviceworker&logoColor=white) |
+| 인프라 | ![AWS](https://img.shields.io/badge/AWS-FF9900?style=for-the-badge) ![nginx](https://img.shields.io/badge/nginx-009639?style=for-the-badge&logo=nginx&logoColor=white) ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white) |
 
 ## 디렉터리 구조
 
@@ -114,22 +72,9 @@ src/
 
 문서는 `docs/`에 있습니다: [코드 컨벤션](docs/CONVENTIONS.md), [테스트 정책](docs/TEST_POLICY.md).
 
-## 화면 흐름
-
-```mermaid
-flowchart LR
-    M[메인] -->|로그인 안 됨| L[로그인]
-    L --> O[소셜 로그인] --> CB[OAuth 콜백] --> M
-    M -->|로그인 됨| U[상품 입력]
-    U -->|진단 요청| J[진행 상황]
-    J -->|답변 필요| Q[질문 답변]
-    Q -->|제출| J
-    J -->|상품 완료| RP[상품 결과]
-    J -->|전체 완료| RD[진단서]
-    MY[마이페이지] --> RP
-```
-
 ## 로컬 실행
+
+준비: Node.js 22
 
 ```bash
 cd frontend/palgijeonae
@@ -137,8 +82,6 @@ npm ci
 echo "VITE_API_URL=https://palgijeone.com" > .env.local
 npm run dev        # http://localhost:5173
 ```
-
-- 환경변수는 `VITE_API_URL`(BE 주소) 하나입니다. 보통 배포된 BE를 그대로 바라보고 개발하며, BE를 직접 수정해서 테스트해야 할 때만 [BE 로컬 실행](../backend/README.md#로컬-실행) 후 `http://localhost:8080`으로 바꿉니다.
 
 | 명령 | 내용 |
 |---|---|
@@ -149,25 +92,23 @@ npm run dev        # http://localhost:5173
 | `npm run test:watch` | 파일을 저장할 때마다 테스트 다시 실행 |
 | `npm run preview` | 빌드 결과 미리보기 |
 
+## 린트와 테스트
+
+```bash
+npm run lint
+npm test
+npm run build      # 타입 검사 포함
+```
+
+- CI는 PR마다 ESLint, 단위·통합 테스트, 타입 검사를 포함한 빌드를 돌립니다.
+- 단위·통합 테스트는 Vitest와 React Testing Library로 작성하고, 외부 API는 MSW로 모킹합니다.
+- 테스트 종류, 폴더 구조, 작성 규칙, 문제 해결은 [`docs/TEST_POLICY.md`](docs/TEST_POLICY.md)에 정리했습니다.
+- E2E 테스트는 [`e2e/`](../e2e/README.md)에 있습니다.
+
 ## 빌드와 배포
 
 PR과 develop push 시 [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)이 `frontend/palgijeonae/` 변경분을 린트·테스트·빌드하고, develop에서 CI가 통과하면 [`frontend-deploy.yml`](../.github/workflows/frontend-deploy.yml)이 EC2에 배포합니다. 테스트가 실패하면 CI가 실패하므로 develop에서는 배포되지 않습니다.
 
-## 린트와 테스트
-
-- CI는 PR마다 ESLint, 단위·통합 테스트, 타입 검사를 포함한 빌드를 돌립니다.
-- 단위·통합 테스트는 Vitest와 React Testing Library로 작성하고, 외부 API는 MSW로 모킹합니다. `npm test`로 실행합니다.
-- 테스트 종류, 폴더 구조, 작성 규칙, 문제 해결은 [`docs/TEST_POLICY.md`](docs/TEST_POLICY.md)에 정리했습니다.
-- E2E 테스트는 저장소 루트 `e2e/`에서 진행합니다.
-
 ## 코드 작성 관례
 
 FE 코드 컨벤션(네이밍, 폴더·파일 구조, 컴포넌트 작성 규칙, import 순서, API·타입 정의 위치, 상태 관리, 에러 처리, 접근성 등)은 [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)에 정리했습니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../CONTRIBUTING.md)를 참고하세요.
-
-## 알려진 한계
-
-- 요청 실패와 삭제·탈퇴 확인을 대부분 `alert`/`confirm`으로 처리합니다. 토스트나 커스텀 모달 같은 화면 내 알림은 없습니다.
-- 화면 오류를 잡는 ErrorBoundary가 없습니다.
-- 요청 타임아웃은 따로 처리하지 않습니다.
-- 페이지를 나눠 불러오는 코드 스플리팅을 하지 않습니다.
-- 마이페이지의 법령 개정 알림 배너와 알림 설정은 아직 미구현이며, 추후 지원 예정입니다.
