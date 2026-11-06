@@ -28,7 +28,7 @@ function Intro() {
             </div>
             <div className="flex w-full flex-col items-start gap-3">
                 <p className="text-lg leading-5.5 text-neutral-text">구매대행·사입으로 판매할 상품이 국내 법령에 걸리는지,</p>
-                <p className="text-lg leading-5.5 text-neutral-text">AI 에이전트 전문가가 관련 법령과 규제를 실제로 짚어서 확인해요.</p>
+                <p className="text-lg leading-5.5 text-neutral-text">AI 에이전트가 관련 법령과 규제를 실제로 짚어서 확인해요.</p>
             </div>
             {isAuthReady && (
                 <div className="flex w-full flex-wrap items-center gap-2.5">
