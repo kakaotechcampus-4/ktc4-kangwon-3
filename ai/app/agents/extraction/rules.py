@@ -118,8 +118,9 @@ def extract_rule_based_attributes(text_blocks: list[str]) -> list[Attribute]:
 def detect_battery_capacity_conflict(text_blocks: list[str]) -> list[str]:
     """배터리 용량(mAh) 표기와 '배터리 미포함' 문구가 한 상세페이지에 함께 있으면 모순 후보로 보고한다.
 
-    확정이 아닌 검토 후보이고 모델 값을 덮어쓰지 않음. 부속품 배터리 문맥은 빼지만 표현이 다양해 다 못 거름.
-    부정 표현이 없는 모순(예: "디퓨저"인데 "무향")은 정규식으로 못 잡아 모델이 conflicts로 보고.
+    이 함수는 모델 값을 덮어쓰지 않음. 모순을 찾으면 추출 에이전트가 배터리 칸을 확정하지 않음(drop_conflicted_battery).
+    부속품 배터리 문맥은 빼지만 표현이 다양해 다 못 거름.
+    제목·스펙표가 서로 다르게 적은 모순은 title_spec_conflicts가 맡음. 그 밖의 모순은 모델이 conflicts로 보고.
 
     Args:
         text_blocks: 상품 원문 블록 (용량·미포함 문구가 다른 블록에 있을 수 있어 합쳐서 봄).
