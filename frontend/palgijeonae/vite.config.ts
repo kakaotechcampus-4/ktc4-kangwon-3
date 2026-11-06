@@ -15,6 +15,9 @@ export default defineConfig({
   // 유닛·통합 테스트. 외부 API는 모킹하고 프론트엔드 내부 로직과 화면 동작만 검증한다.
   test: {
     globals: true,
+    // 개발 환경(.env)과 상관없이 API 주소를 고정한다. 빈 값이면 jsdom 주소와 같은 출처(상대 경로)로 요청한다.
+    // 다른 출처로 두면 jsdom XHR이 CORS 응답 헤더 없는 모킹 응답을 네트워크 오류로 처리하기 때문이다. (MSW 핸들러도 이 값을 쓴다)
+    env: { VITE_API_URL: '' },
     environment: 'jsdom',
     setupFiles: ['./src/test/vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
