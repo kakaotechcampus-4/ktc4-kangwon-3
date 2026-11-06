@@ -15,6 +15,7 @@
 7. [에러 처리](#에러-처리)
 8. [스타일](#스타일)
 9. [접근성](#접근성)
+10. [테스트 작성](#테스트-작성)
 
 ## 폴더·파일 구조
 
@@ -29,10 +30,10 @@ src/
 ├── store/          # Zustand 스토어
 ├── constants/      # 여러 페이지가 함께 쓰는 상수(상태 배지 라벨 등)
 ├── lib/            # 범용 유틸(클래스 병합, 글자 수 계산, 라우트 파라미터 검사 등)
-└── test/           # 단위·통합 테스트, MSW 핸들러, 테스트 유틸 (소스 폴더에는 테스트 파일을 두지 않음)
+└── test/           # 단위·통합 테스트, 화면 드라이버, MSW 핸들러, 테스트 유틸 (소스 폴더에는 테스트 파일을 두지 않음)
 ```
 
-- **`test/`**: 테스트는 소스 옆이 아니라 이곳에 모읍니다. 폴더 구조, 파일 이름, 작성 규칙은 [TEST_POLICY.md](TEST_POLICY.md)를 따릅니다.
+- **`test/`**: 테스트는 소스 옆이 아니라 이곳에 모읍니다. 테스트 종류·폴더 구조·실행 방법은 [TEST_POLICY.md](TEST_POLICY.md)를, 통합 테스트 작성 규칙은 [테스트 작성](#테스트-작성)을 따릅니다.
 - **`components/common/`**: 2곳 이상에서 재사용하는 컴포넌트만 둡니다. 컴포넌트마다 폴더를 만들고 그 안에 `index.tsx` 하나로 작성합니다(예: `components/common/Button/index.tsx`).
 - **`pages/<Page>/`**: 그 페이지에서만 쓰는 컴포넌트·훅·타입·상수를 전부 같은 폴더에 flat 구조로 둡니다. 파일명은 `index.tsx`(페이지 진입점), `ComponentName.tsx`, `useSomething.ts`, `types.ts`, `constants.ts`처럼 역할이 드러나게 짓습니다(예: `pages/Mypage/MyProductList.tsx`, `pages/Mypage/useMyInfo.ts`).
 - 페이지 안에서 하나의 하위 기능이 파일 여러 개로 묶일 만큼 커지면(탭 하나, 섹션 하나 등) 그 하위 기능만의 폴더를 만들고, 그 폴더 안에서 다시 같은 flat 구조(진입점 `index.tsx` + 나머지 파일들)를 반복합니다(예: `pages/Result/DiagnosisResult/`에 `index.tsx`, `FindingCard.tsx`, `bannerConfig.ts`가 함께 있음).
@@ -117,3 +118,55 @@ export default Example;
 - 버튼을 누를 수 없을 때는 막지 않고 그 이유를 안내합니다.
 - `prefers-reduced-motion` 설정이면 애니메이션을 끕니다.
 - 장식용 이미지는 `alt=""`로 낭독에서 뺍니다.
+
+## 테스트 작성
+
+테스트 종류·폴더 구조·실행 방법은 [TEST_POLICY.md](TEST_POLICY.md)를 따르고, 여기서는 **통합 테스트**(`src/test/integration/`)를 쓸 때 지키는 규칙을 정합니다. 목표는 화면 문구나 마크업이 바뀌어도 테스트 본문은 그대로 두고, 셀렉터와 문구를 모아 둔 한 곳만 고치는 것입니다. 단위 테스트에는 적용하지 않습니다.
+
+### 드라이버를 거쳐 작성
+
+- 통합 테스트는 화면 요소에 직접 접근하지 않고 화면별 드라이버(`src/test/drivers/<화면>Page.ts`)를 거칩니다. 본문에서 `screen.getBy...`, `within`, `userEvent`를 직접 쓰지 않습니다.
+- 드라이버는 `uploadPage()`처럼 함수로 만듭니다. 조작은 `async` 함수(`addUrlProduct`, `removeProduct(name)`), 조회는 값을 돌려주는 함수(`productNames()`, `isFormVisible()`), 기다림은 `waitFor...`/`waitUntil...`로 이름을 짓습니다.
+- 상태는 요소의 유무로 우회해서 확인하지 않고, 드라이버가 의미 있는 값으로 답하게 합니다. 예: "heading이 없다"가 아니라 `productNames()`가 빈 배열인지로 확인합니다.
+- 렌더(라우터·도착 화면 스텁)는 테스트 파일에 둡니다. 도착 화면을 확인하려고 **테스트가 직접 만든 스텁**은 `screen`으로 찾아도 됩니다. (예외)
+
+```tsx
+const page = renderUploadPage()
+
+await page.addUrlProduct({ title: '이어폰' })
+await page.removeProduct('이어폰')
+
+expect(page.productNames()).toEqual([])
+```
+
+### 셀렉터 원칙
+
+- 우선순위는 `getByRole`(+ name) → `getByLabelText` → `getByText`(핵심어 정규식) → `getByTestId` 순입니다. `data-testid`를 새로 붙이지 않고, 찾을 수 없으면 소스에 role·aria 속성을 붙입니다.
+- 장식 문자(`→`, `...`)는 매칭에서 뺍니다. 예: `'진단서 보기 →'` 대신 `/진단서 보기/`
+- 인덱스(`[0]`, `[1]`)로 고르지 않습니다. 이름으로 항목을 찾고 그 안에서 `within`으로 버튼을 찾습니다. 예: `removeProduct('상품 2')`
+- `closest`, `querySelector`, `getElementById`, `heading level`처럼 구조에 묶인 셀렉터는 **드라이버 안에서만** 쓰고 `NOTE(source)`를 답니다.
+
+### 문구는 상수로 비교
+
+- 알림·안내 문구는 리터럴 문자열을 테스트마다 반복하지 않고 `src/test/constants/messages.ts`의 상수(`UPLOAD_MESSAGES.TITLE_REQUIRED` 등)로 비교합니다.
+- 소스에서 export된 상수(상태 라벨, 입력 제한값 등)가 있으면 그것을 import하고, 없을 때만 `messages.ts`에 직접 정의하며 `NOTE(source)`를 답니다.
+- 테스트가 MSW 응답에 직접 넣는 서버 메시지는 화면 문구가 아니므로 `SERVER_MESSAGES`에 둡니다. 상품 이름처럼 이 테스트의 입력값은 테스트 파일 위쪽에 상수로 둡니다.
+
+### 알림은 헬퍼로 확인
+
+- `window.alert`·`window.confirm`을 본문에서 직접 단언하지 않고 헬퍼를 씁니다. 알림 방식이 토스트나 모달로 바뀌면 이 파일들만 고칩니다.
+  - 알림: `src/test/utils/notifications.ts`의 `expectNotified`, `expectNotNotified`, `waitForNotified`, `waitForNotificationCount`
+  - 확인: `src/test/utils/confirmations.ts`의 `expectConfirmed`, `declineConfirm`
+- 요청이 진행 중인 상태(버튼 비활성화, 로딩)는 응답을 붙잡는 `createGate()`(`src/test/utils/createGate.ts`)로 확인합니다.
+
+### 구조 의존은 NOTE(source)와 함께 드라이버에 격리
+
+- 소스에 접근성 속성이 없어서 구조에 기댈 수밖에 없을 때는 그 코드를 드라이버 한 곳에 두고, 이유와 소스에서 고칠 방법을 적습니다.
+
+```ts
+// NOTE(source): 상품 목록(ul)에는 이름이 없고 이 화면의 유일한 list라서 role만으로 찾는다.
+// 소스에서 목록에 aria-label(예: "진단한 상품")을 붙이면 getByRole('list', { name })으로 찾을 수 있다.
+```
+
+- `NOTE(source)`는 소스 개선 후보 목록이기도 합니다. `grep -rn "NOTE(source)" src/test`로 모아 볼 수 있습니다. 소스에 속성이 추가되면 드라이버를 단순하게 바꾸고 주석을 지웁니다.
+- 컴포넌트를 새로 만들 때 목록·그룹·입력에 이름(`aria-label`, `aria-labelledby`, `<label>`)을 붙여 두면 드라이버가 단순해집니다. 접근성에도 좋습니다.

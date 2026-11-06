@@ -74,15 +74,18 @@ src/test/
 ├── integration/
 │   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute)
 │   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry)
+├── drivers/                 # 화면별 드라이버: 통합 테스트가 화면을 조작·조회하는 통로 (uploadPage, judgementPage ...)
+├── constants/               # messages.ts: 통합 테스트가 비교하는 알림·안내 문구
 ├── infra/                   # 테스트 기반 자체 검증
 ├── mocks/                   # MSW 서버·핸들러·응답 헬퍼·요청 기록·픽스처
-├── utils/                   # renderWithProviders, 인증 시나리오, LocationDisplay
+├── utils/                   # renderWithProviders, 인증 시나리오, 알림·확인 헬퍼, createGate, LocationDisplay
 ├── smoke.test.tsx           # 테스트 환경이 동작하는지 확인하는 최소 테스트
 └── browserStubs.test.tsx    # 브라우저 API 스텁 확인
 ```
 
 - 테스트 파일 이름은 `*.test.ts` 또는 `*.test.tsx`입니다. 이 패턴이 아니면 실행되지 않습니다 (`include: src/**/*.test.{ts,tsx}`).
 - 테스트는 소스 옆이 아니라 `src/test/` 아래에 모읍니다. 소스 폴더에는 `*.test.*` 파일을 두지 않습니다.
+- 통합 테스트는 `drivers/`의 드라이버를 거쳐 작성하고, 문구는 `constants/messages.ts`의 상수로 비교합니다. 규칙은 [FE 코드 컨벤션의 테스트 작성](CONVENTIONS.md#테스트-작성)을 따릅니다.
 - 테스트 코드도 `npm run build`의 `tsc -b`와 ESLint(import 정렬 포함) 대상입니다.
 
 ## 5. 테스트 환경
@@ -144,15 +147,14 @@ expect(requestLog.all()).toEqual([]) // 요청을 보내지 않아야 하는 경
 
 ### 요청 중 상태 확인
 
-"요청하는 동안 버튼이 비활성화된다"처럼 진행 중 상태를 보려면, 응답을 붙잡아 두는 문(gate)을 씁니다.
+"요청하는 동안 버튼이 비활성화된다"처럼 진행 중 상태를 보려면, 응답을 붙잡아 두는 문(gate)을 씁니다. `src/test/utils/createGate.ts`의 `createGate()`를 씁니다.
 
 ```ts
-let release!: () => void
-const gate = new Promise<void>((resolve) => { release = resolve })
-server.use(http.post(url, async () => { await gate; return successResponse(null) }))
+const gate = createGate()
+server.use(http.post(url, async () => { await gate.promise; return successResponse(null) }))
 
 // ... 버튼을 누르고 진행 중 상태를 확인한 뒤
-release() // 응답을 풀어 줍니다
+gate.release() // 응답을 풀어 줍니다
 ```
 
 ### 테스트 데이터 규칙
@@ -192,8 +194,8 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 | API | 스텁 동작 | 검증 예 |
 |---|---|---|
 | `URL.createObjectURL` / `revokeObjectURL` | `'blob:mock-object-url'`을 반환 / 아무것도 안 함 | `expect(URL.createObjectURL).toHaveBeenCalledWith(file)` |
-| `window.alert` | 아무것도 안 함 | `expect(window.alert).toHaveBeenCalledWith('질문에 모두 답변해 주세요.')` |
-| `window.confirm` | 기본은 **확인(true)** | 취소는 `vi.mocked(window.confirm).mockReturnValue(false)` |
+| `window.alert` | 아무것도 안 함 | `expectNotified(QUESTION_MESSAGES.ANSWER_ALL)` (`utils/notifications.ts`) |
+| `window.confirm` | 기본은 **확인(true)** | `expectConfirmed(...)`, 취소는 `declineConfirm()` (`utils/confirmations.ts`) |
 | `Element.scrollIntoView` | 아무것도 안 함 | `expect(Element.prototype.scrollIntoView).toHaveBeenCalled()` |
 | `window.matchMedia` | `matches: false` ("동작 줄이기" 꺼짐) | - |
 | `Element.animate` | `cancel`이 있는 mock | - |
@@ -208,14 +210,16 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 - **테스트 이름은 사용자가 보는 결과를 한국어 문장으로 씁니다.** 구현이 아니라 동작을 적습니다. 예: `제출에 실패하면 서버의 오류 메시지를 안내하고, 화면과 입력한 답변은 그대로 둔다`
 - `describe`는 `화면 - 기능` 형식으로 묶습니다. 예: `마이페이지 - 상품 삭제`
 - 한 테스트는 한 가지 동작만 확인합니다. 경계값(100자 통과 / 101자 실패)은 각각 따로 씁니다.
-- 안내 문구와 오류 메시지는 리터럴 문자열로 검증합니다. 문구를 바꾸면 테스트가 실패하므로, 문구 변경이 의도한 것인지 확인하게 됩니다.
+- 안내 문구와 오류 메시지는 값을 검증하되, 리터럴을 테스트마다 반복하지 않고 `constants/messages.ts`의 상수로 비교합니다. 소스에서 export된 상수가 있으면 그것을 import합니다. 문구를 바꾸면 이 파일만 고치면 되고, 문구 변경이 의도한 것인지 한 곳에서 확인하게 됩니다.
 - 버그를 고친 테스트에는 어떤 버그를 막는 것인지 주석으로 남깁니다.
 
 ### 통합 테스트
 
-- 요소는 **사용자가 보는 방식**으로 찾습니다. 우선순위는 `getByRole` → `getByLabelText` → `getByText`이고, `data-testid`는 쓰지 않습니다.
-- 사용자 조작은 `userEvent.setup()`으로 만든 `user`를 씁니다 (`fireEvent` 대신). 긴 입력은 한 글자씩 치면 느리므로 `user.click(input)` 뒤 `user.paste(text)`로 채웁니다.
-- 비동기 결과는 `findBy*` 또는 `waitFor`로 기다립니다. `setTimeout`으로 기다리는 것은 "더 이상 요청하지 않는다"처럼 **일어나지 않음**을 확인할 때만 씁니다.
+화면을 찾고 조작하는 규칙(드라이버, 셀렉터 우선순위, 문구 상수, 알림 헬퍼, `NOTE(source)`)은 [FE 코드 컨벤션의 테스트 작성](CONVENTIONS.md#테스트-작성)을 따릅니다. 여기서는 그 위에서 시나리오를 쓸 때의 규칙을 정합니다.
+
+- 요소는 **사용자가 보는 방식**(`getByRole` → `getByLabelText` → `getByText`)으로 찾습니다. 이 찾기는 드라이버 안에서만 하고, 테스트 본문은 드라이버의 함수를 호출합니다. `data-testid`는 쓰지 않습니다.
+- 사용자 조작은 드라이버가 `userEvent.setup()`으로 만든 `user`로 합니다 (`fireEvent` 대신). 긴 입력은 한 글자씩 치면 느리므로 `user.click(input)` 뒤 `user.paste(text)`로 채웁니다. (드라이버가 이렇게 합니다)
+- 비동기 결과는 드라이버의 `waitFor...`/`waitUntil...`이나 `findBy*`로 기다립니다. `setTimeout`으로 기다리는 것은 "더 이상 요청하지 않는다"처럼 **일어나지 않음**을 확인할 때만 씁니다.
 - 화면 이동은 `getCurrentLocation()`과 도착 화면의 문구를 함께 확인합니다.
 - 실패 시나리오는 "안내 문구를 보여준다"에서 끝내지 않고, **화면이 그대로인지, 입력한 값이 남아 있는지, 다시 시도할 수 있는지**까지 확인합니다.
 - 요청을 보내지 않아야 하는 분기(검증 실패, 확인 취소, 잘못된 접근)는 `requestLog`로 요청이 없음을 확인합니다.
@@ -271,6 +275,7 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 - [ ] 단위와 통합 중 맞는 종류인지 [3절](#3-어떤-테스트로-검증할지-고르는-기준)로 정했다
 - [ ] `src/test/unit/<소스 경로>` 또는 `src/test/integration/` 아래에 `*.test.ts(x)`로 만들었다
 - [ ] 새 API를 호출한다면 기본 핸들러를 추가했다
+- [ ] 통합 테스트라면 드라이버를 거쳐 썼고, 문구는 `messages.ts` 상수로, 알림은 헬퍼로 확인했다 ([컨벤션](CONVENTIONS.md#테스트-작성))
 - [ ] 성공뿐 아니라 실패·경계·요청을 보내지 않는 경우를 함께 확인했다
 - [ ] 소스를 임시로 망가뜨려 테스트가 실패하는 것을 확인했다
 - [ ] `npm run lint`, `npm test`, `npm run build`가 모두 통과한다
