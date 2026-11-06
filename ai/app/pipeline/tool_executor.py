@@ -29,6 +29,7 @@ from ..schemas.schemas import (
     VerificationIssueType,
 )
 from ..tools.base import RegulatoryTool
+from .hooks import ToolHook, no_tool_hook
 
 
 _FINDING_INVALIDATING_ISSUES = frozenset(
@@ -42,11 +43,18 @@ _FINDING_INVALIDATING_ISSUES = frozenset(
 class ToolExecutor:
     """선택 결정에 따라 규제 Tool을 실행하고 공통 실행 정보를 부여한다."""
 
-    def __init__(self, tools: Mapping[ToolName, RegulatoryTool], *, max_parallel: int = MAX_PARALLEL_TOOLS) -> None:
+    def __init__(
+        self,
+        tools: Mapping[ToolName, RegulatoryTool],
+        *,
+        max_parallel: int = MAX_PARALLEL_TOOLS,
+        tool_hook: ToolHook = no_tool_hook,
+    ) -> None:
         """
         Args:
             tools: ToolName → Tool. 6개 모두.
             max_parallel: 동시에 실행할 Tool 수. 1이면 순차 실행.
+            tool_hook: 선택된 Tool 호출마다 감쌀 hook. Tool 실행 스레드 안에서 불림.
 
         Raises:
             ValueError: Tool이 빠졌거나 이름이 다르거나 max_parallel이 1보다 작은 경우.
@@ -59,6 +67,7 @@ class ToolExecutor:
             raise ValueError("max_parallel은 1 이상이어야 합니다.")
         self._tools = dict(tools)
         self._max_parallel = max_parallel
+        self._hook = tool_hook
 
     def execute_initial(
         self,
@@ -204,11 +213,10 @@ class ToolExecutor:
         started_at = utc_now()
         started = perf_counter()
         try:
+            tool = self._tools[decision.tool_name]
+            product_copy, decision_copy = product.model_copy(deep=True), decision.model_copy(deep=True)
             result = ToolResult.model_validate(
-                self._tools[decision.tool_name].execute(
-                    product.model_copy(deep=True),
-                    decision.model_copy(deep=True),
-                )
+                self._hook(decision.tool_name, lambda: tool.execute(product_copy, decision_copy))
             ).model_copy(deep=True)
             if result.tool_name != decision.tool_name:
                 raise ValueError("실행한 Tool과 반환 결과의 tool_name이 다릅니다.")
