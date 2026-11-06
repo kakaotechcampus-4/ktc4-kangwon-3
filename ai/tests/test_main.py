@@ -3,6 +3,7 @@
 가짜 BE는 httpx.MockTransport. 실제 네트워크 요청은 보내지 않는다.
 """
 
+import asyncio
 import json
 import logging
 import threading
@@ -354,9 +355,15 @@ def _db_ready(monkeypatch, created=(), archive: _Archive | None = None) -> tuple
     monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: fetchers)
     monkeypatch.setattr(main, "refresh_laws", lambda f, sources, **kwargs: refreshed.append((f, sources, kwargs)))
     monkeypatch.setattr(main, "purge_expired_responses", lambda factory, clients: refreshed.append((factory, clients)))
-    # 첫 점검 전 대기(30초) 없이 바로
+    # 첫 점검 시각까지 대기 없이 바로, 그다음은 종료 때 취소될 때까지 대기
+    waits = []
+
+    async def sleep(seconds):
+        waits.append(seconds)
+        await asyncio.sleep(0 if len(waits) == 1 else seconds)
+
     run_law_refresh = main.run_law_refresh
-    monkeypatch.setattr(main, "run_law_refresh", lambda refresh: run_law_refresh(refresh, start_delay=0))
+    monkeypatch.setattr(main, "run_law_refresh", lambda refresh: run_law_refresh(refresh, sleep=sleep))
     return fetchers, refreshed
 
 
@@ -369,7 +376,7 @@ def test_기동_때_DB_테이블을_만들고_새로_만든_테이블을_로그�
     assert "DB 준비 완료 (새로 만든 테이블: api_response_cache, hs_cases)" in caplog.text
 
 
-def test_DB가_준비되면_기동_직후_법령_점검을_돌리고_종료_때_조회_객체를_닫는다(fake_be, monkeypatch):
+def test_DB가_준비되면_정해진_시각에_법령_점검을_돌리고_종료_때_조회_객체를_닫는다(fake_be, monkeypatch):
     fetchers, refreshed = _db_ready(monkeypatch)
 
     with TestClient(main.app):
