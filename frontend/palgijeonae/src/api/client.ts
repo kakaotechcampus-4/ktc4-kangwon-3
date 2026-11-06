@@ -1,14 +1,18 @@
 import * as Sentry from '@sentry/react'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 
 import { classifyApiError, toPathTemplate } from '@/api/sentryErrorPolicy'
 import { useAuthStore } from '@/store/useAuthStore'
 
 const API_URL = import.meta.env.VITE_API_URL
 
+// 응답이 이 시간 안에 오지 않으면 요청을 끊고 실패로 처리한다.
+const REQUEST_TIMEOUT_MS = 10_000
+
 const apiClient = axios.create({
     baseURL: API_URL,
     withCredentials: true,
+    timeout: REQUEST_TIMEOUT_MS,
 })
 
 apiClient.interceptors.request.use((config) => {
@@ -26,7 +30,8 @@ let refreshPromise: Promise<string> | null = null
 export const reissueAccessToken = () => {
     if (!refreshPromise) {
         refreshPromise = axios
-            .post(`${API_URL}/api/v1/auth/reissue`, null, { withCredentials: true })
+            // apiClient를 거치지 않으므로 타임아웃을 따로 건다.
+            .post(`${API_URL}/api/v1/auth/reissue`, null, { withCredentials: true, timeout: REQUEST_TIMEOUT_MS })
             .then((response) => {
                 const accessToken = response.data.data.accessToken
                 useAuthStore.getState().login(accessToken)
@@ -103,10 +108,19 @@ interface ApiErrorResponse {
     details?: { message: string }[]
 }
 
+// ECONNABORTED는 요청 중단("Request aborted")에도 쓰여서 메시지로 타임아웃만 골라낸다.
+function isTimeoutError(error: AxiosError): boolean {
+    return error.code === AxiosError.ETIMEDOUT || (error.code === AxiosError.ECONNABORTED && error.message.includes('timeout'))
+}
+
 // 백엔드 에러 응답(details[0].message 우선, 없으면 message)에서 사용자에게 보여줄 메시지를 꺼낸다.
 export function getErrorMessage(error: unknown, fallback: string): string {
     if (axios.isAxiosError<ApiErrorResponse>(error)) {
         const data = error.response?.data
+
+        if (!error.response && isTimeoutError(error)) {
+            return '응답이 지연되고 있어요. 잠시 후 다시 시도해주세요.'
+        }
 
         // 요청 한도 초과(429 COMMON-011): Retry-After 헤더(초)로 안내 문구를 만든다.
         if (data?.code === 'COMMON-011') {
