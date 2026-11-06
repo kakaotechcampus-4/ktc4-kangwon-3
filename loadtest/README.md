@@ -89,7 +89,7 @@ docker exec -i be-db psql -U "$(grep ^DB_USERNAME= $APP_ENV | cut -d= -f2)" -d p
 ### 3. 스키마·유저·조회용 데이터
 
 ```bash
-# perf-app이 한 번 떠야 ddl-auto가 스키마를 만든다
+# perf-app이 한 번 떠야 Flyway가 스키마를 만든다
 docker compose -f compose.perf.yml --env-file .env.perf up -d --build --wait
 docker exec -i be-db psql -U perf -d beforeselling_perf < seed/seed.sql
 ```
