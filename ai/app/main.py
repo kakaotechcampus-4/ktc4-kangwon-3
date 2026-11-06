@@ -26,7 +26,7 @@ def create_app(build_parts: Callable[[Settings], AppParts] | None = None) -> Fas
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        # 기동 때 찾음 (운영 부품 함수를 테스트에서 바꿔치기해도 반영)
+        # 기동 부품 생성 함수 선택 (기본: 운영 부품)
         async with _lifespan(app, build_parts or production_parts):
             yield
 
@@ -42,17 +42,17 @@ def create_app(build_parts: Callable[[Settings], AppParts] | None = None) -> Fas
 
     api_v1 = APIRouter(prefix="/api/ai/v1")
     api_v1.include_router(health.router)
-    # 요청 본문이 있는 라우터만 Swagger 422를 공통 응답 형식으로 표시. health는 422가 나지 않음
+    # 운영·더미 진단 접수 (Swagger 422를 공통 응답 형식으로 표시)
     api_v1.include_router(diagnose.router, responses=VALIDATION_ERROR_RESPONSES)
     api_v1.include_router(dummy.router, responses=VALIDATION_ERROR_RESPONSES)
-    # 샌드박스 진단 (#318). 외부에 여는 경로, 꺼져 있으면 404·키 없으면 401
+    # 샌드박스 진단 (#318, 외부 공개, 꺼지면 404·키 없으면 401)
     api_v1.include_router(sandbox.router, responses=VALIDATION_ERROR_RESPONSES)
 
     app.include_router(api_v1)
-    # Prometheus 수집 경로 (BE /actuator/prometheus 대응). 외부 공개 경로(/api/ai/) 밖에 둠
+    # Prometheus 수집 경로 (BE /actuator/prometheus 대응, /api/ai/ 밖)
     app.include_router(metrics.router)
     return app
 
 
-# uvicorn app.main:app
+# uvicorn 진입점 (app.main:app)
 app = create_app()

@@ -77,7 +77,7 @@ def production_parts(settings: Settings) -> AppParts:
         ConfigError: 모델·키·DB 설정이 잘못된 경우.
     """
     database = None
-    # 연결 확인 겸 vector 확장·테이블 생성 (이미 있으면 건너뜀)
+    # DB 연결 확인·vector 확장·테이블 생성 (있으면 건너뜀)
     try:
         created = init_db()
     except DatabaseNotConfiguredError:
@@ -88,11 +88,10 @@ def production_parts(settings: Settings) -> AppParts:
         logger.info("DB 준비 완료 (새로 만든 테이블: %s)", ", ".join(created) or "없음")
         database = _production_database(settings)
     return AppParts(
-        # 에이전트·Tool은 여기서 한 번 만들어 모든 진단이 같이 씀
-        # 입력 가드는 접수 뒤 실행 첫머리에서 (차단은 늦춘 일반 실패)
+        # 운영·샌드박스 진단 함수 (에이전트·Tool 한 번 생성해 공용, 실행 첫머리 입력 가드)
         pipeline_job=guarded(build_job(build_parts(), build_questions), InputGuardAgent().run),
         dummy_job=run_case_diagnosis,
-        # BE 콜백 (#317)
+        # BE 콜백 전송 (#317)
         callback_sender=BackendCallbackClient(settings.be_base_url, settings.internal_api_token),
         database=database,
         session_manager=SessionManager,
@@ -122,11 +121,10 @@ def _production_database(settings: Settings) -> AppDatabase:
                                          embedding_model=settings.embedding_model)
 
     return AppDatabase(
-        # 재시작 때 되살릴 세션은 DB에 같이 보관 (#565)
+        # 재시작 때 되살릴 세션 보관소 (#565)
         archive=SessionArchiveDatabase(session_factory),
-        # 법령 점검: 기동 30초 뒤 1번, 이후 매일. 근거 문서 본문(시행예정 포함)을 미리 DB에 받아 둠
-        # CLIP 결정사례: 매주 새 사례만 적재
+        # 예약 작업: 법령 점검(기동 30초 뒤·매일, 시행예정 포함 본문), CLIP 결정사례 적재(매주 새 사례)
         background=(lambda: run_law_refresh(daily_refresh), lambda: run_weekly_clip_ingest(clip_ingest)),
-        # 실행 중인 점검 스레드는 끝까지 돎. 닫힌 클라이언트 오류는 그 문서 실패로만 남음
+        # 법령 조회 연결 닫기 (실행 중 점검은 끝까지 돌고 닫힌 연결 오류는 그 문서 실패로 남음)
         close=law_fetchers.close,
     )
