@@ -144,7 +144,7 @@ def check_required_tools(
         draft: 검증할 심사 초안.
         context: 이슈를 모을 곳.
     """
-    # 관세·표시광고는 불리언 신호 하나로 강제하지 않아 제외 (기본 실행 정책은 선택·파이프라인과 합의 필요)
+    # 관세는 불리언 신호 하나로 강제하지 않아 제외. 표시광고는 선택 에이전트가 항상 선택하므로 검사할 필요가 없다 (#588)
     product = draft.product
     signals: dict[ToolName, list[bool | None]] = {
         ToolName.RADIO: [product.wireless_comm, product.wireless_charging],
