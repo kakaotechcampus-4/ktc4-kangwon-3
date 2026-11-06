@@ -19,7 +19,6 @@ from pathlib import Path
 from ..agents.base import AgentError
 from ..clients.llm import MAX_RETRIES, TIMEOUT_SECONDS
 from ..config import CHAT_MODELS, ModelProfile, load_settings, tool_profile
-from ..prompts import PromptName, get_prompt
 from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Product
 from ..schemas.schemas import ToolName
@@ -157,7 +156,7 @@ def main() -> int:
         reviewer = AdvertisingReviewer(usage_agent="advertising-eval")
     tool = AdvertisingTool(reviewer=reviewer)
     targets = [case["product_id"] for case in truth["cases"] if not args.only or case["product_id"] in args.only]
-    meta = run_metadata(runs=args.runs, profile=profile, prompt_path=get_prompt(PromptName.ADVERTISING).path)
+    meta = run_metadata(runs=args.runs, profile=profile, prompt=reviewer.prompt)
     meta["inputs_sha256_12"] = truth["inputs_sha256_12"]
     meta["truth"] = args.truth.name
     print(describe_metadata(meta))

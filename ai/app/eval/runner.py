@@ -24,7 +24,7 @@ from pathlib import Path
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..config import DecisionProfile, ModelProfile, agent_profile
-from ..prompts import fingerprint
+from ..prompts import PromptSnapshot, fingerprint
 from ..schemas.agent import ExtractionInput
 from .errors import RawFixtureMissing
 from .grading import Grade, Stability
@@ -34,6 +34,8 @@ _AI_ROOT = Path(__file__).resolve().parent.parent.parent
 RAW_DIR = _AI_ROOT / "tests" / "fixtures" / "_raw"
 TRUTH_DIR = _AI_ROOT / "tests" / "eval_truth"
 RESULT_DIR = _AI_ROOT / "logs" / "eval"
+# 기록 지문은 에이전트가 모델에 보내는 시스템 프롬프트(가드레일 포함) 기준. 테스트가 에이전트 클래스를 바꿔도 그대로
+_extraction_prompt = ExtractionAgent.system_prompt
 
 
 def prompt_fingerprint(path: Path | None = None) -> str:
@@ -60,21 +62,29 @@ def _git(*args: str) -> str | None:
     return done.stdout.strip() if done.returncode == 0 else None
 
 
-def run_metadata(*, runs: int, profile: ModelProfile, prompt_path: Path | None = None) -> dict:
+def run_metadata(*, runs: int, profile: ModelProfile, prompt: PromptSnapshot | None = None) -> dict:
     """이번 측정이 "무엇으로" 나온 값인지 기록한다.
 
     프롬프트가 바뀌면 이전 수치와 비교하면 안 된다. 사람이 버전을 적는 방식은
     까먹지만 파일 지문은 틀리지 않으므로 해시를 남긴다.
-    prompt_path를 주면 그 프롬프트의 지문을 남긴다(선택 평가). 기본은 추출 프롬프트다.
     모델은 이름만으로 부족함. 같은 모델도 추론 강도가 다르면 출력·비용이 달라 프로필 전체를 남김.
+
+    Args:
+        runs: 픽스처당 회차 수.
+        profile: 모델 프로필.
+        prompt: 에이전트가 모델에 보내는 시스템 프롬프트 (``system_prompt()``). None이면 추출 에이전트.
+            지문은 가드레일까지 붙인 본문 기준이라 가드레일만 바꿔도 다른 프롬프트로 구분됨.
+
+    Returns:
+        dict: 측정 조건 (커밋, 모델, 프롬프트 경로·지문, 회차 수).
     """
-    target = prompt_path or EXTRACTION_PROMPT_PATH
+    prompt = prompt or _extraction_prompt()
     return {
         **_code_metadata(),
         "model": profile.model.id,
         "model_profile": profile.metadata(),
-        "prompt_path": target.relative_to(_AI_ROOT).as_posix(),
-        "prompt_sha256": prompt_fingerprint(target),
+        "prompt_path": prompt.path.relative_to(_AI_ROOT).as_posix(),
+        "prompt_sha256": prompt.sha256,
         "runs": runs,
     }
 
@@ -203,7 +213,7 @@ def warn_if_prompt_changed(meta: dict | None) -> list[str]:
     saved = meta.get("prompt_sha256")
     if not saved:
         return ["[주의] 기록에 프롬프트 지문이 없습니다. 같은 프롬프트로 잰 값인지 알 수 없습니다."]
-    current = prompt_fingerprint()
+    current = _extraction_prompt().sha256
     if saved != current:
         return [
             f"[주의] 지금과 다른 프롬프트로 나온 결과입니다 "

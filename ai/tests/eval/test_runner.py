@@ -6,6 +6,9 @@ from types import SimpleNamespace
 
 import pytest
 
+import app.agents.base.guardrail as guardrail_module
+from app.agents.base.guardrail import clear_guardrail_cache
+from app.agents.extraction import ExtractionAgent
 from app.config import MODEL_PROFILES
 from app.eval.errors import RawFixtureMissing
 from app.eval.runner import (
@@ -42,7 +45,25 @@ def test_실행_기록에_프롬프트_지문과_커밋이_남는다():
     assert meta["model"] == "openai/gpt-4.1-mini"
     assert meta["model_profile"] == MODEL_PROFILES["mini"].metadata()
     assert meta["prompt_path"] == "app/agents/extraction/prompt.md"
-    assert meta["prompt_sha256"] == prompt_fingerprint()
+    assert meta["prompt_sha256"] == ExtractionAgent.system_prompt().sha256
+
+
+def test_기록_지문은_가드레일까지_붙인_시스템_프롬프트_기준이다(tmp_path, monkeypatch):
+    # 가드레일만 바꿔도 모델 입력이 달라지므로 프롬프트 파일 지문과 구분돼야 함
+    extra = tmp_path / "guardrail.md"
+    extra.write_text("에이전트 규칙\n", encoding="utf-8")
+    monkeypatch.setattr(guardrail_module, "extra_guardrail_path", lambda name: extra)
+    monkeypatch.setattr(ExtractionAgent, "uses_guardrail", True)
+    clear_guardrail_cache()
+
+    try:
+        meta = run_metadata(runs=1, profile=MODEL_PROFILES["mini"])
+        guarded = ExtractionAgent.system_prompt().sha256
+    finally:
+        clear_guardrail_cache()
+
+    assert meta["prompt_sha256"] == guarded
+    assert meta["prompt_sha256"] != prompt_fingerprint(EXTRACTION_PROMPT_PATH)
 
 
 def test_프롬프트가_한_글자만_달라도_지문이_바뀐다(tmp_path):
@@ -155,7 +176,7 @@ def test_실제로_저장되는_파일에_meta가_들어간다(tmp_path, monkeyp
     saved = json.loads(next((tmp_path / "out").glob("*.json")).read_text(encoding="utf-8"))
     assert saved["meta"]["runs"] == 2
     assert saved["meta"]["model"] == "openai/gpt-4.1-mini"
-    assert saved["meta"]["prompt_sha256"] == prompt_fingerprint()
+    assert saved["meta"]["prompt_sha256"] == ExtractionAgent.system_prompt().sha256
     assert saved["results"] == {"power_bank": [{"product_id": "x"}]}
 
 
