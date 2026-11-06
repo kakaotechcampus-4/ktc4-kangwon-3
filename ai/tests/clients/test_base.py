@@ -78,6 +78,8 @@ def test_mask_sensitive_params는_키_값만_대소문자_구분_없이_가린�
     ("mykey=1, my_serviceKey=2", "mykey=1, my_serviceKey=2"),
     ("과전류(OC=120%) 보호, 키OC=k1", "과전류(OC=120%) 보호, 키OC=k1"),
     ("(serviceKey=a%2Bb/c==), 다음", "(serviceKey=***), 다음"),
+    # httpx가 인코딩하지 않는 ~
+    ("serviceKey=abc~def&type=XML", "serviceKey=***&type=XML"),
 ])
 def test_mask_sensitive_params는_URL_쿼리_밖의_serviceKey도_가리고_OC는_쿼리일_때만_가린다(text, expected):
     assert mask_sensitive_params(text) == expected

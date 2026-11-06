@@ -106,6 +106,21 @@ def test_재시도는_최대_5회이고_대기_시간은_상한을_넘지_않는
     assert "재시도 5회 초과" in caplog.text
 
 
+@pytest.mark.parametrize(("failure", "reason"), [
+    (500, "HTTP 500"),
+    (CallbackTransportError("timeout"), "전송 실패(CallbackTransportError)"),
+])
+def test_재시도를_다_쓰고_버린_로그에는_마지막_실패_원인이_남는다(failure, reason, caplog):
+    sender = _Sender({"p-1-1": [failure] * 6})
+
+    with caplog.at_level(logging.WARNING, logger="app.callbacks.outbox"):
+        outbox = _outbox(sender)
+        outbox.put([_event()])
+        outbox.close(timeout=5)
+
+    assert f"재시도 5회 초과({reason})" in caplog.text
+
+
 def test_재시도_중간_로그는_DEBUG이고_버림만_재시도_횟수와_함께_WARNING이다(caplog):
     sender = _Sender({"p-1-1": [500, 500, 400]})
 
