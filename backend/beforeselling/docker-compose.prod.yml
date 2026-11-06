@@ -11,6 +11,7 @@ services:
   app-blue:
     extends: { file: docker-compose.yml, service: app }
     container_name: be-server-blue
+    hostname: be-server-blue
     ports: !override ["8080:8080"]
     networks:
       appnet:
@@ -21,6 +22,7 @@ services:
   app-green:
     extends: { file: docker-compose.yml, service: app }
     container_name: be-server-green
+    hostname: be-server-green
     ports: !override ["8082:8080"]
     networks:
       appnet:
