@@ -79,7 +79,7 @@ def _parts(calls, *, extraction_error=None, verification_error=None) -> Pipeline
 @pytest.fixture
 def pipeline(monkeypatch):
     """CompliancePipeline·ToolExecutor를 가짜로. 단계를 첫 실행 + 재실행 1회 순서로 부르고 정해 둔 결과를 돌려줌."""
-    state = {"result": _result(), "executor_tools": None, "executor_options": None}
+    state = {"result": _result(), "executor_tools": None, "executor_options": None, "verifications": []}
 
     class _Executor:
         def __init__(self, tools, **options):
@@ -100,9 +100,9 @@ def pipeline(monkeypatch):
             extractor, selector, executor, aggregator, verifier = self.stages
             product = extractor.run(source)
             selected = executor.execute_initial(product, selector.run(product))
-            verifier.run(aggregator.aggregate(product, selected))
+            state["verifications"].append(verifier.run(aggregator.aggregate(product, selected)))
             retried = executor.execute_retry(product, selected, SimpleNamespace(retry_round=1))
-            verifier.run(aggregator.aggregate(product, retried))
+            state["verifications"].append(verifier.run(aggregator.aggregate(product, retried)))
             return state["result"]
 
     monkeypatch.setattr(job_module, "ToolExecutor", _Executor)
@@ -174,7 +174,7 @@ def test_단계가_정한_실패는_코드와_재시도_여부를_그대로_실�
     assert PipelineStage.FINALIZATION not in progress.stages
 
 
-def test_검증_실패는_재시도_가능한_파이프라인_오류로_돌려준다(pipeline):
+def test_규칙_결과_없는_검증_실패는_재시도_가능한_파이프라인_오류로_돌려준다(pipeline):
     progress = _Progress()
 
     outcome = build_job(_parts([], verification_error=VerificationError("checked_finding_ids에 중복이 있습니다.")),
@@ -182,6 +182,32 @@ def test_검증_실패는_재시도_가능한_파이프라인_오류로_돌려�
 
     assert outcome == JobFailed("AI_PIPELINE_ERROR", retryable=True)
     assert PipelineStage.FINALIZATION not in progress.stages
+
+
+def test_검증_모델이_실패해도_규칙_결과가_통과면_재확인_필요로_진행한다(pipeline, caplog):
+    rules = VerificationResult(status=VerificationStatus.APPROVED, checked_finding_ids=[])
+    error = VerificationError("검토 범위가 입력과 다릅니다.", partial_result=rules)
+
+    outcome = build_job(_parts([], verification_error=error), _no_questions)(
+        DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobDone)
+    assert [v.status for v in pipeline["verifications"]] == [VerificationStatus.REVISION_REQUIRED] * 2
+    assert pipeline["verifications"][0].review_summary == "검증 모델 검토를 마치지 못해 규칙 검사 결과만 반영함"
+    # 원래 규칙 결과는 그대로
+    assert rules.status is VerificationStatus.APPROVED
+    assert any(r.message.startswith("검증 모델 검토 실패, 규칙 검사 결과로 진행 (status=revision_required)")
+               for r in caplog.records)
+
+
+def test_검증_모델이_실패해도_규칙이_정한_Tool_재실행은_그대로_둔다(pipeline):
+    rules = VerificationResult(status=VerificationStatus.TOOLS_REQUIRED,
+                               additional_tools_required=[ToolName.RADIO])
+    error = VerificationError("검토 범위가 입력과 다릅니다.", partial_result=rules)
+
+    build_job(_parts([], verification_error=error), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert pipeline["verifications"][0] is rules
 
 
 def test_단계_실패는_원인을_경고로_남긴다(pipeline, caplog):
