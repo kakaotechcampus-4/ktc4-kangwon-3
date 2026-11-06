@@ -194,3 +194,16 @@ def test_재채점은_저장된_정답_경로_대신_지정한_정답_폴더를_
     assert scenario_runner.main(["--rescore", str(saved_path), "--truth-dir", str(moved), "--report", str(report)]) == 0
 
     assert "0/1" in report.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", ["strat_01", "holdout_01"])
+def test_추출_정답은_상품_이름으로_찾는다(tmp_path, monkeypatch, name):
+    truth_dir, extraction_dir = tmp_path / "truth", tmp_path / "extraction"
+    _write_truth(truth_dir, name, f"{name}/text.txt")
+    extraction_dir.mkdir()
+    (extraction_dir / f"{name}_설명.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(scenario_runner, "load_truth", lambda path: path.name)
+
+    _, extraction = scenario_runner._load_truths(truth_dir, extraction_dir, [name])
+
+    assert extraction[name] == f"{name}_설명.json"

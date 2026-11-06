@@ -7,7 +7,7 @@
 
 상품마다 추출 N회 → 추출 결과마다 선택 1회. 실패한 회차는 최대 retries번 다시 시도하고, 그래도 실패하면 빈 회차로
 남겨 채점에서 "골라야 할 Tool 전부 빠뜨림"으로 센다. 원문은 --raw-dir로 직접 가리킨다(워크트리에 링크를 만들지 않음).
-설계: _raw/SCENARIO_EVAL_design.md
+문서: docs/SCENARIO_EVAL.md
 """
 
 import argparse
@@ -111,7 +111,7 @@ def _load_truths(truth_dir: Path, extraction_truth_dir: Path | None, names: list
     truths = {name: load_selection_truth(truth_dir / f"{name}.json") for name in names}
     extraction: dict[str, dict | None] = {}
     for name in names:
-        match = sorted(extraction_truth_dir.glob(f"{name[:8]}_*.json")) if extraction_truth_dir else []
+        match = sorted(extraction_truth_dir.glob(f"{name}_*.json")) if extraction_truth_dir else []
         extraction[name] = load_truth(match[0]) if match else None
     return truths, extraction
 
