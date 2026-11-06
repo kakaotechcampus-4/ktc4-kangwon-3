@@ -3,17 +3,21 @@
 첫 회차(round 0)에서 시작 단계 앞의 단계만 저장한 output을 씀. 재실행 회차는 앞 결과에 따라 달라져 항상 실제로 돎.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
-from ..observability.trace import trace_finish
+from ..observability.trace import trace_finish, trace_note
+from ..pipeline.hooks import StageName
 from ..schemas.agent import ToolSelectionResponse
 from ..schemas.pipeline import SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import DraftAssessment, VerificationResult
 from ..schemas.session import DiagnosisInput
+
+T = TypeVar("T")
 
 # 파이프라인 단계 순서 (trace 단계 kind)
 STAGES = ("extraction", "selection", "tool_execution", "aggregation", "verification")
@@ -111,6 +115,46 @@ class StageReplay:
         if self.only and stage == self.start:
             trace_finish("stopped", stage=stage)
             raise ReplayStopped(stage)
+
+
+class ReplaySkipHook:
+    """시작 단계 앞 단계는 부르지 않고 저장한 output으로 바꿈. 첫 회차만. 단계 hook.
+
+    replayed 표시가 그 단계 trace에 남도록 trace hook 안쪽에 둠.
+    """
+
+    def __init__(self, replay: StageReplay) -> None:
+        """
+        Args:
+            replay: 단계 다시 실행 설정.
+        """
+        self._replay = replay
+
+    def __call__(self, stage: StageName, retry_round: int, call: Callable[[], T], /) -> T:
+        if retry_round == 0 and (saved := self._replay.saved(stage)) is not None:
+            trace_note("replayed", True)
+            return saved  # type: ignore[return-value]
+        return call()
+
+
+class ReplayStopHook:
+    """단계를 마치면 하나만 다시 돌리는 설정의 멈춤 확인. 첫 회차만. 단계 hook.
+
+    멈춤 결말이 단계 trace가 닫힌 뒤 남도록 trace hook 바깥에 둠.
+    """
+
+    def __init__(self, replay: StageReplay) -> None:
+        """
+        Args:
+            replay: 단계 다시 실행 설정.
+        """
+        self._replay = replay
+
+    def __call__(self, stage: StageName, retry_round: int, call: Callable[[], T], /) -> T:
+        result = call()
+        if retry_round == 0:
+            self._replay.done(stage)
+        return result
 
 
 def replay_input(trace: dict[str, Any]) -> DiagnosisInput:

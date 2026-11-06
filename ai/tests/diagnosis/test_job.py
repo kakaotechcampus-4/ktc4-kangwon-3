@@ -1,6 +1,5 @@
 """실제 진단 함수를 모델·외부 호출 없이 검증한다. 파이프라인은 단계를 차례로 부르는 가짜로 바꿈."""
 
-import re
 import time
 from dataclasses import replace
 from types import SimpleNamespace
@@ -11,22 +10,18 @@ from app.agents.verification import VerificationError
 from app.config.session import MAX_PARALLEL_TOOLS
 from app.diagnosis import job as job_module
 from app.observability.logs import current_run_fields, run_log_context
-from app.observability.trace import trace_note, trace_run, trace_step
+from app.observability.trace import trace_run, trace_step
 from app.diagnosis.assembly import PipelineParts
-from app.diagnosis.job import _alias_ids, _ToolExecution, build_job
+from app.diagnosis.job import build_job
 from app.diagnosis.replay import ReplayStopped, StageReplay
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.domain.errors import AIResponseCode, AIServiceError
 from app.dummy.cases import CASES, DummyCaseName
-from app.pipeline.tool_executor import ToolExecutor
 from app.schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.pipeline import SelectionResult
 from app.schemas.product import Product
-from app.schemas.schemas import (
-    DraftAssessment, ExecutionEndReason, FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationIssue,
-    VerificationResult,
-)
+from app.schemas.schemas import ExecutionEndReason, FollowUpQuestion, ToolName, ToolResult, ToolStatus
 from app.schemas.session import DiagnosisInput, SessionAnswer
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 
@@ -295,11 +290,13 @@ def test_기록_중에는_Tool_단계가_서로_안에_들어가지_않고_나�
     class _Pipeline:
         def __init__(self, extractor, selector, tool_executor, aggregator, verifier, stage_hook):
             self.stages = (extractor, selector, tool_executor)
+            self.hook = stage_hook
 
         def run(self, source):
             extractor, selector, executor = self.stages
-            product = extractor.run(source)
-            executor.execute_initial(product, selector.run(product))
+            product = self.hook("extraction", 0, lambda: extractor.run(source))
+            selection = self.hook("selection", 0, lambda: selector.run(product))
+            self.hook("tool_execution", 0, lambda: executor.execute_initial(product, selection))
             return _result()
 
     monkeypatch.setattr(job_module, "CompliancePipeline", _Pipeline)
@@ -313,49 +310,6 @@ def test_기록_중에는_Tool_단계가_서로_안에_들어가지_않고_나�
     tools = tool_execution["steps"]
     assert sorted(step["tool"] for step in tools) == sorted(name.value for name in selected)
     assert all(step["kind"] == "tool" and "steps" not in step for step in tools)
-
-
-UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-
-
-def test_기록_중이면_Tool_실행_ID를_실행_안_번호로_바꿔_저장한다(tmp_path):
-    with trace_run(tmp_path):
-        _ToolExecution(ToolExecutor({name: _FakeTool(name) for name in ToolName})).execute_initial(
-            Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    text = (tmp_path / "run-1.json").read_text(encoding="utf-8")
-    assert UUID.search(text) is None
-    assert '"execution_id": "e1"' in text
-
-
-def test_진단서·검증_지적·재질문_ID도_실행_안_번호로_바꾸고_같은_ID는_같은_번호다(tmp_path):
-    assessment_id, first_issue, second_issue = "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"
-    question_id = "44444444-4444-4444-8444-444444444444"
-    question = FollowUpQuestion.model_construct(question_id=question_id)
-    draft = DraftAssessment.model_construct(assessment_id=assessment_id, follow_up_questions=[question])
-    verification = VerificationResult.model_construct(issues=[
-        VerificationIssue.model_construct(issue_id=first_issue), VerificationIssue.model_construct(issue_id=second_issue)],
-        follow_up_questions=[question])
-
-    with trace_run(tmp_path):
-        with trace_step("verification"):
-            _alias_ids(draft)
-            _alias_ids(verification)
-            _alias_ids(draft)
-            trace_note("output", [assessment_id, first_issue, second_issue, question_id])
-
-    text = (tmp_path / "run-1.json").read_text(encoding="utf-8")
-    assert UUID.search(text) is None
-    assert all(f'"{alias}"' in text for alias in ("a1", "i1", "i2", "q1"))
-    assert '"a2"' not in text and '"q2"' not in text
-
-
-def test_기록_중이_아니면_ID를_그대로_둔다():
-    draft = DraftAssessment.model_construct(assessment_id="11111111-1111-4111-8111-111111111111")
-
-    _alias_ids(draft)
-
-    assert draft.assessment_id == "11111111-1111-4111-8111-111111111111"
 
 
 def test_기록_중이면_단계마다_trace_단계를_열고_나온_값과_재실행_회차를_남긴다(pipeline, tmp_path):
@@ -447,4 +401,7 @@ def test_하나만_다시_실행하면_시작_단계를_마치고_멈춘다(pipe
 
     assert [name for name, _ in calls] == ["select"]
     assert [step["kind"] for step in recorder.steps] == ["extraction", "selection"]
+    # 단계 trace가 닫힌 뒤 멈춤 → 시작 단계는 실패 없이 output까지
+    assert recorder.steps[-1]["output"] == "select"
+    assert "error" not in recorder.steps[-1]
     assert recorder.finish == {"reason": "stopped", "stage": "selection"}

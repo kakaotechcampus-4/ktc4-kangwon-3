@@ -1,10 +1,9 @@
 """실제 진단 함수. 파이프라인을 실행마다 조립해 돌리고, 결과로 세션 결말을 정함.
 
-파이프라인(pipeline/runner.py)은 진행 알림을 모름. 단계·Tool hook으로 붙임 (diagnosis/progress.py).
+파이프라인(pipeline/runner.py)은 진행 알림·로그·trace·다시 실행을 모름. 단계·Tool hook으로 붙임
+(diagnosis/progress.py·run_log.py·tracing.py·replay.py). 묶는 순서는 ``_stage_hooks``.
 
-로컬 trace를 켠 실행이면 단계마다 trace 단계를 열고 나온 값(output)을 원래 모양 그대로 남김.
-다음 단계의 입력은 앞 단계의 output이라 따로 안 남김 (추출 입력만 남김). 재실행 회차는 단계마다 round로.
-결말(finish)엔 종료 이유와 최종 결과, 질문하면 질문 회차·질문, 단계 실패면 실패 코드와 처음 실패한 위치.
+로컬 trace를 켠 실행이면 결말(finish)엔 종료 이유와 최종 결과, 질문하면 질문 회차·질문, 단계 실패면 실패 코드와 처음 실패한 위치.
 답변 뒤 재진단은 새 실행이라 새 파일. 이전 결과·답변은 추출 input에 들어 있음.
 단계 다시 실행(replay)이면 시작 단계 앞 단계는 저장한 output을 쓰고 trace 단계에 replayed 표시.
 """
@@ -16,22 +15,22 @@ from ..agents.verification import VerificationError
 from ..config.session import MAX_PARALLEL_TOOLS
 from ..domain.context import ExecutionContext, PipelineStage
 from ..domain.errors import AIResponseCode, AIServiceError
-from ..observability.trace import current_trace, trace_alias, trace_finish, trace_note, trace_step
-from ..pipeline.hooks import chain_stage_hooks, chain_tool_hooks
+from ..observability.trace import current_trace, trace_finish
+from ..pipeline.hooks import StageHook, chain_stage_hooks, chain_tool_hooks
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
-from ..schemas.agent import ExtractionInput, ToolSelectionResponse
+from ..schemas.agent import ExtractionInput
 from ..schemas.callback import PublicQuestionDto
-from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
-from ..schemas.schemas import DraftAssessment, ExecutionEndReason, FinalAssessment, VerificationResult
+from ..schemas.schemas import ExecutionEndReason, FinalAssessment
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
 from .answers import with_answers
 from .assembly import PipelineParts
 from .progress import ProgressStageHook, ProgressToolHook
-from .replay import StageReplay
+from .replay import ReplaySkipHook, ReplayStopHook, StageReplay
 from .run_log import error_text, log_tool_failure, mark_retry_round
+from .tracing import TraceStageHook
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,6 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
     """
 
     def run(job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter) -> Outcome:
-        state = _RunState(replay)
         # 기록 중엔 Tool 순차 실행 (기록기가 열린 단계·진행 중 호출을 객체 하나에 둠)
         max_parallel = 1 if current_trace() else MAX_PARALLEL_TOOLS
         executor = ToolExecutor(
@@ -61,13 +59,12 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
             tool_hook=chain_tool_hooks(ProgressToolHook(progress), log_tool_failure),
         )
         pipeline = CompliancePipeline(
-            extractor=_Extraction(parts, job_input, state),
-            selector=_Selection(parts, state),
-            tool_executor=_ToolExecution(executor, state),
-            aggregator=_Aggregation(parts, state),
-            verifier=_Verification(parts, state),
-            # 앞이 바깥: 회차 로그 필드 → 진행 알림
-            stage_hook=chain_stage_hooks(mark_retry_round, ProgressStageHook(progress)),
+            extractor=_Extraction(parts, job_input),
+            selector=parts.selector,
+            tool_executor=executor,
+            aggregator=parts.aggregator,
+            verifier=parts.verifier,
+            stage_hook=chain_stage_hooks(*_stage_hooks(job_input, progress, replay)),
         )
         try:
             result = pipeline.run(job_input.source)
@@ -91,6 +88,26 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
         return JobDone(result)
 
     return run
+
+
+def _stage_hooks(job_input: DiagnosisInput, progress: ProgressReporter, replay: StageReplay | None) -> list[StageHook]:
+    """단계 hook 목록. 앞이 바깥.
+
+    로그 필드 → 진행 알림 → 다시 실행 멈춤 → trace → 다시 실행 건너뛰기 → 실제 단계.
+    진행 알림은 trace 단계를 열기 전에, 멈춤 결말은 trace 단계가 닫힌 뒤에, replayed 표시는 trace 단계 안에 남음.
+
+    Args:
+        job_input: 이번 실행 입력.
+        progress: 이번 실행의 진행 알림.
+        replay: 단계 다시 실행 설정. 없으면 다시 실행 hook을 안 붙임.
+
+    Returns:
+        list[StageHook]: 바깥부터 차례로.
+    """
+    hooks: list[StageHook] = [mark_retry_round, ProgressStageHook(progress)]
+    if replay is None:
+        return [*hooks, TraceStageHook(job_input)]
+    return [*hooks, ReplayStopHook(replay), TraceStageHook(job_input), ReplaySkipHook(replay)]
 
 
 def _stage_failure(exc: AIServiceError | VerificationError) -> AIServiceError:
@@ -117,138 +134,16 @@ def _next_round(job_input: DiagnosisInput) -> int:
     return max((answer.question_round for answer in job_input.answers), default=0) + 1
 
 
-class _RunState:
-    """실행 하나에서 단계 감싸개가 같이 보는 값.
-
-    Attributes:
-        retry_round: 지금 Tool 재실행 회차 (0은 첫 실행). 재실행 Tool 실행이 바꾸고,
-            뒤따르는 집계·검증이 trace에 같이 남김.
-        replay: 단계 다시 실행 설정. 없으면 None.
-    """
-
-    def __init__(self, replay: StageReplay | None = None) -> None:
-        self.retry_round = 0
-        self.replay = replay
-
-    def saved(self, stage: str):
-        """다시 실행에서 건너뛸 단계면 저장한 output. 첫 회차만. 지금 trace 단계에 replayed 표시."""
-        if self.replay is None or self.retry_round:
-            return None
-        output = self.replay.saved(stage)
-        if output is not None:
-            trace_note("replayed", True)
-        return output
-
-    def done(self, stage: str) -> None:
-        """단계 하나를 마침. 시작 단계만 다시 돌리는 설정이면 여기서 멈춤 (첫 회차만)."""
-        if self.replay is not None and not self.retry_round:
-            self.replay.done(stage)
-
-
 class _Extraction:
     """추출 자리. 파이프라인이 넘기는 원래 입력 대신 실행 입력 전체로 추출 단계를 부름.
 
     재진단이면 이전 추출 결과에 이번 회차 답변을 붙여 선택 단계부터 다시 돎.
+    다시 실행에서 저장한 추출 결과를 쓰면 이 자리는 안 불림 (저장한 결과엔 답변이 이미 붙어 있음).
     """
 
-    def __init__(self, parts: PipelineParts, job_input: DiagnosisInput, state: _RunState) -> None:
+    def __init__(self, parts: PipelineParts, job_input: DiagnosisInput) -> None:
         self._step = parts.extraction
         self._job_input = job_input
-        self._state = state
 
     def run(self, source: ExtractionInput) -> Product:
-        with trace_step("extraction"):
-            trace_note("input", self._job_input)
-            # 저장한 추출 결과엔 답변이 이미 붙어 있음
-            product = (self._state.saved("extraction")
-                       or with_answers(self._step.run(self._job_input), self._job_input))
-            trace_note("output", product)
-        self._state.done("extraction")
-        return product
-
-
-class _Selection:
-    def __init__(self, parts: PipelineParts, state: _RunState) -> None:
-        self._selector = parts.selector
-        self._state = state
-
-    def run(self, product: Product) -> ToolSelectionResponse:
-        with trace_step("selection"):
-            selection = self._state.saved("selection") or self._selector.run(product)
-            trace_note("output", selection)
-        self._state.done("selection")
-        return selection
-
-
-class _ToolExecution:
-    def __init__(self, executor: ToolExecutor, state: _RunState | None = None) -> None:
-        self._executor = executor
-        self._state = state or _RunState()
-
-    def execute_initial(self, product: Product, selection: ToolSelectionResponse) -> SelectionResult:
-        with trace_step("tool_execution", round=0):
-            result = self._state.saved("tool_execution") or self._executor.execute_initial(product, selection)
-            _alias_ids(result)
-            trace_note("output", result)
-        self._state.done("tool_execution")
-        return result
-
-    def execute_retry(self, product: Product, previous: SelectionResult, request: RetryRequest) -> SelectionResult:
-        self._state.retry_round = request.retry_round
-        # 재실행 요청(실행할 Tool·검증 결과·직전 Tool 결과)은 앞 단계 output과 같아 회차만
-        with trace_step("tool_execution", round=request.retry_round):
-            result = self._executor.execute_retry(product, previous, request)
-            _alias_ids(result)
-            trace_note("output", result)
-            return result
-
-
-def _alias_ids(value: object) -> None:
-    """실행마다 달라지는 ID(uuid)를 trace 저장 때 실행 안 번호로 바꾸게 등록한다. 기록 중이 아니면 아무것도 안 함.
-
-    Tool 실행 ID는 e, 진단서 ID는 a, 검증 지적 ID는 i, 재질문 ID는 q (판단 ID f는 Tool 기록에서). 두 실행 diff 비교용.
-
-    Args:
-        value: 단계 결과 (Tool 실행 결과·종합 초안·검증 결과). 그 밖의 값은 무시.
-    """
-    if isinstance(value, SelectionResult):
-        for result in (*value.tool_results, *value.tool_result_history):
-            if result.execution_id:
-                trace_alias(result.execution_id, "e")
-    elif isinstance(value, DraftAssessment):
-        trace_alias(value.assessment_id, "a")
-        for question in value.follow_up_questions:
-            trace_alias(question.question_id, "q")
-    elif isinstance(value, VerificationResult):
-        for issue in value.issues:
-            trace_alias(issue.issue_id, "i")
-        for question in value.follow_up_questions:
-            trace_alias(question.question_id, "q")
-
-
-class _Aggregation:
-    def __init__(self, parts: PipelineParts, state: _RunState) -> None:
-        self._aggregator = parts.aggregator
-        self._state = state
-
-    def aggregate(self, product: Product, selection_result: SelectionResult) -> DraftAssessment:
-        with trace_step("aggregation", round=self._state.retry_round):
-            draft = self._state.saved("aggregation") or self._aggregator.aggregate(product, selection_result)
-            _alias_ids(draft)
-            trace_note("output", draft)
-        self._state.done("aggregation")
-        return draft
-
-
-class _Verification:
-    def __init__(self, parts: PipelineParts, state: _RunState) -> None:
-        self._verifier = parts.verifier
-        self._state = state
-
-    def run(self, draft: DraftAssessment) -> VerificationResult:
-        with trace_step("verification", round=self._state.retry_round):
-            verification = self._verifier.run(draft)
-            _alias_ids(verification)
-            trace_note("output", verification)
-        self._state.done("verification")
-        return verification
+        return with_answers(self._step.run(self._job_input), self._job_input)
