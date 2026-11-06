@@ -38,6 +38,8 @@ import static org.springframework.http.HttpMethod.GET;
 class SentryConfigTest {
 
     private static final String INTERNAL_TOKEN = "internal-token-value";
+    private static final String ACCESS_TOKEN = "Bearer access-token-value";
+    private static final String REFRESH_TOKEN = "refresh-token-value";
 
     private final SentryOptions.BeforeSendCallback callback = new SentryConfig().sentryBeforeSendCallback();
     private final SentryOptions.BeforeSendTransactionCallback transactionCallback =
@@ -171,6 +173,70 @@ class SentryConfigTest {
                 .doesNotContainKey(InternalTokenFilter.HEADER_NAME)
                 .doesNotContainValue(INTERNAL_TOKEN)
                 .containsEntry("Content-Type", "application/json");
+    }
+
+    @Test
+    @DisplayName("전송하는 이벤트에서 액세스 토큰이 담긴 Authorization 헤더를 제거한다.")
+    void execute_whenAuthorizationHeader_thenRemoveHeader() {
+        // given
+        SentryEvent event = new SentryEvent(new IllegalStateException("boom"));
+        event.setRequest(requestWithHeaders(Map.of(
+                "authorization", ACCESS_TOKEN,
+                "Content-Type", "application/json")));
+
+        // when
+        SentryEvent result = callback.execute(event, new Hint());
+
+        // then
+        assertThat(result.getRequest().getHeaders())
+                .doesNotContainValue(ACCESS_TOKEN)
+                .containsEntry("Content-Type", "application/json");
+    }
+
+    @Test
+    @DisplayName("전송하는 이벤트에서 리프레시 토큰 쿠키 값만 가리고 다른 쿠키는 남긴다.")
+    void execute_whenRefreshTokenCookie_thenMaskOnlyRefreshToken() {
+        // given
+        String cookie = "theme=dark; refresh_token=" + REFRESH_TOKEN;
+        Request request = requestWithHeaders(Map.of("Cookie", cookie));
+        request.setCookies(cookie);
+        SentryEvent event = new SentryEvent(new IllegalStateException("boom"));
+        event.setRequest(request);
+
+        // when
+        SentryEvent result = callback.execute(event, new Hint());
+
+        // then
+        assertThat(result.getRequest().getCookies())
+                .doesNotContain(REFRESH_TOKEN)
+                .contains("theme=dark", "refresh_token=");
+        assertThat(result.getRequest().getHeaders().get("Cookie"))
+                .doesNotContain(REFRESH_TOKEN)
+                .contains("theme=dark", "refresh_token=");
+    }
+
+    @Test
+    @DisplayName("트랜잭션(트레이스)에서도 Authorization 헤더와 리프레시 토큰 쿠키를 가린다.")
+    void executeTransaction_whenUserTokens_thenRemoveTokens() {
+        // given
+        String cookie = "refresh_token=" + REFRESH_TOKEN;
+        Request request = requestWithHeaders(Map.of(
+                "Authorization", ACCESS_TOKEN,
+                "cookie", cookie));
+        request.setCookies(cookie);
+        SentryTransaction transaction = new SentryTransaction(
+                "POST /api/v1/auth/reissue", 0.0, null,
+                List.of(), Map.of(), new TransactionInfo("route"));
+        transaction.setRequest(request);
+
+        // when
+        SentryTransaction result = transactionCallback.execute(transaction, new Hint());
+
+        // then
+        assertThat(result.getRequest().getHeaders())
+                .doesNotContainValue(ACCESS_TOKEN)
+                .doesNotContainValue(cookie);
+        assertThat(result.getRequest().getCookies()).doesNotContain(REFRESH_TOKEN);
     }
 
     private Request requestWithHeaders(Map<String, String> headers) {
