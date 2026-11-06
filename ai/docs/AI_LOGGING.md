@@ -42,11 +42,11 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | 레벨 | 기준 | 예 |
 |---|---|---|
 | ERROR | 예상하지 못한 예외(코드 오류 가능성). traceback까지 | Tool 코드 오류, sink·구독자 처리 실패, 진단 실행 실패 |
-| WARNING | 예상한 실패(`AIError`: 외부 API·모델·Tool 오류). 원인 예외를 한 줄로, traceback 없이 | 진단 단계 실패, Tool 실행 실패, 모델 호출 실패, 콜백 재시도·버림, 접수 거절 |
+| WARNING | 예상한 실패(`AIError`: 외부 API·모델·Tool 오류). 원인 예외를 한 줄로, traceback 없이 | 진단 단계 실패, Tool 실행 실패, 모델 호출 실패, 콜백 버림, 접수 거절 |
 | INFO | 진단 흐름의 주요 지점. 상품 하나에 수십 줄 이내 | 접수, 시작, 모델 호출, 요약 |
-| DEBUG | 문제 볼 때만 | 토큰 사용량 상세(캐시 쓰기·적중률), 게이트웨이 원본 usage |
+| DEBUG | 문제 볼 때만 | 토큰 사용량 상세(캐시 쓰기·적중률), 게이트웨이 원본 usage, 콜백 중간 재시도 |
 
-- 예외 메시지 속 URL의 키(`serviceKey`·`OC`)는 `mask_sensitive_params()`로 가림
+- 예외 메시지 속 키(`serviceKey=`·`OC=`)는 URL 쿼리가 아니어도 `mask_sensitive_params()`로 가림
 - 상품 원문·모델 응답 원문·진단서 본문은 남기지 않음
 
 ## 4. 진단 하나에 남는 주요 줄
@@ -76,7 +76,8 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | `진단 단계 실패 (stage, code, retryable): {원인}` | WARNING | `diagnosis/job.py` |
 | `질문 회차 초과로 미완료 처리` | INFO | `sessions/manager/runner.py` |
 | `진단 요약: ...` | INFO | `sessions/manager/runner.py` |
-| `콜백 재시도 예정` / `콜백 이벤트를 보내지 못함` | WARNING | `callbacks/outbox.py` |
+| `콜백 재시도 예정 n/5` | DEBUG | `callbacks/outbox.py` |
+| `콜백 이벤트를 보내지 못함: {사유} (재시도 N회, ...)` | WARNING | `callbacks/outbox.py` |
 
 ### 4.1 진단 요약
 
@@ -165,7 +166,7 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 | IP·쿠키 | `send_default_pii=False` |
 | 오류 위치별 지역 변수 | `include_local_variables=False`. 요청 헤더·상품 원문·키가 든 URL이 그대로 실림 |
 | 내부 인증 헤더 (`X-Internal-Token`·`X-Dev-Api-Key`) | 보내기 직전 뺌. `Authorization`·`Cookie`는 SDK가 가림 |
-| URL의 키 (`serviceKey`·`OC`) | 예외 메시지, 로그 문구·인자·`extra`(이벤트·로그 둘 다), 흐름 기록(외부 호출의 `url`·`http.query` 포함)에서 `***`로 가림 |
+| 키 (`serviceKey=`·`OC=`, URL 쿼리 밖 포함) | 예외 메시지, 로그 문구·인자·`extra`(이벤트·로그 둘 다), 흐름 기록(외부 호출의 `url`·`http.query` 포함)에서 `***`로 가림 |
 
 - 예외 메시지 속 상품 원문은 가리지 않음 (검증 오류 메시지에 입력값이 들어가는 경우 등). 메시지를 지우면 원인을 못 봄
 - 오류 위치 주변 소스 줄은 감 (코드라 비밀값 없음)
