@@ -106,7 +106,8 @@ def integrationTest = tasks.register('integrationTest', Test) {
 }
 
 tasks.named('check') {
-	dependsOn integrationTest, 'jacocoMergedReport'
+	dependsOn integrationTest, 'jacocoMergedReport',
+			'jacocoTestCoverageVerification', 'jacocoMergedCoverageVerification'
 }
 
 def unitCoverageIncludes = [
