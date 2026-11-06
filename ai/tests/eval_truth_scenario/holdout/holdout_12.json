@@ -1,0 +1,40 @@
+{
+  "fixture": "holdout_12/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "96개입 캣아이 프레스온 네일 팁(Temu). 손톱에 붙이는 미용용품(ABS)이라 식약 대상이고, 제목 '완벽 핏'이 표시광고 근거다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 중국)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "소재 ABS(95~96행), 기계 생산 인조 손톱(97~98행). 전자 부품 없음",
+      "why_not_other": "비전자 미용 소모품이라 무선 기능이 없다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "카테고리 '뷰티 & 맞춤 케어 > 네일 연장'(43~44행), 제목 '프레스 온 네일', '소프트 젤 페이크 네일'(115행)",
+      "why_not_other": "손톱에 부착하는 미용용품으로 기준이 든 '네일'에 해당한다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "소재 ABS(95~96행), 네일 팁 종류 '기계 생산 인조 손톱'(97~98행). 전원·전지 표기 없음",
+      "why_not_other": "비전자 제품으로 구성이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '여성용 아크릴 네일 팁'(115행)",
+      "why_not_other": "성인 여성 대상이며 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '15사이즈 완벽 핏 & 자연스러운 재사용 가능'(115행)",
+      "why_not_other": "'완벽 핏'은 최상급·절대 표현(2)이다."
+    }
+  }
+}

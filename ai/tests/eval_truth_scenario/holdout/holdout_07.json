@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_07/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "치이카와 캐릭터 플란넬 실내 슬리퍼(알리). 캐릭터 상품이지만 권장 연령 14세 이상·성인 사이즈라 어린이 해당 여부를 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(알리익스프레스, 원산지 중국)",
+      "why_not_other": "통관은 해외 직구 수입품이면 사실상 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '원격 제어: 아니요'(168~169행), '재료: 플란넬'(184~185행), 이미지 1~10은 봉제 슬리퍼뿐",
+      "why_not_other": "비전자 섬유 제품이라 무선과 무관하다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "스펙표 '품목 유형: 만화 캐릭터 생활용품', '재료: 플란넬'(184~189행)",
+      "why_not_other": "발에 신는 일반 용도로 음식 접촉·의료·미용 용도가 아니다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 플란넬', '원격 제어: 아니요', 전원·전지·발열 표기 없음(161~197행)",
+      "why_not_other": "'따뜻한'은 보온 소재 이야기이고 발열 기능이 아니다. 비전자 제품으로 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 '권장 연령: 18+,14세 이상'(196~197행), 사이즈 '34-42'(21행)",
+      "why_not_other": "권장 연령이 14세 이상으로 만 13세 이하 대상이 아니고 성인 사이즈다. 스펙 '인형 유형: 모델'(166~167행)은 플랫폼 공통 속성으로 완구 근거로 보지 않았다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '미끄럼 방지 부드러운 실내화'(10행), 스펙표 '버전 유형: 초판'(172~173행)",
+      "why_not_other": "'미끄럼 방지'는 기능 설명이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: 표시광고는 제목 '미끄럼 방지' 기능 표기 하나라 단순 기능 설명으로 보아 false. 어린이는 권장 연령 '18+,14세 이상'으로 false로 두었다. [기준3: labeling_advertising_detection True→False]"
+}

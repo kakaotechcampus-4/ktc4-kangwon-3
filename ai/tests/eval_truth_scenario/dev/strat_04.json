@@ -1,0 +1,43 @@
+{
+  "fixture": "strat_04/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 Sanag B77S 골전도 블루투스 수영 이어폰(IPX8, 64GB, 180mAh). 블루투스로 전파, 전지로 전기를 고른다. 귀에 거는 실리콘 착용 기기에 귀마개가 동봉되고 설명 글에 '청력을 보호'·'백색 소음 수면 보조'가 있어 식약을 고른다. '100% 풀 실리콘', '소리 누설 70% 감소', '수명 3배'로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '중국'(원문 264~265행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 '골전도 블루투스 헤드폰 … 무선 헤드셋'(원문 10행), 스펙표 '무선 유형: 블루투스'(원문 256~257행), '최대 무선 범위[m]: <10m'(원문 206~207행), '앱 지원: 예'(원문 228~229행), 이미지 'Bluetooth version V6.0'(img_18)",
+      "why_not_other": "블루투스 통신이 명시돼 있다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "description '청력을 보호하며'(description.txt 7행), '백색 소음 수면 보조'(description.txt 15행), 스펙표 '헤드폰 패드 소재: 실리콘'(원문 214~215행), 이미지 '100% full silicone wrapping — Delicate to the touch'(img_02), 구성품 귀마개(img_16·17)",
+      "why_not_other": "귀·광대에 장시간 닿는 착용 기기이고 귀 안에 넣는 귀마개가 함께 오며, '청력 보호'·'수면 보조'는 신체 기능 표방이다. 선택 프롬프트 예시 1(이어폰 → 식약 선택)과도 같다.",
+      "image_only": true
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전기적인 것인지: 네'(원문 236~237행), '배터리 용량[mAh]: 180'(원문 200~201행), 이미지 'Charging voltage 5V 1A'(img_18)",
+      "why_not_other": "전지 내장 전기 기기다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 '부서: 남녀공용-성인'(원문 194~195행), 이미지 사용자 전부 성인(img_01~16)",
+      "why_not_other": "성인용 표시가 있다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "description '이어폰 수명이 3배 더 길어집니다'(description.txt 3행), '청력을 보호하며'(7행), '전송 속도가 두 배로'(12행), 이미지 '100% full silicone wrapping'(img_02), 'reduces the sound leakage by 70%'(img_06), 'no sound leakage'(img_02·06)",
+      "why_not_other": "최상급·절대 표현('100%', 'no sound leakage'), 과장 가능 수치('3배', '70%'), 건강 효능('청력 보호')이 있다.",
+      "image_only": true
+    }
+  },
+  "notes": "[labeling_advertising_detection: 근거가 설명 글·이미지에만 있어 글 입력 밖으로 표시] [food_drug_safety: 근거가 설명 글·이미지에만 있어 글 입력 밖으로 표시]"
+}

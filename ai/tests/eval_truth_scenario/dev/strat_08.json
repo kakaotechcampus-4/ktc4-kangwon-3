@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_08/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 재사용 실리콘 빨대 6개 + 세척 브러쉬(BPA 프리). 음료가 지나는 빨대라 식약을 고른다. 비전자 제품이다. 빨대를 문 유아 사진(img_10)이 있지만 어린이 대상 표기가 없고 제목이 '모든 텀블러(30·20온스)용' 범용 제품이라 어린이는 고르지 않는다. 제목 'BPA 프리'와 이미지 'Food grade silicone'으로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 178~179행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 '실리콘 빨대 6개 … 세척 브러쉬 1개 포함'(원문 10행), 이미지 'SILICONE Straws'(img_09)",
+      "why_not_other": "구성이 실리콘 빨대와 브러쉬로 확인되는 비전자 제품이다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '모든 텀블러에 맞는 재사용 가능한 실리콘 빨대'(원문 10행), 이미지 'Food grade silicone', 'BPA free'(img_10), 음료를 마시는 장면(img_02·06·07)",
+      "why_not_other": "음료가 통과하고 입에 무는 식품 접촉 기구다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "제목 '실리콘 빨대 6개 … 세척 브러쉬 1개 포함'(원문 10행), 이미지 'SILICONE Straws'(img_09)",
+      "why_not_other": "전원·전지 요소가 없는 구성으로 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '모든 텀블러에 맞는 … (30온스 및 20온스용)'(원문 10행), 스펙표에 연령 표기 없음(원문 171~179행). 이미지 사용자 대부분 성인(img_02·06·07·12)",
+      "why_not_other": "빨대를 문 유아 사진(img_10)과 식탁의 남자아이(img_12)가 있지만 CRITERIA상 '어린이가 쓰는 사진만 있는 범용 제품'이다. 학용품·완구도 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 'BPA 프리'(원문 10행), 이미지 'Food grade silicone'(img_10), 'Thirty seconds to clean up no dirt left behind'(img_11), 'Comfortable taste and skin-friendly'(img_11)",
+      "why_not_other": "'BPA 프리'는 선택 프롬프트 예시 2가 미검증 표방으로 든 문구이고, '30초 세척·때 남지 않음'은 과장 가능 표현이다. AI 요약 '건강과 안전을 보장'(원문 26행)은 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "애매: 어린이 — 유아가 빨대를 문 사진(img_10)이 있지만 어린이 대상·연령 표기가 없는 범용 제품이라 false."
+}

@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_42/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 TYRY.HU 개인 맞춤 실리콘 젖 떼기 키트(턱받이·흡착 접시·숟가락·포크·나무 치발기). 영유아 대상(사용연령 0년+)과 식품 접촉(스펙표 '예')이 둘 다 명시된 비전자 제품. 스펙표의 '인증정보: CPC'(미국 어린이제품 인증) 표기가 표시광고 근거인지 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품. 스펙표 '원산지: 광둥, 중국'(115~116행)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 실리콘'(85~86행), 카테고리 '이유식 식기류'(41행), img_01~03 구성이 턱받이·접시·숟가락·포크·나무 치발기",
+      "why_not_other": "재질과 구성이 확인된 비전자 식기라 무선 통신·충전·차폐 요소가 없다. 연관 상품 충전기(247행)는 다른 상품."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "스펙표 '식품 접촉에 사용할 수 있습니다.: 예'(94~95행), 제목 '젖 떼기 키트', '수유 세트', '베이비 플레이트'(120행), img_01~03 음식이 담긴 접시·숟가락·포크",
+      "why_not_other": "음식 접촉 식기가 명시돼 있다. 치발기(img_01·02)도 입에 무는 물품이다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 실리콘'(85~86행), 전원·전지·정격 표기 없음, img_01~03 구성이 전부 실리콘·나무 식기",
+      "why_not_other": "비전자 식기 세트로 구성이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "스펙표 '사용연령: 0년+'(87~88행), 제목 '유아 및 아기를 위한 만화 젖 떼기 키트'(120행), 상점 정보 '아기용으로만 사용하세요'(118행), 카테고리 '유아&출산'(40행), 스펙표 '인증정보: CPC'(91행)",
+      "why_not_other": "영유아 대상 연령이 명시돼 있다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 '인증정보: CPC'(91행), img_03 'Soft and harmless'",
+      "why_not_other": "CPC는 미국 어린이제품 인증으로, 해외 인증 표기는 기준 (3)의 표기 근거에 해당한다. 그 외 제목은 용도·선물 대상 나열이다. '품질보증'(121행)은 브랜드 스토어 배지라 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "애매: 표시광고는 텍스트 근거가 스펙표 '인증정보: CPC' 하나뿐이다. 스펙표 인증 칸을 판매자 표기로 보지 않으면 이미지 'Soft and harmless'(무해 표방)만 남아 image_only가 된다. 원칙 1에 따라 true로 두었다."
+}

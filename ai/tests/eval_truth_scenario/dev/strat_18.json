@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_18/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 Momylife 아기 공갈젖꼭지 클립 3개 세트. 제목·연령대(0~36개월)·패키지 '0+ Months'로 어린이는 확실하다. 공갈젖꼭지(입에 무는 물건)에 붙이는 용품이고 제목에 '수저 홀더'까지 있어 식약을 애매하게 고르며, 판매자 문구는 품명·연령 나열뿐이라 표시광고는 고르지 않는 케이스다. 상세 이미지는 패키지 사진 1장(img_01)뿐이다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 187~188행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 '아기 공갈젖꼭지 클립, 공갈젖꼭지 체인, 니플 홀더'(10행), 이미지 플라스틱 집게+천 끈 구성(img_01). 무선·전파 관련 문구 없음",
+      "why_not_other": "집게와 천 끈으로 된 비전자 용품이라 통신 부품이 없다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '공갈젖꼭지 클립, 공갈젖꼭지 체인, 니플 홀더, … 수저 홀더, 부착형'(10행), 패키지 'Paci holder', 'Attaches to all pacifiers'(img_01)",
+      "why_not_other": "클립 자체는 입에 넣는 물건이 아니지만 영아 입에 들어가는 공갈젖꼭지에 붙여 쓰고, 영아가 끈·클립을 물 수 있다. 제목 '수저 홀더'는 식기 연결 용도로도 읽힌다. 확신이 없어 원칙 1에 따라 고른다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "제목 '공갈젖꼭지 클립, 공갈젖꼭지 체인'(10행), 이미지 플라스틱 집게+천 끈 구성, 전원·전지·단자 없음(img_01)",
+      "why_not_other": "구성이 집게와 끈뿐인 비전자 용품이다. 글에는 재질 표기가 없어 비전자 확인은 주로 이미지에 기댄다."
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "제목 '아기 공갈젖꼭지 클립', '어린이 공갈젖꼭지 클립'(10행), 스펙표 '연령대: 0~6M,7~12M,13~24M,25-36개월'(189~190행), 패키지 '0+ Months'(img_01)",
+      "why_not_other": "영유아 대상 표기와 연령이 명시돼 있다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '3개/세트 아기 공갈젖꼭지 클립, … 부착형'(10행), 스펙표는 KC·화학물질·모델번호·원산지·연령대 나열(180~190행), 패키지 'Paci holder', '0+ Months', 'Attaches to all pacifiers'(img_01)",
+      "why_not_other": "판매자 문구가 품명·구성·연령 나열뿐이고 효능·최상급·인증 표방·과장 수치가 없다. AI 요약 '아기의 건강에 안전', '신뢰할 수 있는 안전 기준을 충족'(29행)은 판매자 문구가 아니라 근거가 아니다. 'KC 인증정보: 확인되지 않음'(181~182행)은 플랫폼 칸이다."
+    }
+  },
+  "notes": "애매: food_drug_safety는 공갈젖꼭지 부속품(클립·끈)이 구강 접촉·식품 접촉 용도인지 판단이 갈린다. 원칙 1로 true."
+}

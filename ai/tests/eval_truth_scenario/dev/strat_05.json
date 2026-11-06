@@ -1,0 +1,40 @@
+{
+  "fixture": "strat_05/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 NDNNAS 1.5V AA/AAA USB(Type-C) 충전식 리튬 전지. 전지 자체가 상품이라 전기를 고른다. 충전은 Type-C 유선이고 통신 부품이 없는 원통형 전지라 전파는 고르지 않는다. 용량(AA 3800mAh)·충전 횟수(1200/2000회)·충전 시간 수치로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '중국'(원문 213~214행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 '고속 충전 타입-C'(원문 10행), 이미지 'TYPE-C' 체크·'Micro USB' X(img_04), '1drag 4 data cable'(img_01). 블루투스·무선충전·차폐 언급 없음",
+      "why_not_other": "건전지 형태의 전지라 무선 통신 부품이 들어갈 수 없고 충전도 케이블 방식으로 확인된다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "세트 유형 '배터리만'(원문 203~204행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "전지라 식약 소관과 무관하다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 'AA/AAA 충전식 배터리 3000mAh/3800mAh 리튬 배터리 1.5V'(원문 10행), 스펙표 'KC인증 전기용품 안전확인 XU103082-23002A'(원문 188~190행), '유형: 리튬 이온'(원문 205~206행)",
+      "why_not_other": "전지 자체가 상품이고 전압·용량 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "스펙표 'Keep away from children'(원문 186~187행), description '어린이의 손이 닿지 않는 곳에 보관하십시오'(description.txt 24행)",
+      "why_not_other": "제목 '장난감 등용'(원문 10행)은 전지를 넣는 기기 예시이고, 전지 자체는 어린이 대상이 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '3000mAh/3800mAh … 고속 충전'(원문 10행), description '용량: 3800mAh', '사이클 수: 1200회'(description.txt 10·14행), 이미지 'Charger >1200', 'Fast fill 40min'(img_02), 'Charge 2000times', 'Fast fill 60min'(img_03)",
+      "why_not_other": "AA 1.5V 리튬 전지 3800mAh는 과장 가능한 수치이고, 충전 횟수가 1200회와 2000회로 서로 어긋난다."
+    }
+  }
+}

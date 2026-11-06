@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_10/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "카피바라 모양 실리콘 야간 조명 알람 시계(Temu). 충전식 배터리(1200mAh) 전자기기인데 무선 통신 여부가 페이지에 없고, '수면 보조'·'완벽한 동반자' 문구가 있다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 중국)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "디지털 알람 시계(114~115행)·충전식(98행) 전자기기. 블루투스·WiFi 등 무선 여부 표기 없음",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '부드러운 수면 보조'(98행), 특수 기능 '선잠'(116~117행)",
+      "why_not_other": "'수면 보조'가 건강 효능 표방으로 읽힐 수 있어 원칙 1로 선택한다. 조명 시계의 분위기 표현으로 볼 수도 있어 판단이 갈린다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 '재충전 및 밝기 조절 가능'(98행), '배터리 용량(mAh): 1200마'(118~119행)",
+      "why_not_other": "전지 포함·용량 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "판매자 문구에 연령·어린이 대상 표기 없음. 카테고리 '홈&주방 > 홈 데코 제품'(43~44행)",
+      "why_not_other": "아들·손자가 쓴다는 내용은 리뷰(57·73행)라 근거가 아니다. 캐릭터 모양이지만 완구·학용품 표기가 없는 범용 조명 시계다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '부드러운 수면 보조, 삶을 위한 완벽한 동반자'(98행)",
+      "why_not_other": "'완벽한'은 최상급·절대 표현(2), '수면 보조'는 효능 표방(1)에 해당한다."
+    }
+  },
+  "notes": "애매: radio_compliance — 무선 통신 표기가 없어 false. 애매: food_drug_safety — '수면 보조'를 의료 효능 표방으로 볼지 갈림. 참고: children_product_safety는 false로 두었으나 캐릭터 실리콘 무드등이라 어린이 대상으로 볼 여지가 있다(리뷰에만 아이 언급). [기준1: radio_compliance True→False]"
+}
