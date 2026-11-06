@@ -839,3 +839,85 @@ def test_최종_결과는_계약_필드와_검증_질문을_중복_없이_조립
     assert result.missing_information == draft.missing_information
     assert result.follow_up_questions == [draft_question, verification_question]
     assert result.verification == verification
+
+
+def _hooked_pipeline(stage_hook, verifications, calls):
+    """단계 hook 테스트용 파이프라인. 단계마다 호출을 calls에 남기고 검증은 verifications를 차례로 돌려줌."""
+    product = Product(product_id="product-1", product_name="테스트 상품")
+    selection = ToolSelectionResponse(
+        decisions=[ToolSelectionItem(tool_name=name, selected=False, reason="검토 신호 없음") for name in ToolName]
+    )
+    selection_result = SelectionResult(selection=selection, tool_results=[], tool_result_history=[])
+    draft = DraftAssessment(
+        product=product, selected_tools=[], tool_results=[], findings=[],
+        overall_status=OverallStatus.INSUFFICIENT_INFORMATION, summary="추가 Tool 검토가 필요합니다.",
+    )
+    remaining = list(verifications)
+
+    class Stages:
+        def run(self, received):
+            if isinstance(received, ExtractionInput):
+                calls.append("extraction")
+                return product
+            if isinstance(received, Product):
+                calls.append(("selection", received))
+                return selection
+            calls.append("verification")
+            return remaining.pop(0)
+
+        def execute_initial(self, received_product, received_selection):
+            calls.append(("tool_execution", received_selection))
+            return selection_result
+
+        def execute_retry(self, received_product, received_result, retry_request):
+            calls.append("tool_execution retry")
+            return selection_result
+
+        def aggregate(self, received_product, received_result):
+            calls.append("aggregation")
+            return draft
+
+    stages = Stages()
+    return CompliancePipeline(
+        extractor=stages, selector=stages, tool_executor=stages, aggregator=stages, verifier=stages,
+        stage_hook=stage_hook,
+    )
+
+
+def test_단계_hook은_단계마다_불리고_재실행_회차를_받는다():
+    events = []
+
+    def hook(stage, retry_round, call):
+        events.append((stage, retry_round))
+        return call()
+
+    tools_required = VerificationResult(
+        status=VerificationStatus.TOOLS_REQUIRED, additional_tools_required=[ToolName.RADIO],
+    )
+    pipeline = _hooked_pipeline(hook, [tools_required, VerificationResult(status=VerificationStatus.APPROVED)], [])
+
+    pipeline.run(ExtractionInput(product_id="product-1", text_blocks=["테스트 상품"]))
+
+    assert events == [
+        ("extraction", 0), ("selection", 0), ("tool_execution", 0), ("aggregation", 0), ("verification", 0),
+        ("tool_execution", 1), ("aggregation", 1), ("verification", 1),
+    ]
+
+
+def test_단계_hook이_바꿔치기한_결과로_다음_단계를_실행한다():
+    saved = ToolSelectionResponse(
+        decisions=[ToolSelectionItem(tool_name=name, selected=False, reason="저장한 선택") for name in ToolName]
+    )
+    calls = []
+
+    def hook(stage, retry_round, call):
+        return saved if stage == "selection" else call()
+
+    pipeline = _hooked_pipeline(hook, [VerificationResult(status=VerificationStatus.APPROVED)], calls)
+
+    pipeline.run(ExtractionInput(product_id="product-1", text_blocks=["테스트 상품"]))
+
+    # 선택 단계는 안 불림
+    assert [call if isinstance(call, str) else call[0] for call in calls] == [
+        "extraction", "tool_execution", "aggregation", "verification"]
+    assert calls[1] == ("tool_execution", saved)

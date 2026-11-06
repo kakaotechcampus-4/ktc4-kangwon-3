@@ -4,6 +4,7 @@ from enum import StrEnum
 from typing import Protocol
 
 from .early_stop import has_no_progress
+from .hooks import StageHook, no_stage_hook
 from ..schemas.agent import ExtractionInput, ToolSelectionResponse
 from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
@@ -154,7 +155,23 @@ class CompliancePipeline:
         aggregator: AggregationStage,
         verifier: VerificationStage,
         max_retry_rounds: int = 3,
+        stage_hook: StageHook = no_stage_hook,
     ) -> None:
+        """단계 다섯 개와 재실행 상한·단계 hook을 받음.
+
+        Args:
+            extractor: 상품 정보 추출 단계.
+            selector: Tool 선택 단계.
+            tool_executor: Tool 실행 단계.
+            aggregator: 결과 종합 단계.
+            verifier: 검증 단계.
+            max_retry_rounds: Tool 재실행 최대 회차.
+            stage_hook: 단계 호출마다 감쌀 hook. 단계 이름·회차를 받음.
+
+        Raises:
+            TypeError: max_retry_rounds가 정수가 아닌 경우.
+            ValueError: max_retry_rounds가 음수인 경우.
+        """
         if isinstance(max_retry_rounds, bool) or not isinstance(
             max_retry_rounds, int
         ):
@@ -167,16 +184,19 @@ class CompliancePipeline:
         self._aggregator = aggregator
         self._verifier = verifier
         self._max_retry_rounds = max_retry_rounds
+        self._hook = stage_hook
 
     def run(self, source: ExtractionInput) -> FinalAssessment:
-        product: Product = self._extractor.run(source)
-        selection: ToolSelectionResponse = self._selector.run(product)
-        selection_result: SelectionResult = self._tool_executor.execute_initial(
-            product,
-            selection,
+        hook = self._hook
+        product: Product = hook("extraction", 0, lambda: self._extractor.run(source))
+        selection: ToolSelectionResponse = hook("selection", 0, lambda: self._selector.run(product))
+        selection_result: SelectionResult = hook(
+            "tool_execution", 0, lambda: self._tool_executor.execute_initial(product, selection),
         )
-        draft: DraftAssessment = self._aggregator.aggregate(product, selection_result)
-        verification: VerificationResult = self._verifier.run(draft)
+        draft: DraftAssessment = hook(
+            "aggregation", 0, lambda: self._aggregator.aggregate(product, selection_result),
+        )
+        verification: VerificationResult = hook("verification", 0, lambda: self._verifier.run(draft))
 
         retry_round = 0
         while True:
@@ -202,13 +222,12 @@ class CompliancePipeline:
                 selection_result,
                 retry_round=retry_round,
             )
-            selection_result = self._tool_executor.execute_retry(
-                product,
-                selection_result,
-                retry_request,
+            selection_result = hook(
+                "tool_execution", retry_round,
+                lambda: self._tool_executor.execute_retry(product, selection_result, retry_request),
             )
-            draft = self._aggregator.aggregate(product, selection_result)
-            verification = self._verifier.run(draft)
+            draft = hook("aggregation", retry_round, lambda: self._aggregator.aggregate(product, selection_result))
+            verification = hook("verification", retry_round, lambda: self._verifier.run(draft))
 
             if has_no_progress(
                 previous_result,
