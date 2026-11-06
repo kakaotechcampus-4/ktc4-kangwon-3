@@ -57,7 +57,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-report
-          path: backend/beforeselling/build/reports/tests/test
+          path: |
+            backend/beforeselling/build/reports/tests/test
+            backend/beforeselling/build/reports/tests/integrationTest
+            backend/beforeselling/build/reports/jacoco
+          retention-days: 7
 
       - name: 빌드 산출물(jar) 업로드
         uses: actions/upload-artifact@v4
