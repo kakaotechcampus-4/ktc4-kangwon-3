@@ -1,13 +1,16 @@
-"""서버 lifespan이 진단 세션 관리자에 BE 콜백 발신함을 연결하는지 확인한다.
+"""서버 기동·종료가 부품을 연결하는지, 운영 부품(production_parts)을 제대로 만드는지 확인한다.
 
-가짜 BE는 httpx.MockTransport. 실제 네트워크 요청은 보내지 않는다.
+연결 확인은 create_app에 가짜 부품을 넣어 띄움 (진단은 고정 더미, BE는 httpx.MockTransport, DB 없음).
+실제 네트워크 요청은 보내지 않는다.
 """
 
+import asyncio
 import json
 import logging
 import threading
 import time
 from datetime import timedelta
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -18,7 +21,7 @@ from app import config, main
 from app.clients.backend import BackendCallbackClient
 from app.diagnosis import build_questions
 from app.agents.base import AgentRunMeta
-from app.dummy import job as dummy_job
+from app.dummy import job as dummy_job, run_case_diagnosis
 from app.observability.agent_sinks import agent_sinks
 from app.observability.logs import APP_LOGGER
 from app.observability.measurements import ClientCall, measurement_sinks
@@ -31,8 +34,6 @@ from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.manager import SessionManager
 
 TOKEN = "test-internal-token-0123456789abcdef"
-# lifespan이 만든 실제 진단 함수의 조립 인자 (부품, 질문 변환)
-_PIPELINE_JOBS: list = []
 _ENV = {
     "OPENAI_API_KEY": "test-key",
     "OPENAI_BASE_URL": "https://mlapi.run/example/v1",
@@ -69,7 +70,7 @@ def _restore_app_logger():
 
 @pytest.fixture
 def fake_be(monkeypatch):
-    """실제 ai/.env·DB 없이 lifespan을 띄우고, 콜백은 가짜 BE로 받는다."""
+    """실제 ai/.env·DB 없이 기동할 설정을 깔고, 가짜 BE가 받은 콜백 요청 목록을 돌려준다."""
     monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
     for name, value in _ENV.items():
         monkeypatch.setenv(name, value)
@@ -79,15 +80,15 @@ def fake_be(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(_dummy, "DUMMY_STAGE_SECONDS", 0)
     monkeypatch.setattr(dummy_job, "STAGE_SECONDS", 0)
-    # 실제 파이프라인 대신 고정 더미 진단 (모델·외부 호출 없음). 조립 인자는 기록
-    monkeypatch.setattr(main, "build_parts", lambda: "pipeline-parts")
-    monkeypatch.setattr(main, "build_job", lambda parts, questions: _PIPELINE_JOBS.append((parts, questions))
-                        or _dummy.run_dummy_diagnosis)
-    _PIPELINE_JOBS.clear()
+    for cached in (config.get_settings, database.get_engine, database.get_session_factory):
+        cached.cache_clear()
+    yield []
     for cached in (config.get_settings, database.get_engine, database.get_session_factory):
         cached.cache_clear()
 
-    received: list[httpx.Request] = []
+
+def _parts(received: list, **overrides) -> main.AppParts:
+    """가짜 부품. 진단은 고정 더미(모델·외부 호출 없음), 콜백은 received에 쌓는 가짜 BE, DB 없음."""
     lock = threading.Lock()
 
     def handler(request):
@@ -95,15 +96,26 @@ def fake_be(monkeypatch):
             received.append(request)
         return httpx.Response(200, json={"code": "OK", "message": "", "data": None})
 
-    monkeypatch.setattr(main, "BackendCallbackClient", lambda base_url, token: BackendCallbackClient(
-        base_url, token, transport=httpx.MockTransport(handler)))
-    yield received
-    for cached in (config.get_settings, database.get_engine, database.get_session_factory):
-        cached.cache_clear()
+    parts = {
+        "pipeline_job": _dummy.run_dummy_diagnosis,
+        "dummy_job": run_case_diagnosis,
+        "callback_sender": BackendCallbackClient("http://be-server:8080", TOKEN,
+                                                 transport=httpx.MockTransport(handler)),
+        "database": None,
+        "session_manager": SessionManager,
+        "sweep_seconds": config.SESSION_SWEEP_SECONDS,
+        "drain_seconds": config.SESSION_DRAIN_SECONDS,
+    }
+    return main.AppParts(**(parts | overrides))
+
+
+def _client(parts: main.AppParts, **kwargs) -> TestClient:
+    """가짜 부품으로 띄울 앱의 클라이언트. with로 열면 기동, 닫으면 종료."""
+    return TestClient(main.create_app(lambda settings: parts), **kwargs)
 
 
 def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_be):
-    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+    with _client(_parts(fake_be), headers={"X-Internal-Token": TOKEN}) as client:
         response = client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
@@ -121,28 +133,21 @@ def test_접수한_상품의_진행과_결과가_BE_콜백으로_나간다(fake_
     assert result["assessment"]["resultStatus"] == "PURCHASING_AGENT_ALLOWED"
 
 
-def test_기동_때_파이프라인_부품을_한_번_만들어_운영·샌드박스_진단_함수로_쓴다(fake_be):
-    with TestClient(main.app):
-        pass
-
-    assert _PIPELINE_JOBS == [("pipeline-parts", build_questions)]
-
-
-def test_운영_경로로_접수한_상품은_실제_진단_함수로_돌고_결과가_BE_콜백으로_나간다(fake_be):
-    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+def test_운영_경로로_접수한_상품은_운영_진단_함수로_돌고_결과가_BE_콜백으로_나간다(fake_be):
+    with _client(_parts(fake_be), headers={"X-Internal-Token": TOKEN}) as client:
         response = client.post("/api/ai/v1/diagnose/content", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
         _wait_until(lambda: any(json.loads(r.content)["eventType"] == "product_result" for r in fake_be))
 
     assert response.status_code == 202
-    # 실제 진단 함수 자리의 고정 더미가 알린 단계가 그대로 콜백으로
+    # 운영 진단 함수 자리의 고정 더미가 알린 단계가 그대로 콜백으로
     events = [json.loads(request.content) for request in fake_be]
     assert next(event["stage"] for event in events if event["eventType"] == "product_progress") == "extraction"
     assert events[-1]["assessment"]["status"] == "completed"
 
 
-def test_서버를_끄면_실행_중_진단이_끝날_때까지_기다리고_결과를_BE_콜백으로_보낸다(fake_be, monkeypatch):
+def test_서버를_끄면_실행_중_진단이_끝날_때까지_기다리고_결과를_BE_콜백으로_보낸다(fake_be):
     started, gate = threading.Event(), threading.Event()
 
     def slow_job(*args):
@@ -150,8 +155,7 @@ def test_서버를_끄면_실행_중_진단이_끝날_때까지_기다리고_결
         gate.wait(timeout=5)
         return _dummy.run_dummy_diagnosis(*args)
 
-    monkeypatch.setattr(main, "build_job", lambda parts, questions: slow_job)
-    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+    with _client(_parts(fake_be, pipeline_job=slow_job), headers={"X-Internal-Token": TOKEN}) as client:
         client.post("/api/ai/v1/diagnose/content", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
@@ -163,7 +167,7 @@ def test_서버를_끄면_실행_중_진단이_끝날_때까지_기다리고_결
     assert events[-1]["eventType"] == "product_result"
 
 
-def test_서버를_끄는_중에도_최대_시간을_넘긴_진단은_시간_초과_실패_콜백으로_끝낸다(fake_be, monkeypatch):
+def test_서버를_끄는_중에도_최대_시간을_넘긴_진단은_시간_초과_실패_콜백으로_끝낸다(fake_be):
     started, gate = threading.Event(), threading.Event()
 
     def stuck_job(*args):
@@ -171,19 +175,18 @@ def test_서버를_끄는_중에도_최대_시간을_넘긴_진단은_시간_초
         gate.wait(timeout=5)
         return _dummy.run_dummy_diagnosis(*args)
 
-    monkeypatch.setattr(main, "build_job", lambda parts, questions: stuck_job)
-    monkeypatch.setattr(main, "SessionManager", lambda store, job: SessionManager(
-        store, job, max_duration=timedelta(seconds=1)))
-    monkeypatch.setattr(main, "SESSION_SWEEP_SECONDS", 0.2)
-    monkeypatch.setattr(main, "SESSION_DRAIN_SECONDS", 3)
-    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+    parts = _parts(
+        fake_be, pipeline_job=stuck_job, sweep_seconds=0.2, drain_seconds=3,
+        session_manager=lambda store, job: SessionManager(store, job, max_duration=timedelta(seconds=1)),
+    )
+    with _client(parts, headers={"X-Internal-Token": TOKEN}) as client:
         client.post("/api/ai/v1/diagnose/content", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
         _wait_until(started.is_set)
         # 접수 1초 뒤 시간 초과. 그보다 늦게 풀어 drain 중에 시간 초과가 나게 함
         threading.Timer(2, gate.set).start()
-        manager = main.app.state.session_manager
+        manager = client.app.state.session_manager
     # 멈춘 진단 스레드가 다음 테스트까지 남지 않게 끝날 때까지 기다림
     gate.set()
     _wait_until(lambda: manager.snapshot().inflight == 0)
@@ -194,11 +197,11 @@ def test_서버를_끄는_중에도_최대_시간을_넘긴_진단은_시간_초
 
 
 def test_운영_경로는_내부_토큰이_없으면_401이고_접수하지_않는다(fake_be):
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         response = client.post("/api/ai/v1/diagnose/content", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
-        session = main.app.state.session_manager.get("p-1")
+        session = client.app.state.session_manager.get("p-1")
 
     assert (response.status_code, response.json()["code"]) == (401, "AI_UNAUTHORIZED")
     assert session is None
@@ -208,12 +211,12 @@ def test_운영_경로는_내부_토큰이_없으면_401이고_접수하지_않�
 def test_더미_경로는_내부_토큰이_없으면_401이고_접수하지_않는다(fake_be):
     # 형식이 틀린 요청도 422보다 401이 먼저 (토큰 없이 요청 형식을 떠보지 못하게)
     path = "/api/ai/v1/dummy/diagnose/content"
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         response = client.post(path, json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
         malformed = client.post(path, json={"diagnosisId": "d-1"})
-        session = main.app.state.session_manager.get("p-1")
+        session = client.app.state.session_manager.get("p-1")
 
     assert (response.status_code, response.json()["code"]) == (401, "AI_UNAUTHORIZED")
     assert malformed.status_code == 401
@@ -227,7 +230,7 @@ def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜�
     monkeypatch.setenv("AI_DEV_API_KEY", key)
     headers = {"X-Dev-Api-Key": key}
 
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         accepted = client.post(
             "/api/ai/v1/sandbox/diagnose", json={"products": [{"textBlocks": ["상품 설명"]}]}, headers=headers,
         )
@@ -247,7 +250,7 @@ def test_샌드박스_진단은_상태_조회로_결과를_보고_BE로는_콜�
 
 
 def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be):
-    with TestClient(main.app, headers={"X-Internal-Token": TOKEN}) as client:
+    with _client(_parts(fake_be), headers={"X-Internal-Token": TOKEN}) as client:
         client.post("/api/ai/v1/dummy/diagnose/content?case=kc_fan", json={
             "diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}],
         })
@@ -260,7 +263,7 @@ def test_지표_경로가_세션_현황과_끝난_세션을_보여준다(fake_be
 
 
 def test_지표_경로에_받은_HTTP_요청이_라우트_템플릿으로_나온다(fake_be):
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         client.get("/api/ai/v1/health")
         text = client.get("/metrics").text
 
@@ -269,7 +272,7 @@ def test_지표_경로에_받은_HTTP_요청이_라우트_템플릿으로_나온
 
 
 def test_지표_경로는_처음_만든_시각_시계열을_내보내지_않는다(fake_be):
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         client.get("/api/ai/v1/health")
         text = client.get("/metrics").text
 
@@ -281,9 +284,9 @@ def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인�
     meta = AgentRunMeta(component="extraction", model="m", elapsed_ms=100)
     sample = {"component": "extraction", "model": "m", "outcome": "ok"}
 
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         agent_sinks.publish(meta, "p-1")
-        registry = main.app.state.metrics_registry
+        registry = client.app.state.metrics_registry
         text = client.get("/metrics").text
     agent_sinks.publish(meta, "p-2")
 
@@ -295,9 +298,9 @@ def test_서버가_떠_있는_동안만_에이전트_호출이_지표에_쌓인�
 def test_서버가_떠_있는_동안만_외부_API_호출이_지표에_쌓인다(fake_be):
     call = ClientCall(api="law", result="ok", seconds=0.1)
 
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         measurement_sinks.publish(call)
-        registry = main.app.state.metrics_registry
+        registry = client.app.state.metrics_registry
         text = client.get("/metrics").text
     measurement_sinks.publish(call)
 
@@ -306,7 +309,7 @@ def test_서버가_떠_있는_동안만_외부_API_호출이_지표에_쌓인다
 
 
 def test_metrics에_콜백_발신함_대기_수가_나온다(fake_be):
-    with TestClient(main.app) as client:
+    with _client(_parts(fake_be)) as client:
         text = client.get("/metrics").text
 
     assert "ai_callback_pending 0.0" in text
@@ -337,41 +340,27 @@ class _Archive:
         self.calls.append(("remove", *product_ids))
 
 
-def _db_ready(monkeypatch, created=(), archive: _Archive | None = None) -> tuple[_LawFetchers, list]:
-    """init_db 성공 상태로 만들고, 법령 점검은 실제 조회 대신 호출만 기록한다. 세션 보관소는 archive(기본: 빈 보관소)."""
-    fetchers = _LawFetchers()
-    refreshed = []
-    monkeypatch.setattr(main, "SessionArchiveDatabase", lambda factory: archive or _Archive(factory))
-    monkeypatch.setattr(main, "init_db", lambda: list(created))
-    monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
-    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: fetchers)
-    monkeypatch.setattr(main, "refresh_laws", lambda f, sources, **kwargs: refreshed.append((f, sources, kwargs)))
-    monkeypatch.setattr(main, "purge_expired_responses", lambda factory, clients: refreshed.append((factory, clients)))
-    # 첫 점검 전 대기(30초) 없이 바로
-    run_law_refresh = main.run_law_refresh
-    monkeypatch.setattr(main, "run_law_refresh", lambda refresh: run_law_refresh(refresh, start_delay=0))
-    return fetchers, refreshed
+def _database(archive: _Archive | None = None, background=(), closed: list | None = None) -> main.AppDatabase:
+    """가짜 DB 부품. 종료 때 정리 호출은 closed에 기록."""
+    return main.AppDatabase(archive=archive or _Archive(), background=background,
+                            close=lambda: closed.append(True) if closed is not None else None)
 
 
-def test_기동_때_DB_테이블을_만들고_새로_만든_테이블을_로그로_남긴다(fake_be, monkeypatch, caplog):
-    _db_ready(monkeypatch, created=["api_response_cache", "hs_cases"])
+def test_DB가_있으면_기동_때_예약_작업을_돌리고_종료_때_취소한_뒤_정리한다(fake_be):
+    started, cancelled, closed = threading.Event(), [], []
 
-    with caplog.at_level("INFO", logger="app.main"), TestClient(main.app):
-        pass
+    async def scheduled():
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.append(True)
+            raise
 
-    assert "DB 준비 완료 (새로 만든 테이블: api_response_cache, hs_cases)" in caplog.text
+    with _client(_parts(fake_be, database=_database(background=(scheduled,), closed=closed))):
+        _wait_until(started.is_set)
 
-
-def test_DB가_준비되면_기동_직후_법령_점검을_돌리고_종료_때_조회_객체를_닫는다(fake_be, monkeypatch):
-    fetchers, refreshed = _db_ready(monkeypatch)
-
-    with TestClient(main.app):
-        _wait_until(lambda: len(refreshed) == 2)
-
-    assert refreshed == [(fetchers, main.LAW_SOURCES,
-                          {"select": main.applied_version, "on_change": main.log_law_changes}),
-                         ("session-factory", ["customs.gw"])]
-    assert fetchers.closed is True
+    assert (cancelled, closed) == ([True], [True])
 
 
 def _saved(product_id: str, status: SessionStatus) -> DiagnosisSession:
@@ -385,14 +374,13 @@ def _saved(product_id: str, status: SessionStatus) -> DiagnosisSession:
                             result=_dummy.build_dummy_assessment(product_id))
 
 
-def test_DB가_준비되면_재시작_전_대기_세션은_같은_runId로_다시_돌고_답변_대기는_되살린다(fake_be, monkeypatch):
+def test_DB가_있으면_재시작_전_대기_세션은_같은_runId로_다시_돌고_답변_대기는_되살린다(fake_be):
     queued, awaiting = _saved("p-1", SessionStatus.ACCEPTED), _saved("p-2", SessionStatus.AWAITING_INPUT)
     archive = _Archive(saved=[queued, awaiting])
-    _db_ready(monkeypatch, archive=archive)
 
-    with TestClient(main.app):
+    with _client(_parts(fake_be, database=_database(archive))) as client:
         _wait_until(lambda: any(json.loads(r.content)["eventType"] == "product_result" for r in fake_be))
-        manager = main.app.state.session_manager
+        manager = client.app.state.session_manager
         restored = manager.get("p-2")
 
     events = [json.loads(request.content) for request in fake_be]
@@ -403,12 +391,11 @@ def test_DB가_준비되면_재시작_전_대기_세션은_같은_runId로_다�
     assert archive.calls[-2:] == [("save", "p-1", "running"), ("remove", "p-1")]
 
 
-def test_DB가_준비되면_재시작_전_실행_중이던_세션은_기동_때_시간_초과_실패_콜백으로_끝낸다(fake_be, monkeypatch):
+def test_DB가_있으면_재시작_전_실행_중이던_세션은_기동_때_시간_초과_실패_콜백으로_끝낸다(fake_be):
     running = _saved("p-1", SessionStatus.RUNNING)
     archive = _Archive(saved=[running])
-    _db_ready(monkeypatch, archive=archive)
 
-    with TestClient(main.app):
+    with _client(_parts(fake_be, database=_database(archive))):
         _wait_until(lambda: fake_be)
 
     [event] = [json.loads(request.content) for request in fake_be]
@@ -418,40 +405,97 @@ def test_DB가_준비되면_재시작_전_실행_중이던_세션은_기동_때_
     assert archive.calls == [("save", "p-1", "running"), ("remove", "p-1")]
 
 
-def test_법령_점검용_조회_객체는_캐시_조회를_측정_기록으로_남기지_않는다(fake_be, monkeypatch):
-    fetchers, refreshed = _db_ready(monkeypatch)
-    options = []
-    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: options.append(kwargs) or fetchers)
+@pytest.fixture
+def production(fake_be, monkeypatch):
+    """운영 부품 만들기의 바깥 연결(파이프라인 조립·DB·법령 조회)을 기록용으로 바꿈.
 
-    with TestClient(main.app):
-        _wait_until(lambda: len(refreshed) == 2)
+    Returns:
+        SimpleNamespace: build(설정으로 운영 부품을 만들고 콜백 전송을 닫음), jobs(파이프라인 조립 인자),
+            fetchers(법령 조회), refreshed(법령 점검·캐시 정리 호출), law_options(법령 조회 생성 옵션).
+    """
+    recorded = SimpleNamespace(jobs=[], fetchers=_LawFetchers(), refreshed=[], law_options=[], refresh=[])
+    monkeypatch.setattr(main, "build_parts", lambda: "pipeline-parts")
+    monkeypatch.setattr(main, "build_job", lambda parts, questions: recorded.jobs.append((parts, questions))
+                        or _dummy.run_dummy_diagnosis)
+    monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
+    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: recorded.law_options.append(kwargs)
+                        or recorded.fetchers)
+    monkeypatch.setattr(main, "refresh_laws",
+                        lambda f, sources, **kwargs: recorded.refreshed.append((f, sources, kwargs)))
+    monkeypatch.setattr(main, "purge_expired_responses",
+                        lambda factory, clients: recorded.refreshed.append((factory, clients)))
+    # 예약 작업은 돌리지 않고 넘긴 점검 함수만 받아 둠
+    monkeypatch.setattr(main, "run_law_refresh", recorded.refresh.append)
+    monkeypatch.setattr(main, "SessionArchiveDatabase", _Archive)
 
-    assert options == [{"measure": False}]
+    def build() -> main.AppParts:
+        parts = main.production_parts(config.get_settings())
+        parts.callback_sender.close()
+        return parts
+
+    recorded.build = build
+    return recorded
 
 
-def test_DB가_없으면_법령_점검을_돌리지_않는다(fake_be, monkeypatch):
-    built = []
-    monkeypatch.setattr(main, "build_law_fetchers", lambda *args: built.append(args))
-
-    with TestClient(main.app):
-        pass
-
-    assert built == []
+def _init_db(monkeypatch, created=()) -> None:
+    monkeypatch.setattr(main, "init_db", lambda: list(created))
 
 
-def test_DATABASE_URL이_없으면_DB_없이_기동한다(fake_be, caplog):
-    with caplog.at_level("WARNING", logger="app.main"), TestClient(main.app) as client:
-        assert client.get("/api/ai/v1/health").status_code == 200
+def test_운영_부품은_파이프라인을_한_번_조립해_운영_진단_함수로_쓴다(production):
+    production.build()
 
+    assert production.jobs == [("pipeline-parts", build_questions)]
+
+
+def test_운영_부품은_DB_테이블을_만들고_새로_만든_테이블을_로그로_남긴다(production, monkeypatch, caplog):
+    _init_db(monkeypatch, created=["api_response_cache", "hs_cases"])
+
+    with caplog.at_level("INFO", logger="app.main"):
+        parts = production.build()
+
+    assert "DB 준비 완료 (새로 만든 테이블: api_response_cache, hs_cases)" in caplog.text
+    assert parts.database is not None
+
+
+def test_운영_부품의_법령_점검은_근거_문서를_받고_캐시를_정리하며_정리_때_조회_객체를_닫는다(production, monkeypatch):
+    _init_db(monkeypatch)
+    database = production.build().database
+
+    database.background[0]()
+    [refresh] = production.refresh
+    refresh()
+    database.close()
+
+    assert production.refreshed == [(production.fetchers, main.LAW_SOURCES,
+                                     {"select": main.applied_version, "on_change": main.log_law_changes}),
+                                    ("session-factory", ["customs.gw"])]
+    assert production.fetchers.closed is True
+
+
+def test_법령_점검용_조회_객체는_캐시_조회를_측정_기록으로_남기지_않는다(production, monkeypatch):
+    _init_db(monkeypatch)
+
+    production.build()
+
+    assert production.law_options == [{"measure": False}]
+
+
+def test_DATABASE_URL이_없으면_DB_부품_없이_만들고_법령_조회도_만들지_않는다(production, caplog):
+    with caplog.at_level("WARNING", logger="app.main"):
+        parts = production.build()
+
+    assert parts.database is None
+    assert production.law_options == []
     assert "DATABASE_URL 미설정" in caplog.text
 
 
-def test_DB_준비에_실패해도_경고만_남기고_기동한다(fake_be, monkeypatch, caplog):
+def test_DB_준비에_실패해도_경고만_남기고_DB_부품_없이_만든다(production, monkeypatch, caplog):
     def fail():
         raise OperationalError("connect", {}, ConnectionRefusedError("거부됨"))
     monkeypatch.setattr(main, "init_db", fail)
 
-    with caplog.at_level("WARNING", logger="app.main"), TestClient(main.app) as client:
-        assert client.get("/api/ai/v1/health").status_code == 200
+    with caplog.at_level("WARNING", logger="app.main"):
+        parts = production.build()
 
+    assert parts.database is None
     assert "DB 준비 실패" in caplog.text
