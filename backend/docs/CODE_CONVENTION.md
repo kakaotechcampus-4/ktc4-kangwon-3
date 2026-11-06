@@ -222,7 +222,7 @@ JUnit 5의 `@DisplayName` 애너테이션을 적극 활용합니다.
 ## 3. 커스텀 에러 코드 (⚠️)
 
 - 도메인별로 유사한 에러 코드를 중복 생성하지 않고, `global/common/CommonResponseCode` 단일 공통 Enum을 기준으로 사용합니다.
-- 단순 상태 코드는 공통 코드를 재사용하며, 상황별 상세 안내가 필요한 경우 `BaseException` 생성자에 커스텀 메시지를 전달하여 동적으로 오버라이딩합니다.
+- 단순 상태 코드는 공통 코드를 재사용합니다. `BaseException`은 응답 코드(`BaseResponseCode`)만 받으므로, 다른 안내 문구가 필요하면 그 문구를 가진 응답 코드를 추가합니다.
 - **트레일링 콤마(Trailing Comma)**: 새로운 예외 추가 시 Git 변경 내역에 추가된 줄만 깔끔하게 인식되도록 마지막 항목에도 콤마(`,`)를 사용합니다.
 - 클라이언트(프론트엔드)에서 특정 에러 코드 기반 분기 처리(예: 토큰 만료 재발급, 닉네임 중복 체크 등)가 반드시 필요한 특수 케이스에 한해서만 도메인별 별도 코드를 추가합니다.
 
@@ -247,7 +247,6 @@ public enum CommonResponseCode implements BaseResponseCode {
 ```java
 public enum FileResponseCode implements BaseResponseCode {
     NOT_SUPPORTED_EXTENSION(HttpStatus.BAD_REQUEST, "FILE-001", "지원되지 않는 파일 확장자입니다."),
-    NOT_FOUND_S3_FILE(HttpStatus.NOT_FOUND, "FILE-002", "업로드된 문서가 아닙니다."),
     EXCEED_FILE_SIZE(HttpStatus.BAD_REQUEST, "FILE-003", "파일 크기가 허용 용량을 초과했습니다."),
     ;
 
@@ -270,7 +269,7 @@ public enum FileResponseCode implements BaseResponseCode {
 
 - Request DTO 필드에 `jakarta.validation.constraints`(`@NotBlank`, `@Size`, `@Min`, `@Max` 등)를 붙이고, 컨트롤러 파라미터에 `@Valid`를 명시합니다.
 - 검증 실패는 별도 에러 코드를 만들 필요 없이 `GlobalExceptionHandler`가 자동으로 `COMMON-002`(`올바르지 않은 요청 형식입니다.`) + `details`(필드별 오류 배열)로 응답합니다.
-- 각 필드에 어떤 제약 조건이 걸려있는지는 Swagger 요청 스키마에 자동으로 반영되므로(별도 설정/`@Schema` 불필요), 프론트엔드에는 `/error-codes` 페이지 대신 Swagger UI를 안내합니다. 자세한 응답 형식은 [`/error-codes` 페이지](/error-codes)의 "에러 응답 형식" 섹션을 참고합니다.
+- 각 필드에 어떤 제약 조건이 걸려있는지는 Swagger 요청 스키마에 자동으로 반영되므로(별도 설정/`@Schema` 불필요), 프론트엔드에는 `/error-codes` 페이지 대신 Swagger UI를 안내합니다.
 
 ```java
 public record SignUpRequest(
@@ -292,7 +291,7 @@ public ResponseEntity<ApiResponse<Void>> signUp(@Valid @RequestBody SignUpReques
 
 ## 4. Swagger 명시
 
-운영코드와 API 명세를 분리하기 위해 별도 인터페이스를 정의한 후 컨트롤러에서 해당 인터페이스를 구현하는 방식으로 작성한다.
+운영코드와 API 명세를 분리하기 위해 별도 인터페이스를 정의한 후 컨트롤러에서 해당 인터페이스를 구현하는 방식으로 작성합니다.
 
 인터페이스 작성
 ```java
@@ -339,7 +338,7 @@ public interface AuthApi {
   - `exceptionCode`: 에러 코드가 정의된 Enum 클래스 (`CommonResponseCode.class`, `AuthResponseCode.class` 등).
   - `name`: 해당 Enum 상수명. 오타 등으로 존재하지 않는 상수를 참조하면 애플리케이션 기동 시(Swagger 문서 생성 시점) `IllegalArgumentException발생`
   - 같은 HTTP 상태 코드에 원인이 여러 개인 경우(예: 401에 인증 없음/토큰 만료/토큰 무효), `@ApiErrorResponseExplanation`을 여러 개 나열하면 Swagger 응답에 예시가 각각 named example로 함께 표시됩니다.
-- **공통 인증 에러(자동 추가)**: `@SecurityRequirements`(빈 값)로 공개 처리하지 않은 모든 API는 전역 `bearerAuth`를 상속하며, 이 경우 `COMMON-004`(인증 없음)/`AUTH-001`(액세스 토큰 만료)/`AUTH-002`(액세스 토큰 무효) 3가지 401 예시가 `ApiErrorResponseHandler`에 의해 자동으로 추가됩니다. 인증이 필요한 API라면 이 3가지를 `@ApiErrorResponseExplanation`으로 직접 선언할 필요가 없습니다.
+- **공통 인증 에러(자동 추가)**: `@SecurityRequirements`(빈 값)로 공개 처리하지 않은 모든 API는 전역 `bearerAuth`를 상속하며, 이 경우 `COMMON-004`(인증 없음)/`AUTH-001`(액세스 토큰 만료)/`AUTH-002`(액세스 토큰 무효) 401 예시 3가지와 `COMMON-011`(요청 한도 초과, `Retry-After` 헤더 포함) 429 예시가 `ApiErrorResponseHandler`에 의해 자동으로 추가됩니다. 인증이 필요한 API라면 이 4가지를 `@ApiErrorResponseExplanation`으로 직접 선언할 필요가 없습니다.
 
 #### 신규 API/에러 코드 작성 규칙
 
