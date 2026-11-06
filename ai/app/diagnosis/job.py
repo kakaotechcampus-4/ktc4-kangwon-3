@@ -196,9 +196,21 @@ class _ReportingTool:
             self._progress.tool(self.tool_name, "completed")
 
 
+# 로그에 남길 감싼 원인의 최대 단계 (Tool 오류 ← 조회 오류 ← HTTP 오류 정도면 충분)
+_MAX_ERROR_CAUSES = 4
+
+
 def _error_text(exc: BaseException) -> str:
-    """로그용 예외 설명. 메시지 속 URL의 키는 가림."""
-    return mask_sensitive_params(f"{type(exc).__name__}: {exc}")
+    """로그용 예외 설명. 감싼 원인(__cause__)까지 ← 로 이어 붙이고, 메시지 속 URL의 키는 가림.
+
+    Tool은 외부 조회 오류를 공통 Tool 예외로 감싸므로 바깥 문장만으로는 실패 원인을 알 수 없다.
+    """
+    parts: list[str] = []
+    current: BaseException | None = exc
+    while current is not None and len(parts) <= _MAX_ERROR_CAUSES:
+        parts.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__
+    return mask_sensitive_params(" ← ".join(parts))
 
 
 class _ToolExecution:

@@ -71,7 +71,7 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | `입력 확인 실패, 확인 없이 진단` | WARNING | `diagnosis/guard.py` |
 | `모델 호출 {이름} (모델, 시간, 토큰, 비용)` | INFO | `agents/base/usage_log.py` |
 | `모델 호출 실패 {이름} (...)` | WARNING | `agents/base/usage_log.py` |
-| `Tool 실행 실패 {Tool}: {원인}` | WARNING·ERROR | `diagnosis/job.py` |
+| `Tool 실행 실패 {Tool}: {원인} ← {감싼 원인}…` | WARNING·ERROR | `diagnosis/job.py` |
 | `결정사례 검색어 실패 '{검색어}': {원인}` | WARNING | `tools/customs/search.py` |
 | `진단 단계 실패 (stage, code, retryable): {원인}` | WARNING | `diagnosis/job.py` |
 | `질문 회차 초과로 미완료 처리` | INFO | `sessions/manager/runner.py` |
