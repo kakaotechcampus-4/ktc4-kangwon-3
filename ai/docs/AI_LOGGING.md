@@ -46,7 +46,7 @@ AI 서버가 남기는 앱 로그의 설정·형식·레벨 기준과 서버에�
 | INFO | 진단 흐름의 주요 지점. 상품 하나에 수십 줄 이내 | 접수, 시작, 모델 호출, 요약 |
 | DEBUG | 문제 볼 때만 | 토큰 사용량 상세(캐시 쓰기·적중률), 게이트웨이 원본 usage, 콜백 중간 재시도 |
 
-- 예외 메시지 속 키(`serviceKey=`·`OC=`)는 URL 쿼리가 아니어도 `mask_sensitive_params()`로 가림
+- 예외 메시지 속 키는 `mask_sensitive_params()`로 가림. `serviceKey=`는 URL 쿼리가 아니어도, `OC=`는 쿼리일 때만(문장 속 `OC=`는 과전류 표기와 겹침)
 - 상품 원문·모델 응답 원문·진단서 본문은 남기지 않음
 
 ## 4. 진단 하나에 남는 주요 줄
@@ -166,7 +166,7 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 | IP·쿠키 | `send_default_pii=False` |
 | 오류 위치별 지역 변수 | `include_local_variables=False`. 요청 헤더·상품 원문·키가 든 URL이 그대로 실림 |
 | 내부 인증 헤더 (`X-Internal-Token`·`X-Dev-Api-Key`) | 보내기 직전 뺌. `Authorization`·`Cookie`는 SDK가 가림 |
-| 키 (`serviceKey=`·`OC=`, URL 쿼리 밖 포함) | 예외 메시지, 로그 문구·인자·`extra`(이벤트·로그 둘 다), 흐름 기록(외부 호출의 `url`·`http.query` 포함)에서 `***`로 가림 |
+| 키 (`serviceKey=`는 URL 쿼리 밖 포함, `OC=`는 쿼리만) | 예외 메시지, 로그 문구·인자·`extra`(이벤트·로그 둘 다), 흐름 기록(외부 호출의 `url`·`http.query` 포함)에서 `***`로 가림 |
 
 - 예외 메시지 속 상품 원문은 가리지 않음 (검증 오류 메시지에 입력값이 들어가는 경우 등). 메시지를 지우면 원인을 못 봄
 - 오류 위치 주변 소스 줄은 감 (코드라 비밀값 없음)
