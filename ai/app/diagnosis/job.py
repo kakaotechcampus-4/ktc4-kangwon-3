@@ -19,17 +19,15 @@ from ..observability.trace import current_trace, trace_finish
 from ..pipeline.hooks import StageHook, chain_stage_hooks, chain_tool_hooks
 from ..pipeline.runner import CompliancePipeline
 from ..pipeline.tool_executor import ToolExecutor
-from ..schemas.agent import ExtractionInput
 from ..schemas.callback import PublicQuestionDto
-from ..schemas.product import Product
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
-from .answers import with_answers
 from .assembly import PipelineParts
 from .progress import ProgressStageHook, ProgressToolHook
 from .replay import ReplaySkipHook, ReplayStopHook, StageReplay
 from .run_log import error_text, log_tool_failure, mark_retry_round
+from .stages import JobInputExtraction
 from .tracing import TraceStageHook
 
 logger = logging.getLogger(__name__)
@@ -59,7 +57,7 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
             tool_hook=chain_tool_hooks(ProgressToolHook(progress), log_tool_failure),
         )
         pipeline = CompliancePipeline(
-            extractor=_Extraction(parts, job_input),
+            extractor=JobInputExtraction(parts.extraction, job_input),
             selector=parts.selector,
             tool_executor=executor,
             aggregator=parts.aggregator,
@@ -132,18 +130,3 @@ def _stage_failure(exc: AIServiceError | VerificationError) -> AIServiceError:
 def _next_round(job_input: DiagnosisInput) -> int:
     """이번 실행이 질문하면 쓸 회차. 답한 마지막 회차 다음."""
     return max((answer.question_round for answer in job_input.answers), default=0) + 1
-
-
-class _Extraction:
-    """추출 자리. 파이프라인이 넘기는 원래 입력 대신 실행 입력 전체로 추출 단계를 부름.
-
-    재진단이면 이전 추출 결과에 이번 회차 답변을 붙여 선택 단계부터 다시 돎.
-    다시 실행에서 저장한 추출 결과를 쓰면 이 자리는 안 불림 (저장한 결과엔 답변이 이미 붙어 있음).
-    """
-
-    def __init__(self, parts: PipelineParts, job_input: DiagnosisInput) -> None:
-        self._step = parts.extraction
-        self._job_input = job_input
-
-    def run(self, source: ExtractionInput) -> Product:
-        return with_answers(self._step.run(self._job_input), self._job_input)

@@ -126,16 +126,6 @@ def test_단계마다_진행_알림을_보내고_재실행_회차도_다시_알�
     ]
 
 
-def test_추출은_원래_입력이_아니라_실행_입력_전체로_부른다(pipeline):
-    calls = []
-    job_input = DiagnosisInput(source=SOURCE, previous=_result(), answers=[
-        SessionAnswer(question_round=1, question_key="r1_q1", answer_text="네")])
-
-    build_job(_parts(calls), _no_questions)(job_input, CONTEXT, _Progress())
-
-    assert calls[0] == ("extract", (job_input,))
-
-
 def test_재진단은_추출_결과에_이번_회차_답변을_붙여_선택_단계로_넘긴다(pipeline):
     calls = []
     parts = _parts(calls)
