@@ -1,5 +1,6 @@
 """외부 통신 클라이언트 공통 베이스(연결)와 공통 도구(키 가리기)를 검증한다."""
 
+import json
 import socket
 import sys
 
@@ -78,3 +79,11 @@ def test_mask_sensitive_params는_키_값만_대소문자_구분_없이_가린�
 ])
 def test_mask_sensitive_params는_URL_쿼리_밖의_키도_가리되_다른_이름에_붙은_것은_두다(text, expected):
     assert mask_sensitive_params(text) == expected
+
+
+def test_mask_sensitive_params는_JSON_문자열의_이스케이프를_깨지_않는다():
+    text = json.dumps({"url": "https://x.kr/a?serviceKey=k1", "note": 'OC="k2" 참고'}, ensure_ascii=False)
+
+    masked = json.loads(mask_sensitive_params(text))
+
+    assert masked["url"] == "https://x.kr/a?serviceKey=***"

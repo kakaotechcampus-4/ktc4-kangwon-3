@@ -8,7 +8,8 @@ from functools import lru_cache
 import httpx
 
 # data.go.kr serviceKey, 법제처 OC. URL 쿼리 밖(문장 속 OC=키)도 가림, 영문·숫자에 붙은 이름(ROC=)은 제외
-_SENSITIVE_PARAM_RE = re.compile(r"((?<![A-Za-z0-9_])(?:serviceKey|OC)=)[^&\s'\"]+", re.IGNORECASE)
+# 값에서 백슬래시 제외 (JSON 속 \" 를 먹으면 JSON이 깨짐)
+_SENSITIVE_PARAM_RE = re.compile(r"((?<![A-Za-z0-9_])(?:serviceKey|OC)=)[^&\s'\"\\]+", re.IGNORECASE)
 
 # 응답 없는 연결을 OS가 끊기까지의 상한(초). langchain-openai 기본값과 같음
 DEAD_CONNECTION_SECONDS = 120
