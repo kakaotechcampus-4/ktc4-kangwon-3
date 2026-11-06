@@ -32,6 +32,7 @@ from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.manager import SessionManager
+from app.startup import parts as startup
 
 TOKEN = "test-internal-token-0123456789abcdef"
 _ENV = {
@@ -87,7 +88,7 @@ def fake_be(monkeypatch):
         cached.cache_clear()
 
 
-def _parts(received: list, **overrides) -> main.AppParts:
+def _parts(received: list, **overrides) -> startup.AppParts:
     """가짜 부품. 진단은 고정 더미(모델·외부 호출 없음), 콜백은 received에 쌓는 가짜 BE, DB 없음."""
     lock = threading.Lock()
 
@@ -106,10 +107,10 @@ def _parts(received: list, **overrides) -> main.AppParts:
         "sweep_seconds": config.SESSION_SWEEP_SECONDS,
         "drain_seconds": config.SESSION_DRAIN_SECONDS,
     }
-    return main.AppParts(**(parts | overrides))
+    return startup.AppParts(**(parts | overrides))
 
 
-def _client(parts: main.AppParts, **kwargs) -> TestClient:
+def _client(parts: startup.AppParts, **kwargs) -> TestClient:
     """가짜 부품으로 띄울 앱의 클라이언트. with로 열면 기동, 닫으면 종료."""
     return TestClient(main.create_app(lambda settings: parts), **kwargs)
 
@@ -340,9 +341,9 @@ class _Archive:
         self.calls.append(("remove", *product_ids))
 
 
-def _database(archive: _Archive | None = None, background=(), closed: list | None = None) -> main.AppDatabase:
+def _database(archive: _Archive | None = None, background=(), closed: list | None = None) -> startup.AppDatabase:
     """가짜 DB 부품. 종료 때 정리 호출은 closed에 기록."""
-    return main.AppDatabase(archive=archive or _Archive(), background=background,
+    return startup.AppDatabase(archive=archive or _Archive(), background=background,
                             close=lambda: closed.append(True) if closed is not None else None)
 
 
@@ -414,22 +415,22 @@ def production(fake_be, monkeypatch):
             fetchers(법령 조회), refreshed(법령 점검·캐시 정리 호출), law_options(법령 조회 생성 옵션).
     """
     recorded = SimpleNamespace(jobs=[], fetchers=_LawFetchers(), refreshed=[], law_options=[], refresh=[])
-    monkeypatch.setattr(main, "build_parts", lambda: "pipeline-parts")
-    monkeypatch.setattr(main, "build_job", lambda parts, questions: recorded.jobs.append((parts, questions))
+    monkeypatch.setattr(startup,"build_parts", lambda: "pipeline-parts")
+    monkeypatch.setattr(startup,"build_job", lambda parts, questions: recorded.jobs.append((parts, questions))
                         or _dummy.run_dummy_diagnosis)
-    monkeypatch.setattr(main, "get_session_factory", lambda: "session-factory")
-    monkeypatch.setattr(main, "build_law_fetchers", lambda oc, factory, **kwargs: recorded.law_options.append(kwargs)
+    monkeypatch.setattr(startup,"get_session_factory", lambda: "session-factory")
+    monkeypatch.setattr(startup,"build_law_fetchers", lambda oc, factory, **kwargs: recorded.law_options.append(kwargs)
                         or recorded.fetchers)
-    monkeypatch.setattr(main, "refresh_laws",
+    monkeypatch.setattr(startup,"refresh_laws",
                         lambda f, sources, **kwargs: recorded.refreshed.append((f, sources, kwargs)))
-    monkeypatch.setattr(main, "purge_expired_responses",
+    monkeypatch.setattr(startup,"purge_expired_responses",
                         lambda factory, clients: recorded.refreshed.append((factory, clients)))
     # 예약 작업은 돌리지 않고 넘긴 점검 함수만 받아 둠
-    monkeypatch.setattr(main, "run_law_refresh", recorded.refresh.append)
-    monkeypatch.setattr(main, "SessionArchiveDatabase", _Archive)
+    monkeypatch.setattr(startup,"run_law_refresh", recorded.refresh.append)
+    monkeypatch.setattr(startup,"SessionArchiveDatabase", _Archive)
 
-    def build() -> main.AppParts:
-        parts = main.production_parts(config.get_settings())
+    def build() -> startup.AppParts:
+        parts = startup.production_parts(config.get_settings())
         parts.callback_sender.close()
         return parts
 
@@ -438,7 +439,7 @@ def production(fake_be, monkeypatch):
 
 
 def _init_db(monkeypatch, created=()) -> None:
-    monkeypatch.setattr(main, "init_db", lambda: list(created))
+    monkeypatch.setattr(startup,"init_db", lambda: list(created))
 
 
 def test_운영_부품은_파이프라인을_한_번_조립해_운영_진단_함수로_쓴다(production):
@@ -450,7 +451,7 @@ def test_운영_부품은_파이프라인을_한_번_조립해_운영_진단_함
 def test_운영_부품은_DB_테이블을_만들고_새로_만든_테이블을_로그로_남긴다(production, monkeypatch, caplog):
     _init_db(monkeypatch, created=["api_response_cache", "hs_cases"])
 
-    with caplog.at_level("INFO", logger="app.main"):
+    with caplog.at_level("INFO", logger="app.startup.parts"):
         parts = production.build()
 
     assert "DB 준비 완료 (새로 만든 테이블: api_response_cache, hs_cases)" in caplog.text
@@ -466,8 +467,8 @@ def test_운영_부품의_법령_점검은_근거_문서를_받고_캐시를_정
     refresh()
     database.close()
 
-    assert production.refreshed == [(production.fetchers, main.LAW_SOURCES,
-                                     {"select": main.applied_version, "on_change": main.log_law_changes}),
+    assert production.refreshed == [(production.fetchers, startup.LAW_SOURCES,
+                                     {"select": startup.applied_version, "on_change": startup.log_law_changes}),
                                     ("session-factory", ["customs.gw"])]
     assert production.fetchers.closed is True
 
@@ -481,7 +482,7 @@ def test_법령_점검용_조회_객체는_캐시_조회를_측정_기록으로_
 
 
 def test_DATABASE_URL이_없으면_DB_부품_없이_만들고_법령_조회도_만들지_않는다(production, caplog):
-    with caplog.at_level("WARNING", logger="app.main"):
+    with caplog.at_level("WARNING", logger="app.startup.parts"):
         parts = production.build()
 
     assert parts.database is None
@@ -492,9 +493,9 @@ def test_DATABASE_URL이_없으면_DB_부품_없이_만들고_법령_조회도_�
 def test_DB_준비에_실패해도_경고만_남기고_DB_부품_없이_만든다(production, monkeypatch, caplog):
     def fail():
         raise OperationalError("connect", {}, ConnectionRefusedError("거부됨"))
-    monkeypatch.setattr(main, "init_db", fail)
+    monkeypatch.setattr(startup,"init_db", fail)
 
-    with caplog.at_level("WARNING", logger="app.main"):
+    with caplog.at_level("WARNING", logger="app.startup.parts"):
         parts = production.build()
 
     assert parts.database is None

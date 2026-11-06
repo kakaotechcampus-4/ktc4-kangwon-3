@@ -11,7 +11,7 @@ AI 서버가 `GET /metrics`로 내보내는 Prometheus 지표와 어디서 재�
   - 측정 기록: `measurement_sinks`(`app/observability/measurements.py`) → `MeasurementMetrics`. 에이전트 실행 기록은 `agent_sinks` → `AgentMetrics`
 - 현황 값(세션 수·자리·콜백 대기 수)은 수집(scrape) 때마다 읽음 (`SessionSnapshotCollector`, `CallbackOutboxCollector`)
 - sink 오류는 오류 로그(ERROR)만 남기고 기록을 남긴 쪽 동작에 영향 없음
-- Counter·Histogram의 `_created`(처음 만든 시각) 시계열은 내보내지 않음 (`main.py`의 `disable_created_metrics()`)
+- Counter·Histogram의 `_created`(처음 만든 시각) 시계열은 내보내지 않음 (`startup/lifespan.py`의 `disable_created_metrics()`)
 - 값이 정해진 라벨 조합(세션 결말·단계, 콜백 결과·버린 사유, Tool 상태·실패 원인, 판매자 구역 자르기, 외부 API 결과, 캐시 조회, 정기 작업 결과)은 처음부터 0으로 만들어 둠. 처음 기록될 때 생기면 `increase()`·`rate()`가 첫 기록을 못 셈
 - 서버에서는 모니터링 스택(`infra/monitoring`)의 Prometheus가 `be-ai-net`으로 `ai-server:8000/metrics`를 15초마다 수집 (job `ai-app`)
 - Grafana 대시보드는 "AI 서버 개요" (`infra/monitoring/grafana/dashboards/ai-overview.json`). 모델 호출·Tool·외부 API·콜백·캐시 지표엔 `run_type`이 없어 실행 종류 선택이 세션 지표에만 먹음
