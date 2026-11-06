@@ -1,0 +1,41 @@
+{
+  "fixture": "holdout_06/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "플라스틱 미니 데스크탑 쓰레기통(알리). 통관 외에는 거의 해당이 없고, 스펙 '친환경' 속성이 표시광고 근거인지 보는 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(알리익스프레스, 원산지 중국)",
+      "why_not_other": "통관은 해외 직구 수입품이면 사실상 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '스마트 기기 여부: no'(171~172행), '재료: 플라스틱', '스타일: 프레스 유형'(177~182행)",
+      "why_not_other": "비전자 수납 용품으로 확인되어 무선과 무관하다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "스펙표 '유형: 스토리지 버킷', 'Model Number: Waste Bin'(179~188행)",
+      "why_not_other": "쓰레기통이라 음식 접촉·의료·미용 용도가 아니다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '스마트 기기 여부: no', '재료: 플라스틱', 누름식(프레스 유형)(171~182행)",
+      "why_not_other": "전기 구동·전지·발열이 없는 비전자 제품으로 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없음. 제목 '사무용품 쓰레기통', '거실 화장실'(10행)",
+      "why_not_other": "어린이 대상 표기가 없고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "스펙표 '특징: 친환경, 재고 보유'(173~174행)",
+      "why_not_other": "'친환경' 한 단어는 다섯 유형에 들지 않는다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: 표시광고는 스펙 속성 '친환경' 한 단어뿐이고 기준 5개 유형에 환경성 표방이 없어 false. 상세 이미지는 로딩 자리 표시(img_01)뿐이다. [기준3: labeling_advertising_detection True→False]"
+}

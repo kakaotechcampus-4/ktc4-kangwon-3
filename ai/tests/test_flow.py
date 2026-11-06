@@ -58,6 +58,8 @@ class _Agents:
         self.guard = guard
         self.extracted: list = []
         self.executed: list[ToolName] = []
+        # Tool이 받은 상품 정보 (실행 순서대로)
+        self.received: list[Product] = []
 
     def run(self, source) -> Product:
         """추출 에이전트 자리."""
@@ -77,6 +79,7 @@ class _Agents:
 
             def execute(self, product, decision):
                 agents.executed.append(name)
+                agents.received.append(product)
                 if name in agents.failing:
                     raise RuntimeError("가짜 조회 실패")
                 return ToolResult(tool_name=name, status=ToolStatus.SUCCESS, selected=True,
@@ -206,6 +209,10 @@ def test_답변이_필요하면_질문_콜백으로_멈추고_답변을_받으�
     assert resumed[-1]["eventType"] == "product_result"
     # 재진단은 이전 추출 결과를 그대로 씀
     assert len(agents.extracted) == 1
+    # 재진단 Tool은 답변 줄이 붙은 상품 정보를 받음 (첫 실행엔 없음)
+    first, resumed_product = agents.received
+    assert first.listing_text == []
+    assert resumed_product.listing_text == ["[사용자 답변] 몇 세 이상이 쓰는 제품인가요? → 3세 이상"]
 
 
 def test_입력_가드가_차단하면_파이프라인을_돌지_않고_검토_표시가_붙은_일반_실패로_끝난다():

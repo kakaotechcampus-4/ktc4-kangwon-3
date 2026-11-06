@@ -1,0 +1,42 @@
+{
+  "fixture": "strat_09/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 AlsoWay 티크 엔드 그레인 나무 도마(S·L). 식품 접촉으로 식약을 고르고, 나무(식물성 소재)라 통관에서 검역도 본다. 비전자 제품이다. 설명 글의 '다양한 주방 작업에 완벽합니다'로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 190~191행), '재료: wood'(원문 182~183행). 식물성 소재라 검역 확인도 필요하다",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: wood', '유형: 도마'(원문 182~183·192~193행), 이미지 나무 도마뿐(img_01~09)",
+      "why_not_other": "비전자 나무 도마로 구성이 확인된다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '커팅 보드(주방용) … 고기용 나무 샤퀴테리 보드'(원문 10행), 스펙표 '유형: 도마'(원문 192~193행), 이미지 음식을 올리고 써는 장면(img_01·02·06~08)",
+      "why_not_other": "식품에 직접 닿는 조리 기구다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: wood'(원문 182~183행), 이미지 'anti slip foot pads'(img_05) 외 부품 없음",
+      "why_not_other": "전원·전지 요소가 없는 나무 도마다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표에 연령 표기 없음, 이미지 사용자 성인 손(img_01·06·08)",
+      "why_not_other": "어린이 대상 문구가 없고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "description '다양한 주방 작업에 완벽합니다'(description.txt 2행), '도마가 완벽한 상태로 도착하도록 보장'(description.txt 6행), '내구성과 장수성을 자랑합니다'(description.txt 1행), 이미지 'High appearance and worry free pairing'(img_08)",
+      "why_not_other": "'완벽'은 프롬프트가 든 절대적 표현이다. AI 요약의 '식품 접촉에 안전한 소재 … 보장'(원문 30행)은 근거로 쓰지 않았다.",
+      "image_only": true
+    }
+  },
+  "notes": "표시광고 근거가 text.txt가 아닌 description.txt(알리 설명 글)에 있다."
+}

@@ -1,0 +1,40 @@
+{
+  "fixture": "strat_36/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "Temu 일본 스타일 나무 수프 스푼(밝은색·어두운색 3/6개). 음식에 닿는 식기라 식약을 고르고, 목재 비전자 제품이라 전파·전기는 해당 없다. 제목은 용도 나열, 이미지 문구도 'Smooth and smooth'·'comfortable to hold' 정도라 표시광고 근거가 없다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "Temu 해외 직구 상품(104행 '관세 등을 포함')",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 목재'(86~87행). 이미지(img_01~04)는 나무 스푼뿐",
+      "why_not_other": "전원부 없는 나무 식기라 무선 통신·무선충전·전파 차폐 근거가 없다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '나무 수프 스푼 식기 스푼 원목 식사 수프 스푼 … 꿀 스푼'(96행), 카테고리 '다이닝&엔터테인먼트'(41행). 이미지 파스타 병에 꽂힌 스푼(img_04)",
+      "why_not_other": "입과 음식에 직접 닿는 식기다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 목재'(86~87행). 전원·전지·전압 표기 없음",
+      "why_not_other": "나무 식기로 구성이 확인되는 비전자 제품이다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표에 연령·어린이 표기 없음. 이미지 속 사용자는 성인 손(img_03)",
+      "why_not_other": "어린이 대상 표기·연령이 없고 학용품·완구도 아닌 범용 제품이라 고르지 않는다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '일본 스타일 나무 스푼 가정용 … 휴대용 경량 나무 스푼 꿀 스푼'(96행)은 용도·형태 나열. 이미지 'Smooth and smooth', 'Two-color optional'(img_02), 'One-piece molding, comfortable to hold'(img_03)",
+      "why_not_other": "효능·최상급·인증·의료·과장 수치 표현이 없다. '경량'·'편하게 쥔다'는 사용감 설명이다. 연관 상품의 '고품질'(131행)은 다른 상품이다."
+    }
+  }
+}

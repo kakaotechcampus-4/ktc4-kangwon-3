@@ -190,6 +190,13 @@ def test_metrics에_콜백_발신함_대기_수가_나온다(backend):
     assert "ai_callback_pending 0.0" in text
 
 
+def test_metrics에_프로세스_시작_시각이_나온다(backend):
+    with client(fake_parts(backend)) as app:
+        text = app.get("/metrics").text
+
+    assert "process_start_time_seconds " in text
+
+
 class _Archive:
     """세션 보관소 자리. 기동 때 load가 돌려줄 세션을 정해 두고, 저장·삭제는 상품 ID만 기록한다."""
 

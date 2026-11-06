@@ -56,3 +56,19 @@ def test_모델이_이미_뽑은_값과_겹치는_규칙_결과는_중복으로_
     result = _run(stub_model, reply, "인증정보: CE-RoHS; CE-EMC(Electric)")
 
     assert len(result.attributes) == 1
+
+
+def test_모델이_놓친_스펙표_전원_모순도_규칙이_잡아_conflicts에_담긴다(stub_model, records):
+    # 초안 50건 측정(2026-11-05)에서 모델은 제목↔스펙표 모순을 보고하지 않았다. 규칙이 대신 잡는다.
+    result = _run(stub_model, ProductAttributes(product_name="바디 마사지기"), "전자식\n아니요\n전원 공급\n교류")
+
+    assert len(result.conflicts) == 1
+    assert "전자식" in result.conflicts[0] and "교류" in result.conflicts[0]
+
+
+def test_판매자_제목과_스펙표_재질이_다르면_규칙이_모순으로_담는다(stub_model, records, temu_page):
+    page = temu_page.replace("재료: 원목", "재료: 플라스틱")
+
+    result = _run(stub_model, ProductAttributes(product_name="접이식 의자"), page)
+
+    assert any("원목" in c and "플라스틱" in c for c in result.conflicts)

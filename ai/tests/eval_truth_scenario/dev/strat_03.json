@@ -1,0 +1,40 @@
+{
+  "fixture": "strat_03/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 Vention 10000mAh 마그네틱 보조배터리(15W 무선충전, 22.5W 유선). 무선충전·전지 자체로 전파·전기를 고르고, 제목 '[CCC 인증]'과 설명 '3C, CE, FCC, RoHS 등 국제 표준 인증'으로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국', 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 '15W 무선 고속 충전기'(원문 4행), 스펙표 '특징: 무선 충전'(원문 182~183행), '출력 인터페이스: … 무선 충전기'(원문 190~191행), 이미지 '15W Fast Wireless Charging'(img_05), 'Output (Wireless Charging) 5W/7.5W/10W/15W'(img_15)",
+      "why_not_other": "무선충전 기능이 명시돼 있다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "스펙표 '유형: 마그네틱 보조배터리', '외장 재질: 플라스틱'(원문 180~181행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "손에 쥐는 전자기기라 피부 접촉으로도 고르지 않는다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 '파워 뱅크 22.5W 10000mAh'(원문 4행), 스펙표 'KC인증 전기용품 안전확인 XU103756-25003'(원문 171~173행), '배터리 유형: 리튬 폴리머 배터리', 이미지 'Battery Capacity 10000mAh (3.85V/38.5Wh)'(img_15)",
+      "why_not_other": "전지 자체가 상품이고 정격·용량 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "어린이 대상 표기 없음. 호환 기기 표가 스마트폰·태블릿(img_13)",
+      "why_not_other": "범용 성인 전자기기다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '[CCC 인증]'(원문 4행), 스펙표 'Certified: 3C CCC Certified'(원문 200~201행), description '3C, CE, FCC, RoHS 등 국제 표준 인증을 획득했습니다'(description.txt 22행), 이미지 'Flight & Rail Approved'(img_14), '9-Layer Safety System'(img_12)",
+      "why_not_other": "해외 인증(CCC·CE·FCC)을 내세운 표기와 '항공·철도 승인' 표방이 있다."
+    }
+  }
+}

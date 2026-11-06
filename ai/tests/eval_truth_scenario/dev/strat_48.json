@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_48/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 FEIYBA 남성용 전기 코/귀 털 정리기(USB 충전 내장 리튬 150mAh, 스테인리스 블레이드, 디지털 표시). 전기 제품이고 스펙표에 'CE-EMC'가 있지만 무선 기능이 페이지에 없어 전파는 고르지 않는 케이스. 콧속(점막)에 넣는 용도라 식약 판단이 갈린다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품. 스펙표 '원산지: 저장, 중국'(131~132행)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '인증정보: CE-RoHS; CE-EMC(Electric)'(101행), '전력 공급 방식: USB 충전(내장 배터리)'(99~100행), 제목 '디지털 디스플레이'(135행), img_01 투명 몸체 안의 회로 기판과 '100%' 표시",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '코/귀 털 정리기', '코/귀 털 정리'(135행), 카테고리 '뷰티 & 맞춤 케어 > 면도&체모 제거'(43~44행), img_01 콧속에 넣는 둥근 캡 블레이드",
+      "why_not_other": "콧속·귓속 점막 가까이 넣어 쓰는 개인 위생 기구라 기준의 '점막에 반응할 수 있는 위생용품 용도'에 가깝다고 보았다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "제목 '전기 코/귀 털 정리기 - 고속 충전 USB 디자인, 리튬 배터리'(135행), 스펙표 '전력 공급 방식: USB 충전(내장 배터리)', '충전식 배터리: 리튬 배터리', '배터리 용량(mAh): 150'(99~107행)",
+      "why_not_other": "전기 구동·전지 포함·mAh 표기가 모두 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '남성용'(135행), 어린이 대상·연령 표기 없음, img_01 성인 손",
+      "why_not_other": "성인 남성용 미용 기구이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 '인증정보: CE-RoHS; CE-EMC(Electric)'(101행), 제목 '고속 충전 USB 디자인'(135행)",
+      "why_not_other": "CE 해외 인증 표기는 기준 (3)에 해당한다. '#1 베스트셀러 상품'(142행)은 플랫폼 배지, 리뷰 '가성비 최고'(74행)는 근거가 아니다."
+    }
+  },
+  "notes": "애매: 식약은 콧속 점막 접촉 위생 기구로 보아 true로 두었다. 손에 쥐는 일반 미용 가전(면도기류)으로 보면 false다. 전파는 무선 기능이 페이지에 없어 false. 스펙표 '정격전압, 소비전력: 이 항목은 이 제품에 적용되지 않습니다'(125~126행)는 전기 제품과 어긋나는 표기다. [기준1: radio_compliance True→False]"
+}

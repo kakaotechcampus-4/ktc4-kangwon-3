@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_44/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 영문 페이지 AQUTAO 얼굴 냉각 아이스 마사지기('for Morning Puffiness & Sunburn Relief'). 스펙표가 'Use Without Electricity', 'Without Battery'로 비전자 제품을 확인하고, 제목의 붓기·일광화상 완화 표방이 식약·표시광고를 고르는 케이스. 상점 배지 'Electric Massagers'에 끌려 전기를 고르지 않는지도 본다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(테무)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 'Power Supply: Use Without Electricity'(94~95행), 'Battery Properties: Without Battery'(98~99행), img_07 'Blue part is made of ABS material - Internal filling with low-temperature ice crystals'",
+      "why_not_other": "전원 없는 냉각 기구로 확인돼 무선 요소가 있을 수 없다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 'Cold Cooling Face Ice Massager for Morning Puffiness & Sunburn Relief'(102행), 카테고리 'Beauty Tools'(43행), img_03 'Applying ice packs in the morning for relief', img_07 'Smooth against the skin'",
+      "why_not_other": "얼굴 피부에 대는 미용 기구로 붓기 완화(미용)·일광화상 완화(의료성) 효과를 표방한다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 'Power Supply: Use Without Electricity'(94~95행), 'Battery Properties: Without Battery'(98~99행), 제목 'Cold Cooling'(102행), img_07 ABS 몸체와 아이스 크리스털 충전재",
+      "why_not_other": "전원·전지가 없고 발열이 아닌 냉각 기구로 확인된다. 상점 배지 '#11 Top Rated Store in Electric Massagers'(108~109행)는 가게 순위 문구이고, 연관 상품 USB 충전 미용기기(160행)는 다른 상품이다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표에 어린이 대상·연령 표기 없음, 카테고리 'Beauty & Personal Care'(42행), img_02 성인 여성 얼굴",
+      "why_not_other": "성인 미용 기구이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 'for Morning Puffiness & Sunburn Relief'(102행), img_06 'Ice crystals retain cold for a longer-lasting cooling sensation', 'Cooling care makes you more relaxed', img_07 'cools down faster'",
+      "why_not_other": "붓기·일광화상 완화는 효능·의료·미용 주장이다. 리뷰의 'shrink my pores'(74행)는 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "이미지 번호는 파일명 기준이다(img_03 'Applying ice packs…', img_06 'Ice crystals…', img_07 ABS 재질). 'Sunburn Relief'를 의료 표방으로 볼지 미용으로 볼지는 갈리지만 어느 쪽이든 식약 true다."
+}

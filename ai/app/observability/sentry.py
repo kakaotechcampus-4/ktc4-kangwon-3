@@ -129,7 +129,7 @@ def _scrub(event: dict) -> None:
     # 로그 인자 (logger.error("... %s", url)의 url)
     params = logentry.get("params")
     if isinstance(params, list):
-        logentry["params"] = [_mask_text(param) if isinstance(param, str) else param for param in params]
+        logentry["params"] = [mask_sensitive_params(param) if isinstance(param, str) else param for param in params]
     # 로그 extra 값
     _mask_values(event.get("extra"))
     for breadcrumb in event.get("breadcrumbs", {}).get("values", []):
@@ -148,17 +148,4 @@ def _mask_values(values: dict | None) -> None:
 def _mask_key(item: dict, key: str) -> None:
     """item[key]가 문자열이면 URL의 키를 가린다."""
     if isinstance(item.get(key), str):
-        item[key] = _mask_text(item[key])
-
-
-def _mask_text(text: str) -> str:
-    """URL의 키를 가린다. ?가 없는 쿼리 문자열(serviceKey=...&x=1)도 가림.
-
-    Args:
-        text: 가릴 문자열.
-
-    Returns:
-        str: 키 값이 가려진 문자열.
-    """
-    # 맨 앞 파라미터도 잡히게 ?를 붙여 가린 뒤 다시 뗌
-    return mask_sensitive_params(f"?{text}")[1:]
+        item[key] = mask_sensitive_params(item[key])

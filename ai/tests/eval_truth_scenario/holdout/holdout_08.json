@@ -1,0 +1,42 @@
+{
+  "fixture": "holdout_08/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "Type-C 무선 충전 수신기 패치(Temu). 무선 충전·USB 전원이 명확하고, 이미지의 '모든 휴대폰' 호환 주장이 표시광고 근거인 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품(Temu, 원산지 '광둥, 중국' 112~113행)",
+      "why_not_other": "통관은 해외 직구 수입품이면 사실상 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "제목 '무선 충전 수신기 Qi 충전기 어댑터'(117행), 스펙 '충전 기능: 무선', '무선 속성: 무선 충전 기능 포함'(93~100행)",
+      "why_not_other": "무선충전(Qi) 기기다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '휴대폰&액세서리 > 무선 충전기'(43~44행)",
+      "why_not_other": "음식 접촉·의료·미용 용도가 아니다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙 '전원 모드: USB', '작동 전압: ≤36V'(86~89행), 이미지 1·2 'Input: 5V/2A, Output: 5V/1A'",
+      "why_not_other": "전기로 동작하는 충전 부품이고 전압 표기가 있다. '배터리 미포함'(97~98행)이지만 전기 구동이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "연령 표기 없음. 휴대폰 충전 액세서리(117행)",
+      "why_not_other": "어린이 대상 표기가 없고 학용품·완구가 아니다. 이미지 속 'TOVYS' 표기는 브랜드명이다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "이미지 1 'any mobile phone can achieve wireless charging', 'Truly wireless, charge at will', 이미지 2 'Compatible with all kinds of phones with Type-C interface'",
+      "why_not_other": "'모든 휴대폰' 호환은 절대 표현(기준 2)이다. 텍스트(117행)는 '널리 호환'과 기종 나열 수준이라 근거가 이미지에만 있다.",
+      "image_only": true
+    }
+  },
+  "notes": "리뷰(52~71행)는 근거로 쓰지 않았다. 인증정보는 '적용되지 않습니다'(92행)로 인증 표방은 없다."
+}

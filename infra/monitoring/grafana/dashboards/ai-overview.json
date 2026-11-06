@@ -159,9 +159,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_session_accepted_total{run_type=~\"$run_type\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_session_accepted_total{run_type=~\"$run_type\"} - ai_session_accepted_total{run_type=~\"$run_type\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_accepted_total{run_type=~\"$run_type\"} - last_over_time(ai_session_accepted_total{run_type=~\"$run_type\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_accepted_total{run_type=~\"$run_type\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -210,9 +211,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"} - ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"} - last_over_time(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -261,9 +263,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"} - ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"} - last_over_time(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -312,9 +315,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"} - ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"} - last_over_time(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -375,9 +379,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_session_rejected_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_session_rejected_total - ai_session_rejected_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_rejected_total - last_over_time(ai_session_rejected_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_rejected_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -420,7 +425,7 @@
       "type": "stat",
       "id": 8,
       "title": "자리 사용률",
-      "description": "대기 + 실행 중 상품 / 상한(50). 다 차면 접수 거절",
+      "description": "대기 + 실행 중 상품 / 상한. 다 차면 접수 거절",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -517,7 +522,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_session_accepted_total{run_type=~\"$run_type\"}[$__rate_interval]))",
+          "expr": "sum(sum_over_time(((ai_session_accepted_total{run_type=~\"$run_type\"} - ai_session_accepted_total{run_type=~\"$run_type\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_accepted_total{run_type=~\"$run_type\"} - last_over_time(ai_session_accepted_total{run_type=~\"$run_type\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_accepted_total{run_type=~\"$run_type\"} + 0)[$__interval:15s]))",
           "legendFormat": "접수",
           "range": true
         },
@@ -527,7 +532,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (outcome) (increase(ai_session_finished_total{run_type=~\"$run_type\"}[$__rate_interval]))",
+          "expr": "sum by (outcome) (sum_over_time(((ai_session_finished_total{run_type=~\"$run_type\"} - ai_session_finished_total{run_type=~\"$run_type\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_finished_total{run_type=~\"$run_type\"} - last_over_time(ai_session_finished_total{run_type=~\"$run_type\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_finished_total{run_type=~\"$run_type\"} + 0)[$__interval:15s]))",
           "legendFormat": "{{outcome}}",
           "range": true
         }
@@ -559,7 +564,7 @@
       "type": "timeseries",
       "id": 11,
       "title": "자리 사용",
-      "description": "all은 대기 + 실행 중(상한 50), 동시 실행 상한은 10",
+      "description": "사용 all은 대기 + 실행 중, dev는 그중 샌드박스. 상한 all을 넘으면 접수 거절",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -775,7 +780,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (error_code, stage) (increase(ai_session_failed_total{run_type=~\"$run_type\"}[$__rate_interval]))",
+          "expr": "sum by (error_code, stage) (sum_over_time(((ai_session_failed_total{run_type=~\"$run_type\"} - ai_session_failed_total{run_type=~\"$run_type\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_session_failed_total{run_type=~\"$run_type\"} - last_over_time(ai_session_failed_total{run_type=~\"$run_type\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_session_failed_total{run_type=~\"$run_type\"} + 0)[$__interval:15s]))",
           "legendFormat": "{{error_code}} ({{stage}})",
           "range": true
         }
@@ -829,7 +834,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (route, status) (increase(ai_http_requests_total{route!~\".*/health|/metrics\"}[$__rate_interval]))",
+          "expr": "sum by (route, status) (sum_over_time(((ai_http_requests_total{route!~\".*/health|/metrics\"} - ai_http_requests_total{route!~\".*/health|/metrics\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_http_requests_total{route!~\".*/health|/metrics\"} - last_over_time(ai_http_requests_total{route!~\".*/health|/metrics\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_http_requests_total{route!~\".*/health|/metrics\"} + 0)[$__interval:15s]))",
           "legendFormat": "{{route}} {{status}}",
           "range": true
         }
@@ -885,7 +890,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 5,
         "x": 0,
         "y": 31
       },
@@ -896,9 +901,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_agent_calls_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_agent_calls_total - ai_agent_calls_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_calls_total - last_over_time(ai_agent_calls_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_calls_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -936,8 +942,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 5,
+        "x": 5,
         "y": 31
       },
       "targets": [
@@ -947,9 +953,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_agent_calls_total{outcome!=\"ok\"}[$__range])) / sum(increase(ai_agent_calls_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_agent_calls_total{outcome!=\"ok\"} - ai_agent_calls_total{outcome!=\"ok\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_calls_total{outcome!=\"ok\"} - last_over_time(ai_agent_calls_total{outcome!=\"ok\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_calls_total{outcome!=\"ok\"} + 0)[$__range:15s])) / sum(sum_over_time(((ai_agent_calls_total - ai_agent_calls_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_calls_total - last_over_time(ai_agent_calls_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_calls_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1002,8 +1009,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
+        "w": 5,
+        "x": 10,
         "y": 31
       },
       "targets": [
@@ -1013,9 +1020,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_agent_cost_krw_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_agent_cost_krw_total - ai_agent_cost_krw_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_cost_krw_total - last_over_time(ai_agent_cost_krw_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_cost_krw_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1053,8 +1061,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 5,
+        "x": 15,
         "y": 31
       },
       "targets": [
@@ -1064,9 +1072,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_agent_tokens_total{kind=~\"input|output\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_agent_tokens_total{kind=~\"input|output\"} - ai_agent_tokens_total{kind=~\"input|output\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_tokens_total{kind=~\"input|output\"} - last_over_time(ai_agent_tokens_total{kind=~\"input|output\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_tokens_total{kind=~\"input|output\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1094,6 +1103,69 @@
       }
     },
     {
+      "type": "stat",
+      "id": 50,
+      "title": "검증 모델 실패",
+      "description": "검증 모델 호출·검토 실패 수. 진단은 실패로 끝나지 않고 규칙 검사 결과로 진행함 (통과는 재확인 필요로 바뀜)",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 31
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(increase(ai_agent_calls_total{component=\"verification\", outcome!=\"ok\"}[$__range])) or vector(0)",
+          "legendFormat": "",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
       "type": "timeseries",
       "id": 21,
       "title": "에이전트별 호출 수",
@@ -1115,7 +1187,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (component) (increase(ai_agent_calls_total[$__rate_interval]))",
+          "expr": "sum by (component) (sum_over_time(((ai_agent_calls_total - ai_agent_calls_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_calls_total - last_over_time(ai_agent_calls_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_calls_total + 0)[$__interval:15s]))",
           "legendFormat": "{{component}}",
           "range": true
         }
@@ -1169,7 +1241,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (component, outcome) (increase(ai_agent_calls_total{outcome!=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (component, outcome) (sum_over_time(((ai_agent_calls_total{outcome!=\"ok\"} - ai_agent_calls_total{outcome!=\"ok\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_calls_total{outcome!=\"ok\"} - last_over_time(ai_agent_calls_total{outcome!=\"ok\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_calls_total{outcome!=\"ok\"} + 0)[$__interval:15s]))",
           "legendFormat": "{{component}} {{outcome}}",
           "range": true
         }
@@ -1223,7 +1295,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (component) (increase(ai_agent_cost_krw_total[$__rate_interval]))",
+          "expr": "sum by (component) (sum_over_time(((ai_agent_cost_krw_total - ai_agent_cost_krw_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_cost_krw_total - last_over_time(ai_agent_cost_krw_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_cost_krw_total + 0)[$__interval:15s]))",
           "legendFormat": "{{component}}",
           "range": true
         }
@@ -1277,7 +1349,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (kind) (increase(ai_agent_tokens_total[$__rate_interval]))",
+          "expr": "sum by (kind) (sum_over_time(((ai_agent_tokens_total - ai_agent_tokens_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_tokens_total - last_over_time(ai_agent_tokens_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_tokens_total + 0)[$__interval:15s]))",
           "legendFormat": "{{kind}}",
           "range": true
         }
@@ -1373,7 +1445,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (model) (increase(ai_agent_calls_total[$__rate_interval]))",
+          "expr": "sum by (model) (sum_over_time(((ai_agent_calls_total - ai_agent_calls_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_agent_calls_total - last_over_time(ai_agent_calls_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_agent_calls_total + 0)[$__interval:15s]))",
           "legendFormat": "{{model}}",
           "range": true
         }
@@ -1440,7 +1512,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (tool_name, status) (increase(ai_tool_runs_total[$__rate_interval]))",
+          "expr": "sum by (tool_name, status) (sum_over_time(((ai_tool_runs_total - ai_tool_runs_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_tool_runs_total - last_over_time(ai_tool_runs_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_tool_runs_total + 0)[$__interval:15s]))",
           "legendFormat": "{{tool_name}} {{status}}",
           "range": true
         }
@@ -1494,7 +1566,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (tool_name, error_type) (increase(ai_tool_errors_total[$__rate_interval]))",
+          "expr": "sum by (tool_name, error_type) (sum_over_time(((ai_tool_errors_total - ai_tool_errors_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_tool_errors_total - last_over_time(ai_tool_errors_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_tool_errors_total + 0)[$__interval:15s]))",
           "legendFormat": "{{tool_name}} {{error_type}}",
           "range": true
         }
@@ -1594,7 +1666,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (determination) (increase(ai_tool_findings_total[$__rate_interval]))",
+          "expr": "sum by (determination) (sum_over_time(((ai_tool_findings_total - ai_tool_findings_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_tool_findings_total - last_over_time(ai_tool_findings_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_tool_findings_total + 0)[$__interval:15s]))",
           "legendFormat": "{{determination}}",
           "range": true
         }
@@ -1648,7 +1720,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site, trimmed) (increase(ai_extraction_seller_region_total[$__rate_interval]))",
+          "expr": "sum by (site, trimmed) (sum_over_time(((ai_extraction_seller_region_total - ai_extraction_seller_region_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_extraction_seller_region_total - last_over_time(ai_extraction_seller_region_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_extraction_seller_region_total + 0)[$__interval:15s]))",
           "legendFormat": "{{site}} trimmed={{trimmed}}",
           "range": true
         }
@@ -1715,9 +1787,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[$__range])) / sum(increase(ai_client_calls_total{api!=\"backend\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_client_calls_total{api!=\"backend\", result!=\"ok\"} - ai_client_calls_total{api!=\"backend\", result!=\"ok\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_client_calls_total{api!=\"backend\", result!=\"ok\"} - last_over_time(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_client_calls_total{api!=\"backend\", result!=\"ok\"} + 0)[$__range:15s])) / sum(sum_over_time(((ai_client_calls_total{api!=\"backend\"} - ai_client_calls_total{api!=\"backend\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_client_calls_total{api!=\"backend\"} - last_over_time(ai_client_calls_total{api!=\"backend\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_client_calls_total{api!=\"backend\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1782,9 +1855,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_callback_dropped_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_callback_dropped_total - ai_callback_dropped_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_callback_dropped_total - last_over_time(ai_callback_dropped_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_callback_dropped_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1845,9 +1919,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_callback_retries_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_callback_retries_total - ai_callback_retries_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_callback_retries_total - last_over_time(ai_callback_retries_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_callback_retries_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1947,7 +2022,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (api) (increase(ai_client_calls_total[$__rate_interval]))",
+          "expr": "sum by (api) (sum_over_time(((ai_client_calls_total - ai_client_calls_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_client_calls_total - last_over_time(ai_client_calls_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_client_calls_total + 0)[$__interval:15s]))",
           "legendFormat": "{{api}}",
           "range": true
         }
@@ -2001,7 +2076,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (api, result) (increase(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (api, result) (sum_over_time(((ai_client_calls_total{api!=\"backend\", result!=\"ok\"} - ai_client_calls_total{api!=\"backend\", result!=\"ok\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_client_calls_total{api!=\"backend\", result!=\"ok\"} - last_over_time(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_client_calls_total{api!=\"backend\", result!=\"ok\"} + 0)[$__interval:15s]))",
           "legendFormat": "{{api}} {{result}}",
           "range": true
         }
@@ -2101,7 +2176,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (event_type, result) (increase(ai_callback_sent_total[$__rate_interval]))",
+          "expr": "sum by (event_type, result) (sum_over_time(((ai_callback_sent_total - ai_callback_sent_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_callback_sent_total - last_over_time(ai_callback_sent_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_callback_sent_total + 0)[$__interval:15s]))",
           "legendFormat": "{{event_type}} {{result}}",
           "range": true
         },
@@ -2111,7 +2186,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (reason) (increase(ai_callback_dropped_total[$__rate_interval]))",
+          "expr": "sum by (reason) (sum_over_time(((ai_callback_dropped_total - ai_callback_dropped_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_callback_dropped_total - last_over_time(ai_callback_dropped_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_callback_dropped_total + 0)[$__interval:15s]))",
           "legendFormat": "버림 {{reason}}",
           "range": true
         }
@@ -2143,7 +2218,7 @@
       "type": "timeseries",
       "id": 48,
       "title": "콜백 도착 (AI 전달 ↔ BE 2xx 응답)",
-      "description": "AI가 BE 2xx 응답을 받은 이벤트 수와 BE가 콜백 경로에 2xx로 응답한 수. 평소엔 두 선이 겹침. BE 배포 직후엔 새 BE의 첫 콜백이 안 세져 AI 쪽이 1건 많을 수 있음",
+      "description": "AI가 BE 2xx 응답을 받은 이벤트 수와 BE가 콜백 경로에 2xx로 응답한 수. 평소엔 두 선이 겹침. BE 배포 때 옛 BE가 마지막 수집 뒤 받은 콜백은 안 남아 AI 쪽이 많을 수 있음",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2161,7 +2236,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_callback_sent_total{result=\"delivered\"}[$__rate_interval]))",
+          "expr": "sum(sum_over_time(((ai_callback_sent_total{result=\"delivered\"} - ai_callback_sent_total{result=\"delivered\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_callback_sent_total{result=\"delivered\"} - last_over_time(ai_callback_sent_total{result=\"delivered\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_callback_sent_total{result=\"delivered\"} + 0)[$__interval:15s]))",
           "legendFormat": "AI 전달",
           "range": true
         },
@@ -2171,7 +2246,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[$__rate_interval]))",
+          "expr": "sum(sum_over_time(((http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} - http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} - last_over_time(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} + 0)[$__interval:15s]))",
           "legendFormat": "BE 2xx 응답",
           "range": true
         }
@@ -2203,7 +2278,7 @@
       "type": "stat",
       "id": 49,
       "title": "콜백 도착 차이",
-      "description": "기간 동안 AI 전달 − BE 2xx 응답. 양수면 BE가 덜 셈, 음수면 AI 밖에서 콜백 경로로 들어온 요청. BE 배포 직후엔 새 BE의 첫 콜백이 안 세져 AI 쪽이 1건 많을 수 있음",
+      "description": "기간 동안 AI 전달 − BE 2xx 응답. 양수면 BE가 덜 셈, 음수면 AI 밖에서 콜백 경로로 들어온 요청. BE 배포 때 옛 BE가 마지막 수집 뒤 받은 콜백은 안 남아 AI 쪽이 많을 수 있음",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2221,9 +2296,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "(sum(increase(ai_callback_sent_total{result=\"delivered\"}[$__range]))) - (sum(increase(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[$__range])) or vector(0))",
+          "expr": "(sum(sum_over_time(((ai_callback_sent_total{result=\"delivered\"} - ai_callback_sent_total{result=\"delivered\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_callback_sent_total{result=\"delivered\"} - last_over_time(ai_callback_sent_total{result=\"delivered\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_callback_sent_total{result=\"delivered\"} + 0)[$__range:15s]))) - (sum(sum_over_time(((http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} - http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} - last_over_time(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} + 0)[$__range:15s])) or vector(0))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -2303,7 +2379,8 @@
           },
           "expr": "time() - (ai_law_refresh_last_success_timestamp > 0)",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -2370,7 +2447,8 @@
           },
           "expr": "time() - (ai_clip_ingest_last_success_timestamp > 0)",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -2435,9 +2513,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_cache_lookups_total{result=\"hit\"}[$__range])) / sum(increase(ai_cache_lookups_total{result!=\"skipped\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_cache_lookups_total{result=\"hit\"} - ai_cache_lookups_total{result=\"hit\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_cache_lookups_total{result=\"hit\"} - last_over_time(ai_cache_lookups_total{result=\"hit\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_cache_lookups_total{result=\"hit\"} + 0)[$__range:15s])) / sum(sum_over_time(((ai_cache_lookups_total{result!=\"skipped\"} - ai_cache_lookups_total{result!=\"skipped\"} offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_cache_lookups_total{result!=\"skipped\"} - last_over_time(ai_cache_lookups_total{result!=\"skipped\"}[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_cache_lookups_total{result!=\"skipped\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -2485,7 +2564,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (cache, result) (increase(ai_cache_lookups_total[$__rate_interval]))",
+          "expr": "sum by (cache, result) (sum_over_time(((ai_cache_lookups_total - ai_cache_lookups_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_cache_lookups_total - last_over_time(ai_cache_lookups_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_cache_lookups_total + 0)[$__interval:15s]))",
           "legendFormat": "{{cache}} {{result}}",
           "range": true
         }
@@ -2539,7 +2618,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (result) (increase(ai_law_refresh_runs_total[$__rate_interval]))",
+          "expr": "sum by (result) (sum_over_time(((ai_law_refresh_runs_total - ai_law_refresh_runs_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_law_refresh_runs_total - last_over_time(ai_law_refresh_runs_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_law_refresh_runs_total + 0)[$__interval:15s]))",
           "legendFormat": "법령 점검 {{result}}",
           "range": true
         },
@@ -2549,7 +2628,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (kind, tool) (increase(ai_law_changes_total[$__rate_interval]))",
+          "expr": "sum by (kind, tool) (sum_over_time(((ai_law_changes_total - ai_law_changes_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_law_changes_total - last_over_time(ai_law_changes_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_law_changes_total + 0)[$__interval:15s]))",
           "legendFormat": "법령 변경 {{kind}} {{tool}}",
           "range": true
         },
@@ -2559,7 +2638,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (result) (increase(ai_clip_ingest_runs_total[$__rate_interval]))",
+          "expr": "sum by (result) (sum_over_time(((ai_clip_ingest_runs_total - ai_clip_ingest_runs_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_clip_ingest_runs_total - last_over_time(ai_clip_ingest_runs_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_clip_ingest_runs_total + 0)[$__interval:15s]))",
           "legendFormat": "CLIP 적재 {{result}}",
           "range": true
         },
@@ -2569,7 +2648,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (outcome) (increase(ai_clip_ingest_cases_total[$__rate_interval]))",
+          "expr": "sum by (outcome) (sum_over_time(((ai_clip_ingest_cases_total - ai_clip_ingest_cases_total offset 15s) >= 0 unless on(job, instance) process_start_time_seconds != process_start_time_seconds offset 15s or (ai_clip_ingest_cases_total - last_over_time(ai_clip_ingest_cases_total[5m] offset 15s)) >= 0 unless on(job, instance) (process_start_time_seconds offset 15s or process_start_time_seconds != last_over_time(process_start_time_seconds[5m] offset 15s)) or ai_clip_ingest_cases_total + 0)[$__interval:15s]))",
           "legendFormat": "CLIP 사례 {{outcome}}",
           "range": true
         }

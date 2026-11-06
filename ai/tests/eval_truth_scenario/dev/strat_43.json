@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_43/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 어린이용 스티커 활동북(숫자 맞춰 붙이는 STICKER PUZZLE PAINTING, 종이). 사용연령 3년 이상·학용품·놀이 물품이라 어린이를 고르고, 스펙표 '인증정보: CE-Toy; CPC'(해외 인증 표기)가 표시광고 근거인지 보는 케이스. 비전자 종이 제품.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품. 스펙표 '원산지: 산둥, 중국'(123~124행)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '소재: 종이'(87~88행), '설치 유형: 접착식'(89~90행), img_01~04 종이 책과 스티커 시트",
+      "why_not_other": "종이 활동북으로 구성이 확인돼 무선 요소가 없다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "스펙표 '소재: 종이', 카테고리 '공예품&스티커'(41행), '유해성·위해성 정보: 이 항목은 이 제품에 적용되지 않습니다'(119~120행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "손으로 붙이는 종이 스티커책으로 음식 접촉·피부 반응 용도가 아니다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '소재: 종이', '재사용 가능성: 일회용'(87~95행), 전원·전지 표기 없음, img_01~04 종이 책",
+      "why_not_other": "비전자 종이 제품으로 구성이 확인된다."
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "제목 '어린이용 스티커 활동북 … 교육용 DIY 페인팅 북, 학교 보상품, 학용품, 등교용'(128행), 스펙표 '사용연령: 3년 이상'(100~101행), '인증정보: CE-Toy; CPC'(93행), 카테고리 '장난감&게임'(40행), img_03 여자아이 사진",
+      "why_not_other": "어린이 대상 연령이 명시돼 있고 학용품·놀이 물품이다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 '인증정보: CE-Toy; CPC'(93행), img_03 'high quality and portable'",
+      "why_not_other": "CE·CPC는 해외 인증 표기로 기준 (3)에 해당한다. 제목 나머지는 용도·테마 나열이다."
+    }
+  },
+  "notes": "애매: 표시광고 텍스트 근거는 스펙표 '인증정보: CE-Toy; CPC' 하나뿐이다. 인증 칸을 판매자 표기로 보지 않으면 false가 될 수 있다(이미지 'high quality'는 약한 근거). 원칙 1에 따라 true. 원문 128행은 '가장 빠른 배송: 5일' 뒤에 제목이 줄바꿈 없이 붙어 있다."
+}
