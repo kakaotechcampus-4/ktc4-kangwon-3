@@ -9,8 +9,9 @@ import httpx
 
 # data.go.kr serviceKey: URL 쿼리 밖도 가림, 영문·숫자에 붙은 이름은 제외
 # 법제처 OC: 쿼리 맨 앞·?·& 뒤만 (문장 속 OC=는 과전류 표기와 겹침)
-# 값에서 백슬래시 제외 (JSON 속 \" 를 먹으면 JSON이 깨짐)
-_SENSITIVE_PARAM_RE = re.compile(r"((?:(?<![A-Za-z0-9_])serviceKey|(?<![^?&])OC)=)[^&\s'\"\\]+", re.IGNORECASE)
+# 값은 키에 쓰는 문자(base64·URL 인코딩·ID)만. 뒤의 )·,·\"(JSON)를 먹지 않음
+_SENSITIVE_PARAM_RE = re.compile(r"((?:(?<![A-Za-z0-9_])serviceKey|(?<![^?&])OC)=)[A-Za-z0-9%+/=._-]+",
+                                 re.IGNORECASE)
 
 # 응답 없는 연결을 OS가 끊기까지의 상한(초). langchain-openai 기본값과 같음
 DEAD_CONNECTION_SECONDS = 120
