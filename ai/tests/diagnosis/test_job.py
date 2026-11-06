@@ -284,6 +284,20 @@ def test_검증_모델이_실패해도_규칙이_정한_Tool_재실행은_그대
     assert pipeline["verifications"][0] is rules
 
 
+def test_검증_모델이_실패해_규칙_결과로_진행해도_Tool의_부족한_정보는_질문으로_넘긴다(pipeline):
+    rules = VerificationResult(status=VerificationStatus.APPROVED, checked_finding_ids=[])
+    error = VerificationError("검토 범위가 입력과 다릅니다.", partial_result=rules)
+    pipeline["result"] = _missing(_result(), {ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."]})
+
+    outcome = build_job(_parts([], verification_error=error), _questions)(
+        DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert [v.status for v in pipeline["verifications"]] == [VerificationStatus.REVISION_REQUIRED] * 2
+    assert isinstance(outcome, JobNeedsInput)
+    assert outcome.result.verification_status is FinalVerificationStatus.INCOMPLETE
+    assert [q.question for q in outcome.result.follow_up_questions] == ["정격 전압 정보가 필요합니다."]
+
+
 def test_단계_실패는_원인을_경고로_남긴다(pipeline, caplog):
     error = VerificationError("checked_finding_ids에 중복이 있습니다.")
 
