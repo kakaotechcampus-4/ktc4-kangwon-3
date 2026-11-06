@@ -151,7 +151,7 @@ JaCoCo로 단위, 통합, 합산(단위 + 통합) 커버리지를 따로 측정�
 | 합산 | 85% | 80% | `./gradlew jacocoMergedCoverageVerification` |
 
 - 통합에는 기준을 두지 않습니다. 기준을 맞추려고 단위 테스트가 이미 확인한 분기를 통합 테스트로 다시 쓰게 되기 때문입니다.
-- 기준 검사는 아직 `check`에 연결돼 있지 않아, 기준에 못 미쳐도 빌드와 CI는 실패하지 않습니다. 필요할 때 위 명령으로 직접 확인합니다.
+- 기준 검사는 `check`에 연결돼 있어, 기준에 못 미치면 빌드와 CI가 실패합니다. 긴급 배포처럼 검사를 잠시 빼야 할 때는 `./gradlew build -x jacocoTestCoverageVerification -x jacocoMergedCoverageVerification`로 실행합니다.
 
 ## 7. 실행 방법
 
@@ -161,7 +161,7 @@ JaCoCo로 단위, 통합, 합산(단위 + 통합) 커버리지를 따로 측정�
 |---|---|
 | 단위 테스트 실행 | `./gradlew test` |
 | 통합 테스트 실행 | `./gradlew integrationTest` |
-| 전체 테스트 실행 + 합산 리포트 생성 | `./gradlew check` |
+| 전체 테스트 실행 + 합산 리포트 생성 + 커버리지 기준 검사 | `./gradlew check` |
 | 특정 단위 테스트만 실행 | `./gradlew test --tests '*ProductTest'` |
 | 특정 통합 테스트만 실행 | `./gradlew integrationTest --tests '*ProductControllerTest'` |
 | 이전 결과를 쓰지 않고 다시 실행 | `./gradlew test --rerun`, `./gradlew integrationTest --rerun` |
@@ -172,12 +172,12 @@ E2E 테스트 실행은 [5절](#5-e2e-테스트)을 참고합니다.
 
 | 워크플로 | 실행 시점 | 실행하는 테스트 |
 |---|---|---|
-| `backend.yml` | `backend/beforeselling/`이 바뀐 PR(develop·main 대상), develop push, 수동 실행 | 배포 스크립트 테스트, `./gradlew build`(단위·통합 테스트) |
+| `backend.yml` | `backend/beforeselling/`이 바뀐 PR(develop·main 대상), develop push, 수동 실행 | 배포 스크립트 테스트, `./gradlew build`(단위·통합 테스트, 커버리지 기준 검사) |
 | `e2e.yml` | FE·BE·mock-ai·`e2e/` 변경이 develop에 반영될 때, 수동 실행 | E2E 테스트 전체 |
 
-- develop에 반영된 코드의 테스트가 실패하면 배포하지 않습니다.
+- develop에 반영된 코드의 테스트가 실패하거나 커버리지가 기준에 못 미치면 배포하지 않습니다.
 - 실패한 실행의 리포트는 Actions 실행 화면 아래 Artifacts에서 받습니다.
-  - `backend.yml`: `test-report` (단위 테스트 리포트)
+  - `backend.yml`: `test-report` (단위·통합 테스트 리포트와 커버리지 리포트, 7일 보관)
   - `e2e.yml`: `e2e-report` (Playwright 리포트와 스택 로그, 7일 보관)
 - E2E가 실패하면 Discord로 알림이 갑니다.
 - E2E는 전체 스택을 띄워 오래 걸리므로 PR마다 돌리지 않습니다. 그래서 화면이나 API를 바꾼 PR은 머지 전에 로컬에서 실행합니다([5절](#5-e2e-테스트)).
