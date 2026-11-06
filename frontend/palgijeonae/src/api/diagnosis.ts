@@ -26,9 +26,12 @@ export const requestPresignedUrls = async (files: PresignedFileRequest[]): Promi
     return response.data.data.files;
 };
 
+// 이미지 업로드는 일반 API(10초)보다 오래 걸릴 수 있어 따로 길게 둔다.
+const S3_UPLOAD_TIMEOUT_MS = 60_000;
+
 // presigned PUT은 S3로 직접 나가야 해서, Authorization 헤더를 자동으로 붙이지 않도록 client와 따로 구현
 export const putToS3 = (presignedUrl: string, file: File, contentType: string) =>
-    axios.put(presignedUrl, file, { headers: { "Content-Type": contentType } });
+    axios.put(presignedUrl, file, { headers: { "Content-Type": contentType }, timeout: S3_UPLOAD_TIMEOUT_MS });
 
 // 상품 배열을 한 번에 진단 요청한다.
 export const postDiagnosis = async (products: DiagnosisProductPayload[]): Promise<string> => {
