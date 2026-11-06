@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_50/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "테무 16oz(470ml) 유리 오일 스프레이어 겸 디스펜서(검은 뚜껑, 손세척 전용). 식용유를 담는 식품 접촉 주방 도구라 식약을 고르고, 제목의 'PVC 무첨가'(선택 프롬프트 예시 2의 'BPA Free'와 같은 유형)가 표시광고 근거가 되는 비전자 케이스.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "해외 직구 수입품. 스펙표 '원산지: 광둥, 중국'(110~111행)",
+      "why_not_other": "원칙 3에 따라 통관은 거의 항상 선택한다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 유리'(89~90행), 제목 '유리 오일 스프레이어 겸 디스펜서 … 검은색 뚜껑'(114행), img_01·img_02 유리병과 수동 개폐 뚜껑",
+      "why_not_other": "유리병과 뚜껑뿐인 비전자 주방 도구라 무선 요소가 없다. 연관 상품 센서 비누 디스펜서(167행)는 다른 상품이다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '470ml 올리브오일 분무기, 요리, 샐러드 드레싱, 그릴용 2-in-1 주방 도구'(114행), 카테고리 '홈&주방 > 주방 용품'(43~44행), img_01 스테이크에 기름 붓는 장면, img_02 병에 식용유를 채우는 장면",
+      "why_not_other": "식용유를 담아 음식에 뿌리는 식품 접촉 기구다. 스펙표 '수입식품안전관리 특별법에 따른 수입신고: 이 항목은 이 제품에 적용되지 않습니다'(106~107행)는 판매자 표기일 뿐 식품 접촉 사실을 바꾸지 않는다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 유리'(89~90행), 제목 '손세척 전용'(114행), 전원·전지 표기 없음, img_01 손으로 여닫는 뚜껑",
+      "why_not_other": "비전자 유리 용기로 구성이 확인된다. 그릴팬(img_01)은 배경이다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "카테고리 '주방 용품'(44행), 어린이 대상·연령 표기 없음",
+      "why_not_other": "범용 주방 도구이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 'PVC 무첨가'(114행), img_01 'Backflow hole design prevents leaks'",
+      "why_not_other": "'PVC 무첨가'는 근거 없는 무첨가·안전 표방으로 선택 프롬프트 예시 2의 'BPA Free'와 같은 유형이다. '권장 소매자 가격 38,776원 / 93% 할인'(123~125행)은 테무 가격 표기라 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "제목은 '사각형 디자인'인데 img_01·img_02의 병은 둥근 원통형이다. Tool 선택에는 영향 없다."
+}

@@ -12,11 +12,14 @@ AI 서버가 `GET /metrics`로 내보내는 Prometheus 지표와 어디서 재�
 - 현황 값(세션 수·자리·콜백 대기 수)은 수집(scrape) 때마다 읽음 (`SessionSnapshotCollector`, `CallbackOutboxCollector`)
 - sink 오류는 오류 로그(ERROR)만 남기고 기록을 남긴 쪽 동작에 영향 없음
 - Counter·Histogram의 `_created`(처음 만든 시각) 시계열은 내보내지 않음 (`main.py`의 `disable_created_metrics()`)
+- 값이 정해진 라벨 조합(세션 결말·단계, 콜백 결과·버린 사유, Tool 상태·실패 원인, 판매자 구역 자르기, 외부 API 결과, 캐시 조회, 정기 작업 결과)은 처음부터 0으로 만들어 둠. 처음 기록될 때 생기면 `increase()`·`rate()`가 첫 기록을 못 셈
+- 서버에서는 모니터링 스택(`infra/monitoring`)의 Prometheus가 `be-ai-net`으로 `ai-server:8000/metrics`를 15초마다 수집 (job `ai-app`)
+- Grafana 대시보드는 "AI 서버 개요" (`infra/monitoring/grafana/dashboards/ai-overview.json`). 모델 호출·Tool·외부 API·콜백·캐시 지표엔 `run_type`이 없어 실행 종류 선택이 세션 지표에만 먹음
 
 ## 2. 라벨 원칙
 
 - 상품 ID·실행 ID·URL·검색어는 라벨에 넣지 않음. 실행마다 시계열이 늘고 키가 노출될 수 있음
-- 운영·평가·테스트는 실행 종류 `run_type`(production·evaluation·test)으로 나눔
+- 운영·평가·테스트·BE 연동 더미는 실행 종류 `run_type`(production·evaluation·test·dummy)으로 나눔
 - 외부 API는 클라이언트 클래스가 아니라 서버(기관) 단위 `api`로 묶음
 
 ## 3. 지금 있는 지표
@@ -95,6 +98,8 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - `reason`: `retry_exhausted`(재시도 초과)·`not_retryable`(4xx 등)·`shutdown`(종료 중)·`error`(예상 못 한 오류)
 - 버린 이벤트가 생기면 BE 화면에서 진단이 멈춘 것처럼 보임
 - 재는 곳: `CallbackOutbox` (HTTP 단위 결과는 `ai_client_calls{api="backend"}`)
+- BE 도착 맞춰 보기: `delivered`는 BE가 2xx로 응답한 이벤트 수라 BE `http_server_requests_seconds_count{uri=~"/internal/.*", status=~"2.."}`와 같아야 함. 대시보드 "콜백 도착" 패널
+  - BE 배포 직후엔 새 BE의 콜백 시계열이 첫 요청 때 생겨 첫 1건이 안 세짐 → AI 쪽이 1건 많을 수 있음. 그 밖의 차이는 어긋남 신호
 
 ### 3.5 Tool
 
@@ -151,7 +156,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - DB 없이 뜬 서버(DATABASE_URL 없음)는 세지 않음
 - 재는 곳: `CachedFetcherBase.fetch_parsed`, `DatabaseFirstCaseSearch._near`
 - 법령 점검: 문서 하나라도 실패하면 `partial`, 전부 실패하면 `failed`. 실패한 문서는 법령이 낡은 채 남아 `ok`만 성공 시각을 바꿈
-  - 재는 곳: `refresh_laws` (기동 직후 1번, 매일 00:05 KST)
+  - 재는 곳: `refresh_laws` (기동 30초 뒤 1번, 매일 00:05 KST). 기동 직후 바로 돌면 몇 초 만에 끝나 첫 수집 전에 1이 돼 안 세짐
 - 법령 변경 `kind`: `announced`(새 판 발표)·`applied`(근거로 고르는 판이 바뀜)·`skipped`(시행일이 됐지만 나중 판이 있어 안 씀, 사람이 확인할 것). `tool`은 그 문서를 근거로 쓰는 Tool
   - 같은 날 재기동하면 그날의 `applied`·`skipped`를 다시 셀 수 있음 (변경 로그와 같음)
 - CLIP 주간 적재: 상세 하나라도 실패하면 `partial`, 저장한 사례 없이 실패만 있으면 `failed`, 목록 수집·임베딩·저장 오류도 `failed`. hs_cases가 비어(초기 적재 전) 건너뛰면 `skipped`

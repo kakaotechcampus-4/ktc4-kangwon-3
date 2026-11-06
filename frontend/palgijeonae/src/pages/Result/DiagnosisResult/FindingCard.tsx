@@ -43,7 +43,7 @@ function FindingCard({ finding }: FindingCardProps) {
                     </div>
                     <p className="text-xl font-bold text-black">{finding.subject}</p>
                 </div>
-                <p className="text-base font-medium whitespace-pre-line text-black">{finding.summary}</p>
+                <p className="text-base font-medium leading-relaxed whitespace-pre-line text-black">{finding.summary}</p>
                 <p className="text-sm leading-relaxed whitespace-pre-line text-neutral-text">{finding.rationale}</p>
             </div>
             {firstLegalSource && (

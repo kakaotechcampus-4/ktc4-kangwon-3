@@ -71,6 +71,19 @@ def test_판단_대상은_input_json_파트로_질문은_배열로_보낸다(wir
     }
 
 
+def test_이미지는_input_json_뒤에_input_image_파트로_붙인다(wire, client, decision_request):
+    sent = wire(client, lambda request: httpx.Response(200, json=LUNA_BODY))
+    images = ["https://bucket.s3.ap-northeast-2.amazonaws.com/products/detail-1", "data:image/png;base64,BBBB"]
+
+    client.decide(decision_request.model_copy(update={"images": images}))
+
+    assert json.loads(sent[0].content)["input"][0]["content"] == [
+        {"type": "input_json", "data": {"product_name": "색연필 24색 세트", "for_children": False}},
+        {"type": "input_image", "image_url": "https://bucket.s3.ap-northeast-2.amazonaws.com/products/detail-1"},
+        {"type": "input_image", "image_url": "data:image/png;base64,BBBB"},
+    ]
+
+
 def test_답과_토큰을_공통_응답으로_바꾼다(wire, client, decision_request):
     wire(client, lambda request: httpx.Response(200, json=LUNA_BODY))
 

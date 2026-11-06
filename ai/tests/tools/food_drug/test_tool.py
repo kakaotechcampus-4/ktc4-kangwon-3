@@ -99,6 +99,8 @@ def test_음식_접촉_인용이_있으면_식품용_기구_수입신고_후보�
     finding = result.findings[0]
     assert finding.determination is Determination.POSSIBLY_REQUIRED
     assert finding.subject == "식품용 기구·용기 후보 — 수입신고 대상" and "확정 아님" in finding.summary
+    # 원문 인용은 한 줄에 하나씩
+    assert finding.rationale.startswith("상품 원문에 음식·음료에 직접 닿는 쓰임이 적혀 있습니다:\n'")
     assert [source.article for source in finding.legal_sources] == [
         "제2조 제4호·제5호", "제14조 제1항", "제2조 제1호·제3호", "제15조 제1항", "제20조 제1항"]
     assert result.result.regulatory_categories == ["식품용 기구·용기"]

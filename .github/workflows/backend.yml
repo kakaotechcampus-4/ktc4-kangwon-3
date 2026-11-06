@@ -10,6 +10,11 @@ on:
     paths:
       - "backend/beforeselling/**"
   workflow_dispatch:
+    inputs:
+      skip-coverage:
+        description: "커버리지 기준 검사를 건너뜀 (긴급 배포용)"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -50,14 +55,23 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: 빌드 및 테스트
-        run: ./gradlew build
+        id: build
+        run: ./gradlew build ${{ inputs.skip-coverage && '-x jacocoTestCoverageVerification -x jacocoMergedCoverageVerification' || '' }}
+
+      - name: 긴급 배포 안내 (실패 시)
+        if: failure() && steps.build.outcome == 'failure'
+        run: echo "::notice::커버리지 기준 미달로 실패했다면, 긴급 배포는 Actions에서 Backend CI/CD를 수동 실행하고 skip-coverage를 켜면 됩니다."
 
       - name: 테스트 리포트 업로드 (실패 시)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-report
-          path: backend/beforeselling/build/reports/tests/test
+          path: |
+            backend/beforeselling/build/reports/tests/test
+            backend/beforeselling/build/reports/tests/integrationTest
+            backend/beforeselling/build/reports/jacoco
+          retention-days: 7
 
       - name: 빌드 산출물(jar) 업로드
         uses: actions/upload-artifact@v4

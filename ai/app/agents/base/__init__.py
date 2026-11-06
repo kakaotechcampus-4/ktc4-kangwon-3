@@ -6,6 +6,7 @@
 - meta.py: AgentRunMeta(호출 1건의 실행 정보)·AgentResult(결과 + 실행 정보)
 - errors.py: AgentError(실패 시 meta 포함)·MissingParsedOutput·ModelFailurePhase
 - protocols.py: 공통 타입 — 주입 모델 인터페이스 (ModelLike·StructuredModel), 타입 변수 InputT·OutputT·ResultT
+- guardrail.py: 시스템 프롬프트 뒤에 붙이는 가드레일 문서 로더 (공통 guardrail.md + 에이전트별 추가 문서)
 """
 
 from .agent import BaseAgent

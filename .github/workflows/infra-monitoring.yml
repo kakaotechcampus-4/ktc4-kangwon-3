@@ -96,6 +96,8 @@ jobs:
             (umask 077; aws s3 cp s3://${{ env.S3_BUCKET }}/env/monitoring-${{ github.sha }}.env $MON_DIR/.env)
             chmod 600 $MON_DIR/.env
             docker network inspect be_appnet >/dev/null || { echo be_appnet 네트워크가 없습니다 - be 스택을 먼저 띄우세요; exit 1; }
+            # AI 서버 수집용. BE·AI 배포와 같은 방식으로 없으면 만듦 (AI가 아직 안 떠도 모니터링은 뜨게)
+            docker network inspect be-ai-net >/dev/null 2>&1 || docker network create be-ai-net
             aws s3 sync s3://${{ env.S3_BUCKET }}/monitoring/${{ github.sha }}/ $MON_DIR/ --delete --exclude .env
             cd $MON_DIR
             docker compose up -d --remove-orphans --wait --wait-timeout 180 || { docker compose ps; docker compose logs --tail 50; exit 1; }

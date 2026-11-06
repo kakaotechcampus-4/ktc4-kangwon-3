@@ -6,7 +6,6 @@ import { STATUS_SUMMARY_INFO } from "../utils/statusSummaryInfo";
 
 interface StatusSummaryBarProps {
     products: ProductResult[]
-    pollIntervalMs: number | null
 }
 
 // 상품들을 한 번 순회하며 상태별 개수를 센다. PENDING은 IN_PROGRESS로 합친다.
@@ -29,12 +28,12 @@ function countProductsByStatus(products: ProductResult[]): Map<ProcessingStatusT
     return counts;
 }
 
-/** Judgement 페이지 상단 요약 바. 상태별 상품 개수와 자동 갱신 주기(pollIntervalMs)를 보여준다. */
-function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
+/** Judgement 페이지 상단 요약 바. 상태별 상품 개수를 보여준다. */
+function StatusSummaryBar({ products }: StatusSummaryBarProps) {
     const statusCounts = countProductsByStatus(products);
 
     return (
-        <div className="flex w-full flex-wrap items-center justify-between gap-3 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div className="flex flex-wrap items-center gap-4.5">
                 {Array.from(statusCounts, ([status, count]) => {
                     const { label, dotClassName } = STATUS_SUMMARY_INFO[status];
@@ -46,12 +45,6 @@ function StatusSummaryBar({ products, pollIntervalMs }: StatusSummaryBarProps) {
                         </div>
                     );
                 })}
-            </div>
-            <div className="flex items-center gap-1.5">
-                <span className={cn("size-2 rounded-full", pollIntervalMs != null ? "bg-status-success" : "bg-neutral-border")} />
-                <span className="text-sm text-neutral-muted">
-                    {pollIntervalMs != null ? `${pollIntervalMs / 1000}초마다 불러오는 중` : "종료"}
-                </span>
             </div>
         </div>
     );

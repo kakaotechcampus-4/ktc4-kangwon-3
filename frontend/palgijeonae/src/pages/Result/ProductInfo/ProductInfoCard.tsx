@@ -2,6 +2,7 @@ import type { SourceType } from "@/api/types";
 import DefaultBox from "@/components/common/DefaultBox";
 import { SOURCE_TYPE_INFO } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";
+import { isHttpUrl } from "@/lib/url";
 
 import InfoRow from "./InfoRow";
 
@@ -25,14 +26,18 @@ function ProductInfoCard({ productName, sourceType, sourceUrl, sourceText }: Pro
             </InfoRow>
             {sourceUrl && (
                 <InfoRow label="상세페이지">
-                    <a
-                        href={sourceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={cn(VALUE_CLASS, "min-w-0 text-primary underline break-all")}
-                    >
-                        {sourceUrl}
-                    </a>
+                    {isHttpUrl(sourceUrl) ? (
+                        <a
+                            href={sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={cn(VALUE_CLASS, "min-w-0 text-primary underline break-all")}
+                        >
+                            {sourceUrl}
+                        </a>
+                    ) : (
+                        <p className={cn(VALUE_CLASS, "min-w-0 break-all")}>{sourceUrl}</p>
+                    )}
                 </InfoRow>
             )}
             {sourceText && (

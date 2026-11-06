@@ -50,7 +50,9 @@ def extract_seller_region(text: str) -> SellerRegion:
     """
     lines = text.replace("​", "").splitlines()
     stripped = [line.strip() for line in lines]
-    head = [line for line in stripped if line][:20]
+    # 브라우저가 innerText로 긁은 글은 화면에 안 보이는 장바구니 서랍(소계·결제하기…) 20여 줄이 맨 앞에
+    # 붙어 "Temu 앱 다운로드" 표지가 밀린다. 표지 문구가 사이트 고유라 창을 넓혀도 다른 쇼핑몰에 잘못 걸리지 않는다.
+    head = [line for line in stripped if line][:60]
 
     for site, detect, cut in _SITES:
         if not detect(head):
@@ -121,9 +123,17 @@ def _cut_aliexpress(lines: list[str], stripped: list[str]) -> tuple[list[str], s
         (남긴 줄, 판매자 제목). 필요한 표지를 못 찾으면 None.
     """
     cart = _index(stripped, 0, lambda s: s == "장바구니")
-    if cart is None:
-        return None
-    top = cart + 1
+    if cart is not None:
+        top = cart + 1
+    else:
+        # 상단 메뉴가 빠진 복사본(innerText로 긁은 일부 페이지)은 로고 줄 "AliExpress", 장바구니 수량 "0",
+        # 제목 순서로 시작한다. 로고 다음의 숫자만 있는 줄을 건너뛰고 제목부터 남긴다.
+        logo = _index(stripped, 0, lambda s: s == "AliExpress")
+        if logo is None:
+            return None
+        top = _index(stripped, logo + 1, lambda s: bool(s) and not s.isdigit())
+        if top is None:
+            return None
     stop1 = _index(stripped, top, lambda s: s in ("AI 상품 요약", "연관 상품"))
     info = [i for i, s in enumerate(stripped) if s == "상품 정보"]
     if stop1 is None or len(info) < 2:

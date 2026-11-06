@@ -11,9 +11,17 @@ from ...schemas.agent import ExtractionInput
 from ...schemas.product import Attribute, Product, ProductAttributes
 from ..base import BaseAgent
 from .errors import ExtractionFailedError
-from .guessed_flags import drop_conflicted_battery, drop_guessed_false, drop_unsupported_false
+from .guessed_flags import (
+    drop_conflicted_battery,
+    drop_conflicted_power,
+    drop_contradicted_claim_false,
+    drop_contradicted_plant_false,
+    drop_guessed_false,
+    drop_unsupported_false,
+)
 from .rules import detect_battery_capacity_conflict, extract_rule_based_attributes
 from .seller_region import extract_seller_region
+from .title_spec_conflicts import detect_power_conflicts, detect_title_spec_conflicts
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.EXTRACTION).path
@@ -29,6 +37,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
 
     component_name = "extraction"
     prompt_name = PromptName.EXTRACTION
+    uses_guardrail = True
     output_schema = ProductAttributes
     error_class = ExtractionFailedError
     task_name = "상품 정보 추출"
@@ -74,8 +83,11 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
     def _finalize(self, output: ProductAttributes, input: ExtractionInput) -> Product:
         """모델 출력에 판매자 제목·규칙 추출 결과를 합쳐 Product를 만든다.
 
-        상품 종류로 짐작해 채운 false와 원문에 부정 표기가 없는 false는 None으로 되돌리고, 코드 규칙이 배터리
-        모순을 찾았으면 배터리 칸을 확정하지 않음(guessed_flags).
+        코드는 칸을 true·false로 정하지 않고, 근거가 없거나 모순인 확정만 None(애매함)으로 되돌림(guessed_flags).
+            - 상품 종류로 짐작한 false, 원문에 부정 표기가 없는 false
+            - 소재 줄·효능 표방 문구와 어긋나는 false (근거를 conflicts에 남김)
+            - 코드 규칙이 배터리 모순을 찾은 페이지의 배터리 칸, 전원 방식 모순을 찾은 페이지의 electrical_powered
+        제목↔스펙표 모순은 conflicts에만 남기고 칸은 그대로 둠 (전원 방식도 스펙표끼리 모순일 때만 칸을 되돌림).
         규칙 추출은 모델과 독립으로 실행하고 결과만 합침. product_id·source_url은 요청 값 그대로.
 
         Args:
@@ -87,10 +99,21 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         """
         source, titles = _trim_to_seller_region(input)
         payload = output.model_dump()
+        # 전기 여부를 먼저 정리해야 아래 false 정리(발열·배터리·무선)가 전기 여부를 모르는 상품 기준으로 돈다
+        power_conflicts = detect_power_conflicts(source.text_blocks)
+        power_dropped = drop_conflicted_power(payload) if power_conflicts else []
         guessed = drop_guessed_false(payload)
         unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))
-        rule_conflicts = detect_battery_capacity_conflict(source.text_blocks)
-        conflicted = drop_conflicted_battery(payload) if rule_conflicts else []
+        # 코드는 O/X를 대신 정하지 않는다. 페이지 근거와 어긋나는 false만 '애매함'(None)으로 돌리고 근거를 모순으로 남긴다.
+        plant_dropped, plant_conflicts = drop_contradicted_plant_false(payload, "\n".join(source.text_blocks))
+        # 표방 문구는 판매자 제목에 자주 있다. Temu는 잘린 제목 줄만 구역에 남고 전체 제목은 따로 찾으므로 제목도 합쳐 본다.
+        claim_dropped, claim_conflicts = drop_contradicted_claim_false(payload, "\n".join([*titles, *source.text_blocks]))
+        battery_conflicts = detect_battery_capacity_conflict(source.text_blocks)
+        conflicted = drop_conflicted_battery(payload) if battery_conflicts else []
+        # 제목↔스펙표 모순은 검토 후보로만 남긴다(필드를 None으로 되돌리지 않음). 모델이 거의 보고하지 않아 규칙이 맡는다.
+        rule_conflicts = (
+            battery_conflicts + detect_title_spec_conflicts(titles, source.text_blocks) + plant_conflicts + claim_conflicts
+        )
         payload["listing_text"] = _keep_seller_titles(output.listing_text, titles)
         payload["attributes"] = _merge_attributes(output.attributes, extract_rule_based_attributes(source.text_blocks))
         payload["conflicts"] = _merge_conflicts(output.conflicts, rule_conflicts)
@@ -98,7 +121,9 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         trace_note("postprocess", {
             "guessed_false_to_none": guessed,
             "unsupported_false_to_none": unsupported,
+            "contradicted_false_to_none": plant_dropped + claim_dropped,
             "conflicted_battery_to_none": conflicted,
+            "conflicted_power_to_none": power_dropped,
             "titles_restored": payload["listing_text"][:len(payload["listing_text"]) - len(output.listing_text)],
             "rule_attributes_added": payload["attributes"][len(output.attributes):],
             "rule_conflicts_added": payload["conflicts"][len(output.conflicts):],

@@ -1,0 +1,42 @@
+{
+  "fixture": "strat_13/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 ZHUIYAN G5 고속 헤어드라이어(영문 페이지). 전압·전력·온풍 표기로 전기는 확실하고, 무선 통신 언급이 없는 유선 전자기기라 전파는 고르지 않는다. 음이온 모발 케어 문구('help hair smoother', 'nourishing hair')는 상세 이미지에만 강하게 있어 식약 선택 근거가 이미지에 있는 케이스다. 스펙표 'Certification: CE'와 이미지 수치 과장('Power Improved by 60%', '6 times')으로 표시광고를 고른다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 'Origin: Mainland China'(원문 166~167행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 'Voltage: 100-240v'(156~157행), 'Max. Power: Less Than 1000 W'(158~159행), 'Function: Anion,Nanoe,Thermostatic,Hot/cold air,Temperature control,diffuser'(160~161행)로 전자기기. 블루투스·WiFi·앱·리모컨 언급은 제목·스펙표·이미지 어디에도 없음",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "image_only": true,
+      "evidence": "이미지 '2 billion negative ions* Improve dryness and frizz to help hair smoother'(img_02), 'Hair care from the root … cares for scalp and hair'(img_05), 'Suitable temperature + smoothing is the secret to nourishing hair', 'stereo care from scalp to tip'(img_08), 'Effectively reduce heat damage'(img_09). 글에는 제목 'Anion … for Smooth Hair Styling'(10행), 스펙표 'Function: Anion,Nanoe'(160~161행)뿐",
+      "why_not_other": "모발 윤기·영양·손상 개선은 미용 효과 표방으로 본다. 글(제목 'Smooth Hair Styling')만으로는 스타일링 설명에 가까워 근거가 약하고, 미용 효과 문구는 상세 이미지에 있어 image_only로 뒀다. AI 요약(27행 'reduces frizz, enhances shine')은 근거가 아니다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 'Voltage: 100-240v (Dual voltage)'(156~157행), 'Max. Power: Less Than 1000 W'(158~159행), 'Function: … Hot/cold air'(160~161행), 이미지 'Rated voltage AC 220V', 'Rated power 1600W'(img_13), '100℃ / 80℃ / 60℃'(img_12)",
+      "why_not_other": "전기 구동·발열 기능이고 정격 전압·전력 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표에 어린이 대상 표기·연령 없음. 제목 'Professional Hair Dryer'(10행), 이미지 모델 전부 성인 여성(img_03·06·07)",
+      "why_not_other": "성인용 미용 가전이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 'Certification: RoHs,RoHS,CE'(170~171행), 제목 '2026 New Professional … Professional Hair Dryer'(10행). 이미지 'Power Improved by 60%'(img_07), 'The key to 6 times the effect'(img_04), '2 billion negative ions'(img_02·08), 'nourishing hair'(img_08)",
+      "why_not_other": "해외 인증(CE) 표기가 글에 있어 (3)에 해당하고, 이미지에는 과장 가능 수치(60%, 6배, 20억 음이온)와 미용 효과 표방이 있다. AI 요약과 리뷰는 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "애매: radio_compliance는 무선 기능이 페이지에 없는 유선 헤어드라이어라 false. 애매: food_drug_safety는 모발 매끄러움·영양을 미용 효과 표방으로 보아 true(근거는 이미지에만 뚜렷). 스펙표 'Less Than 1000 W'·'100-240v'와 이미지 'Rated power 1600W'·'AC 220V'(img_13)가 어긋나지만 어느 쪽이든 전기 선택에는 영향 없다. [기준1: radio_compliance True→False]"
+}

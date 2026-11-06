@@ -4,10 +4,13 @@
 프롬프트·필드 설명으로 막아 보면 다른 칸까지 비워 두는 놓침이 함께 늘어서, 근거 기준이 분명한 칸만 코드에서 정리한다.
 기준은 추출 프롬프트 원칙 1과 평가 정답표가 쓰는 "false의 근거"와 같다.
 
-세 가지를 되돌린다.
+여섯 가지를 되돌린다. 어느 것도 칸을 true·false로 정하지 않는다.
     - drop_guessed_false: 페이지가 부정을 말하는 일이 거의 없는 칸. 원문을 보지 않고 false를 전부 되돌림
     - drop_unsupported_false: 페이지가 부정을 말할 수 있는 칸. 원문에 그 표기가 없을 때만 되돌림
+    - drop_contradicted_plant_false: 소재 줄에 식물성 재질이 있는데 plant_material이 false. 되돌리고 모순으로 남김
+    - drop_contradicted_claim_false: 효능·미용 표방 문구가 있는데 medical_claim·cosmetic_claim이 false. 되돌리고 모순으로 남김
     - drop_conflicted_battery: 코드 규칙이 배터리 모순을 찾은 페이지. 배터리 칸의 확정(true·false)을 되돌림
+    - drop_conflicted_power: 코드 규칙이 스펙표끼리의 전원 방식 모순을 찾은 페이지. electrical_powered 확정을 되돌림
 """
 
 import re
@@ -60,6 +63,8 @@ _NON_PLANT_MATERIAL = re.compile(
 )
 # 코드 규칙이 배터리 모순(용량 표기 + "배터리 미포함")을 찾았을 때 확정하지 않는 칸 (원칙 5)
 _BATTERY_FIELDS = ("battery_included", "battery_is_the_product")
+# 코드 규칙이 스펙표끼리의 전원 방식 모순("전자식: 아니요" + "전원 공급: 교류")을 찾았을 때 확정하지 않는 칸 (원칙 5)
+_POWER_FIELDS = ("electrical_powered",)
 
 
 def drop_guessed_false(attributes: dict[str, Any]) -> list[str]:
@@ -104,6 +109,109 @@ def drop_unsupported_false(attributes: dict[str, Any], text: str) -> list[str]:
     return dropped
 
 
+# 소재·재질·재료·성분 줄("키\n값" 또는 "키: 값")의 값에 식물성 재질이 적혀 있으면 plant_material false를 되돌린다.
+# 모델이 "72% Cotton"·"소재: 종이"를 false로 두는 일이 잦다(초안 50건 측정, 2026-11-05).
+# 재질 줄 밖의 낱말(포장 "종이 상자", "나무 심기 프로그램")은 근거가 아니라 줄 단위로만 본다.
+_MATERIAL_ROW = re.compile(
+    r"(?:^|\n)[^\n:：]{0,20}(?:소재|재질|재료|성분|material)[^\n:：]{0,10}[:：]?[ \t]*\n?[ \t]*(?P<value>[^\n]+)",
+    re.IGNORECASE,
+)
+# "면"은 "양면발열"·"면도기"처럼 다른 낱말 안에도 있어 한글 낱말 안의 면은 재질로 보지 않는다.
+# 영어는 낱말 단위로 본다("Soak"의 oak, "Spine"의 pine). "Cotton소재"처럼 한글이 붙은 표기는 잡는다.
+_PLANT_MATERIAL = re.compile(
+    r"(?<![가-힣])면(?![가-힣])|코튼|종이|나무|목재|원목|우드|대나무|라탄|등나무|린넨|리넨|황마|코르크|밀짚|짚|티크|월넛|오크|소나무"
+    r"|(?<![A-Za-z])(?:cotton|paper|wood(?:en)?|plywood|hardwood|bamboo|rattan|linen|jute|cork|straw|teak|walnut|oak|pine)(?![A-Za-z])",
+    re.IGNORECASE,
+)
+
+
+def drop_contradicted_plant_false(attributes: dict[str, Any], text: str) -> tuple[list[str], list[str]]:
+    """소재 줄에 식물성 재질이 있는데 plant_material이 False면 None으로 되돌리고 모순 문장을 만든다.
+
+    코드는 식물성 여부를 대신 정하지 않는다(True로 확정하지 않음). 페이지 표기와 모델의 False가 어긋나는
+    명확한 경우만 '애매함'으로 돌려 판단 단계로 넘긴다. attributes를 그 자리에서 고친다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+        text: 모델이 읽은 판매자 영역 원문. 블록을 합친 글.
+
+    Returns:
+        tuple[list[str], list[str]]: None으로 바꾼 필드 이름, conflicts에 넣을 문장.
+    """
+    if attributes.get("plant_material") is not False:
+        return [], []
+    for row in _MATERIAL_ROW.finditer(text):
+        value = row.group("value").strip()
+        if _PLANT_MATERIAL.search(value):
+            attributes["plant_material"] = None
+            return ["plant_material"], [f'소재 표기 "{value}"에 식물성 재질이 있어 확인이 필요합니다.']
+    return [], []
+
+
+# 판매자 글의 효능·미용 표방 문구. 프롬프트는 "상품 이름 안에 있어도 표방"이라고 하지만 모델(gpt-4.1-mini)이
+# 제목의 '스트레스 완화'·'치아 미백 효과'를 false로 두는 일이 잦다(초안 50건 측정, 2026-11-05). 표현이 분명한 것만 잡는다.
+# 부정("통증 없는 이어폰")은 "완화·개선" 같은 효능 동사를 요구해 걸리지 않게 하고, 촉감 설명(skin-friendly)은 넣지 않는다.
+# 영어는 낱말 경계로 막는다("Singapore"의 pore, "uplifting"의 lifting). 옷·운동용품에 흔한 낱말(리프팅·lifting·wrinkle·
+# elasticity·pore)은 피부 부위나 효능 낱말과 붙었을 때만, "슬리밍 핏"은 표방이 아니라 뺀다. 한국어 "피로"는 "팔의 피로를 줄여" 같은
+# 인체공학 설명에도 쓰여 "피로 회복"만, "교정기"는 쇼핑몰 분류 "교정기 및 지지대"에도 있어 "자세·등·체형 교정"만 본다.
+_KO_RELIEF = r"(?:완화|경감|해소|개선|감소|줄여)"
+_MEDICAL_CLAIM = re.compile(
+    r"(?:통증|스트레스|가려움|두통|염증|부종|불면|근육통|관절통|생리통)\s*(?:을|를)?\s*" + _KO_RELIEF
+    + r"|피로\s*회복|혈액\s*순환|관절\s*(?:을|를)?\s*(?:안정|보호|지지)|근육\s*이완|경락"
+    + r"|(?:자세|등|체형|척추|굽은\s*등)\s*(?:을|를)?\s*교정"
+    + r"|(?:여드름|무좀|습진|탈모|비염|불면증)\s*(?:치료|개선|완화)"
+    + r"|지방\s*(?:연소|분해|감소)|체중\s*감소|슬리밍(?!\s*핏)|셀룰라이트|수면\s*(?:개선|질)|면역|혈압|혈당|당뇨"
+    + r"|\b(?:(?:pain|stress|itch|headache|sunburn|inflammation)\s*(?:relief|reliev\w*|improve\w*)"
+    + r"|headache\s*reli[ef]\w*|blood\s*circulation|circulation\s*improve\w*|fat\s*(?:loss|burn\w*)|weight\s*loss"
+    + r"|slimming(?!\s*fit)|sleep\s*quality|posture\s*correct\w*)\b",
+    re.IGNORECASE,
+)
+_COSMETIC_CLAIM = re.compile(
+    r"미백|주름\s*(?:개선|완화|제거)|탄력\s*(?:강화|개선|회복)"
+    + r"|(?:얼굴|페이스|피부|턱|눈가|목)\s*리프팅|리프팅\s*(?:및\s*탄력|효과|케어|크림|마스크|앰플|세럼|마사지)"
+    + r"|모공\s*(?:클리너|축소|케어|청소|관리)|블랙헤드|각질\s*(?:제거|케어|관리)"
+    + r"|피부\s*(?:톤|결|재생|탄력|미백|보습|광채)|피부톤|붓기\s*(?:완화|제거|감소|빼)"
+    + r"|(?:머릿결|모발|헤어)\s*(?:윤기|보호|케어|손상\s*개선)|윤기\s*있고|건강한\s*모발"
+    + r"|\b(?:whitening|blackheads?|exfoliat\w*|puffiness|frizz"
+    + r"|skin\s*(?:tone|brighten\w*|rejuvenat\w*)|smooth\s*hair|hair\s*care)\b"
+    + r"|\b(?:face|facial|skin|eye|neck)\b[^\n.]{0,30}\b(?:wrinkles?|lifting|elasticity|pores?)\b"
+    + r"|\b(?:wrinkles?|elasticity|pores?)\s+(?:reduc\w*|remov\w*|improv\w*|clean\w*|minimi\w*|vacuum\w*|care|treatment)\b"
+    + r"|\b(?:reduc\w*|remov\w*|improv\w*|clean\w*|minimi\w*|tighten\w*)\s+(?:\w+\s+){0,2}(?:wrinkles?|elasticity|pores?)\b",
+    re.IGNORECASE,
+)
+
+
+def drop_contradicted_claim_false(attributes: dict[str, Any], text: str) -> tuple[list[str], list[str]]:
+    """효능·미용 표방 문구가 있는데 medical_claim·cosmetic_claim이 False면 None으로 되돌리고 모순 문장을 만든다.
+
+    코드는 표방 여부를 대신 정하지 않는다(True로 확정하지 않음). 표방은 해석이 갈리는 칸이라, 페이지 문구와
+    모델의 False가 어긋나는 명확한 경우만 '애매함'으로 돌려 판단 단계로 넘긴다. attributes를 그 자리에서 고친다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+        text: 모델이 읽은 판매자 제목과 판매자 영역 원문. 합친 글.
+
+    Returns:
+        tuple[list[str], list[str]]: None으로 바꾼 필드 이름, conflicts에 넣을 문장.
+    """
+    dropped: list[str] = []
+    conflicts: list[str] = []
+    for name, pattern, kind in (
+        ("medical_claim", _MEDICAL_CLAIM, "효능 표방"),
+        ("cosmetic_claim", _COSMETIC_CLAIM, "미용 효과 표방"),
+    ):
+        if attributes.get(name) is not False:
+            continue
+        match = pattern.search(text)
+        if match:
+            attributes[name] = None
+            dropped.append(name)
+            sentence = f'판매자 문구 "{match.group(0).strip()}"가 {kind}일 수 있어 확인이 필요합니다.'
+            if sentence not in conflicts:
+                conflicts.append(sentence)
+    return dropped, conflicts
+
+
 def drop_conflicted_battery(attributes: dict[str, Any]) -> list[str]:
     """배터리 모순이 있는 페이지에서 배터리 두 칸의 확정을 None으로 바꾼다. attributes를 그 자리에서 고친다.
 
@@ -117,5 +225,24 @@ def drop_conflicted_battery(attributes: dict[str, Any]) -> list[str]:
         list[str]: None으로 바꾼 필드 이름.
     """
     dropped = [name for name in _BATTERY_FIELDS if attributes.get(name) is not None]
+    attributes.update(dict.fromkeys(dropped))
+    return dropped
+
+
+def drop_conflicted_power(attributes: dict[str, Any]) -> list[str]:
+    """전원 방식 모순이 있는 페이지에서 electrical_powered 확정을 None으로 바꾼다. attributes를 그 자리에서 고친다.
+
+    스펙표가 "전자식: 아니요"인데 "전원 공급: 교류"처럼 서로 다르게 적은 페이지. 모델은 한쪽을 골라 확정함
+    (초안 50건 측정 2026-11-05: strat_16에서 3회 모두 false, 실제는 교류 전원 제품).
+    호출자가 코드 규칙(detect_power_conflicts)으로 모순을 찾았을 때만 부른다. 다른 false 정리보다 먼저 불러야
+    전기 여부를 모르는 상품의 발열·배터리·무선 false도 같은 기준으로 정리된다.
+
+    Args:
+        attributes: 모델이 채운 상품 특성 (ProductAttributes.model_dump()).
+
+    Returns:
+        list[str]: None으로 바꾼 필드 이름.
+    """
+    dropped = [name for name in _POWER_FIELDS if attributes.get(name) is not None]
     attributes.update(dict.fromkeys(dropped))
     return dropped

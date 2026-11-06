@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_16/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "알리 Beemyi CS-107 초음파 40KHz 캐비테이션 바디 마사지기. 제목이 '슬리밍 지방 연소 … 체중 감소 피부 탄력 강화'를 표방해 식약·표시광고를 고르고, 스펙표 '전원 공급: 교류', '전압: <50V 교류'로 전기를 고른다(같은 표의 '전자식: 아니요'와 모순). 제목의 '40KHz'는 초음파 진동 주파수이고 무선 기능이 페이지에 없어 전파는 고르지 않는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "스펙표 '원산지: 중국'(원문 201~202행), 알리익스프레스 해외 직구 상품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "제목 '초음파 40KHz 캐비테이션 기계'(10행), 스펙표 '전원 공급: 교류', '전압: <50V 교류'(191~194행)로 전자기기. 블루투스·WiFi·리모컨·앱 언급은 없음",
+      "why_not_other": "무선 통신·무선충전·전파 차단 기능이 페이지에 없는 전자기기다. 우리 전파 Tool은 무선 기기만 보고 유선 전자파적합성(고시 별표 1의 11절)은 범위 밖이다. (사용자 기준 기준1, 11/5)"
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '바디 마사지기 슬리밍 지방 연소 뷰티 디바이스 체중 감소 피부 탄력 강화'(10행), 이미지 'Ultrasonic fat loss without injury', 'Fat burning / blood circulation / shaping to reduce fat'(img_01), 'Body shaping'(img_07), 'Fat Reduction Machine'(img_16), 비포·애프터 사진(img_08)",
+      "why_not_other": "지방 연소·체중 감소(의료 효능)와 피부 탄력(미용 효과)을 함께 표방하고 피부에 대고 쓰는 기기다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '전원 공급: 교류'(191~192행), '전압: <50V 교류'(193~194행), 이미지 'ON/OFF', 'Intensity'(img_02·04), 로커 스위치·DC 잭(img_12), 'AC/DC ADAPTER'와 전원 코드(img_14)",
+      "why_not_other": "전원·전압 표기가 있는 전기 구동 기기다. 스펙표 '전자식: 아니요'(189~190행)는 다른 칸·이미지와 모순이며 오히려 원칙 6(conflicts)으로도 선택 근거가 된다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표에 어린이 대상 표기·연령 없음. 품목 유형 '마사지 및 휴식'(203~204행), 이미지 모델 성인 여성(img_08·16)",
+      "why_not_other": "성인용 체형 관리 기기이고 학용품·완구가 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "제목 '슬리밍 지방 연소 … 체중 감소 피부 탄력 강화'(10행), 이미지 'Ultrasonic fat loss without injury', '40K fat exploding instrument'(img_01), 'Your personal butler creates charming curves'(img_07), 비포·애프터(img_08), CE 마크(img_12)",
+      "why_not_other": "판매자 제목에 의료·미용 효능 표방이 직접 있다. 'without injury'는 절대적 안전 표현이기도 하다. description.txt의 캐비테이션 원리(지방 세포 파열) 설명도 같은 방향이다."
+    }
+  },
+  "notes": "애매: radio_compliance는 '40KHz'가 초음파 진동 주파수이고 기기가 유선이라 무선 기능으로 보지 않아 false. [기준1: radio_compliance True→False]"
+}

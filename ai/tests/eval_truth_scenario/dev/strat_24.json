@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_24/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "삼성 갤럭시용 자석 정렬 Qi 무선 충전 패드(Temu, 모델 T27S, 최대 15W, USB-C 전원). 무선충전으로 전파, USB 전원·작동 전압으로 전기를 고르고, 스펙표의 'CE-RoHS; FCC ID' 인증 표기와 '고속' 표방으로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "Temu 해외 직구 수입품, 본체 각인 'Made in China'(img_01·img_03)",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": true,
+      "evidence": "카테고리 '무선 충전기'(41행), 제목 '고속 무선 충전 스테이션 … 유도 무선 충전 보드, Qi 초박형 디자인'(111행), 안내 '무선 충전을 위한 자석 작용 영역에 장치가 위치하도록 하세요'(105행), 이미지 'Fast MagSafe Charging Pad'(img_02)",
+      "why_not_other": "무선충전 기기라 기준상 선택한다. 'FCC ID' 표기(101행)도 전파 인증 대상이라는 방증이다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "카테고리 '휴대폰&액세서리 > 무선 충전기'(40~41행). 음식 접촉·의료·미용 표방 없음",
+      "why_not_other": "휴대폰 충전기라 음식 접촉이 없고 피부·점막에 작용하는 용도도 아니다."
+    },
+    "electrical_safety": {
+      "selected": true,
+      "evidence": "스펙표 '커넥터 유형: USB-Type C', '전원 모드: USB', '작동 전압: ≤36V'(95~100행), 안내 '이 제품의 최대 전력은 15W입니다'(105행), 이미지 'Input:9V/2A', 'Output:5/10/15W(Max)'(img_01·img_03)",
+      "why_not_other": "전기 구동이고 전압·전력 표기가 있다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목·스펙표·이미지에 어린이 대상·연령 표기 없음. 이미지 사용자는 성인(img_01·img_02)",
+      "why_not_other": "성인용 전자 액세서리이고 학용품·완구가 아니다. 리뷰의 '딸아이'(68행)는 구매자 문구라 근거로 쓰지 않았다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 '인증정보: CE-RoHS; FCC ID'(101행), 제목 '삼성 전용 고속 무선 충전 스테이션'(111행), 이미지 FC·CE·RoHS 마크와 'Over-Charging / Over-Voltage / … / Anti-Surge' 보호 기능 표방(img_03), 'Universal Compatibility'(img_04)",
+      "why_not_other": "해외 인증(CE, FCC)을 인증 정보로 표기한 것이 기준 (3)에 해당한다. '고속'과 보호 기능 나열은 검증이 필요한 성능 표방이다. 제목 '삼성 전용'과 이미지의 아이폰 호환 표기가 어긋나는 점도 점검 대상이다."
+    }
+  },
+  "notes": "'자석 가이드 링'·'MagSafe'는 자석 정렬이지 통신이 아니다. 전파 선택 근거는 무선충전이다. 105행·108행 안내문은 '상점 정보' 아래 판매자 주의문으로 보았다."
+}

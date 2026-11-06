@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 로컬 Redis(localhost:6379)로 Bucket4j Lettuce 연동을 확인하는 수동 테스트.
  * RATE_LIMIT_REDIS_TEST 가 없으면 건너뛰므로 CI 와 평소 테스트에서는 실행되지 않는다.
  *
- * 실행: RATE_LIMIT_REDIS_TEST=1 ./gradlew test --tests '*RateLimitRedisManualTest'
+ * 실행: RATE_LIMIT_REDIS_TEST=1 ./gradlew integrationTest --tests '*RateLimitRedisManualTest'
  */
 @Tag("integration")
 @SpringBootTest(properties = "rate-limit.ai.capacity=2")

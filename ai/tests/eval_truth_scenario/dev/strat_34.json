@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_34/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "Temu 탄소강 곰 모양 마들렌·케이크 베이킹 팬(4/6/9/12구, 일부 옵션 오일 브러쉬 포함). 오븐에서 반죽을 굽는 틀이라 식약을 고르고, 탄소강 비전자 제품이라 전파·전기는 해당 없다. 곰 캐릭터 모양이지만 어린이 대상 표기가 없다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "Temu 해외 직구 상품(112행 '관세 등을 포함')",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 탄소강'(88~89행), '특징: 오븐'(90~91행). 이미지(img_01~03)는 금속 틀과 구운 케이크뿐",
+      "why_not_other": "전원부 없는 금속 베이킹 틀이라 무선 통신·무선충전 부품이 없고 전파 차폐 문구도 없다."
+    },
+    "food_drug_safety": {
+      "selected": true,
+      "evidence": "제목 '베이킹 팬 … 곰 마들렌 팬 … 소형 케이크 논스틱 몰드'(97행), 카테고리 '베이킹 용품'(41행), 스펙표 '특징: 오븐'(90~91행), 옵션 '오일 브러쉬'(118~119행). 이미지 틀 안의 구운 케이크(img_01~03)",
+      "why_not_other": "반죽·식품에 직접 닿는 조리도구다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '재료: 탄소강'(88~89행), '특징: 오븐'(90~91행). 전원·전지·전압 표기 없음",
+      "why_not_other": "오븐에 넣어 쓰는 금속 틀로 자체 전원·발열 기능이 없는 비전자 제품이다. '오븐'은 사용 환경이지 이 제품의 발열 기능이 아니다."
+    },
+    "children_product_safety": {
+      "selected": false,
+      "evidence": "제목 '일본 카툰 곰 마들렌 팬'(97행)에 어린이 대상·연령 표기 없음. 이미지에 어린이 없음",
+      "why_not_other": "캐릭터 모양 조리도구일 뿐 어린이 대상 표기가 없고 완구·학용품이 아니다."
+    },
+    "labeling_advertising_detection": {
+      "selected": false,
+      "evidence": "제목 '인터넷 인기 음료 3D 곰 … 논스틱 몰드'(97행)",
+      "why_not_other": "'인터넷 인기', '논스틱'은 일반 표현·사양이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
+    }
+  },
+  "notes": "애매: labeling_advertising_detection은 '인터넷 인기'·'논스틱'만 근거라 단순 스펙 나열로 보아 false. '#27 최고 평점'(103행)은 플랫폼 배지라 근거로 쓰지 않았다. [기준3: labeling_advertising_detection True→False]"
+}

@@ -2,6 +2,7 @@
 
 파이프라인(pipeline/runner.py)은 진행 알림을 모름. 단계 객체를 감싸 부를 때마다 단계 알림을 보냄.
 재실행 회차에는 Tool 실행·집계·검증 알림이 다시 나감.
+검증 모델 검토가 실패하면 규칙 검사 결과로 진행 (통과는 재확인 필요로 바꿈). 규칙 결과도 없으면 재시도 가능 실패.
 파이프라인이 끝난 뒤 Tool의 부족한 정보가 남아 있으면 판매자 질문으로 넘김 (지난 회차에 물은 질문은 빼고).
 Tool 진행도 Tool을 감싸서 보냄. 재실행 회차에는 다시 실행하는 Tool만 started·completed가 다시 나감.
 
@@ -31,7 +32,7 @@ from ..schemas.pipeline import RetryRequest, SelectionResult
 from ..schemas.product import Product
 from ..schemas.schemas import (
     DraftAssessment, ExecutionEndReason, FinalAssessment, FinalVerificationStatus, FollowUpQuestion, ToolName,
-    ToolResult, ToolStatus, VerificationResult,
+    ToolResult, ToolStatus, VerificationResult, VerificationStatus,
 )
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
@@ -246,9 +247,21 @@ class _ReportingTool:
             self._progress.tool(self.tool_name, "completed")
 
 
+# 로그에 남길 감싼 원인의 최대 단계 (Tool 오류 ← 조회 오류 ← HTTP 오류 정도면 충분)
+_MAX_ERROR_CAUSES = 4
+
+
 def _error_text(exc: BaseException) -> str:
-    """로그용 예외 설명. 메시지 속 URL의 키는 가림."""
-    return mask_sensitive_params(f"{type(exc).__name__}: {exc}")
+    """로그용 예외 설명. 감싼 원인(__cause__)까지 ← 로 이어 붙이고, 메시지 속 URL의 키는 가림.
+
+    Tool은 외부 조회 오류를 공통 Tool 예외로 감싸므로 바깥 문장만으로는 실패 원인을 알 수 없다.
+    """
+    parts: list[str] = []
+    current: BaseException | None = exc
+    while current is not None and len(parts) <= _MAX_ERROR_CAUSES:
+        parts.append(f"{type(current).__name__}: {current}")
+        current = current.__cause__
+    return mask_sensitive_params(" ← ".join(parts))
 
 
 class _ToolExecution:
@@ -336,9 +349,35 @@ class _Verification:
                 _alias_ids(verification)
                 trace_note("output", verification)
         except VerificationError as exc:
-            # 검토 ID 중복 등 모델 실수·호출 실패. 다시 돌리면 통과 가능 → 재시도 가능
-            raise AIServiceError(
-                response_code=AIResponseCode.PIPELINE_ERROR.value, stage=PipelineStage.VERIFICATION, retryable=True,
-            ) from exc
+            if not isinstance(exc.partial_result, VerificationResult):
+                # 규칙 검사 결과도 없음. 다시 돌리면 통과 가능 → 재시도 가능
+                raise AIServiceError(
+                    response_code=AIResponseCode.PIPELINE_ERROR.value, stage=PipelineStage.VERIFICATION,
+                    retryable=True,
+                ) from exc
+            # 검토 ID 실수·모델 호출 실패. Tool 판단과 규칙 검사 결과는 버리지 않고 진행
+            verification = _rules_only(exc.partial_result)
+            _alias_ids(verification)
+            logger.warning("검증 모델 검토 실패, 규칙 검사 결과로 진행 (status=%s): %s",
+                           verification.status.value, _error_text(exc))
         self._state.done("verification")
         return verification
+
+
+def _rules_only(rules: VerificationResult) -> VerificationResult:
+    """모델 검토 없이 규칙 검사 결과만 남은 검증 결과. 모델 검토를 못 했으니 통과는 재확인 필요로 바꿈.
+
+    Tool 재실행·질문이 필요하다는 규칙 결과는 그대로 둠 (다음 행동은 규칙만으로도 정해짐).
+
+    Args:
+        rules: 검증 에이전트가 실패 전에 만든 규칙 검사 결과.
+
+    Returns:
+        VerificationResult: 통과 상태면 재확인 필요로 바꾼 결과, 아니면 규칙 결과 그대로.
+    """
+    if rules.status not in (VerificationStatus.APPROVED, VerificationStatus.APPROVED_WITH_WARNINGS):
+        return rules
+    return rules.model_copy(update={
+        "status": VerificationStatus.REVISION_REQUIRED,
+        "review_summary": "검증 모델 검토를 마치지 못해 규칙 검사 결과만 반영함",
+    })

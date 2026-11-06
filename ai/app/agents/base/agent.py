@@ -5,6 +5,7 @@
 클라이언트의 fetch_parsed/_send/_parse와 같은 구조.
 """
 
+import logging
 from abc import ABC, abstractmethod
 from time import perf_counter
 from typing import Any, ClassVar, Generic, Literal, NoReturn
@@ -26,10 +27,13 @@ from ...schemas.clients.decision_request import DecisionQuestion, DecisionReques
 from ...schemas.clients.decision_response import DecisionResponse
 from ...usage import CallUsage, estimate_krw, from_completion, from_decision, from_response
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
+from .guardrail import attach_guardrail, extra_guardrail_path, get_guardrail
 from .meta import AgentResult, AgentRunMeta
 from .parsing import parse_structured_output
 from .protocols import InputT, ModelLike, OutputT, ResultT
 from .usage_log import log_token_usage
+
+logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
@@ -47,6 +51,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         structured_output_options: with_structured_output 추가 옵션 (예: strict)
         creates_default_model: 모델 미주입 시 프로필로 만들지. 검증 에이전트는 규칙 전용 실행 때문에 False
         model_profile: (표 종류, 이름). None이면 ("agent", component_name). Tool 안 에이전트는 ("tool", ToolName 값)
+        uses_guardrail: 시스템 프롬프트 뒤에 공통·에이전트별 가드레일(``guardrail.md``)을 붙일지. 켜면 둘 중 하나라도 없을 때 생성 실패
     """
 
     component_name: ClassVar[str]
@@ -58,6 +63,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
     structured_output_options: ClassVar[dict[str, Any]] = {}
     creates_default_model: ClassVar[bool] = True
     model_profile: ClassVar[tuple[Literal["agent", "tool"], str] | None] = None
+    uses_guardrail: ClassVar[bool] = False
 
     def __init__(
         self,
@@ -86,7 +92,15 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         Raises:
             ConfigError: 모델을 만들어야 하는데 설정이 없거나 잘못된 경우.
             ValueError: decision_client만 주고 decision_model을 안 준 경우.
+            FileNotFoundError: 가드레일을 쓰는데 공통 또는 에이전트별 가드레일 문서가 없는 경우.
         """
+        # 표시했는데 문서가 빠지면 가드레일 없이 돌아 첫 호출이 아니라 생성(기동) 때 실패
+        if self.uses_guardrail:
+            get_guardrail(self.prompt_name)
+        # 문서를 두고 표시를 빠뜨리면 적용됐다고 오인만 함 → 경고. 판단 모델만 쓰는 에이전트는 prompt_name 없음
+        elif hasattr(self, "prompt_name") and (extra := extra_guardrail_path(self.prompt_name)).is_file():
+            logger.warning("%s: 가드레일 문서(%s)가 있지만 uses_guardrail이 꺼져 있어 붙지 않음",
+                           self.component_name, extra)
         # 미주입 + 자동 생성 대상이면 프로필로 생성 (검증처럼 creates_default_model=False면 모델 없이 둠)
         if model is None and self.creates_default_model:
             kind, name = self.model_profile or ("agent", self.component_name)
@@ -129,10 +143,20 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         profile = agent_decision_profile(self.component_name)
         return (profile, profile.model.id) if profile else (None, None)
 
+    @classmethod
+    def system_prompt(cls) -> PromptSnapshot:
+        """모델에 보내는 시스템 프롬프트 스냅샷. 모델 없이 클래스로 구함 (평가 기록 지문용).
+
+        Returns:
+            PromptSnapshot: 원문·경로·지문. 가드레일을 쓰면 본문 뒤에 붙이고 지문도 합친 본문 기준.
+        """
+        prompt = get_prompt(cls.prompt_name)
+        return attach_guardrail(prompt) if cls.uses_guardrail else prompt
+
     @property
     def prompt(self) -> PromptSnapshot:
-        """시스템 프롬프트 스냅샷 (원문·경로·지문)."""
-        return get_prompt(self.prompt_name)
+        """시스템 프롬프트 스냅샷 (원문·경로·지문). ``system_prompt()``와 같음."""
+        return self.system_prompt()
 
     def run(self, input: InputT) -> ResultT:
         """입력을 처리해 결과를 돌려준다.
@@ -350,6 +374,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         *,
         subject_id: str,
         partial_result: object | None = None,
+        images: list[str] | None = None,
     ) -> tuple[DecisionResponse, CallUsage, float]:
         """판단 모델에 질문하고 질문 이름별 답을 받는다. 실패는 바로 기록하고, 성공 기록은 후처리 뒤 호출부가 남김.
 
@@ -361,6 +386,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             questions: 질문 목록. 이름이 겹치지 않아야 함.
             subject_id: 사용량 기록 대상 ID (상품 ID).
             partial_result: 실패 시 예외에 담을 부분 결과.
+            images: 판단 대상 정보와 같이 볼 이미지. None이면 이미지 없음.
 
         Returns:
             tuple[DecisionResponse, CallUsage, float]: 질문 이름별 답, 사용량, 호출 시작 시각(perf_counter).
@@ -375,7 +401,9 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         if client is None:
             raise RuntimeError(f"{self.component_name}: 판단 모델 없이 _call_decision을 호출했습니다.")
 
-        request = DecisionRequest(model=self._decision_model, subject=subject, questions=questions)
+        request = DecisionRequest(
+            model=self._decision_model, subject=subject, questions=questions, images=images or [],
+        )
         check_request(request)
         if (trace := current_trace()) is not None:
             trace.begin_call(self.component_name, request)

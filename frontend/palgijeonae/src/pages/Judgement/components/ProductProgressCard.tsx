@@ -87,14 +87,14 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
             {isRunning && <ProgressSweep />}
             <div ref={contentRef} className="relative flex w-full flex-col gap-5">
                 <div className="flex w-full flex-row items-center justify-between gap-4">
-                    <div className="flex flex-row items-center gap-4">
+                    <div className="flex min-w-0 flex-row items-center gap-4">
                         <img
                             src={productImageUrl ?? defaultThumbnail}
                             alt=""
                             className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
                         />
-                        <div className="flex flex-col items-start gap-1">
-                            <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-start gap-2">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
                                 <h2 className="text-lg font-bold text-black">{truncateWithEllipsis(productName, MAX_PRODUCT_NAME_LENGTH)}</h2>
                                 <StatusBadge processingStatus={processingStatus} />
                             </div>

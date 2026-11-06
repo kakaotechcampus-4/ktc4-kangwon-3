@@ -12,8 +12,9 @@
 에이전트 지표는 실행 컨텍스트가 없어 기록 이름(평가 호출은 extraction-eval 등)으로만 구분.
 """
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import datetime
+from itertools import product
 from threading import Lock
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
@@ -22,11 +23,13 @@ from prometheus_client.registry import Collector
 
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
+from ..domain.context import PipelineStage, RunType
 from .measurements import (
     CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, Measurement,
     SellerRegionCut, ToolRun,
 )
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
+from ..schemas.schemas import ToolName, ToolStatus
 from ..sessions.manager import SessionManager
 
 # 세션 소요 시간 구간(초). 세션 최대 시간(SESSION_MAX_DURATION_SECONDS, 600초)까지
@@ -41,6 +44,36 @@ TOOL_RUN_BUCKETS = (1, 2, 5, 10, 20, 30, 60, 120, 300)
 HTTP_REQUEST_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
+# 콜백 이벤트 종류 (app/schemas/callback.py의 event_type)
+_CALLBACK_EVENT_TYPES = ("product_progress", "product_awaiting_input", "product_result", "product_failed")
+# 콜백 버린 사유 (app/callbacks/outbox.py)
+_CALLBACK_DROP_REASONS = ("retry_exhausted", "not_retryable", "shutdown", "error")
+# 외부 API 서버·호출 결과 (app/clients 각 클라이언트의 API, measurements.ClientCall)
+_CLIENT_APIS = ("law", "data_go_kr", "customs_clip", "safety_korea", "radio", "marketplace", "backend", "llm")
+_CLIENT_RESULTS = ("ok", "http_error", "api_error", "timeout", "connect_error", "other")
+# Tool 실패 원인 (app/pipeline/tool_executor.py)
+_TOOL_ERROR_TYPES = ("client", "model", "other")
+# 응답 캐시 이름 (app/db/law_cache.py·customs_cache.py)과 결정사례 DB (app/tools/customs/search.py)
+_RESPONSE_CACHES = ("law.eflaw_search", "law.text", "admrul.search", "admrul.text", "customs.gw")
+_CACHE_RESULTS = ("hit", "miss", "stale", "skipped")
+_CASE_CACHE, _CASE_CACHE_RESULTS = "customs.cases", ("hit", "miss", "skipped")
+# 정기 작업 결과 (app/db/law_cache.py·clip_ingest.py)
+_LAW_REFRESH_RESULTS = ("ok", "partial", "failed")
+_CLIP_INGEST_RESULTS = ("ok", "partial", "failed", "skipped")
+_CLIP_INGEST_OUTCOMES = ("saved", "removed", "failed")
+
+
+def _preset(metric: Counter | Histogram, *label_values: Iterable[str]) -> None:
+    """값이 정해진 라벨 조합을 0으로 미리 만든다.
+
+    라벨 조합은 처음 기록될 때 생겨서 increase()·rate()가 첫 기록을 못 셈. 미리 0으로 두면 첫 기록부터 셈.
+
+    Args:
+        metric: 라벨을 가진 Counter·Histogram.
+        *label_values: 라벨 순서대로 각 라벨이 가질 값 목록.
+    """
+    for values in product(*label_values):
+        metric.labels(*values)
 
 
 class SessionMetrics:
@@ -78,6 +111,12 @@ class SessionMetrics:
         self._tool = Counter(
             "ai_session_tool_progress", "Tool 진행 알림 수", ["run_type", "tool_name", "status"], registry=registry,
         )
+        run_types = [run_type.value for run_type in RunType]
+        outcomes = list(_OUTCOMES.values())
+        _preset(self._queue_wait, run_types)
+        for metric in (self._run, self._total, self._finished):
+            _preset(metric, run_types, outcomes)
+        _preset(self._stage, run_types, [stage.value for stage in PipelineStage])
         self._lock = Lock()
         # 실행별 지금 단계와 그 시작 시각. 다음 단계 변경·결말 때 앞 단계 소요 시간을 재고 지움
         self._stages: dict[str, tuple[str, datetime]] = {}
@@ -299,6 +338,18 @@ class MeasurementMetrics:
             "ai_clip_ingest_cases", "주간 적재에서 처리(saved·removed·failed)별 CLIP 결정사례 수", ["outcome"],
             registry=registry,
         )
+        _preset(self._callback_sent, _CALLBACK_EVENT_TYPES, ["delivered", "dropped"])
+        _preset(self._tool_runs, [tool.value for tool in ToolName], [status.value for status in ToolStatus])
+        _preset(self._seller_region, ["aliexpress", "temu"], ["true", "false"])
+        # 기동 직후·재시작 뒤 첫 버림·실패·정기 작업 결과도 세게 함
+        _preset(self._callback_dropped, _CALLBACK_DROP_REASONS)
+        _preset(self._client_calls, _CLIENT_APIS, _CLIENT_RESULTS)
+        _preset(self._tool_errors, [tool.value for tool in ToolName], _TOOL_ERROR_TYPES)
+        _preset(self._cache_lookups, _RESPONSE_CACHES, _CACHE_RESULTS)
+        _preset(self._cache_lookups, [_CASE_CACHE], _CASE_CACHE_RESULTS)
+        _preset(self._law_refresh_runs, _LAW_REFRESH_RESULTS)
+        _preset(self._clip_ingest_runs, _CLIP_INGEST_RESULTS)
+        _preset(self._clip_ingest_cases, _CLIP_INGEST_OUTCOMES)
 
     def on_record(self, record: Measurement) -> None:
         """측정 기록 1건을 기록한다.

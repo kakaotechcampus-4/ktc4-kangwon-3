@@ -1,0 +1,41 @@
+{
+  "fixture": "strat_22/text.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-11-05",
+  "draft_by": "Claude",
+  "draft_at": "2026-11-05",
+  "summary": "총 모양 플라스틱 발사기로 폼 공을 쏘는 어린이 장난감(Temu, 사용연령 3년 이상, 인증정보 CE-Toy; CPC). 완구·연령 표기로 어린이를 고르고, 전원 언급 없는 플라스틱 장난감이라 전기·전파를 고르지 않으며, 스펙표의 해외 인증 표기로 표시광고를 고르는 케이스다.",
+  "tools": {
+    "customs_requirements": {
+      "selected": true,
+      "evidence": "원산지 '광둥, 중국'(117~118행), Temu 해외 직구 수입품",
+      "why_not_other": "해외 직구 수입품이라 통관은 항상 고른다."
+    },
+    "radio_compliance": {
+      "selected": false,
+      "evidence": "스펙표 '본체재질: 플라스틱'(87~88행), '장난감 총알 재료: 거품'(94~95행). 블루투스·리모컨·앱·주파수 언급 없음. 이미지(img_01~04)도 전원부 없는 수동 발사기",
+      "why_not_other": "무선 통신·충전·차폐 근거가 없고 비전자 장난감으로 구성이 확인된다. 연관 상품의 '2.4G 무선 리모컨'(260행)은 다른 상품이다."
+    },
+    "food_drug_safety": {
+      "selected": false,
+      "evidence": "음식 접촉·의료·미용 표방 없음. 이미지 'Strictly select tasteless'(img_03)는 무취 소재 선별 문구",
+      "why_not_other": "발사 장난감으로 음식·점막 접촉 용도가 아니다. 'tasteless'는 소재 냄새 이야기라 식품 접촉 근거로 보지 않았다."
+    },
+    "electrical_safety": {
+      "selected": false,
+      "evidence": "스펙표 '본체재질: 플라스틱'(87~88행), '장난감 총알 재료: 거품'(94~95행). 전원·전지·충전·정격 표기 없음, 이미지의 발사기에 전원부·배터리 칸이 없다",
+      "why_not_other": "재질이 플라스틱·폼으로 명시된 비전자 장난감이다. 공기압으로 쏜다는 설명은 리뷰(54행)에만 있어 근거로 쓰지 않았다."
+    },
+    "children_product_safety": {
+      "selected": true,
+      "evidence": "카테고리 '장난감&게임 > 장난감 총&액세서리'(40~41행), 스펙표 '사용연령: 3년 이상'(91~92행), 제목 '부모-자녀 상호작용, 남아 여아용 장난감'(121행)",
+      "why_not_other": "완구이고 연령 표기가 만 13세 이하를 포함한다."
+    },
+    "labeling_advertising_detection": {
+      "selected": true,
+      "evidence": "스펙표 '인증정보: CE-Toy; CPC'(93행), 제목 '내구성 다트 장난감'(121행), 이미지 'Large capacity magazine'(img_02)",
+      "why_not_other": "해외 인증(CE-Toy, CPC)을 국내 판매 페이지에 인증 정보로 표기한 것이 기준 (3)에 해당한다. 리뷰(54~69행)는 근거로 쓰지 않았다."
+    }
+  },
+  "notes": "애매: 표시광고의 근거가 스펙표 '인증정보: CE-Toy; CPC' 한 줄뿐이다. 이 줄이 판매자가 입력한 스펙표 값이라 판매자 문구로 보았다. 제목은 효능·최상급 표현 없이 용도 나열이다."
+}

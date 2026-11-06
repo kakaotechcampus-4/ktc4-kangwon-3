@@ -51,6 +51,8 @@ void insertUser(UserRequest.SignInUserDto request);
 
 ### 1-2. Test 규칙
 
+> 테스트 종류 선택 기준, 작성 규칙, 커버리지, 실행 방법은 [BE 테스트 정책](TEST_POLICY.md)을 참고합니다.
+
 #### 1-2-1. `@DisplayName` Annotation
 
 JUnit 5의 `@DisplayName` 애너테이션을 적극 활용합니다.

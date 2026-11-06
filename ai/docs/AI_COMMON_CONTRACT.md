@@ -129,9 +129,31 @@ M1~M4는 AI 코드의 이관 단위이며, 계약을 합의하는 순서가 아�
 - 파일 경로만 버전으로 사용하지 않는다.
 - SHA-256 전체 문자열을 기록하고 화면 표시만 짧게 줄일 수 있다.
 - 기존 평가의 LF 정규화·지문과 호환되는지 테스트한다.
-- 평가 러너가 Agent의 `PROMPT_PATH` / `_PROMPT_PATH`를 import하지 않도록 이관한다. (미완료: `eval/runner.py`·`selection_runner.py`·`collect_runner.py`가 아직 import함. 값은 로더에서 가져온 경로라 지문은 같음)
+- 평가 러너가 Agent의 `PROMPT_PATH` / `_PROMPT_PATH`를 import하지 않도록 이관한다. (`selection_runner.py`·`collect_runner.py`는 이관됨. `eval/runner.py`는 파일 지문 함수 `prompt_fingerprint()`의 기본값으로 아직 import함)
+- 평가 기록의 `prompt_sha256`은 에이전트가 모델에 보내는 시스템 프롬프트(`Agent.system_prompt()`, 가드레일 포함) 기준이다. 가드레일만 바꿔도 다른 프롬프트로 기록된다 (3.3)
 - 캐시 갱신 시점은 미결정이다. 운영 중 자동 갱신은 이번 인터페이스로 보장하지 않는다. 개발·평가에서 초기화할 수 있는 명시적 함수만 제공한다.
 - 기존 `prompt_fingerprint(path)`의 임의 파일 평가 기능이 필요하면 유지하되, 해시 계산 규칙은 같은 함수를 공유한다.
+
+### 3.3 가드레일 — 구현됨
+
+입력 가드(#552 작업)를 통과한 입력 속 지시문을 에이전트가 따르지 않게 하는 2차 방어. 프롬프트 본문과 따로 두고 시스템 프롬프트 뒤에 붙인다.
+
+- 위치: `app/agents/base/guardrail.py` (`get_guardrail`·`attach_guardrail`·`extra_guardrail_path`·`clear_guardrail_cache`)
+- 쓰는 에이전트는 클래스에 `uses_guardrail = True`로 표시한다. 파이프라인 에이전트와 Tool 안 단계(`ToolStep`·광고) 모두 BaseAgent를 상속해 같은 방식으로 적용
+- 시스템 프롬프트 = `prompt.md` 본문 + 빈 줄 + 공통 가드레일 + 빈 줄 + 에이전트별 가드레일. 지문(sha256)도 합친 본문 기준
+
+| 문서 | 위치 | 내용 |
+| --- | --- | --- |
+| 공통 | `app/agents/base/guardrail.md` | 모든 에이전트에 같은 규칙 (자료 속 명령문을 따르지 않음 등) |
+| 에이전트별 (패키지 프롬프트) | `app/agents/<이름>/guardrail.md` | 그 에이전트가 받는 자료에 맞춘 규칙 |
+| 에이전트별 (Tool 단계) | `app/tools/<Tool>/<단계>.guardrail.md` (예: `tools/children/facts.guardrail.md`) | 같음 |
+| 에이전트별 (Tool에 프롬프트 하나) | `app/tools/<Tool>/guardrail.md` (예: `tools/advertising/guardrail.md`) | 같음 |
+
+- Tool 쪽 에이전트별 문서는 `app/prompts/`가 아니라 Tool 폴더에 둔다 (`app/prompts/`는 분야별 폴더로 옮길 예정이라 늘리지 않음)
+- 표시했는데 공통·에이전트별 문서 중 하나라도 없으면 에이전트 생성(기동) 때 `FileNotFoundError`. 가드레일 없이 도는 걸 막음
+- 표시하지 않았는데 에이전트별 문서가 있으면 생성 때 WARNING만 남기고 붙이지 않음 (적용됐다고 오인하는 것만 막음)
+- 판단 모델만 쓰는 에이전트(판단 선택)는 시스템 프롬프트가 없어 해당 없음
+- 선택 정답표의 `prompt_sha256`(`SELECTION_EVAL.md` 3절)은 `prompt.md` 파일 지문 그대로다. 정답은 프롬프트 규칙에서 나오고 가드레일은 규칙이 아니라서 바뀌어도 정답을 다시 매기지 않음
 
 ## 4. Agent 인터페이스와 실행 경계 — M1 / M2
 
@@ -153,7 +175,8 @@ M1~M4는 AI 코드의 이관 단위이며, 계약을 합의하는 순서가 아�
 
 - `BaseAgent[InputT, OutputT, ResultT]`(ABC). 공개 메서드는 `run(input)`·`run_with_meta(input)` 두 개
 - 하위 클래스 구현: `_build_messages`·`_subject_id` (필요하면 `_finalize`·`_skip`)
-- ClassVar 추가: `task_name`·`output_label`·`structured_output_options`·`creates_default_model`·`model_profile`
+- ClassVar 추가: `task_name`·`output_label`·`structured_output_options`·`creates_default_model`·`model_profile`·`uses_guardrail`(3.3)
+- 모델 없이 시스템 프롬프트를 구하는 클래스 메서드 `system_prompt()` (평가 기록 지문용). `prompt`도 같은 값
 - `AgentError(AIError, RuntimeError)`에 `meta: AgentRunMeta` 추가. `ModelFailurePhase`에 `FINALIZE` 추가
 - 실행 정보 `AgentRunMeta`·`AgentResult` 신설 (`base/meta.py`)
 - Tool 안의 모델 호출도 BaseAgent를 상속: `ToolStep` + `ToolStepInput(payload, subject_id)` (`app/tools/base/steps.py`)
@@ -553,7 +576,7 @@ class ExecutionEvent(BaseModel):
 | `product_progress` | `stage`, `stageStatus`(started·completed·skipped), `toolName` | toolName은 Tool 실행 단계에서만. 선택된 Tool은 동시에 실행돼 Tool끼리는 순서가 섞임(같은 Tool은 started → completed). BE는 저장하지 않고 표시만 |
 | `product_awaiting_input` | `questionRound`(1~2), `questions[]` | 실행의 마지막. 질문 키·순서 중복 금지 |
 | `product_result` | `assessment` (§7.1.3) | 실행의 마지막. 진단서를 콜백에 바로 담음 |
-| `product_failed` | `stage`, `error{code(≤50자), message, retryable}` | 실행의 마지막 |
+| `product_failed` | `stage`, `error{code(≤50자), message, retryable, reviewFlag}` | 실행의 마지막. `reviewFlag`는 BE 전용 검토 표시(보통 null), FE로 넘기지 않음 |
 
 질문 `PublicQuestionDto`: `questionKey`(≤50자), `questionOrder`(1부터), `questionText`, `helpText`.
 

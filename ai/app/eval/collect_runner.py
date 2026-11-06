@@ -25,7 +25,6 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 from ..agents.base import AgentRunMeta
-from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..agents.image_triage import ImageTriageAgent
 from ..config import agent_profile
@@ -257,7 +256,7 @@ def main() -> int:
     # 세 방식을 모두 비교하려고 사이트 설정과 관계없이 분류까지 함
     builder = UrlSourceBuilder(ImageTriageAgent(usage_agent="image_triage-eval"), images="selected")
     extractor = ExtractionAgent(usage_agent="extraction-eval")
-    meta = run_metadata(runs=args.runs, profile=agent_profile("extraction"), prompt_path=EXTRACTION_PROMPT_PATH)
+    meta = run_metadata(runs=args.runs, profile=agent_profile("extraction"), prompt=ExtractionAgent.system_prompt())
     print(describe_metadata(meta))
     failed = []
     for url, html in zip(args.url, args.html or [None] * len(args.url)):
