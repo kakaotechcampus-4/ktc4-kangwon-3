@@ -81,7 +81,10 @@ apiClient.interceptors.response.use(
 
         const status = error.response?.status
         const code = error.response?.data?.code
-        const level = classifyApiError({ status, code, retried: Boolean(error.config?._retried) })
+        // 타임아웃은 응답이 없어 상태코드로 구분되지 않으므로 error 대신 warning으로 보낸다.
+        const level = !error.response && isTimeoutError(error)
+            ? 'warning'
+            : classifyApiError({ status, code, retried: Boolean(error.config?._retried) })
 
         if (level) {
             const method = error.config?.method?.toUpperCase() ?? 'UNKNOWN'
