@@ -13,6 +13,7 @@
 """
 
 from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from itertools import product
 from threading import Lock
@@ -24,9 +25,10 @@ from prometheus_client.registry import Collector
 from ..agents.base.meta import AgentRunMeta
 from ..callbacks import CallbackOutbox
 from ..domain.context import PipelineStage, RunType
+from .agent_sinks import agent_sinks
 from .measurements import (
     CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, Measurement,
-    SellerRegionCut, ToolRun,
+    SellerRegionCut, ToolRun, measurement_sinks,
 )
 from ..sessions.events import AwaitingInput, Completed, Failed, SessionEvent, StageChanged, Started, ToolProgressed
 from ..schemas.schemas import ToolName, ToolStatus
@@ -415,6 +417,34 @@ class CallbackOutboxCollector(Collector):
         pending = GaugeMetricFamily("ai_callback_pending", "보내기를 기다리는 콜백 이벤트 수")
         pending.add_metric([], self._outbox.pending())
         yield pending
+
+
+@contextmanager
+def app_metrics(manager: SessionManager, outbox: CallbackOutbox) -> Iterator[CollectorRegistry]:
+    """앱 하나의 지표 registry를 만들고 세션·콜백 발신함·에이전트·측정 기록을 잇는다. 나갈 때 공용 sink에서 뗌.
+
+    앱마다 registry를 따로 둬 테스트에서 앱을 여러 번 띄워도 지표 이름이 겹치지 않음.
+
+    Args:
+        manager: 이벤트를 구독하고 현황을 읽을 세션 관리자.
+        outbox: 대기 중 이벤트 수를 읽을 콜백 발신함.
+
+    Yields:
+        CollectorRegistry: GET /metrics가 내보낼 registry.
+    """
+    registry = CollectorRegistry()
+    manager.subscribe(SessionMetrics(registry).on_event)
+    registry.register(SessionSnapshotCollector(manager))
+    registry.register(CallbackOutboxCollector(outbox))
+    # 에이전트·측정 sink는 앱 전체 공용이라 나갈 때 뗌 (다시 띄워도 옛 registry에 안 쌓이게)
+    on_run, on_record = AgentMetrics(registry).on_run, MeasurementMetrics(registry).on_record
+    agent_sinks.add(on_run)
+    measurement_sinks.add(on_record)
+    try:
+        yield registry
+    finally:
+        agent_sinks.remove(on_run)
+        measurement_sinks.remove(on_record)
 
 
 def _seconds(start: datetime, end: datetime) -> float:
