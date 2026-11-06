@@ -67,4 +67,14 @@ def test_mask_sensitive_params는_키_값만_대소문자_구분_없이_가린�
 
     masked = mask_sensitive_params(text)
 
-    assert masked == '근거 "https://x.kr/a?ServiceKey=***&type=XML&oc=***" 참고, serviceKey=k3'
+    assert masked == '근거 "https://x.kr/a?ServiceKey=***&type=XML&oc=***" 참고, serviceKey=***'
+
+
+@pytest.mark.parametrize(("text", "expected"), [
+    ("법제처 OC=k1 인증 실패", "법제처 OC=*** 인증 실패"),
+    ("serviceKey=k1&type=XML", "serviceKey=***&type=XML"),
+    ("키OC=k1", "키OC=***"),
+    ("ROC=1, docOC=2, my_oc=3", "ROC=1, docOC=2, my_oc=3"),
+])
+def test_mask_sensitive_params는_URL_쿼리_밖의_키도_가리되_다른_이름에_붙은_것은_두다(text, expected):
+    assert mask_sensitive_params(text) == expected
