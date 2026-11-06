@@ -32,7 +32,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
     const displayTitle = truncateWithEllipsis(title, MAX_DISPLAY_TITLE_LENGTH);
     // 제목이 길 경우 잘라서 보여주고, 마우스를 올리면 전체 제목을 보여준다.
-    const isTiltleLong = title.length > MAX_DISPLAY_TITLE_LENGTH;
+    const isTitleLong = title.length > MAX_DISPLAY_TITLE_LENGTH;
 
     // 자동으로 해제 되게끔 File을 받아와 useEffect 안에서 url을 생성한다.
     useEffect(() => {
@@ -59,7 +59,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                             className="w-5 h-5" />
                         <p className="text-base text-neutral-border font-bold">{type === SourceType.Url ? "URL" : "이미지 / 텍스트"}</p>
                     </div>
-                    <h3 title={isTiltleLong ? title : undefined} className="text-xl font-bold text-neutral-dark">{displayTitle}</h3>
+                    <h3 title={isTitleLong ? title : undefined} className="text-xl font-bold text-neutral-dark">{displayTitle}</h3>
                 </div>
                 <button
                     type="button"
