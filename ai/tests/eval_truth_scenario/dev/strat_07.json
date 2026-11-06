@@ -4,7 +4,7 @@
   "reviewed_at": "2026-11-05",
   "draft_by": "Claude",
   "draft_at": "2026-11-05",
-  "summary": "알리 사슴 캐릭터 USB 충전식 전기 손난로(3000mAh, 보조배터리·야간 조명 겸용). 발열·전지로 전기를 고른다. 무선 기능 언급은 없지만 부재 표기도 없는 전자기기라 전파는 원칙대로 고른다. 제목 '겨울 학생용 선물'과 캐릭터 디자인으로 어린이가 애매하다. 스펙표 'CCC' 인증 표기와 이미지 'heal the fatigue of the day'로 표시광고를 고른다.",
+  "summary": "알리 사슴 캐릭터 USB 충전식 전기 손난로(3000mAh, 보조배터리·야간 조명 겸용). 발열·전지로 전기를 고른다. 무선 기능이 페이지에 없는 전자기기라 전파는 고르지 않는다. 제목 '겨울 학생용 선물'과 캐릭터 디자인만으로는 어린이를 고르지 않는다. 스펙표 'CCC' 인증 표기와 이미지 'heal the fatigue of the day'로 표시광고를 고른다.",
   "tools": {
     "customs_requirements": {
       "selected": true,
@@ -37,5 +37,5 @@
       "why_not_other": "해외 인증(CCC) 표기와 피로 회복 효과 표방이 있다."
     }
   },
-  "notes": "애매: 전파 — 무선 언급도 부재 표기도 없는 전자기기라 CRITERIA대로 true. 애매: 어린이 — '학생용 선물'과 캐릭터 디자인만 있고 연령 표기는 없다. 원칙 1로 true. [기준1: radio_compliance True→False] [기준4: children_product_safety True→False]"
+  "notes": "애매: 전파 — 무선 기능이 페이지에 없는 전자기기라 false. 애매: 어린이 — '학생용 선물'과 캐릭터 디자인만 있고 연령 표기가 없어 false. [기준1: radio_compliance True→False] [기준4: children_product_safety True→False]"
 }

@@ -37,5 +37,5 @@
       "why_not_other": "'미끄럼 방지'는 기능 설명이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: 표시광고는 제목 '미끄럼 방지' 기능 표기 하나라 원칙 1로 true, 단순 기능 설명으로 볼 수도 있다. 어린이는 권장 연령 '18+,14세 이상'으로 false로 두었다. [기준3: labeling_advertising_detection True→False]"
+  "notes": "애매: 표시광고는 제목 '미끄럼 방지' 기능 표기 하나라 단순 기능 설명으로 보아 false. 어린이는 권장 연령 '18+,14세 이상'으로 false로 두었다. [기준3: labeling_advertising_detection True→False]"
 }

@@ -37,5 +37,5 @@
       "why_not_other": "'초고감도'는 수치 없는 성능 묘사다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: 표시광고는 '초고감도'(description.txt)를 과장 표현으로 보아 true로 두었다. 성능 묘사 수준으로 볼 수도 있어 확인 필요. [기준3: labeling_advertising_detection True→False]"
+  "notes": "애매: 표시광고는 '초고감도'(description.txt)를 수치 없는 성능 묘사로 보아 false. [기준3: labeling_advertising_detection True→False]"
 }

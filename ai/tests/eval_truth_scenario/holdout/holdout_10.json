@@ -37,5 +37,5 @@
       "why_not_other": "'완벽한'은 최상급·절대 표현(2), '수면 보조'는 효능 표방(1)에 해당한다."
     }
   },
-  "notes": "애매: radio_compliance — 무선 통신 표기가 없어 원칙상 true. 애매: food_drug_safety — '수면 보조'를 의료 효능 표방으로 볼지 갈림. 참고: children_product_safety는 false로 두었으나 캐릭터 실리콘 무드등이라 어린이 대상으로 볼 여지가 있다(리뷰에만 아이 언급). [기준1: radio_compliance True→False]"
+  "notes": "애매: radio_compliance — 무선 통신 표기가 없어 false. 애매: food_drug_safety — '수면 보조'를 의료 효능 표방으로 볼지 갈림. 참고: children_product_safety는 false로 두었으나 캐릭터 실리콘 무드등이라 어린이 대상으로 볼 여지가 있다(리뷰에만 아이 언급). [기준1: radio_compliance True→False]"
 }

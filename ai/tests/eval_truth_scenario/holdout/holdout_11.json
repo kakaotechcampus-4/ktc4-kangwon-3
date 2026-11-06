@@ -37,5 +37,5 @@
       "why_not_other": "'초강력'과 '20000Pa'는 과장 가능한 수치·표현(5), CE 표기는 해외 인증 표기(3)에 해당한다."
     }
   },
-  "notes": "애매: radio_compliance — 코드리스 청소기라 무선 통신이 없을 가능성이 크지만 페이지로 확인되지 않아 원칙상 true. [기준1: radio_compliance True→False]"
+  "notes": "애매: radio_compliance — 코드리스 청소기이고 무선 통신 표기가 없어 false. [기준1: radio_compliance True→False]"
 }

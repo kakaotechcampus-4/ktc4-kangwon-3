@@ -37,5 +37,5 @@
       "why_not_other": "'일본산·수제'는 다섯 유형에 들지 않는다(스펙표에 원산지가 없는 점은 notes). 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: labeling_advertising_detection. 기준의 5가지 유형에 원산지 표방은 명시돼 있지 않다. '일본산'·'수제'를 미검증 표방으로 볼지 사용자 확인 필요. 이를 빼면 제목은 용도 나열이라 false다. '#4 베스트셀러'(97행)·'45% 할인'(103행)은 플랫폼 배지·가격 표시라 근거로 쓰지 않았다. [기준3: labeling_advertising_detection True→False]"
+  "notes": "애매: labeling_advertising_detection. 기준의 5가지 유형에 원산지 표방은 명시돼 있지 않다. '일본산'·'수제'를 미검증 표방으로 보지 않아, 제목은 용도 나열이라 false다. '#4 베스트셀러'(97행)·'45% 할인'(103행)은 플랫폼 배지·가격 표시라 근거로 쓰지 않았다. [기준3: labeling_advertising_detection True→False]"
 }

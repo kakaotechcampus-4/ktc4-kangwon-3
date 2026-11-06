@@ -37,5 +37,5 @@
       "why_not_other": "'글루프리'는 사양 설명이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: labeling_advertising_detection — '글루프리'가 별도 풀이 필요 없다는 사양 설명인지, 접착 성분 무첨가 표방인지 갈린다. 원칙 1로 true. [기준3: labeling_advertising_detection True→False]"
+  "notes": "애매: labeling_advertising_detection — '글루프리'가 별도 풀이 필요 없다는 사양 설명인지, 접착 성분 무첨가 표방인지 갈린다. 사양 설명으로 보아 false. [기준3: labeling_advertising_detection True→False]"
 }

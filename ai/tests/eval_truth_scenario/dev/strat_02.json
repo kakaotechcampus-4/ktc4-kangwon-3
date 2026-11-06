@@ -4,7 +4,7 @@
   "reviewed_at": "2026-11-05",
   "draft_by": "Claude",
   "draft_at": "2026-11-05",
-  "summary": "알리 HUANG FU 고정날 야외용 칼(블레이드 9.1cm 강철, 플라스틱 손잡이, 칼집). 비전자 제품이라 전파·전기는 고르지 않는다. 용도는 '캠핑·목공'이고 음식 조리 언급은 없어 식약이 애매하다. 설명 글(description.txt)의 '날카로움을 보장'이 표시광고 근거다.",
+  "summary": "알리 HUANG FU 고정날 야외용 칼(블레이드 9.1cm 강철, 플라스틱 손잡이, 칼집). 비전자 제품이라 전파·전기는 고르지 않는다. 용도는 '캠핑·목공'이고 음식 조리 언급이 없어 식약은 고르지 않는다. 설명 글(description.txt)의 '날카로움을 보장'이 표시광고 근거다.",
   "tools": {
     "customs_requirements": {
       "selected": true,
@@ -38,5 +38,5 @@
       "image_only": true
     }
   },
-  "notes": "애매: 식약 — 캠핑용 칼의 음식 접촉은 페이지에 적혀 있지 않고 용도는 '목공'으로만 적혀 있다. 원칙 1로 true. 표시광고 근거는 text.txt가 아닌 description.txt(알리 설명 글)에 있다. [기준5: food_drug_safety True→False] [labeling_advertising_detection: 근거가 설명 글·이미지에만 있어 글 입력 밖으로 표시]"
+  "notes": "애매: 식약 — 캠핑용 칼의 음식 접촉은 페이지에 적혀 있지 않고 용도는 '목공'으로만 적혀 있다. 음식 접촉·효능·미용 표방이 없어 false. 표시광고 근거는 text.txt가 아닌 description.txt(알리 설명 글)에 있다. [기준5: food_drug_safety True→False] [labeling_advertising_detection: 근거가 설명 글·이미지에만 있어 글 입력 밖으로 표시]"
 }

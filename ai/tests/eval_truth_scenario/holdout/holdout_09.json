@@ -37,5 +37,5 @@
       "why_not_other": "'15W 고속', 'Qi 호환'은 사양이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: labeling_advertising_detection — '15W 고속'·'Qi 호환'이 사양 설명인지 과장·해외 인증 표방인지 갈릴 수 있어 원칙 1로 true. 인증정보는 '이 제품에 적용되지 않습니다'(93행). [기준3: labeling_advertising_detection True→False]"
+  "notes": "애매: labeling_advertising_detection — '15W 고속'·'Qi 호환'이 사양 설명인지 과장·해외 인증 표방인지 갈릴 수 있으나 사양 설명으로 보아 false. 인증정보는 '이 제품에 적용되지 않습니다'(93행). [기준3: labeling_advertising_detection True→False]"
 }

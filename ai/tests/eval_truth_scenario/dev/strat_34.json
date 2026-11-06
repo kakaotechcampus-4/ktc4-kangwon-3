@@ -37,5 +37,5 @@
       "why_not_other": "'인터넷 인기', '논스틱'은 일반 표현·사양이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: labeling_advertising_detection은 '인터넷 인기'·'논스틱'만 근거라 단순 스펙 나열로 보면 false가 된다. 사용자 확인 필요. '#27 최고 평점'(103행)은 플랫폼 배지라 근거로 쓰지 않았다. [기준3: labeling_advertising_detection True→False]"
+  "notes": "애매: labeling_advertising_detection은 '인터넷 인기'·'논스틱'만 근거라 단순 스펙 나열로 보아 false. '#27 최고 평점'(103행)은 플랫폼 배지라 근거로 쓰지 않았다. [기준3: labeling_advertising_detection True→False]"
 }

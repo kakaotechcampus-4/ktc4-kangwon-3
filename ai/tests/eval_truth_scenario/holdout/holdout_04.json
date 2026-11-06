@@ -37,5 +37,5 @@
       "why_not_other": "'울트라', 측정 기능 표기는 효능 표방이 아니다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: 식약·표시광고 모두 심박수·혈중 산소 '측정' 표기를 의료 효능 표방으로 볼지에 달려 있어 true로 두었다. 상세 이미지는 로딩 자리 표시(img_01)뿐이라 이미지 근거는 없다. [기준3: labeling_advertising_detection True→False] [기준5: food_drug_safety True→False]"
+  "notes": "애매: 식약·표시광고 모두 심박수·혈중 산소 '측정' 표기를 의료 효능 표방으로 볼지에 달려 있는데, 측정 기능 표기로 보아 둘 다 false. 상세 이미지는 로딩 자리 표시(img_01)뿐이라 이미지 근거는 없다. [기준3: labeling_advertising_detection True→False] [기준5: food_drug_safety True→False]"
 }

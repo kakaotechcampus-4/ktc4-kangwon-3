@@ -37,5 +37,5 @@
       "why_not_other": "'unauthorized scans' 보호는 기능 설명이다. 효능·최상급·미검증 인증·의료미용·과장 수치 중 어디에도 분명히 들지 않는다. (사용자 기준 기준3, 11/5)"
     }
   },
-  "notes": "애매: 표시광고 — 'Protect your private information from unauthorized scans'를 효능 표방으로 볼지 단순 기능 설명으로 볼지 갈린다. 원칙 1로 true. 근거가 이미지에만 있다. [기준3: labeling_advertising_detection True→False]"
+  "notes": "애매: 표시광고 — 'Protect your private information from unauthorized scans'를 효능 표방으로 볼지 단순 기능 설명으로 볼지 갈린다. 기능 설명으로 보아 false. 근거가 이미지에만 있다. [기준3: labeling_advertising_detection True→False]"
 }
