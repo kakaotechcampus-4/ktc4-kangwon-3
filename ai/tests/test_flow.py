@@ -5,47 +5,19 @@
 콜백은 BE 계약 키(eventType·runId·sequence·단계·질문·오류·결과 요약)만 비교.
 """
 
-import json
-import logging
-import threading
-import time
-from collections.abc import Callable
-
-import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config, main
 from app.agents.input_guard import GuardOutcome, GuardVerdict
-from app.clients.backend import BackendCallbackClient
-from app.db import engine as database
 from app.diagnosis import build_job, build_questions, guarded
 from app.diagnosis.assembly import PipelineParts
-from app.dummy import run_case_diagnosis
-from app.observability.logs import APP_LOGGER
 from app.pipeline.aggregator import ResultAggregator
 from app.pipeline.extraction_step import ExtractionStep
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
 from app.schemas.schemas import FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationResult, VerificationStatus
-from app.sessions.manager import SessionManager
-from app.startup import parts as startup
+from tests.app_harness import TOKEN, FakeBackend, app_env, client, fake_parts
 
-TOKEN = "test-internal-token-0123456789abcdef"
-_ENV = {
-    "OPENAI_API_KEY": "test-key",
-    "OPENAI_BASE_URL": "https://mlapi.run/example/v1",
-    "OPENAI_EMBEDDING_MODEL": "openai/text-embedding-3-small",
-    "DATA_GO_KR_KEY": "test-data-key",
-    "KEY_SAFETYKOREA": "test-safety-key",
-    "LAW_GO_KR_OC": "test-oc",
-    "INTERNAL_API_TOKEN": TOKEN,
-    "BE_BASE_URL": "http://be-server:8080",
-    "REVIEW_TEXT_HIGH": "0.85",
-    "REVIEW_TEXT_LOW": "0.3",
-    "REVIEW_IMAGE_HIGH": "0.8",
-    "REVIEW_IMAGE_LOW": "0.3",
-}
 CONTENT = "/api/ai/v1/diagnose/content"
 RESUME = "/api/ai/v1/diagnose/resume"
 QUESTION = FollowUpQuestion(question="몇 세 이상이 쓰는 제품인가요?", reason="어린이 제품인지 판단")
@@ -73,55 +45,8 @@ FINALIZATION = [("finalization", "started", None)]
 
 
 @pytest.fixture(autouse=True)
-def _settings(monkeypatch):
-    """실제 ai/.env·DB·Sentry 없이 기동할 설정. lifespan이 붙인 app 로그 핸들러·레벨은 끝나고 되돌림."""
-    monkeypatch.setattr(config.settings, "load_dotenv", lambda **kwargs: False)
-    for name, value in _ENV.items():
-        monkeypatch.setenv(name, value)
-    for name in ("DATABASE_URL", "MODEL_PROFILE_OVERRIDES", "AI_DEV_API_ENABLED", "AI_DEV_API_KEY",
-                 "SENTRY_DSN", "SENTRY_ENVIRONMENT"):
-        monkeypatch.delenv(name, raising=False)
-    caches = (config.get_settings, database.get_engine, database.get_session_factory)
-    for cached in caches:
-        cached.cache_clear()
-    logger = logging.getLogger(APP_LOGGER)
-    handlers, level = list(logger.handlers), logger.level
-    yield
-    logger.handlers[:] = handlers
-    logger.setLevel(level)
-    for cached in caches:
-        cached.cache_clear()
-
-
-class _Backend:
-    """콜백을 받는 가짜 BE. respond로 이벤트마다 응답 상태를 정함 (기본 200)."""
-
-    def __init__(self, respond: Callable[[dict], int] = lambda event: 200):
-        self.received: list[tuple[dict, int]] = []
-        self._respond = respond
-        self._lock = threading.Lock()
-
-    def handle(self, request: httpx.Request) -> httpx.Response:
-        event = json.loads(request.content)
-        with self._lock:
-            status = self._respond(event)
-            self.received.append((event, status))
-        code = "OK" if status == 200 else "COMMON-001"
-        return httpx.Response(status, json={"code": code, "message": "", "data": None})
-
-    def accepted(self) -> list[dict]:
-        """200으로 받은 이벤트 (받은 순서)."""
-        with self._lock:
-            return [event for event, status in self.received if status == 200]
-
-    def wait_for(self, event_type: str, timeout: float = 5.0) -> dict:
-        """그 종류 이벤트를 200으로 받을 때까지 기다려 마지막 것을 돌려준다."""
-        deadline = time.monotonic() + timeout
-        while not (found := [event for event in self.accepted() if event["eventType"] == event_type]):
-            if time.monotonic() > deadline:
-                raise AssertionError(f"{event_type} 콜백을 기다리다 시간 초과: {self.received}")
-            time.sleep(0.01)
-        return found[-1]
+def _env(monkeypatch):
+    yield from app_env(monkeypatch)
 
 
 class _Agents:
@@ -184,18 +109,8 @@ class _Agents:
         return guarded(build_job(parts, build_questions), self.judge, delay=(0, 0))
 
 
-def _client(agents: _Agents, backend: _Backend) -> TestClient:
-    parts = startup.AppParts(
-        pipeline_job=agents.job(),
-        dummy_job=run_case_diagnosis,
-        callback_sender=BackendCallbackClient("http://be-server:8080", TOKEN,
-                                              transport=httpx.MockTransport(backend.handle)),
-        database=None,
-        session_manager=SessionManager,
-        sweep_seconds=config.SESSION_SWEEP_SECONDS,
-        drain_seconds=config.SESSION_DRAIN_SECONDS,
-    )
-    return TestClient(main.create_app(lambda settings: parts), headers={"X-Internal-Token": TOKEN})
+def _client(agents: _Agents, backend: FakeBackend) -> TestClient:
+    return client(fake_parts(backend, pipeline_job=agents.job()), headers={"X-Internal-Token": TOKEN})
 
 
 def _submit(client: TestClient) -> str:
@@ -226,7 +141,7 @@ def _reviews(result: dict) -> dict[str, str]:
 
 
 def test_진단이_끝나면_단계별_진행과_결과가_순서대로_BE_콜백으로_나간다():
-    agents, backend = _Agents(), _Backend()
+    agents, backend = _Agents(), FakeBackend()
 
     with _client(agents, backend) as client:
         run_id = _submit(client)
@@ -240,7 +155,7 @@ def test_진단이_끝나면_단계별_진행과_결과가_순서대로_BE_콜�
 
 
 def test_Tool이_실패해도_진단은_끝까지_가고_결과에_그_분야가_미완료로_나간다():
-    agents, backend = _Agents(failing={ToolName.ELECTRICAL}), _Backend()
+    agents, backend = _Agents(failing={ToolName.ELECTRICAL}), FakeBackend()
 
     with _client(agents, backend) as client:
         run_id = _submit(client)
@@ -254,7 +169,7 @@ def test_Tool이_실패해도_진단은_끝까지_가고_결과에_그_분야가
 
 def test_검증이_Tool을_더_요청하면_그_Tool만_재실행하고_두_분야_결과가_나간다():
     agents = _Agents(verifications=[VerificationStatus.TOOLS_REQUIRED, VerificationStatus.APPROVED])
-    backend = _Backend()
+    backend = FakeBackend()
 
     with _client(agents, backend) as client:
         run_id = _submit(client)
@@ -268,7 +183,7 @@ def test_검증이_Tool을_더_요청하면_그_Tool만_재실행하고_두_분�
 
 def test_답변이_필요하면_질문_콜백으로_멈추고_답변을_받으면_새_runId로_이어서_결과가_나간다():
     agents = _Agents(verifications=[VerificationStatus.USER_INPUT_REQUIRED, VerificationStatus.APPROVED])
-    backend = _Backend()
+    backend = FakeBackend()
 
     with _client(agents, backend) as client:
         run_id = _submit(client)
@@ -294,7 +209,7 @@ def test_답변이_필요하면_질문_콜백으로_멈추고_답변을_받으�
 
 
 def test_입력_가드가_차단하면_파이프라인을_돌지_않고_검토_표시가_붙은_일반_실패로_끝난다():
-    agents, backend = _Agents(guard=GuardOutcome.BLOCK), _Backend()
+    agents, backend = _Agents(guard=GuardOutcome.BLOCK), FakeBackend()
 
     with _client(agents, backend) as client:
         run_id = _submit(client)
@@ -317,13 +232,13 @@ def test_BE가_결과_콜백에_500을_주면_같은_이벤트를_다시_보내_
             return 500
         return 200
 
-    agents, backend = _Agents(), _Backend(respond)
+    agents, backend = _Agents(), FakeBackend(respond)
 
     with _client(agents, backend) as client:
         run_id = _submit(client)
         result = backend.wait_for("product_result")
 
-    sent = [event for event, status in backend.received if event["eventType"] == "product_result"]
+    sent = [event for event in backend.events if event["eventType"] == "product_result"]
     assert [event["eventId"] for event in sent] == [failed[0]["eventId"]] * 2
     assert result == failed[0]
     assert _progress(_run(backend.accepted(), run_id)) == FIRST_ROUND + FINALIZATION
