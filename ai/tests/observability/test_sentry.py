@@ -40,14 +40,9 @@ def _turn_off() -> None:
     """Sentry를 끔.
 
     ``init(dsn=None)``은 환경변수 ``SENTRY_DSN``을 대신 읽음. 로컬 ``ai/.env``를 읽은 테스트
-    프로세스에선 실제 Sentry가 켜져 이후 테스트 오류가 전송됨 → 잠시 지우고 부른 뒤 되돌림.
+    프로세스에선 실제 Sentry가 켜져 이후 테스트 오류가 전송됨 → 빈 문자열로 넘겨 환경변수를 안 읽게 함.
     """
-    dsn = os.environ.pop("SENTRY_DSN", None)
-    try:
-        sentry_sdk.init(dsn=None)
-    finally:
-        if dsn is not None:
-            os.environ["SENTRY_DSN"] = dsn
+    sentry_sdk.init(dsn="")
 
 
 @pytest.fixture
