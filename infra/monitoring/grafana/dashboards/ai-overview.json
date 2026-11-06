@@ -159,9 +159,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_session_accepted_total{run_type=~\"$run_type\"}[$__range])))",
+          "expr": "sum(sum_over_time(((ai_session_accepted_total{run_type=~\"$run_type\"} - ai_session_accepted_total{run_type=~\"$run_type\"} offset 15s) >= 0 or ai_session_accepted_total{run_type=~\"$run_type\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -210,9 +211,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"}[$__range])))",
+          "expr": "sum(sum_over_time(((ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"} - ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"} offset 15s) >= 0 or ai_session_finished_total{run_type=~\"$run_type\", outcome=\"completed\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -261,9 +263,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"}[$__range])))",
+          "expr": "sum(sum_over_time(((ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"} - ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"} offset 15s) >= 0 or ai_session_finished_total{run_type=~\"$run_type\", outcome=\"awaiting_input\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -312,9 +315,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"}[$__range])))",
+          "expr": "sum(sum_over_time(((ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"} - ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"} offset 15s) >= 0 or ai_session_finished_total{run_type=~\"$run_type\", outcome=\"failed\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -375,9 +379,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_session_rejected_total[$__range])))",
+          "expr": "sum(sum_over_time(((ai_session_rejected_total - ai_session_rejected_total offset 15s) >= 0 or ai_session_rejected_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -896,9 +901,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_agent_calls_total[$__range])))",
+          "expr": "sum(sum_over_time(((ai_agent_calls_total - ai_agent_calls_total offset 15s) >= 0 or ai_agent_calls_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -947,9 +953,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_agent_calls_total{outcome!=\"ok\"}[$__range])) / sum(increase(ai_agent_calls_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_agent_calls_total{outcome!=\"ok\"} - ai_agent_calls_total{outcome!=\"ok\"} offset 15s) >= 0 or ai_agent_calls_total{outcome!=\"ok\"} + 0)[$__range:15s])) / sum(sum_over_time(((ai_agent_calls_total - ai_agent_calls_total offset 15s) >= 0 or ai_agent_calls_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1013,9 +1020,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_agent_cost_krw_total[$__range]))",
+          "expr": "sum(sum_over_time(((ai_agent_cost_krw_total - ai_agent_cost_krw_total offset 15s) >= 0 or ai_agent_cost_krw_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1064,9 +1072,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_agent_tokens_total{kind=~\"input|output\"}[$__range])))",
+          "expr": "sum(sum_over_time(((ai_agent_tokens_total{kind=~\"input|output\"} - ai_agent_tokens_total{kind=~\"input|output\"} offset 15s) >= 0 or ai_agent_tokens_total{kind=~\"input|output\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1715,9 +1724,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[$__range])) / sum(increase(ai_client_calls_total{api!=\"backend\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_client_calls_total{api!=\"backend\", result!=\"ok\"} - ai_client_calls_total{api!=\"backend\", result!=\"ok\"} offset 15s) >= 0 or ai_client_calls_total{api!=\"backend\", result!=\"ok\"} + 0)[$__range:15s])) / sum(sum_over_time(((ai_client_calls_total{api!=\"backend\"} - ai_client_calls_total{api!=\"backend\"} offset 15s) >= 0 or ai_client_calls_total{api!=\"backend\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1782,9 +1792,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_callback_dropped_total[$__range])))",
+          "expr": "sum(sum_over_time(((ai_callback_dropped_total - ai_callback_dropped_total offset 15s) >= 0 or ai_callback_dropped_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -1845,9 +1856,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round(sum(increase(ai_callback_retries_total[$__range])))",
+          "expr": "sum(sum_over_time(((ai_callback_retries_total - ai_callback_retries_total offset 15s) >= 0 or ai_callback_retries_total + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -2221,9 +2233,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "round((sum(increase(ai_callback_sent_total{result=\"delivered\"}[$__range]))) - (sum(increase(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[$__range])) or vector(0)))",
+          "expr": "(sum(sum_over_time(((ai_callback_sent_total{result=\"delivered\"} - ai_callback_sent_total{result=\"delivered\"} offset 15s) >= 0 or ai_callback_sent_total{result=\"delivered\"} + 0)[$__range:15s]))) - (sum(sum_over_time(((http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} - http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} offset 15s) >= 0 or http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} + 0)[$__range:15s])) or vector(0))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
@@ -2435,9 +2448,10 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_cache_lookups_total{result=\"hit\"}[$__range])) / sum(increase(ai_cache_lookups_total{result!=\"skipped\"}[$__range]))",
+          "expr": "sum(sum_over_time(((ai_cache_lookups_total{result=\"hit\"} - ai_cache_lookups_total{result=\"hit\"} offset 15s) >= 0 or ai_cache_lookups_total{result=\"hit\"} + 0)[$__range:15s])) / sum(sum_over_time(((ai_cache_lookups_total{result!=\"skipped\"} - ai_cache_lookups_total{result!=\"skipped\"} offset 15s) >= 0 or ai_cache_lookups_total{result!=\"skipped\"} + 0)[$__range:15s]))",
           "legendFormat": "",
-          "range": true
+          "instant": true,
+          "range": false
         }
       ],
       "fieldConfig": {
