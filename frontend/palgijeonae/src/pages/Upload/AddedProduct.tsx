@@ -9,6 +9,7 @@ import urlIcon from "@/assets/upload-url.svg"
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import { cn } from "@/lib/cn";
 import { truncateWithEllipsis } from "@/lib/text";
+import { isHttpUrl } from "@/lib/url";
 
 import AttachedImageList from "./form/AttachedImageList.tsx"
 
@@ -23,9 +24,6 @@ interface AddedProductProps {
 }
 
 const MAX_DISPLAY_TITLE_LENGTH = 40;
-
-// /mypage 등 도메인에서 사용하는 라우팅 경로로 이동하지 않도록 http(s)://로 제한한다.
-const HTTP_URL_PATTERN = /^https?:\/\//i;
 
 function AddedProduct({ type, title, productImageFile, link, content, images, onRemove }: AddedProductProps) {
     const [expanded, setExpanded] = useState(false);
@@ -87,7 +85,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                     {type === SourceType.Url ? (
                         <div className="flex flex-col gap-1">
                             <p className="text-lg font-bold text-black">링크</p>
-                            {link && HTTP_URL_PATTERN.test(link) ? (
+                            {link && isHttpUrl(link) ? (
                                 <a
                                     href={link}
                                     target="_blank"
