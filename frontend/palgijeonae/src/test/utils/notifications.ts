@@ -8,7 +8,8 @@ export type NotificationMatcher = string | RegExp | { includes: string }
 
 const receivedNotifications = (): string[] => vi.mocked(window.alert).mock.calls.map(([message]) => String(message))
 
-const matches = (received: string, matcher: NotificationMatcher): boolean => {
+/** 받은 문구가 기대한 내용과 맞는지. 알림·확인 헬퍼가 함께 쓴다. */
+export const matchesMessage = (received: string, matcher: NotificationMatcher): boolean => {
   if (typeof matcher === 'string') {
     return received === matcher
   }
@@ -22,7 +23,7 @@ const matches = (received: string, matcher: NotificationMatcher): boolean => {
 export function expectNotified(message: NotificationMatcher): void {
   const received = receivedNotifications()
   expect(
-    received.some((text) => matches(text, message)),
+    received.some((text) => matchesMessage(text, message)),
     `일치하는 알림이 없습니다. 기대: ${JSON.stringify(message)}, 받은 알림: ${JSON.stringify(received)}`,
   ).toBe(true)
 }

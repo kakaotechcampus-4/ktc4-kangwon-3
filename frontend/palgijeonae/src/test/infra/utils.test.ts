@@ -1,3 +1,4 @@
+import { declineConfirm, expectConfirmed } from '@/test/utils/confirmations'
 import { createGate } from '@/test/utils/createGate'
 import { expectNotified, expectNotNotified, waitForNotificationCount, waitForNotified } from '@/test/utils/notifications'
 
@@ -106,5 +107,31 @@ describe('알림 헬퍼', () => {
 
   it('알림 기록은 테스트마다 초기화된다', () => {
     expectNotNotified()
+  })
+})
+
+describe('확인 헬퍼', () => {
+  it('확인을 요청했으면 expectConfirmed가 통과하고, 요청하지 않은 내용은 실패한다', () => {
+    confirm('정말 탈퇴할까요?\n\n- 회원 정보')
+
+    expectConfirmed({ includes: '정말 탈퇴할까요?' })
+    expectConfirmed(/회원 정보/)
+    expect(() => expectConfirmed('다른 문구')).toThrow()
+  })
+
+  it('확인을 요청하지 않았으면 expectConfirmed가 실패하고, 받은 요청 목록을 함께 보여준다', () => {
+    expect(() => expectConfirmed('정말 삭제할까요?')).toThrowError(/정말 삭제할까요\?.*\[\]/)
+  })
+
+  it('기본은 "확인"이고, declineConfirm 뒤에는 "취소"로 응답한다', () => {
+    expect(confirm('삭제할까요?')).toBe(true)
+
+    declineConfirm()
+
+    expect(confirm('삭제할까요?')).toBe(false)
+  })
+
+  it('declineConfirm은 그 테스트에만 적용되고 다음 테스트에서는 다시 "확인"이 기본이다', () => {
+    expect(confirm('삭제할까요?')).toBe(true)
   })
 })
