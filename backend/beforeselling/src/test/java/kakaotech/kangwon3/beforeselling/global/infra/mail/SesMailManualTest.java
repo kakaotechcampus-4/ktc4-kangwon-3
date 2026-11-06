@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.infra.mail;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import java.util.Map;
  * 실행: aws sso login 후
  *   MAIL_TEST_TO=받을주소 ./gradlew test --tests '*SesMailManualTest'
  */
+@Tag("integration")
 @SpringBootTest(properties = {
         "app.mail.type=SES_API",
         // application-test.yaml 의 발신 주소(noreply@test.local)는 SES 인증 도메인이 아니라 거부된다.
@@ -34,6 +36,7 @@ class SesMailManualTest {
     @Test
     @DisplayName("법령 개정 알림 메일을 실제 SES 로 발송한다.")
     void sendLawAmendmentMail() {
+        // given
         MailTemplate template = MailTemplate.LAW_AMENDMENT;
         Map<String, Object> variables = Map.of(
                 "amendedOn", "2026-09-29",
@@ -42,6 +45,7 @@ class SesMailManualTest {
                 "affectedProductCount", 2,
                 "myPageUrl", "https://palgijeone.com/mypage");
 
+        // when & then
         // 리스너(비동기)를 거치지 않고 직접 호출한다. 실패하면 예외가 그대로 올라와 테스트가 실패한다.
         mailSender.send(new MailMessage(
                 System.getenv("MAIL_TEST_TO"),

@@ -143,8 +143,12 @@ def _cut_aliexpress(lines: list[str], stripped: list[str]) -> tuple[list[str], s
 # 순서: 상단 안내 → 카테고리 경로 → 제목 → 리뷰 → 판매자 가게 → 제품 세부 정보(스펙)·설명 사진 글
 #       → 구매 상자(배송·가격 안내) → 푸터
 # 남기는 구간: 카테고리 경로와 제목, 제품 세부 정보부터 구매 상자 전까지.
+# 국내 물류센터에서 보내는 판매자 화면은 구매 상자의 수량 선택과 배송 안내 사이에 스펙(재료·배터리 용량 등)이
+# 있어 그 구간도 남긴다.
 
 _TEMU_REVIEW_COUNT = re.compile(r"리뷰 [\d,]+건")
+# 구매 상자에서 수량 선택 다음에 오는 배송 안내 줄의 앞부분
+_TEMU_SHIPPING_NOTICES = ("해당 상품 무료 배송", "이 판매자로부터 배송")
 
 
 def _is_temu(head: list[str]) -> bool:
@@ -186,9 +190,60 @@ def _cut_temu(lines: list[str], stripped: list[str]) -> tuple[list[str], str | N
     stop2 = _index(stripped, start2, lambda s: s.startswith("가장 빠른 배송") or s == "판매자")
     stop2 = len(lines) if stop2 is None else stop2
     # 경로 다음에 짧게 잘린 제목("…...")과 전체 제목이 함께 있다. 가장 긴 줄이 전체 제목이다.
+    # 11월 화면은 잘린 제목만 있어 구매 상자 첫 줄에서 전체 제목을 찾음. 가장 긴 줄을 고르기 전에 먼저 찾아야
+    # 리뷰 없는 상품의 안내 문장("하지만 Temu에 비슷한 상품에 대한 리뷰가 …")이 잘린 제목보다 길어도 제목으로 안 잡힘
     candidates = [lines[i].strip() for i in range(top, stop1) if lines[i].strip()]
-    title = max(candidates, key=len) if candidates else None
-    return lines[top:stop1] + lines[start2:stop2], title
+    full = next((found for line in candidates
+                 if line.endswith("...") and (found := _temu_full_title(stripped, line))), None)
+    title = full or (max(candidates, key=len) if candidates else None)
+    return lines[top:stop1] + lines[start2:stop2] + _temu_box_spec(lines, stripped, stop2), title
+
+
+def _temu_full_title(stripped: list[str], truncated: str) -> str | None:
+    """잘린 제목만 있는 화면에서 구매 상자 첫 줄에 붙어 나오는 전체 제목을 찾는다.
+
+    2026-11 화면은 경로 다음에 잘린 제목("…...")만 있고, 전체 제목은 "가장 빠른 배송: 5일전체 제목"처럼
+    배송 안내 뒤에 붙어 나온다.
+
+    Args:
+        stripped: 앞뒤 공백을 지운 줄 목록.
+        truncated: "..."로 끝나는 잘린 제목.
+
+    Returns:
+        str | None: 잘린 제목으로 시작하는 전체 제목. 못 찾으면 None.
+    """
+    head = truncated.removesuffix("...").strip()
+    if not head:
+        return None
+    for line in stripped:
+        if line.startswith("가장 빠른 배송") and (start := line.find(head)) != -1:
+            return line[start:]
+    return None
+
+
+def _temu_box_spec(lines: list[str], stripped: list[str], box: int) -> list[str]:
+    """구매 상자의 수량 선택과 배송 안내 사이에 있는 판매자 스펙 줄을 돌려준다.
+
+    대부분의 화면은 수량 다음이 바로 배송 안내라 빈 목록이다. 수량 숫자만 있으면 스펙으로 보지 않음.
+
+    Args:
+        lines: 원문 줄 목록.
+        stripped: 앞뒤 공백을 지운 줄 목록. lines와 순서가 같다.
+        box: 구매 상자 시작 줄 번호.
+
+    Returns:
+        list[str]: "수량" 줄부터 배송 안내 전까지의 줄. 스펙이 없거나 표지를 못 찾으면 빈 목록.
+    """
+    quantity = _index(stripped, box, lambda s: s == "수량")
+    if quantity is None:
+        return []
+    shipping = _index(stripped, quantity + 1, lambda s: s.startswith(_TEMU_SHIPPING_NOTICES))
+    if shipping is None:
+        return []
+    # 수량 숫자("1")와 빈 줄 말고 다른 줄이 있어야 판매자 스펙이 있는 화면
+    if not any(s and not s.isdigit() for s in stripped[quantity + 1:shipping]):
+        return []
+    return lines[quantity:shipping]
 
 
 _SITES = (

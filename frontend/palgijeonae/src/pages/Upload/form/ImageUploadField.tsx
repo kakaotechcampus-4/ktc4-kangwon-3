@@ -1,6 +1,8 @@
-import { type DragEvent } from "react";
+import { type ClipboardEvent, type DragEvent, useRef } from "react";
 
 import uploadInputIcon from "@/assets/upload-inputImage.png";
+import Button from "@/components/common/Button";
+import HelpTooltip from "@/components/common/HelpTooltip";
 
 import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from "../constraints.ts";
 import { isAllowedImageType, isWithinFileSizeLimit } from "../validation.ts";
@@ -11,11 +13,16 @@ interface ImageUploadFieldProps {
     description: string
     multiple?: boolean
     isOption?: boolean
+    optionLabel?: string
+    helperText?: string
     countLabel?: string
+    tooltip?: string
     onChange: (files: File[]) => void
 }
 
-function ImageUploadField({ id, title, description, multiple = false, isOption = false, countLabel, onChange }: ImageUploadFieldProps) {
+function ImageUploadField({ id, title, description, multiple = false, isOption = false, optionLabel = "선택", helperText, countLabel, tooltip, onChange }: ImageUploadFieldProps) {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const handleFiles = (fileList: FileList | null) => {
         if (!fileList) {
             return;
@@ -40,26 +47,42 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
         onChange(multiple ? validFiles : validFiles.slice(0, 1));
     };
 
-    const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+    const handleDrop = (event: DragEvent<HTMLDivElement>) => {
         event.preventDefault();
         handleFiles(event.dataTransfer.files);
     };
 
+    // Ctrl+V / Cmd+V로 붙여넣은 클립보드의 파일(캡처 이미지 등)을 업로드와 같은 검증으로 처리한다. 
+    const handlePaste = (event: ClipboardEvent<HTMLDivElement>) => {
+        if (event.clipboardData.files.length === 0) {
+            return;
+        }
+        event.preventDefault();
+        handleFiles(event.clipboardData.files);
+    };
+
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
-            <div className="flex w-full items-center gap-3.75">
-                <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
-                {isOption && <span className="text-xs leading-3.5 text-neutral-border">선택</span>}
+            <div className="flex w-full items-center justify-between gap-3.75">
+                <div className="flex items-center gap-3.75">
+                    <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
+                    {isOption && <span className="text-xs leading-3.5 text-neutral-border">{optionLabel}</span>}
+                    {tooltip && <HelpTooltip label={`${title} 설명`} className="max-w-sm">{tooltip}</HelpTooltip>}
+                </div>
                 {countLabel && <span className="text-xs leading-3.5 text-neutral-border">{countLabel}</span>}
             </div>
+            {helperText && <p className="text-sm font-light text-neutral-border">{helperText}</p>}
 
-            <label
-                htmlFor={id}
+            {/* 영역을 클릭하면 선택(포커스)만 되고, 선택된 상태에서 Ctrl+V로 붙여넣을 수 있다. 파일 선택창은 안의 버튼으로 연다. */}
+            <div
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={handleDrop}
-                className="flex w-full cursor-pointer items-center gap-6 rounded-[10px] border border-dashed border-neutral-border py-6.5 px-4.75"
+                onPaste={handlePaste}
+                tabIndex={0}
+                className="flex w-full items-center gap-6 rounded-[10px] border border-dashed border-neutral-border py-6.5 px-4.75 focus-within:border-solid focus-within:border-black focus-within:ring-1 focus-within:ring-black"
             >
                 <input
+                    ref={fileInputRef}
                     id={id}
                     type="file"
                     accept="image/*"
@@ -77,10 +100,14 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                         {description}
                     </p>
                     <p className="text-sm leading-4.25 font-light text-neutral-border">
-                        또는 이 영역에 이미지 파일을 끌어다 놓으세요.
+                        이 영역에 이미지 파일을 끌어다 놓거나, 영역을 클릭한 뒤 붙여넣을 수 있어요.
                     </p>
                 </div>
-            </label>
+
+                <div className="ml-auto shrink-0">
+                    <Button text="파일 선택" variant="secondary" fontSize={14} onClick={() => fileInputRef.current?.click()} />
+                </div>
+            </div>
         </div>
     );
 }

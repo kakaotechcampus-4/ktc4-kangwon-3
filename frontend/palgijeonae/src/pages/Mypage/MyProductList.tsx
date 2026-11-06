@@ -1,6 +1,6 @@
-import { Fragment } from "react";
 import { Link } from "react-router-dom";
 
+import { getErrorMessage } from "@/api/client.ts";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";
@@ -8,6 +8,7 @@ import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 
 import { PAGE_GROUP_SIZE } from "./constraints.ts";
 import type { MyProductItem } from "./types.ts";
+import { useDeleteProduct } from "./useDeleteProduct.ts";
 
 interface MyProductListProps {
     products: MyProductItem[]
@@ -18,9 +19,28 @@ interface MyProductListProps {
     totalPages: number
     hasNext: boolean
     onPageChange: (page: number) => void
+    // 삭제 직전 그 상품이 현재 페이지의 마지막 하나였는지 알려준다.
+    onProductDeleted: (wasLastOnPage: boolean) => void
 }
 
-function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange }: MyProductListProps) {
+function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange, onProductDeleted }: MyProductListProps) {
+    const { mutate: deleteProduct, isPending: isDeleting, variables: deletingProductId } = useDeleteProduct();
+
+    const handleDelete = (product: MyProductItem) => {
+        const confirmed = confirm(`'${product.productName}'의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`);
+        if (!confirmed) {
+            return;
+        }
+
+        const wasLastOnPage = products.length === 1;
+        deleteProduct(product.productId, {
+            onSuccess: () => onProductDeleted(wasLastOnPage),
+            onError: (error) => {
+                alert(getErrorMessage(error, "상품을 삭제하지 못했어요. 다시 시도해주세요."));
+            },
+        });
+    };
+
     return (
         <div className="flex w-full flex-col gap-6">
             <SectionIntro title="전체 상품" size="xl" />
@@ -42,27 +62,33 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                     조건에 맞는 상품이 없어요.
                 </p>
             ) : (
-                <div className="flex w-full flex-col gap-3.5">
+                <ul className="flex w-full flex-col gap-3.5">
                     {products.map((product) => {
-                        const preview = (
-                            <ProductPreview
-                                productName={product.productName}
-                                productImageUrl={product.productImageUrl}
-                                resultStatus={product.resultStatus}
-                                processingStatus={product.processingStatus}
-                                sourceType={product.sourceType}
-                            />
-                        );
-
-                        return product.resultStatus != null ? (
-                            <Link key={product.productId} to={`/result/product/${product.productId}`} className="block w-full cursor-pointer">
-                                {preview}
-                            </Link>
-                        ) : (
-                            <Fragment key={product.productId}>{preview}</Fragment>
+                        const isDeletingThis = isDeleting && deletingProductId === product.productId;
+                        return (
+                            <li key={product.productId} className="relative">
+                                <Link to={`/result/product/${product.productId}`} className="block w-full cursor-pointer">
+                                    <ProductPreview
+                                        productName={product.productName}
+                                        productImageUrl={product.productImageUrl}
+                                        resultStatus={product.resultStatus}
+                                        processingStatus={product.processingStatus}
+                                        sourceType={product.sourceType}
+                                    />
+                                </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDelete(product)}
+                                    disabled={isDeletingThis}
+                                    aria-label={`${product.productName} 삭제`}
+                                    className="absolute top-[18px] right-6 cursor-pointer rounded-full border bg-white px-3 py-1 text-sm font-semibold text-neutral-dark hover:border-status-danger hover:text-status-danger focus-visible:border-status-danger focus-visible:text-status-danger disabled:cursor-default disabled:opacity-50"
+                                >
+                                    {isDeletingThis ? "삭제 중" : "삭제"}
+                                </button>
+                            </li>
                         );
                     })}
-                </div>
+                </ul>
             )}
             <Pagination page={page} totalPages={totalPages} hasNext={hasNext} onPageChange={onPageChange} pageGroupSize={PAGE_GROUP_SIZE} />
         </div>

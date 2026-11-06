@@ -23,7 +23,7 @@ from pathlib import Path
 # 적으면 한쪽만 옮겨졌을 때 "다른 프롬프트로 잰 결과"를 같은 것으로 착각하게 된다.
 from ..agents.extraction import PROMPT_PATH as EXTRACTION_PROMPT_PATH
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
-from ..config import ModelProfile, agent_profile
+from ..config import DecisionProfile, ModelProfile, agent_profile
 from ..prompts import fingerprint
 from ..schemas.agent import ExtractionInput
 from .errors import RawFixtureMissing
@@ -69,6 +69,40 @@ def run_metadata(*, runs: int, profile: ModelProfile, prompt_path: Path | None =
     모델은 이름만으로 부족함. 같은 모델도 추론 강도가 다르면 출력·비용이 달라 프로필 전체를 남김.
     """
     target = prompt_path or EXTRACTION_PROMPT_PATH
+    return {
+        **_code_metadata(),
+        "model": profile.model.id,
+        "model_profile": profile.metadata(),
+        "prompt_path": target.relative_to(_AI_ROOT).as_posix(),
+        "prompt_sha256": prompt_fingerprint(target),
+        "runs": runs,
+    }
+
+
+def decision_run_metadata(*, runs: int, profile: DecisionProfile, questions_sha256: str) -> dict:
+    """판단 모델로 잰 측정 조건을 기록한다. 프롬프트 지문 자리에 질문 목록 지문을 남김.
+
+    Args:
+        runs: 픽스처당 회차 수.
+        profile: 판단 프로필.
+        questions_sha256: 질문 목록 지문.
+
+    Returns:
+        dict: 측정 조건 (decision_profile 있음, prompt_path·model_profile은 None).
+    """
+    return {
+        **_code_metadata(),
+        "model": profile.model.id,
+        "model_profile": None,
+        "decision_profile": profile.name,
+        "prompt_path": None,
+        "prompt_sha256": questions_sha256,
+        "runs": runs,
+    }
+
+
+def _code_metadata() -> dict:
+    """측정 시각과 코드 버전 (커밋·커밋 안 된 수정 여부)."""
     # 범위를 ai/ 로 제한한다. 제한하지 않으면 다른 팀의 커밋 안 된 파일까지 잡혀서
     # 늘 "수정 있음"이 뜨고, 결국 경고를 무시하게 된다.
     dirty = _git("status", "--porcelain", "--", ".")
@@ -77,11 +111,6 @@ def run_metadata(*, runs: int, profile: ModelProfile, prompt_path: Path | None =
         "git_commit": _git("rev-parse", "--short", "HEAD"),
         # 커밋 해시만으로는 부족하다. 커밋하지 않은 수정이 있으면 그 해시의 코드가 아니다.
         "git_dirty": None if dirty is None else bool(dirty),
-        "model": profile.model.id,
-        "model_profile": profile.metadata(),
-        "prompt_path": target.relative_to(_AI_ROOT).as_posix(),
-        "prompt_sha256": prompt_fingerprint(target),
-        "runs": runs,
     }
 
 
@@ -94,7 +123,7 @@ def describe_metadata(meta: dict) -> str:
     profile = meta.get("model_profile") or {}
     # 프로필이 없는 예전 기록은 모델 이름만
     condition = ", ".join(part for part in (
-        profile.get("profile"),
+        profile.get("profile") or meta.get("decision_profile"),
         profile.get("reasoning_effort") and f"추론 {profile['reasoning_effort']}",
     ) if part)
     return (

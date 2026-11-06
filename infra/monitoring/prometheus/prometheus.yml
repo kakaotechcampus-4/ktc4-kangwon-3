@@ -11,6 +11,11 @@ scrape_configs:
     static_configs:
       - targets: ["mon-cadvisor:8080"]
 
+  # AI 서버는 컨테이너 하나(ai-server). 지표는 /api/ai/v1 밖의 /metrics (be-ai-net 경유)
+  - job_name: ai-app
+    static_configs:
+      - targets: ["ai-server:8000"]
+
   # Blue-Green 두 컨테이너가 같은 alias(be-server)를 쓴다. static으로 두면 전환 중 두 JVM이 한 시계열에 섞여
   # 가짜 counter reset이 생기므로, 떠 있는 컨테이너를 DNS로 찾아 각각 별도 instance로 수집한다.
   - job_name: be-app

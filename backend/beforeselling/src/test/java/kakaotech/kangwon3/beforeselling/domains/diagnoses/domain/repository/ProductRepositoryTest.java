@@ -12,6 +12,7 @@ import kakaotech.kangwon3.beforeselling.global.config.properties.CryptoPropertie
 import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
 import org.hibernate.Hibernate;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -31,6 +32,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.UUID;
 
+@Tag("integration")
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -69,6 +71,7 @@ class ProductRepositoryTest {
     @Test
     @DisplayName("존재하지 않는 상품 id로 진단서 id를 조회하면 빈 값을 반환한다.")
     void findDiagnosesIdById_withUnknownId_thenReturnEmpty() {
+        // when & then
         assertThat(productRepository.findDiagnosesIdById(UUID.randomUUID())).isEmpty();
     }
 
@@ -249,6 +252,7 @@ class ProductRepositoryTest {
     @Test
     @DisplayName("존재하지 않는 상품을 단건 조회하면 빈 값을 반환한다.")
     void findWithImagesByIdAndUserId_withUnknownId_thenReturnEmpty() {
+        // when & then
         assertThat(productRepository.findWithImagesByIdAndUserId(UUID.randomUUID(), USER_ID)).isEmpty();
     }
 
@@ -331,6 +335,22 @@ class ProductRepositoryTest {
         assertThat(diagnosesIds).containsExactly(oldDiagnosesId);
     }
 
+    @Test
+    @DisplayName("재진단 재요청 대상 조회는 재요청을 기다리는 상품 id만 가장 오래 기다린 순으로 반환한다.")
+    void findIdsByResumePending_thenReturnPendingOldestFirst() {
+        // given
+        LocalDateTime now = LocalDateTime.now();
+        List<UUID> ids = saveProducts(3);
+        markResumePending(ids.get(0), now.minusMinutes(1));
+        markResumePending(ids.get(1), now.minusMinutes(5));
+
+        // when
+        List<UUID> pendingIds = productRepository.findIdsByResumePending(PageRequest.of(0, 10));
+
+        // then: 대기 표시가 없는 ids[2]는 제외
+        assertThat(pendingIds).containsExactly(ids.get(1), ids.get(0));
+    }
+
     private record ProductState(ProcessingStatus status, LocalDateTime updatedAt) {
     }
 
@@ -366,6 +386,13 @@ class ProductRepositoryTest {
                         "update product set processing_status = :status, updated_at = :updatedAt where product_id = :id")
                 .setParameter("status", status.name())
                 .setParameter("updatedAt", updatedAt)
+                .setParameter("id", productId)
+                .executeUpdate();
+    }
+
+    private void markResumePending(UUID productId, LocalDateTime since) {
+        entityManager.createNativeQuery("update product set resume_pending_since = :since where product_id = :id")
+                .setParameter("since", since)
                 .setParameter("id", productId)
                 .executeUpdate();
     }

@@ -13,12 +13,47 @@ import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
+from typing import TYPE_CHECKING
 
-from .config.catalog import CHAT_MODELS
+from .config.catalog import CHAT_MODELS, DECISION_MODELS
+
+if TYPE_CHECKING:
+    from .schemas.clients.decision_response import DecisionUsage
 
 USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
+# 기록 파일 크기 상한. 넘으면 usage.jsonl.1부터 한 칸씩 밀고 새 파일 (docker logs 상한과 같은 10MB × 5개)
+USAGE_LOG_MAX_BYTES = 10 * 1024 * 1024
+USAGE_LOG_BACKUPS = 5
+# 진단 여러 개가 동시에 기록 → 파일 밀기와 쓰기가 섞이지 않게
+_write_lock = Lock()
 
-PRICING_KRW = {model_id: asdict(model.price) for model_id, model in CHAT_MODELS.items() if model.price}
+
+def build_pricing(*catalogs: dict) -> dict[str, dict[str, float]]:
+    """모델 카탈로그들로 등록명 → 단가표를 만든다. 단가를 모르는 모델은 뺌.
+
+    Args:
+        catalogs: 등록명 → 모델(price 속성) 카탈로그들 (CHAT_MODELS·DECISION_MODELS).
+
+    Returns:
+        dict[str, dict[str, float]]: 등록명 → 1M 토큰당 KRW.
+
+    Raises:
+        ValueError: 같은 등록명에 단가가 다른 모델이 있는 경우 (하나가 조용히 덮이지 않게).
+    """
+    pricing: dict[str, dict[str, float]] = {}
+    for catalog in catalogs:
+        for model_id, model in catalog.items():
+            if model.price is None:
+                continue
+            price = asdict(model.price)
+            if pricing.setdefault(model_id, price) != price:
+                raise ValueError(f"같은 등록명에 단가가 다릅니다: {model_id} {pricing[model_id]} / {price}")
+    return pricing
+
+
+# 채팅·판단 모델 단가. 판단 Luna는 채팅 Luna와 등록명이 같아 단가도 같아야 함 (다르면 import 시점에 실패)
+PRICING_KRW = build_pricing(CHAT_MODELS, DECISION_MODELS)
 
 
 @dataclass(frozen=True)
@@ -147,6 +182,24 @@ def from_completion(completion) -> CallUsage | None:
     )
 
 
+def from_decision(usage: "DecisionUsage") -> CallUsage:
+    """판단 응답(/decisions)의 사용량을 바꾼다. 판단 모델은 추론 토큰을 따로 보고하지 않음.
+
+    Args:
+        usage: 판단 클라이언트가 응답에서 읽은 모델·토큰 사용량.
+
+    Returns:
+        CallUsage: 사용량. reported_model은 응답이 알려 준 실제 모델 (Jev는 버전 포함).
+    """
+    return CallUsage(
+        reported_model=usage.model,
+        input_tokens=usage.input_tokens,
+        cached_tokens=usage.cached_tokens,
+        output_tokens=usage.output_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
+    )
+
+
 def estimate_krw(usage: CallUsage, configured_model: str | None) -> float | None:
     """카테캠 ML API 단가로 예상 비용을 계산한다.
 
@@ -214,11 +267,34 @@ def record(
             "error_type": error_type,
             "failure_phase": failure_phase,
         }
-        USAGE_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with USAGE_LOG.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+        line = json.dumps(row, ensure_ascii=False, default=str) + "\n"
+        with _write_lock:
+            USAGE_LOG.parent.mkdir(parents=True, exist_ok=True)
+            _rotate_if_full(USAGE_LOG)
+            with USAGE_LOG.open("a", encoding="utf-8") as handle:
+                handle.write(line)
     except Exception:
         # 파일·직렬화 오류 → 호출 결과에 영향 없게 무시
+        pass
+
+
+def _rotate_if_full(path: Path) -> None:
+    """기록 파일이 상한을 넘었으면 ``.1``부터 한 칸씩 밀고 새 파일로 시작한다. 가장 오래된 파일은 지움.
+
+    밀기에 실패해도 기록은 이어서 씀 (파일이 상한보다 커질 뿐).
+
+    Args:
+        path: 기록 파일.
+    """
+    try:
+        if not path.exists() or path.stat().st_size < USAGE_LOG_MAX_BYTES:
+            return
+        for index in range(USAGE_LOG_BACKUPS - 1, 0, -1):
+            older = path.with_name(f"{path.name}.{index}")
+            if older.exists():
+                older.replace(path.with_name(f"{path.name}.{index + 1}"))
+        path.replace(path.with_name(f"{path.name}.1"))
+    except OSError:
         pass
 
 

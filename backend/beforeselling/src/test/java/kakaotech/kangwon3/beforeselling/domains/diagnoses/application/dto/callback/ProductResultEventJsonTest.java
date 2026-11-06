@@ -10,6 +10,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLeve
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolReviewStatus;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // AI가 보내는 결과 콜백 JSON이 결과 이벤트로 바뀌는지, 검증 기준이 AI 스키마와 같은지 확인한다.
 // Spring이 만든 JsonMapper를 써야 enum 대소문자 무시 설정이 적용된다.
+@Tag("integration")
 @JsonTest
 @ActiveProfiles("test")
 class ProductResultEventJsonTest {
@@ -183,6 +185,7 @@ class ProductResultEventJsonTest {
     @Test
     @DisplayName("올바른 결과 이벤트는 검증을 통과한다.")
     void validate_whenValid_thenNoViolation() {
+        // when & then
         assertThat(validator.validate(resultEvent(assessment(List.of(toolReview(List.of(finding(List.of(
                 legalSource("국가법령정보센터")))))))))).isEmpty();
     }
@@ -190,6 +193,7 @@ class ProductResultEventJsonTest {
     @Test
     @DisplayName("진단 결과가 없으면 위반이다.")
     void validate_whenNoAssessment_thenViolation() {
+        // when & then
         assertThat(violatedPaths(resultEvent(null))).containsExactly("assessment");
     }
 

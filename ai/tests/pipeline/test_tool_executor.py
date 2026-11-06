@@ -1,8 +1,13 @@
 """PipelineManaged ToolExecutor의 최초 선택·실행·실패 경계를 검증한다."""
 
+import threading
+import time
 from collections.abc import Callable
+from contextvars import ContextVar
 from itertools import combinations
 
+import httpx
+import openai
 import pytest
 
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
@@ -21,7 +26,13 @@ from app.schemas.schemas import (
 )
 from app.schemas.pipeline import RetryRequest
 from app.tools.base import RegulatoryTool
+from app.agents.base import AgentError
+from app.agents.base.meta import AgentRunMeta
+from app.observability.measurements import ToolRun, measurement_sinks
 from app.pipeline.tool_executor import ToolExecutor
+from app.tools.base.errors import ToolModelError
+
+_RUN: ContextVar[str] = ContextVar("test_run", default="없음")
 
 
 class _StubTool(RegulatoryTool):
@@ -639,3 +650,191 @@ def test_재실행_결과를_다음_회차_입력으로_연결한다(tool_name):
     assert len({item.execution_id for item in tool_history}) == 3
     assert len(tools[tool_name].calls) == 3
     assert first_retry == first_retry_snapshot
+
+
+@pytest.fixture
+def tool_runs():
+    """테스트 동안 남은 Tool 실행 측정 기록."""
+    records: list = []
+    with measurement_sinks.added(lambda record: isinstance(record, ToolRun) and records.append(record)):
+        yield records
+
+
+def _finding(determination: Determination) -> RegulatoryFinding:
+    return RegulatoryFinding(
+        tool_name=ToolName.ELECTRICAL, subject="전원 어댑터", determination=determination, risk_level=RiskLevel.HIGH,
+        summary="요약", rationale="근거",
+    )
+
+
+def test_Tool_실행마다_상태_시간_판단을_기록하고_건너뛴_Tool도_센다(tool_runs):
+    def success(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        return ToolResult(
+            tool_name=decision.tool_name, status=ToolStatus.PARTIAL, selected=True, selection_reason="이유",
+            findings=[_finding(Determination.REQUIRED), _finding(Determination.INSUFFICIENT_INFORMATION)],
+        )
+
+    tools = _tools()
+    tools[ToolName.ELECTRICAL] = _StubTool(ToolName.ELECTRICAL, success)
+
+    ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(ToolName.ELECTRICAL))
+
+    [electrical] = [run for run in tool_runs if run.tool_name == ToolName.ELECTRICAL.value]
+    assert (electrical.status, electrical.error_type) == ("partial", None)
+    assert electrical.determinations == ("required", "insufficient_information")
+    assert electrical.seconds >= 0
+    assert sorted(run.status for run in tool_runs) == ["partial"] + ["skipped"] * (len(ToolName) - 1)
+
+
+def _model_failure() -> Exception:
+    request = httpx.Request("POST", "http://llm/v1/chat/completions")
+    try:
+        try:
+            raise openai.APITimeoutError(request)
+        except openai.APITimeoutError as cause:
+            raise AgentError("모델 호출 실패", meta=AgentRunMeta(component="tool", model="m", elapsed_ms=1)) from cause
+    except AgentError as exc:
+        return exc
+
+
+def _client_failure() -> Exception:
+    try:
+        try:
+            raise httpx.ConnectError("연결 실패")
+        except httpx.ConnectError as cause:
+            raise ToolModelError("근거 조회 실패") from cause
+    except ToolModelError as exc:
+        return exc
+
+
+@pytest.mark.parametrize(("make_error", "error_type"), [
+    (_model_failure, "model"),
+    (_client_failure, "client"),
+    (lambda: AgentError("모델 출력 파싱 실패", meta=AgentRunMeta(component="tool", model="m", elapsed_ms=1)), "model"),
+    (lambda: RuntimeError("코드 버그"), "other"),
+])
+def test_Tool_실패는_원인을_모델_근거_조회_그_밖으로_나눠_기록한다(tool_runs, make_error, error_type):
+    def fail(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        raise make_error()
+
+    tools = _tools()
+    tools[ToolName.ELECTRICAL] = _StubTool(ToolName.ELECTRICAL, fail)
+
+    ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(ToolName.ELECTRICAL))
+
+    [electrical] = [run for run in tool_runs if run.tool_name == ToolName.ELECTRICAL.value]
+    assert (electrical.status, electrical.error_type) == ("failed", error_type)
+
+
+def _meeting(count: int):
+    """count개 Tool이 모두 실행 중일 때만 통과하는 동작. 순차 실행이면 기다리다 BrokenBarrierError."""
+    barrier = threading.Barrier(count, timeout=5)
+
+    def meet(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        barrier.wait()
+        return _StubTool._success(product, decision)
+
+    return meet
+
+
+def test_선택된_Tool은_동시에_실행한다():
+    tools = _tools()
+    selected = [ToolName.CUSTOMS, ToolName.ELECTRICAL, ToolName.LABEL_AD]
+    meet = _meeting(len(selected))
+    for name in selected:
+        tools[name] = _StubTool(name, meet)
+
+    result = ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(*selected))
+
+    assert [item.status for item in result.tool_results if item.tool_name in selected] == [ToolStatus.SUCCESS] * 3
+
+
+def test_동시_실행_상한이_1이면_순서대로_하나씩_실행한다():
+    order: list[ToolName] = []
+    running = threading.Lock()
+
+    def alone(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        # 다른 Tool이 실행 중이면 잠금을 못 얻음
+        assert running.acquire(blocking=False)
+        try:
+            order.append(decision.tool_name)
+            return _StubTool._success(product, decision)
+        finally:
+            running.release()
+
+    tools = {name: _StubTool(name, alone) for name in ToolName}
+
+    ToolExecutor(tools, max_parallel=1).execute_initial(Product(product_id="p1"), _selection(*ToolName))
+
+    assert order == list(ToolName)
+
+
+def test_동시_실행_상한은_1_이상이어야_한다():
+    with pytest.raises(ValueError, match="max_parallel"):
+        ToolExecutor(_tools(), max_parallel=0)
+
+
+def test_결과와_이력은_끝난_순서와_상관없이_ToolName_순서다():
+    def slow(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        time.sleep(0.2)
+        return _StubTool._success(product, decision)
+
+    tools = _tools()
+    tools[ToolName.CUSTOMS] = _StubTool(ToolName.CUSTOMS, slow)  # 가장 먼저 시작해 가장 늦게 끝남
+
+    result = ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(*ToolName))
+
+    assert [item.tool_name for item in result.tool_results] == list(ToolName)
+    assert [item.tool_name for item in result.tool_result_history] == list(ToolName)
+
+
+def test_동시에_돌던_Tool_하나가_실패해도_나머지는_결과를_낸다():
+    def fail(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        raise RuntimeError("실패")
+
+    tools = _tools()
+    tools[ToolName.RADIO] = _StubTool(ToolName.RADIO, fail)
+
+    result = ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(*ToolName))
+
+    statuses = {item.tool_name: item.status for item in result.tool_results}
+    assert statuses.pop(ToolName.RADIO) is ToolStatus.FAILED
+    assert set(statuses.values()) == {ToolStatus.SUCCESS}
+
+
+def test_Tool_스레드에도_실행_문맥이_넘어간다():
+    seen: list[str] = []
+
+    def read_context(product: Product, decision: ToolSelectionItem) -> ToolResult:
+        seen.append(_RUN.get())
+        return _StubTool._success(product, decision)
+
+    tools = {name: _StubTool(name, read_context) for name in ToolName}
+    token = _RUN.set("run-1")
+    try:
+        ToolExecutor(tools).execute_initial(Product(product_id="p1"), _selection(*ToolName))
+    finally:
+        _RUN.reset(token)
+
+    assert seen == ["run-1"] * len(ToolName)
+
+
+def test_재실행_요청된_Tool도_동시에_실행한다():
+    requested = [ToolName.RADIO, ToolName.CHILDREN]
+    meet = _meeting(len(requested))
+    tools = _tools()
+    executor = ToolExecutor(tools)
+    product = Product(product_id="p1")
+    initial = executor.execute_initial(product, _selection())
+    for name in requested:
+        tools[name] = _StubTool(name, meet)
+    executor = ToolExecutor(tools)
+
+    result = executor.execute_retry(product, initial, RetryRequest(
+        retry_round=1, requested_tools=requested,
+        verification=VerificationResult(status=VerificationStatus.TOOLS_REQUIRED, additional_tools_required=requested),
+        latest_tool_results=initial.tool_results,
+    ))
+
+    assert [item.tool_name for item in result.tool_result_history] == requested
+    assert all(item.status is ToolStatus.SUCCESS and item.retry_round == 1 for item in result.tool_result_history)

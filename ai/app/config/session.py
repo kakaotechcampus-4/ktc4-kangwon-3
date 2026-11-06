@@ -8,12 +8,20 @@ AWAITING_INPUT_RETENTION_SECONDS = 24 * 3600
 # 동시 실행 상한. 넘는 세션은 대기
 # 추출→선택 10개 동시 실측: 메모리 +58MB, 게이트웨이 거절·지연 없음. 외부 API 제한은 툴·클라이언트에서 따로
 MAX_RUNNING_SESSIONS = 10
-# 대기 + 실행 중 세션 상한. 넘으면 접수 거절
-# t3.medium, AI 컨테이너 1GB 기준 최악 약 360MB (대기 세션당 약 5MB 추정)
-MAX_INFLIGHT_SESSIONS = 50
-# 개발용 진단(/dev) 대기 + 실행 중 상한. 운영 진단 자리를 덜 차지하게 따로 작게 (전체 상한에도 같이 셈)
+# 진단 하나에서 동시에 실행하는 Tool 수. 1이면 순차 실행 (Tool 단계 시간 = 각 Tool 시간의 합)
+# 진단 동시 실행과 곱해져 모델 호출이 최대 MAX_RUNNING_SESSIONS × 이 값만큼 동시에 나감. 게이트웨이 거절(429)이 보이면 낮춤
+MAX_PARALLEL_TOOLS = 6
+# 대기 + 실행 중 세션 상한. 넘으면 접수 거절 → BE가 대기로 돌렸다가 재요청
+# 대기는 실행 자리가 날 때까지 잠깐 쥐는 용도라 실행 상한의 두 배 정도만 둠
+# t3.medium, AI 컨테이너 1GB 기준 최악 약 210MB (50개일 때 약 360MB에서 대기 세션당 약 5MB 추정으로 30개분 뺌)
+MAX_INFLIGHT_SESSIONS = 20
+# 샌드박스 진단 대기 + 실행 중 상한. 운영 진단 실행 자리를 덜 차지하게 따로 둠 (전체 상한에도 같이 셈)
+# 실제 파이프라인(모델 호출)이라 3개. 샌드박스 요청 상품 수 상한도 이 값
 MAX_DEV_INFLIGHT_SESSIONS = 3
 # 접수부터 결과까지 최대 시간. 넘으면 시간 초과 실패
 SESSION_MAX_DURATION_SECONDS = 600
+# 서버 종료 때 실행 중 세션을 기다리는 최대 시간. 진단은 보통 1~2분이라 최대 시간을 넘기면 사실상 멈춘 진단
+# 컨테이너 종료 대기 시간(docker-compose stop_grace_period 600초)에서 콜백 마감(15초)과 여유(5초)를 뺌
+SESSION_DRAIN_SECONDS = SESSION_MAX_DURATION_SECONDS - 20
 # 시간 초과·보관 시간 정리 주기
 SESSION_SWEEP_SECONDS = 30

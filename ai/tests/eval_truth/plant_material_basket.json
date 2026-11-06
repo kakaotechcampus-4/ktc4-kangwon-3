@@ -1,0 +1,142 @@
+{
+  "fixture": "plant_material_basket.txt",
+  "reviewed_by": "gityhb",
+  "reviewed_at": "2026-10-28",
+  "tags": [
+    "정상",
+    "식물성 소재"
+  ],
+  "summary": "대나무 직조 매트·테이블 러너(Temu). 스펙표 '소재: 대나무'로 plant_material=true를 확정하는지, '비슷한 상품 리뷰'(다른 상품의 리뷰)를 판매자 문구로 섞지 않는지 본다.",
+  "booleans": {
+    "electrical_powered": {
+      "value": false,
+      "evidence": "제목 '대나무 직조 롤', '대나무 시트', 스펙표 '소재: 대나무'",
+      "why_not_other": "대나무를 엮은 매트 형태가 확인되어 전기로 작동하는 구조가 아니다."
+    },
+    "wireless_comm": {
+      "value": false,
+      "evidence": "대나무 매트. 전원·전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_charging": {
+      "value": false,
+      "evidence": "대나무 매트. 전원·전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "wireless_shield": {
+      "value": null,
+      "evidence": "(전파 차폐 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "battery_included": {
+      "value": false,
+      "evidence": "대나무 매트. 전원·전지 표기 없음",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "battery_is_the_product": {
+      "value": false,
+      "evidence": "제목 '대나무 매트'",
+      "why_not_other": "전력 공급이 기능이 아니다."
+    },
+    "heating": {
+      "value": false,
+      "evidence": "대나무 매트",
+      "why_not_other": "전기를 쓰지 않는 상품이다."
+    },
+    "food_contact": {
+      "value": null,
+      "evidence": "제목 '테이블 러너 티 매트용'",
+      "why_not_other": "찻잔·찻주전자를 올려 두는 매트라 음식이 직접 닿지 않고, 닿지 않는다는 표현도 없다. 접촉 칸은 페이지가 말하지 않으면 None."
+    },
+    "skin_contact": {
+      "value": null,
+      "evidence": "(피부 접촉 관련 언급 없음)",
+      "why_not_other": "언급 없음."
+    },
+    "medical_claim": {
+      "value": false,
+      "evidence": "판매자 문구에 질병·신체기능 효과 표방이 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "cosmetic_claim": {
+      "value": false,
+      "evidence": "미용·피부 효과 표방 문구가 없다",
+      "why_not_other": "표방 문구 유무만 본다."
+    },
+    "weapon_like": {
+      "value": false,
+      "evidence": "매트 형태",
+      "why_not_other": "형태가 무기와 무관하다."
+    },
+    "plant_material": {
+      "value": true,
+      "evidence": "스펙표 '소재: 대나무', 설명 '고급 대나무로 제작되어'",
+      "why_not_other": "식물성 소재가 명시돼 있다."
+    },
+    "chemical_product": {
+      "value": false,
+      "evidence": "카테고리 '대나무 매트'",
+      "why_not_other": "세정·방향·살균 기능이 아니다."
+    },
+    "for_children": {
+      "value": false,
+      "evidence": "어린이를 겨냥한 문구나 연령 표기가 없다",
+      "why_not_other": "대상 표기 칸이라 표기가 없으면 false."
+    }
+  },
+  "verbatim": {
+    "target_age": {
+      "value": null,
+      "evidence": "연령 표기 없음"
+    }
+  },
+  "keywords": {
+    "product_name": {
+      "required": [
+        "대나무"
+      ]
+    },
+    "category": {
+      "allowed": [
+        "대나무 매트",
+        "테이블 러너",
+        "대나무 시트",
+        "주방&테이블 보",
+        "홈&주방 > 주방&테이블 보",
+        "홈 데코",
+        "티 매트"
+      ]
+    }
+  },
+  "attributes_required": [
+    {
+      "name": "소재",
+      "value": "대나무",
+      "evidence": "스펙표 '소재: 대나무'"
+    }
+  ],
+  "listing_text_required": [
+    {
+      "must_contain": "고급 대나무로 제작되어",
+      "evidence": "판매자 설명(원문 86행)"
+    }
+  ],
+  "listing_text_forbidden": [
+    {
+      "must_not_contain": "울강쥐들 매트로 깔아주려고",
+      "evidence": "원문 38행, 비슷한 상품 리뷰"
+    },
+    {
+      "must_not_contain": "처음으로 테무에 리뷰남깁니다",
+      "evidence": "원문 47행, 비슷한 상품 리뷰"
+    },
+    {
+      "must_not_contain": "컵 코스터 단열 기능",
+      "evidence": "원문 40·49·64행, 다른 상품(리뷰 대상)의 상품명"
+    },
+    {
+      "must_not_contain": "Temu 제품 가격은 관세",
+      "evidence": "원문 100행, 판매 사이트 공통 문구"
+    }
+  ]
+}

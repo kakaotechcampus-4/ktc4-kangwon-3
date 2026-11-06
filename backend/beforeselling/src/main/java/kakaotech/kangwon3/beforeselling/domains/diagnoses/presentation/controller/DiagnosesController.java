@@ -8,6 +8,8 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.usecase.Di
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.api.DiagnosesApi;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
+import kakaotech.kangwon3.beforeselling.global.ratelimit.RateLimit;
+import kakaotech.kangwon3.beforeselling.global.ratelimit.RateLimitPolicy;
 import kakaotech.kangwon3.beforeselling.global.security.annotation.LoginUser;
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class DiagnosesController implements DiagnosesApi {
     // 신규 상품 진단 요청(진단서는 PENDING 상태로 생성)
     @Override
     @PostMapping
+    @RateLimit(RateLimitPolicy.AI)
     public ResponseEntity<ApiResponse<DiagnosesCreateResponse>> createDiagnoses(
             @LoginUser UserPrincipal principal,
             @Valid @RequestBody DiagnosesCreateRequest request

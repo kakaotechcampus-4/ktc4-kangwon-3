@@ -1,26 +1,20 @@
-/** 하나의 질문 요소 */
-export interface QuestionItem {
-    id: string
-    title: string
-    description?: string
-}
+import type { Question } from "@/api/product";
+import type { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
 
-/** 상품 하나에 대한 질문 목록 */
-export interface ProductQuestions {
+/** 질문 화면에 필요한 상품 정보와 question을 담은 타입 */
+export interface QuestionProduct {
     productId: string
+    diagnosesId: string
     productName: string
-    questions: QuestionItem[]
+    productImageUrl: string | null
+    resultStatus: ResultStatus | null
+    processingStatus: ProcessingStatusType
+    sourceType: SourceType
+    questions: Question[]
 }
 
 /** 답변 제출(POST) 시 보낼 형태. */
 export interface AnswerSubmission {
     questionId: string
-    answer: string
-}
-
-/** 제품별 답변 완료 상태 */
-export enum ProductStatus {
-    Complete = "complete",
-    Partial = "partial",
-    Empty = "empty",
+    answerText: string
 }

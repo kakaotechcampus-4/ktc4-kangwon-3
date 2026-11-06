@@ -1,0 +1,217 @@
+"""클라이언트·콜백 발신함·Tool·추출·DB 캐시·법령 점검·CLIP 적재·HTTP 요청이 남기는 측정 기록과 그 기록을 받아 가는 곳(sink)의 등록표.
+
+기록을 남기는 코드는 지표를 몰라도 됨. 서버는 lifespan에서 지표 sink를 등록하고 종료 때 해제.
+받는 쪽 오류는 오류 로그만 남기고 기록을 남긴 쪽 동작에 영향 없음.
+"""
+
+import logging
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
+from threading import Lock
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ClientCall:
+    """외부 API 호출 1건.
+
+    Attributes:
+        api: 호출한 서버 (law·data_go_kr·customs_clip·safety_korea·radio·marketplace·backend·llm).
+        result: 호출 결과 (ok·http_error·api_error·timeout·connect_error·other).
+        seconds: 걸린 시간(초).
+    """
+
+    api: str
+    result: str
+    seconds: float
+
+
+@dataclass(frozen=True)
+class ToolRun:
+    """Tool 실행 1건.
+
+    Attributes:
+        tool_name: Tool 이름.
+        status: 실행 상태 (success·partial·failed·skipped).
+        seconds: 걸린 시간(초). 건너뛰면 0.
+        error_type: 실패 원인 (client·model·other). 실패가 아니면 None.
+        determinations: 판단 항목마다의 판단 (required·possibly_required 등).
+    """
+
+    tool_name: str
+    status: str
+    seconds: float
+    error_type: str | None = None
+    determinations: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class SellerRegionCut:
+    """상세페이지 글 하나의 판매자 구역 자르기 결과.
+
+    Attributes:
+        site: 알아본 쇼핑몰 (aliexpress·temu).
+        trimmed: 구역을 실제로 잘랐는지.
+    """
+
+    site: str
+    trimmed: bool
+
+
+@dataclass(frozen=True)
+class CallbackOutcome:
+    """콜백 이벤트 1건의 최종 결과.
+
+    Attributes:
+        event_type: 콜백 이벤트 종류.
+        delivered: BE가 받았는지.
+        retries: 첫 전송을 뺀 재시도 횟수.
+        drop_reason: 버린 사유 (retry_exhausted·not_retryable·shutdown·error). 받았으면 None.
+    """
+
+    event_type: str
+    delivered: bool
+    retries: int = 0
+    drop_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class CacheLookup:
+    """Tool이 DB 캐시를 먼저 본 조회 1건.
+
+    Attributes:
+        cache: 캐시 이름 (law.eflaw_search·law.text·admrul.search·admrul.text·customs.gw·customs.cases).
+        result: 조회 결과 (hit·miss·stale·skipped).
+    """
+
+    cache: str
+    result: str
+
+
+@dataclass(frozen=True)
+class LawRefreshRun:
+    """법령 점검 1회.
+
+    Attributes:
+        result: 점검 결과 (ok·partial·failed). 문서 하나라도 실패하면 ok가 아님.
+        finished_at: 끝난 시각(Unix 초).
+    """
+
+    result: str
+    finished_at: float
+
+
+@dataclass(frozen=True)
+class LawChangeFound:
+    """법령 점검에서 찾은 근거 문서 변경 1건.
+
+    Attributes:
+        kind: 변경 종류 (announced·applied·skipped).
+        tool: 이 문서를 근거로 쓰는 Tool 이름.
+    """
+
+    kind: str
+    tool: str
+
+
+@dataclass(frozen=True)
+class ClipIngestRun:
+    """CLIP 결정사례 주간 적재 1회.
+
+    Attributes:
+        result: 적재 결과 (ok·partial·failed·skipped). 상세 하나라도 실패하면 ok가 아님.
+        finished_at: 끝난 시각(Unix 초).
+        saved: 새로 저장한 사례 수.
+        removed: 목록에서 사라져 지운 사례 수.
+        failed: 상세를 받지 못한 사례 수.
+    """
+
+    result: str
+    finished_at: float
+    saved: int = 0
+    removed: int = 0
+    failed: int = 0
+
+
+@dataclass(frozen=True)
+class HttpRequest:
+    """AI 서버가 받은 HTTP 요청 1건.
+
+    Attributes:
+        route: 라우트 템플릿 (예: /api/ai/v1/sandbox/diagnose/{product_id}). 맞는 라우트가 없으면 unmatched.
+        method: HTTP 메서드.
+        status: 응답 상태 코드. 처리 중 예외로 끝나면 500.
+        seconds: 받은 때부터 응답 헤더를 보낼 때까지(초).
+    """
+
+    route: str
+    method: str
+    status: int
+    seconds: float
+
+
+Measurement = (ClientCall | ToolRun | SellerRegionCut | CallbackOutcome | CacheLookup | LawRefreshRun | LawChangeFound
+               | ClipIngestRun | HttpRequest)
+MeasurementSink = Callable[[Measurement], None]
+
+
+class MeasurementSinkRegistry:
+    """측정 기록을 받아 갈 sink 목록. 여러 스레드에서 동시에 불려도 됨."""
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._sinks: list[MeasurementSink] = []
+
+    def add(self, sink: MeasurementSink) -> None:
+        """sink를 등록한다. 이미 있으면 그대로 둠 (같은 기록을 두 번 받지 않게).
+
+        Args:
+            sink: 측정 기록을 받는 함수.
+        """
+        with self._lock:
+            if sink not in self._sinks:
+                self._sinks.append(sink)
+
+    def remove(self, sink: MeasurementSink) -> None:
+        """sink를 해제한다. 없으면 무시.
+
+        Args:
+            sink: 등록할 때 넘긴 함수.
+        """
+        with self._lock:
+            if sink in self._sinks:
+                self._sinks.remove(sink)
+
+    @contextmanager
+    def added(self, sink: MeasurementSink) -> Iterator[None]:
+        """블록 안에서만 sink를 등록한다. 예외로 빠져나가도 해제.
+
+        Args:
+            sink: 측정 기록을 받는 함수.
+        """
+        self.add(sink)
+        try:
+            yield
+        finally:
+            self.remove(sink)
+
+    def publish(self, record: Measurement) -> None:
+        """기록 1건을 등록된 sink 전부에 넘긴다. sink 오류는 오류 로그만 남김.
+
+        Args:
+            record: 측정 기록.
+        """
+        # 넘기는 동안 등록·해제가 일어나도 되게 목록을 복사
+        with self._lock:
+            sinks = list(self._sinks)
+        for sink in sinks:
+            try:
+                sink(record)
+            except Exception:
+                logger.error("측정 기록 sink 처리 실패 (%s)", type(record).__name__, exc_info=True)
+
+
+# 앱 전체가 함께 쓰는 등록표
+measurement_sinks = MeasurementSinkRegistry()

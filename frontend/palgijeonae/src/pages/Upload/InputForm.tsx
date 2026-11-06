@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { SourceType } from "@/api/types.ts"
 import Button from "@/components/common/Button/index.tsx";
+import HelpTooltip from "@/components/common/HelpTooltip/index.tsx";
 
 import { MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "./constraints.ts";
 import AttachedImageList from "./form/AttachedImageList.tsx";
@@ -90,7 +91,10 @@ function InputForm({ type, onAdd }: InputFormProps) {
                         title="상세페이지 이미지"
                         description="상세 페이지를 캡처한 이미지를 첨부하세요."
                         multiple={true}
-                        isOption={false}
+                        isOption={true}
+                        optionLabel="보조 입력"
+                        helperText="텍스트 입력을 보완하는 참고 자료예요. 이미지만으로는 제출할 수 없어요."
+                        tooltip={"화면을 확대해서 캡처하면 글자를 더 정확하게 인식해요.\n스크롤 캡처를 너무 길게 이어 붙이지 말고, 몇 화면씩 나눠서 올려주세요."}
                         countLabel={`${productImages.length}/${MAX_PRODUCT_IMAGE_COUNT}`}
                         onChange={(newFiles) => {
                             const availableSlots = Math.max(MAX_PRODUCT_IMAGE_COUNT - productImages.length, 0);
@@ -131,16 +135,13 @@ function InputForm({ type, onAdd }: InputFormProps) {
                 onRemove={() => setImage(null)}
             />
             <div className="flex w-full items-center justify-between gap-4">
-                <div className="group relative flex min-w-0 items-center gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-neutral-border text-xs font-medium text-neutral-border">
-                        ?
-                    </span>
+                <div className="flex min-w-0 items-center gap-2">
+                    <HelpTooltip label="입력 방법 추가 설명" className="max-w-sm">
+                        {helpTooltip}
+                    </HelpTooltip>
                     <p className="truncate text-sm text-neutral-dark">
                         {helpText}
                     </p>
-                    <div className="pointer-events-none absolute bottom-full left-0 z-50 mb-2 hidden w-max whitespace-nowrap rounded-lg bg-neutral-dark px-3 py-2 text-sm text-white shadow-lg group-hover:block">
-                        {helpTooltip}
-                    </div>
                 </div>
                 <div className="shrink-0">
                     <Button text="상품 추가하기" onClick={handleAddProduct} fontSize={15} />

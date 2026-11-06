@@ -44,6 +44,7 @@ jobs:
             backend/   Homeria niceome hyotatoFrappuccino
             frontend/  SumiNK03 niceome
             ai/        gkrdls Homeria gityhb
+            e2e/       SumiNK03 niceome Homeria hyotatoFrappuccino
           # ────────────────────────────────────────────────────
         run: |
           set -euo pipefail

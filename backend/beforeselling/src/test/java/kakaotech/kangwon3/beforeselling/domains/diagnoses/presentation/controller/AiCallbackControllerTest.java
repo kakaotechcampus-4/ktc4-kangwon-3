@@ -26,6 +26,7 @@ import kakaotech.kangwon3.beforeselling.global.security.oauth2.handler.OAuth2Suc
 import kakaotech.kangwon3.beforeselling.global.security.oauth2.repository.RedisOAuth2AuthorizationRequestRepository;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -53,6 +54,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Tag("integration")
 @WebMvcTest(AiCallbackController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, ValidationConfig.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
@@ -131,10 +133,12 @@ class AiCallbackControllerTest {
     @Test
     @DisplayName("내부 토큰 없이 콜백을 보내면 401과 COMMON-004 코드를 응답하고 결과를 반영하지 않는다.")
     void receiveCallback_withoutToken_thenUnauthorized() throws Exception {
+        // when
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(RESULT_JSON))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));
 
+        // then
         then(aiCallbackUseCase).should(never()).handleResult(any());
     }
 
@@ -250,10 +254,12 @@ class AiCallbackControllerTest {
     })
     @DisplayName("진행·질문·실패 콜백의 필수 값이 비어 있으면 400과 COMMON-002 코드를 응답하고 반영을 요청하지 않는다.")
     void receiveCallback_withInvalidEvent_thenBadRequest(String template) throws Exception {
+        // when
         mockMvc.perform(callback(template.formatted(COMMON_FIELDS)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"));
 
+        // then
         then(aiCallbackUseCase).shouldHaveNoInteractions();
     }
 

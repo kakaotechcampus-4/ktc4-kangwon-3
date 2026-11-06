@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react'
 import { useEffect } from 'react'
 import { BrowserRouter, Route,Routes } from 'react-router-dom'
 
@@ -14,6 +15,9 @@ import QuestionPage from './pages/Question/index.tsx'
 import ResultPage from './pages/Result/index.tsx'
 import UploadPage from './pages/Upload/index.tsx'
 import { useAuthStore } from './store/useAuthStore.ts'
+
+// Routes 교체는 앱 최상단에서 한 번만 한다.
+const SentryRoutes = Sentry.wrapReactRouterRouting(Routes)
 
 function App() {
   useEffect(() => {
@@ -49,7 +53,7 @@ function App() {
   return (
     <div className="">
       <BrowserRouter>
-        <Routes>
+        <SentryRoutes>
           <Route element={<Layout />}>
             <Route path="/" element={<MainPage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -58,7 +62,7 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/upload" element={<UploadPage />} />
               <Route path="/question" element={<QuestionPage />} />
-              <Route path="/question/:diagnosesId" element={<QuestionPage />} />
+              <Route path="/question/:productId" element={<QuestionPage />} />
               <Route path="/judgement" element={<JudgementPage />} />
               <Route path="/judgement/:diagnosesId" element={<JudgementPage />} />
               <Route path="/result/product/:productId" element={<ResultPage />} />
@@ -68,7 +72,7 @@ function App() {
 
             <Route path="*" element={<NotFoundPage />} />
           </Route>
-        </Routes>
+        </SentryRoutes>
       </BrowserRouter>
     </div>
   )

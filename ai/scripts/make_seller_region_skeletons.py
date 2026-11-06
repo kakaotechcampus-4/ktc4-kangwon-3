@@ -28,10 +28,10 @@ BODY = "본문"
 # 정제 코드가 보는 화면 표지. 상품 내용이 아니라 쇼핑몰 화면 글자만 둔다.
 _EXACT = {
     "AliExpress", "Temu 앱 다운로드", "Coupang", "장바구니", "AI 상품 요약", "연관 상품", "상품 정보",
-    "면책 조항", "판매자", "AliExpress의 약속", "카테고리", "팔로워", "제품 세부 정보",
+    "면책 조항", "판매자", "AliExpress의 약속", "카테고리", "팔로워", "제품 세부 정보", "수량",
 }
 # 뒤에 상품 글이 붙어 오는 표지는 앞부분만 남긴다.
-_PREFIXES = ("구매자 질문", "모든 리뷰는", "가장 빠른 배송")
+_PREFIXES = ("구매자 질문", "모든 리뷰는", "가장 빠른 배송", "해당 상품 무료 배송", "이 판매자로부터 배송")
 _REVIEW_COUNT = re.compile(r"리뷰 [\d,]+건")
 # 쿠팡은 지원하지 않는다. "지원 밖 페이지는 그대로 넘어간다"를 보는 사례로 남긴다.
 _UNSUPPORTED = ("coupang_direct_import",)
@@ -46,6 +46,9 @@ def skeleton(raw: str, title: str | None) -> str:
         if title and s == title:
             out.append(TITLE)
         elif s in _EXACT or _REVIEW_COUNT.fullmatch(s):
+            out.append(s)
+        elif out and out[-1] == "수량" and s.isdigit():
+            # Temu 정제는 수량 숫자와 판매자 스펙을 구분한다. 숫자를 본문으로 접으면 스펙이 있는 화면처럼 보인다.
             out.append(s)
         elif prefix := next((p for p in _PREFIXES if s.startswith(p)), None):
             out.append(prefix)

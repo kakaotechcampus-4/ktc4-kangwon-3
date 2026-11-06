@@ -19,6 +19,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -75,6 +76,22 @@ class NaverUnlinkClientTest {
 
         // when & then
         assertThatThrownBy(() -> client.unlink(user)).isInstanceOf(RestClientResponseException.class);
+    }
+
+    @Test
+    @DisplayName("저장된 refresh_token이 없으면 네이버 API를 호출하지 않고 건너뛴다.")
+    void unlink_withoutRefreshToken_thenSkip() {
+        // given
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverUnlinkClient client = new NaverUnlinkClient(builder.build(), clientRegistrationRepository);
+
+        // when
+        client.unlink(userWithRefreshToken(null));
+
+        // then
+        server.verify();
+        then(clientRegistrationRepository).shouldHaveNoInteractions();
     }
 
     private ClientRegistration naverRegistration() {

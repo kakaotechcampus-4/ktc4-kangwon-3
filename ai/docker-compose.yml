@@ -1,5 +1,12 @@
 name: ai
 
+# 컨테이너 로그(docker logs) 크기 상한. 서버 Docker 기본값은 상한 없음 → 10MB × 5개까지만 보관
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   ai:
     build:
@@ -7,7 +14,11 @@ services:
     image: ai-server:${IMAGE_TAG:-latest}
     container_name: ai-server
     restart: unless-stopped
+    # 종료 신호 뒤 강제 종료까지 대기. 진단 최대 시간(600초)에 맞춤 = 실행 중 진단 기다림(SESSION_DRAIN_SECONDS 580초)
+    # + 남은 콜백(15초) + 여유. 배포(up -d --build)로 컨테이너를 바꿀 때도 적용됨. 기본값 10초면 기다리는 중에 강제 종료
+    stop_grace_period: 600s
     mem_limit: 1g
+    logging: *logging
     # 앱 환경변수는 .env 전체를 그대로 주입 (새 변수는 .env·.env.example에만 추가)
     env_file: .env
     # compose가 정하는 값만. env_file보다 우선함
@@ -17,6 +28,9 @@ services:
       BE_BASE_URL: ${BE_BASE_URL:-http://be-server:8080}
     ports:
       - "8000:8000"
+    # 모델 호출 사용량 기록(logs/usage.jsonl). 배포로 컨테이너를 새로 만들어도 유지
+    volumes:
+      - ai-logs:/app/logs
     depends_on:
       ai-db:
         condition: service_healthy
@@ -33,6 +47,7 @@ services:
     container_name: ai-db
     restart: unless-stopped
     mem_limit: 512m
+    logging: *logging
     environment:
       POSTGRES_DB: ${AI_DB_NAME:-ai}
       POSTGRES_USER: ${AI_DB_USERNAME:-ai}
@@ -57,6 +72,8 @@ services:
 volumes:
   ai-pgdata:
     name: ai-pgdata
+  ai-logs:
+    name: ai-logs
 
 networks:
   ai-net:

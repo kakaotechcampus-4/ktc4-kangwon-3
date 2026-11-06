@@ -16,8 +16,8 @@ class AgentRunMeta(StrictModel):
         usage_name: 사용량·지표 기록 이름 (평가 호출은 extraction-eval 등으로 운영과 구분). None이면 component.
         model: 비용 계산용 모델 이름. 모델이 없는 에이전트(규칙 전용 실행)는 None.
         reasoning_effort: 추론 강도. 스텁·주입 모델은 None.
-        prompt_name: 시스템 프롬프트 이름.
-        prompt_sha256: 프롬프트 지문 (버전 비교용).
+        prompt_name: 시스템 프롬프트 이름. 판단 모델 호출은 시스템 프롬프트를 안 써서 None.
+        prompt_sha256: 프롬프트 지문 (버전 비교용). 판단 모델 호출은 질문 목록 지문.
         usage: 토큰 사용량. 호출 실패로 모르거나 호출이 없었으면 None.
         cost_krw: 예상 비용(원). 단가를 모르면 None.
         elapsed_ms: 걸린 시간(ms).

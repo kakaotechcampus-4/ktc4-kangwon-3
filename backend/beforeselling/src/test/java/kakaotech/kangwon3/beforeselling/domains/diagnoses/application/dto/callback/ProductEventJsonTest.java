@@ -7,6 +7,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Pipeline
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // AI가 보내는 콜백 JSON이 이벤트 DTO로 바뀌는지, 검증 기준이 AI 스키마와 같은지 확인한다.
 // Spring이 만든 JsonMapper를 써야 enum 대소문자 무시 설정이 적용된다.
+@Tag("integration")
 @JsonTest
 @ActiveProfiles("test")
 class ProductEventJsonTest {
@@ -188,6 +190,7 @@ class ProductEventJsonTest {
     @Test
     @DisplayName("올바른 이벤트는 검증을 통과한다.")
     void validate_whenValid_thenNoViolation() {
+        // when & then
         assertThat(validator.validate(progress("event-1", 1, PipelineStage.EXTRACTION))).isEmpty();
         assertThat(validator.validate(awaitingInput(1, List.of(question("sales_type"))))).isEmpty();
         assertThat(validator.validate(failed(new PublicErrorDto("AI_TIMEOUT", "시간 초과", null)))).isEmpty();
@@ -209,6 +212,7 @@ class ProductEventJsonTest {
     @ValueSource(ints = {0, 3})
     @DisplayName("질문 회차가 1~2를 벗어나면 위반이다.")
     void validate_whenQuestionRoundOutOfRange_thenViolation(int questionRound) {
+        // when & then
         assertThat(violatedPaths(awaitingInput(questionRound, List.of(question("sales_type")))))
                 .containsExactly("questionRound");
     }
@@ -216,6 +220,7 @@ class ProductEventJsonTest {
     @Test
     @DisplayName("질문 목록이 비어 있으면 위반이다.")
     void validate_whenNoQuestions_thenViolation() {
+        // when & then
         assertThat(violatedPaths(awaitingInput(1, List.of()))).containsExactly("questions");
     }
 
@@ -234,12 +239,14 @@ class ProductEventJsonTest {
     @Test
     @DisplayName("실패 이벤트에 오류 정보가 없으면 위반이다.")
     void validate_whenNoError_thenViolation() {
+        // when & then
         assertThat(violatedPaths(failed(null))).containsExactly("error");
     }
 
     @Test
     @DisplayName("오류 코드가 50자를 넘거나 오류 코드·메시지가 비어 있으면 위반이다.")
     void validate_whenInvalidError_thenViolationOnError() {
+        // when & then
         assertThat(violatedPaths(failed(new PublicErrorDto("E".repeat(51), "메시지", null))))
                 .containsExactly("error.code");
         assertThat(violatedPaths(failed(new PublicErrorDto(" ", "", null))))

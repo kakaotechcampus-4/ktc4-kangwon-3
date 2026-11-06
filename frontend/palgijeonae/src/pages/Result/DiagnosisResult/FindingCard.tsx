@@ -35,16 +35,16 @@ function FindingCard({ finding }: FindingCardProps) {
 
     return (
         <DefaultBox>
-            <div className="flex w-full flex-col gap-2.5">
-                <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
-                    <p className="text-xl font-bold text-black">{finding.subject}</p>
-                    <div className="flex items-center gap-2.5">
+            <div className="flex w-full flex-col gap-5.5">
+                <div className="w-full overflow-hidden">
+                    <div className="float-right ml-4 flex shrink-0 items-center gap-2.5">
                         {showRiskMeter && <RiskMeter riskLevel={finding.riskLevel} />}
                         <DeterminationBadge determination={finding.determination} />
                     </div>
+                    <p className="text-xl font-bold text-black">{finding.subject}</p>
                 </div>
-                <p className="text-base font-medium text-black">{finding.summary}</p>
-                <p className="text-sm leading-relaxed text-neutral-text">{finding.rationale}</p>
+                <p className="text-base font-medium leading-relaxed whitespace-pre-line text-black">{finding.summary}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-line text-neutral-text">{finding.rationale}</p>
             </div>
             {firstLegalSource && (
                 <>
@@ -64,7 +64,7 @@ function FindingCard({ finding }: FindingCardProps) {
                         <img src={toggleIcon} alt="" className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
                     </button>
                     {isExpanded && (
-                        <div id={legalSourcesId} className="flex w-full flex-col gap-3">
+                        <div id={legalSourcesId} className="flex w-full flex-col gap-5">
                             {legalSources.map((legalSource) => (
                                 <LawCard key={legalSource.findingLegalSourceId} legalSource={legalSource} />
                             ))}

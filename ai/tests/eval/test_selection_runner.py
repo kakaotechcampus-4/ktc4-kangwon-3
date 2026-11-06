@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.agents.decision_selection import QUESTIONS
+from app.clients.llm.decision import questions_fingerprint
 from app.config import MODEL_PROFILES
 from app.eval import selection_runner
 from app.eval.runner import prompt_fingerprint, run_metadata
@@ -132,3 +134,60 @@ def test_저장된_결과는_재호출_없이_재채점된다(tmp_path, monkeypa
     captured = capsys.readouterr()
     assert "다른 선택 프롬프트" in captured.err
     assert "B: 전 회차 실패" in captured.out
+
+
+class _FakeDecisionAgent:
+    """전파만 고르는 판단 선택 에이전트. failure_phase를 주면 판단 호출 실패로 전부 선택한 척한다."""
+
+    def __init__(self, failure_phase=None, **kwargs):
+        self.kwargs = kwargs
+        self.failure_phase = failure_phase
+
+    def run_with_meta(self, product):
+        response = ToolSelectionResponse(decisions=[
+            ToolSelectionItem(tool_name=tool, selected=tool is ToolName.CUSTOMS or self.failure_phase is not None,
+                              reason="가짜")
+            for tool in ToolName
+        ])
+        return SimpleNamespace(result=response, meta=SimpleNamespace(failure_phase=self.failure_phase))
+
+
+def test_판단_선택으로_재면_판단_프로필과_질문_목록_지문을_남긴다(tmp_path, monkeypatch):
+    log = _write_log(tmp_path / "extraction.json", {"power_bank": [{"wireless_charging": False}]})
+    agents: list[_FakeDecisionAgent] = []
+    monkeypatch.setattr(selection_runner, "DecisionSelectionAgent",
+                        lambda **kw: agents.append(_FakeDecisionAgent(**kw)) or agents[-1])
+    monkeypatch.setattr(selection_runner, "get_decision_client", lambda profile: f"client-{profile.name}")
+    monkeypatch.setattr(selection_runner, "SelectionAgent", lambda **kw: pytest.fail("선택 에이전트를 만들면 안 됩니다"))
+    monkeypatch.setattr(selection_runner, "RESULT_DIR", tmp_path / "out")
+    monkeypatch.setattr(sys, "argv", ["selection_runner", "--extraction-log", str(log), "--fixture", "power_bank",
+                                      "--selector", "decision", "--decision-profile", "luna"])
+
+    assert selection_runner.main() == 0
+
+    assert agents[0].kwargs == {"usage_agent": "decision-selection-eval", "decision_client": "client-luna",
+                                "decision_model": "openai/gpt-6-luna"}
+    meta = json.loads(next((tmp_path / "out").glob("selection-*.json")).read_text(encoding="utf-8"))["meta"]
+    assert (meta["decision_profile"], meta["model"], meta["prompt_path"]) == ("luna", "openai/gpt-6-luna", None)
+    assert meta["prompt_sha256"] == questions_fingerprint(list(QUESTIONS))
+    assert selection_runner.warn_if_prompt_changed(meta) == []
+
+
+def test_판단_호출_실패로_전부_선택한_회차는_실패로_센다(capsys):
+    selector = selection_runner.DecisionSelector(_FakeDecisionAgent(failure_phase="call"))
+
+    assert selection_runner._select(selector, {}, "p-1") is None
+    assert "판단 호출 실패(call)로 전부 선택됨" in capsys.readouterr().err
+
+
+def test_판단_선택_기록은_질문_목록_지문으로_비교한다():
+    warnings = selection_runner.warn_if_prompt_changed({"decision_profile": "jev", "prompt_sha256": "옛지문"})
+
+    assert "다른 판단 질문 목록" in warnings[0]
+
+
+def test_판단_프로필은_판단_선택일_때만_받는다(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["selection_runner", "--extraction-log", "x.json", "--decision-profile", "jev"])
+
+    with pytest.raises(SystemExit):
+        selection_runner.main()

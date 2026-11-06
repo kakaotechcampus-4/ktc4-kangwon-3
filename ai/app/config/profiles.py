@@ -2,11 +2,15 @@
 
 새 조합은 MODEL_PROFILES에 ModelProfile 한 줄.
 모델이 받지 않는 옵션 조합(회사별 규칙은 catalog.py)은 import 시점에 실패함.
+
+판단 모델(/decisions)은 DECISION_PROFILES·AGENT_DECISION_PROFILES로 따로 고름 (호출 옵션 없음).
 """
 
 from dataclasses import asdict, dataclass
 
-from .catalog import GPT_6_LUNA, GPT_41_MINI, ChatModel
+from .catalog import (
+    CLAUDE_HAIKU_55, GPT_6_LUNA, GPT_6_LUNA_DECISION, GPT_41_MINI, GPT_61_TERRA, JEV, ChatModel, DecisionModel,
+)
 
 
 @dataclass(frozen=True)
@@ -56,6 +60,10 @@ MODEL_PROFILES = {profile.name: profile for profile in (
     ModelProfile("mini", GPT_41_MINI, temperature=0),
     ModelProfile("luna-low", GPT_6_LUNA, reasoning_effort="low"),
     ModelProfile("luna-medium", GPT_6_LUNA, reasoning_effort="medium"),
+    ModelProfile("terra-low", GPT_61_TERRA, reasoning_effort="low"),
+    ModelProfile("terra-medium", GPT_61_TERRA, reasoning_effort="medium"),
+    # 추론 강도를 주면 추론 토큰이 사용량에 안 잡혀 비용 비교가 틀어짐 → 비교용은 강도 없이 (catalog.ClaudeModel)
+    ModelProfile("haiku", CLAUDE_HAIKU_55, temperature=0),
 )}
 
 # 에이전트별 기본 프로필. 키는 BaseAgent.component_name
@@ -78,4 +86,34 @@ TOOL_PROFILES = {
     "radio_compliance": "mini",
     "customs_requirements": "mini",
     "food_drug_safety": "mini",
+}
+
+
+@dataclass(frozen=True)
+class DecisionProfile:
+    """에이전트가 고르는 판단 모델.
+
+    Attributes:
+        name: 프로필 이름 (AGENT_DECISION_PROFILES 값).
+        model: 호출할 판단 모델.
+        note: 이 모델을 둔 이유 (실측 결과 등).
+    """
+
+    name: str
+    model: DecisionModel
+    note: str = ""
+
+
+# 팀 공용 크레딧으로 의도하지 않은 모델을 호출하지 않도록 여기 있는 프로필만 허용
+DECISION_PROFILES = {profile.name: profile for profile in (
+    DecisionProfile("jev", JEV),
+    DecisionProfile("luna", GPT_6_LUNA_DECISION),
+)}
+
+# 판단 모델을 쓰는 에이전트별 프로필. 키는 BaseAgent.component_name. 없는 에이전트는 판단 모델을 안 씀
+AGENT_DECISION_PROFILES: dict[str, str] = {
+    # 10-29 선택 실험 기준. Luna와 비교 측정 후 확정
+    "decision_selection": "jev",
+    # 11-04 실측: Luna는 은근한 지시·작은 글씨 이미지를 놓치고 가드 회피 문구에 속음
+    "input_guard": "jev",
 }

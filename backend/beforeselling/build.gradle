@@ -3,6 +3,7 @@ plugins {
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 	id 'io.sentry.jvm.gradle' version '6.22.0'
+	id 'jacoco'
 }
 
 group = 'kakaotech.kangwon3'
@@ -42,6 +43,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 	runtimeOnly 'org.postgresql:postgresql'
 
+	// Rate Limit
+	implementation 'com.bucket4j:bucket4j_jdk17-core:8.21.0'
+	implementation 'com.bucket4j:bucket4j_jdk17-lettuce:8.21.0'
+
 	// AWS
 	implementation 'software.amazon.awssdk:s3'
 	implementation 'software.amazon.awssdk:ses'
@@ -65,6 +70,9 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 	testImplementation 'org.awaitility:awaitility'
 	testRuntimeOnly 'com.h2database:h2'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -72,8 +80,129 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
+jacoco {
+	toolVersion = '0.8.14'
+}
+
+def integrationTag = 'integration'
+
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags integrationTag
+	}
+	finalizedBy 'jacocoTestReport'
+}
+
+def integrationTest = tasks.register('integrationTest', Test) {
+	description = '통합 테스트(@Tag("integration"))를 실행한다.'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags integrationTag
+	}
+	shouldRunAfter tasks.named('test')
+	finalizedBy 'jacocoIntegrationTestReport'
+}
+
+tasks.named('check') {
+	dependsOn integrationTest, 'jacocoMergedReport'
+}
+
+def unitCoverageIncludes = [
+	'**/domains/*/domain/entity/**',
+	'**/domains/*/domain/service/**',
+	'**/domains/*/domain/event/**',
+	'**/domains/*/application/usecase/**',
+	'**/domains/*/application/mapper/**',
+	'**/domains/*/application/scheduler/**',
+	'**/domains/*/application/event/**',
+]
+
+def coverageExcludes = ['**/BeforesellingApplication.class']
+
+def unitCoverageClasses = {
+	files(sourceSets.main.output.classesDirs.files.collect { fileTree(dir: it, includes: unitCoverageIncludes) })
+}
+def allCoverageClasses = {
+	files(sourceSets.main.output.classesDirs.files.collect { fileTree(dir: it, excludes: coverageExcludes) })
+}
+
+// 단위: build/reports/jacoco/test/html
+tasks.named('jacocoTestReport') {
+	dependsOn 'test'
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	classDirectories.setFrom(unitCoverageClasses())
+}
+
+// 통합: build/reports/jacoco/jacocoIntegrationTestReport/html
+tasks.register('jacocoIntegrationTestReport', JacocoReport) {
+	description = '통합 테스트 커버리지 리포트를 만든다.'
+	group = 'verification'
+	dependsOn integrationTest
+	executionData integrationTest.get()
+	sourceSets sourceSets.main
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	classDirectories.setFrom(allCoverageClasses())
+}
+
+// 합산(단위 + 통합): build/reports/jacoco/jacocoMergedReport/html
+tasks.register('jacocoMergedReport', JacocoReport) {
+	description = '단위·통합 테스트를 합산한 커버리지 리포트를 만든다.'
+	group = 'verification'
+	dependsOn 'test', integrationTest
+	executionData tasks.named('test').get(), integrationTest.get()
+	sourceSets sourceSets.main
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	classDirectories.setFrom(allCoverageClasses())
+}
+
+// 최소 커버리지 기준. 단위: 라인·브랜치 90%, 합산: 라인 85%·브랜치 80%
+tasks.named('jacocoTestCoverageVerification') {
+	dependsOn 'test'
+	classDirectories.setFrom(unitCoverageClasses())
+	violationRules {
+		rule {
+			limit {
+				counter = 'LINE'
+				minimum = 0.90
+			}
+			limit {
+				counter = 'BRANCH'
+				minimum = 0.90
+			}
+		}
+	}
+}
+
+tasks.register('jacocoMergedCoverageVerification', JacocoCoverageVerification) {
+	description = '단위·통합 합산 커버리지가 최소 기준을 넘는지 검사한다.'
+	group = 'verification'
+	dependsOn 'test', integrationTest
+	executionData tasks.named('test').get(), integrationTest.get()
+	sourceSets sourceSets.main
+	classDirectories.setFrom(allCoverageClasses())
+	violationRules {
+		rule {
+			limit {
+				counter = 'LINE'
+				minimum = 0.85
+			}
+			limit {
+				counter = 'BRANCH'
+				minimum = 0.80
+			}
+		}
+	}
 }
 
 tasks.named('bootJar') {

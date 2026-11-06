@@ -42,6 +42,8 @@ class BackendCallbackClient(RequestClient[PublicProductEvent, SendResult]):
         transport: httpx 전송 계층. 테스트에서 가짜 BE를 붙일 때 주입.
     """
 
+    API = "backend"
+
     def __init__(
         self, base_url: str, token: str, *, timeout: float = TIMEOUT_SECONDS,
         transport: httpx.BaseTransport | None = None,

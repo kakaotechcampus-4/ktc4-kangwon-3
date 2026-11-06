@@ -1,22 +1,26 @@
 """진단 세션 관리자의 실행 상한·대기열·실패·시간 초과·진행 알림·재진단·질문 회차를 확인한다."""
 
+import logging
 import threading
 import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.domain.context import PipelineStage, RunType
+from app.domain.context import ExecutionContext, PipelineStage, RunType
+from app.observability.logs import current_run_fields
+from app.observability.measurements import ToolRun, measurement_sinks
+from app.observability.run_summary import current_summary
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
-from app.schemas.session import SessionStatus
+from app.schemas.session import DiagnosisSession, SessionStatus
 from app.sessions.errors import (
     QueueFullError, ResumeConflictError, SessionConflictError, SessionNotFoundError, UnansweredQuestionError,
     UnknownQuestionKeyError,
 )
-from app.sessions.events import AwaitingInput, Completed, Resumed, StageChanged, Started, ToolProgressed
+from app.sessions.events import AwaitingInput, Completed, Failed, Resumed, StageChanged, Started, ToolProgressed
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
 from app.sessions.manager import SessionManager
 from app.sessions.manager.runner import QUESTION_LIMIT_NOTICE
@@ -143,6 +147,20 @@ def test_진단_함수가_실패를_돌려주면_그_코드로_실패를_기록�
     assert (session.error_code, session.retryable, session.result) == ("AI_INVALID_REQUEST", False, None)
 
 
+def test_실패의_검토_표시는_세션에_남기지_않고_실패_이벤트로만_넘긴다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: JobFailed("AI_PIPELINE_ERROR", False, review_flag="r1"))
+    manager = _manager(managers, job)
+    seen = []
+    manager.subscribe(lambda e: seen.append(e))
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager,"p-1") is SessionStatus.FAILED)
+
+    assert [e.review_flag for e in seen if isinstance(e, Failed)] == ["r1"]
+    assert "r1" not in manager.get("p-1").model_dump_json()
+
+
 def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(managers):
     job = _GatedJob()
     manager = _manager(managers, job, max_running=2)
@@ -158,6 +176,57 @@ def test_실행_상한을_넘는_세션은_자리가_날_때까지_기다린다(
     assert _status(manager,"p-3") is SessionStatus.RUNNING
 
 
+def test_진단_함수_안의_로그에는_그_실행의_정보가_붙고_끝나면_지워진다(managers):
+    seen = {}
+
+    def job(job_input, context, progress):
+        seen[context.product_id] = dict(current_run_fields())
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    sessions = manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert seen["p-1"] == {"diagnosis_id": "d-1", "product_id": "p-1", "run_id": sessions[0].context.run_id,
+                           "run_type": "production"}
+    assert dict(current_run_fields()) == {}
+
+
+def test_단계_알림_뒤_로그_줄에는_지금_단계가_붙는다(managers):
+    seen = []
+
+    def job(job_input, context, progress):
+        seen.append(current_run_fields().get("stage"))
+        progress.stage(PipelineStage.EXTRACTION)
+        seen.append(current_run_fields().get("stage"))
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert seen == [None, "extraction"]
+
+
+def test_실행마다_새_요약에_단계를_모으고_끝나면_지운다(managers):
+    seen = []
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.EXTRACTION)
+        progress.stage(PipelineStage.SELECTION)
+        seen.append(current_summary())
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    _wait_until(lambda: all(_status(manager, p) is SessionStatus.COMPLETED for p in ("p-1", "p-2")))
+
+    assert len(seen) == 2 and seen[0] is not seen[1]
+    # 마지막 단계(선택)는 실행이 끝날 때 닫힘
+    assert all(set(summary.stage_seconds) == {"extraction", "selection"} for summary in seen)
+    assert current_summary() is None
+
+
 def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):
     manager = _manager(managers, _GatedJob())
 
@@ -168,6 +237,17 @@ def test_상품마다_실행_컨텍스트를_만들어_접수한다(managers):
     assert all(s.context.run_type is RunType.PRODUCTION for s in sessions)
     assert sessions[0].context.run_id != sessions[1].context.run_id
     assert all((s.status, s.accepted_at) == (SessionStatus.ACCEPTED, START) for s in sessions)
+
+
+def test_더미_접수는_실행_종류만_다르고_개발용_자리는_쓰지_않는다(managers):
+    manager = _manager(managers, _GatedJob(), max_dev_inflight=1)
+
+    sessions = manager.submit("d-1", _inputs("p-1", "p-2"), run_type=RunType.DUMMY)
+
+    assert all(s.context.run_type is RunType.DUMMY for s in sessions)
+    snapshot = manager.snapshot()
+    assert (snapshot.inflight, snapshot.dev_inflight) == (2, 0)
+    assert (snapshot.accepted[RunType.DUMMY], snapshot.accepted[RunType.PRODUCTION]) == (2, 0)
 
 
 def test_대기열이_가득_차면_접수를_거절하고_세션을_만들지_않는다(managers):
@@ -214,15 +294,59 @@ def test_접수_또는_실행_중인_상품이_섞이면_요청_전체를_거절
     assert manager.get("p-2") is None
 
 
-def test_답변_대기_중인_상품도_새_접수를_막는다(managers):
-    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
+def test_답변_대기_상품과_실행_중인_상품이_섞이면_거절하고_답변_대기_세션은_그대로_둔다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-1" else JobDone(
+        build_dummy_assessment(product_id)))
     manager = _manager(managers, job)
     manager.submit("d-1", _inputs("p-1"))
     job.release("p-1")
-    _wait_until(lambda: _status(manager,"p-1") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+    manager.submit("d-1", _inputs("p-2"))
+    _wait_until(lambda: _status(manager, "p-2") is SessionStatus.RUNNING)
 
-    with pytest.raises(SessionConflictError):
-        manager.submit("d-2", _inputs("p-1"))
+    with pytest.raises(SessionConflictError) as exc_info:
+        manager.submit("d-2", _inputs("p-1", "p-2"))
+
+    assert exc_info.value.product_ids == ["p-2"]
+    assert manager.get("p-1") == waiting
+    snapshot = manager.snapshot()
+    assert (snapshot.awaiting_replaced, snapshot.rejected["conflict"]) == (0, 1)
+    job.release("p-2")
+
+
+def test_답변_대기_중인_상품은_새_세션으로_교체해_1회차부터_다시_실행한다(managers):
+    # #451: BE가 실패 처리한 상품을 다시 진단할 때 24시간 막히지 않도록
+    job = _GatedJob(outcome_for=lambda product_id: JobNeedsInput(_awaiting_result(product_id), _QUESTIONS))
+    manager = _manager(managers, job)
+    [old] = manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _status(manager,"p-1") is SessionStatus.AWAITING_INPUT)
+    # 두 번째 release가 이미 열린 첫 실행 게이트를 다시 열지 않게 비움
+    job.gates.clear()
+
+    [new] = manager.submit("d-1", _inputs("p-1"))
+
+    assert new.context.run_id != old.context.run_id
+    assert (new.status, new.question_round, new.questions, new.answers) == (SessionStatus.ACCEPTED, 0, [], [])
+    assert manager.get("p-1").context.run_id == new.context.run_id
+    job.release("p-1")
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    assert manager.get("p-1").question_round == 1
+
+
+def test_현황은_새_접수로_버린_답변_대기_세션만_센다(managers):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-1" else JobDone(
+        build_dummy_assessment(product_id)))
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    job.release("p-1")
+    job.release("p-2")
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+
+    assert manager.snapshot().awaiting_replaced == 1
 
 
 @pytest.mark.parametrize("outcome_for", [
@@ -399,7 +523,7 @@ def test_개발용_진단은_dev_상품_ID로_진단서_없이_접수한다(mana
     job = _GatedJob()
     manager = _manager(managers, job)
 
-    session = manager.submit_dev(ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"]))
+    [session] = manager.submit_dev([ExtractionInput(product_id="p-운영", text_blocks=["상품 설명"])])
 
     # 입력의 상품 ID는 쓰지 않고 운영 상품과 겹치지 않게 새로 발급
     assert session.context.product_id.startswith("dev-")
@@ -411,14 +535,27 @@ def test_개발용_진단은_dev_상품_ID로_진단서_없이_접수한다(mana
     _wait_until(lambda: _status(manager,session.context.product_id) is SessionStatus.COMPLETED)
 
 
+def test_개발용_진단은_여러_상품을_받아_상품마다_dev_ID를_발급하고_상한을_넘으면_전체를_거절한다(managers):
+    manager = _manager(managers, _GatedJob(), max_dev_inflight=3)
+    items = [ExtractionInput(product_id="x", text_blocks=[f"상품 {i}"]) for i in range(2)]
+
+    sessions = manager.submit_dev(items)
+
+    assert [s.source.text_blocks for s in sessions] == [["상품 0"], ["상품 1"]]
+    assert len({s.context.product_id for s in sessions}) == 2
+    with pytest.raises(QueueFullError):
+        manager.submit_dev(items)
+    assert manager.snapshot().dev_inflight == 2
+
+
 def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운영_접수는_막지_않는다(managers):
     job = _GatedJob()
     manager = _manager(managers, job, max_dev_inflight=2)
-    first = manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    [first] = manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
     with pytest.raises(QueueFullError, match="개발용"):
-        manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+        manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     # 운영 진단은 개발용 상한과 관계없이 접수
     manager.submit("d-1", _inputs("p-1"))
 
@@ -426,16 +563,16 @@ def test_개발용_진단은_따로_정한_상한을_넘으면_거절하고_운�
     job.release(first.context.product_id)
     _wait_until(lambda: _status(manager,first.context.product_id) is SessionStatus.COMPLETED)
     _wait_until(lambda: manager._capacity.dev_inflight == 1)
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
 
 def test_개발용_진단도_전체_상한에_같이_센다(managers):
     manager = _manager(managers, _GatedJob(), max_inflight=2, max_dev_inflight=3)
     manager.submit("d-1", _inputs("p-1"))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
 
     with pytest.raises(QueueFullError):
-        manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+        manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     with pytest.raises(QueueFullError):
         manager.submit("d-2", _inputs("p-2"))
 
@@ -444,7 +581,7 @@ def test_현황은_상태별_수와_자리_상한_누적_접수_거절을_담는
     job = _GatedJob()
     manager = _manager(managers, job, max_running=1, max_inflight=4, max_dev_inflight=1)
     manager.submit("d-1", _inputs("p-1", "p-2"))
-    manager.submit_dev(ExtractionInput(product_id="x", text_blocks=["상품 설명"]))
+    manager.submit_dev([ExtractionInput(product_id="x", text_blocks=["상품 설명"])])
     _wait_until(lambda: "p-1" in job.started)
     with pytest.raises(SessionConflictError):
         manager.submit("d-2", _inputs("p-1"))
@@ -569,6 +706,29 @@ def test_재진단은_새_실행으로_이전_결과와_답변을_진단_함수�
     assert manager.snapshot().accepted[RunType.PRODUCTION] == 2
 
 
+def test_재진단은_세션의_실행_종류를_그대로_쓴다(managers):
+    manager = _manager(managers, _AnswerJob())
+    manager.submit("d-1", _inputs("p-1"), run_type=RunType.DUMMY)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+
+    resumed = _resume(manager, run_type=RunType.DUMMY)
+
+    assert resumed.context.run_type is RunType.DUMMY
+    assert manager.snapshot().accepted[RunType.DUMMY] == 2
+
+
+def test_실행_종류가_다른_재진단은_세션이_없는_것으로_보고_세션을_바꾸지_않는다(managers):
+    manager = _manager(managers, _AnswerJob())
+    manager.submit("d-1", _inputs("p-1"), run_type=RunType.DUMMY)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    waiting = manager.get("p-1")
+
+    with pytest.raises(SessionNotFoundError):
+        _resume(manager)
+
+    assert manager.get("p-1") == waiting
+
+
 def test_세션이_없으면_재진단하지_않는다(managers):
     manager = _manager(managers, _AnswerJob())
 
@@ -641,6 +801,20 @@ def test_같은_답변이_두_번_오면_두_번째는_거절하고_실행은_�
     job.release("p-1")
     _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
     assert len(job.started) == 2
+
+
+def test_새_접수로_버린_실행의_답변은_재진단하지_않는다(managers):
+    job = _AnswerJob()
+    manager = _waiting(managers, job)
+    discarded = manager.get("p-1")
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: len(job.inputs) == 2 and _status(manager, "p-1") is SessionStatus.AWAITING_INPUT)
+    replaced = manager.get("p-1")
+
+    with pytest.raises(ResumeConflictError):
+        _resume(manager, run_id=discarded.context.run_id)
+
+    assert (manager.get("p-1"), len(job.inputs)) == (replaced, 2)
 
 
 def test_이번_회차에_묻지_않은_질문_키가_있으면_거절한다(managers):
@@ -743,3 +917,381 @@ def test_2회차_답변_뒤에도_질문이_남으면_질문_대신_미완료_�
     assert session.result.verification_status is FinalVerificationStatus.INCOMPLETE
     assert session.result.missing_information[-1] == QUESTION_LIMIT_NOTICE
     assert [a.question_round for a in session.answers] == [1, 2]
+
+
+def _messages(caplog, level=None) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.name.startswith("app.sessions")
+            and (level is None or r.levelname == level)]
+
+
+def test_접수와_실행_시작은_입력_모양·대기_시간과_함께_INFO로_남긴다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    manager = _manager(managers, lambda job_input, context, progress: JobDone(build_dummy_assessment("p-1")))
+
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert "진단 접수 (글 1개 5자, 이미지 0장, URL 없음)" in _messages(caplog, "INFO")
+    assert "진단 시작 (대기 0.0초, 답변 0개)" in _messages(caplog, "INFO")
+
+
+def test_재진단_접수는_회차와_답변_수만_남기고_답변_내용은_남기지_않는다(managers, caplog):
+    manager = _waiting(managers)
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    _resume(manager)
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+
+    assert "재진단 접수 (질문 회차 1, 답변 1개)" in _messages(caplog, "INFO")
+    assert "진단 시작 (대기 0.0초, 답변 1개)" in _messages(caplog, "INFO")
+    assert not any("네" in message for message in _messages(caplog))
+
+
+def test_접수_거절은_이유와_함께_경고로_남긴다(managers, caplog):
+    manager = _manager(managers, _GatedJob(), max_running=1, max_inflight=2)
+    manager.submit("d-1", _inputs("p-1"))
+
+    with pytest.raises(QueueFullError):
+        manager.submit("d-2", _inputs("p-2", "p-3"))
+    with pytest.raises(SessionConflictError):
+        manager.submit("d-3", _inputs("p-1"))
+
+    assert _messages(caplog, "WARNING") == ["진단 접수 거절: 대기열 가득 참 (상품 2개)",
+                                            "진단 접수 거절: 진행 중인 상품 p-1 (상품 1개)"]
+
+
+@pytest.mark.parametrize(("fields", "error", "reason"), [
+    ({"answers": {}}, UnansweredQuestionError, "답하지 않은 질문이 있습니다: battery_only"),
+    ({"answers": {"battery_only": "네", "other": "네"}}, UnknownQuestionKeyError, "이번 회차에 묻지 않은 질문입니다: other"),
+    ({"question_round": 2}, ResumeConflictError, "기다리는 질문과 다른 답변입니다: p-1"),
+    ({"product_id": "p-9"}, SessionNotFoundError, "세션이 없습니다: p-9"),
+])
+def test_재진단_거절은_이유와_함께_경고로_남기고_상품·이전_실행을_붙인다(managers, fields, error, reason):
+    manager = _waiting(managers)
+    run_id = manager.get("p-1").context.run_id
+    request = {"diagnosis_id": "d-1", "product_id": "p-1", "run_id": run_id, "question_round": 1,
+               "answers": {"battery_only": "네"}, **fields}
+
+    seen = []
+    handler = logging.Handler()
+    handler.emit = lambda record: seen.append((record.levelname, record.getMessage(), dict(current_run_fields())))
+    logging.getLogger("app.sessions").addHandler(handler)
+    try:
+        with pytest.raises(error):
+            manager.resume(**request)
+    finally:
+        logging.getLogger("app.sessions").removeHandler(handler)
+
+    [(level, message, run_fields)] = [entry for entry in seen if entry[0] == "WARNING"]
+    assert message.startswith(f"재진단 접수 거절: {reason} (질문 회차 ")
+    assert run_fields == {"diagnosis_id": "d-1", "product_id": request["product_id"], "run_id": run_id,
+                          "run_type": "production"}
+
+
+def _summary_lines(caplog) -> list[str]:
+    return [m for m in _messages(caplog, "INFO") if m.startswith("진단 요약")]
+
+
+@pytest.mark.parametrize(("outcome_for", "ending"), [
+    (lambda pid: JobDone(build_dummy_assessment(pid)),
+     "완료 action_required, 검증 verified_with_warnings, 종료 completed"),
+    (_ask, "답변 대기, 질문 1개"),
+    (lambda pid: JobFailed("AI_PIPELINE_ERROR", retryable=True), "실패 AI_PIPELINE_ERROR, 재시도 가능"),
+])
+def test_실행이_끝나면_결말과_단계·Tool·모델_호출_요약을_한_줄로_남긴다(managers, caplog, outcome_for, ending):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.EXTRACTION)
+        measurement_sinks.publish(ToolRun("radio", "success", 1.25))
+        return outcome_for(context.product_id)
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _summary_lines(caplog))
+
+    [line] = _summary_lines(caplog)
+    assert line.startswith(f"진단 요약: {ending} | 총 ")
+    assert "| 단계(초) extraction " in line
+    assert "| Tool(초) radio success 1.2 | Tool 실행 0회 | 모델 호출 0회(실패 0) 토큰 입력 0 출력 0 | 비용 0.0원" in line
+
+
+def test_진단_함수_예외도_재시도_불가_실패로_요약을_남긴다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _GatedJob(raise_error=True)
+    manager = _manager(managers, job)
+
+    manager.submit("d-1", _inputs("p-1"))
+    job.release("p-1")
+    _wait_until(lambda: _summary_lines(caplog))
+
+    assert _summary_lines(caplog)[0].startswith("진단 요약: 실패 AI_PIPELINE_ERROR, 재시도 불가 | ")
+
+
+def test_기다리지_않고_닫으면_버리는_실행_중·대기_중·답변_대기_세션을_경고로_남긴다(managers, caplog):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-3"
+                    else JobDone(build_dummy_assessment(product_id)))
+    manager = _manager(managers, job, max_running=2)
+    manager.submit("d-1", _inputs("p-3"))
+    job.release("p-3")
+    _wait_until(lambda: _status(manager, "p-3") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    manager.submit("d-2", _inputs("p-1", "p-2", "p-4"))
+    _wait_until(lambda: {"p-1", "p-2"} <= set(job.started))
+
+    manager.shutdown(wait=False)
+    job.release("p-1")
+    job.release("p-2")
+
+    assert _messages(caplog, "WARNING") == [
+        "서버 종료로 진단을 버림: 실행 중 2개(p-1, p-2), 대기 중 1개(p-4), 답변 대기 1개 "
+        "(결과 콜백 없음, 재시작 뒤 재진단 불가)",
+    ]
+
+
+def test_답변_대기만_남았으면_0개인_항목_없이_답변_대기만_남긴다(managers, caplog):
+    manager = _waiting(managers)
+
+    manager.shutdown(wait=False)
+
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 답변 대기 1개 (재시작 뒤 재진단 불가)"]
+
+
+def test_버릴_세션이_없으면_종료_경고를_남기지_않는다(managers, caplog):
+    manager = _manager(managers, _GatedJob())
+
+    manager.shutdown(wait=False)
+
+    assert _messages(caplog, "WARNING") == []
+
+
+class _NullArchive:
+    def save(self, session):
+        pass
+
+    def remove(self, product_ids):
+        pass
+
+
+def test_DB에_보관하면_종료_경고에_재시작_때_이어갈_일을_남긴다(managers, caplog):
+    job = _GatedJob(outcome_for=lambda product_id: _ask(product_id) if product_id == "p-3"
+                    else JobDone(build_dummy_assessment(product_id)))
+    clock = _Clock()
+    manager = SessionManager(SessionStore(clock=clock, archive=_NullArchive()), job, clock=clock, max_running=1)
+    managers.append(manager)
+    manager.submit("d-1", _inputs("p-3"))
+    job.release("p-3")
+    _wait_until(lambda: _status(manager, "p-3") is SessionStatus.AWAITING_INPUT)
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    manager.submit("d-2", _inputs("p-1", "p-2"))
+    _wait_until(lambda: job.started == ["p-3", "p-1"])
+
+    manager.drain(timeout=0.1)
+    job.release("p-1")
+
+    assert _messages(caplog, "WARNING") == [
+        "서버 종료로 진단을 멈춤, DB에 보관: 실행 중 1개(p-1) 재시작 때 시간 초과 실패, "
+        "대기 중 1개(p-2) 재시작 때 다시 실행, 답변 대기 1개 재시작 때 복원",
+    ]
+
+
+def test_drain은_실행_중_세션을_끝까지_기다리고_대기_중_세션은_취소한다(managers, caplog):
+    job = _GatedJob()
+    manager = _manager(managers, job, max_running=1)
+    seen = []
+    manager.subscribe(lambda e: seen.append((type(e), e.session.context.product_id)))
+    manager.submit("d-1", _inputs("p-1", "p-2"))
+    _wait_until(lambda: job.started == ["p-1"])
+    threading.Timer(0.1, job.release, ["p-1"]).start()
+
+    manager.drain(timeout=5)
+
+    assert _status(manager, "p-1") is SessionStatus.COMPLETED
+    assert (Completed, "p-1") in seen
+    assert _status(manager, "p-2") is SessionStatus.ACCEPTED
+    assert job.started == ["p-1"]
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 대기 중 1개(p-2) (결과 콜백 없음)"]
+
+
+def test_drain은_상한_시간을_넘긴_실행_중_세션을_경고로_남기고_닫는다(managers, caplog):
+    job = _GatedJob()
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: job.started == ["p-1"])
+
+    started = time.monotonic()
+    manager.drain(timeout=0.1)
+    elapsed = time.monotonic() - started
+    job.release("p-1")
+
+    assert elapsed < 1
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 실행 중 1개(p-1) (결과 콜백 없음)"]
+
+
+def test_drain은_실행_중_세션의_최대_시간까지만_기다리고_넘긴_세션은_시간_초과로_끝낸다(managers, caplog):
+    clock = _Clock()
+    job = _GatedJob()
+    manager = _manager(managers, job, clock=clock)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: job.started == ["p-1"])
+    clock.now = START + timedelta(minutes=10)
+
+    started = time.monotonic()
+    manager.drain(timeout=5)
+    elapsed = time.monotonic() - started
+    job.release("p-1")
+
+    assert elapsed < 1
+    session = manager.get("p-1")
+    assert (session.status, session.error_code, session.retryable) == (SessionStatus.FAILED, "AI_TIMEOUT", True)
+    # 시간 초과 실패로 끝나 버리는 세션 경고에서 빠짐
+    assert _messages(caplog, "WARNING") == []
+
+
+def test_drain은_늦게_접수돼_취소한_대기_세션의_최대_시간까지_기다리지_않는다(managers, caplog):
+    clock = _Clock()
+    job = _GatedJob()
+    manager = _manager(managers, job, clock=clock, max_running=1, max_duration=timedelta(minutes=10))
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: job.started == ["p-1"])
+    clock.now = START + timedelta(minutes=5)
+    manager.submit("d-2", _inputs("p-2"))
+    # 실행 중 세션만 최대 시간을 넘김, 대기 세션은 5분 남음
+    clock.now = START + timedelta(minutes=10)
+
+    started = time.monotonic()
+    manager.drain(timeout=5)
+    elapsed = time.monotonic() - started
+    job.release("p-1")
+
+    assert elapsed < 1
+    assert manager.get("p-1").status is SessionStatus.FAILED
+    assert _status(manager, "p-2") is SessionStatus.ACCEPTED
+    assert _messages(caplog, "WARNING") == ["서버 종료로 진단을 버림: 대기 중 1개(p-2) (결과 콜백 없음)"]
+
+
+def test_drain은_실행_중_세션이_없으면_기다리지_않는다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    manager = _manager(managers, _GatedJob())
+
+    manager.drain(timeout=5)
+
+    assert not [m for m in _messages(caplog) if m.startswith("서버 종료")]
+
+
+def _saved(product_id: str, status: SessionStatus, **fields) -> DiagnosisSession:
+    """재시작 전에 보관된 세션."""
+    context = ExecutionContext.start(product_id=product_id, run_type=RunType.PRODUCTION, diagnosis_id="d-1")
+    return DiagnosisSession(context=context, source=_inputs(product_id)[0], status=status,
+                            accepted_at=START, updated_at=START, **fields)
+
+
+def test_되살린_대기_세션은_같은_실행_ID로_자리를_잡고_다시_돈다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _AnswerJob()
+    manager = _manager(managers, job)
+    first, second = _saved("p-1", SessionStatus.ACCEPTED), _saved("p-2", SessionStatus.ACCEPTED)
+
+    manager.restore([second, first])
+
+    _wait_until(lambda: len(job.inputs) == 2)
+    assert {run_id for _, run_id in job.inputs} == {first.context.run_id, second.context.run_id}
+    _wait_until(lambda: manager.snapshot().inflight == 0)
+    assert _status(manager, "p-1") is SessionStatus.AWAITING_INPUT
+    assert "진단 세션 복원: 대기 2개, 답변 대기 0개, 끊긴 실행 0개, 되살리지 않음 0개" in _messages(caplog, "INFO")
+
+
+def test_되살린_대기_세션은_자리를_차지해_상한에_같이_센다(managers):
+    manager = _manager(managers, _GatedJob(), max_running=1, max_inflight=2)
+
+    manager.restore([_saved("p-1", SessionStatus.ACCEPTED), _saved("p-2", SessionStatus.ACCEPTED)])
+
+    assert manager.snapshot().inflight == 2
+    with pytest.raises(QueueFullError):
+        manager.submit("d-2", _inputs("p-3"))
+
+
+def test_되살린_답변_대기_세션은_답을_받아_재진단한다(managers):
+    job = _AnswerJob()
+    manager = _manager(managers, job)
+    awaiting = _saved("p-1", SessionStatus.AWAITING_INPUT, question_round=1, questions=_QUESTIONS,
+                      result=_awaiting_result("p-1"))
+
+    manager.restore([awaiting])
+    assert manager.get("p-1") == awaiting
+    assert manager.snapshot().inflight == 0
+
+    _resume(manager)
+
+    _wait_until(lambda: _status(manager, "p-1") is SessionStatus.COMPLETED)
+    [(job_input, _)] = job.inputs
+    assert job_input.previous == awaiting.result
+    assert [answer.answer_text for answer in job_input.answers] == ["네"]
+
+
+def test_재시작_전_실행_중이던_세션은_다시_돌리지_않고_재시도_가능한_시간_초과로_끝낸다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _GatedJob()
+    manager = _manager(managers, job)
+    seen = []
+    manager.subscribe(lambda e: seen.append((type(e), e.session.context.product_id)))
+    running = _saved("p-1", SessionStatus.RUNNING)
+
+    manager.restore([running])
+
+    session = manager.get("p-1")
+    assert (session.status, session.error_code, session.retryable) == (SessionStatus.FAILED, "AI_TIMEOUT", True)
+    assert session.context.run_id == running.context.run_id
+    assert seen == [(Failed, "p-1")]
+    assert (job.started, manager.snapshot().inflight) == ([], 0)
+    assert "재시작 전 실행 중이던 진단을 시간 초과 실패로 끝냄 (정상 종료 처리 없이 끊김)" in _messages(caplog, "WARNING")
+
+
+def test_최대_시간을_넘긴_대기_세션은_되살릴_때_실행하지_않고_시간_초과로_끝낸다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    job = _AnswerJob()
+    clock = _Clock()
+    manager = _manager(managers, job, clock=clock, max_duration=timedelta(minutes=10))
+    seen = []
+    manager.subscribe(lambda e: seen.append((type(e), e.session.context.product_id)))
+    clock.now = START + timedelta(minutes=10)
+
+    manager.restore([_saved("p-1", SessionStatus.ACCEPTED)])
+
+    session = manager.get("p-1")
+    assert (session.status, session.error_code, session.retryable) == (SessionStatus.FAILED, "AI_TIMEOUT", True)
+    assert seen == [(Failed, "p-1")]
+    assert manager.snapshot().inflight == 0
+    time.sleep(0.1)
+    assert job.inputs == []
+    assert "재시작 전 대기 세션이 최대 시간을 넘겨 실행하지 않고 시간 초과 실패로 끝냄" in _messages(caplog, "WARNING")
+
+
+def test_대기·답변_대기·실행_중_말고는_되살리지_않는다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+    manager = _manager(managers, _GatedJob())
+
+    manager.restore([_saved("p-1", SessionStatus.COMPLETED)])
+
+    assert manager.get("p-1") is None
+    assert "진단 세션 복원: 대기 0개, 답변 대기 0개, 끊긴 실행 0개, 되살리지 않음 1개" in _messages(caplog, "INFO")
+
+
+def test_Tool_재실행이_있으면_요약의_Tool_목록을_회차별로_묶는다(managers, caplog):
+    caplog.set_level(logging.INFO, logger="app.sessions")
+
+    def job(job_input, context, progress):
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("radio", "success", 1.0))
+        measurement_sinks.publish(ToolRun("customs", "success", 2.0))
+        progress.stage(PipelineStage.VERIFICATION)
+        progress.stage(PipelineStage.TOOL_EXECUTION)
+        measurement_sinks.publish(ToolRun("radio", "failed", 0.5, error_type="client"))
+        return JobDone(build_dummy_assessment(context.product_id))
+
+    manager = _manager(managers, job)
+    manager.submit("d-1", _inputs("p-1"))
+    _wait_until(lambda: _summary_lines(caplog))
+
+    assert "| Tool(초) [1] radio success 1.0, customs success 2.0 [2] radio failed 0.5 | Tool 실행 2회 |" \
+        in _summary_lines(caplog)[0]

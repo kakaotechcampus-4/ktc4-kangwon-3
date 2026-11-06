@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-import { countGraphemes, truncateGraphemes } from "@/lib/text";
+import { truncateWithEllipsis } from "@/lib/text";
 
 const tabVariants = cva("shrink-0 rounded-[20px] border px-[15px] py-[7px] text-base font-medium", {
     variants: {
@@ -20,9 +20,6 @@ interface ProductTabsProps {
 // 상품명을 몇 글자까지 보여줄 지 결정
 const MAX_PRODUCT_NAME_LENGTH = 10;
 
-const truncateProductName = (name: string) =>
-    countGraphemes(name) > MAX_PRODUCT_NAME_LENGTH ? `${truncateGraphemes(name, MAX_PRODUCT_NAME_LENGTH)}...` : name;
-
 function ProductTabs({ productNames, selected, onSelect }: ProductTabsProps) {
     return (
         <div role="tablist" className="flex flex-wrap items-start gap-2.5">
@@ -35,7 +32,7 @@ function ProductTabs({ productNames, selected, onSelect }: ProductTabsProps) {
                     onClick={() => onSelect(index)}
                     className={tabVariants({ selected: index === selected })}
                 >
-                    {truncateProductName(name)}
+                    {truncateWithEllipsis(name, MAX_PRODUCT_NAME_LENGTH)}
                 </button>
             ))}
         </div>

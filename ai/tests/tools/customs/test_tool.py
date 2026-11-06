@@ -13,7 +13,7 @@ from app.schemas.schemas import (
 from app.tools.common.law import EvidenceUnavailable
 from app.tools.customs import CustomsTool, CustomsToolError
 from app.tools.customs.evidence import load_customs_evidence
-from app.tools.customs.search import ClipCaseSearch, Requirement
+from app.tools.customs.search import CaseCandidates, ClipCaseSearch, HsCase, Requirement
 
 from .conftest import AS_OF, FakeClip, FakeLaw, FakeRequirements
 
@@ -119,6 +119,17 @@ def test_결정사례로_HS_후보를_찾고_그_HS의_세관장확인_요건을
     assert result.result.applicable_requirements == ["전기용품 및 생활용품 안전관리법"]
     assert result.query["selected_cases"] == [KETTLE_CASE]
     assert result.query["related_tools"] == {"전기용품 및 생활용품 안전관리법": ToolName.ELECTRICAL.value}
+
+
+def test_고른_결정사례가_여럿이면_사례마다_이유를_줄을_나눠_남긴다():
+    product, facts = product_and_facts()
+    chosen = review(select(), select(JUG_CASE, rationale="무선 주전자로 같은 물품입니다."))
+
+    result, _, _, _ = run(product, facts, chosen)
+
+    assert result.findings[0].rationale == "전기로 물을 끓이는 주전자로 같은 물품입니다.\n무선 주전자로 같은 물품입니다."
+    # 요약도 판단 문장과 제출 서류를 줄을 나눔
+    assert "(확정 아님).\n제출 서류: " in result.findings[0].summary
 
 
 def test_근거는_관세법_제226조와_고시_별표2_행과_결정사례다():
@@ -281,6 +292,16 @@ def test_이유에서_다른_물품이라고_결론_낸_선택은_쓰지_않는�
     assert result.query["selected_cases"] == [KETTLE_CASE]
 
 
+def test_한_건뿐인_호의_선택은_빼지_않고_HS_확인_필요로_남긴다():
+    # 빼면 맞는 후보의 요건·질문도 빠져 효과 평가 전까지 표시만 (#420 리뷰)
+    product, facts = product_and_facts()
+    result, _, _, requirements = run(product, facts, review(select(), select(COFFEE_CASE)))
+    assert result.query["lone_cases"] == [COFFEE_CASE]
+    assert result.query["selected_cases"] == [KETTLE_CASE, COFFEE_CASE]
+    assert requirements.calls == ["8516799000", "8419810000"]
+    assert any("1개(HS 8419.81-0000)가 있어 HS 확인이 필요합니다" in text for text in result.findings[0].assumptions)
+
+
 def test_원문과_대조되지_않는_조건은_그_조건만_버린다():
     product, facts = product_and_facts()
     facts.facts.append(CustomsFact(field="material", value="유리", evidence_id="listing-0", quote="유리 주전자"))
@@ -403,10 +424,22 @@ def test_법령명을_별표2와_대응하지_못하면_구매대행_생략_여�
     assert "확인이 필요합니다" in buying and "생략할 수 있습니다" not in buying
 
 
+class _FixedCases:
+    def __init__(self, *cases):
+        self.cases = cases
+
+    def search(self, queries, terms, *, top_k):
+        return CaseCandidates(cases=self.cases)
+
+
 def test_일부_HS만_요건이_없으면_그_HS도_따로_알린다():
     product, facts = product_and_facts()
-    chosen = review(select(), select(COFFEE_CASE))
-    result, _, _, _ = run(product, facts, chosen, requirements=FakeRequirements({"8516799000": [FakeRequirements.ELECTRICAL]}))
+    cases = _FixedCases(HsCase(KETTLE_CASE, ("8516799000",), "ELECTRIC KETTLE", "", ""),
+                        HsCase(COFFEE_CASE, ("8419810000",), "커피 머신", "", ""))
+    tool = CustomsTool(Model(facts, review(select(), select(COFFEE_CASE))), case_search=cases,
+                       requirements=FakeRequirements({"8516799000": [FakeRequirements.ELECTRICAL]}),
+                       evidence=lambda: _EVIDENCE)
+    result = tool.execute(product, decision())
     subjects = [finding.subject for finding in result.findings]
     assert "세관장확인 대상 후보 — 전기용품 및 생활용품 안전관리법" in subjects
     empty = next(finding for finding in result.findings if finding.subject == "세관장확인 대상 법령 — HS 후보 기준 없음")
@@ -434,3 +467,70 @@ def test_모델을_주지_않으면_Tool_프로필로_모델을_만든다(monkey
     monkeypatch.setattr("app.clients.llm.build_tool_model", lambda name: names.append(name) or Model(None))
     bare_tool()._get_steps()
     assert names == [ToolName.CUSTOMS]
+
+
+def test_후보에_한_번만_나온_호의_선택은_여러_번_나온_호와_함께_골랐을_때_찾는다():
+    from app.tools.customs.tool import _lone_headings
+    toy = [HsCase(f"t{i}", ("9503003411",), "STUFFED TOY", "", "") for i in range(3)]
+    keyring = HsCase("k", ("6307909000",), "STUFFED TOY 키링", "", "")
+    chosen = [(keyring, None, []), (toy[0], None, [])]
+
+    assert _lone_headings(chosen, [*toy, keyring]) == ["k"]
+
+
+def test_여러_번_나온_호끼리_갈리거나_모두_한_번씩이면_찾지_않는다():
+    from app.tools.customs.tool import _lone_headings
+    babies = [HsCase(f"b{i}", ("6111201000",), "Babies' garments", "", "") for i in range(2)]
+    kids = [HsCase(f"k{i}", ("6109101000",), "CHILDREN'S CLOTHES", "", "") for i in range(3)]
+    kettle = HsCase("a", ("8516799000",), "KETTLE", "", "")
+    coffee = HsCase("c", ("8419810000",), "COFFEE", "", "")
+
+    assert _lone_headings([(babies[0], None, []), (kids[0], None, [])], [*babies, *kids]) == []
+    assert _lone_headings([(kettle, None, []), (coffee, None, [])], [kettle, coffee]) == []
+
+
+# -- 상품 신호로 빼는 요건 (완구 HS에 걸린 총포법 등) --
+
+_GUN = Requirement(hs_code="9503003919", law_name="총포･도검･화약류 등의 안전관리에 관한 법률", agency="경찰청",
+                   document="총포화약류등 수입허가증", apply_start_date="20200406")
+_CHILD = Requirement(hs_code="9503003300", law_name="어린이제품 안전 특별법", agency="기술표준원",
+                     document="어린이제품 요건확인서", apply_start_date="20200406")
+
+
+def _toy_result(weapon_like):
+    product, facts = product_and_facts()
+    product = product.model_copy(update={"weapon_like": weapon_like})
+    cases = _FixedCases(HsCase("g", ("9503003919",), "WOODEN TOY", "", ""),
+                        HsCase("c", ("9503003300",), "BLOCK TOY", "", ""))
+    tool = CustomsTool(Model(facts, review(select("g"), select("c"))), case_search=cases,
+                       requirements=FakeRequirements({"9503003919": [_GUN], "9503003300": [_CHILD]}),
+                       evidence=lambda: _EVIDENCE)
+    return tool.execute(product, decision())
+
+
+def test_무기_형태가_아닌_상품이면_HS에_걸린_총포법_요건은_빼고_이유를_남긴다():
+    result = _toy_result(False)
+
+    subjects = [finding.subject for finding in result.findings]
+    assert subjects == ["세관장확인 대상 후보 — 어린이제품 안전 특별법"]
+    assert result.query["excluded_requirements"] == {"9503003919": [_GUN.law_name]}
+    assert result.query["requirements"]["9503003919"] == []
+    assert result.result.applicable_requirements == ["어린이제품 안전 특별법"]
+    assert all("총포" not in text for text in result.required_actions)
+    note = next(text for text in result.findings[0].assumptions if "제외했습니다" in text)
+    assert "9503.00-3919" in note and "무기 형태 물품" in note
+
+
+def test_요건을_뺀_HS는_조회_결과_요건_없음으로_안내하지_않는다():
+    result = _toy_result(False)
+
+    assert all("HS 후보 기준 없음" not in finding.subject for finding in result.findings)
+
+
+@pytest.mark.parametrize("weapon_like", [True, None])
+def test_무기_형태이거나_모르면_총포법_요건을_남긴다(weapon_like):
+    result = _toy_result(weapon_like)
+
+    subjects = [finding.subject for finding in result.findings]
+    assert "세관장확인 대상 후보 — 총포･도검･화약류 등의 안전관리에 관한 법률" in subjects
+    assert "excluded_requirements" not in result.query

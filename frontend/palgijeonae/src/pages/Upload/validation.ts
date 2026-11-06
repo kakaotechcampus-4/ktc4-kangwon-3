@@ -1,5 +1,6 @@
 import { SourceType } from "@/api/types.ts"
 import { countGraphemes } from "@/lib/text";
+import { isHttpUrl } from "@/lib/url";
 
 import {
     ALLOWED_IMAGE_EXTENSIONS_LABEL,
@@ -49,13 +50,20 @@ export const validateProduct = (product: Product): string | null => {
     }
 
     if (product.type === SourceType.Url) {
-        return product.link?.trim() ? null : "상세페이지 링크를 입력해주세요.";
+        if (!product.link?.trim()) {
+            return "상세페이지 링크를 입력해주세요.";
+        }
+
+        if (!isHttpUrl(product.link)) {
+            return "상세페이지 링크는 http:// 또는 https://로 시작해야 합니다.";
+        }
+
+        return null;
     }
 
-    const hasContent = Boolean(product.content?.trim());
-    const hasImages = (product.images?.length ?? 0) > 0;
-    if (!hasContent && !hasImages) {
-        return "상세페이지 내용이나 이미지를 입력해주세요.";
+    // 이미지는 보조 입력이라 텍스트 없이 이미지만으로는 제출할 수 없다.
+    if (!product.content?.trim()) {
+        return "상세페이지 내용을 입력해주세요.";
     }
 
     if ((product.images?.length ?? 0) > MAX_PRODUCT_IMAGE_COUNT) {

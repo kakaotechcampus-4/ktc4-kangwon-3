@@ -6,15 +6,17 @@ HS 분류는 관세청이 정하므로 후보로만 낸다. 모델은 확정 판
 결과는 POSSIBLY_REQUIRED(요건 후보) 또는 INSUFFICIENT_INFORMATION(정보 부족·미확인)이다.
 """
 
-from collections.abc import Callable
+from collections import Counter
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 
 from ...schemas.schemas import CustomsAssessment, Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolName
+from ...schemas.product import Product
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.law import EvidenceUnavailable
 from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
-from .rules import format_hs, omission_status, related_tool, sale_actions
+from .rules import excluded_by_product, format_hs, omission_status, related_tool, sale_actions
 from .search import (
     CaseSearch, HsCase, Requirement, RequirementLookup,
 )
@@ -133,7 +135,15 @@ class CustomsTool(EvidenceSearchTool):
             "facts": [fact.model_dump(mode="json", exclude={"evidence_id"}) for fact in facts],
             "candidates": [case.as_candidate() for case in candidates.cases],
         }, product.product_id))
-        chosen = self._pick(run, review.selections, {case.case_id: case for case in candidates.cases}, key="case_id")
+        by_id = {case.case_id: case for case in candidates.cases}
+        chosen = self._pick(run, review.selections, by_id, key="case_id")
+        # 빼면 맞는 후보의 요건·구분 질문도 같이 빠짐 → 효과 평가 전까지 남기고 확인 필요로만 표시
+        lone = _lone_headings(chosen, candidates.cases)
+        if lone:
+            query["lone_cases"] = lone
+            codes = ", ".join(dict.fromkeys(format_hs(code) for case_id in lone for code in by_id[case_id].hs_codes))
+            run.assumptions.append(
+                f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개(HS {codes})가 있어 HS 확인이 필요합니다.")
         for _, selection, _ in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
             run.missing.extend(name for name in needed if name in _QUESTION_FIELDS)
@@ -156,11 +166,15 @@ class CustomsTool(EvidenceSearchTool):
         if evidence is not None:
             query["documents"] = evidence.documents()
         requirements, unresolved = self._lookup_requirements(hs_codes, run.assumptions)
+        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions)
+        if excluded:
+            query["excluded_requirements"] = excluded
         run.requirements = requirements
         query["requirements"] = {code: [item.law_name for item in requirements if item.hs_code == code]
                                  for code in hs_codes if code not in unresolved}
         case_sources = [_case_source(case) for case, _, _ in chosen]
-        rationale = " ".join(selection.rationale for _, selection, _ in chosen)
+        # 사례마다 이유가 따로라 줄을 나눔 (진단서 판단 근거는 줄바꿈을 그대로 보여 줌)
+        rationale = "\n".join(selection.rationale for _, selection, _ in chosen)
 
         # ④ 법령별 요건 후보와 판매 방식별 할 일
         findings = []
@@ -189,14 +203,16 @@ class CustomsTool(EvidenceSearchTool):
                 subject=f"세관장확인 대상 후보 — {law_name}",
                 summary=(f"HS {', '.join(format_hs(code) for code in codes)}로 분류되면 수입통관 때 「{law_name}」 요건을 "
                          f"세관장에게 확인받아야 할 가능성이 있습니다(확정 아님)."
-                         + (f" 제출 서류: {', '.join(documents)}." if documents else "")),
+                         + (f"\n제출 서류: {', '.join(documents)}." if documents else "")),
                 rationale=rationale, determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=facts, assumptions=[*run.assumptions, *notes],
                 sources=self._sources(evidence, row, omission, case_sources), requirements=law_actions,
             ))
         query["related_tools"] = related
         # 조회는 됐지만 요건이 0건인 HS. 다른 HS에 요건이 있어도 따로 알림(결과 서술에서 빠지지 않게)
-        empty = [code for code in hs_codes if code not in unresolved and not query["requirements"].get(code)]
+        # 상품 신호로 요건을 뺀 HS는 조회 결과가 0건인 게 아니라서 "요건 없음"으로 안내하지 않음 (뺀 이유는 가정에 있음)
+        empty = [code for code in hs_codes if code not in unresolved and not query["requirements"].get(code)
+                 and code not in excluded]
         if empty:
             act_source = self._act_source(evidence)
             labels = ", ".join(format_hs(code) for code in empty)
@@ -338,6 +354,56 @@ def _queries(terms: list[str]) -> list[str]:
         if len(words) > 1 and len(words[-1]) > 1:
             ordered.append(words[-1])
     return list(dict.fromkeys(ordered))[:_QUERY_LIMIT]
+
+
+def _lone_headings(chosen: list, cases: Iterable[HsCase]) -> list[str]:
+    """고른 사례 중 후보 사례에 한 번만 나온 호(HS 4자리)의 사례를 찾는다. 여러 번 나온 호의 사례를 함께 골랐을 때만.
+
+    Args:
+        chosen: _pick이 남긴 (사례, 선택, 근거 필드) 목록.
+        cases: 선택 모델에 보여 준 후보 사례 전체.
+
+    Returns:
+        list[str]: 한 건뿐인 호의 사례 ID. 선택에서 빼지 않음.
+    """
+    support = Counter(heading for case in cases for heading in {code[:4] for code in case.hs_codes})
+
+    def score(case: HsCase) -> int:
+        return max((support[code[:4]] for code in case.hs_codes), default=0)
+
+    if all(score(case) <= 1 for case, _, _ in chosen):
+        return []
+    return [case.case_id for case, _, _ in chosen if score(case) <= 1]
+
+
+def _exclude_by_product(requirements: list[Requirement], product: Product, assumptions: list[str]
+                        ) -> tuple[list[Requirement], dict[str, list[str]]]:
+    """상품 신호로 보아 해당하지 않는 요건을 뺀다. 뺀 이유는 가정에 남긴다.
+
+    Args:
+        requirements: HS 후보의 세관장확인 요건.
+        product: 상품 정보.
+        assumptions: 결과에 남길 가정. 뺀 요건마다 이유를 더함.
+
+    Returns:
+        tuple[list[Requirement], dict[str, list[str]]]: (남긴 요건, HS별로 뺀 법령).
+    """
+    kept: list[Requirement] = []
+    excluded: dict[str, list[str]] = {}
+    reasons: dict[str, tuple[str, list[str]]] = {}
+    for item in requirements:
+        goods = excluded_by_product(item.law_name, product)
+        if goods is None:
+            kept.append(item)
+            continue
+        excluded.setdefault(item.hs_code, []).append(item.law_name)
+        codes = reasons.setdefault(law_key(item.law_name), (item.law_name, goods, []))[2]
+        if item.hs_code not in codes:
+            codes.append(item.hs_code)
+    for law_name, goods, codes in reasons.values():
+        assumptions.append(f"HS {', '.join(format_hs(code) for code in codes)}의 「{law_name}」 세관장확인 요건은 "
+                           f"{goods}에만 걸리는 요건이라, 상품 정보상 이에 해당하지 않아 제외했습니다.")
+    return kept, excluded
 
 
 def _case_source(case: HsCase) -> LegalSource:

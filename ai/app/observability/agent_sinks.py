@@ -3,7 +3,7 @@
 에이전트는 호출 1건이 끝날 때마다 등록된 sink 전부에 기록을 넘김. 에이전트를 만드는 코드는 sink를 몰라도 됨.
     - 서버: lifespan에서 지표 sink 등록, 종료 때 해제
     - 평가 러너: added()로 실행하는 동안만 등록
-받는 쪽 오류는 경고 로그만 남기고 에이전트 결과에 영향 없음.
+받는 쪽 오류는 오류 로그만 남기고 에이전트 결과에 영향 없음.
 """
 
 import logging
@@ -62,7 +62,7 @@ class AgentSinkRegistry:
             self.remove(sink)
 
     def publish(self, meta: "AgentRunMeta", subject_id: str) -> None:
-        """호출 1건의 기록을 등록된 sink 전부에 넘긴다. sink 오류는 경고 로그만 남김.
+        """호출 1건의 기록을 등록된 sink 전부에 넘긴다. sink 오류는 오류 로그만 남김.
 
         Args:
             meta: 호출 1건의 실행 정보.
@@ -75,7 +75,7 @@ class AgentSinkRegistry:
             try:
                 sink(meta, subject_id)
             except Exception:
-                logger.warning("에이전트 실행 기록 sink 처리 실패 (component=%s, subject_id=%s)",
+                logger.error("에이전트 실행 기록 sink 처리 실패 (component=%s, subject_id=%s)",
                                meta.component, subject_id, exc_info=True)
 
 

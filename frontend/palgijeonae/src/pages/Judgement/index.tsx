@@ -1,67 +1,107 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { ProcessingStatusType } from "@/api/types";
 import Button from "@/components/common/Button";
-import ProductTabs from "@/components/common/ProductTabs";
+import HelpTooltip from "@/components/common/HelpTooltip";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
-import Process from "./Process";
-import { useJudgementProcess } from "./useJudgementProcess";
+import ProductProgressCard from "./components/ProductProgressCard";
+import StatusSummaryBar from "./components/StatusSummaryBar";
+import { useJudgementProducts } from "./hooks/useJudgementProducts";
+import { useStatusAnnouncement } from "./hooks/useStatusAnnouncement";
 
-// TODO: SSE 연동(api/judgement.ts) 시 diagnosesId를 useJudgementProcess에 넘겨 실제 데이터로 교체한다.
 function JudgementPage() {
-    const { productNames, selectedProduct, visibleAgents, isCurrentProductDone, allProductsDone, selectProduct, correctAgent } =
-        useJudgementProcess();
     const { diagnosesId } = useParams<{ diagnosesId?: string }>();
     const navigate = useNavigate();
 
+    const isInvalidAccess = isMissingRouteParam(diagnosesId);
+
     // diagnosesId 없이 잘못 진입한 경우(예: /judgement/undefined) 업로드 페이지로 되돌린다.
     useEffect(() => {
-        if (isMissingRouteParam(diagnosesId)) {
+        if (isInvalidAccess) {
             alert("잘못된 접근입니다. 진단서를 업로드한 후 다시 시도해주세요.");
             navigate("/upload", { replace: true });
         }
-    }, [diagnosesId, navigate]);
+    }, [isInvalidAccess, navigate]);
 
-    const handleQuestionsClick = () => {
-        if (isMissingRouteParam(diagnosesId)) {
-            return;
-        }
-        navigate(`/question/${diagnosesId}`);
-    };
+    const { data, isPending, isError, refetch, isNotFoundError } = useJudgementProducts(diagnosesId, !isInvalidAccess);
+    const isDiagnosisDone = data != null
+        && (data.processingStatus === ProcessingStatusType.Completed || data.processingStatus === ProcessingStatusType.Failed);
+    // 폴링으로 바뀌는 상태를 스크린리더에게도 알린다.
+    const announcement = useStatusAnnouncement(data?.products, isDiagnosisDone);
 
-    // 새 프로세스가 나타나거나 다른 제품 탭으로 전환될 때 자동 스크롤한다.
-    // 판정이 끝난 제품(히스토리 확인)이면 첫 프로세스로, 아직 진행 중이면 마지막(현재 단계) 프로세스로 포커싱한다.
-    const focusedAgentIndex = isCurrentProductDone ? 0 : visibleAgents.length - 1;
-    const focusedAgentRef = useRef<HTMLDivElement>(null);
+    // 존재하지 않는 diagnosesId로 접근한 경우(404)
     useEffect(() => {
-        focusedAgentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, [selectedProduct, visibleAgents.length, focusedAgentIndex]);
+        if (isNotFoundError) {
+            alert("유효하지 않은 진단서 id 입니다.");
+            navigate("/", { replace: true });
+        }
+    }, [isNotFoundError, navigate]);
 
     return (
         <div className="flex w-full flex-col gap-8">
-            <SectionIntro title="상품을 확인하고 있습니다." description="네 명의 전문가가 각자 맡은 법령을 확인합니다."/>
-
-            <ProductTabs productNames={productNames} selected={selectedProduct} onSelect={selectProduct} />
-
-            <div className="flex flex-col gap-4">
-                {visibleAgents.map((agent, index) => (
-                    <Process
-                        key={agent.id}
-                        ref={index === focusedAgentIndex ? focusedAgentRef : undefined}
-                        type={agent.status}
-                        title={agent.title}
-                        job={agent.job}
-                        detail={agent.detail}
-                        onCorrect={() => correctAgent(agent.id)}
-                    />
-                ))}
-            </div>
-
-            {allProductsDone && (
-                <div className="flex w-full justify-end">
-                    <Button text="확인이 필요한 질문 →" onClick={handleQuestionsClick} fontSize={15} />
+            <SectionIntro
+                title="상품을 진단하고 있어요"
+                description={
+                    data
+                        ? `${data.products.length}개 상품을 동시에 확인하고 있어요. 질문이 생긴 상품은 먼저 답해주시면 바로 이어서 진행해요.`
+                        : "상품을 확인하고 있어요."
+                }
+            />
+            <p role="status" className="sr-only">{announcement}</p>
+            {isNotFoundError ? null : isPending ? (
+                <LoadingSpinner />
+            ) : isError ? (
+                <div className="flex w-full flex-col items-center gap-3 py-12">
+                    <p className="text-sm font-medium text-status-danger">진행 상황을 불러오지 못했어요.</p>
+                    <button
+                        type="button"
+                        onClick={() => refetch()}
+                        className="text-sm font-medium cursor-pointer text-neutral-border underline underline-offset-2"
+                    >
+                        다시 시도
+                    </button>
+                </div>
+            ) : data.products.length === 0 ? (
+                <p className="w-full py-12 text-center text-sm font-medium text-neutral-border">
+                    확인할 상품이 없어요.
+                </p>
+            ) : (
+                <div className="flex w-full flex-col gap-6">
+                    <div className="flex flex-wrap w-full items-center justify-between gap-3 py-4">
+                        <StatusSummaryBar products={data.products} />
+                        <div className="flex items-center justify-end gap-3">
+                            <span className="text-sm text-neutral-muted">결과는 언제 볼 수 있나요?</span>
+                            <HelpTooltip label="결과 확인 방법 안내">
+                                먼저 진단이 완료된 상품은 결과 보기 버튼으로 개별로 확인할 수 있어요.{"\n"}
+                                전체 상품을 한 번에 보려면 진단이 모두 끝난 후 맨 아래 진단서 보기 버튼을 사용하세요.
+                            </HelpTooltip>
+                        </div>
+                    </div>
+                    <ul aria-label="진단 중인 상품" className="flex flex-col gap-4">
+                        {data.products.map((product) => (
+                            <li key={product.productId}>
+                                <ProductProgressCard product={product} />
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="flex w-full items-center justify-between">
+                        <p id="report-hint" className="text-sm text-neutral-muted">
+                            {isDiagnosisDone
+                                ? "페이지를 나가도 진단은 계속돼요. 마이페이지에서 다시 볼 수 있어요."
+                                : "진행 중인 상품이 끝나면 진단서를 볼 수 있어요."}
+                        </p>
+                        <Button
+                            text="진단서 보기 →"
+                            onClick={() => isDiagnosisDone && navigate(`/result/diagnoses/${diagnosesId}`)}
+                            fontSize={15}
+                            ariaDisabled={!isDiagnosisDone}
+                            ariaDescribedBy="report-hint"
+                        />
+                    </div>
                 </div>
             )}
         </div>

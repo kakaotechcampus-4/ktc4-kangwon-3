@@ -8,6 +8,8 @@ import toggleIcon from "@/assets/upload-toggle.svg"
 import urlIcon from "@/assets/upload-url.svg"
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import { cn } from "@/lib/cn";
+import { truncateWithEllipsis } from "@/lib/text";
+import { isHttpUrl } from "@/lib/url";
 
 import AttachedImageList from "./form/AttachedImageList.tsx"
 
@@ -21,10 +23,14 @@ interface AddedProductProps {
     onRemove: () => void;
 }
 
+const MAX_DISPLAY_TITLE_LENGTH = 40;
 
 function AddedProduct({ type, title, productImageFile, link, content, images, onRemove }: AddedProductProps) {
     const [expanded, setExpanded] = useState(false);
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
+    const displayTitle = truncateWithEllipsis(title, MAX_DISPLAY_TITLE_LENGTH);
+    // 제목이 길 경우 잘라서 보여주고, 마우스를 올리면 전체 제목을 보여준다.
+    const isTitleLong = title.length > MAX_DISPLAY_TITLE_LENGTH;
 
     // 자동으로 해제 되게끔 File을 받아와 useEffect 안에서 url을 생성한다.
     useEffect(() => {
@@ -40,7 +46,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
 
     return (
         <DefaultBox>
-            <div className="relative flex w-full gap-5">
+            <div className="relative flex w-full gap-5 pb-4">
                 <img src={thumbnail ? thumbnail : defaultThumbnail}
                     alt="상품 썸네일"
                     className="w-20 h-20 object-cover rounded-lg border border-neutral-border" />
@@ -51,7 +57,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                             className="w-5 h-5" />
                         <p className="text-base text-neutral-border font-bold">{type === SourceType.Url ? "URL" : "이미지 / 텍스트"}</p>
                     </div>
-                    <h3 className="text-xl font-bold text-neutral-dark">{title}</h3>
+                    <h3 title={isTitleLong ? title : undefined} className="text-xl font-bold text-neutral-dark">{displayTitle}</h3>
                 </div>
                 <button
                     type="button"
@@ -79,7 +85,18 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                     {type === SourceType.Url ? (
                         <div className="flex flex-col gap-1">
                             <p className="text-lg font-bold text-black">링크</p>
-                            <p className="text-sm text-neutral-text break-all">{link}</p>
+                            {link && isHttpUrl(link) ? (
+                                <a
+                                    href={link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary underline break-all"
+                                >
+                                    {link}
+                                </a>
+                            ) : (
+                                <p className="text-sm text-neutral-text break-all">{link}</p>
+                            )}
                         </div>
                     ) : (
                         <>

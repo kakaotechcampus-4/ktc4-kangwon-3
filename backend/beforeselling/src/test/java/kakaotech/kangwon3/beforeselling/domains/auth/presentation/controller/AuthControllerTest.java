@@ -21,6 +21,7 @@ import kakaotech.kangwon3.beforeselling.global.security.oauth2.repository.RedisO
 import kakaotech.kangwon3.beforeselling.global.security.principal.UserPrincipal;
 import kakaotech.kangwon3.beforeselling.global.util.ApiResponseWriter;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -47,6 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Tag("integration")
 @WebMvcTest(AuthController.class)
 @ActiveProfiles("test")
 @Import({SecurityConfig.class, RefreshTokenCookieProvider.class, OAuth2RedirectCookieProvider.class, ApiResponseWriter.class})
@@ -114,6 +116,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("인증 없이 로그아웃을 요청하면 401과 COMMON-004 코드를 응답한다.")
     void logout_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when & then
         mockMvc.perform(post("/api/v1/auth/logout"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("COMMON-004"));

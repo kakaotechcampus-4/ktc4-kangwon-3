@@ -328,10 +328,11 @@ def _day(value: str | None) -> date:
 
 
 def select_version(result, *, name: str, identifier: str, id_field: str, name_field: str,
-                   version_field: str, as_of: date):
+                   version_field: str, as_of: date, issued_field: str | None = None):
     """검색 결과에서 기준일에 시행 중인 버전을 고른다.
 
     문서 ID와 이름이 정확히 일치하는 항목 중 시행일이 기준일 이하인 최신 버전을 쓴다.
+    issued_field가 있으면 그중 가장 나중에 공포·발령된 버전 안에서 고른다.
     검색 첫 행·미래 시행 버전에 의존하지 않으며, 판단할 수 없으면 임의로 고르지 않는다.
 
     Args:
@@ -342,6 +343,7 @@ def select_version(result, *, name: str, identifier: str, id_field: str, name_fi
         name_field: 검색 항목의 이름 필드 이름.
         version_field: 검색 항목의 버전(일련번호) 필드 이름.
         as_of: 기준일.
+        issued_field: 검색 항목의 공포·발령일 필드 이름. None이면 시행일만 본다.
 
     Returns:
         고른 검색 항목.
@@ -360,6 +362,9 @@ def select_version(result, *, name: str, identifier: str, id_field: str, name_fi
             candidates.append((enforced, item))
     if not candidates:
         raise EvidenceUnavailable(f"기준일에 적용할 '{name}' 버전을 찾지 못했습니다.")
+    if issued_field is not None:
+        latest_issued = max(getattr(item, issued_field) or "" for _, item in candidates)
+        candidates = [(day, item) for day, item in candidates if (getattr(item, issued_field) or "") == latest_issued]
     latest_day = max(day for day, _ in candidates)
     latest = [item for day, item in candidates if day == latest_day]
     if len({getattr(item, version_field) for item in latest}) != 1:
@@ -407,6 +412,7 @@ def load_law(client: LawLookup, *, name: str, law_id: str, as_of: date) -> LawDo
     selected = select_version(
         lookup(client.search_law, LawSearchRequest(query=name, display=100)),
         name=name, identifier=law_id, id_field="law_id", name_field="law_name", version_field="mst", as_of=as_of,
+        issued_field="promulgate_date",
     )
     body = lookup(client.get_law_text, LawTextRequest(mst=selected.mst))
     check_body(body, name=name, identifier=law_id, enforce_date=selected.enforce_date)
@@ -428,7 +434,7 @@ def load_admrul(client: LawLookup, *, name: str, rule_id: str, as_of: date) -> L
     selected = select_version(
         lookup(client.search_admrul, LawSearchRequest(query=name, display=100)),
         name=name, identifier=rule_id, id_field="rule_id", name_field="name", version_field="serial_number",
-        as_of=as_of,
+        as_of=as_of, issued_field="issue_date",
     )
     body = lookup(client.get_admrul_text, LawTextRequest(mst=selected.serial_number))
     check_body(body, name=name, identifier=rule_id, enforce_date=selected.enforce_date)
