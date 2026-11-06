@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom"
 
 import google from "@/assets/login-google.png"
 import kakao from "@/assets/login-kakao.png"
-import naver from "@/assets/login-naver.png"
+// TODO: Naver 로그인 기능은 공개 심사 준비 이슈로 화면에 표시하지 않음.
+// import naver from "@/assets/login-naver.png"
 import SectionIntro from "@/components/common/SectionIntro/index.tsx"
 import { useAuthStore } from "@/store/useAuthStore.ts"
 
@@ -42,12 +43,13 @@ function LoginPage() {
                 image={kakao}
                 onClick={() => handleSocialLogin(Provider.Kakao)}
             />
-            <LoginButton
+            {/* TODO: Naver 로그인 기능은 공개 심사 준비 이슈로 화면에 표시하지 않음. */}
+            {/* <LoginButton
                 provider={Provider.Naver}
                 label="네이버"
                 image={naver}
                 onClick={() => handleSocialLogin(Provider.Naver)}
-            />
+            /> */}
             <LoginButton
                 provider={Provider.Google}
                 label="구글"

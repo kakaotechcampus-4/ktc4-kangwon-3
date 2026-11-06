@@ -1,5 +1,6 @@
 import { SourceType } from "@/api/types.ts"
 import { countGraphemes } from "@/lib/text";
+import { isHttpUrl } from "@/lib/url";
 
 import {
     ALLOWED_IMAGE_EXTENSIONS_LABEL,
@@ -49,7 +50,15 @@ export const validateProduct = (product: Product): string | null => {
     }
 
     if (product.type === SourceType.Url) {
-        return product.link?.trim() ? null : "상세페이지 링크를 입력해주세요.";
+        if (!product.link?.trim()) {
+            return "상세페이지 링크를 입력해주세요.";
+        }
+
+        if (!isHttpUrl(product.link)) {
+            return "상세페이지 링크는 http:// 또는 https://로 시작해야 합니다.";
+        }
+
+        return null;
     }
 
     // 이미지는 보조 입력이라 텍스트 없이 이미지만으로는 제출할 수 없다.

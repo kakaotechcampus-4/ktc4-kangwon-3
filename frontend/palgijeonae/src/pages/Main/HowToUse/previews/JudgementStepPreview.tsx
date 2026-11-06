@@ -12,7 +12,7 @@ function JudgementStepPreview() {
     return (
         <PreviewFrame label="진단 진행 화면 미리보기" baseWidth={600}>
             <div className="flex w-full flex-col gap-6">
-                <StatusSummaryBar products={JUDGEMENT_STEP_PRODUCTS} pollIntervalMs={3000} />
+                <StatusSummaryBar products={JUDGEMENT_STEP_PRODUCTS} />
                 <ProductProgressCard product={PREVIEW_PRODUCTS.earphoneInProgress} />
                 <ReturnPathGuide />
             </div>
