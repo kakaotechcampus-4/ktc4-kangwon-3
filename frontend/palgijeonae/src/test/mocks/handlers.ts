@@ -2,7 +2,7 @@ import { http } from 'msw'
 
 import type { PresignedFile } from '@/api/diagnosis'
 
-import { buildProductResult } from './fixtures'
+import { buildDiagnosesDetail, buildMyProduct, buildProductResult, buildUserInfo } from './fixtures'
 import { recordRequest } from './requestLog'
 import { s3Response, successResponse } from './responses'
 
@@ -48,6 +48,47 @@ export const handlers = [
 
   // 질문 답변 제출
   http.post(`${API_URL}/api/v1/products/:productId/answers`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse(null)
+  }),
+
+  // 진단 진행 화면(폴링)·진단서 결과 조회: 진행 중인 상품 하나, 폴링 없음
+  http.get(`${API_URL}/api/v1/diagnoses/:diagnosesId`, async ({ request, params }) => {
+    await recordRequest(request)
+    return successResponse(buildDiagnosesDetail({ diagnosesId: String(params.diagnosesId) }))
+  }),
+
+  // 실패한 상품 재진단
+  http.post(`${API_URL}/api/v1/products/:productId/retry`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse(null)
+  }),
+
+  // 마이페이지 상품 목록: 상품 하나, 한 페이지. 검색·필터·페이지 동작은 테스트에서 server.use로 덮어써서 확인한다.
+  http.get(`${API_URL}/api/v1/products`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse({
+      products: [buildMyProduct()],
+      pageInfo: { page: 0, size: 10, totalElements: 1, totalPages: 1, hasNext: false },
+    })
+  }),
+
+  // 마이페이지 상품 삭제
+  http.delete(`${API_URL}/api/v1/products/:productId`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse(null)
+  }),
+
+  // 회원 정보 조회·이름 수정·탈퇴
+  http.get(`${API_URL}/api/v1/users/me`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse(buildUserInfo())
+  }),
+  http.patch(`${API_URL}/api/v1/users/me`, async ({ request }) => {
+    const { name } = await recordRequest<{ name: string }>(request)
+    return successResponse(buildUserInfo({ name }))
+  }),
+  http.delete(`${API_URL}/api/v1/users/me`, async ({ request }) => {
     await recordRequest(request)
     return successResponse(null)
   }),
