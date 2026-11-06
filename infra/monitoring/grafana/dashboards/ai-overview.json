@@ -517,7 +517,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_session_accepted_total{run_type=~\"$run_type\"}[$__rate_interval]))",
+          "expr": "sum((ai_session_accepted_total{run_type=~\"$run_type\"} - ai_session_accepted_total{run_type=~\"$run_type\"} offset $__interval) >= 0 or ai_session_accepted_total{run_type=~\"$run_type\"})",
           "legendFormat": "접수",
           "range": true
         },
@@ -527,7 +527,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (outcome) (increase(ai_session_finished_total{run_type=~\"$run_type\"}[$__rate_interval]))",
+          "expr": "sum by (outcome) ((ai_session_finished_total{run_type=~\"$run_type\"} - ai_session_finished_total{run_type=~\"$run_type\"} offset $__interval) >= 0 or ai_session_finished_total{run_type=~\"$run_type\"})",
           "legendFormat": "{{outcome}}",
           "range": true
         }
@@ -775,7 +775,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (error_code, stage) (increase(ai_session_failed_total{run_type=~\"$run_type\"}[$__rate_interval]))",
+          "expr": "sum by (error_code, stage) ((ai_session_failed_total{run_type=~\"$run_type\"} - ai_session_failed_total{run_type=~\"$run_type\"} offset $__interval) >= 0 or ai_session_failed_total{run_type=~\"$run_type\"})",
           "legendFormat": "{{error_code}} ({{stage}})",
           "range": true
         }
@@ -829,7 +829,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (route, status) (increase(ai_http_requests_total{route!~\".*/health|/metrics\"}[$__rate_interval]))",
+          "expr": "sum by (route, status) ((ai_http_requests_total{route!~\".*/health|/metrics\"} - ai_http_requests_total{route!~\".*/health|/metrics\"} offset $__interval) >= 0 or ai_http_requests_total{route!~\".*/health|/metrics\"})",
           "legendFormat": "{{route}} {{status}}",
           "range": true
         }
@@ -1115,7 +1115,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (component) (increase(ai_agent_calls_total[$__rate_interval]))",
+          "expr": "sum by (component) ((ai_agent_calls_total - ai_agent_calls_total offset $__interval) >= 0 or ai_agent_calls_total)",
           "legendFormat": "{{component}}",
           "range": true
         }
@@ -1169,7 +1169,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (component, outcome) (increase(ai_agent_calls_total{outcome!=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (component, outcome) ((ai_agent_calls_total{outcome!=\"ok\"} - ai_agent_calls_total{outcome!=\"ok\"} offset $__interval) >= 0 or ai_agent_calls_total{outcome!=\"ok\"})",
           "legendFormat": "{{component}} {{outcome}}",
           "range": true
         }
@@ -1223,7 +1223,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (component) (increase(ai_agent_cost_krw_total[$__rate_interval]))",
+          "expr": "sum by (component) ((ai_agent_cost_krw_total - ai_agent_cost_krw_total offset $__interval) >= 0 or ai_agent_cost_krw_total)",
           "legendFormat": "{{component}}",
           "range": true
         }
@@ -1277,7 +1277,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (kind) (increase(ai_agent_tokens_total[$__rate_interval]))",
+          "expr": "sum by (kind) ((ai_agent_tokens_total - ai_agent_tokens_total offset $__interval) >= 0 or ai_agent_tokens_total)",
           "legendFormat": "{{kind}}",
           "range": true
         }
@@ -1373,7 +1373,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (model) (increase(ai_agent_calls_total[$__rate_interval]))",
+          "expr": "sum by (model) ((ai_agent_calls_total - ai_agent_calls_total offset $__interval) >= 0 or ai_agent_calls_total)",
           "legendFormat": "{{model}}",
           "range": true
         }
@@ -1440,7 +1440,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (tool_name, status) (increase(ai_tool_runs_total[$__rate_interval]))",
+          "expr": "sum by (tool_name, status) ((ai_tool_runs_total - ai_tool_runs_total offset $__interval) >= 0 or ai_tool_runs_total)",
           "legendFormat": "{{tool_name}} {{status}}",
           "range": true
         }
@@ -1494,7 +1494,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (tool_name, error_type) (increase(ai_tool_errors_total[$__rate_interval]))",
+          "expr": "sum by (tool_name, error_type) ((ai_tool_errors_total - ai_tool_errors_total offset $__interval) >= 0 or ai_tool_errors_total)",
           "legendFormat": "{{tool_name}} {{error_type}}",
           "range": true
         }
@@ -1594,7 +1594,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (determination) (increase(ai_tool_findings_total[$__rate_interval]))",
+          "expr": "sum by (determination) ((ai_tool_findings_total - ai_tool_findings_total offset $__interval) >= 0 or ai_tool_findings_total)",
           "legendFormat": "{{determination}}",
           "range": true
         }
@@ -1648,7 +1648,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (site, trimmed) (increase(ai_extraction_seller_region_total[$__rate_interval]))",
+          "expr": "sum by (site, trimmed) ((ai_extraction_seller_region_total - ai_extraction_seller_region_total offset $__interval) >= 0 or ai_extraction_seller_region_total)",
           "legendFormat": "{{site}} trimmed={{trimmed}}",
           "range": true
         }
@@ -1947,7 +1947,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (api) (increase(ai_client_calls_total[$__rate_interval]))",
+          "expr": "sum by (api) ((ai_client_calls_total - ai_client_calls_total offset $__interval) >= 0 or ai_client_calls_total)",
           "legendFormat": "{{api}}",
           "range": true
         }
@@ -2001,7 +2001,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (api, result) (increase(ai_client_calls_total{api!=\"backend\", result!=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (api, result) ((ai_client_calls_total{api!=\"backend\", result!=\"ok\"} - ai_client_calls_total{api!=\"backend\", result!=\"ok\"} offset $__interval) >= 0 or ai_client_calls_total{api!=\"backend\", result!=\"ok\"})",
           "legendFormat": "{{api}} {{result}}",
           "range": true
         }
@@ -2101,7 +2101,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (event_type, result) (increase(ai_callback_sent_total[$__rate_interval]))",
+          "expr": "sum by (event_type, result) ((ai_callback_sent_total - ai_callback_sent_total offset $__interval) >= 0 or ai_callback_sent_total)",
           "legendFormat": "{{event_type}} {{result}}",
           "range": true
         },
@@ -2111,7 +2111,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (reason) (increase(ai_callback_dropped_total[$__rate_interval]))",
+          "expr": "sum by (reason) ((ai_callback_dropped_total - ai_callback_dropped_total offset $__interval) >= 0 or ai_callback_dropped_total)",
           "legendFormat": "버림 {{reason}}",
           "range": true
         }
@@ -2161,7 +2161,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(ai_callback_sent_total{result=\"delivered\"}[$__rate_interval]))",
+          "expr": "sum((ai_callback_sent_total{result=\"delivered\"} - ai_callback_sent_total{result=\"delivered\"} offset $__interval) >= 0 or ai_callback_sent_total{result=\"delivered\"})",
           "legendFormat": "AI 전달",
           "range": true
         },
@@ -2171,7 +2171,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(increase(http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"}[$__rate_interval]))",
+          "expr": "sum((http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} - http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"} offset $__interval) >= 0 or http_server_requests_seconds_count{job=\"be-app\", method=\"POST\", uri=~\"/internal/.*\", status=~\"2..\"})",
           "legendFormat": "BE 2xx 응답",
           "range": true
         }
@@ -2485,7 +2485,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (cache, result) (increase(ai_cache_lookups_total[$__rate_interval]))",
+          "expr": "sum by (cache, result) ((ai_cache_lookups_total - ai_cache_lookups_total offset $__interval) >= 0 or ai_cache_lookups_total)",
           "legendFormat": "{{cache}} {{result}}",
           "range": true
         }
@@ -2539,7 +2539,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (result) (increase(ai_law_refresh_runs_total[$__rate_interval]))",
+          "expr": "sum by (result) ((ai_law_refresh_runs_total - ai_law_refresh_runs_total offset $__interval) >= 0 or ai_law_refresh_runs_total)",
           "legendFormat": "법령 점검 {{result}}",
           "range": true
         },
@@ -2549,7 +2549,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (kind, tool) (increase(ai_law_changes_total[$__rate_interval]))",
+          "expr": "sum by (kind, tool) ((ai_law_changes_total - ai_law_changes_total offset $__interval) >= 0 or ai_law_changes_total)",
           "legendFormat": "법령 변경 {{kind}} {{tool}}",
           "range": true
         },
@@ -2559,7 +2559,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (result) (increase(ai_clip_ingest_runs_total[$__rate_interval]))",
+          "expr": "sum by (result) ((ai_clip_ingest_runs_total - ai_clip_ingest_runs_total offset $__interval) >= 0 or ai_clip_ingest_runs_total)",
           "legendFormat": "CLIP 적재 {{result}}",
           "range": true
         },
@@ -2569,7 +2569,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (outcome) (increase(ai_clip_ingest_cases_total[$__rate_interval]))",
+          "expr": "sum by (outcome) ((ai_clip_ingest_cases_total - ai_clip_ingest_cases_total offset $__interval) >= 0 or ai_clip_ingest_cases_total)",
           "legendFormat": "CLIP 사례 {{outcome}}",
           "range": true
         }
