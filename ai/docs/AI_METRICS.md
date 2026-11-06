@@ -12,9 +12,17 @@ AI 서버가 `GET /metrics`로 내보내는 Prometheus 지표와 어디서 재�
 - 현황 값(세션 수·자리·콜백 대기 수)은 수집(scrape) 때마다 읽음 (`SessionSnapshotCollector`, `CallbackOutboxCollector`)
 - sink 오류는 오류 로그(ERROR)만 남기고 기록을 남긴 쪽 동작에 영향 없음
 - Counter·Histogram의 `_created`(처음 만든 시각) 시계열은 내보내지 않음 (`main.py`의 `disable_created_metrics()`)
-- 값이 정해진 라벨 조합(세션 결말·단계, 콜백 결과·버린 사유, Tool 상태·실패 원인, 판매자 구역 자르기, 외부 API 결과, 캐시 조회, 정기 작업 결과)은 처음부터 0으로 만들어 둠. 처음 기록될 때 생기면 `increase()`·`rate()`가 첫 기록을 못 셈
+- 값이 정해진 라벨 조합(세션 결말·단계, Tool 진행 알림, 콜백 결과·버린 사유·재시도, Tool 상태·실패 원인·판단 항목, 판매자 구역 자르기, 외부 API 결과, 캐시 조회, 정기 작업 결과, 법령 변경)은 처음부터 0으로 만들어 둠. 처음 기록될 때 생기면 `increase()`·`rate()`가 첫 기록을 못 셈. 모델 이름·라우트·오류 코드처럼 값이 정해지지 않은 라벨은 미리 못 만듦 → 대시보드 식으로 셈 (아래)
 - 서버에서는 모니터링 스택(`infra/monitoring`)의 Prometheus가 `be-ai-net`으로 `ai-server:8000/metrics`를 15초마다 수집 (job `ai-app`)
 - Grafana 대시보드는 "AI 서버 개요" (`infra/monitoring/grafana/dashboards/ai-overview.json`). 모델 호출·Tool·외부 API·콜백·캐시 지표엔 `run_type`이 없어 실행 종류 선택이 세션 지표에만 먹음
+- 대시보드 횟수·합계 패널은 `increase()` 대신 수집 한 번마다 늘어난 만큼을 더함 (#609)
+  - 시계열: `sum by (...) (sum_over_time(((c - c offset 15s) >= 0 or c + 0)[$__interval:15s]))`
+  - stat: 같은 식에 `[$__range:15s]`, instant 쿼리. 비율은 이 합끼리 나눔
+  - `increase()`를 안 쓰는 이유: 구간 끝까지 늘려 잡아 1번이 1.33처럼 나옴, 1분 창이 겹쳐 한 번이 여러 칸에 찍힘, 처음 생긴 시계열의 첫 기록을 못 셈
+  - `>= 0 or c`: 재시작으로 값이 줄면 재시작 뒤 값을 그대로 셈. `+ 0`: 이름 있는·없는 시계열이 섞여 나는 오류 방지
+  - `15s`는 `ai-app`·`be-app` 수집 간격. 수집 간격을 바꾸면 식의 `15s`도 같이 바꿈
+  - 한계: 마지막 수집과 서버 종료 사이의 기록, 종료 때 재시도 중이던 콜백은 지표에 안 남음
+  - 식이 길어 나중에 Prometheus 기록 규칙(recording rule)으로 줄이는 방안 있음
 
 ## 2. 라벨 원칙
 
