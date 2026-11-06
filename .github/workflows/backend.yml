@@ -10,6 +10,11 @@ on:
     paths:
       - "backend/beforeselling/**"
   workflow_dispatch:
+    inputs:
+      skip-coverage:
+        description: "커버리지 기준 검사를 건너뜀 (긴급 배포용)"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -50,7 +55,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: 빌드 및 테스트
-        run: ./gradlew build
+        run: ./gradlew build ${{ inputs.skip-coverage && '-x jacocoTestCoverageVerification -x jacocoMergedCoverageVerification' || '' }}
 
       - name: 테스트 리포트 업로드 (실패 시)
         if: failure()

@@ -151,7 +151,7 @@ JaCoCo로 단위, 통합, 합산(단위 + 통합) 커버리지를 따로 측정�
 | 합산 | 85% | 80% | `./gradlew jacocoMergedCoverageVerification` |
 
 - 통합에는 기준을 두지 않습니다. 기준을 맞추려고 단위 테스트가 이미 확인한 분기를 통합 테스트로 다시 쓰게 되기 때문입니다.
-- 기준 검사는 `check`에 연결돼 있어, 기준에 못 미치면 빌드와 CI가 실패합니다. 긴급 배포처럼 검사를 잠시 빼야 할 때는 `./gradlew build -x jacocoTestCoverageVerification -x jacocoMergedCoverageVerification`로 실행합니다.
+- 기준 검사는 `check`에 연결돼 있어, 기준에 못 미치면 빌드와 CI가 실패하고 배포도 막힙니다. 긴급 배포가 필요하면 Actions에서 `Backend CI/CD`를 수동 실행하고 `skip-coverage`를 켭니다. 로컬에서는 `./gradlew build -x jacocoTestCoverageVerification -x jacocoMergedCoverageVerification`로 같은 효과를 냅니다.
 
 ## 7. 실행 방법
 
