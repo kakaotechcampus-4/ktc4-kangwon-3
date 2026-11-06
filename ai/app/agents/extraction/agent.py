@@ -29,6 +29,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
 
     component_name = "extraction"
     prompt_name = PromptName.EXTRACTION
+    uses_guardrail = True
     output_schema = ProductAttributes
     error_class = ExtractionFailedError
     task_name = "상품 정보 추출"

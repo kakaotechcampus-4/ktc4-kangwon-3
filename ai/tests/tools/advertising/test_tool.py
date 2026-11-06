@@ -212,11 +212,14 @@ def test_모델_호출_실패는_툴_예외로_감싼다():
 def test_모델에는_상품_이름을_비우고_판매자_문구만_보낸다():
     # 상품 이름이 제목 줄과 같으면 모델이 제목 줄의 효능 구절을 상품 이름으로 보고 빼서 비움 (#349)
     model = _StubModel([])
+    reviewer = AdvertisingReviewer(model)
 
-    AdvertisingTool(reviewer=AdvertisingReviewer(model)).execute(_product("방수 원단", " "), DECISION)
+    AdvertisingTool(reviewer=reviewer).execute(_product("방수 원단", " "), DECISION)
 
     system, human = model.received[0]
-    assert system.content == get_prompt(PromptName.ADVERTISING).text
+    # 시스템 프롬프트는 광고 프롬프트 + 가드레일
+    assert system.content == reviewer.prompt.text
+    assert system.content.startswith(get_prompt(PromptName.ADVERTISING).text.rstrip("\n"))
     assert json.loads(human.content) == {"product_name": None, "category": None, "listing_text": ["방수 원단"]}
 
 

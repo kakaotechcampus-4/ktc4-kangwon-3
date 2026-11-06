@@ -53,6 +53,8 @@ def configure_sentry(dsn: str, environment: str, log_level: str = "INFO", **opti
         max_request_body_size="never",
         # 오류만. 성능 트레이스는 안 씀
         traces_sample_rate=None,
+        # 외부 요청에 추적 헤더 안 붙임 (#606)
+        trace_propagation_targets=[],
         # 오류 위치별 지역 변수를 보내지 않음. 요청 헤더(내부 토큰)·상품 원문·키가 든 URL이 그대로 실림
         include_local_variables=False,
         # 로그 전송. 외부 라이브러리는 configure_logging이 WARNING 이상만 남김 (요청 주소 속 키 방지)

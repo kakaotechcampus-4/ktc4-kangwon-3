@@ -7,10 +7,11 @@ from types import SimpleNamespace
 import pytest
 
 from app.agents.decision_selection import QUESTIONS
+from app.agents.selection import SelectionAgent
 from app.clients.llm.decision import questions_fingerprint
 from app.config import MODEL_PROFILES
 from app.eval import selection_runner
-from app.eval.runner import prompt_fingerprint, run_metadata
+from app.eval.runner import run_metadata
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.schemas import ToolName
 
@@ -62,10 +63,10 @@ def test_같은_모델도_추론_강도가_다른_기록은_섞지_않는다(tmp
 
 
 def test_선택_평가_기록에는_선택_프롬프트_지문이_남는다():
-    meta = run_metadata(runs=1, profile=MODEL_PROFILES["mini"], prompt_path=selection_runner.SELECTION_PROMPT_PATH)
+    meta = run_metadata(runs=1, profile=MODEL_PROFILES["mini"], prompt=SelectionAgent.system_prompt())
 
     assert meta["prompt_path"] == "app/agents/selection/prompt.md"
-    assert meta["prompt_sha256"] == prompt_fingerprint(selection_runner.SELECTION_PROMPT_PATH)
+    assert meta["prompt_sha256"] == SelectionAgent.system_prompt().sha256
 
 
 class _FakeAgent:

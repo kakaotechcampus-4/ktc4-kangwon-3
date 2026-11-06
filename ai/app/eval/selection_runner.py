@@ -25,15 +25,13 @@ from collections import Counter
 from pathlib import Path
 
 from ..agents.decision_selection import QUESTIONS, DecisionSelectionAgent, DecisionSelectionFailedError
-from ..agents.selection import PROMPT_PATH as SELECTION_PROMPT_PATH
 from ..agents.selection import SelectionAgent, SelectionFailedError
 from ..clients.llm.decision import get_decision_client, questions_fingerprint
 from ..config import DECISION_PROFILES, ConfigError, agent_decision_profile, agent_profile
 from ..schemas.agent import ToolSelectionResponse
 from ..schemas.product import Product
 from .grading import Grade, Stability
-from .runner import (RESULT_DIR, TRUTH_DIR, decision_run_metadata, describe_metadata, prompt_fingerprint,
-                     run_metadata)
+from .runner import RESULT_DIR, TRUTH_DIR, decision_run_metadata, describe_metadata, run_metadata
 from .scoring import load_truth as load_extraction_truth
 from .selection_scoring import (
     Blame,
@@ -46,6 +44,8 @@ from .selection_scoring import (
 )
 
 SELECTION_TRUTH_DIR = TRUTH_DIR.parent / "eval_truth_selection"
+# 기록 지문은 에이전트가 모델에 보내는 시스템 프롬프트(가드레일 포함) 기준. 테스트가 에이전트 클래스를 바꿔도 그대로
+_selection_prompt = SelectionAgent.system_prompt
 MODES = ("A", "B")
 
 
@@ -229,7 +229,7 @@ def warn_if_prompt_changed(meta: dict | None) -> list[str]:
     if label == "판단 질문 목록":
         current = questions_fingerprint(list(QUESTIONS))
     else:
-        current = prompt_fingerprint(SELECTION_PROMPT_PATH)
+        current = _selection_prompt().sha256
     if saved != current:
         return [
             f"[주의] 지금과 다른 {label}으로 나온 결과입니다 "
@@ -285,7 +285,7 @@ def main() -> int:
         agent, meta = decision_selector(args.runs, args.decision_profile)
     else:
         agent = SelectionAgent(usage_agent="selection-eval")
-        meta = run_metadata(runs=args.runs, profile=agent_profile("selection"), prompt_path=SELECTION_PROMPT_PATH)
+        meta = run_metadata(runs=args.runs, profile=agent_profile("selection"), prompt=_selection_prompt())
     # 어떤 추출 결과로 잰 선택인지 함께 남긴다. 추출이 바뀌면 모드 B 수치가 달라진다.
     meta["extraction_logs"] = [p.as_posix() for p in args.extraction_log]
     meta["extraction_prompt_sha256"] = extraction_prompt

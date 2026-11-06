@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.tools.customs import CustomsToolError
 from app.agents.verification import VerificationError
 from app.clients.errors import ClientError
 from app.config.session import MAX_PARALLEL_TOOLS
@@ -302,6 +303,28 @@ def test_Tool_실패는_원인을_남기고_예상한_오류는_위치_없이_�
     assert "SECRET" not in record.getMessage()
     assert (record.exc_info is not None) is traceback
 
+
+
+def test_Tool_실패_로그에_감싼_원인까지_남긴다(caplog):
+    # 통관 Tool은 요건 조회의 모든 예외를 "세관장확인 요건 조회에 실패했습니다"로 감싼다.
+    # 바깥 문장만 남으면 서버에서 실제 원인(시간 초과·연결 실패 등)을 알 수 없다.
+    try:
+        try:
+            raise ClientError("연결 실패 https://apis.data.go.kr/x?serviceKey=SECRET")
+        except ClientError as cause:
+            raise CustomsToolError("세관장확인 요건 조회에 실패했습니다.") from cause
+    except CustomsToolError as wrapped:
+        error = wrapped
+    tools = {name: _RaisingTool(name, error) for name in ToolName}
+    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools, _Progress())), _Progress())
+
+    execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.CUSTOMS}))
+
+    [record] = [r for r in caplog.records if r.name == "app.diagnosis.job"]
+    message = record.getMessage()
+    assert message.startswith(f"Tool 실행 실패 {ToolName.CUSTOMS}: CustomsToolError: 세관장확인 요건 조회에 실패했습니다.")
+    assert "← ClientError: 연결 실패" in message
+    assert "SECRET" not in message
 
 def test_재실행_회차는_다시_실행하는_Tool만_시작·완료를_보내고_건너뜀은_다시_보내지_않는다():
     progress = _Progress()
