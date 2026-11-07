@@ -24,6 +24,13 @@ _SUBSTANTIATION = "표시ㆍ광고 내용의 실증에 관한 운영 고시"
 _AWARD_CERT = "수상·인증 등의 표시·광고에 관한 심사지침"
 _CONSUMER_SAFETY = "소비자 안전에 관한 표시·광고 심사지침"
 
+# 법령 점검 대상 (문서 이름, 법령ID·행정규칙ID)
+LAW_DOCUMENT = (_LAW_NAME, "002011")
+DESIGNATION_DOCUMENT = (_DESIGNATION, "34717")
+SUBSTANTIATION_DOCUMENT = (_SUBSTANTIATION, "20246")
+AWARD_CERT_DOCUMENT = (_AWARD_CERT, "35034")
+CONSUMER_SAFETY_DOCUMENT = (_CONSUMER_SAFETY, "35091")
+
 
 def _source(law_name: str, article: str, quoted_text: str, url: str, effective_date: str) -> LegalSource:
     """고정 근거 조문 하나를 만든다.

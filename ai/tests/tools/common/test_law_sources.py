@@ -4,6 +4,7 @@ from datetime import date
 
 from app.schemas.clients.law_response import AdmrulSearchItem, AdmrulSearchResponse
 from app.schemas.schemas import ToolName
+from app.tools.advertising import rules as advertising
 from app.tools.children import evidence as children
 from app.tools.common.law_sources import LAW_SOURCES, LawSource, applied_version
 from app.tools.customs import evidence as customs
@@ -39,6 +40,15 @@ def test_Tool이_불러오는_문서가_모두_들어_있다():
     }
 
     assert expected <= set(LAW_SOURCES)
+
+
+def test_표시광고_고정_조문의_문서가_모두_들어_있다():
+    # 표시광고 Tool은 문서를 불러오지 않고 조문을 고정해 씀. 고정 조문의 출처로 누락을 확인함
+    cited = (advertising.LAW_ARTICLE_3, advertising.LAW_ARTICLE_5, advertising.MEDICINAL_EFFECT_SOURCE,
+             *advertising.SUBSTANTIATION_TARGETS.values(), *advertising.TYPE_SOURCES.values())
+    listed = {source.name for source in LAW_SOURCES if source.tool is ToolName.LABEL_AD}
+
+    assert listed == {source.law_name for source in cited}
 
 
 def test_적용_판은_Tool과_같은_규칙으로_고르고_못_고르면_None이다():
