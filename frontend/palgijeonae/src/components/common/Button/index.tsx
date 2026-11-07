@@ -3,14 +3,17 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/cn";
 
 const buttonVariants = cva(
-    "flex cursor-pointer items-center justify-center gap-2.5 self-start rounded-[10px] leading-[1.2] text-center disabled:cursor-default disabled:opacity-35 aria-disabled:cursor-default aria-disabled:opacity-35",
+    // disabled는 variant별 전용 색을 쓰고, aria-disabled는 원래 색을 유지한 채 투명도만 낮춘다.
+    "flex cursor-pointer items-center justify-center gap-2.5 self-start rounded-xl leading-[1.2] text-center transition-[background-color,border-color,box-shadow] duration-150 outline-none focus-visible:ring-3 focus-visible:ring-primary/25 disabled:cursor-default aria-disabled:cursor-default aria-disabled:opacity-35",
     {
         variants: {
             variant: {
                 // 핵심 액션
-                primary: "bg-primary px-[25px] py-[14px] font-bold text-white",
+                primary:
+                    "bg-primary px-[25px] py-[14px] font-bold text-white shadow-button-primary enabled:not-aria-disabled:hover:bg-primary-hover enabled:not-aria-disabled:hover:shadow-button-primary-hover enabled:not-aria-disabled:active:bg-primary-active enabled:not-aria-disabled:active:shadow-none disabled:bg-button-disabled-bg disabled:text-button-disabled-text disabled:shadow-none",
                 // 보조 액션
-                secondary: "border border-neutral-border bg-white px-[24px] py-[13px] font-semibold text-neutral-text enabled:hover:border-neutral-dark",
+                secondary:
+                    "border border-box-line bg-white px-[24px] py-[13px] font-semibold text-neutral-text shadow-button-secondary enabled:not-aria-disabled:hover:border-button-line-hover enabled:not-aria-disabled:hover:bg-button-hover-bg enabled:not-aria-disabled:active:bg-button-active-bg enabled:not-aria-disabled:active:shadow-none focus-visible:border-primary disabled:border-neutral-line disabled:bg-button-hover-bg disabled:text-button-disabled-text disabled:shadow-none",
             },
         },
         defaultVariants: {
