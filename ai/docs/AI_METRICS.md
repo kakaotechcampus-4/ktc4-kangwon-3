@@ -113,10 +113,11 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 | `ai_callback_retries` | Counter | `event_type` | 재시도 횟수 합 |
 | `ai_callback_pending` | Gauge | (없음) | 보내기 시작하지 않은 이벤트 수. 보내는 중·재시도 대기 중은 빠짐 |
 
-- `event_type`: product_progress·product_awaiting_input·product_result·product_failed
+- `event_type`: product_progress·product_awaiting_input·product_result·product_failed·law_changes(법령 변경 묶음)
 - `reason`: `retry_exhausted`(재시도 초과)·`not_retryable`(4xx 등)·`shutdown`(종료 중)·`error`(예상 못 한 오류)
 - 버린 이벤트가 생기면 BE 화면에서 진단이 멈춘 것처럼 보임
-- 재는 곳: `CallbackOutbox` (HTTP 단위 결과는 `ai_client_calls{api="backend"}`)
+  - `law_changes`는 다름: 개정 알림이 안 가고 다음 점검에서도 다시 안 잡힘. 오류 로그의 값으로 재전송 필요 ([DB_CACHE.md](DB_CACHE.md))
+- 재는 곳: `CallbackOutbox`, 법령 변경은 `LawChangeNotifier` (HTTP 단위 결과는 `ai_client_calls{api="backend"}`)
 - BE 도착 맞춰 보기: `delivered`는 BE가 2xx로 응답한 이벤트 수라 BE `http_server_requests_seconds_count{uri=~"/internal/.*", status=~"2.."}`와 같아야 함. 대시보드 "콜백 도착" 패널
   - BE 배포 때 옛 BE가 마지막 수집 뒤 받은 콜백은 지표에 안 남음 → AI 쪽이 많을 수 있음. 그 밖의 차이는 어긋남 신호
 
