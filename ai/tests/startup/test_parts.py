@@ -3,7 +3,6 @@
 서버는 띄우지 않고 함수를 직접 부름. 바깥 연결(파이프라인 조립·DB·법령 조회)만 기록용으로 바꿈.
 """
 
-from datetime import date
 from types import SimpleNamespace
 
 import pytest
@@ -142,7 +141,6 @@ def test_법령_점검이_찾은_변경은_로그로_남기고_적용_판_변경
     [request] = sender.requests
     assert [(change.serial_number, change.previous_serial_number) for change in request.changes] == [
         ("291321", "280000")]
-    assert isinstance(request.checked_on, date)
     assert ("applied" in caplog.text, "skipped" in caplog.text) == (True, True)
 
 

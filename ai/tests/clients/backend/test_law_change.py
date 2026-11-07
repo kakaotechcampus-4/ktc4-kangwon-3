@@ -26,7 +26,7 @@ def _change(**overrides) -> PublicLawChangeDto:
 
 
 def _request(*changes: PublicLawChangeDto) -> LawChangeCallbackRequest:
-    return LawChangeCallbackRequest(checked_on=date(2026, 11, 7), changes=list(changes) or [_change()])
+    return LawChangeCallbackRequest(changes=list(changes) or [_change()])
 
 
 def _client(handler) -> BackendLawChangeClient:
@@ -46,7 +46,6 @@ def test_BE_수신_경로로_토큰_헤더와_약속한_본문을_보낸다():
     assert (request.method, str(request.url)) == ("POST", "http://be-server:8080/internal/v1/ai/law-changes")
     assert request.headers["X-Internal-Token"] == TOKEN
     assert json.loads(request.content) == {
-        "checkedOn": "2026-11-07",
         "changes": [{
             "lawName": "어린이제품 안전 특별법 시행규칙", "documentId": "012345", "admrul": False,
             "toolName": "CHILDREN", "serialNumber": "291321", "previousSerialNumber": "280000",
@@ -91,7 +90,7 @@ def test_응답을_받지_못하면_재시도_대상_오류로_바꾸고_토큰�
 def test_빈_묶음은_만들_수_없다():
     # BE @NotEmpty와 같은 조건
     with pytest.raises(ValidationError):
-        LawChangeCallbackRequest(checked_on=date(2026, 11, 7), changes=[])
+        LawChangeCallbackRequest(changes=[])
 
 
 @pytest.mark.parametrize("field", ["law_name", "document_id", "serial_number"])

@@ -10,7 +10,7 @@
 import logging
 import threading
 from collections.abc import Callable
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Protocol
 
 from ..clients.backend import CallbackTransportError, SendResult
@@ -21,7 +21,6 @@ from ..schemas.schemas import ToolName
 
 logger = logging.getLogger(__name__)
 
-KST = timezone(timedelta(hours=9))
 _DATE_FORMAT = "%Y%m%d"
 EVENT_TYPE = "law_changes"
 # 대기 합계 약 12.5분 (30초·1분·2분·4분·5분). BE 배포와 겹쳐도 넘어가게 함
@@ -55,7 +54,6 @@ class LawChangeNotifier:
         base_delay: 첫 재시도 대기 시간(초). 재시도마다 2배.
         max_delay: 재시도 대기 시간 상한(초).
         wait: 대기 함수. 기다리는 중 종료되면 True. 테스트에서 실제로 기다리지 않을 때 주입.
-        today: 점검 기준일 함수. 테스트용.
     """
 
     def __init__(
@@ -66,7 +64,6 @@ class LawChangeNotifier:
         base_delay: float = BASE_DELAY_SECONDS,
         max_delay: float = MAX_DELAY_SECONDS,
         wait: Callable[[float], bool] | None = None,
-        today: Callable[[], date] = lambda: datetime.now(KST).date(),
     ) -> None:
         self._sender = sender
         self._max_retries = max_retries
@@ -74,7 +71,6 @@ class LawChangeNotifier:
         self._max_delay = max_delay
         self._stopping = threading.Event()
         self._wait = wait or self._stopping.wait
-        self._today = today
 
     def __call__(self, changes: list[LawChange]) -> None:
         """변경 중 보낼 것이 있으면 BE로 보낸다. 전송 실패는 밖으로 내지 않음.
@@ -82,7 +78,7 @@ class LawChangeNotifier:
         Args:
             changes: 법령 점검이 찾은 변경.
         """
-        request = to_callback_request(changes, self._today())
+        request = to_callback_request(changes)
         if request is not None:
             self._deliver(request)
 
@@ -138,22 +134,21 @@ def _drop(request: LawChangeCallbackRequest, drop_reason: str, reason: str, *, r
     """못 보낸 묶음을 남긴다. 다음 점검에서 안 잡혀 오류 로그로 알리고, 재전송에 쓸 값을 같이 남김."""
     _record(retries=retries, drop_reason=drop_reason)
     changes = ", ".join(f"{change.law_name}({change.document_id}) {change.serial_number}" for change in request.changes)
-    logger.error("법령 변경을 BE로 보내지 못함: %s (재시도 %d회, 기준일 %s, 변경 %d건: %s)", reason, retries,
-                 request.checked_on, len(request.changes), changes)
+    logger.error("법령 변경을 BE로 보내지 못함: %s (재시도 %d회, 변경 %d건: %s)", reason, retries,
+                 len(request.changes), changes)
 
 
-def to_callback_request(changes: list[LawChange], checked_on: date) -> LawChangeCallbackRequest | None:
+def to_callback_request(changes: list[LawChange]) -> LawChangeCallbackRequest | None:
     """변경 중 BE로 보낼 것만 골라 요청으로 만든다.
 
     Args:
         changes: 법령 점검이 찾은 변경.
-        checked_on: 점검 기준일.
 
     Returns:
         LawChangeCallbackRequest | None: 보낼 요청. 보낼 변경이 없으면 None.
     """
     applied = [_to_dto(change) for change in changes if change.kind is LawChangeKind.APPLIED]
-    return LawChangeCallbackRequest(checked_on=checked_on, changes=applied) if applied else None
+    return LawChangeCallbackRequest(changes=applied) if applied else None
 
 
 def _to_dto(change: LawChange) -> PublicLawChangeDto:

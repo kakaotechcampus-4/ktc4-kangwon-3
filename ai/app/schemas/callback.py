@@ -205,9 +205,7 @@ class LawChangeCallbackRequest(ApiModel):
     """법령 점검 한 번에서 찾은 변경 묶음.
 
     Attributes:
-        checked_on: 점검 기준일.
         changes: 찾은 변경. 비어 있으면 BE가 거절함.
     """
 
-    checked_on: date
     changes: list[PublicLawChangeDto] = Field(min_length=1)
