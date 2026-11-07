@@ -91,7 +91,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                         <img
                             src={productImageUrl ?? defaultThumbnail}
                             alt=""
-                            className="h-16 w-16 shrink-0 rounded-lg border border-neutral-border object-cover"
+                            className="h-16 w-16 shrink-0 rounded-lg border border-box-line object-cover"
                         />
                         <div className="flex flex-col items-start gap-2">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-2">

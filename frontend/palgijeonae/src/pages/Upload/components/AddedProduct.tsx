@@ -49,7 +49,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
             <div className="relative flex w-full gap-5 pb-4">
                 <img src={thumbnail ? thumbnail : defaultThumbnail}
                     alt="상품 썸네일"
-                    className="w-20 h-20 object-cover rounded-lg border border-neutral-border" />
+                    className="w-20 h-20 object-cover rounded-lg border border-box-line" />
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-2 items-center">
                         <img src={type === SourceType.Url ? urlIcon : imageIcon}
