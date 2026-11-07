@@ -255,7 +255,8 @@ stateDiagram-v2
 
 ```
 app/
-├── main.py          # 기동·종료
+├── main.py          # 앱 만들기 (라우터·예외 처리)
+├── startup/         # 기동 부품·기동·종료 순서
 ├── routers/         # API
 ├── sessions/        # 진단 세션 (접수·대기·실행·상태 전이)
 ├── diagnosis/       # 진단 함수, 파이프라인 조립, 입력 확인

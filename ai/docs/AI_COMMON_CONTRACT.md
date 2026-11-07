@@ -25,7 +25,7 @@
 | §7.1.3 공개 진단서 | 구현됨 (#405·#320) | `app/schemas/callback.py`, `app/results/` |
 | §7.1.4 진단 접수·재진단 요청 | 구현됨 (#402·#320) | `app/schemas/request.py`, `app/routers/diagnose.py` |
 
-- `/diagnose`는 실제 파이프라인으로 진단한다(#320, `app/diagnosis/`). 샌드박스(`/sandbox`)도 같은 파이프라인을 쓰고 상품 수·동시 실행은 3개까지다. BE 연동 확인용 케이스 더미는 `/dummy`(`main.py`).
+- `/diagnose`는 실제 파이프라인으로 진단한다(#320, `app/diagnosis/`). 샌드박스(`/sandbox`)도 같은 파이프라인을 쓰고 상품 수·동시 실행은 3개까지다. BE 연동 확인용 케이스 더미는 `/dummy`(`startup/parts.py`).
 - 기존 [제안 문서](OBSERVABILITY_AND_ERROR_HANDLING.md)는 논의 이력으로 보존한다. 구현 시 이 문서와 제안 문서를 섞어 적용하지 않는다.
 - 내부 Python 필드명은 snake_case를 사용한다. BE API DTO의 alias 규칙은 별도 API 계약을 따른다.
 

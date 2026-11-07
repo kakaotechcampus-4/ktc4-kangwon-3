@@ -38,8 +38,8 @@ def test_app_db_밖에서는_app_db_내부_모듈을_import하지_않는다():
 
 
 def test_상대_import도_절대_이름으로_풀어_검사한다():
-    # main.py의 from .db import ... 가 app.db로 잡혀야 위 검사가 빈손으로 통과하지 않음
-    names = _imported_modules(APP / "main.py")
+    # startup/parts.py의 from ..db import ... 가 app.db로 잡혀야 위 검사가 빈손으로 통과하지 않음
+    names = _imported_modules(APP / "startup" / "parts.py")
 
     assert "app.db" in names
     assert "app.db.init_db" in names
