@@ -2,8 +2,8 @@ import { useMutation } from '@tanstack/react-query'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 import apiClient from '@/api/core/client'
-import logoutIcon from '@/assets/header-logout.png'
 import logo from '@/assets/logo.png'
+import ProfileMenu from '@/components/common/ProfileMenu'
 import { NAV_ITEMS } from '@/constants/navigation'
 import { cn } from '@/lib/cn'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -22,10 +22,6 @@ function Header() {
             navigate('/')
         },
     })
-
-    const handleButtonClick = () => {
-        navigate(isLoggedIn ? '/mypage' : '/login')
-    }
 
     return (
         <header className="fixed top-0 left-0 z-50 h-16 w-full border-b border-neutral-line bg-white">
@@ -59,26 +55,16 @@ function Header() {
                 </div>
                 <div className="flex items-center gap-3">
                     {isAuthReady && (
-                        <>
+                        isLoggedIn ? (
+                            <ProfileMenu onLogout={() => logoutMutation.mutate()} />
+                        ) : (
                             <button
                                 className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
-                                onClick={handleButtonClick}
+                                onClick={() => navigate('/login')}
                             >
-                                {isLoggedIn ? '마이페이지' : '로그인'}
+                                로그인
                             </button>
-                            {isLoggedIn && (
-                                <button
-                                    className="flex cursor-pointer items-center justify-center"
-                                    onClick={() => logoutMutation.mutate()}
-                                >
-                                    <img
-                                        src={logoutIcon}
-                                        alt="로그아웃"
-                                        className="h-7 w-7"
-                                    />
-                                </button>
-                            )}
-                        </>
+                        )
                     )}
                 </div>
             </div>
