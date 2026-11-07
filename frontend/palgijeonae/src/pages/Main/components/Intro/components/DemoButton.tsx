@@ -1,7 +1,6 @@
 import Button from "@/components/common/Button";
 import HelpTooltip from "@/components/common/HelpTooltip";
-
-import { useDemoStart } from "./useDemoStart";
+import { useDemoStart } from "@/pages/Main/components/Intro/hooks/useDemoStart";
 
 // 평가 모드가 true 일때만 DemoButton을 노출한다. false이면 null을 반환한다.
 const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === "true";

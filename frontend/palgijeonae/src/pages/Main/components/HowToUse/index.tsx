@@ -1,7 +1,7 @@
 import SectionIntro from "@/components/common/SectionIntro";
+import HowToUseStep from "@/pages/Main/components/HowToUse/components/HowToUseStep";
 
 import { HOW_TO_USE_STEPS } from "./constants";
-import HowToUseStep from "./HowToUseStep";
 
 /** 메인 페이지 "사용 방법" 섹션. 상품 담기부터 결과 확인까지 4단계를 타임라인으로 보여준다. */
 function HowToUse() {

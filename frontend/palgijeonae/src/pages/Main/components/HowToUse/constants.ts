@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 
-import JudgementStepPreview from "./previews/JudgementStepPreview";
-import QuestionStepPreview from "./previews/QuestionStepPreview";
-import ResultStepPreview from "./previews/ResultStepPreview";
-import UploadStepPreview from "./previews/UploadStepPreview";
+import JudgementStepPreview from "@/pages/Main/components/HowToUse/components/JudgementStepPreview";
+import QuestionStepPreview from "@/pages/Main/components/HowToUse/components/QuestionStepPreview";
+import ResultStepPreview from "@/pages/Main/components/HowToUse/components/ResultStepPreview";
+import UploadStepPreview from "@/pages/Main/components/HowToUse/components/UploadStepPreview";
 
 export interface HowToUseStepInfo {
     key: string

@@ -2,9 +2,8 @@ import { useNavigate } from "react-router-dom"
 
 import Favicon from "@/assets/favicon.svg"
 import Button from "@/components/common/Button"
+import DemoButton from "@/pages/Main/components/Intro/components/DemoButton"
 import { useAuthStore } from "@/store/useAuthStore.ts"
-
-import DemoButton from "./DemoButton"
 
 /** 메인 페이지 최상단 소개 영역. 서비스 제목·설명과 로그인 상태에 따른 시작 버튼, 예시 체험 버튼을 보여준다. */
 function Intro() {

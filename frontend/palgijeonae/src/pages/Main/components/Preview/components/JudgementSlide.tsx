@@ -1,7 +1,7 @@
 import PreviewFrame from "@/components/common/PreviewFrame";
 import ProductProgressCard from "@/pages/Judgement/components/ProductProgressCard";
 import StatusSummaryBar from "@/pages/Judgement/components/StatusSummaryBar";
-import { PREVIEW_PRODUCTS } from "@/pages/Main/previewMocks";
+import { PREVIEW_PRODUCTS } from "@/pages/Main/constants";
 
 const JUDGEMENT_PRODUCTS = [PREVIEW_PRODUCTS.earphoneInProgress, PREVIEW_PRODUCTS.slipperAwaiting, PREVIEW_PRODUCTS.table];
 

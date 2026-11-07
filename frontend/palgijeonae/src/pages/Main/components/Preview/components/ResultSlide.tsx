@@ -1,8 +1,8 @@
 import PreviewFrame from "@/components/common/PreviewFrame";
 import ProductTabs from "@/components/common/ProductTabs";
-import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/previewMocks";
-import DiagnosisResultTab from "@/pages/Result/DiagnosisResult";
-import ResultTabs from "@/pages/Result/ResultTabs";
+import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/constants";
+import DiagnosisResultTab from "@/pages/Result/components/DiagnosisResult";
+import ResultTabs from "@/pages/Result/components/ResultTabs";
 import { ResultTabKey } from "@/pages/Result/types";
 
 const PRODUCT_NAMES = [

@@ -2,10 +2,10 @@ import type { CSSProperties } from "react";
 
 import SectionIntro from "@/components/common/SectionIntro";
 import { cn } from "@/lib/cn";
+import PreviewIndicator from "@/pages/Main/components/Preview/components/PreviewIndicator";
+import { usePreviewCarousel } from "@/pages/Main/components/Preview/hooks/usePreviewCarousel";
 
 import { PREVIEW_DURATION,PREVIEW_SLIDES } from "./constants";
-import PreviewIndicator from "./PreviewIndicator";
-import { usePreviewCarousel } from "./usePreviewCarousel";
 
 
 /** 메인 페이지 서비스 미리보기 캐러셀. 4개 화면을 자동으로 넘겨가며 보여준다. */

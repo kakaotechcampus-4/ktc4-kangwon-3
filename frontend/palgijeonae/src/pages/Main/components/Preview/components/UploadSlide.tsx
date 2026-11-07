@@ -3,12 +3,12 @@ import Button from "@/components/common/Button";
 import DefaultBox from "@/components/common/DefaultBox";
 import HelpTooltip from "@/components/common/HelpTooltip";
 import PreviewFrame from "@/components/common/PreviewFrame";
-import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/previewMocks";
-import AddedProduct from "@/pages/Upload/AddedProduct";
-import { MAX_PRODUCT_NAME_LENGTH } from "@/pages/Upload/constraints";
-import FormField from "@/pages/Upload/form/FormField";
-import ImageUploadField from "@/pages/Upload/form/ImageUploadField";
-import InputTypeTabs from "@/pages/Upload/InputTypeTabs";
+import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/constants";
+import AddedProduct from "@/pages/Upload/components/AddedProduct";
+import FormField from "@/pages/Upload/components/FormField";
+import ImageUploadField from "@/pages/Upload/components/ImageUploadField";
+import InputTypeTabs from "@/pages/Upload/components/InputTypeTabs";
+import { MAX_PRODUCT_NAME_LENGTH } from "@/pages/Upload/constants";
 
 /** 메인 페이지 미리보기: 상품 업로드 화면. */
 function UploadSlide() {

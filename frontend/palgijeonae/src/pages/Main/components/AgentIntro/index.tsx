@@ -1,6 +1,6 @@
 import SectionIntro from "@/components/common/SectionIntro";
+import AgentCard from "@/pages/Main/components/AgentIntro/components/AgentCard";
 
-import AgentCard from "./AgentCard";
 import { AGENT_DOMAINS } from "./constants";
 
 /** 메인 페이지 "6개 분야 에이전트" 소개 섹션. 분야별 역할·설명을 좌우로 교차 배치한다. */

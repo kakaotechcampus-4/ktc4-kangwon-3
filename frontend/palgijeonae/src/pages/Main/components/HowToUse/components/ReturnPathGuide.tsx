@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 
 import DefaultBox from "@/components/common/DefaultBox";
 import ProductPreview from "@/components/common/ProductPreview";
-import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/previewMocks";
-import ResultBanner from "@/pages/Result/DiagnosisResult/ResultBanner";
+import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/constants";
+import ResultBanner from "@/pages/Result/components/DiagnosisResult/components/ResultBanner";
 
 import MiniHeaderPreview from "./MiniHeaderPreview";
 

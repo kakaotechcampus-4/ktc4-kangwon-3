@@ -1,9 +1,9 @@
 import type { ComponentType } from "react";
 
-import JudgementSlide from "./slides/JudgementSlide";
-import QuestionSlide from "./slides/QuestionSlide";
-import ResultSlide from "./slides/ResultSlide";
-import UploadSlide from "./slides/UploadSlide";
+import JudgementSlide from "@/pages/Main/components/Preview/components/JudgementSlide";
+import QuestionSlide from "@/pages/Main/components/Preview/components/QuestionSlide";
+import ResultSlide from "@/pages/Main/components/Preview/components/ResultSlide";
+import UploadSlide from "@/pages/Main/components/Preview/components/UploadSlide";
 
 // 슬라이드 한 장이 자동 전환되기까지 걸리는 시간.
 export const PREVIEW_DURATION = "10s";

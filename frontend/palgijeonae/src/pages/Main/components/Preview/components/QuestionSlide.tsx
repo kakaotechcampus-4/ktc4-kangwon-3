@@ -1,7 +1,7 @@
 import PreviewFrame from "@/components/common/PreviewFrame";
-import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/previewMocks";
-import ProgressSummary from "@/pages/Question/ProgressSummary";
-import Question from "@/pages/Question/Question";
+import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/constants";
+import ProgressSummary from "@/pages/Question/components/ProgressSummary";
+import QuestionCard from "@/pages/Question/components/QuestionCard";
 
 const QUESTIONS = PREVIEW_PRODUCTS.slipperAwaiting.questions;
 
@@ -13,7 +13,7 @@ function QuestionSlide() {
                 <ProgressSummary currentAnswered={QUESTIONS.map((question) => Boolean(question.answerText))} />
                 <div className="flex flex-col gap-4">
                     {QUESTIONS.map((question, index) => (
-                        <Question
+                        <QuestionCard
                             key={question.questionId}
                             id={`preview-slide-question-${question.questionId}`}
                             questionNumber={index + 1}
