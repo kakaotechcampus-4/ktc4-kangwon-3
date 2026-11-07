@@ -81,7 +81,7 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                 </button>
             </div>
             {expanded && (
-                <div className="flex w-full flex-col gap-3 border-t border-neutral-border pt-3">
+                <div className="flex w-full flex-col gap-3 border-t border-neutral-line pt-3">
                     {type === SourceType.Url ? (
                         <div className="flex flex-col gap-1">
                             <p className="text-lg font-bold text-black">링크</p>

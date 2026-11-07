@@ -23,7 +23,9 @@ function InputTypeTabs({ selected, onSelect }: InputTypeTabsProps) {
                     onClick={() => onSelect(key)}
                     className={cn(
                         "flex cursor-pointer items-center justify-center rounded-lg border px-6 py-2 text-base font-medium",
-                        selected === key ? "border-neutral-border" : "border-transparent",
+                        selected === key
+                            ? "border-primary/40 bg-primary-soft font-semibold text-primary"
+                            : "border-transparent text-neutral-muted",
                     )}
                 >
                     {label}
