@@ -35,9 +35,8 @@ src/
 
 - **`test/`**: 테스트는 소스 옆이 아니라 이곳에 모읍니다. 테스트 종류·폴더 구조·실행 방법은 [TEST_POLICY.md](TEST_POLICY.md)를, 통합 테스트 작성 규칙은 [테스트 작성](#테스트-작성)을 따릅니다.
 - **`components/common/`**: 2곳 이상에서 재사용하는 컴포넌트만 둡니다. 컴포넌트마다 폴더를 만들고 그 안에 `index.tsx` 하나로 작성합니다(예: `components/common/Button/index.tsx`).
-- **`pages/<Page>/`**: 그 페이지에서만 쓰는 컴포넌트·훅·타입·상수를 전부 같은 폴더에 flat 구조로 둡니다. 파일명은 `index.tsx`(페이지 진입점), `ComponentName.tsx`, `useSomething.ts`, `types.ts`, `constants.ts`처럼 역할이 드러나게 짓습니다(예: `pages/Mypage/MyProductList.tsx`, `pages/Mypage/useMyInfo.ts`).
-- 페이지 안에서 하나의 하위 기능이 파일 여러 개로 묶일 만큼 커지면(탭 하나, 섹션 하나 등) 그 하위 기능만의 폴더를 만들고, 그 폴더 안에서 다시 같은 flat 구조(진입점 `index.tsx` + 나머지 파일들)를 반복합니다(예: `pages/Result/DiagnosisResult/`에 `index.tsx`, `FindingCard.tsx`, `bannerConfig.ts`가 함께 있음).
-- 같은 역할의 여러 하위 컴포넌트를 모아둘 땐 `components/`, 로직용 훅을 모아둘 땐 `hooks/`, 순수 함수를 모아둘 땐 `utils/`처럼 역할별 하위 폴더를 쓸 수 있습니다(예: `pages/Judgement/components/`, `pages/Judgement/hooks/`).
+- **`pages/<Page>/`**: 그 페이지에서만 쓰는 파일을 역할별 폴더에 나눠 둡니다. 컴포넌트는 `components/`, 훅은 `hooks/`, 순수 함수는 `utils/`에 두고, `index.tsx`(페이지 진입점), `types.ts`, `constants.ts`만 페이지 폴더 바로 아래에 둡니다(예: `pages/Mypage/components/MyProductList.tsx`, `pages/Mypage/hooks/useMyInfo.ts`, `pages/Mypage/constants.ts`). 파일이 하나뿐인 폴더(예: `pages/NotFound/`)는 나누지 않습니다.
+- 페이지 안에서 하나의 하위 기능이 파일 여러 개로 묶일 만큼 커지면(탭 하나, 섹션 하나 등) 그 폴더를 페이지의 `components/` 아래에 두고, 그 폴더 안에서 다시 같은 구조(진입점 `index.tsx` + `components/`, `utils/` …)를 반복합니다(예: `pages/Result/components/DiagnosisResult/`에 `index.tsx`, `components/FindingCard.tsx`, `utils/bannerConfig.ts`가 함께 있음).
 - 2번 이상 반복되는 마크업·로직만 별도 파일/컴포넌트로 분리합니다. 한 번만 쓰이는 조각을 미리 분리하지 않습니다.
 
 ## 네이밍
