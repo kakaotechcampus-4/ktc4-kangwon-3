@@ -24,11 +24,11 @@ const TAB_INFO: Record<ResultTabKey, TabInfo> = {
 
 const TAB_ORDER: ResultTabKey[] = [ResultTabKey.DiagnosisResult, ResultTabKey.NextSteps, ResultTabKey.ProductInfo];
 
-const tabVariants = cva("flex items-center gap-1.25 px-0.5 py-1.25 border-b-2 text-base font-bold", {
+const tabVariants = cva("flex items-center gap-1.25 px-0.5 py-1.25 border-b-2 text-base", {
     variants: {
         selected: {
-            true: "border-primary text-primary",
-            false: "border-transparent text-neutral-border",
+            true: "border-primary font-bold text-primary",
+            false: "border-transparent font-medium text-neutral-text",
         },
         disabled: {
             true: "cursor-not-allowed opacity-40",
@@ -45,7 +45,7 @@ interface ResultTabsProps {
 
 function ResultTabs({ selected, onSelect, disabledTabs = [] }: ResultTabsProps) {
     return (
-        <div role="tablist" className="flex items-start gap-7.5 border-b border-neutral-border px-2.5">
+        <div role="tablist" className="flex items-start gap-7.5 border-b border-neutral-line px-2.5">
             {TAB_ORDER.map((tab) => {
                 const isSelected = tab === selected;
                 const isDisabled = disabledTabs.includes(tab);

@@ -36,8 +36,8 @@ function RiskMeter({ riskLevel }: RiskMeterProps) {
                             "w-1.25 rounded-[1px]",
                             heightClass,
                             isUnknown
-                                ? "border border-dashed border-neutral-border"
-                                : index < style.filledCount ? style.barColorClass : "bg-neutral-border/40",
+                                ? "border border-dashed border-box-dashed"
+                                : index < style.filledCount ? style.barColorClass : "bg-box-line",
                         )}
                     />
                 ))}
