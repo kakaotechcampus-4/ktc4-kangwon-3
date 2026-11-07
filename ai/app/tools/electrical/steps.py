@@ -1,9 +1,9 @@
 """전기안전 Tool의 모델 호출 단계: 조건 추출, 품목 선택."""
 
 from ...prompts import PromptName
-from ...schemas.electrical import ElectricalFacts, ElectricalReview
 from ..base import ToolStep
 from .errors import ElectricalToolError
+from .schemas import ElectricalFacts, ElectricalReview
 
 
 class ElectricalFactsStep(ToolStep[ElectricalFacts]):

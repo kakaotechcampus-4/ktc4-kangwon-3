@@ -5,7 +5,7 @@ import pytest
 
 from app.agents.verification import VerificationAgent
 from app.schemas.agent import ToolSelectionItem
-from app.schemas.customs import CustomsFact, CustomsFacts, CustomsReview, CustomsSelection
+from app.tools.customs.schemas import CustomsFact, CustomsFacts, CustomsReview, CustomsSelection
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,

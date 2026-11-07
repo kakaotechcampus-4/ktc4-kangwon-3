@@ -1,9 +1,9 @@
 """통관 요건 Tool의 모델 호출 단계: 조건 추출, 결정사례 선택."""
 
 from ...prompts import PromptName
-from ...schemas.customs import CustomsFacts, CustomsReview
 from ..base import ToolStep
 from .errors import CustomsToolError
+from .schemas import CustomsFacts, CustomsReview
 
 
 class CustomsFactsStep(ToolStep[CustomsFacts]):

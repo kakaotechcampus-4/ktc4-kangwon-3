@@ -9,7 +9,7 @@
 | `app/tools/electrical/search.py` | 품목 조회 인터페이스 `ElectricalItemSearch`, `LawApiItemSearch` |
 | `app/tools/electrical/evidence.py` | 품목표·공통 비고·별표 13 파서. 법령 버전 선택·본문 대조·캐시는 공용 `app/tools/common/law.py` |
 | `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용): 법제처 조회(`law.py`), 모델 호출 단계(`agent.py`), 원문 대조(`facts.py`), 행 순위(`ranking.py`) |
-| `app/schemas/electrical.py`, `app/prompts/electrical/facts.md`·`review.md` | LLM 입출력 |
+| `app/tools/electrical/schemas.py`, `app/prompts/electrical/facts.md`·`review.md` | LLM 입출력 |
 | `app/eval/electrical_runner.py` | 실제 실행·모델 비교·평가 채점·재채점 (`python -m app.eval.electrical_runner`) |
 | `tests/tools/electrical/` | 단위 테스트(`test_tool.py`, `test_evidence.py`)와 법제처 Fake(`conftest.py`) |
 | `tests/fixtures/electrical_law/` | 실제 법제처 응답 원문 |

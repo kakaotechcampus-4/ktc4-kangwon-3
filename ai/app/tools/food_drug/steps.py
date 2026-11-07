@@ -1,9 +1,9 @@
 """식약 Tool의 모델 호출 단계: 조건 추출, 의료기기 품목 선택."""
 
 from ...prompts import PromptName
-from ...schemas.food_drug import DeviceReview, FoodDrugFacts
 from ..base import ToolStep
 from .errors import FoodDrugToolError
+from .schemas import DeviceReview, FoodDrugFacts
 
 
 class FoodDrugFactsStep(ToolStep[FoodDrugFacts]):
