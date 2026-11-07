@@ -167,7 +167,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
   | 값 | 응답 캐시 | 결정사례 DB |
   |---|---|---|
   | `hit` | 만료 전 DB 값을 씀 | 가까운 사례를 찾아 CLIP을 안 부름 |
-  | `miss` | 없거나 만료돼 외부 API로 받음 (실패해도 셈) | 가까운 사례가 없어 CLIP으로 찾음 |
+  | `miss` | 없거나 만료돼 외부 API로 받음 (실패는 안 셈, `ai_client_calls`에서 봄) | 가까운 사례가 없어 CLIP으로 찾음 |
   | `stale` | 외부 API 실패·저장 조건 불일치로 만료된 DB 값을 씀 | (없음) |
   | `skipped` | DB 장애로 건너뛰고 외부 API로 받음 | DB·임베딩 실패로 CLIP으로 찾음 |
 
