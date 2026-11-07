@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .base import StrictModel
+from ...schemas.base import StrictModel
 
 ElectricalField = Literal[
     "product_type", "power_source", "rated_voltage", "intended_use",
