@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 
 from ...schemas.agent import ToolSelectionItem, ToolSelectionResponse
-from ...schemas.clients.decision_response import DecisionAnswer, RefusedAnswer, YesNoAnswer
+from ...clients.llm.decision.schemas.response import DecisionAnswer, RefusedAnswer, YesNoAnswer
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
 from .questions import QUESTION_LABELS, TOOL_QUESTIONS

@@ -3,7 +3,7 @@
 from time import perf_counter
 
 from app.observability.agent_sinks import agent_sinks
-from app.schemas.clients.decision_request import YesNoQuestion
+from app.clients.llm.decision.schemas.request import YesNoQuestion
 from app.usage import CallUsage
 
 

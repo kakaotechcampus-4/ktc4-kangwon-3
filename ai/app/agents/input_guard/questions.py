@@ -1,6 +1,6 @@
 """입력 가드 판단 질문. 글·답변·이미지 모두 같은 예/아니오 질문 하나 (11-04 실측 지시문)."""
 
-from ...schemas.clients.decision_request import YesNoQuestion
+from ...clients.llm.decision.schemas.request import YesNoQuestion
 
 # 답 이름
 QUESTION_NAME = "manipulation"
