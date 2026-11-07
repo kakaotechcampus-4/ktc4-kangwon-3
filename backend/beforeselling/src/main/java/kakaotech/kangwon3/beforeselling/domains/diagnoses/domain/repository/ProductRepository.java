@@ -3,6 +3,7 @@ package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -63,4 +64,17 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
         order by p.resumePendingSince asc
         """)
     List<UUID> findIdsByResumePending(Pageable pageable);
+
+    // 법령 변경 재확인 대상. 그 분야 검토에서 해당 법령을 근거로 인용한, 결과가 나온 상품만 고른다.
+    @Query("""
+        select distinct p from FindingLegalSource s
+        join s.finding f
+        join f.toolReview r
+        join r.product p
+        where r.toolName = :toolName
+          and s.lawName = :lawName
+          and p.processingStatus = kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus.COMPLETED
+        """)
+    List<Product> findCompletedByToolNameAndCitedLawName(@Param("toolName") ToolName toolName,
+                                                         @Param("lawName") String lawName);
 }
