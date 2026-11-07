@@ -26,35 +26,39 @@ function Header() {
     }
 
     return (
-        <header className="fixed top-0 left-0 z-50 flex w-full items-center justify-between border-b border-neutral-border bg-white px-5 py-4">
-            <Link to="/">
-                <img src={logo}
-                    alt="사이트 로고"
-                    className="w-[150px] object-contain" />
-            </Link>
-            <div className="flex items-center gap-3">
-                {isAuthReady && (
-                    <>
-                        <button
-                            className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
-                            onClick={handleButtonClick}
-                        >
-                            {isLoggedIn ? '마이페이지' : '로그인'}
-                        </button>
-                        {isLoggedIn && (
+        <header className="fixed top-0 left-0 z-50 h-16 w-full border-b border-neutral-line bg-white">
+            <div className="mx-auto flex h-full w-full max-w-400 items-center justify-between px-5 md:px-10 lg:px-18">
+                <div className="flex items-center">
+                    <Link to="/">
+                        <img src={logo}
+                            alt="사이트 로고"
+                            className="h-10 w-30 object-contain" />
+                    </Link>
+                </div>
+                <div className="flex items-center gap-3">
+                    {isAuthReady && (
+                        <>
                             <button
-                                className="flex cursor-pointer items-center justify-center"
-                                onClick={() => logoutMutation.mutate()}
+                                className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
+                                onClick={handleButtonClick}
                             >
-                                <img
-                                    src={logoutIcon}
-                                    alt="로그아웃"
-                                    className="h-7 w-7"
-                                />
+                                {isLoggedIn ? '마이페이지' : '로그인'}
                             </button>
-                        )}
-                    </>
-                )}
+                            {isLoggedIn && (
+                                <button
+                                    className="flex cursor-pointer items-center justify-center"
+                                    onClick={() => logoutMutation.mutate()}
+                                >
+                                    <img
+                                        src={logoutIcon}
+                                        alt="로그아웃"
+                                        className="h-7 w-7"
+                                    />
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </header>
     );
