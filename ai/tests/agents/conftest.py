@@ -1,7 +1,7 @@
 """에이전트 테스트 공용 설정.
 
 - stub_model: 응답을 정해 두는 가짜 모델 (구조화 출력 인자·받은 메시지 기록)
-- records: 사용량 기록(app.usage.record) 캡처
+- records: 사용량 기록(app.observability.usage.record) 캡처
 - fake_gateway: 실제 ChatOpenAI에 붙이는 가짜 스트리밍 게이트웨이 (네트워크로 나가지 않음)
 """
 

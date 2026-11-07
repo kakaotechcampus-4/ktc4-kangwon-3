@@ -1,4 +1,4 @@
-"""에이전트 모델 호출 1건의 사용량 기록·콘솔 로그. 응답 → 사용량 변환은 app/usage.py.
+"""에이전트 모델 호출 1건의 사용량 기록·콘솔 로그. 응답 → 사용량 변환은 app/observability/usage.py.
 
 record_call은 sink 등록표(observability/agent_sinks)에 기본 등록되는 사용량 로그(usage.jsonl) sink.
 log_call은 호출마다 로그 한 줄을 남기는 sink (#497).
@@ -23,7 +23,7 @@ def record_call(meta: AgentRunMeta, subject_id: str) -> None:
         meta: 호출 1건의 실행 정보. 기록 이름은 usage_name, 없으면 component.
         subject_id: 기록 대상 ID (상품 ID).
     """
-    # 모듈 속성으로 찾음 → app.usage.record 바꿔치기(테스트·평가 러너 사용량 캡처)가 먹힘
+    # 모듈 속성으로 찾음 → app.observability.usage.record 바꿔치기(테스트·평가 러너 사용량 캡처)가 먹힘
     usage_module.record(
         meta.usage_name or meta.component,
         meta.usage,
