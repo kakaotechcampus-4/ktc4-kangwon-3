@@ -8,7 +8,7 @@
 import httpx
 
 from .base import RadioBaseClient
-from ...schemas.clients.radio_response import AuthStatusResponse
+from .schemas.response import AuthStatusResponse
 
 
 class RadioAuthStatusClient(RadioBaseClient[AuthStatusResponse]):

@@ -7,7 +7,7 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from ..request import RequestClient, ResponseT
-from ...schemas.clients.radio_request import RadioAuthRequest
+from .schemas.request import RadioAuthRequest
 
 _BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
