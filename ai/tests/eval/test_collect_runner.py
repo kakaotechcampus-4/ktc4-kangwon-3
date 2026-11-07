@@ -17,7 +17,7 @@ from app.observability.agent_sinks import agent_sinks
 from app.pipeline.url_source import UrlSource
 from app.schemas.agent import ExtractionInput, ImageTriageResponse
 from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
-from app.usage import CallUsage
+from app.observability.usage import CallUsage
 
 URL = "https://seller.en.made-in-china.com/product/jZbflYzyZctU/China-Power-Bank.html"
 

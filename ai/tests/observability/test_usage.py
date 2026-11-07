@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from app import usage
 from app.config import Price
+from app.observability import usage
 from app.schemas.clients.decision_response import DecisionUsage
 
 

@@ -118,9 +118,9 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
   - 대기 중 세션은 취소됨. 멈춘 상품은 `서버 종료로 진단을 멈춤`(DB 보관) 또는 `서버 종료로 진단을 버림` 줄로 확인
   - 기다리는 동안 새 요청은 받지 않음. BE는 받지 못한 요청을 대기로 돌렸다가 다시 보냄
 - 대기·실행 중·답변 대기 세션은 DB에도 보관해 재시작 때 되살림. 상태별 처리는 `AI_SESSION_ARCHIVE.md`
-- 모델 호출 사용량 기록(`logs/usage.jsonl`)은 named volume `ai-logs`에 남아 배포 뒤에도 유지. 보기: `docker exec ai-server python -m app.usage`
+- 모델 호출 사용량 기록(`logs/usage.jsonl`)은 named volume `ai-logs`에 남아 배포 뒤에도 유지. 보기: `docker exec ai-server python -m app.observability.usage`
   - 10MB를 넘으면 `usage.jsonl.1`부터 한 칸씩 밀고 새 파일로 시작, 5개까지만 보관 (`docker logs` 상한과 같음)
-  - `python -m app.usage`는 지금 파일(`usage.jsonl`)만 집계
+  - `python -m app.observability.usage`는 지금 파일(`usage.jsonl`)만 집계
 
 ## 6. 새 로그를 넣을 때
 

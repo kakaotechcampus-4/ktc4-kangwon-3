@@ -35,7 +35,7 @@ from time import perf_counter
 
 from dotenv import load_dotenv
 
-from .. import usage as usage_module
+from ..observability import usage as usage_module
 from ..agents.base import AgentRunMeta
 from ..clients.llm import MAX_RETRIES, TIMEOUT_SECONDS
 from ..config import ENV_FILE, MODEL_PROFILES, TOOL_PROFILES, ConfigError

@@ -5,7 +5,7 @@
 
 총계 보기:
 
-    python -m app.usage
+    python -m app.observability.usage
 """
 
 import json
@@ -16,12 +16,12 @@ from pathlib import Path
 from threading import Lock
 from typing import TYPE_CHECKING
 
-from .config.catalog import CHAT_MODELS, DECISION_MODELS
+from ..config.catalog import CHAT_MODELS, DECISION_MODELS
 
 if TYPE_CHECKING:
-    from .schemas.clients.decision_response import DecisionUsage
+    from ..schemas.clients.decision_response import DecisionUsage
 
-USAGE_LOG = Path(__file__).resolve().parent.parent / "logs" / "usage.jsonl"
+USAGE_LOG = Path(__file__).resolve().parents[2] / "logs" / "usage.jsonl"
 # 기록 파일 크기 상한. 넘으면 usage.jsonl.1부터 한 칸씩 밀고 새 파일 (docker logs 상한과 같은 10MB × 5개)
 USAGE_LOG_MAX_BYTES = 10 * 1024 * 1024
 USAGE_LOG_BACKUPS = 5
@@ -365,7 +365,7 @@ def summarize(path: Path | None = None) -> dict:
 
 
 def main() -> int:
-    """사용량 총계를 출력한다 (``python -m app.usage``).
+    """사용량 총계를 출력한다 (``python -m app.observability.usage``).
 
     Returns:
         int: 종료 코드. 항상 0.
