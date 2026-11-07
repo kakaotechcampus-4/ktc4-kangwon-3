@@ -75,6 +75,7 @@ class RulesFallbackVerification:
                 raise
             # 검토 ID 실수·모델 호출 실패. Tool 판단과 규칙 검사 결과는 버리지 않고 진행
             verification = _rules_only(exc.partial_result)
+            trace_note("model_review_error", error_text(exc))
             logger.warning("검증 모델 검토 실패, 규칙 검사 결과로 진행 (status=%s): %s",
                            verification.status.value, error_text(exc))
             return verification
