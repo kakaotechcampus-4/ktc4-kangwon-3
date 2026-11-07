@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,9 +40,9 @@ class SesMailManualTest {
         // given
         MailTemplate template = MailTemplate.LAW_AMENDMENT;
         Map<String, Object> variables = Map.of(
-                "amendedOn", "2026-09-29",
-                "lawName", "어린이제품 안전 특별법 시행규칙 별표2",
-                "summary", "[테스트] 완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다.",
+                "laws", List.of(
+                        Map.of("lawName", "어린이제품 안전 특별법", "revisionType", "일부개정", "amendedOn", "2026-09-29"),
+                        Map.of("lawName", "어린이제품 안전 특별법 시행규칙", "revisionType", "전부개정", "amendedOn", "2026-09-30")),
                 "affectedProductCount", 2,
                 "myPageUrl", "https://palgijeone.com/mypage");
 
