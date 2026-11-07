@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.schemas.clients.customs_response import CLIPSearchResponse
+from app.clients.customs.schemas.response import CLIPSearchResponse
 from app.schemas.clients.law_response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawAnnex, LawArticle, LawSearchResponse, LawTextResponse,
 )
