@@ -7,8 +7,8 @@
 import httpx
 
 from .base import SafetyKoreaBaseClient
-from ...schemas.clients.safety_korea_request import RecallDetailRequest
-from ...schemas.clients.safety_korea_response import RecallFile, RecallItem
+from .schemas.request import RecallDetailRequest
+from .schemas.response import RecallFile, RecallItem
 
 
 class RecallDetailClient(SafetyKoreaBaseClient[RecallDetailRequest, RecallItem]):

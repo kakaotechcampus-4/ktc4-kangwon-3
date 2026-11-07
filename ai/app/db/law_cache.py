@@ -17,8 +17,8 @@ from sqlalchemy.orm import Session
 from ..clients.law import AdmrulSearchClient, AdmrulTextClient, EflawSearchClient, LawTextClient
 from ..config import LAW_REFRESH_AT, LAW_REFRESH_START_DELAY_SECONDS, LAW_SEARCH_RECHECK_SECONDS
 from ..observability.measurements import LawChangeFound, LawRefreshRun, measurement_sinks
-from ..schemas.clients.law_request import LawSearchRequest, LawTextRequest
-from ..schemas.clients.law_response import (
+from ..clients.law.schemas.request import LawSearchRequest, LawTextRequest
+from ..clients.law.schemas.response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
 )
 from .engine import get_session_factory

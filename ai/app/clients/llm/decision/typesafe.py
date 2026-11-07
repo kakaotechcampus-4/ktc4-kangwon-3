@@ -2,7 +2,7 @@
 
 import json
 
-from ....schemas.clients.decision_request import (
+from .schemas.request import (
     ChoiceQuestion,
     DecisionOption,
     DecisionQuestion,
@@ -10,7 +10,7 @@ from ....schemas.clients.decision_request import (
     ScoreQuestion,
     YesNoQuestion,
 )
-from ....schemas.clients.decision_response import (
+from .schemas.response import (
     ChoiceAnswer,
     DecisionAnswer,
     DecisionResponse,

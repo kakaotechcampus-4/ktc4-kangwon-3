@@ -12,7 +12,7 @@ from app.db.errors import DatabaseNotConfiguredError
 from app.db.law_cache import KST, LawFetchers, build_law_fetchers, refresh_laws, run_law_refresh, seconds_until
 from app.db.law_changes import LawChangeKind
 from app.observability.measurements import LawChangeFound, LawRefreshRun, measurement_sinks
-from app.schemas.clients.law_response import (
+from app.clients.law.schemas.response import (
     AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse,
 )
 

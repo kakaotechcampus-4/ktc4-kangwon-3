@@ -23,8 +23,8 @@ from ...config import DecisionProfile, agent_decision_profile
 from ...observability.agent_sinks import agent_sinks
 from ...observability.trace import current_trace
 from ...prompts import PromptName, PromptSnapshot, get_prompt
-from ...schemas.clients.decision_request import DecisionQuestion, DecisionRequest
-from ...schemas.clients.decision_response import DecisionResponse
+from ...clients.llm.decision.schemas.request import DecisionQuestion, DecisionRequest
+from ...clients.llm.decision.schemas.response import DecisionResponse
 from ...usage import CallUsage, estimate_krw, from_completion, from_decision, from_response
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
 from .guardrail import attach_guardrail, extra_guardrail_path, get_guardrail

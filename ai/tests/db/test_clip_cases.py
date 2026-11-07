@@ -7,7 +7,7 @@ from app.db import clip_cases, fetchers
 from app.db.clip_cases import ClipCaseDatabase
 from app.db.fetchers import DbSkip
 from app.db.models.hs_case import HsCase
-from app.schemas.clients.customs_response import CLIPCase
+from app.clients.customs.schemas.response import CLIPCase
 
 
 def _row(doc_id: str, hs_codes: list[str]) -> HsCase:

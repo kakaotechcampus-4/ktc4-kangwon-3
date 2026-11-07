@@ -21,8 +21,8 @@ from typing import Protocol
 from ...clients.base import mask_sensitive_params
 from ...clients.customs import CLIPClient, CustomsGwClient
 from ...observability.measurements import CacheLookup, measurement_sinks
-from ...schemas.clients.customs_request import CLIPSearchRequest, CustomsGwConfirmationRequest
-from ...schemas.clients.customs_response import CLIPCase
+from ...clients.customs.schemas.request import CLIPSearchRequest, CustomsGwConfirmationRequest
+from ...clients.customs.schemas.response import CLIPCase
 from ..common.law import KST, CachedLoader, EvidenceUnavailable, LawApiClients
 from ..common.ranking import rank_rows
 from .evidence import CustomsEvidence, load_customs_evidence
