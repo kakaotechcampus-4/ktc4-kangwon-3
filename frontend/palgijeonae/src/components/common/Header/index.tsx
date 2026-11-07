@@ -59,7 +59,8 @@ function Header() {
                             <ProfileMenu onLogout={() => logoutMutation.mutate()} />
                         ) : (
                             <button
-                                className="flex cursor-pointer items-center justify-center rounded-full border border-neutral-border px-8 py-2 text-base font-medium text-neutral-dark"
+                                type="button"
+                                className="flex h-7.5 cursor-pointer items-center justify-center rounded-full border border-neutral-line px-3.5 py-1 text-sm font-medium text-neutral-text"
                                 onClick={() => navigate('/login')}
                             >
                                 로그인
