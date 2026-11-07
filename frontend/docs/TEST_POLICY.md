@@ -54,7 +54,7 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 | 이미지 업로드와 진단 payload 조립, 업로드 실패 메시지 | 단위 | `unit/pages/Upload/utils/diagnosisPipeline.test.ts` |
 | 답변 여부, 최신 회차 질문 계산 | 단위 | `unit/pages/Question/utils/answerState.test.ts`, `unit/lib/questions.test.ts` |
 | URL·라우트 파라미터 판별 | 단위 | `unit/lib/url.test.ts`, `unit/lib/routeParams.test.ts` |
-| 오류 코드별 Sentry 레벨, 경로 템플릿 | 단위 | `unit/api/sentryErrorPolicy.test.ts` |
+| 오류 코드별 Sentry 레벨, 경로 템플릿 | 단위 | `unit/api/core/sentryErrorPolicy.test.ts` |
 | 상품 추가·삭제, 입력 검증, 진단 요청 성공·실패 | 통합 | `integration/pages/Upload.test.tsx` |
 | 미응답 안내, 답변 제출, 제출 후 이동 | 통합 | `integration/pages/Question.test.tsx` |
 | 폴링, 상태별 카드, 진단서 이동 | 통합 | `integration/pages/Judgement.test.tsx` |
