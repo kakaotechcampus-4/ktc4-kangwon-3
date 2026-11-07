@@ -3,12 +3,15 @@
 서버는 띄우지 않고 함수를 직접 부름. 바깥 연결(파이프라인 조립·DB·법령 조회)만 기록용으로 바꿈.
 """
 
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.exc import OperationalError
 
 from app import config
+from app.clients.backend import SendResult
+from app.db import LawChange, LawChangeKind, LawVersion
 from app.diagnosis import build_questions
 from app.routers import _dummy
 from app.startup import parts as startup
@@ -27,6 +30,23 @@ class _LawFetchers:
         self.closed = True
 
 
+class _LawChangeSender:
+    """받은 설정과 변경 묶음을 기록하는 가짜 BE 전송."""
+
+    def __init__(self, base_url, token):
+        self.base_url = base_url
+        self.token = token
+        self.requests = []
+        self.closed = False
+
+    def send(self, request):
+        self.requests.append(request)
+        return SendResult(200, "OK")
+
+    def close(self):
+        self.closed = True
+
+
 @pytest.fixture
 def production(monkeypatch):
     """운영 부품 만들기의 바깥 연결을 기록용으로 바꿈.
@@ -34,9 +54,16 @@ def production(monkeypatch):
     Returns:
         SimpleNamespace: build(설정으로 운영 부품을 만들고 콜백 전송을 닫음), jobs(파이프라인 조립 인자),
             fetchers(법령 조회), refreshed(법령 점검·캐시 정리 호출), law_options(법령 조회 생성 옵션),
-            refresh(예약 작업에 넘긴 점검 함수).
+            refresh(예약 작업에 넘긴 점검 함수), law_change_senders(법령 변경 전송).
     """
-    recorded = SimpleNamespace(jobs=[], fetchers=_LawFetchers(), refreshed=[], law_options=[], refresh=[])
+    recorded = SimpleNamespace(jobs=[], fetchers=_LawFetchers(), refreshed=[], law_options=[], refresh=[],
+                               law_change_senders=[])
+
+    def law_change_sender(base_url, token):
+        recorded.law_change_senders.append(_LawChangeSender(base_url, token))
+        return recorded.law_change_senders[-1]
+
+    monkeypatch.setattr(startup, "BackendLawChangeClient", law_change_sender)
     monkeypatch.setattr(startup, "build_parts", lambda: "pipeline-parts")
     monkeypatch.setattr(startup, "build_job", lambda parts, questions: recorded.jobs.append((parts, questions))
                         or _dummy.run_dummy_diagnosis)
@@ -89,10 +116,46 @@ def test_운영_부품의_법령_점검은_근거_문서를_받고_캐시를_정
     refresh()
     database.close()
 
-    assert production.refreshed == [(production.fetchers, startup.LAW_SOURCES,
-                                     {"select": startup.applied_version, "on_change": startup.log_law_changes}),
-                                    ("session-factory", ["customs.gw"])]
+    [(fetchers, sources, options), purged] = production.refreshed
+    assert (fetchers, sources, options["select"]) == (production.fetchers, startup.LAW_SOURCES, startup.applied_version)
+    assert purged == ("session-factory", ["customs.gw"])
     assert production.fetchers.closed is True
+
+
+def _refresh_on_change(production, database):
+    """예약 작업을 한 번 돌려 법령 점검에 넘긴 on_change를 꺼낸다."""
+    database.background[0]()
+    production.refresh[0]()
+    return production.refreshed[0][2]["on_change"]
+
+
+def test_법령_점검이_찾은_변경은_로그로_남기고_적용_판_변경만_BE로_보낸다(production, monkeypatch, caplog):
+    _init_db(monkeypatch)
+    on_change = _refresh_on_change(production, production.build().database)
+    version = LawVersion("291321", "20261020", "20260420", "일부개정")
+    source = ("어린이제품 안전 특별법 시행규칙", "012345", False, "children_product_safety", version)
+
+    with caplog.at_level("INFO", logger="app.db.law_changes"):
+        on_change([LawChange(LawChangeKind.APPLIED, *source, "280000"), LawChange(LawChangeKind.SKIPPED, *source)])
+
+    [sender] = production.law_change_senders
+    [request] = sender.requests
+    assert [(change.serial_number, change.previous_serial_number) for change in request.changes] == [
+        ("291321", "280000")]
+    assert isinstance(request.checked_on, date)
+    assert ("applied" in caplog.text, "skipped" in caplog.text) == (True, True)
+
+
+def test_법령_변경_전송은_BE_주소와_내부_토큰을_쓰고_정리_때_닫는다(production, monkeypatch):
+    _init_db(monkeypatch)
+    settings = config.get_settings()
+
+    database = production.build().database
+    database.close()
+
+    [sender] = production.law_change_senders
+    assert (sender.base_url, sender.token) == (settings.be_base_url, settings.internal_api_token)
+    assert sender.closed is True
 
 
 def test_법령_점검용_조회_객체는_캐시_조회를_측정_기록으로_남기지_않는다(production, monkeypatch):
