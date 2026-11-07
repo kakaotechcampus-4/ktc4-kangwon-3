@@ -19,8 +19,8 @@ from xml.etree.ElementTree import ParseError
 from pydantic import ValidationError
 
 from ...clients.law import AdmrulSearchClient, AdmrulTextClient, LawSearchClient, LawTextClient
-from ...schemas.clients.law_request import LawSearchRequest, LawTextRequest
-from ...schemas.clients.law_response import (
+from ...clients.law.schemas.request import LawSearchRequest, LawTextRequest
+from ...clients.law.schemas.response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawSearchResponse, LawTextResponse,
 )
 from ...schemas.schemas import LegalSource

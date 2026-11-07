@@ -2,7 +2,7 @@
 
 from app.eval.annex_file_runner import TARGETS, dump_name, select_annex
 from app.eval.annex_scoring import ANNEX_TRUTH_DIR
-from app.schemas.clients.law_response import LawAnnex
+from app.clients.law.schemas.response import LawAnnex
 
 
 def test_덤프_이름은_정답_파일_이름과_같은_규칙이다():
