@@ -2,7 +2,8 @@ import * as Sentry from '@sentry/react'
 import { useEffect } from 'react'
 import { BrowserRouter, Route,Routes } from 'react-router-dom'
 
-import { reissueAccessToken } from './api/client.ts'
+import { reissueAccessToken } from '@/api/core/client.ts'
+
 import ProtectedRoute from './components/common/ProtectedRoute/index.tsx'
 import Layout from './components/layout/Layout.tsx'
 import JudgementPage from './pages/Judgement/index.tsx'

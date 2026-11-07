@@ -1,4 +1,4 @@
-import { type ProcessingStatusType, type ResultStatus, type SourceType } from "@/api/types";
+import { type ProcessingStatusType, type ResultStatus, type SourceType } from "@/api/types/common";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES, SOURCE_TYPE_INFO } from "@/constants/statusBadges";
