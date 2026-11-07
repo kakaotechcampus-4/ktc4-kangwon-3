@@ -92,6 +92,56 @@ class LawAmendmentProductRepositoryTest {
         assertThat(lawAmendmentRepository.count()).isOne();
     }
 
+    @Test
+    @DisplayName("회원의 재확인 대상 상품만 법령 변경과 함께 조회한다.")
+    void findWithLawAmendmentAndProductByUserId_thenOnlyOfUser() {
+        // given
+        UUID userId = UUID.randomUUID();
+        LawAmendment lawAmendment = lawAmendmentRepository.save(createLawAmendment());
+        Product mine = saveProduct(userId, "내 상품");
+        Product others = saveProduct(UUID.randomUUID(), "남의 상품");
+        lawAmendmentProductRepository.save(LawAmendmentProduct.of(lawAmendment, mine));
+        lawAmendmentProductRepository.save(LawAmendmentProduct.of(lawAmendment, others));
+        flushAndClear();
+
+        // when
+        List<LawAmendmentProduct> result = lawAmendmentProductRepository.findWithLawAmendmentAndProductByUserId(userId);
+
+        // then
+        assertThat(result).singleElement().satisfies(recheckProduct -> {
+            assertThat(recheckProduct.getProduct().getProductName()).isEqualTo("내 상품");
+            assertThat(recheckProduct.getLawAmendment().getLawName()).isEqualTo("어린이제품 안전 특별법 시행규칙");
+        });
+    }
+
+    @Test
+    @DisplayName("상품의 재확인 연결을 지우면 다른 상품의 연결은 남는다.")
+    void deleteByProductId_thenOnlyOfProduct() {
+        // given
+        LawAmendment lawAmendment = lawAmendmentRepository.save(createLawAmendment());
+        Product target = saveProduct(UUID.randomUUID(), "재진단할 상품");
+        Product other = saveProduct(UUID.randomUUID(), "그대로 둘 상품");
+        lawAmendmentProductRepository.save(LawAmendmentProduct.of(lawAmendment, target));
+        lawAmendmentProductRepository.save(LawAmendmentProduct.of(lawAmendment, other));
+        flushAndClear();
+
+        // when
+        int deleted = lawAmendmentProductRepository.deleteByProductId(target.getId());
+
+        // then
+        assertThat(deleted).isOne();
+        assertThat(lawAmendmentProductRepository.findAll())
+                .extracting(recheckProduct -> recheckProduct.getProduct().getId())
+                .containsExactly(other.getId());
+    }
+
+    private Product saveProduct(UUID userId, String productName) {
+        Diagnoses diagnoses = Diagnoses.pending(userId);
+        diagnoses.addProducts(List.of(Product.pending(
+                productName, null, SourceType.URL, "https://ko.aliexpress.com/item/100500628491", null)));
+        return diagnosesRepository.save(diagnoses).getProducts().getFirst();
+    }
+
     private Product saveProduct() {
         Diagnoses diagnoses = Diagnoses.pending(UUID.randomUUID());
         diagnoses.addProducts(List.of(Product.pending(
