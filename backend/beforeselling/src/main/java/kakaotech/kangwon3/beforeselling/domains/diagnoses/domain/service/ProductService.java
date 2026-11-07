@@ -304,6 +304,13 @@ public class ProductService {
         return productRepository.findIdsByResumePending(PageRequest.of(0, limit));
     }
 
+    /**
+     * 법령 변경 재확인 대상 조회. 그 분야 검토에서 해당 법령을 근거로 인용한, 결과가 나온 상품을 가져온다.
+     */
+    public List<Product> findCompletedByToolNameAndCitedLawName(ToolName toolName, String lawName) {
+        return productRepository.findCompletedByToolNameAndCitedLawName(toolName, lawName);
+    }
+
     // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.
     private String normalizeKeyword(String keyword) {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;
