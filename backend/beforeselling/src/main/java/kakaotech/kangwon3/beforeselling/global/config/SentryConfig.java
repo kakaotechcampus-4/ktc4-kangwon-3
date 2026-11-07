@@ -15,10 +15,18 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.ErrorResponse;
 import io.sentry.SentryBaseEvent;
 import io.sentry.protocol.Request;
+import io.sentry.util.HttpUtils;
+import kakaotech.kangwon3.beforeselling.global.security.cookie.RefreshTokenCookieProvider;
 import kakaotech.kangwon3.beforeselling.global.security.filter.InternalTokenFilter;
+import org.springframework.http.HttpHeaders;
+
+import java.util.List;
+import java.util.Map;
 
 @Configuration
 public class SentryConfig {
+
+    private static final List<String> TOKEN_HEADERS = List.of(InternalTokenFilter.HEADER_NAME, HttpHeaders.AUTHORIZATION);
 
     // 4xx은 클라이언트 요청 문제라 모두 노이즈로 보고 차단하고, 5xx만 전송
     // exception-resolver-order를 최우선으로 두어 GlobalExceptionHandler보다 먼저 예외를 캡처
@@ -29,16 +37,16 @@ public class SentryConfig {
             if (status != null && status.is4xxClientError()) {
                 return null;
             }
-            removeInternalToken(event);
+            removeTokens(event);
             return event;
         };
     }
 
-    // 트레이스(traces-sample-rate)에도 요청 헤더가 실리므로 같은 헤더를 지운다.
+    // 트레이스(traces-sample-rate)에도 요청 헤더가 실리므로 같은 토큰을 지운다.
     @Bean
     public SentryOptions.BeforeSendTransactionCallback sentryBeforeSendTransactionCallback() {
         return (transaction, _) -> {
-            removeInternalToken(transaction);
+            removeTokens(transaction);
             return transaction;
         };
     }
@@ -60,12 +68,22 @@ public class SentryConfig {
         };
     }
 
-    // send-default-pii로 요청 헤더가 전송되는데, Sentry 기본 마스킹은 X-Internal-Token을 모름
-    private static void removeInternalToken(SentryBaseEvent event) {
+    // send-default-pii로 요청 헤더·쿠키가 그대로 전송되므로 토큰만 제거
+    private static void removeTokens(SentryBaseEvent event) {
         Request request = event.getRequest();
-        if (request == null || request.getHeaders() == null) {
+        if (request == null) {
             return;
         }
-        request.getHeaders().keySet().removeIf(InternalTokenFilter.HEADER_NAME::equalsIgnoreCase);
+        request.setCookies(maskRefreshToken(request.getCookies()));
+        Map<String, String> headers = request.getHeaders();
+        if (headers == null) {
+            return;
+        }
+        headers.keySet().removeIf(name -> TOKEN_HEADERS.stream().anyMatch(name::equalsIgnoreCase));
+        headers.replaceAll((name, value) -> HttpHeaders.COOKIE.equalsIgnoreCase(name) ? maskRefreshToken(value) : value);
+    }
+
+    private static String maskRefreshToken(String cookies) {
+        return HttpUtils.filterOutSecurityCookies(cookies, List.of(RefreshTokenCookieProvider.COOKIE_NAME));
     }
 }

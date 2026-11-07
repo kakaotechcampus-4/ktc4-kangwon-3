@@ -838,3 +838,46 @@ def test_재실행_요청된_Tool도_동시에_실행한다():
 
     assert [item.tool_name for item in result.tool_result_history] == requested
     assert all(item.status is ToolStatus.SUCCESS and item.retry_round == 1 for item in result.tool_result_history)
+
+
+def test_Tool_hook은_동시_실행에서도_선택된_Tool마다_그_실행_스레드에서_불린다():
+    selected = [ToolName.CUSTOMS, ToolName.ELECTRICAL, ToolName.LABEL_AD]
+    meet = _meeting(len(selected))
+    tools = {name: _StubTool(name, meet) for name in ToolName}
+    calls: list[tuple[ToolName, str]] = []
+    lock = threading.Lock()
+
+    def hook(tool_name, call):
+        result = call()
+        with lock:
+            calls.append((tool_name, threading.current_thread().name))
+        return result
+
+    result = ToolExecutor(tools, tool_hook=hook).execute_initial(Product(product_id="p1"), _selection(*selected))
+
+    # 미선택 Tool은 안 불림
+    assert sorted(name for name, _ in calls) == sorted(selected)
+    assert all(thread.startswith("tool") for _, thread in calls)
+    assert [item.status for item in result.tool_results if item.tool_name in selected] == [ToolStatus.SUCCESS] * 3
+
+
+def test_Tool_hook이_바꿔치기한_값을_결과로_검증하고_hook_예외는_실패_결과가_된다():
+    replaced = ToolResult(
+        tool_name=ToolName.RADIO, status=ToolStatus.PARTIAL, selected=True, selection_reason="hook 결과",
+    )
+
+    def hook(tool_name, call):
+        if tool_name is ToolName.CHILDREN:
+            raise RuntimeError("hook 실패")
+        return replaced if tool_name is ToolName.RADIO else call()
+
+    tools = _tools()
+    result = ToolExecutor(tools, max_parallel=1, tool_hook=hook).execute_initial(
+        Product(product_id="p1"), _selection(ToolName.RADIO, ToolName.CHILDREN, ToolName.CUSTOMS),
+    )
+
+    statuses = {item.tool_name: item.status for item in result.tool_results}
+    assert statuses[ToolName.RADIO] is ToolStatus.PARTIAL
+    assert statuses[ToolName.CHILDREN] is ToolStatus.FAILED
+    assert statuses[ToolName.CUSTOMS] is ToolStatus.SUCCESS
+    assert tools[ToolName.RADIO].calls == []

@@ -25,7 +25,7 @@
 | §7.1.3 공개 진단서 | 구현됨 (#405·#320) | `app/schemas/callback.py`, `app/results/` |
 | §7.1.4 진단 접수·재진단 요청 | 구현됨 (#402·#320) | `app/schemas/request.py`, `app/routers/diagnose.py` |
 
-- `/diagnose`는 실제 파이프라인으로 진단한다(#320, `app/diagnosis/`). 샌드박스(`/sandbox`)도 같은 파이프라인을 쓰고 상품 수·동시 실행은 3개까지다. BE 연동 확인용 케이스 더미는 `/dummy`(`main.py`).
+- `/diagnose`는 실제 파이프라인으로 진단한다(#320, `app/diagnosis/`). 샌드박스(`/sandbox`)도 같은 파이프라인을 쓰고 상품 수·동시 실행은 3개까지다. BE 연동 확인용 케이스 더미는 `/dummy`(`startup/parts.py`).
 - 기존 [제안 문서](OBSERVABILITY_AND_ERROR_HANDLING.md)는 논의 이력으로 보존한다. 구현 시 이 문서와 제안 문서를 섞어 적용하지 않는다.
 - 내부 Python 필드명은 snake_case를 사용한다. BE API DTO의 alias 규칙은 별도 API 계약을 따른다.
 
@@ -581,7 +581,7 @@ class ExecutionEvent(BaseModel):
 질문 `PublicQuestionDto`: `questionKey`(≤50자), `questionOrder`(1부터), `questionText`, `helpText`.
 
 - 질문 키는 회차·순서로 만든다: `r{회차}_q{순서}`(예: `r1_q1`). 같은 문장은 한 번만, 꼭 필요한 질문을 앞에 두고 검증이 준 이유를 `helpText`로 보낸다(`app/diagnosis/questions.py`).
-- 재실행 회차에는 Tool 실행·집계·검증 단계 알림이 다시 나간다. Tool 진행은 다시 실행하는 Tool만 started·completed를 다시 보내고 skipped는 다시 보내지 않는다(`app/diagnosis/job.py`).
+- 재실행 회차에는 Tool 실행·집계·검증 단계 알림이 다시 나간다. Tool 진행은 다시 실행하는 Tool만 started·completed를 다시 보내고 skipped는 다시 보내지 않는다(`app/diagnosis/progress.py`).
 - 질문은 최대 2회차. 2회차에는 1회차에 없던 새 키만 묻는다. 재진단 요청은 이번 회차 질문에 **모두** 답해야 한다(아니면 422).
 - `toolName`·카드의 분야 이름은 BE `ToolName` 값: `CUSTOMS`, `CHILDREN`, `ELECTRICAL`, `RADIO`, `FOOD_DRUG`, `LABEL_AD`.
 - 처음 제안과 달라진 점: 이벤트별 `status`·`retryRound`·`assessmentId`·`terminationReason`·`verificationStatus` 삭제, `runId` 추가, 질문 형식이 키·순서 기반으로 바뀜, 결과 콜백이 진단서를 직접 담음.

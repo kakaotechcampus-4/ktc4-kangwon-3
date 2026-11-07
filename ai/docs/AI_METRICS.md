@@ -11,7 +11,7 @@ AI 서버가 `GET /metrics`로 내보내는 Prometheus 지표와 어디서 재�
   - 측정 기록: `measurement_sinks`(`app/observability/measurements.py`) → `MeasurementMetrics`. 에이전트 실행 기록은 `agent_sinks` → `AgentMetrics`
 - 현황 값(세션 수·자리·콜백 대기 수)은 수집(scrape) 때마다 읽음 (`SessionSnapshotCollector`, `CallbackOutboxCollector`)
 - sink 오류는 오류 로그(ERROR)만 남기고 기록을 남긴 쪽 동작에 영향 없음
-- Counter·Histogram의 `_created`(처음 만든 시각) 시계열은 내보내지 않음 (`main.py`의 `disable_created_metrics()`)
+- Counter·Histogram의 `_created`(처음 만든 시각) 시계열은 내보내지 않음 (`startup/lifespan.py`의 `disable_created_metrics()`)
 - 값이 정해진 라벨 조합(세션 결말·단계, Tool 진행 알림, 콜백 결과·버린 사유·재시도, Tool 상태·실패 원인·판단 항목, 판매자 구역 자르기, 외부 API 결과, 캐시 조회, 정기 작업 결과, 법령 변경)은 처음부터 0으로 만들어 둠. 처음 기록될 때 생기면 `increase()`·`rate()`가 첫 기록을 못 셈. 모델 이름·라우트·오류 코드처럼 값이 정해지지 않은 라벨은 미리 못 만듦 → 대시보드 식으로 셈 (아래)
 - 서버에서는 모니터링 스택(`infra/monitoring`)의 Prometheus가 `be-ai-net`으로 `ai-server:8000/metrics`를 15초마다 수집 (job `ai-app`)
 - Grafana 대시보드는 "AI 서버 개요" (`infra/monitoring/grafana/dashboards/ai-overview.json`). 모델 호출·Tool·외부 API·콜백·캐시 지표엔 `run_type`이 없어 실행 종류 선택이 세션 지표에만 먹음
@@ -28,7 +28,7 @@ AI 서버가 `GET /metrics`로 내보내는 Prometheus 지표와 어디서 재�
   - 1줄: 평소. 직전 수집과의 차이. 그 사이 재시작했으면 건너뜀
   - 2줄: 직전 수집이 실패해 비었을 때. 5분 안 마지막 값과의 차이. 직전 수집은 됐는데 시계열만 없었으면(이 프로세스에서 새로 생김) 또는 마지막 수집 뒤 재시작했으면 건너뜀
   - 3줄: 그 밖(처음 생긴 시계열, 재시작, 값이 줄어듦)은 지금 값을 그대로 셈. `+ 0`: 이름 있는·없는 시계열이 섞여 나는 오류 방지
-  - `p`는 AI(`main.py`의 `ProcessCollector`)와 BE(Spring 기본)가 내보냄. 없으면 재시작을 못 알아봄 (값이 줄어든 재시작만 3줄로 셈)
+  - `p`는 AI(`observability/metrics.py` `app_metrics()`의 `ProcessCollector`)와 BE(Spring 기본)가 내보냄. 없으면 재시작을 못 알아봄 (값이 줄어든 재시작만 3줄로 셈)
   - `15s`는 `ai-app`·`be-app` 수집 간격. 수집 간격을 바꾸면 식의 `15s`도 같이 바꿈
   - 한계: 마지막 수집과 서버 종료 사이의 기록, 종료 때 재시도 중이던 콜백은 지표에 안 남음
   - 한계: 재시작 없이 수집이 5분 넘게 끊기면 그때 누적값 전체를 셈

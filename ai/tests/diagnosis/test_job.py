@@ -1,33 +1,30 @@
 """실제 진단 함수를 모델·외부 호출 없이 검증한다. 파이프라인은 단계를 차례로 부르는 가짜로 바꿈."""
 
-import re
+import logging
 import time
 from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
-from app.tools.customs import CustomsToolError
 from app.agents.verification import VerificationError
-from app.clients.errors import ClientError
 from app.config.session import MAX_PARALLEL_TOOLS
 from app.diagnosis import job as job_module
 from app.observability.logs import current_run_fields, run_log_context
-from app.observability.trace import trace_note, trace_run, trace_step
+from app.observability.trace import trace_run, trace_step
 from app.diagnosis.assembly import PipelineParts
-from app.diagnosis.job import _alias_ids, _reporting_tools, _ToolExecution, build_job
+from app.diagnosis.job import build_job
 from app.diagnosis.replay import ReplayStopped, StageReplay
 from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.domain.errors import AIResponseCode, AIServiceError
 from app.dummy.cases import CASES, DummyCaseName
-from app.pipeline.tool_executor import ToolExecutor
 from app.schemas.agent import ExtractionInput, ToolSelectionItem, ToolSelectionResponse
 from app.schemas.callback import PublicQuestionDto
-from app.schemas.pipeline import RetryRequest, SelectionResult
+from app.schemas.pipeline import SelectionResult
 from app.schemas.product import Product
 from app.schemas.schemas import (
-    DraftAssessment, ExecutionEndReason, FinalVerificationStatus, FollowUpQuestion, ToolName, ToolResult, ToolStatus,
-    VerificationIssue, VerificationResult, VerificationStatus,
+    ExecutionEndReason, FinalVerificationStatus, FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationResult,
+    VerificationStatus,
 )
 from app.schemas.session import DiagnosisInput, SessionAnswer
 from app.sessions.job import JobDone, JobFailed, JobNeedsInput
@@ -93,16 +90,22 @@ def pipeline(monkeypatch):
             return "retried"
 
     class _Pipeline:
-        def __init__(self, extractor, selector, tool_executor, aggregator, verifier):
+        def __init__(self, extractor, selector, tool_executor, aggregator, verifier, stage_hook):
             self.stages = (extractor, selector, tool_executor, aggregator, verifier)
+            self.hook = stage_hook
 
         def run(self, source):
             extractor, selector, executor, aggregator, verifier = self.stages
-            product = extractor.run(source)
-            selected = executor.execute_initial(product, selector.run(product))
-            state["verifications"].append(verifier.run(aggregator.aggregate(product, selected)))
-            retried = executor.execute_retry(product, selected, SimpleNamespace(retry_round=1))
-            state["verifications"].append(verifier.run(aggregator.aggregate(product, retried)))
+            hook = self.hook
+            product = hook("extraction", 0, lambda: extractor.run(source))
+            selection = hook("selection", 0, lambda: selector.run(product))
+            selected = hook("tool_execution", 0, lambda: executor.execute_initial(product, selection))
+            draft = hook("aggregation", 0, lambda: aggregator.aggregate(product, selected))
+            state["verifications"].append(hook("verification", 0, lambda: verifier.run(draft)))
+            retried = hook("tool_execution", 1,
+                           lambda: executor.execute_retry(product, selected, SimpleNamespace(retry_round=1)))
+            draft = hook("aggregation", 1, lambda: aggregator.aggregate(product, retried))
+            state["verifications"].append(hook("verification", 1, lambda: verifier.run(draft)))
             return state["result"]
 
     monkeypatch.setattr(job_module, "ToolExecutor", _Executor)
@@ -125,16 +128,6 @@ def test_단계마다_진행_알림을_보내고_재실행_회차도_다시_알�
         S.EXTRACTION, S.SELECTION, S.TOOL_EXECUTION, S.AGGREGATION, S.VERIFICATION,
         S.TOOL_EXECUTION, S.AGGREGATION, S.VERIFICATION, S.FINALIZATION,
     ]
-
-
-def test_추출은_원래_입력이_아니라_실행_입력_전체로_부른다(pipeline):
-    calls = []
-    job_input = DiagnosisInput(source=SOURCE, previous=_result(), answers=[
-        SessionAnswer(question_round=1, question_key="r1_q1", answer_text="네")])
-
-    build_job(_parts(calls), _no_questions)(job_input, CONTEXT, _Progress())
-
-    assert calls[0] == ("extract", (job_input,))
 
 
 def test_재진단은_추출_결과에_이번_회차_답변을_붙여_선택_단계로_넘긴다(pipeline):
@@ -226,15 +219,45 @@ def test_두_회차_전에_물은_질문도_상품_정보의_답변_줄로_찾�
     assert outcome.result.termination_reason is ExecutionEndReason.COMPLETED
 
 
-def test_Tool_실행기는_조립한_Tool을_진행_알림으로_감싸_실행마다_만든다(pipeline):
-    tool = _FakeTool(ToolName.RADIO)
+def test_Tool_실행기는_조립한_Tool과_진행_알림·실패_로그_hook으로_실행마다_만든다(pipeline, caplog):
     parts = _parts([])
-    parts.tools[ToolName.RADIO] = tool
+    parts.tools[ToolName.RADIO] = _FakeTool(ToolName.RADIO)
+    progress = _Progress()
 
-    build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+    build_job(parts, _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, progress)
 
-    wrapped = pipeline["executor_tools"][ToolName.RADIO]
-    assert (wrapped._tool, wrapped.tool_name) == (tool, ToolName.RADIO)
+    assert pipeline["executor_tools"] is parts.tools
+    hook = pipeline["executor_options"]["tool_hook"]
+    failing = _FakeTool(ToolName.RADIO, failing=True)
+    with pytest.raises(RuntimeError):
+        hook(ToolName.RADIO, lambda: failing.execute(None, None))
+    assert progress.tools == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
+    assert [r.getMessage() for r in caplog.records if r.getMessage().startswith("Tool 실행 실패")] == [
+        f"Tool 실행 실패 {ToolName.RADIO}: RuntimeError: 조회 실패"]
+
+
+def test_Tool_실패_로그는_시작과_완료_알림_사이에_남는다(pipeline):
+    events = []
+
+    class _EventProgress(_Progress):
+        def tool(self, tool_name, status):
+            events.append(status)
+
+    # 실패 로그를 진행 알림과 같은 목록에
+    handler = logging.Handler()
+    handler.emit = lambda record: events.append(record.getMessage())
+    run_log = logging.getLogger("app.diagnosis.run_log")
+    run_log.addHandler(handler)
+    try:
+        build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _EventProgress())
+        hook = pipeline["executor_options"]["tool_hook"]
+        failing = _FakeTool(ToolName.RADIO, failing=True)
+        with pytest.raises(RuntimeError):
+            hook(ToolName.RADIO, lambda: failing.execute(None, None))
+    finally:
+        run_log.removeHandler(handler)
+
+    assert events == ["started", f"Tool 실행 실패 {ToolName.RADIO}: RuntimeError: 조회 실패", "completed"]
 
 
 def test_단계가_정한_실패는_코드와_재시도_여부를_그대로_실패로_돌려준다(pipeline):
@@ -322,6 +345,25 @@ def test_재실행_회차부터는_로그_줄에_회차가_붙는다(pipeline):
     assert [fields.get("retry_round") for fields in seen] == [None, "1"]
 
 
+def test_재실행_회차의_단계_알림은_로그_줄에_회차가_붙은_뒤에_나간다(pipeline):
+    # 단계 알림 경로(세션 상태 변경·콜백)에서 남는 로그 줄에도 회차 표시
+    seen = []
+
+    class _FieldProgress(_Progress):
+        def stage(self, stage):
+            seen.append((stage, current_run_fields().get("retry_round")))
+
+    with run_log_context(CONTEXT):
+        build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _FieldProgress())
+
+    S = PipelineStage
+    assert seen == [
+        (S.EXTRACTION, None), (S.SELECTION, None), (S.TOOL_EXECUTION, None), (S.AGGREGATION, None),
+        (S.VERIFICATION, None), (S.TOOL_EXECUTION, "1"), (S.AGGREGATION, "1"), (S.VERIFICATION, "1"),
+        (S.FINALIZATION, "1"),
+    ]
+
+
 def test_예상_밖_예외는_그대로_올려_세션이_파이프라인_오류로_기록하게_한다(pipeline):
     with pytest.raises(RuntimeError):
         build_job(_parts([], extraction_error=RuntimeError("버그")), _no_questions)(
@@ -362,111 +404,22 @@ class _FakeTool:
                           selection_reason=decision.reason)
 
 
-def _executor(progress, failing=frozenset()):
-    tools = {name: _FakeTool(name, failing=name in failing) for name in ToolName}
-    return _ToolExecution(ToolExecutor(_reporting_tools(tools, progress)), progress)
-
-
 def _selection(selected):
     return ToolSelectionResponse(decisions=[
         ToolSelectionItem(tool_name=name, selected=name in selected, reason="이유") for name in ToolName])
 
 
-def test_첫_실행은_선택한_Tool마다_시작·완료를_보내고_나머지는_건너뜀을_보낸다():
-    progress = _Progress()
-
-    _executor(progress).execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
-    assert sorted(progress.tools[2:]) == sorted((name, "skipped") for name in ToolName if name is not ToolName.RADIO)
-
-
-def test_Tool이_예외를_내도_완료를_보내고_결과는_실패로_남는다():
-    progress = _Progress()
-
-    result = _executor(progress, failing={ToolName.RADIO}).execute_initial(
-        Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    assert progress.tools[:2] == [(ToolName.RADIO, "started"), (ToolName.RADIO, "completed")]
-    radio = next(r for r in result.tool_results if r.tool_name is ToolName.RADIO)
-    assert radio.status is ToolStatus.FAILED
-
-
-class _RaisingTool:
-    def __init__(self, tool_name, error):
-        self.tool_name = tool_name
-        self.error = error
-
-    def execute(self, product, decision):
-        raise self.error
-
-
-@pytest.mark.parametrize(("error", "level", "traceback"), [
-    (ClientError("응답 없음 https://apis.data.go.kr/x?serviceKey=SECRET&page=1"), "WARNING", False),
-    (RuntimeError("버그"), "ERROR", True),
-])
-def test_Tool_실패는_원인을_남기고_예상한_오류는_위치_없이_코드_오류는_위치까지_남긴다(caplog, error, level, traceback):
-    tools = {name: _RaisingTool(name, error) for name in ToolName}
-    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools, _Progress())), _Progress())
-
-    execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    [record] = [r for r in caplog.records if r.name == "app.diagnosis.job"]
-    assert record.levelname == level
-    assert record.getMessage().startswith(f"Tool 실행 실패 {ToolName.RADIO}: {type(error).__name__}: ")
-    assert "SECRET" not in record.getMessage()
-    assert (record.exc_info is not None) is traceback
-
-
-
-def test_Tool_실패_로그에_감싼_원인까지_남긴다(caplog):
-    # 통관 Tool은 요건 조회의 모든 예외를 "세관장확인 요건 조회에 실패했습니다"로 감싼다.
-    # 바깥 문장만 남으면 서버에서 실제 원인(시간 초과·연결 실패 등)을 알 수 없다.
-    try:
-        try:
-            raise ClientError("연결 실패 https://apis.data.go.kr/x?serviceKey=SECRET")
-        except ClientError as cause:
-            raise CustomsToolError("세관장확인 요건 조회에 실패했습니다.") from cause
-    except CustomsToolError as wrapped:
-        error = wrapped
-    tools = {name: _RaisingTool(name, error) for name in ToolName}
-    execution = _ToolExecution(ToolExecutor(_reporting_tools(tools, _Progress())), _Progress())
-
-    execution.execute_initial(Product(product_id="p-1"), _selection({ToolName.CUSTOMS}))
-
-    [record] = [r for r in caplog.records if r.name == "app.diagnosis.job"]
-    message = record.getMessage()
-    assert message.startswith(f"Tool 실행 실패 {ToolName.CUSTOMS}: CustomsToolError: 세관장확인 요건 조회에 실패했습니다.")
-    assert "← ClientError: 연결 실패" in message
-    assert "SECRET" not in message
-
-def test_재실행_회차는_다시_실행하는_Tool만_시작·완료를_보내고_건너뜀은_다시_보내지_않는다():
-    progress = _Progress()
-    execution = _executor(progress)
-    product = Product(product_id="p-1")
-    first = execution.execute_initial(product, _selection({ToolName.RADIO}))
-    progress.tools.clear()
-    verification = VerificationResult(status=VerificationStatus.TOOLS_REQUIRED,
-                                      additional_tools_required=[ToolName.CUSTOMS])
-    request = RetryRequest(retry_round=1, requested_tools=[ToolName.CUSTOMS], verification=verification,
-                           latest_tool_results=first.tool_results)
-
-    execution.execute_retry(product, first, request)
-
-    assert progress.tools == [(ToolName.CUSTOMS, "started"), (ToolName.CUSTOMS, "completed")]
-
-
 def test_기록_중이_아니면_Tool을_병렬_상한까지_동시에_실행한다(pipeline):
     build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
-    assert pipeline["executor_options"] == {"max_parallel": MAX_PARALLEL_TOOLS}
+    assert pipeline["executor_options"]["max_parallel"] == MAX_PARALLEL_TOOLS
 
 
 def test_기록_중이면_Tool을_순차로_실행한다(pipeline, tmp_path):
     with trace_run(tmp_path):
         build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
-    assert pipeline["executor_options"] == {"max_parallel": 1}
+    assert pipeline["executor_options"]["max_parallel"] == 1
 
 
 class _TracingTool:
@@ -486,13 +439,15 @@ def test_기록_중에는_Tool_단계가_서로_안에_들어가지_않고_나�
     selected = {ToolName.CUSTOMS, ToolName.ELECTRICAL, ToolName.RADIO}
 
     class _Pipeline:
-        def __init__(self, extractor, selector, tool_executor, aggregator, verifier):
+        def __init__(self, extractor, selector, tool_executor, aggregator, verifier, stage_hook):
             self.stages = (extractor, selector, tool_executor)
+            self.hook = stage_hook
 
         def run(self, source):
             extractor, selector, executor = self.stages
-            product = extractor.run(source)
-            executor.execute_initial(product, selector.run(product))
+            product = self.hook("extraction", 0, lambda: extractor.run(source))
+            selection = self.hook("selection", 0, lambda: selector.run(product))
+            self.hook("tool_execution", 0, lambda: executor.execute_initial(product, selection))
             return _result()
 
     monkeypatch.setattr(job_module, "CompliancePipeline", _Pipeline)
@@ -506,48 +461,6 @@ def test_기록_중에는_Tool_단계가_서로_안에_들어가지_않고_나�
     tools = tool_execution["steps"]
     assert sorted(step["tool"] for step in tools) == sorted(name.value for name in selected)
     assert all(step["kind"] == "tool" and "steps" not in step for step in tools)
-
-
-UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-
-
-def test_기록_중이면_Tool_실행_ID를_실행_안_번호로_바꿔_저장한다(tmp_path):
-    with trace_run(tmp_path):
-        _executor(_Progress()).execute_initial(Product(product_id="p-1"), _selection({ToolName.RADIO}))
-
-    text = (tmp_path / "run-1.json").read_text(encoding="utf-8")
-    assert UUID.search(text) is None
-    assert '"execution_id": "e1"' in text
-
-
-def test_진단서·검증_지적·재질문_ID도_실행_안_번호로_바꾸고_같은_ID는_같은_번호다(tmp_path):
-    assessment_id, first_issue, second_issue = "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"
-    question_id = "44444444-4444-4444-8444-444444444444"
-    question = FollowUpQuestion.model_construct(question_id=question_id)
-    draft = DraftAssessment.model_construct(assessment_id=assessment_id, follow_up_questions=[question])
-    verification = VerificationResult.model_construct(issues=[
-        VerificationIssue.model_construct(issue_id=first_issue), VerificationIssue.model_construct(issue_id=second_issue)],
-        follow_up_questions=[question])
-
-    with trace_run(tmp_path):
-        with trace_step("verification"):
-            _alias_ids(draft)
-            _alias_ids(verification)
-            _alias_ids(draft)
-            trace_note("output", [assessment_id, first_issue, second_issue, question_id])
-
-    text = (tmp_path / "run-1.json").read_text(encoding="utf-8")
-    assert UUID.search(text) is None
-    assert all(f'"{alias}"' in text for alias in ("a1", "i1", "i2", "q1"))
-    assert '"a2"' not in text and '"q2"' not in text
-
-
-def test_기록_중이_아니면_ID를_그대로_둔다():
-    draft = DraftAssessment.model_construct(assessment_id="11111111-1111-4111-8111-111111111111")
-
-    _alias_ids(draft)
-
-    assert draft.assessment_id == "11111111-1111-4111-8111-111111111111"
 
 
 def test_기록_중이면_단계마다_trace_단계를_열고_나온_값과_재실행_회차를_남긴다(pipeline, tmp_path):
@@ -581,6 +494,20 @@ def test_검증_단계가_실패하면_검증_trace_단계에_원인을_남긴�
         "verification", AIResponseCode.PIPELINE_ERROR.value.code, True)
     assert recorder.finish["error"]["cause"]["type"] == "VerificationError"
     assert recorder.finish["at"]["step"] == verification["id"]
+
+
+def test_검증_모델이_실패해_규칙_결과로_진행하면_검증_trace_단계에_실패_원인과_규칙_결과를_남긴다(pipeline, tmp_path):
+    rules = VerificationResult(status=VerificationStatus.APPROVED, checked_finding_ids=[])
+    error = VerificationError("검토 범위가 입력과 다릅니다.", partial_result=rules)
+
+    with trace_run(tmp_path) as recorder:
+        build_job(_parts([], verification_error=error), _no_questions)(
+            DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    verification = next(step for step in recorder.steps if step["kind"] == "verification")
+    assert "검토 범위가 입력과 다릅니다." in verification["model_review_error"]
+    assert verification["output"]["status"] == VerificationStatus.REVISION_REQUIRED.value
+    assert "error" not in verification
 
 
 def test_끝까지_돈_실행은_종료_이유와_최종_결과를_결말로_남긴다(pipeline, tmp_path):
@@ -639,4 +566,7 @@ def test_하나만_다시_실행하면_시작_단계를_마치고_멈춘다(pipe
 
     assert [name for name, _ in calls] == ["select"]
     assert [step["kind"] for step in recorder.steps] == ["extraction", "selection"]
+    # 단계 trace가 닫힌 뒤 멈춤 → 시작 단계는 실패 없이 output까지
+    assert recorder.steps[-1]["output"] == "select"
+    assert "error" not in recorder.steps[-1]
     assert recorder.finish == {"reason": "stopped", "stage": "selection"}

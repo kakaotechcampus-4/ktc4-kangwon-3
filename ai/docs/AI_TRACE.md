@@ -182,3 +182,4 @@ jq '.steps[] | select(.kind == "selection") | .output' logs/traces/kc-fan/run-1.
 - 저장한 결과는 그때 스키마 모양. 스키마가 바뀐 뒤 옛 trace로 단계 다시 실행하면 읽기 오류
 - 재진단 · 단계 다시 실행은 이전 결과를 trace 파일에서 읽어 판단 · 진단서 ID 등이 이미 `f1`, `a1`처럼 번호. 새 실행은 그 번호 다음부터 셈 (이전 `f5`까지면 새 판단은 `f6`부터)
 - 이미지 자르기 기록(`app/diagnosis/tracing.py`)은 `ImageSplitter`의 내부 메서드(`_tiles`)·값(`_max_tiles`)에 기대고, 상한 판단을 같은 순서로 다시 셈. `ImageSplitter`를 바꾸면 같이 확인
+- 파이프라인 단계 기록은 단계 hook(`app/diagnosis/tracing.py`·`replay.py`)으로 붙임. 묶는 순서는 `app/diagnosis/job.py`의 `_stage_hooks` 한 곳 (진행 알림 → 다시 실행 멈춤 → trace → 다시 실행 건너뛰기). 순서를 바꾸면 `replayed` 표시·멈춤 결말 위치가 달라짐

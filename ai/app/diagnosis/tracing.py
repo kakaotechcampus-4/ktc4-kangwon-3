@@ -1,12 +1,69 @@
-"""진단 부품을 trace에 남기게 감싼 것. 기록 중이 아니면 원래 부품과 똑같이 동작함.
+"""진단을 trace에 남기는 것. 기록 중이 아니면 원래와 똑같이 동작함.
 
-부품 파일(pipeline/)은 고치지 않고, 조립(assembly.py)에서 감싼 부품을 넣음.
+- 단계 trace hook: 단계마다 trace 단계를 열고 나온 값(output)을 원래 모양 그대로 남김.
+  다음 단계의 입력은 앞 단계의 output이라 따로 안 남김 (추출 입력만 남김). 재실행 회차는 단계마다 round로.
+- 이미지 자르기: 부품 파일(pipeline/)은 고치지 않고, 조립(assembly.py)에서 감싼 부품을 넣음.
 """
 
+from collections.abc import Callable
 from contextvars import ContextVar
+from typing import TypeVar
 
-from ..observability.trace import current_trace, image_link, trace_note
+from ..observability.trace import current_trace, image_link, trace_alias, trace_note, trace_step
+from ..pipeline.hooks import StageName
 from ..pipeline.image_split import ImageSplitter
+from ..schemas.pipeline import SelectionResult
+from ..schemas.schemas import DraftAssessment, VerificationResult
+from ..schemas.session import DiagnosisInput
+
+T = TypeVar("T")
+
+# 재실행 회차가 없어 trace 단계에 round를 안 남기는 단계
+_FIRST_ROUND_ONLY = ("extraction", "selection")
+
+
+class TraceStageHook:
+    """단계마다 trace 단계를 열고 output을 남김. 추출 단계엔 실행 입력도."""
+
+    def __init__(self, job_input: DiagnosisInput) -> None:
+        """
+        Args:
+            job_input: 이번 실행 입력. 추출 단계 input으로 남김.
+        """
+        self._job_input = job_input
+
+    def __call__(self, stage: StageName, retry_round: int, call: Callable[[], T], /) -> T:
+        fields = {} if stage in _FIRST_ROUND_ONLY else {"round": retry_round}
+        with trace_step(stage, **fields):
+            if stage == "extraction":
+                trace_note("input", self._job_input)
+            result = call()
+            alias_ids(result)
+            trace_note("output", result)
+        return result
+
+
+def alias_ids(value: object) -> None:
+    """실행마다 달라지는 ID(uuid)를 trace 저장 때 실행 안 번호로 바꾸게 등록한다. 기록 중이 아니면 아무것도 안 함.
+
+    Tool 실행 ID는 e, 진단서 ID는 a, 검증 지적 ID는 i, 재질문 ID는 q (판단 ID f는 Tool 기록에서). 두 실행 diff 비교용.
+
+    Args:
+        value: 단계 결과 (Tool 실행 결과·종합 초안·검증 결과). 그 밖의 값은 무시.
+    """
+    if isinstance(value, SelectionResult):
+        for result in (*value.tool_results, *value.tool_result_history):
+            if result.execution_id:
+                trace_alias(result.execution_id, "e")
+    elif isinstance(value, DraftAssessment):
+        trace_alias(value.assessment_id, "a")
+        for question in value.follow_up_questions:
+            trace_alias(question.question_id, "q")
+    elif isinstance(value, VerificationResult):
+        for issue in value.issues:
+            trace_alias(issue.issue_id, "i")
+        for question in value.follow_up_questions:
+            trace_alias(question.question_id, "q")
 
 # prepare 한 번 동안 이미지마다 조각 수 (자르지 않으면 None). 여러 진단이 부품을 같이 써서 문맥 변수로
 _tile_counts: ContextVar[list[int | None] | None] = ContextVar("image_tile_counts", default=None)

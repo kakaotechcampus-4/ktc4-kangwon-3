@@ -9,10 +9,10 @@ from app.domain.context import ExecutionContext, PipelineStage, RunType
 from app.agents.base import AgentRunMeta
 from app.observability.measurements import (
     CacheLookup, CallbackOutcome, ClientCall, ClipIngestRun, HttpRequest, LawChangeFound, LawRefreshRun, SellerRegionCut,
-    ToolRun,
+    ToolRun, measurement_sinks,
 )
 from app.observability.metrics import (
-    AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector,
+    AgentMetrics, CallbackOutboxCollector, MeasurementMetrics, SessionMetrics, SessionSnapshotCollector, app_metrics,
 )
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
@@ -255,10 +255,36 @@ def test_콜백_결과를_종류와_결과별로_세고_버린_사유와_재시�
             value("ai_callback_retries_total", event_type="COMPLETED")) == (2, 5)
 
 
+class _Outbox:
+    def pending(self) -> int:
+        return 3
+
+
+class _SubscribedManager(_Manager):
+    def __init__(self):
+        self.subscribers = []
+
+    def subscribe(self, subscriber):
+        self.subscribers.append(subscriber)
+
+
+def test_앱_지표는_세션_현황·발신함을_읽고_안에서만_측정_기록을_센다():
+    manager = _SubscribedManager()
+    call = ClientCall(api="law", result="ok", seconds=0.5)
+
+    with pytest.raises(RuntimeError), app_metrics(manager, _Outbox()) as registry:
+        measurement_sinks.publish(call)
+        raise RuntimeError("기동 중 실패")
+    measurement_sinks.publish(call)
+
+    assert len(manager.subscribers) == 1
+    assert registry.get_sample_value("ai_callback_pending", {}) == 3
+    assert registry.get_sample_value("ai_session_slots_used", {"scope": "all"}) == 5
+    # 오류로 나가도 공용 sink에서 떼어 밖의 기록은 안 셈
+    assert registry.get_sample_value("ai_client_calls_total", {"api": "law", "result": "ok"}) == 1
+
+
 def test_수집_때_콜백_발신함_대기_수를_지표로_낸다():
-    class _Outbox:
-        def pending(self) -> int:
-            return 3
 
     registry = CollectorRegistry()
     registry.register(CallbackOutboxCollector(_Outbox()))
