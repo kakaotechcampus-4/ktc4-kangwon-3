@@ -65,13 +65,14 @@ set -a; source .env; set +a
 - FE 연결: 기본값이 `http://localhost:5173`을 CORS와 로그인 리다이렉트 주소로 허용합니다.
 - AI 연결: `AI_BASE_URL=http://localhost:8000`. `INTERNAL_API_TOKEN`이 AI와 같아야 AI의 콜백을 받습니다.
 - LLM 호출 없이 연동만 확인하려면 `.env`에 `AI_DIAGNOSE_PATH_PREFIX=/api/ai/v1/dummy`를 넣습니다. AI 서버는 띄워야 하고, 정해진 케이스로 콜백이 옵니다.
+- DB 스키마: `local`은 Hibernate가 스키마를 자동으로 맞춥니다(`ddl-auto: update`). 운영에 반영하려면 Flyway 마이그레이션이 필요합니다([배포와 운영](#배포와-운영)).
 
 ## 테스트
 
 ```bash
 ./gradlew test               # 단위
 ./gradlew integrationTest    # 통합(@Tag("integration"))
-./gradlew build              # 단위·통합과 합산 커버리지 리포트 (PR마다 CI)
+./gradlew build              # 단위·통합, 커버리지 리포트와 최소 기준 검사 (PR·develop push마다 CI)
 ```
 
 | 종류 | 검증 대상 |
@@ -87,17 +88,21 @@ set -a; source .env; set +a
 
 2026-11-05 기준
 
-작성 규칙과 도구는 위키 [테스트 가이드](../docs/wiki/테스트-가이드.md#be)에 있습니다.
+- 커버리지가 최소 기준에 못 미치면 빌드가 실패하고 배포도 막힙니다. 긴급 배포가 필요하면 Actions에서 `Backend CI/CD`를 수동 실행하고 `skip-coverage`를 켭니다.
+- 테스트 종류 선택 기준, 작성 규칙, 커버리지는 [BE 테스트 정책](docs/TEST_POLICY.md)에 있습니다. 파트 공통 도구는 위키 [테스트 가이드](../docs/wiki/테스트-가이드.md#be)에 있습니다.
 
 ## 배포와 운영
 
 - develop에 병합되면 [`backend.yml`](../.github/workflows/backend.yml)이 빌드 → ECR → EC2 Blue-Green 배포 → API 응답 확인까지 합니다. 절차와 롤백: [`deploy/README.md`](beforeselling/deploy/README.md)
 - 프로필: `local`(기본), `prod`, `test`(H2)
-- 모니터링: Grafana(응답시간·에러율·JVM), Sentry(5xx). 위키 [모니터링과 장애 대응](../docs/wiki/모니터링과-장애-대응.md)
+- DB 스키마: Flyway로 관리합니다(`src/main/resources/db/migration`). 운영은 `ddl-auto: validate`라, 스키마를 바꾸는 PR은 마이그레이션 SQL을 함께 올립니다. 작성 방법: [Flyway 마이그레이션 가이드](docs/guide/FLYWAY_MIGRATION_GUIDE.md)
+- 모니터링: Grafana(응답시간·에러율·JVM), Sentry(5xx, 새 이슈는 Discord 알림). 위키 [모니터링과 장애 대응](../docs/wiki/모니터링과-장애-대응.md)
 
 ## 더 보기
 
 - 코드 컨벤션: [`docs/CODE_CONVENTION.md`](docs/CODE_CONVENTION.md)
+- 테스트 정책: [`docs/TEST_POLICY.md`](docs/TEST_POLICY.md)
+- DB 마이그레이션: [`docs/guide/FLYWAY_MIGRATION_GUIDE.md`](docs/guide/FLYWAY_MIGRATION_GUIDE.md)
 - 상태 관리·인증 설계: 테크스펙 [아키텍처 설계](../docs/wiki/테크스펙.md#be-진단-상태-관리)
 - 장애 대응: 테크스펙 [BE 장애 대응](../docs/wiki/테크스펙.md#be-장애-대응)
 - 설계 결정과 이유: 테크스펙 [트레이드오프](../docs/wiki/테크스펙.md#트레이드오프)
