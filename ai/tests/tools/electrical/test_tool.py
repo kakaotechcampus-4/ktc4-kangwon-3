@@ -465,6 +465,7 @@ def test_구매대행_특례_품목이면_구매대행과_사입의_할_일을_�
 
 @pytest.mark.parametrize(("word", "particle"), [
     ("KC 안전인증", "을"), ("공급자적합성확인", "을"), ("KC 안전확인 신고", "를"), ("KC", "를"),
+    ("습기 차단.", "을"), ("습기 차단)", "을"), ("배터리.", "를"), ("...", "를"),
 ])
 def test_판매_안내의_목적격_조사는_받침에_따라_정한다(word, particle):
     assert object_particle(word) == particle

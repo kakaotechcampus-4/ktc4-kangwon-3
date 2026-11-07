@@ -46,6 +46,10 @@ def quote_matches(fact: QuotedFact, snippets: dict[str, str], *, value_in_quote:
     return not value_in_quote or (bool(compact(fact.value)) and compact(fact.value) in quote)
 
 
+# 인용 문구 끝에 붙는 문장부호. 조사는 그 앞 글자의 받침으로 정한다 (리뷰 #643: "'습기 차단.'를").
+_TRAILING_PUNCTUATION = " \t.,!?;:)]}'\"”’…·~"
+
+
 def object_particle(word: str) -> str:
     """목적격 조사. 마지막 글자에 받침이 있으면 "을", 없으면 "를".
 
@@ -71,8 +75,8 @@ def topic_particle(word: str) -> str:
 
 
 def _ends_with_final_consonant(word: str) -> bool:
-    """마지막 글자가 받침 있는 한글인지. 한글이 아니면 False."""
-    last = word.rstrip()[-1:]
+    """마지막 글자가 받침 있는 한글인지. 한글이 아니면 False. 끝의 문장부호·공백은 빼고 본다."""
+    last = word.rstrip(_TRAILING_PUNCTUATION)[-1:]
     return "가" <= last <= "힣" and (ord(last) - ord("가")) % 28 != 0
 
 

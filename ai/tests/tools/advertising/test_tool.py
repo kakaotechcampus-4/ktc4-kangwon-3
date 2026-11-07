@@ -315,6 +315,9 @@ def test_기록_중이면_원문과_대조해_남긴_주장·버린_인용·코�
     ("오래가는 배터리", "performance_quality", "'오래가는 배터리'를 뒷받침하는"),
     ("관절염 예방", "body_effect", "'관절염 예방'은 의약품 효능처럼"),
     ("불면증 치료", "body_effect", "'불면증 치료'는 의약품 효능처럼"),
+    # 문장부호로 끝나면 그 앞 글자의 받침으로 (리뷰 #643)
+    ("습기 차단.", "performance_quality", "'습기 차단.'을 뒷받침하는"),
+    ("관절염 예방!", "body_effect", "'관절염 예방!'은 의약품 효능처럼"),
 ])
 def test_할_일_문구의_조사는_인용한_문구의_받침에_따라_정한다(quote, risk_type, expected):
     result = _run(_StubModel([_claim(quote, risk_type)]), quote)
