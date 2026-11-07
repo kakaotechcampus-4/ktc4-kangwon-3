@@ -15,8 +15,8 @@ import httpx
 from bs4 import BeautifulSoup
 
 from ..request import RequestClient
-from ...schemas.clients.marketplace_request import ProductPageRequest
-from ...schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from .schemas.request import ProductPageRequest
+from .schemas.response import ProductPage, ProductPageImage
 from .errors import BlockedUrlError, PageTooLargeError
 
 _BROWSER_UA = (
