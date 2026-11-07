@@ -3,12 +3,13 @@ import { useState } from "react";
 import type { Finding, ProductResult } from "@/api/product";
 import { ToolReviewStatus } from "@/api/product";
 import HelpTooltip from "@/components/common/HelpTooltip";
+import FindingFilterBar from "@/pages/Result/components/DiagnosisResult/components/FindingFilterBar";
+import ResultBanner from "@/pages/Result/components/DiagnosisResult/components/ResultBanner";
+import SkippedToolReviews from "@/pages/Result/components/DiagnosisResult/components/SkippedToolReviews";
+import ToolReviewCard from "@/pages/Result/components/DiagnosisResult/components/ToolReviewCard";
 
 import { DETERMINATION_DESCRIPTIONS, DETERMINATION_LABELS, DETERMINATION_LEGEND_ORDER } from "./constants";
-import FindingFilterBar, { type FindingFilter } from "./FindingFilterBar";
-import ResultBanner from "./ResultBanner";
-import SkippedToolReviews from "./SkippedToolReviews";
-import ToolReviewCard from "./ToolReviewCard";
+import type { FindingFilter } from "./types";
 
 interface DiagnosisResultTabProps {
     product: ProductResult

@@ -1,8 +1,7 @@
 import type { ProductResult } from "@/api/product";
-
-import NoticesSection from "./NoticesSection";
-import ReflectedAnswersSection from "./ReflectedAnswersSection";
-import RequiredActionsSection from "./RequiredActionsSection";
+import NoticesSection from "@/pages/Result/components/NextSteps/components/NoticesSection";
+import ReflectedAnswersSection from "@/pages/Result/components/NextSteps/components/ReflectedAnswersSection";
+import RequiredActionsSection from "@/pages/Result/components/NextSteps/components/RequiredActionsSection";
 
 interface NextStepTabProps {
     product: ProductResult

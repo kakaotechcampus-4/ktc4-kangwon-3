@@ -1,8 +1,7 @@
 import type { ProductResult } from "@/api/product";
 import SectionIntro from "@/components/common/SectionIntro";
-
-import AttachedImages from "./AttachedImages";
-import ProductInfoCard from "./ProductInfoCard";
+import AttachedImages from "@/pages/Result/components/ProductInfo/components/AttachedImages";
+import ProductInfoCard from "@/pages/Result/components/ProductInfo/components/ProductInfoCard";
 
 interface ProductInfoTabProps {
     product: ProductResult

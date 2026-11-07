@@ -1,10 +1,10 @@
 import { type ToolReview, ToolReviewStatus } from "@/api/product";
 import SectionIntro from "@/components/common/SectionIntro";
 import { cn } from "@/lib/cn";
+import { TOOL_NAME_LABELS } from "@/pages/Result/components/DiagnosisResult/constants";
+import type { FindingFilter } from "@/pages/Result/components/DiagnosisResult/types";
 
-import { TOOL_NAME_LABELS } from "./constants";
 import FindingCard from "./FindingCard";
-import type { FindingFilter } from "./FindingFilterBar";
 
 interface ToolReviewStatusText {
     label: string

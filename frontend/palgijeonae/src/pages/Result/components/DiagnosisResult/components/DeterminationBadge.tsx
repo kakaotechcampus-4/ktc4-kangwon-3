@@ -1,7 +1,6 @@
 import { Determination } from "@/api/product";
 import { cn } from "@/lib/cn";
-
-import { DETERMINATION_LABELS } from "./constants";
+import { DETERMINATION_LABELS } from "@/pages/Result/components/DiagnosisResult/constants";
 
 // 판정 결과별 배지 색
 const DETERMINATION_BADGE_CLASSES: Record<Determination, string> = {

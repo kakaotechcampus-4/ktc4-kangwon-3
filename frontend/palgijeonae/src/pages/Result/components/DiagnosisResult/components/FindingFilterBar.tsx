@@ -1,10 +1,7 @@
 import { Determination } from "@/api/product";
 import { cn } from "@/lib/cn";
-
-import { DETERMINATION_LABELS } from "./constants";
-
-// null은 "전체"(필터 없음)를 의미한다.
-export type FindingFilter = Determination | null;
+import { DETERMINATION_LABELS } from "@/pages/Result/components/DiagnosisResult/constants";
+import type { FindingFilter } from "@/pages/Result/components/DiagnosisResult/types";
 
 const FILTER_OPTIONS: { key: FindingFilter; label: string }[] = [
     { key: null, label: "전체" },

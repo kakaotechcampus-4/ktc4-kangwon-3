@@ -7,8 +7,7 @@ import nextStepIconBlue from "@/assets/result-nextStep-blue.svg";
 import productInfoIcon from "@/assets/result-productInfo.svg";
 import productInfoIconBlue from "@/assets/result-productInfo-blue.svg";
 import { cn } from "@/lib/cn";
-
-import { ResultTabKey } from "./types";
+import { ResultTabKey } from "@/pages/Result/types";
 
 interface TabInfo {
     icon: string

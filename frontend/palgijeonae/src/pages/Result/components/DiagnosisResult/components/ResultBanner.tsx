@@ -5,9 +5,8 @@ import { ResultStatus } from "@/api/types";
 import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";
-
-import { useRetryDiagnosis } from "../useRetryDiagnosis";
-import { BANNER_ACTION_LABELS, BannerAction, resolveBannerConfig } from "./bannerConfig";
+import { BANNER_ACTION_LABELS, BannerAction, resolveBannerConfig } from "@/pages/Result/components/DiagnosisResult/utils/bannerConfig";
+import { useRetryDiagnosis } from "@/pages/Result/hooks/useRetryDiagnosis";
 
 const ACTION_BUTTON_CLASS = "cursor-pointer rounded-full px-5 py-3 text-sm font-semibold text-white";
 

@@ -1,7 +1,6 @@
 import type { ToolReview } from "@/api/product";
 import DefaultBox from "@/components/common/DefaultBox";
-
-import { TOOL_NAME_LABELS } from "./constants";
+import { TOOL_NAME_LABELS } from "@/pages/Result/components/DiagnosisResult/constants";
 
 interface SkippedToolReviewsProps {
     toolReviews: ToolReview[]
