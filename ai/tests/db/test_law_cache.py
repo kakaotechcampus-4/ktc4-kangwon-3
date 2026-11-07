@@ -196,27 +196,25 @@ def test_다음_점검_시각까지_남은_초(now, expected_hours):
     assert seconds_until(now, (0, 5)) == pytest.approx(expected_hours * 3600)
 
 
-def test_기동_직후_한_번_점검하고_이후_매일_시각까지_기다린다():
-    calls = []
-    waits = []
+def test_기동_때는_점검하지_않고_매일_시각까지_기다렸다_점검한다():
+    events = []
 
     def refresh():
-        calls.append(1)
-        if len(calls) == 1:
+        events.append("점검")
+        if events.count("점검") == 1:
             raise RuntimeError("첫 점검 실패")  # 실패해도 다음 점검은 계속
 
     async def sleep(seconds):
-        waits.append(seconds)
-        if len(waits) == 3:
+        events.append(pytest.approx((12 + 5 / 60) * 3600) == seconds)
+        if len(events) >= 5:
             raise asyncio.CancelledError
 
     now = datetime(2026, 10, 25, 12, 0, tzinfo=KST)
     with pytest.raises(asyncio.CancelledError):
         asyncio.run(run_law_refresh(refresh, at=(0, 5), now=lambda: now, sleep=sleep))
 
-    assert len(calls) == 2
-    # 기동 뒤 첫 점검 전 대기, 이후 매일 00:05까지
-    assert waits == [law_cache.LAW_REFRESH_START_DELAY_SECONDS, *[pytest.approx((12 + 5 / 60) * 3600)] * 2]
+    # 00:05까지 대기가 먼저, 그 뒤 점검
+    assert events == [True, "점검", True, "점검", True]
 
 
 def test_Tool용_조회_객체는_공용_DB_세션을_쓴다(monkeypatch):
