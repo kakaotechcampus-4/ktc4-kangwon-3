@@ -24,7 +24,7 @@ flowchart LR
 |---|---|---|
 | [`backend.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/backend.yml) | `backend/beforeselling/**` | 배포 스크립트 검사·테스트, `./gradlew build` → 이미지를 ECR에 push → Blue-Green 배포 → API 응답 확인 |
 | [`ai.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/ai.yml) | `ai/**` | `pytest`, Docker 빌드 → 이미지를 ECR에 push → `docker compose up --no-build --wait` → `/health/ready` 확인 |
-| [`frontend-ci.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/**` | `npm ci`, lint, build |
+| [`frontend-ci.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/**` | `npm ci`, `npm run lint`, `npm test`, `npm run build` |
 | [`frontend-deploy.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/frontend-deploy.yml) | develop의 Frontend CI 성공 | 빌드 → S3 → EC2 릴리스 폴더에 풀고 `current` 링크 교체 |
 | [`infra-nginx.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/infra-nginx.yml) | `infra/nginx/**` | `nginx -t` 검증 → 설정 반영 → reload → 외부 확인 |
 | [`infra-monitoring.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/infra-monitoring.yml) | `infra/monitoring/**` | 설정 검증 → Prometheus·Grafana 재기동 → 헬스 확인 |
