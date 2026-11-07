@@ -9,7 +9,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.db import fetchers
 from app.db.fetchers import DbSkip, OnDemandFetcher, ScheduledFetcher, request_key
-from app.observability.measurements import CacheLookup, measurement_sinks
+from app.observability.measurements import measurement_sinks
 
 NOW = datetime(2026, 10, 25, 12, tzinfo=timezone.utc)
 
