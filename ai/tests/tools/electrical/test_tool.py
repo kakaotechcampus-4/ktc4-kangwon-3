@@ -10,7 +10,7 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.electrical import ElectricalTool, ElectricalToolError
-from app.tools.common.facts import object_particle
+from app.tools.common.facts import object_particle, topic_particle
 from app.tools.common.law import compact
 from app.tools.electrical.rules import low_voltage
 from app.tools.electrical.evidence import CachedLoader, EvidenceUnavailable, LawApiEvidenceSource
@@ -465,6 +465,7 @@ def test_구매대행_특례_품목이면_구매대행과_사입의_할_일을_�
 
 @pytest.mark.parametrize(("word", "particle"), [
     ("KC 안전인증", "을"), ("공급자적합성확인", "을"), ("KC 안전확인 신고", "를"), ("KC", "를"),
+    ("습기 차단.", "을"), ("습기 차단)", "을"), ("배터리.", "를"), ("...", "를"),
 ])
 def test_판매_안내의_목적격_조사는_받침에_따라_정한다(word, particle):
     assert object_particle(word) == particle
@@ -620,3 +621,10 @@ def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어�
     hints = ElectricalTool(item_search=Search())._hints(product)
     assert hints["attributes"] == [{"name": "품목", "value": "전기포트"}]
     assert "listing_text" not in hints
+
+
+@pytest.mark.parametrize(("word", "particle"), [
+    ("관절염 예방", "은"), ("불면증 치료", "는"), ("KC", "는"),
+])
+def test_보조사_은는은_받침에_따라_정한다(word, particle):
+    assert topic_particle(word) == particle
