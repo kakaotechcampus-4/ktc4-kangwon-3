@@ -143,7 +143,7 @@ def test_재시도_간격은_30초부터_2배씩_늘고_상한은_5분이다():
 
 
 @pytest.mark.parametrize("failure", [
-    TIMEOUT, SERVER_ERROR, SendResult(409, "COMMON-003"), SendResult(409, "COMMON-009"), SendResult(500, "COMMON-003"),
+    TIMEOUT, SERVER_ERROR, SendResult(400, "COMMON-003"), SendResult(409, "COMMON-009"), SendResult(500, "COMMON-003"),
 ], ids=["전송_실패", "5xx", "동시_저장_겹침", "락_대기_초과", "겹침이_500으로_와도"])
 def test_다시_보내면_되는_실패는_재시도하고_성공하면_횟수를_기록한다(failure):
     sender = _Sender(failure, OK)

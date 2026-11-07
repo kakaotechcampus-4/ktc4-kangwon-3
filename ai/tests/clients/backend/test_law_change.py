@@ -71,9 +71,9 @@ def test_값이_없는_선택_필드는_null로_보낸다():
 
 
 def test_거절_응답도_예외_없이_상태와_code를_돌려준다():
-    client = _client(lambda request: httpx.Response(409, json={"code": "COMMON-003", "message": "겹침", "data": None}))
+    client = _client(lambda request: httpx.Response(400, json={"code": "COMMON-003", "message": "겹침", "data": None}))
 
-    assert client.send(_request()) == SendResult(409, "COMMON-003")
+    assert client.send(_request()) == SendResult(400, "COMMON-003")
 
 
 @pytest.mark.parametrize("error", [httpx.ReadTimeout("시간 초과"), httpx.ConnectError("연결 거부")])
