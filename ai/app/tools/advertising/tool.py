@@ -7,8 +7,10 @@
 위반을 확정하지 않는다. 부당 여부는 소비자오인성·공정거래저해성으로 판단하고(지정고시 1),
 상품 글만으로는 판매자가 실증자료를 갖고 있는지 알 수 없어서 찾은 주장은 POSSIBLY_REQUIRED까지만 쓴다.
 찾은 주장이 없으면 NOT_REQUIRED(실증이 필요한 주장 없음) 하나를 남긴다.
-근거 조문 원문은 tests/fixtures/advertising_law에 고정했고, rules.py의 인용 문구가 원문과 같은지 테스트가 확인한다.
+근거 조문은 적용 판 본문에서 읽는다(evidence.py). 읽지 못하면 근거 없는 판단을 내지 않고 Tool 실패로 끝낸다.
 """
+
+from collections.abc import Callable
 
 from ...agents.base import ModelLike
 from ...observability.trace import trace_note
@@ -27,9 +29,9 @@ from ...schemas.schemas import (
     ToolStatus,
 )
 from ..base import RegulatoryTool
-from .rules import (
-    LAW_ARTICLE_5, RISK_ORDER, TYPE_LABELS, claim_action, claim_risk, find_kc_claims, normalize, sources_for,
-)
+from .errors import AdvertisingEvidenceError
+from .evidence import AdvertisingEvidence
+from .rules import RISK_ORDER, TYPE_LABELS, claim_action, claim_risk, find_kc_claims, normalize, sources_for
 from .steps import AdvertisingReviewer, AdvertisingReviewInput
 
 _NO_LISTING_QUESTION = "판매자가 쓴 상품 설명·홍보 문구가 없어 표시·광고를 검토하지 못했습니다. 상세페이지의 상품 설명 문구를 알려주세요."
@@ -38,14 +40,17 @@ _NO_LISTING_QUESTION = "판매자가 쓴 상품 설명·홍보 문구가 없어 
 class AdvertisingTool(RegulatoryTool):
     tool_name = ToolName.LABEL_AD
 
-    def __init__(self, model: ModelLike | None = None, *, reviewer: AdvertisingReviewer | None = None) -> None:
+    def __init__(self, model: ModelLike | None = None, *, evidence: Callable[[], AdvertisingEvidence],
+                 reviewer: AdvertisingReviewer | None = None) -> None:
         """모델은 실제로 문구를 검토할 때 만든다. listing_text가 없으면 모델을 만들거나 부르지 않는다.
 
         Args:
             model: 구조화 출력을 지원하는 모델. None이면 표시·광고 Tool 프로필(TOOL_PROFILES)로 만든다.
+            evidence: 적용 판 근거 조문을 돌려주는 함수.
             reviewer: 테스트·평가용으로 직접 넣는 검토 에이전트. 주면 model은 쓰지 않는다.
         """
         self._model = model
+        self._evidence = evidence
         self._reviewer = reviewer
 
     def _run(self, product: Product, decision: ToolSelectionItem) -> ToolResult:
@@ -59,11 +64,18 @@ class AdvertisingTool(RegulatoryTool):
             ToolResult: SUCCESS 결과.
 
         Raises:
+            AdvertisingEvidenceError: 근거 조문을 읽지 못함. 실행기가 FAILED로 기록한다.
             AdvertisingReviewError: 모델 호출 또는 파싱 실패. 실행기가 FAILED로 기록한다.
         """
         lines = [line.strip() for line in product.listing_text if line.strip()]
         if not lines:
             return self._no_listing_result(decision)
+
+        # 근거가 없으면 판단을 낼 수 없어 모델 호출 전에 읽음
+        try:
+            evidence = self._evidence()
+        except Exception as exc:
+            raise AdvertisingEvidenceError("표시·광고 근거 조문을 읽지 못했습니다.") from exc
 
         reviewer = self._reviewer or AdvertisingReviewer(self._model)
         review = reviewer.run(AdvertisingReviewInput(product, lines))
@@ -76,7 +88,7 @@ class AdvertisingTool(RegulatoryTool):
         ]
         # 모델 인용 원문 대조 결과와 코드가 더한 KC 표기 (모델 출력 전체는 호출 파일에)
         trace_note("claims", {"kept": kept, "dropped_quotes": dropped, "kc_added": kc_added})
-        return self._assemble(decision, lines, kept + kc_added, dropped, review, reviewer.prompt.sha256,
+        return self._assemble(decision, evidence, lines, kept + kc_added, dropped, review, reviewer.prompt.sha256,
                               kc_added=len(kc_added))
 
     @staticmethod
@@ -110,6 +122,7 @@ class AdvertisingTool(RegulatoryTool):
     def _assemble(
         self,
         decision: ToolSelectionItem,
+        evidence: AdvertisingEvidence,
         lines: list[str],
         claims: list[AdvertisingClaim],
         dropped: list[str],
@@ -121,6 +134,7 @@ class AdvertisingTool(RegulatoryTool):
 
         Args:
             decision: 이 툴의 선택 결정.
+            evidence: 적용 판 근거 조문.
             lines: 판매자 문구.
             claims: 원문과 대조한 주장 (KC 표기 포함).
             dropped: 원문에 없어 버린 인용.
@@ -137,7 +151,7 @@ class AdvertisingTool(RegulatoryTool):
         sources: list[LegalSource] = []
         for claim in claims:
             level = claim_risk(claim)
-            claim_sources = sources_for(claim, level)
+            claim_sources = sources_for(evidence, claim, level)
             action = claim_action(claim, level)
             phrases.append(AdvertisingPhrase(text=claim.quote, risk_type=claim.risk_type.value, risk_level=level,
                                              reason=claim.reason, evidence_required=True))
@@ -153,8 +167,8 @@ class AdvertisingTool(RegulatoryTool):
 
         if not findings:
             # 판단이 비면 검증 규칙이 Tool 실패로 보고 재실행을 요청한다. 찾은 주장이 없다는 판단을 남긴다.
-            findings.append(self._no_claim_finding())
-            sources.append(LAW_ARTICLE_5)
+            findings.append(self._no_claim_finding(evidence))
+            sources.append(evidence.article_5)
 
         overall = max((phrase.risk_level for phrase in phrases), key=RISK_ORDER.index, default=RiskLevel.LOW)
         return ToolResult(
@@ -163,7 +177,7 @@ class AdvertisingTool(RegulatoryTool):
             selected=True,
             selection_reason=decision.reason,
             query={"listing_lines": len(lines), "prompt_sha256": prompt_sha256, "dropped_quotes": dropped,
-                   "kc_claims_added": kc_added},
+                   "kc_claims_added": kc_added, "documents": evidence.documents()},
             result=AdvertisingAssessment(reviewed_phrases=lines, detected_phrases=phrases, overall_risk=overall,
                                          legal_sources=sources),
             findings=findings,
@@ -172,8 +186,11 @@ class AdvertisingTool(RegulatoryTool):
             raw_response=review.model_dump(mode="json"),
         )
 
-    def _no_claim_finding(self) -> RegulatoryFinding:
+    def _no_claim_finding(self, evidence: AdvertisingEvidence) -> RegulatoryFinding:
         """검토한 문구에서 실증이 필요한 주장을 찾지 못한 판단. 모델이 놓쳤을 수 있어 가정에 남긴다.
+
+        Args:
+            evidence: 적용 판 근거 조문.
 
         Returns:
             RegulatoryFinding: NOT_REQUIRED 판단.
@@ -183,7 +200,7 @@ class AdvertisingTool(RegulatoryTool):
             determination=Determination.NOT_REQUIRED, risk_level=RiskLevel.LOW,
             summary="검토한 판매자 문구에서 실증이 필요한 주장을 찾지 못했습니다.",
             rationale="실증 운영 고시 Ⅲ 1~4(인체·안전·성능·순위)에 해당하는 사실 주장을 찾지 못했습니다.",
-            legal_sources=[LAW_ARTICLE_5],
+            legal_sources=[evidence.article_5],
             assumptions=["추출 단계가 listing_text로 옮긴 판매자 문구만 검토했습니다. 놓친 주장이 있을 수 있습니다."],
         )
 

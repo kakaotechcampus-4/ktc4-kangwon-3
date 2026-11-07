@@ -33,7 +33,7 @@ def _pick(evidence: AdvertisingEvidence, key: str):
     }[key]
 
 
-# 코드에 고정해 쓰던 인용과 대조함. 제3조만 각 호까지 포함돼 고정 인용보다 김
+# 인용은 현행 판 원문 그대로임. 조문 위치 표기가 본문과 어긋나지 않는지 함께 확인함
 @pytest.mark.parametrize("key, law_name, article, quoted", [
     ("article_3", LAW_ACT[0], "제3조 제1항",
      "① 사업자등은 소비자를 속이거나 소비자로 하여금 잘못 알게 할 우려가 있는 표시ㆍ광고 행위로서 공정한 거래질서를 "
