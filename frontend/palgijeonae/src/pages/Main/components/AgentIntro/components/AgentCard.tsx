@@ -15,7 +15,7 @@ function AgentCard({ icon, name, role, description, chips, alwaysCheckTag, rever
     return (
         <div
             className={cn(
-                "grid items-center gap-7 rounded-3xl border border-neutral-line p-7",
+                "grid items-center gap-7 rounded-3xl border border-box-line bg-white p-7 shadow-box",
                 reverse ? "grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]" : "grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]",
             )}
         >
@@ -35,7 +35,7 @@ function AgentCard({ icon, name, role, description, chips, alwaysCheckTag, rever
                 <p className="whitespace-pre-line text-base font-medium leading-relaxed text-neutral-text">{description}</p>
                 <div className="flex flex-wrap gap-1.5">
                     {chips.map((chip) => (
-                        <span key={chip} className="rounded-full border border-neutral-border px-3 py-1 text-xs text-neutral-dark">
+                        <span key={chip} className="rounded-full border border-box-line px-3 py-1 text-xs text-neutral-dark">
                             {chip}
                         </span>
                     ))}

@@ -21,7 +21,7 @@ function Preview() {
             aria-label="서비스 미리보기"
         >
             <SectionIntro title='"팔기전에" 사용 전 미리 보여 드려요' description="쉽고 간단하게 사용할 수 있어요. 자세한 사용 방법은 아래에서 확인하세요." size="2xl" />
-            <div className="w-full overflow-hidden rounded-2xl border border-neutral-border bg-neutral-bg">
+            <div className="w-full overflow-hidden rounded-2xl border border-box-line bg-neutral-bg shadow-box">
                 <PreviewIndicator
                     slides={PREVIEW_SLIDES}
                     index={index}
