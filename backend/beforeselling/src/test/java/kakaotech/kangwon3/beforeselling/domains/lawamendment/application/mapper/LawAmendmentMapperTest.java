@@ -1,16 +1,24 @@
 package kakaotech.kangwon3.beforeselling.domains.lawamendment.application.mapper;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.application.dto.callback.LawChangeCallbackRequest;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.application.dto.callback.PublicLawChangeDto;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.application.dto.response.LawAmendmentListResponse;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.application.dto.response.LawAmendmentResponse;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.entity.LawAmendment;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.entity.LawAmendmentProduct;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 class LawAmendmentMapperTest {
 
@@ -45,5 +53,67 @@ class LawAmendmentMapperTest {
         assertThat(first.getIssuedDate()).isEqualTo(LocalDate.of(2026, 4, 20));
         assertThat(result.get(1).getToolName()).isEqualTo(ToolName.ELECTRICAL);
         assertThat(result.get(1).isAdmrul()).isTrue();
+    }
+
+    @Test
+    @DisplayName("재확인 대상 상품을 법령 변경별로 묶고 조회 순서를 지킨다.")
+    void toListResponse_thenGroupByLawAmendmentInOrder() {
+        // given
+        LawAmendment children = lawAmendment("어린이제품 안전 특별법 시행규칙", ToolName.CHILDREN);
+        LawAmendment electrical = lawAmendment("전기용품 안전기준", ToolName.ELECTRICAL);
+        Product toy = product("대나무 헬리콥터");
+        Product doll = product("인형");
+        Product charger = product("충전기");
+        List<LawAmendmentProduct> recheckProducts = List.of(
+                LawAmendmentProduct.of(children, toy),
+                LawAmendmentProduct.of(electrical, charger),
+                LawAmendmentProduct.of(children, doll));
+
+        // when
+        LawAmendmentListResponse response = lawAmendmentMapper.toListResponse(recheckProducts);
+
+        // then
+        assertThat(response.lawAmendments())
+                .extracting(LawAmendmentResponse::lawAmendmentId, LawAmendmentResponse::lawName,
+                        LawAmendmentResponse::revisionType, LawAmendmentResponse::toolName,
+                        LawAmendmentResponse::enforceDate)
+                .containsExactly(
+                        tuple(children.getId(), "어린이제품 안전 특별법 시행규칙", "일부개정", ToolName.CHILDREN,
+                                LocalDate.of(2026, 10, 20)),
+                        tuple(electrical.getId(), "전기용품 안전기준", "일부개정", ToolName.ELECTRICAL,
+                                LocalDate.of(2026, 10, 20)));
+        assertThat(response.lawAmendments().getFirst().products())
+                .extracting(LawAmendmentResponse.RecheckProductResponse::productId,
+                        LawAmendmentResponse.RecheckProductResponse::productName)
+                .containsExactly(tuple(toy.getId(), "대나무 헬리콥터"), tuple(doll.getId(), "인형"));
+        assertThat(response.lawAmendments().get(1).products())
+                .extracting(LawAmendmentResponse.RecheckProductResponse::productName)
+                .containsExactly("충전기");
+    }
+
+    @Test
+    @DisplayName("재확인 대상 상품이 없으면 빈 목록을 만든다.")
+    void toListResponse_withoutRecheckProducts_thenEmpty() {
+        // when & then
+        assertThat(lawAmendmentMapper.toListResponse(List.of()).lawAmendments()).isEmpty();
+    }
+
+    private LawAmendment lawAmendment(String lawName, ToolName toolName) {
+        LawAmendment lawAmendment = LawAmendment.builder()
+                .lawName(lawName)
+                .documentId(lawName)
+                .toolName(toolName)
+                .serialNumber("291321")
+                .revisionType("일부개정")
+                .enforceDate(LocalDate.of(2026, 10, 20))
+                .build();
+        ReflectionTestUtils.setField(lawAmendment, "id", UUID.randomUUID());
+        return lawAmendment;
+    }
+
+    private Product product(String productName) {
+        Product product = Product.pending(productName, null, SourceType.URL, "https://example.com", null);
+        ReflectionTestUtils.setField(product, "id", UUID.randomUUID());
+        return product;
     }
 }

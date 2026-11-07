@@ -93,6 +93,7 @@ class ProductControllerTest {
     private static final String BASE_URL = "/api/v1/products";
     private static final String ANSWERS_URL = BASE_URL + "/{productId}/answers";
     private static final String RETRY_URL = BASE_URL + "/{productId}/retry";
+    private static final String REDIAGNOSIS_URL = BASE_URL + "/{productId}/rediagnosis";
     private static final String S3_URL_PREFIX = "https://test-bucket.s3.ap-northeast-2.amazonaws.com/";
 
     @Autowired
@@ -555,6 +556,45 @@ class ProductControllerTest {
                         .with(authentication(loginUser())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMMON-006"));
+    }
+
+    @Test
+    @DisplayName("인증 없이 재진단하면 401과 COMMON-004 코드를 응답한다.")
+    void rediagnoseProduct_withoutAuthentication_thenUnauthorized() throws Exception {
+        // when
+        mockMvc.perform(post(REDIAGNOSIS_URL, PRODUCT_ID))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("COMMON-004"));
+
+        // then
+        then(productUseCase).should(never()).rediagnoseProduct(any(), any());
+    }
+
+    @Test
+    @DisplayName("진단을 마친 상품을 재진단하면 성공 응답을 받고 로그인한 사용자와 상품 ID가 전달된다.")
+    void rediagnoseProduct_thenSuccess() throws Exception {
+        // when
+        mockMvc.perform(post(REDIAGNOSIS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+
+        // then
+        then(productUseCase).should().rediagnoseProduct(USER_ID, PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("진단을 마치지 않은 상품을 재진단하면 409와 COMMON-010 코드를 응답한다.")
+    void rediagnoseProduct_whenNotCompleted_thenConflict() throws Exception {
+        // given
+        willThrow(new BaseException(CommonResponseCode.CONFLICT))
+                .given(productUseCase).rediagnoseProduct(any(), any());
+
+        // when & then
+        mockMvc.perform(post(REDIAGNOSIS_URL, PRODUCT_ID)
+                        .with(authentication(loginUser())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COMMON-010"));
     }
 
     private String answersBody(UUID questionId, String answerText) {
