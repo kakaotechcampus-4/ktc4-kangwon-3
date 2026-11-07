@@ -1,6 +1,6 @@
 import { AxiosError } from 'axios'
 
-import { getRetryDelay, shouldRetryQuery } from '@/api/queryRetry'
+import { getRetryDelay, shouldRetryQuery } from '@/api/core/queryRetry'
 
 const responseError = (status: number, headers: Record<string, string> = {}) =>
   new AxiosError('실패', undefined, undefined, undefined, { status, headers } as never)

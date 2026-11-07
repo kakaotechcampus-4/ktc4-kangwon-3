@@ -22,7 +22,7 @@
 ```
 src/
 ├── api/            # BE 리소스별 API 함수(products.ts, diagnoses.ts, uploads.ts, users.ts)
-│   ├── core/       # axios 인스턴스·인터셉터(client.ts), Sentry 전송 정책
+│   ├── core/       # axios 인스턴스·인터셉터(client.ts), 쿼리 재시도 정책, Sentry 전송 정책
 │   ├── types/      # 여러 페이지가 함께 쓰는 도메인 타입·enum(product.ts, common.ts)
 │   └── mock/       # BE 없이 화면을 볼 때 쓰는 목업(실제 API와 같은 이름·시그니처)
 ├── components/
