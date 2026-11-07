@@ -3,9 +3,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 const titleVariants = cva("text-black", {
     variants: {
         size: {
-            '3xl': 'text-[22px] leading-[30px] tracking-[-0.02em] font-bold md:text-3xl md:leading-10',
-            '2xl': 'text-[19px] leading-[27px] tracking-[-0.015em] font-bold md:text-2xl md:leading-8',
-            'xl': 'text-base leading-[23px] tracking-[-0.01em] font-semibold md:text-xl md:leading-7',
+            '3xl': 'text-[22px] leading-7.5 tracking-[-0.02em] font-bold md:text-3xl md:leading-10',
+            '2xl': 'text-[19px] leading-6.75 tracking-[-0.015em] font-bold md:text-2xl md:leading-8',
+            'xl': 'text-base leading-5.75 tracking-[-0.01em] font-semibold md:text-xl md:leading-7',
         },
     },
     defaultVariants: {
@@ -16,9 +16,9 @@ const titleVariants = cva("text-black", {
 const descriptionVariants = cva("whitespace-pre-line text-neutral-muted", {
     variants: {
         size: {
-            '3xl': 'text-[15px] leading-[23px] md:text-lg md:leading-7',
-            '2xl': 'text-sm leading-[21px] md:text-base md:leading-[25px]',
-            'xl': 'text-[13px] leading-[19px] md:text-sm md:leading-[21px]',
+            '3xl': 'text-[15px] leading-5.75 md:text-lg md:leading-7',
+            '2xl': 'text-sm leading-5.25 md:text-base md:leading-6.25',
+            'xl': 'text-[13px] leading-4.75 md:text-sm md:leading-5.25',
         },
     },
     defaultVariants: {
