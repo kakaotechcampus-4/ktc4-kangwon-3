@@ -21,7 +21,7 @@
 | 경로 | 화면 | 로그인 필요 |
 |---|---|---|
 | `/` | 메인. 서비스 소개 | - |
-| `/login` | 카카오·네이버·구글 로그인 | - |
+| `/login` | 카카오·구글 로그인 (네이버는 공개 심사 준비로 화면에서 숨김) | - |
 | `/oauth/callback` | 로그인 후 토큰을 받아 메인으로 이동 | - |
 | `/upload` | 상품 입력(URL 또는 글·이미지, 최대 10개)과 진단 요청 | 필요 |
 | `/judgement/:diagnosesId` | 상품별 진단 진행 상황 | 필요 |
@@ -58,12 +58,14 @@ flowchart LR
 
 ```
 src/
-├── api/            # Axios 클라이언트, 도메인별 API 함수, 응답 타입
+├── api/            # BE 리소스별 API 함수 (products, diagnoses, uploads, users)
+│   ├── core/       # Axios 클라이언트, 쿼리 재시도 정책, Sentry 에러 정책
+│   ├── types/      # 응답 타입
 │   └── mock/       # BE 없이 화면을 볼 때 쓰는 목업 데이터
 ├── components/
 │   ├── common/     # 공용 컴포넌트 (Button, Header, Pagination, HelpTooltip 등)
 │   └── layout/     # Header + 본문 레이아웃
-├── pages/          # 페이지별 폴더. 페이지 전용 컴포넌트·훅·타입을 같은 폴더에 둠
+├── pages/          # 페이지별 폴더. 페이지 전용 파일을 components/·hooks/·utils/로 나누고, 진입점(index.tsx)·types.ts·constants.ts는 페이지 폴더 바로 아래에 둠
 ├── store/          # Zustand 스토어 (인증)
 ├── constants/      # 상태 배지 라벨
 ├── lib/            # 유틸 (클래스 병합, 글자 수 계산, 라우트 파라미터 검사)
