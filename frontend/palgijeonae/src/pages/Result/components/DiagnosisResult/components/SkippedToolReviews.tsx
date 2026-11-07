@@ -1,4 +1,4 @@
-import type { ToolReview } from "@/api/product";
+import type { ToolReview } from "@/api/types/product";
 import DefaultBox from "@/components/common/DefaultBox";
 import { TOOL_NAME_LABELS } from "@/pages/Result/components/DiagnosisResult/constants";
 

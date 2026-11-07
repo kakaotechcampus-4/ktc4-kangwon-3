@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
-import { reissueAccessToken } from '@/api/client'
+import { reissueAccessToken } from '@/api/core/client'
 import LoadingSpinner from '@/components/common/LoadingSpinner'
 
 function OAuthCallbackPage() {

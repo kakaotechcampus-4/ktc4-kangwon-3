@@ -14,15 +14,15 @@ const S3_UPLOAD_TIMEOUT_MS = 60_000
 const hangUp = () => delay('infinite')
 
 // 모듈 상태(진행 중인 재발급 Promise)가 테스트 사이에 새지 않도록, 매번 모듈을 새로 불러온다.
-let apiClient: typeof import('@/api/client').default
-let getErrorMessage: typeof import('@/api/client').getErrorMessage
-let reissueAccessToken: typeof import('@/api/client').reissueAccessToken
-let putToS3: typeof import('@/api/diagnosis').putToS3
+let apiClient: typeof import('@/api/core/client').default
+let getErrorMessage: typeof import('@/api/core/client').getErrorMessage
+let reissueAccessToken: typeof import('@/api/core/client').reissueAccessToken
+let putToS3: typeof import('@/api/uploads').putToS3
 
 beforeEach(async () => {
   vi.resetModules()
-  ;({ default: apiClient, getErrorMessage, reissueAccessToken } = await import('@/api/client'))
-  ;({ putToS3 } = await import('@/api/diagnosis'))
+  ;({ default: apiClient, getErrorMessage, reissueAccessToken } = await import('@/api/core/client'))
+  ;({ putToS3 } = await import('@/api/uploads'))
 })
 
 // 가짜 타이머로 시간을 앞당겨, 실제로 기다리지 않고 타임아웃을 일으킨다.

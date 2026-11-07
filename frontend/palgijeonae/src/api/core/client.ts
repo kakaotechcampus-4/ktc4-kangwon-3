@@ -1,8 +1,9 @@
 import * as Sentry from '@sentry/react'
 import axios, { AxiosError } from 'axios'
 
-import { classifyApiError, toPathTemplate } from '@/api/sentryErrorPolicy'
 import { useAuthStore } from '@/store/useAuthStore'
+
+import { classifyApiError, toPathTemplate } from './sentryErrorPolicy'
 
 const API_URL = import.meta.env.VITE_API_URL
 

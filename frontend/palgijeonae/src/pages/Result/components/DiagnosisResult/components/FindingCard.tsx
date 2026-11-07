@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Determination, type Finding } from "@/api/product";
+import { Determination, type Finding } from "@/api/types/product";
 import lawIcon from "@/assets/result-law.svg";
 import lawIconGray from "@/assets/result-law-gray.svg";
 import toggleIcon from "@/assets/upload-toggle.svg";

@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import type { ProductResult } from "@/api/product";
+import type { ProductResult } from "@/api/types/product";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";

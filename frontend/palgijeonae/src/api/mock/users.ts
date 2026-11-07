@@ -1,8 +1,8 @@
-import { SocialProvider, type UserInfo } from "@/api/user";
+import { SocialProvider, type UserInfo } from "@/api/users";
 
 /**
  * 로컬에서 BE 없이 테스트할 때만 쓰는 픽스처.
- * 쓰려면 호출부의 import를 "@/api/user" 대신 "@/api/mock/userMock"으로 바꾸면 된다.
+ * 쓰려면 호출부의 import를 "@/api/users" 대신 "@/api/mock/users"로 바꾸면 된다.
  */
 
 let mockUserInfo: UserInfo = {

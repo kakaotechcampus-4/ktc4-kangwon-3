@@ -1,4 +1,4 @@
-import { type ProcessingStatusType, type ResultStatus, SourceType } from "@/api/types.ts"
+import { type ProcessingStatusType, type ResultStatus, SourceType } from "@/api/types/common.ts"
 
 /**
  * 목록 조회에서 상품 하나의 정보를 담은 타입.

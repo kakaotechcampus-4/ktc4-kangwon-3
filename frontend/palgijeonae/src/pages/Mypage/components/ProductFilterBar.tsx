@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 
-import { ResultStatus } from "@/api/types.ts";
+import { ResultStatus } from "@/api/types/common.ts";
 import clear from "@/assets/delete-gray.svg"
 import search from "@/assets/mypage-search.svg"
 import { cn } from "@/lib/cn";

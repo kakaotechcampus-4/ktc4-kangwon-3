@@ -1,4 +1,4 @@
-import { classifyApiError, toPathTemplate } from '@/api/sentryErrorPolicy'
+import { classifyApiError, toPathTemplate } from '@/api/core/sentryErrorPolicy'
 
 describe('classifyApiError', () => {
   describe('BE 에러 코드를 우선 기준으로 판단한다', () => {

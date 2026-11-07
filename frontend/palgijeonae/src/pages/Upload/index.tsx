@@ -2,8 +2,8 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { getErrorMessage } from "@/api/client";
-import { SourceType } from "@/api/types.ts"
+import { getErrorMessage } from "@/api/core/client";
+import { SourceType } from "@/api/types/common.ts"
 import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";

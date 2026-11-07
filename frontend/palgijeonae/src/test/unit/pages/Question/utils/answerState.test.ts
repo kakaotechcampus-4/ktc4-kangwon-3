@@ -1,4 +1,4 @@
-import type { Question } from '@/api/product'
+import type { Question } from '@/api/types/product'
 import { computeAnswerState } from '@/pages/Question/utils/answerState'
 
 const makeQuestion = (questionId: string): Question => ({

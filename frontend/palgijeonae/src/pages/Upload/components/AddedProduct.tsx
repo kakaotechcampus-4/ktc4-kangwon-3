@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { SourceType } from "@/api/types.ts"
+import { SourceType } from "@/api/types/common.ts"
 import deleteIcon from "@/assets/delete-gray.svg"
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg"
 import imageIcon from "@/assets/upload-img_txt.svg"

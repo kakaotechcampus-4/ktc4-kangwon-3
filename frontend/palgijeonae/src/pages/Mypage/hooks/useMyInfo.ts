@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getMyInfo, updateMyInfo } from "@/api/user.ts";
+import { getMyInfo, updateMyInfo } from "@/api/users.ts";
 
 const MY_INFO_QUERY_KEY = ["myInfo"];
 

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getProduct } from "@/api/result";
+import { getProduct } from "@/api/products";
 import type { QuestionProduct } from "@/pages/Question/types";
 
 /** 질문 화면에 필요한 상품 하나를 조회한다. */

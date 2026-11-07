@@ -1,4 +1,4 @@
-import { SocialProvider } from "@/api/user.ts";
+import { SocialProvider } from "@/api/users.ts";
 import googleIcon from "@/assets/login-google.png";
 import kakaoIcon from "@/assets/login-kakao.png";
 import naverIcon from "@/assets/login-naver.png";

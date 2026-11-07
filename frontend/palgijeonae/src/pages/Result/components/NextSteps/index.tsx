@@ -1,4 +1,4 @@
-import type { ProductResult } from "@/api/product";
+import type { ProductResult } from "@/api/types/product";
 import NoticesSection from "@/pages/Result/components/NextSteps/components/NoticesSection";
 import ReflectedAnswersSection from "@/pages/Result/components/NextSteps/components/ReflectedAnswersSection";
 import RequiredActionsSection from "@/pages/Result/components/NextSteps/components/RequiredActionsSection";

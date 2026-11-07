@@ -1,4 +1,4 @@
-import { SourceType } from '@/api/types.ts'
+import { SourceType } from '@/api/types/common.ts'
 import { MAX_FILE_SIZE_BYTES, MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_CODE_UNIT_LENGTH, MAX_PRODUCT_NAME_LENGTH } from '@/pages/Upload/constants.ts'
 import type { Product } from '@/pages/Upload/types.ts'
 import { isAllowedImageType, isWithinFileSizeLimit, validateImageFile, validateProduct } from '@/pages/Upload/utils/validation.ts'

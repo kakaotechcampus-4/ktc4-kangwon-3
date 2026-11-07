@@ -1,4 +1,4 @@
-import { ProcessingStatusType } from "@/api/types";
+import { ProcessingStatusType } from "@/api/types/common";
 import { cn } from "@/lib/cn";
 
 import { PROCESSING_STATUS_LABELS } from "../utils/processingStatusLabels";

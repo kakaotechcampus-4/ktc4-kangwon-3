@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-import { SourceType } from "@/api/types";
+import { SourceType } from "@/api/types/common";
 import demoFan from "@/assets/main-demoFan.png";
 import demoHamburgerToy from "@/assets/main-demoHamburgerToy.png";
 import demoKatana from "@/assets/main-demoKatana.png";

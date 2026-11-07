@@ -1,6 +1,6 @@
 import { http } from 'msw'
 
-import type { PresignedFile } from '@/api/diagnosis'
+import type { PresignedFile } from '@/api/uploads'
 
 import { buildDiagnosesDetail, buildMyProduct, buildProductResult, buildUserInfo } from './fixtures'
 import { recordRequest } from './requestLog'

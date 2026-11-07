@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import type { Finding, ProductResult } from "@/api/product";
-import { ToolReviewStatus } from "@/api/product";
+import type { Finding, ProductResult } from "@/api/types/product";
+import { ToolReviewStatus } from "@/api/types/product";
 import HelpTooltip from "@/components/common/HelpTooltip";
 import FindingFilterBar from "@/pages/Result/components/DiagnosisResult/components/FindingFilterBar";
 import ResultBanner from "@/pages/Result/components/DiagnosisResult/components/ResultBanner";

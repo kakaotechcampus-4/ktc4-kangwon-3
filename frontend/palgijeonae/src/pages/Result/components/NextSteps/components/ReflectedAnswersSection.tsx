@@ -1,4 +1,4 @@
-import type { Question } from "@/api/product";
+import type { Question } from "@/api/types/product";
 import SectionIntro from "@/components/common/SectionIntro";
 
 import ReflectedAnswerCard from "./ReflectedAnswerCard";

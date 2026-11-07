@@ -1,4 +1,4 @@
-import { SourceType } from "@/api/types.ts"
+import { SourceType } from "@/api/types/common.ts"
 import { countGraphemes } from "@/lib/text";
 import { isHttpUrl } from "@/lib/url";
 import {

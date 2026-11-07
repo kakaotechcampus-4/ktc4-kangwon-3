@@ -1,13 +1,8 @@
-import { type DiagnosesDetail, PipelineStage, StageStatus, ToolName } from "@/api/product";
-import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
-
-/**
- * 로컬에서 BE 없이 테스트할 때만 쓰는 픽스처.
- * 쓰려면 useJudgementProducts.ts의 import를 "@/api/judgement" 대신 "@/api/mock/judgementMock"으로 바꾸면 된다.
- */
+import { ProcessingStatusType, SourceType } from "@/api/types/common";
+import { type DiagnosesDetail, PipelineStage, StageStatus, ToolName } from "@/api/types/product";
 
 /** 개발용 진단 상세 정보 목업 데이터 */
-const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
+export const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
     diagnosesId: "mock-diagnoses-1",
     processingStatus: ProcessingStatusType.InProgress,
     pollIntervalMs: 3000,
@@ -121,77 +116,3 @@ const MOCK_DIAGNOSES_DETAIL: DiagnosesDetail = {
     createdAt: "2026-10-30T12:00:00",
     updatedAt: "2026-10-30T12:05:00",
 };
-
-/** 폴링 호출마다 늘어나는 진행 tick. diagnosesId가 바뀌면 처음부터 다시 센다. */
-let mockPollTick = 0;
-let mockPollDiagnosesId: string | null = null;
-
-/** 개발용 진단 상태 폴링 함수 */
-function buildMockSnapshot(tick: number): DiagnosesDetail {
-    const snapshot = structuredClone(MOCK_DIAGNOSES_DETAIL);
-    const [product1, product2, product3, product4] = snapshot.products;
-
-    if (tick >= 1) {
-        product1.progresses = [
-            { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.ToolExecution, toolName: ToolName.Radio, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Aggregation, toolName: null, stageStatus: StageStatus.Started },
-        ];
-
-        product3.processingStatus = ProcessingStatusType.Completed;
-        product3.progresses = [
-            { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.ToolExecution, toolName: ToolName.Electrical, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Aggregation, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Finalization, toolName: null, stageStatus: StageStatus.Completed },
-        ];
-        product3.resultStatus = ResultStatus.PurchasingAgentAllowed;
-        product3.summary = "구매대행으로 판매 가능한 상품입니다.";
-
-        product4.progresses = [
-            { stage: PipelineStage.Extraction, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Selection, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.ToolExecution, toolName: ToolName.Customs, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Aggregation, toolName: null, stageStatus: StageStatus.Completed },
-            { stage: PipelineStage.Verification, toolName: null, stageStatus: StageStatus.Started },
-        ];
-    }
-
-    if (tick >= 2) {
-        product1.processingStatus = ProcessingStatusType.Completed;
-        product1.progresses.push({ stage: PipelineStage.Finalization, toolName: null, stageStatus: StageStatus.Completed });
-        product1.resultStatus = ResultStatus.PurchasingAgentAllowed;
-        product1.summary = "구매대행으로 판매 가능한 상품입니다.";
-
-        product2.processingStatus = ProcessingStatusType.Completed;
-        product2.questions[0].answerText = "구매대행으로 판매할 예정이에요.";
-        product2.resultStatus = ResultStatus.RecheckRequired;
-        product2.summary = "일부 조건을 다시 확인해야 해요.";
-
-        product4.processingStatus = ProcessingStatusType.Failed;
-        product4.failure = {
-            failedStage: PipelineStage.Verification,
-            errorCode: "TOOL_TIMEOUT",
-            errorMessage: "검증 중 응답 시간이 초과됐어요. 잠시 후 다시 시도해 주세요.",
-            retryable: true,
-        };
-
-        snapshot.processingStatus = ProcessingStatusType.Completed;
-        snapshot.pollIntervalMs = null;
-    }
-
-    return snapshot;
-}
-
-/** 개발용 진단 상태 폴링 함수 */
-export async function getDiagnosesPolling(diagnosesId: string) {
-    if (diagnosesId !== mockPollDiagnosesId) {
-        mockPollDiagnosesId = diagnosesId;
-        mockPollTick = 0;
-    }
-    const snapshot = buildMockSnapshot(mockPollTick);
-    mockPollTick += 1;
-    return snapshot;
-}

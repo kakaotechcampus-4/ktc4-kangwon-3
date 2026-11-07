@@ -1,4 +1,4 @@
-import { Determination, ToolName } from "@/api/product";
+import { Determination, ToolName } from "@/api/types/product";
 
 // 진단 결과를 검토한 규제 분야 라벨.
 export const TOOL_NAME_LABELS: Record<ToolName, string> = {

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
 
-import type { ProductResult } from "@/api/product";
-import { getDiagnosesDetail, getProduct } from "@/api/result";
+import { getDiagnosesDetail } from "@/api/diagnoses";
+import { getProduct } from "@/api/products";
+import type { ProductResult } from "@/api/types/product";
 
 /** 상품 단건 : productId로 getProduct 호출
  *  진단서 상세 : diagnosesId로 getDiagnosesDetail 호출

@@ -1,4 +1,4 @@
-import type { SourceType } from "@/api/types";
+import type { SourceType } from "@/api/types/common";
 import DefaultBox from "@/components/common/DefaultBox";
 import { SOURCE_TYPE_INFO } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";

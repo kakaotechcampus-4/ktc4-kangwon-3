@@ -1,4 +1,4 @@
-import { SourceType } from "@/api/types.ts"
+import { SourceType } from "@/api/types/common.ts"
 import { cn } from "@/lib/cn";
 
 const INPUT_TYPE_TABS = [

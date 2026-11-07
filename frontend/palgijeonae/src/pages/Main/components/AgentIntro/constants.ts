@@ -1,4 +1,4 @@
-import { ToolName } from "@/api/product";
+import { ToolName } from "@/api/types/product";
 import agentChildren from "@/assets/main-agentChildren.svg";
 import agentCustoms from "@/assets/main-agentCustoms.svg";
 import agentElectrical from "@/assets/main-agentElectrical.svg";

@@ -1,4 +1,4 @@
-import { RiskLevel } from "@/api/product";
+import { RiskLevel } from "@/api/types/product";
 import { cn } from "@/lib/cn";
 
 interface RiskMeterStyle {

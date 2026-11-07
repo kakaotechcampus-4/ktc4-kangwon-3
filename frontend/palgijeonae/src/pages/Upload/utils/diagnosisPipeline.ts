@@ -1,11 +1,7 @@
-import { getErrorMessage } from "@/api/client";
-import {
-    postDiagnosis,
-    type PresignedFileType,
-    putToS3,
-    requestPresignedUrls,
-} from "@/api/diagnosis";
-import { SourceType } from "@/api/types.ts"
+import { getErrorMessage } from "@/api/core/client";
+import { postDiagnosis } from "@/api/diagnoses";
+import { SourceType } from "@/api/types/common.ts"
+import { type PresignedFileType, putToS3, requestPresignedUrls } from "@/api/uploads";
 import type { DiagnosisProductPayload, Product } from "@/pages/Upload/types.ts";
 
 interface ProductImageKeys {

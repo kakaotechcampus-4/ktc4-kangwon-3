@@ -1,4 +1,4 @@
-import type { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
+import type { ProcessingStatusType, ResultStatus, SourceType } from "./common";
 
 /** 진단 결과를 검토한 규제 분야
  * - Customs: 통관

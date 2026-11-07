@@ -2,7 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import { http } from 'msw'
 import { Route } from 'react-router-dom'
 
-import { ResultStatus } from '@/api/types'
+import { ResultStatus } from '@/api/types/common'
 import MyPage from '@/pages/Mypage'
 import type { MyProductItem } from '@/pages/Mypage/types'
 import { useAuthStore } from '@/store/useAuthStore'

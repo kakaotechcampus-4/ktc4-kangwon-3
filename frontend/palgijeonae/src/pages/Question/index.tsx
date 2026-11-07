@@ -2,9 +2,9 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getErrorMessage } from "@/api/client";
-import { submitAnswers } from "@/api/question";
-import { ProcessingStatusType } from "@/api/types";
+import { getErrorMessage } from "@/api/core/client";
+import { submitAnswers } from "@/api/products";
+import { ProcessingStatusType } from "@/api/types/common";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";

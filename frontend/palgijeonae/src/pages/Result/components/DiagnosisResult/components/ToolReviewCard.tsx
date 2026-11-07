@@ -1,4 +1,4 @@
-import { type ToolReview, ToolReviewStatus } from "@/api/product";
+import { type ToolReview, ToolReviewStatus } from "@/api/types/product";
 import SectionIntro from "@/components/common/SectionIntro";
 import { cn } from "@/lib/cn";
 import { TOOL_NAME_LABELS } from "@/pages/Result/components/DiagnosisResult/constants";

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
-import type { ProductResult } from "@/api/product";
-import { ResultStatus } from "@/api/types";
+import { ResultStatus } from "@/api/types/common";
+import type { ProductResult } from "@/api/types/product";
 import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";

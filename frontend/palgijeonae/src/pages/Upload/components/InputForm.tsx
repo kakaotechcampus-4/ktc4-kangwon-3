@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import { SourceType } from "@/api/types.ts"
+import { SourceType } from "@/api/types/common.ts"
 import Button from "@/components/common/Button/index.tsx";
 import HelpTooltip from "@/components/common/HelpTooltip/index.tsx";
 import { MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "@/pages/Upload/constants.ts";

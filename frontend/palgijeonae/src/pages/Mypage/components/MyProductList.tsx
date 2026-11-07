@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { getErrorMessage } from "@/api/client.ts";
+import { getErrorMessage } from "@/api/core/client.ts";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";

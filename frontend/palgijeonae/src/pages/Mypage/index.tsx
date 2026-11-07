@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 
 // TODO: API 미구현 기능(RevisionNoticeBanner)에서만 쓰는 import. 추후 구현 시 주석을 해제할 것.
-// import { ResultStatus } from "@/api/types.ts";
+// import { ResultStatus } from "@/api/types/common.ts";
 import SectionIntro from "@/components/common/SectionIntro";
 import MyProductList from "@/pages/Mypage/components/MyProductList.tsx";
 // TODO: API 미구현 기능. 추후 구현 시 주석을 해제할 것.

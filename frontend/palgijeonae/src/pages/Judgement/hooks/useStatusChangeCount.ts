@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { ProcessingStatusType } from "@/api/types";
+import { ProcessingStatusType } from "@/api/types/common";
 
 // PENDING과 IN_PROGRESS는 화면상 같은 "진행 중"이라 전환으로 치지 않는다.
 const toVisualStatus = (status: ProcessingStatusType) =>

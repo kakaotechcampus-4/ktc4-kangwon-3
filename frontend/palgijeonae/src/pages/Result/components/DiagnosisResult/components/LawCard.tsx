@@ -1,4 +1,4 @@
-import type { LegalSource } from "@/api/product";
+import type { LegalSource } from "@/api/types/product";
 
 enum LawCardField {
     Source = "source",

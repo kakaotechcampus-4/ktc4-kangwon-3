@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { getErrorMessage } from "@/api/client.ts";
+import { getErrorMessage } from "@/api/core/client.ts";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { getMyProducts, SortType } from "@/api/myProducts.ts";
+import { getMyProducts, SortType } from "@/api/products.ts";
 import { PAGE_SIZE } from "@/pages/Mypage/constants.ts";
 import type { ProductFilter } from "@/pages/Mypage/types.ts";
 

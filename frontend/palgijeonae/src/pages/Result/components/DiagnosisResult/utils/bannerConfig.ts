@@ -1,5 +1,5 @@
-import type { ProductFailure } from "@/api/product";
-import { ProcessingStatusType, ResultStatus } from "@/api/types";
+import { ProcessingStatusType, ResultStatus } from "@/api/types/common";
+import type { ProductFailure } from "@/api/types/product";
 import dangerIcon from "@/assets/result-danger.svg";
 import noResultIcon from "@/assets/result-noResult.svg";
 import successIcon from "@/assets/result-success.svg";

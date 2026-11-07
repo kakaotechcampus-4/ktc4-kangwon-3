@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
-import type { ProductResult } from "@/api/product";
-import { ProcessingStatusType } from "@/api/types";
+import { ProcessingStatusType } from "@/api/types/common";
+import type { ProductResult } from "@/api/types/product";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { cn } from "@/lib/cn";

@@ -1,4 +1,4 @@
-import { SocialProvider } from '@/api/user'
+import { SocialProvider } from '@/api/users'
 import { PROCESSING_STATUS_LABELS } from '@/pages/Judgement/utils/processingStatusLabels'
 import { NAME_MAX_LENGTH } from '@/pages/Mypage/constants'
 import { SOCIAL_PROVIDER_INFO } from '@/pages/Mypage/utils/socialProvider'

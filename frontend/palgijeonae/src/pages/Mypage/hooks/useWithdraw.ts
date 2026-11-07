@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 
-import { withdraw } from "@/api/user.ts";
+import { withdraw } from "@/api/users.ts";
 import { useAuthStore } from "@/store/useAuthStore.ts";
 
 // 회원 탈퇴. 성공 시 아래 순서를 지킨다 — 순서가 바뀌면 ProtectedRoute의 /login 리다이렉트나 빈 토큰으로의 refetch가 발생한다.

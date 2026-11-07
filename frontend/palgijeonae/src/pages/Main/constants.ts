@@ -1,3 +1,4 @@
+import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types/common";
 import {
     AssessmentStatus,
     Determination,
@@ -8,8 +9,7 @@ import {
     StageStatus,
     ToolName,
     ToolReviewStatus,
-} from "@/api/product";
-import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
+} from "@/api/types/product";
 
 // 메인 페이지 미리보기에서 쓰는 빈 콜백. 미리보기는 PreviewFrame(inert)로 감싸져 실제로 호출될 일이 없다.
 export const NOOP = () => {};

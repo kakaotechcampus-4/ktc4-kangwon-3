@@ -1,4 +1,4 @@
-import apiClient from "./client";
+import apiClient from "@/api/core/client";
 
 export enum SocialProvider {
     Kakao = "KAKAO",

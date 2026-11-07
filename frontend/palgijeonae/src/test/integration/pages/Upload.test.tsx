@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react'
 import { http } from 'msw'
 import { Route } from 'react-router-dom'
 
-import { SourceType } from '@/api/types'
+import { SourceType } from '@/api/types/common'
 import UploadPage from '@/pages/Upload'
 import { MAX_FILE_SIZE_BYTES } from '@/pages/Upload/constants'
 import type { Product } from '@/pages/Upload/types'

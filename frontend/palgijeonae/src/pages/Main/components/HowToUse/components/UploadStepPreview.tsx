@@ -1,4 +1,4 @@
-import { SourceType } from "@/api/types";
+import { SourceType } from "@/api/types/common";
 import Button from "@/components/common/Button";
 import DefaultBox from "@/components/common/DefaultBox";
 import HelpTooltip from "@/components/common/HelpTooltip";

@@ -1,4 +1,4 @@
-import type { ProductResult } from "@/api/product";
+import type { ProductResult } from "@/api/types/product";
 import SectionIntro from "@/components/common/SectionIntro";
 import AttachedImages from "@/pages/Result/components/ProductInfo/components/AttachedImages";
 import ProductInfoCard from "@/pages/Result/components/ProductInfo/components/ProductInfoCard";
