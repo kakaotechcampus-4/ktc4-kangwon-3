@@ -110,7 +110,7 @@ def records(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     """에이전트가 남긴 사용량 기록 행. 키는 agent·usage와 record 키워드 인자(subject_id·ok·error_type 등)."""
     captured: list[dict[str, Any]] = []
     monkeypatch.setattr(
-        "app.usage.record",
+        "app.observability.usage.record",
         lambda agent, usage, **kwargs: captured.append({"agent": agent, "usage": usage, **kwargs}),
     )
     return captured

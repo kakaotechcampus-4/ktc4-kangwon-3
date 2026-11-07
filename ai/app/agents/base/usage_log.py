@@ -8,9 +8,9 @@ log_call은 호출마다 로그 한 줄을 남기는 sink (#497).
 import logging
 from typing import Any
 
-from ... import usage as usage_module
+from ...observability import usage as usage_module
 from ...observability.agent_sinks import agent_sinks
-from ...usage import CallUsage
+from ...observability.usage import CallUsage
 from .meta import AgentRunMeta
 
 logger = logging.getLogger(__name__)

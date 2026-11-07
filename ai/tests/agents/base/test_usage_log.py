@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage
 from app.agents.base import AgentRunMeta
 from app.agents.base.usage_log import log_call, log_token_usage, record_call
 from app.observability.agent_sinks import agent_sinks
-from app.usage import CallUsage
+from app.observability.usage import CallUsage
 
 _USAGE = CallUsage("openai/gpt-4.1-mini", input_tokens=100, cached_tokens=40, output_tokens=20)
 

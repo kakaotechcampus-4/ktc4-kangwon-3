@@ -2,7 +2,7 @@
 
 import pytest
 
-from app import usage
+from app.observability import usage
 
 
 @pytest.fixture(autouse=True)

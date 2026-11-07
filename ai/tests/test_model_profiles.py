@@ -2,9 +2,9 @@
 
 import pytest
 
-from app import usage
 from app.config import (AGENT_DECISION_PROFILES, AGENT_PROFILES, CHAT_MODELS, DECISION_MODELS, DECISION_PROFILES,
                         MODEL_PROFILES, TOOL_PROFILES, ModelProfile, Price, agent_decision_profile)
+from app.observability import usage
 from app.config.catalog import ChatModel, ClaudeModel, GeminiModel, OpenAIModel
 from app.schemas.schemas import ToolName
 
