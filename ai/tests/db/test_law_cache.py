@@ -206,7 +206,7 @@ def test_기동_때는_점검하지_않고_매일_시각까지_기다렸다_점�
 
     async def sleep(seconds):
         events.append(pytest.approx((12 + 5 / 60) * 3600) == seconds)
-        if len(events) == 5:
+        if len(events) >= 5:
             raise asyncio.CancelledError
 
     now = datetime(2026, 10, 25, 12, 0, tzinfo=KST)
