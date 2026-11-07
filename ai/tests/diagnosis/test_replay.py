@@ -2,8 +2,10 @@
 
 import pytest
 
-from app.diagnosis.replay import ReplayError, ReplayStopped, StageReplay, replay_input
-from app.observability.trace import trace_run
+from app.diagnosis.replay import (
+    ReplayError, ReplaySkipHook, ReplayStopHook, ReplayStopped, StageReplay, replay_input,
+)
+from app.observability.trace import trace_run, trace_step
 from app.schemas.agent import ExtractionInput
 from app.schemas.product import Product
 from app.schemas.session import DiagnosisInput
@@ -58,6 +60,41 @@ def test_하나만_돌리는_설정은_시작_단계를_마치면_결말을_남�
         with pytest.raises(ReplayStopped):
             replay.done("selection")
 
+    assert recorder.finish == {"reason": "stopped", "stage": "selection"}
+
+
+def test_건너뛰기_hook은_첫_회차_시작_단계_앞만_저장한_결과로_바꾸고_replayed를_남긴다(tmp_path):
+    hook = ReplaySkipHook(StageReplay.from_trace(_trace(EXTRACTION), "selection"))
+    calls = []
+
+    with trace_run(tmp_path) as recorder:
+        with trace_step("extraction"):
+            saved = hook("extraction", 0, lambda: calls.append("extraction"))
+        with trace_step("selection"):
+            hook("selection", 0, lambda: calls.append("selection"))
+
+    assert saved == Product(product_id="p-1")
+    assert calls == ["selection"]
+    assert [step.get("replayed") for step in recorder.steps] == [True, None]
+
+
+def test_건너뛰기_hook은_재실행_회차엔_실제로_부른다():
+    hook = ReplaySkipHook(StageReplay.from_trace(_trace(EXTRACTION), "selection"))
+
+    assert hook("extraction", 1, lambda: "실제") == "실제"
+
+
+def test_멈춤_hook은_시작_단계를_마친_뒤에_멈추고_재실행_회차엔_멈추지_않는다(tmp_path):
+    hook = ReplayStopHook(StageReplay.from_trace(_trace(EXTRACTION), "selection", only=True))
+    calls = []
+
+    with trace_run(tmp_path) as recorder:
+        assert hook("selection", 1, lambda: "재실행") == "재실행"
+        with pytest.raises(ReplayStopped):
+            hook("selection", 0, lambda: calls.append("selection"))
+
+    # 단계는 끝까지 돈 뒤 멈춤
+    assert calls == ["selection"]
     assert recorder.finish == {"reason": "stopped", "stage": "selection"}
 
 
