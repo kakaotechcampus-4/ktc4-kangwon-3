@@ -66,7 +66,7 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
                     <button
                         type="button"
                         onClick={startEditing}
-                        className="shrink-0 cursor-pointer rounded-full border border-neutral-border px-3 py-1 text-sm font-semibold text-neutral-dark"
+                        className="shrink-0 cursor-pointer rounded-full border border-box-line bg-white px-3 py-1 text-sm font-semibold text-neutral-text shadow-button-secondary transition-colors duration-150 outline-none hover:border-button-line-hover hover:bg-button-hover-bg focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/25"
                     >
                         {title} 수정
                     </button>
@@ -90,14 +90,14 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
                             cancelEditing();
                         }
                     }}
-                    className="h-10 w-full rounded-lg border border-neutral-border px-3 text-base text-black disabled:opacity-50"
+                    className="h-10 w-full rounded-lg border border-box-line bg-white px-3 text-base text-black outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15 disabled:opacity-50"
                 />
                 <span className={cn("shrink-0 text-xs", trimmedLength > maxLength ? "text-status-danger" : "text-neutral-border")}>
                     {trimmedLength}/{maxLength}
                 </span>
             </div>
-            <Button text="취소" variant="secondary" fontSize={14} onClick={cancelEditing} disabled={disabled} />
-            <Button text="저장" fontSize={14} onClick={handleSave} disabled={disabled || isInvalid} />
+            <Button text="취소" variant="secondary" size="sm" fontSize={14} onClick={cancelEditing} disabled={disabled} />
+            <Button text="저장" size="sm" fontSize={14} onClick={handleSave} disabled={disabled || isInvalid} />
         </div>
     );
 }
