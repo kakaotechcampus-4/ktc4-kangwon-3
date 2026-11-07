@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 const defaultBoxVariants = cva(
-    "box-border flex h-auto flex-col gap-5 rounded-xl border-box-line bg-white px-6 py-[18px]",
+    "box-border flex h-auto flex-col gap-5 rounded-xl border-box-line bg-white px-6 py-4.5",
     {
         variants: {
             align: {
