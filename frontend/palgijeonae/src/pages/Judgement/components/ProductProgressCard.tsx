@@ -24,7 +24,7 @@ const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "wa
     [ProcessingStatusType.Failed]: "danger",
 };
 
-const ACTION_BUTTON_BASE_CLASS = "shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-sm font-semibold";
+const ACTION_BUTTON_BASE_CLASS = "shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-sm font-semibold shadow-button-secondary transition-colors duration-150 outline-none focus-visible:ring-3";
 
 // 컴포넌트 안에서 만들면 렌더마다 새 배열/객체가 생겨 useAnimateOnChange의 effect가 매번 재실행된다
 const FADE_KEYFRAMES: Keyframe[] = [{ opacity: 0.25 }, { opacity: 1 }];
@@ -44,12 +44,12 @@ const ACTION_CONFIG: Partial<Record<ProcessingStatusType, ActionConfig>> = {
     [ProcessingStatusType.AwaitingInput]: {
         label: "질문에 답변하기 →",
         buildPath: (productId) => `/question/${productId}`,
-        className: "border-status-warning text-status-warning",
+        className: "border-status-warning/40 text-status-warning hover:border-status-warning/60 hover:bg-status-warning-bg focus-visible:ring-status-warning/20",
     },
     [ProcessingStatusType.Completed]: {
         label: "결과 보기",
         buildPath: (productId) => `/result/product/${productId}`,
-        className: "border-status-success text-status-success",
+        className: "border-status-success/40 text-status-success hover:border-status-success/60 hover:bg-status-success-bg focus-visible:ring-status-success/20",
     },
 };
 

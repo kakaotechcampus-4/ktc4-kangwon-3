@@ -5,11 +5,11 @@ import { PROCESSING_STATUS_LABELS } from "../utils/processingStatusLabels";
 
 // 진행 카드 전용 배지 색.
 const PROGRESS_STATUS_BADGE_CLASSNAME: Record<ProcessingStatusType, string> = {
-    [ProcessingStatusType.Pending]: "border-primary bg-primary/10 text-primary",
-    [ProcessingStatusType.InProgress]: "border-primary bg-primary/10 text-primary",
-    [ProcessingStatusType.AwaitingInput]: "border-status-warning bg-status-warning-bg text-status-warning",
-    [ProcessingStatusType.Completed]: "border-status-success bg-status-success-bg text-status-success",
-    [ProcessingStatusType.Failed]: "border-status-danger bg-status-danger-bg text-status-danger",
+    [ProcessingStatusType.Pending]: "border-primary/40 bg-primary/10 text-primary",
+    [ProcessingStatusType.InProgress]: "border-primary/40 bg-primary/10 text-primary",
+    [ProcessingStatusType.AwaitingInput]: "border-status-warning/40 bg-status-warning-bg text-status-warning",
+    [ProcessingStatusType.Completed]: "border-status-success/40 bg-status-success-bg text-status-success",
+    [ProcessingStatusType.Failed]: "border-status-danger/40 bg-status-danger-bg text-status-danger",
 };
 
 interface StatusBadgeProps {
