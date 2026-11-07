@@ -1,0 +1,63 @@
+package kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.service;
+
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.ProductService;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.entity.LawAmendment;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.entity.LawAmendmentProduct;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.repository.LawAmendmentProductRepository;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.repository.LawAmendmentRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class LawAmendmentService {
+
+    private final LawAmendmentRepository lawAmendmentRepository;
+    private final LawAmendmentProductRepository lawAmendmentProductRepository;
+    private final ProductService productService;
+
+    /**
+     * 법령 변경을 저장하고, 그 분야 검토에서 해당 법령을 인용한 상품을 재확인 대상으로 연결한다.
+     * 이미 받은 변경은 건너뛰고, 새로 저장한 변경만 돌려준다.
+     */
+    @Transactional
+    public List<LawAmendment> createLawAmendments(List<LawAmendment> lawAmendments) {
+        List<LawAmendment> created = new ArrayList<>();
+        for (LawAmendment lawAmendment : lawAmendments) {
+            if (isReceived(lawAmendment)) {
+                log.debug("이미 받은 법령 변경을 건너뜁니다. documentId={}, serialNumber={}",
+                        lawAmendment.getDocumentId(), lawAmendment.getSerialNumber());
+                continue;
+            }
+
+            LawAmendment saved = lawAmendmentRepository.save(lawAmendment);
+            createRecheckProducts(saved);
+            created.add(saved);
+        }
+        return created;
+    }
+
+    private boolean isReceived(LawAmendment lawAmendment) {
+        return lawAmendmentRepository.existsByDocumentIdAndSerialNumber(
+                lawAmendment.getDocumentId(), lawAmendment.getSerialNumber());
+    }
+
+    private void createRecheckProducts(LawAmendment lawAmendment) {
+        List<Product> products = productService.findCompletedByToolNameAndCitedLawName(
+                lawAmendment.getToolName(), lawAmendment.getLawName());
+        lawAmendmentProductRepository.saveAll(products.stream()
+                .map(product -> LawAmendmentProduct.of(lawAmendment, product))
+                .toList());
+
+        log.info("법령 개정 재확인 대상 지정. lawAmendmentId={}, lawName={}, toolName={}, productCount={}",
+                lawAmendment.getId(), lawAmendment.getLawName(), lawAmendment.getToolName(), products.size());
+    }
+}
