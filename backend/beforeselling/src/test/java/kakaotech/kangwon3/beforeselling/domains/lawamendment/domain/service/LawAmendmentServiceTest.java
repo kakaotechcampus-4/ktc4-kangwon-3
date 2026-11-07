@@ -18,6 +18,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -81,6 +82,32 @@ class LawAmendmentServiceTest {
         assertThat(created).isEmpty();
         then(lawAmendmentRepository).should(never()).save(any());
         then(lawAmendmentProductRepository).should(never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("회원의 재확인 대상 상품을 조회한다.")
+    void getRecheckProducts_thenReturnOfUser() {
+        // given
+        UUID userId = UUID.randomUUID();
+        List<LawAmendmentProduct> recheckProducts = List.of(
+                LawAmendmentProduct.of(createLawAmendment(), createProduct()));
+        given(lawAmendmentProductRepository.findWithLawAmendmentAndProductByUserId(userId)).willReturn(recheckProducts);
+
+        // when & then
+        assertThat(lawAmendmentService.getRecheckProducts(userId)).isEqualTo(recheckProducts);
+    }
+
+    @Test
+    @DisplayName("상품을 재확인 대상에서 빼면 그 상품의 연결을 모두 지운다.")
+    void removeRecheckProducts_thenDeleteByProduct() {
+        // given
+        UUID productId = UUID.randomUUID();
+
+        // when
+        lawAmendmentService.removeRecheckProducts(productId);
+
+        // then
+        then(lawAmendmentProductRepository).should().deleteByProductId(productId);
     }
 
     private LawAmendment createLawAmendment() {

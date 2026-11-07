@@ -2,8 +2,11 @@ package kakaotech.kangwon3.beforeselling.domains.user.presentation.controller;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.NotificationSettingModifyRequest;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.UserProfileModifyRequest;
+import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.NotificationSettingResponse;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.UserProfileResponse;
+import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.NotificationSettingUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.UserProfileUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.UserWithdrawalUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.presentation.api.UserApi;
@@ -31,6 +34,7 @@ public class UserController implements UserApi {
 
     private final UserProfileUseCase userProfileUseCase;
     private final UserWithdrawalUseCase userWithdrawalUseCase;
+    private final NotificationSettingUseCase notificationSettingUseCase;
     private final RefreshTokenCookieProvider refreshTokenCookieProvider;
 
     @Override
@@ -50,6 +54,28 @@ public class UserController implements UserApi {
             @Valid @RequestBody UserProfileModifyRequest request
     ) {
         UserProfileResponse response = userProfileUseCase.modifyMyProfile(principal.userId(), request);
+
+        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
+    }
+
+    @Override
+    @GetMapping("/me/notification-settings")
+    public ResponseEntity<ApiResponse<NotificationSettingResponse>> getMyNotificationSetting(
+            @LoginUser UserPrincipal principal
+    ) {
+        NotificationSettingResponse response = notificationSettingUseCase.getMyNotificationSetting(principal.userId());
+
+        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
+    }
+
+    @Override
+    @PatchMapping("/me/notification-settings")
+    public ResponseEntity<ApiResponse<NotificationSettingResponse>> modifyMyNotificationSetting(
+            @LoginUser UserPrincipal principal,
+            @Valid @RequestBody NotificationSettingModifyRequest request
+    ) {
+        NotificationSettingResponse response =
+                notificationSettingUseCase.modifyMyNotificationSetting(principal.userId(), request);
 
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK, response));
     }

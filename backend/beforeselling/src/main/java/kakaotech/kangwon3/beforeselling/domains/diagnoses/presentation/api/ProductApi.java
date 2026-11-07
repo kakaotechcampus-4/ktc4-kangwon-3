@@ -146,6 +146,34 @@ public interface ProductApi {
             UUID productId);
 
     @Operation(
+            summary = "상품 재진단",
+            description = """
+                    진단을 마친(`COMPLETED`) 상품의 진단을 처음부터 다시 요청합니다.
+                    진단 근거 법령이 개정돼 재확인이 필요한 상품(재확인 대상 상품 조회의 `products`)을 다시 진단할 때 씁니다.
+
+                    **요청 후**
+                    - 상품이 다시 진행 중(`IN_PROGRESS`)이 되고, 이전 결과(판정·분야별 결과·조치·안내)는 지워집니다.
+                    - 진단서 단건 조회 폴링을 다시 시작합니다(`pollIntervalMs`에 값이 생깁니다).
+                    - 이전 진단의 질문·답변과 진행 상태도 지워지고, 질문은 1회차부터 다시 올 수 있습니다.
+                    - 입력 내용(텍스트·이미지·URL)은 처음 등록한 그대로 다시 진단합니다.
+                    - 이 상품은 재확인 대상에서 빠집니다.
+
+                    **오류**
+                    - 진단을 마치지 않은 상품(대기·진행 중·답변 대기·실패), 연속으로 두 번 요청한 경우는 `CONFLICT`입니다.
+                    - 없는 상품과 다른 사용자의 상품은 모두 `NOT_FOUND`입니다.
+                    """)
+    @ApiResponseExplanations(
+            success = @ApiSuccessResponseExplanation(description = "재진단 요청 성공"),
+            errors = {
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "CONFLICT"),
+            }
+    )
+    ResponseEntity<ApiResponse<Void>> rediagnoseProduct(
+            @Parameter(hidden = true) UserPrincipal principal,
+            UUID productId);
+
+    @Operation(
             summary = "상품 단건 삭제",
             description = """
                     상품과 딸린 이미지를 함께 삭제합니다. 삭제된 데이터는 복구할 수 없습니다.
