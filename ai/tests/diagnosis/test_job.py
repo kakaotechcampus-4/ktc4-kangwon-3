@@ -496,6 +496,20 @@ def test_검증_단계가_실패하면_검증_trace_단계에_원인을_남긴�
     assert recorder.finish["at"]["step"] == verification["id"]
 
 
+def test_검증_모델이_실패해_규칙_결과로_진행하면_검증_trace_단계에_실패_원인과_규칙_결과를_남긴다(pipeline, tmp_path):
+    rules = VerificationResult(status=VerificationStatus.APPROVED, checked_finding_ids=[])
+    error = VerificationError("검토 범위가 입력과 다릅니다.", partial_result=rules)
+
+    with trace_run(tmp_path) as recorder:
+        build_job(_parts([], verification_error=error), _no_questions)(
+            DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    verification = next(step for step in recorder.steps if step["kind"] == "verification")
+    assert "검토 범위가 입력과 다릅니다." in verification["model_review_error"]
+    assert verification["output"]["status"] == VerificationStatus.REVISION_REQUIRED.value
+    assert "error" not in verification
+
+
 def test_끝까지_돈_실행은_종료_이유와_최종_결과를_결말로_남긴다(pipeline, tmp_path):
     with trace_run(tmp_path) as recorder:
         build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())

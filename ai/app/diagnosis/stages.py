@@ -3,6 +3,7 @@
 import logging
 
 from ..agents.verification import VerificationError
+from ..observability.trace import trace_note
 from ..pipeline.extraction_step import ExtractionStep
 from ..pipeline.runner import VerificationStage
 from ..schemas.agent import ExtractionInput
