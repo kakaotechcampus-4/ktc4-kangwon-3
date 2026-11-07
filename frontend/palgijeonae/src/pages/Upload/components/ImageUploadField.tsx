@@ -3,9 +3,8 @@ import { type ClipboardEvent, type DragEvent, useRef } from "react";
 import uploadInputIcon from "@/assets/upload-inputImage.png";
 import Button from "@/components/common/Button";
 import HelpTooltip from "@/components/common/HelpTooltip";
-
-import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from "../constraints.ts";
-import { isAllowedImageType, isWithinFileSizeLimit } from "../validation.ts";
+import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from "@/pages/Upload/constants.ts";
+import { isAllowedImageType, isWithinFileSizeLimit } from "@/pages/Upload/utils/validation.ts";
 
 interface ImageUploadFieldProps {
     id: string

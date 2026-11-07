@@ -11,7 +11,7 @@ import { cn } from "@/lib/cn";
 import { truncateWithEllipsis } from "@/lib/text";
 import { isHttpUrl } from "@/lib/url";
 
-import AttachedImageList from "./form/AttachedImageList.tsx"
+import AttachedImageList from "./AttachedImageList.tsx"
 
 interface AddedProductProps {
     type: SourceType;

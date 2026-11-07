@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 
 import { SourceType } from '@/api/types.ts'
-import AddedProduct from '@/pages/Upload/AddedProduct'
+import AddedProduct from '@/pages/Upload/components/AddedProduct'
 
 // vitest.setup.ts의 브라우저 API 스텁이 의도대로 동작하는지 확인한다.
 describe('브라우저 API 스텁', () => {

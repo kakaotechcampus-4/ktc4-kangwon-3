@@ -1,7 +1,6 @@
 import { SourceType } from "@/api/types.ts"
 import { countGraphemes } from "@/lib/text";
 import { isHttpUrl } from "@/lib/url";
-
 import {
     ALLOWED_IMAGE_EXTENSIONS_LABEL,
     ALLOWED_IMAGE_MIME_TYPES,
@@ -10,8 +9,8 @@ import {
     MAX_PRODUCT_IMAGE_COUNT,
     MAX_PRODUCT_NAME_CODE_UNIT_LENGTH,
     MAX_PRODUCT_NAME_LENGTH,
-} from "./constraints.ts";
-import type { Product } from "./types.ts";
+} from "@/pages/Upload/constants.ts";
+import type { Product } from "@/pages/Upload/types.ts";
 
 // 상품 추가 / 제출 직전에 사용하는 상품 공용 검증.
 export const isAllowedImageType = (file: File): boolean => ALLOWED_IMAGE_MIME_TYPES.includes(file.type);

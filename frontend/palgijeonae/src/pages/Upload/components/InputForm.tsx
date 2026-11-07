@@ -3,13 +3,13 @@ import { useMemo, useState } from "react";
 import { SourceType } from "@/api/types.ts"
 import Button from "@/components/common/Button/index.tsx";
 import HelpTooltip from "@/components/common/HelpTooltip/index.tsx";
+import { MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "@/pages/Upload/constants.ts";
+import type { Product } from "@/pages/Upload/types.ts";
+import { validateProduct } from "@/pages/Upload/utils/validation.ts";
 
-import { MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "./constraints.ts";
-import AttachedImageList from "./form/AttachedImageList.tsx";
-import FormField from "./form/FormField.tsx";
-import ImageUploadField from "./form/ImageUploadField.tsx";
-import type { Product } from "./types.ts";
-import { validateProduct } from "./validation.ts";
+import AttachedImageList from "./AttachedImageList.tsx";
+import FormField from "./FormField.tsx";
+import ImageUploadField from "./ImageUploadField.tsx";
 
 interface InputFormProps {
     type: SourceType

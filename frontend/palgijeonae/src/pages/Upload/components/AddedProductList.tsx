@@ -1,7 +1,7 @@
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
+import type { Product } from "@/pages/Upload/types.ts";
 
 import AddedProduct from "./AddedProduct.tsx";
-import type { Product } from "./types.ts";
 
 interface AddedProductListProps {
     products: Product[]

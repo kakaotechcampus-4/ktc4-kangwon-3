@@ -6,8 +6,7 @@ import {
     requestPresignedUrls,
 } from "@/api/diagnosis";
 import { SourceType } from "@/api/types.ts"
-
-import type { DiagnosisProductPayload, Product } from "./types.ts";
+import type { DiagnosisProductPayload, Product } from "@/pages/Upload/types.ts";
 
 interface ProductImageKeys {
     productImageKey?: string

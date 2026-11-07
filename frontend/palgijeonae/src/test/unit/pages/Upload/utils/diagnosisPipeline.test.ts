@@ -2,8 +2,8 @@ import { AxiosError, type AxiosResponse } from 'axios'
 
 import { postDiagnosis, type PresignedFile, putToS3, requestPresignedUrls } from '@/api/diagnosis'
 import { SourceType } from '@/api/types.ts'
-import { buildDiagnosisPayload, submitDiagnosis, uploadProductImages } from '@/pages/Upload/diagnosisPipeline.ts'
 import type { Product } from '@/pages/Upload/types.ts'
+import { buildDiagnosisPayload, submitDiagnosis, uploadProductImages } from '@/pages/Upload/utils/diagnosisPipeline.ts'
 
 // 네트워크로 나가는 세 함수만 모킹한다. 에러 메시지를 만드는 getErrorMessage는 실제 구현을 쓴다.
 vi.mock('@/api/diagnosis', () => ({

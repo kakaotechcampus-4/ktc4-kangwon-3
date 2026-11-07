@@ -4,7 +4,7 @@ import { Route } from 'react-router-dom'
 
 import { SourceType } from '@/api/types'
 import UploadPage from '@/pages/Upload'
-import { MAX_FILE_SIZE_BYTES } from '@/pages/Upload/constraints'
+import { MAX_FILE_SIZE_BYTES } from '@/pages/Upload/constants'
 import type { Product } from '@/pages/Upload/types'
 import { SERVER_MESSAGES, UPLOAD_MESSAGES } from '@/test/constants/messages'
 import { uploadPage } from '@/test/drivers/uploadPage'
