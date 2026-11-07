@@ -76,3 +76,10 @@ def test_진단은_상품_ID_이름으로_묶고_실행_정보를_남긴다(reco
         "metadata": {"run_id": "r1", "run_type": "test", "diagnosis_id": "d1"},
     }]
     assert recorder.ended == [{"name": "diagnosis:p1", "outputs": {"output": "결말"}}]
+
+
+@pytest.mark.parametrize(("value", "expected"), [(True, True), ("local", True), (False, False), (None, False)])
+def test_켜짐_여부는_LangSmith_설정을_따른다(monkeypatch, value, expected):
+    monkeypatch.setattr(langsmith_trace, "tracing_is_enabled", lambda: value)
+
+    assert langsmith_trace.tracing_on() is expected

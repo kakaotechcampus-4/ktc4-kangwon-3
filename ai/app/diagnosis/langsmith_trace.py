@@ -1,4 +1,4 @@
-"""진단을 LangSmith 실행으로 묶음.
+"""진단을 LangSmith 실행으로 묶음. LANGSMITH_TRACING을 켠 실행에서만 붙음 (diagnosis/job.py).
 
 모델 호출은 LangChain이 자동으로 보냄. 여기서는 그 호출을 단계·Tool별로 묶고 이름만 붙임.
 로컬 trace 파일(observability/trace.py)과 별개로 동작함.
@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from langsmith import trace
+from langsmith.utils import tracing_is_enabled
 
 from ..domain.context import ExecutionContext
 from ..pipeline.hooks import StageName
@@ -16,6 +17,15 @@ from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, Outcome, ProgressReporter
 
 T = TypeVar("T")
+
+
+def tracing_on() -> bool:
+    """LangSmith 기록을 켠 실행인지 본다.
+
+    Returns:
+        bool: 켜져 있으면 True.
+    """
+    return bool(tracing_is_enabled())
 
 
 def _traced(name: str, run_type: str, call: Callable[[], T], **options: Any) -> T:
