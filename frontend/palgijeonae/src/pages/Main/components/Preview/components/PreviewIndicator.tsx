@@ -16,7 +16,7 @@ interface PreviewIndicatorProps {
 /** 캐러셀 상단의 4구간 진행 바 + 라벨. 현재 구간 바가 다 채워지면 onCurrentSlideEnd로 다음 슬라이드로 넘어간다. */
 function PreviewIndicator({ slides, index, onGoTo, onCurrentSlideEnd, prefersReducedMotion }: PreviewIndicatorProps) {
     return (
-        <div className="flex w-full items-center gap-3 border-b border-neutral-border bg-white px-5 py-4">
+        <div className="flex w-full items-center gap-3 border-b border-neutral-line bg-white px-5 py-4">
             <div className="grid flex-1 grid-cols-2 gap-2 md:grid-cols-4">
                 {slides.map((slide, slideIndex) => {
                     const isDone = slideIndex < index;

@@ -12,7 +12,7 @@ interface FormFieldProps {
 }
 
 const FIELD_CLASSES =
-    "box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border";
+    "box-border w-full rounded-xl border border-field-line bg-white px-4.75 text-sm text-black outline-none placeholder:font-light placeholder:text-neutral-border focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15";
 
 function FormField({ id, title, placeholder, variant = 'input', value, onChange, maxLength, label = "필수" }: FormFieldProps) {
     // 네이티브 maxLength는 한글 등 IME 조합 중에는 실시간으로 길이를 막지 못하므로 직접 잘라준다.

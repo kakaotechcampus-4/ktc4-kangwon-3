@@ -75,7 +75,7 @@ function UploadPage() {
                             <InputForm key={inputType} type={inputType} onAdd={handleAddProduct} />
                         </DefaultBox>
                     ) : (
-                        <DefaultBox className="border-status-warning bg-status-warning-bg">
+                        <DefaultBox tone="warning">
                             <p className="w-full text-center text-base font-semibold text-status-warning">
                                 상품은 최대 10개까지 담을 수 있어요. 진단을 시작해주세요.
                             </p>

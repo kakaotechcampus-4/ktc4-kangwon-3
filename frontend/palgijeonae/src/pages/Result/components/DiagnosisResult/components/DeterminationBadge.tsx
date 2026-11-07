@@ -4,11 +4,11 @@ import { DETERMINATION_LABELS } from "@/pages/Result/components/DiagnosisResult/
 
 // 판정 결과별 배지 색
 const DETERMINATION_BADGE_CLASSES: Record<Determination, string> = {
-    [Determination.Required]: "text-status-danger bg-status-danger-bg border-status-danger",
-    [Determination.PossiblyRequired]: "text-status-warning bg-status-warning-bg border-status-warning",
-    [Determination.InsufficientInformation]: "text-neutral-dark bg-white border-neutral-border",
-    [Determination.NotRequired]: "text-status-success bg-status-success-bg border-status-success",
-    [Determination.NotApplicable]: "text-status-success bg-status-success-bg border-status-success",
+    [Determination.Required]: "text-status-danger bg-status-danger-bg border-status-danger/40",
+    [Determination.PossiblyRequired]: "text-status-warning bg-status-warning-bg border-status-warning/40",
+    [Determination.InsufficientInformation]: "text-neutral-muted bg-white border-box-line",
+    [Determination.NotRequired]: "text-status-success bg-status-success-bg border-status-success/40",
+    [Determination.NotApplicable]: "text-status-success bg-status-success-bg border-status-success/40",
 };
 
 interface DeterminationBadgeProps {
