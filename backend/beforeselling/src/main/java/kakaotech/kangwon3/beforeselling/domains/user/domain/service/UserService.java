@@ -11,6 +11,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -24,6 +26,10 @@ public class UserService {
     public User getUser(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
+    }
+
+    public List<User> getUsers(Collection<UUID> userIds) {
+        return userRepository.findAllById(userIds);
     }
 
     /**
