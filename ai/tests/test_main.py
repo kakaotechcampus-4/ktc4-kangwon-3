@@ -1,10 +1,12 @@
-"""create_app이 만든 앱에 라우터·인증·요청 지표가 붙는지 확인한다.
+"""create_app이 만든 앱에 라우터·인증·요청 지표·기본 부품 함수가 연결되는지 확인한다.
 
 기동·종료 연결은 tests/startup/test_lifespan.py, 운영 부품은 tests/startup/test_parts.py.
 """
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app import main
 from tests.app_harness import FakeBackend, app_env, client, fake_parts
 
 PRODUCT = {"diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}]}
@@ -51,3 +53,14 @@ def test_지표_경로에_받은_HTTP_요청이_라우트_템플릿으로_나온
 
     assert 'ai_http_requests_total{method="GET",route="/api/ai/v1/health",status="200"} 1.0' in text
     assert 'route="/metrics"' not in text
+
+
+def test_부품_함수를_넘기지_않으면_운영_부품으로_기동한다(backend, monkeypatch):
+    called = []
+    monkeypatch.setattr(main, "production_parts", lambda settings: called.append(settings) or fake_parts(backend))
+
+    with TestClient(main.create_app()) as app:
+        response = app.get("/api/ai/v1/health")
+
+    assert response.status_code == 200
+    assert len(called) == 1

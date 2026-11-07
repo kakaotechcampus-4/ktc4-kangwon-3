@@ -1,8 +1,16 @@
 name: E2E
 
 # FE·BE·mock-ai를 함께 띄워 핵심 사용자 흐름을 브라우저로 검증한다.
-# 전체 스택을 띄워 느리므로 PR마다 돌리지 않고, develop에 머지된 뒤와 수동 실행 때만 돈다.
+# PR 체크는 아직 필수가 아니라 실패해도 병합할 수 있다.
 on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - "frontend/palgijeonae/**"
+      - "backend/beforeselling/**"
+      - "loadtest/mock-ai/**"
+      - "e2e/**"
+      - ".github/workflows/e2e.yml"
   push:
     branches: [develop]
     paths:
@@ -76,7 +84,7 @@ jobs:
           retention-days: 7
 
       - name: Discord 알림 (실패 시)
-        if: failure()
+        if: failure() && github.event_name != 'pull_request'
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_E2E_WEBHOOK }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -92,6 +92,7 @@
 | HTTP | Axios |
 | 스타일 | Tailwind CSS 4, class-variance-authority, tailwind-merge, Pretendard 글꼴 |
 | 린트 | ESLint 10 (typescript-eslint, react-hooks, import 정렬, 미사용 import 제거) |
+| 테스트 | Vitest, React Testing Library, user-event, MSW(API 모킹), jsdom |
 
 Node는 CI와 같은 22를 기준으로 합니다.
 
@@ -107,8 +108,11 @@ src/
 ├── pages/          # 페이지별 폴더. 페이지 전용 컴포넌트·훅·타입을 같은 폴더에 둠
 ├── store/          # Zustand 스토어 (인증)
 ├── constants/      # 상태 배지 라벨
-└── lib/            # 유틸 (클래스 병합, 글자 수 계산, 라우트 파라미터 검사)
+├── lib/            # 유틸 (클래스 병합, 글자 수 계산, 라우트 파라미터 검사)
+└── test/           # 단위·통합 테스트, MSW 핸들러, 테스트 유틸
 ```
+
+문서는 `docs/`에 있습니다: [코드 컨벤션](docs/CONVENTIONS.md), [테스트 정책](docs/TEST_POLICY.md).
 
 ## 화면 흐름
 
@@ -141,24 +145,27 @@ npm run dev        # http://localhost:5173
 | `npm run dev` | 개발 서버 |
 | `npm run build` | 타입 검사(`tsc -b`) 후 빌드 |
 | `npm run lint` | ESLint |
+| `npm test` | 단위·통합 테스트 실행 |
+| `npm run test:watch` | 파일을 저장할 때마다 테스트 다시 실행 |
 | `npm run preview` | 빌드 결과 미리보기 |
 
 ## 빌드와 배포
 
-PR과 develop push 시 [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)이 `frontend/palgijeonae/` 변경분을 빌드·검사하고, develop에서 CI가 통과하면 [`frontend-deploy.yml`](../.github/workflows/frontend-deploy.yml)이 EC2에 배포합니다.
+PR과 develop push 시 [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)이 `frontend/palgijeonae/` 변경분을 린트·테스트·빌드하고, develop에서 CI가 통과하면 [`frontend-deploy.yml`](../.github/workflows/frontend-deploy.yml)이 EC2에 배포합니다. 테스트가 실패하면 CI가 실패하므로 develop에서는 배포되지 않습니다.
 
 ## 린트와 테스트
 
-- CI는 PR마다 ESLint와 타입 검사를 포함한 빌드를 돌립니다.
-- **자동 테스트(단위·E2E)는 아직 없습니다.**
+- CI는 PR마다 ESLint, 단위·통합 테스트, 타입 검사를 포함한 빌드를 돌립니다.
+- 단위·통합 테스트는 Vitest와 React Testing Library로 작성하고, 외부 API는 MSW로 모킹합니다. `npm test`로 실행합니다.
+- 테스트 종류, 폴더 구조, 작성 규칙, 문제 해결은 [`docs/TEST_POLICY.md`](docs/TEST_POLICY.md)에 정리했습니다.
+- E2E 테스트는 저장소 루트 `e2e/`에서 진행합니다.
 
 ## 코드 작성 관례
 
-FE 코드 컨벤션(네이밍, 폴더·파일 구조, 컴포넌트 작성 규칙, import 순서, API·타입 정의 위치, 상태 관리, 에러 처리, 접근성 등)은 [`CONVENTIONS.md`](CONVENTIONS.md)에 정리했습니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../CONTRIBUTING.md)를 참고하세요.
+FE 코드 컨벤션(네이밍, 폴더·파일 구조, 컴포넌트 작성 규칙, import 순서, API·타입 정의 위치, 상태 관리, 에러 처리, 접근성 등)은 [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)에 정리했습니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../CONTRIBUTING.md)를 참고하세요.
 
 ## 알려진 한계
 
-- 자동 테스트가 없습니다.
 - 요청 실패와 삭제·탈퇴 확인을 대부분 `alert`/`confirm`으로 처리합니다. 토스트나 커스텀 모달 같은 화면 내 알림은 없습니다.
 - 화면 오류를 잡는 ErrorBoundary가 없습니다.
 - 요청 타임아웃은 따로 처리하지 않습니다.

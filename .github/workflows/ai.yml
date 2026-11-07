@@ -19,6 +19,8 @@ permissions:
 env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: ${{ vars.S3_BUCKET }}
+  ECR_REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com
+  ECR_REPOSITORY: beforeselling-ai-app
   APP_DIR: /home/ubuntu/ai-app
 
 jobs:
@@ -64,6 +66,23 @@ jobs:
       - name: 도커 이미지 산출물 검증
         run: docker run --rm ai-server:ci ls app/agents/extraction/prompt.md
 
+      - name: AWS 자격증명 설정
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: ECR 로그인
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: ECR push
+        if: github.event_name != 'pull_request'
+        run: |
+          docker tag ai-server:ci "${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+          docker push -q "${ECR_REGISTRY}/${ECR_REPOSITORY}:${GITHUB_SHA}"
+
   deploy:
     needs: [test, docker-build]
     if: github.event_name != 'pull_request'
@@ -81,10 +100,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/ktc-github-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: 빌드 결과물 업로드
+      - name: 배포 파일 업로드
         run: |
-          tar czf /tmp/ai-app.tar.gz -C ai --exclude='.git' --exclude='venv' --exclude='.venv' --exclude='__pycache__' --exclude='.env' .
-          aws s3 cp /tmp/ai-app.tar.gz "s3://${S3_BUCKET}/ai/app-${GITHUB_SHA}.tar.gz"
+          tar czf /tmp/ai-deploy.tar.gz -C ai docker-compose.yml db
+          aws s3 cp /tmp/ai-deploy.tar.gz "s3://${S3_BUCKET}/ai/deploy-${GITHUB_SHA}.tar.gz"
 
       - name: 배포 실행
         uses: ./.github/actions/ssm-run
@@ -93,13 +112,19 @@ jobs:
           label: ai deploy
           commands: |
             mkdir -p ${{ env.APP_DIR }}
-            aws s3 cp s3://${{ env.S3_BUCKET }}/ai/app-${{ github.sha }}.tar.gz /tmp/ai-app.tar.gz
+            ECR_IMAGE=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+            docker pull -q "$ECR_IMAGE"
+            docker logout ${{ env.ECR_REGISTRY }}
+            docker tag "$ECR_IMAGE" ai-server:${{ github.sha }}
+            docker tag "$ECR_IMAGE" ai-server:latest
+            aws s3 cp s3://${{ env.S3_BUCKET }}/ai/deploy-${{ github.sha }}.tar.gz /tmp/ai-deploy.tar.gz
             rm -rf ${{ env.APP_DIR }}/release && mkdir -p ${{ env.APP_DIR }}/release
-            tar xzf /tmp/ai-app.tar.gz -C ${{ env.APP_DIR }}/release
+            tar xzf /tmp/ai-deploy.tar.gz -C ${{ env.APP_DIR }}/release
             cp ${{ env.APP_DIR }}/.env ${{ env.APP_DIR }}/release/.env
             cd ${{ env.APP_DIR }}/release
             docker network inspect be-ai-net >/dev/null 2>&1 || docker network create be-ai-net
-            docker compose up -d --build --remove-orphans --wait --wait-timeout 120
+            IMAGE_TAG=${{ github.sha }} docker compose up -d --no-build --remove-orphans --wait --wait-timeout 120
             curl -sf http://localhost:8000/api/ai/v1/health/ready || exit 1
             docker compose ps
-            docker image prune -f
+            docker image prune -a -f
