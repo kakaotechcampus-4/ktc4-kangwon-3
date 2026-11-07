@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.diagnosis import langsmith_trace
+from app.domain.context import ExecutionContext, RunType
 from app.schemas.schemas import ToolName
 
 
@@ -56,3 +57,22 @@ def test_단계_예외는_바꾸지_않고_그대로_올린다(recorder):
 
     assert caught.value is error
     assert recorder.ended == []
+
+
+def test_진단은_상품_ID_이름으로_묶고_실행_정보를_남긴다(recorder):
+    context = ExecutionContext(run_id="r1", product_id="p1", run_type=RunType.TEST, diagnosis_id="d1")
+    calls = []
+
+    def job(job_input, context, progress):
+        calls.append((job_input, context, progress))
+        return "결말"
+
+    result = langsmith_trace.traced_job(job)("입력", context, "진행")
+
+    assert result == "결말"
+    assert calls == [("입력", context, "진행")]
+    assert recorder.opened == [{
+        "name": "diagnosis:p1", "run_type": "chain",
+        "metadata": {"run_id": "r1", "run_type": "test", "diagnosis_id": "d1"},
+    }]
+    assert recorder.ended == [{"name": "diagnosis:p1", "outputs": {"output": "결말"}}]

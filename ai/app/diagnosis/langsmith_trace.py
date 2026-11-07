@@ -9,8 +9,11 @@ from typing import Any, TypeVar
 
 from langsmith import trace
 
+from ..domain.context import ExecutionContext
 from ..pipeline.hooks import StageName
 from ..schemas.schemas import ToolName
+from ..schemas.session import DiagnosisInput
+from ..sessions.job import DiagnosisJob, Outcome, ProgressReporter
 
 T = TypeVar("T")
 
@@ -58,3 +61,23 @@ def tool_hook(tool_name: ToolName, call: Callable[[], Any], /) -> Any:
         Any: Tool이 돌려준 값.
     """
     return _traced(f"tool:{tool_name.value}", "tool", call)
+
+
+def traced_job(job: DiagnosisJob) -> DiagnosisJob:
+    """진단 함수 전체를 trace 하나로 묶는다.
+
+    Args:
+        job: 진단 함수.
+
+    Returns:
+        DiagnosisJob: 같은 일을 하고 LangSmith에 한 묶음으로 남기는 진단 함수.
+    """
+
+    def run(job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter) -> Outcome:
+        return _traced(
+            f"diagnosis:{context.product_id}", "chain", lambda: job(job_input, context, progress),
+            metadata={"run_id": context.run_id, "run_type": context.run_type.value,
+                      "diagnosis_id": context.diagnosis_id},
+        )
+
+    return run
