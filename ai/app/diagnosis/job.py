@@ -26,7 +26,7 @@ from ..schemas.callback import PublicQuestionDto
 from ..schemas.schemas import ExecutionEndReason, FinalAssessment, FinalVerificationStatus, FollowUpQuestion
 from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
-from .answers import ANSWER_PREFIX
+from ..tools.common.questions import answered_questions, help_text
 from .assembly import PipelineParts
 from .progress import ProgressStageHook, ProgressToolHook
 from .replay import ReplaySkipHook, ReplayStopHook, StageReplay
@@ -150,8 +150,7 @@ def _ask_missing_information(result: FinalAssessment, previous: FinalAssessment 
     asked = {question.question.strip() for question in (previous.follow_up_questions if previous else [])}
     # 직전 결과에는 그 전 회차 질문이 없어서, 상품 정보에 남은 답변 줄에서도 모음
     if previous is not None:
-        asked |= {line.removeprefix(ANSWER_PREFIX).split(" → ")[0].strip()
-                  for line in previous.product.listing_text if line.startswith(ANSWER_PREFIX)}
+        asked |= set(answered_questions(previous.product.listing_text))
     existing = {question.question.strip() for question in result.follow_up_questions}
     added: dict[str, FollowUpQuestion] = {}
     for tool_result in result.tool_results:
@@ -167,8 +166,7 @@ def _ask_missing_information(result: FinalAssessment, previous: FinalAssessment 
     if not added:
         return result
     for question in added.values():
-        labels = ", ".join(FIELD_LABELS[tool] for tool in question.related_tools)
-        question.reason = f"{labels} 판단에 필요한 정보예요."
+        question.reason = _question_reason(question)
     logger.info("Tool의 부족한 정보로 질문 %d개 추가 (종료 사유 %s → user_input_required)",
                 len(added), result.termination_reason.value)
     return result.model_copy(update={
@@ -176,6 +174,22 @@ def _ask_missing_information(result: FinalAssessment, previous: FinalAssessment 
         "verification_status": FinalVerificationStatus.INCOMPLETE,
         "follow_up_questions": [*result.follow_up_questions, *added.values()],
     })
+
+
+def _question_reason(question: FollowUpQuestion) -> str:
+    """질문 도움말 (FE가 질문 아래 보여 줌). 어떻게 답하면 되는지 + 어느 분야 판단에 쓰는지.
+
+    Args:
+        question: Tool의 부족한 정보로 만든 질문. related_tools에 물은 Tool이 있음.
+
+    Returns:
+        str: 카탈로그 도움말이 있으면 "{도움말} {분야} 판단에 필요해요.", 없으면 "{분야} 판단에 필요한 정보예요.".
+    """
+    labels = ", ".join(FIELD_LABELS[tool] for tool in question.related_tools)
+    help = help_text(question.question)
+    if help is None:
+        return f"{labels} 판단에 필요한 정보예요."
+    return f"{help} {labels} 판단에 필요해요."
 
 
 def _next_round(job_input: DiagnosisInput) -> int:

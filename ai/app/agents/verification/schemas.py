@@ -9,6 +9,7 @@ from typing import Literal
 
 from ...schemas.base import StrictModel
 from ...schemas.schemas import ToolName, VerificationIssueType as IssueType
+from ...tools.common.questions import TOPICS
 
 
 class _Issue(StrictModel):
@@ -24,6 +25,8 @@ class _Question(StrictModel):
     reason: str
     related_tools: list[ToolName]
     required: bool
+    # 묻는 조건 필드. 코드가 Tool 질문·지난 답변과 겹치는지 보는 데 씀 (tools/common/questions.py)
+    topic: Literal[TOPICS]
 
 
 class _Review(StrictModel):

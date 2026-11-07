@@ -34,9 +34,6 @@ _QUESTION_FIELDS = ("product_type", "power_source", "rated_voltage", "battery_on
 # 값이 판단 결과("예"/"아니오")라 인용 안에 그대로 있지 않아도 되는 조건.
 _JUDGED_FIELDS = ("battery_only",)
 
-_QUESTIONS = {
-    "battery_only": "제품이 건전지·충전지로만 동작하나요, 아니면 전원 코드·어댑터를 꽂아 쓰나요?",
-}
 _SEARCH_FAILED = "전기안전 법령 품목표 조회에 실패했습니다."
 
 
@@ -57,7 +54,6 @@ class ElectricalTool(EvidenceSearchTool):
     review_step = ElectricalReviewStep
     error_class = ElectricalToolError
     field_labels = _FIELDS
-    questions = _QUESTIONS
     empty_fields = (*_REQUIRED_FIELDS, *_ASKED_FIELDS)
     conflict_note = ". 제품 종류·전원과 관련된 모순이면 결과가 달라질 수 있습니다."
     insufficient = (

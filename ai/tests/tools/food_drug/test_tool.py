@@ -233,7 +233,7 @@ def test_이유에서_해당하지_않는다고_결론_낸_선택과_중복은_�
 def test_품목_확정에_더_필요한_조건은_용도만_묻고_나머지는_가정으로_남긴다():
     product, facts = facts_for(*THERMOMETER, device_terms=["적외선 체온계"])
     result, _ = run(product, facts, DeviceReview(selections=[select(needed_fields=["intended_use", "material"])]))
-    assert result.missing_information == ["용도 정보가 필요합니다."]
+    assert result.missing_information == ["제품을 어디에 어떻게 쓰는지(용도) 확인이 필요합니다."]
     assert any("재질 확인이 더 필요합니다" in text for text in result.findings[0].assumptions)
 
 

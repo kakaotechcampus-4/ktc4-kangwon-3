@@ -106,6 +106,7 @@ def _battery_question(required: bool = True) -> _Question:
         reason="안전확인 대상 판단에 필요합니다.",
         related_tools=[ToolName.ELECTRICAL],
         required=required,
+        topic="other",
     )
 
 

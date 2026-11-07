@@ -21,9 +21,6 @@ _FIELDS = {
     "product_type": "제품 종류", "wireless_feature": "무선 기능", "frequency": "사용 주파수",
     "output_power": "출력", "intended_use": "제품 용도",
 }
-_QUESTIONS = {
-    "wireless_feature": "무선 기능(블루투스·Wi-Fi·무선충전·RF 리모컨 등) 정보가 필요합니다.",
-}
 _REQUIRED_FIELDS = ("product_type", "wireless_feature")
 # 판단을 바꾸는 조건만 질문한다(#341과 같은 기준). 주파수·출력·용도는 선택 모델의 참고값이라 가정으로 남긴다.
 _QUESTION_FIELDS = _REQUIRED_FIELDS
@@ -62,7 +59,6 @@ class RadioTool(EvidenceSearchTool):
     review_step = RadioReviewStep
     error_class = RadioToolError
     field_labels = _FIELDS
-    questions = _QUESTIONS
     empty_fields = _REQUIRED_FIELDS
     conflict_note = ". 무선 기능·제품 종류와 관련된 모순이면 결과가 달라질 수 있습니다."
     insufficient = (

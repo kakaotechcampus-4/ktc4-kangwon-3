@@ -23,9 +23,6 @@ _FIELDS = {
     "product_type": "제품 종류", "target_age": "사용 대상 연령", "intended_use": "제품 용도",
     "material": "재질", "excluded_kind": "제외 물품 해당 여부",
 }
-_QUESTIONS = {
-    "target_age": "사용 대상 연령(예: '만 3세 이상', '36개월 미만') 정보가 필요합니다.",
-}
 _REQUIRED_FIELDS = ("product_type",)
 _SEARCH_TERMS_LIMIT = 3
 _SEARCH_FAILED = "어린이제품 법령 품목표 조회에 실패했습니다."
@@ -63,7 +60,6 @@ class ChildrenTool(EvidenceSearchTool):
     review_step = ChildrenReviewStep
     error_class = ChildrenToolError
     field_labels = _FIELDS
-    questions = _QUESTIONS
     empty_fields = ("product_type", "target_age")
     conflict_note = ". 연령·제품 종류와 관련된 모순이면 결과가 달라질 수 있습니다."
     insufficient = (
