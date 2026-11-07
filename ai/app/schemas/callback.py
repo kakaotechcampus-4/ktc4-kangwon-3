@@ -2,8 +2,10 @@
 
 콜백 수신 경로: POST /internal/v1/ai/products/{productId} (#263). 이벤트 종류는 eventType 하나로 구분.
 질문·결과·실패 이벤트는 그 실행(runId)의 마지막 이벤트.
+법령 변경 수신 경로: POST /internal/v1/ai/law-changes (#673).
 """
 
+from datetime import date
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -171,3 +173,41 @@ PublicProductEvent = Annotated[
     ProductProgressEvent | ProductAwaitingInputEvent | ProductResultEvent | ProductFailedEvent,
     Field(discriminator="event_type"),
 ]
+
+
+class PublicLawChangeDto(ApiModel):
+    """근거 법령 변경 하나.
+
+    Attributes:
+        law_name: 문서 이름. BE가 진단 근거의 law_name과 맞춰 재확인 대상을 찾음.
+        document_id: 법령ID 또는 행정규칙ID.
+        admrul: 행정규칙이면 True.
+        tool_name: 이 문서를 근거로 쓰는 분야.
+        serial_number: 새로 근거가 된 판 번호. document_id와 함께 BE가 중복 수신을 거르는 키.
+        previous_serial_number: 이전에 근거로 쓰던 판 번호.
+        revision_type: 제개정구분명 (제정, 일부개정 등).
+        enforce_date: 시행일.
+        issued_date: 공포일·발령일.
+    """
+
+    law_name: NonBlankStr
+    document_id: NonBlankStr
+    admrul: bool
+    tool_name: PublicToolName
+    serial_number: NonBlankStr
+    previous_serial_number: str | None = None
+    revision_type: str | None = None
+    enforce_date: date | None = None
+    issued_date: date | None = None
+
+
+class LawChangeCallbackRequest(ApiModel):
+    """법령 점검 한 번에서 찾은 변경 묶음.
+
+    Attributes:
+        checked_on: 점검 기준일.
+        changes: 찾은 변경. 비어 있으면 BE가 거절함.
+    """
+
+    checked_on: date
+    changes: list[PublicLawChangeDto] = Field(min_length=1)
