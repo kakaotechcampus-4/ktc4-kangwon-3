@@ -10,10 +10,10 @@ const buttonVariants = cva(
             variant: {
                 // 핵심 액션
                 primary:
-                    "bg-primary px-[25px] py-[14px] font-bold text-white shadow-button-primary enabled:not-aria-disabled:hover:bg-primary-hover enabled:not-aria-disabled:hover:shadow-button-primary-hover enabled:not-aria-disabled:active:bg-primary-active enabled:not-aria-disabled:active:shadow-none disabled:bg-button-disabled-bg disabled:text-button-disabled-text disabled:shadow-none",
+                    "bg-primary px-6.25 py-3.5 font-bold text-white shadow-button-primary enabled:not-aria-disabled:hover:bg-primary-hover enabled:not-aria-disabled:hover:shadow-button-primary-hover enabled:not-aria-disabled:active:bg-primary-active enabled:not-aria-disabled:active:shadow-none disabled:bg-button-disabled-bg disabled:text-button-disabled-text disabled:shadow-none",
                 // 보조 액션
                 secondary:
-                    "border border-box-line bg-white px-[24px] py-[13px] font-semibold text-neutral-text shadow-button-secondary enabled:not-aria-disabled:hover:border-button-line-hover enabled:not-aria-disabled:hover:bg-button-hover-bg enabled:not-aria-disabled:active:bg-button-active-bg enabled:not-aria-disabled:active:shadow-none focus-visible:border-primary disabled:border-neutral-line disabled:bg-button-hover-bg disabled:text-button-disabled-text disabled:shadow-none",
+                    "border border-box-line bg-white px-6 py-3.25 font-semibold text-neutral-text shadow-button-secondary enabled:not-aria-disabled:hover:border-button-line-hover enabled:not-aria-disabled:hover:bg-button-hover-bg enabled:not-aria-disabled:active:bg-button-active-bg enabled:not-aria-disabled:active:shadow-none focus-visible:border-primary disabled:border-neutral-line disabled:bg-button-hover-bg disabled:text-button-disabled-text disabled:shadow-none",
             },
         },
         defaultVariants: {
