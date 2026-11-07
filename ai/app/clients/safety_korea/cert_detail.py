@@ -7,8 +7,8 @@
 import httpx
 
 from .base import SafetyKoreaBaseClient
-from ...schemas.clients.safety_korea_request import CertDetailRequest
-from ...schemas.clients.safety_korea_response import CertItem
+from .schemas.request import CertDetailRequest
+from .schemas.response import CertItem
 
 
 class CertDetailClient(SafetyKoreaBaseClient[CertDetailRequest, CertItem]):
