@@ -1,4 +1,4 @@
-"""create_app이 만든 앱에 라우터·인증·요청 지표가 붙는지 확인한다.
+"""create_app이 만든 앱에 라우터·인증·요청 지표·기본 부품 함수가 연결되는지 확인한다.
 
 기동·종료 연결은 tests/startup/test_lifespan.py, 운영 부품은 tests/startup/test_parts.py.
 """
