@@ -68,4 +68,13 @@ public class LawAmendmentService {
     public List<LawAmendmentProduct> getRecheckProducts(UUID userId) {
         return lawAmendmentProductRepository.findWithLawAmendmentAndProductByUserId(userId);
     }
+
+    /**
+     * 상품을 모든 법령 변경의 재확인 대상에서 뺀다.
+     */
+    @Transactional
+    public void removeRecheckProducts(UUID productId) {
+        int removed = lawAmendmentProductRepository.deleteByProductId(productId);
+        log.debug("재확인 대상 해제. productId={}, removedCount={}", productId, removed);
+    }
 }

@@ -2,6 +2,7 @@ package kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.repository;
 
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.entity.LawAmendmentProduct;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -19,4 +20,8 @@ public interface LawAmendmentProductRepository extends JpaRepository<LawAmendmen
             order by la.createdAt desc, p.createdAt desc
             """)
     List<LawAmendmentProduct> findWithLawAmendmentAndProductByUserId(@Param("userId") UUID userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from LawAmendmentProduct lap where lap.product.id = :productId")
+    int deleteByProductId(@Param("productId") UUID productId);
 }
