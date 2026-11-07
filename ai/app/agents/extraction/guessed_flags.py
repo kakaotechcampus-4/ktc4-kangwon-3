@@ -152,20 +152,29 @@ def drop_contradicted_plant_false(attributes: dict[str, Any], text: str) -> tupl
 # 소재 줄의 동물성 소재. 모델(gpt-4.1-mini)이 "소재: 소가죽"·"100% 울"·"Genuine Leather"를 식물성 소재로 낸다
 # (2026-11-06 실사이트 소가죽 지갑 원문 5회 모두 true, 소재 줄만 나일론으로 바꾸면 3회 모두 false).
 # "울"은 "서울"·"거울"·"울트라" 안에서 안 잡히게 한글 낱말 안의 울은 보지 않고, 영어는 낱말 단위로 본다.
+# "메리노울"·"램스울"처럼 앞에 한글이 붙는 울 표기는 낱말로 넣는다 (리뷰 #642).
 _ANIMAL_MATERIAL = re.compile(
-    r"가죽|레더|스웨이드|누벅|누버크|모피|양모|양털|캐시미어|모헤어|알파카|실크|깃털|오리털|거위털|구스다운|덕다운"
+    r"가죽|피혁|뱀피|레더|스웨이드|누벅|누버크|모피|양모|양털|모직|메리노|램스울|캐시미어|모헤어|앙고라|알파카|실크|깃털"
+    r"|오리털|거위털|구스다운|덕다운"
     r"|(?<![가-힣])울(?![가-힣])"
-    r"|(?<![A-Za-z])(?:leather|suede|nubuck|cowhide|sheepskin|fur|wool|cashmere|mohair|alpaca|silk|feathers?|down)"
+    r"|(?<![A-Za-z])(?:leather|suede|nubuck|cowhide|sheepskin|snakeskin|fur|wool|merino|lambswool|cashmere|mohair"
+    r"|angora|alpaca|silk|feathers?|down)"
     r"(?![A-Za-z])",
     re.IGNORECASE,
 )
 # _PLANT_MATERIAL에 없는 식물 유래 표기. 이 낱말이 있으면 true를 되돌리지 않는다 (넓게 잡아도 true가 남는 안전한 쪽).
 # 식물로 만든 가죽 대체재("선인장 가죽")와 식물성 태닝, 재생 섬유(레이온 등)까지 넣는다.
+# 모시·한지, 건조 식물(드라이플라워·건초·솔방울), 면직물 표기(캔버스·데님)도 넣는다 (리뷰 #642).
+# "건조"·"말린"은 보관 안내("건조한 곳", "말린 뒤")에도 흔해 식물 낱말이 뒤따를 때만 본다.
+# "한지"는 "구매한지", "모시"는 "모십니다", "건초"는 "건초염" 안에 흔해 낱말 경계·뒤 글자를 본다.
 _PLANT_ORIGIN_HINT = re.compile(
-    r"식물|비건|삼베|대마|갈대|왕골|해초|위커|버들|합판|베니어|펄프|크라프트|코코넛|야자|편백|히노키|선인장|버섯|파인애플"
-    r"|레이온|비스코스|모달|텐셀|리오셀"
-    r"|(?<![A-Za-z])(?:plant|vegan|hemp|seagrass|wicker|willow|veneer|mdf|pulp|kraft|coconut|palm|cactus|mushroom"
-    r"|pineapple|rayon|viscose|modal|tencel|lyocell)(?![A-Za-z])",
+    r"식물|비건|삼베|대마|갈대|왕골|해초|위커|버들|합판|베니어|펄프|크라프트|코코넛|야자|편백|히노키|선인장|버섯"
+    r"|파인애플|레이온|비스코스|모달|텐셀|리오셀|캔버스|데님|주트"
+    r"|(?<![가-힣])한지|(?<![가-힣])모시(?![고는다며겠지려러면])|건초(?!염)"
+    r"|드라이 ?플라워|프리저브드|솔방울|(?:건조|말린) ?(?:꽃|식물|잎|열매|과일|풀|화)"
+    r"|(?<![A-Za-z])(?:plant|vegan|hemp|ramie|seagrass|wicker|willow|veneer|mdf|pulp|kraft|coconut|palm|cactus|mushroom"
+    r"|pineapple|rayon|viscose|modal|tencel|lyocell|canvas|denim|hay|pinecones?|preserved"
+    r"|dried? ?(?:flowers?|plants?|leaves|leaf|fruits?))(?![A-Za-z])",
     re.IGNORECASE,
 )
 

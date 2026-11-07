@@ -311,6 +311,16 @@ from app.agents.extraction.guessed_flags import drop_contradicted_plant_true
     "성분\n뉴질랜드산 양모 80%, 나일론 20%",
     "Material\nGenuine Leather",
     "안감 소재\n거위털 90%",
+    # 앞에 한글이 붙는 울 표기와 목록에 없던 동물성 소재 (리뷰 #642)
+    "소재\n메리노울 100%",
+    "소재\n램스울",
+    "소재\n천연 피혁",
+    "소재\n뱀피",
+    "소재\n앙고라 70%, 나일론 30%",
+    # 다른 낱말 안의 "한지"·"모시"·"건초"는 식물성 표기가 아니다
+    "소재\n소가죽\n구매한지 일주일 안에 교환",
+    "소재\n소가죽\n고객님을 정성껏 모십니다",
+    "소재\n소가죽\n건초염 예방 손목 보호",
 ])
 def test_소재_줄이_동물성_소재이고_식물성_표기가_없는_plant_material_true는_모름으로_되돌린다(text):
     attributes = {"plant_material": True}
@@ -327,6 +337,17 @@ def test_소재_줄이_동물성_소재이고_식물성_표기가_없는_plant_m
     "소재\n비건 레더 (선인장 가죽)",
     "소재\n식물성 태닝 가죽",
     "Material\nCork Leather",
+    # 식물성 부품·건조 식물이 가죽과 같이 적힌 경우 (리뷰 #642). 식물방역법 안내가 빠지면 안 됨
+    "소재\n소가죽, 모시 안감",
+    "소재\n한지, 가죽",
+    "소재\n드라이플라워, 가죽",
+    "소재\n말린 꽃, 소가죽",
+    "소재\n건초, 가죽",
+    "소재\n솔방울, 가죽",
+    "소재\n소가죽, 캔버스",
+    "소재\n소가죽, 데님",
+    "소재\n가죽, 주트",
+    "Material\nLeather, dried flowers",
 ])
 def test_원문에_식물성_표기가_있으면_plant_material_true를_그대로_둔다(text):
     attributes = {"plant_material": True}
@@ -340,6 +361,7 @@ def test_원문에_식물성_표기가_있으면_plant_material_true를_그대�
     "색상: 가죽 브라운\n소재\n스테인리스 스틸",
     "남성 지갑&카드 케이스\n진가죽 지갑",
     "서울 배송\n소재\n플라스틱",
+    "소재\n거울, 스틸",
     "",
 ])
 def test_소재_줄에_동물성_소재가_없으면_plant_material_true를_그대로_둔다(text):
