@@ -2,7 +2,7 @@ import DefaultBox from "@/components/common/DefaultBox";
 import SectionIntro from "@/components/common/SectionIntro";
 import { truncateToCodeUnitLength } from "@/lib/text";
 
-interface QuestionProps {
+interface QuestionCardProps {
     id: string
     questionNumber: number
     title: string
@@ -14,7 +14,7 @@ interface QuestionProps {
 // BE가 answerText를 500자(코드 유닛 기준)까지만 허용한다.
 const MAX_ANSWER_LENGTH = 500;
 
-function Question({ id, questionNumber, title, description, answer, onChange }: QuestionProps) {
+function QuestionCard({ id, questionNumber, title, description, answer, onChange }: QuestionCardProps) {
     // 네이티브 maxLength는 IME 조합 중엔 실시간으로 길이를 막지 못해서 직접 잘라준다.
     const handleChange = (value: string) => {
         onChange(truncateToCodeUnitLength(value, MAX_ANSWER_LENGTH));
@@ -44,4 +44,4 @@ function Question({ id, questionNumber, title, description, answer, onChange }: 
     );
 }
 
-export default Question;
+export default QuestionCard;

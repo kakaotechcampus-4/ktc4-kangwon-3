@@ -11,11 +11,10 @@ import ProductPreview from "@/components/common/ProductPreview";
 import SectionIntro from "@/components/common/SectionIntro";
 import { getCurrentRoundQuestions } from "@/lib/questions";
 import { isMissingRouteParam } from "@/lib/routeParams";
-
-import { computeAnswerState } from "./answerState";
-import ProgressSummary from "./ProgressSummary";
-import Question from "./Question";
-import { useQuestionProduct } from "./useQuestionProduct";
+import ProgressSummary from "@/pages/Question/components/ProgressSummary";
+import QuestionCard from "@/pages/Question/components/QuestionCard";
+import { useQuestionProduct } from "@/pages/Question/hooks/useQuestionProduct";
+import { computeAnswerState } from "@/pages/Question/utils/answerState";
 
 function QuestionPage() {
     const { productId } = useParams<{ productId?: string }>();
@@ -120,7 +119,7 @@ function QuestionPage() {
                     <ProgressSummary currentAnswered={currentAnswered} />
                     <div className="flex flex-col gap-4">
                         {currentQuestions.map((question, index) => (
-                            <Question
+                            <QuestionCard
                                 key={question.questionId}
                                 id={question.questionId}
                                 questionNumber={index + 1}
