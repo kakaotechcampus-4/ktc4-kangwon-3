@@ -197,15 +197,15 @@ jq '.steps[] | select(.kind == "selection") | .output' logs/traces/kc-fan/run-1.
 
 ### 6.1 켜기
 
-`.env`에 넣음. 키는 LangSmith 설정 화면에서 개인 키로 발급.
+`.env`에 넣음. 키는 LangSmith 설정 화면에서 발급.
 
 ```bash
 LANGSMITH_TRACING=true
-LANGSMITH_API_KEY=<개인 키>
-LANGSMITH_PROJECT=ktc4-local
+LANGSMITH_API_KEY=<API 키>
+LANGSMITH_PROJECT=<프로젝트 이름>   # 예: 로컬 ktc4-local, 서버 ktc4-prod
 ```
 
-켜고 `trace_cli`나 로컬 서버로 진단을 돌리면 화면에 아래처럼 남음.
+켜고 `trace_cli`나 서버로 진단을 돌리면 화면에 아래처럼 남음.
 
 ```text
 diagnosis:<상품 ID>
@@ -221,7 +221,7 @@ diagnosis:<상품 ID>
 
 ### 6.2 주의
 
-- 프롬프트·상품 문구·모델 응답이 LangSmith로 나감 → 서버에는 켜지 않음. 민감한 입력으로 돌리지 않음
+- 프롬프트·상품 문구·모델 응답이 LangSmith로 전송됨
 - `.env`를 읽는 실행은 모두 켜짐. 로컬 컨테이너도 다시 만들면 켜짐. 켜 둔 채 평가 러너를 돌리면 호출이 진단으로 묶이지 않고 하나씩 전송됨 → 앞에 `LANGSMITH_TRACING=false`를 붙임
 - 테스트는 항상 끔 (`tests/conftest.py`)
 - 전송 서버 장애 때 진단 결과는 그대로. 오류 로그가 남고 프로세스 종료가 늦어질 수 있음
