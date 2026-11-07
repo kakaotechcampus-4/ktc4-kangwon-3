@@ -1,6 +1,6 @@
 import { cva } from "class-variance-authority";
 
-import { Provider } from "./types.ts"
+import { Provider } from "@/pages/Login/types.ts"
 
 const buttonVariants = cva(
     "flex flex-row cursor-pointer items-center justify-center gap-5 self-stretch rounded-xl border py-2.5 pr-8 pl-5",
