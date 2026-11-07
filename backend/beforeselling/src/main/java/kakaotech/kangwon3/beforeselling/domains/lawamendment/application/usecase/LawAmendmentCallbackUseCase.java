@@ -22,7 +22,7 @@ public class LawAmendmentCallbackUseCase {
         List<LawAmendment> created = lawAmendmentService.createLawAmendments(
                 lawAmendmentMapper.toLawAmendments(request));
 
-        log.info("AI 법령 변경 콜백 수신. checkedOn={}, receivedCount={}, createdCount={}",
-                request.checkedOn(), request.changes().size(), created.size());
+        log.info("AI 법령 변경 콜백 수신. receivedCount={}, createdCount={}",
+                request.changes().size(), created.size());
     }
 }
