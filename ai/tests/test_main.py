@@ -56,9 +56,11 @@ def test_지표_경로에_받은_HTTP_요청이_라우트_템플릿으로_나온
 
 
 def test_부품_함수를_넘기지_않으면_운영_부품으로_기동한다(backend, monkeypatch):
-    monkeypatch.setattr(main, "production_parts", lambda settings: fake_parts(backend))
+    called = []
+    monkeypatch.setattr(main, "production_parts", lambda settings: called.append(settings) or fake_parts(backend))
 
     with TestClient(main.create_app()) as app:
         response = app.get("/api/ai/v1/health")
 
     assert response.status_code == 200
+    assert len(called) == 1
