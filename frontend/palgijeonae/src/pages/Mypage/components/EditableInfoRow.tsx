@@ -90,7 +90,7 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
                             cancelEditing();
                         }
                     }}
-                    className="h-10 w-full rounded-lg border border-box-line bg-white px-3 text-base text-black outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15 disabled:opacity-50"
+                    className="h-10 w-full rounded-lg border border-field-line bg-white px-3 text-base text-black outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15 disabled:opacity-50"
                 />
                 <span className={cn("shrink-0 text-xs", trimmedLength > maxLength ? "text-status-danger" : "text-neutral-border")}>
                     {trimmedLength}/{maxLength}

@@ -68,7 +68,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
                     placeholder="상품명으로 검색하세요"
                     value={draftSearchTerm}
                     onChange={(event) => handleChange(event.target.value)}
-                    className="w-full rounded-full border border-box-line bg-white px-5 py-3 pr-20 shadow-button-secondary outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15"
+                    className="w-full rounded-full border border-field-line bg-white px-5 py-3 pr-20 shadow-button-secondary outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15"
                 />
                 {draftSearchTerm && (
                     <button

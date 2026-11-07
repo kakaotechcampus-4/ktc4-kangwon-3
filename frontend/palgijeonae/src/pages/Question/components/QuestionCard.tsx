@@ -34,7 +34,7 @@ function QuestionCard({ id, questionNumber, title, description, answer, onChange
                             aria-label={title}
                             onChange={(e) => handleChange(e.target.value)}
                             maxLength={MAX_ANSWER_LENGTH}
-                            className="box-border w-full rounded-xl border border-box-line bg-white px-4.75 text-sm text-black outline-none placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2 focus:border-primary"
+                            className="box-border w-full rounded-xl border border-field-line bg-white px-4.75 text-sm text-black outline-none placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2 focus:border-primary"
                             placeholder="주어진 질문에 자유롭게 답변하세요. 답변 분석은 AI가 합니다." />
                         <span className="text-xs leading-3.5 text-neutral-border">{answer.length}/{MAX_ANSWER_LENGTH}</span>
                     </div>
