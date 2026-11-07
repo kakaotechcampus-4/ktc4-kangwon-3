@@ -1,6 +1,5 @@
 import { getErrorMessage } from "@/api/client.ts";
-
-import { useWithdraw } from "./useWithdraw.ts";
+import { useWithdraw } from "@/pages/Mypage/hooks/useWithdraw.ts";
 
 const WITHDRAW_CONFIRM_MESSAGE = `정말 탈퇴할까요?
 

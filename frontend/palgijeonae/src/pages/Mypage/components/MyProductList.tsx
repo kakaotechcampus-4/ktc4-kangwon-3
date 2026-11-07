@@ -5,10 +5,9 @@ import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
-
-import { PAGE_GROUP_SIZE } from "./constraints.ts";
-import type { MyProductItem } from "./types.ts";
-import { useDeleteProduct } from "./useDeleteProduct.ts";
+import { PAGE_GROUP_SIZE } from "@/pages/Mypage/constants.ts";
+import { useDeleteProduct } from "@/pages/Mypage/hooks/useDeleteProduct.ts";
+import type { MyProductItem } from "@/pages/Mypage/types.ts";
 
 interface MyProductListProps {
     products: MyProductItem[]

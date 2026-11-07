@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { getMyProducts, SortType } from "@/api/myProducts.ts";
-
-import { PAGE_SIZE } from "./constraints.ts";
-import type { ProductFilter } from "./types.ts";
+import { PAGE_SIZE } from "@/pages/Mypage/constants.ts";
+import type { ProductFilter } from "@/pages/Mypage/types.ts";
 
 // 상품 목록 조회.
 export function useMyProducts(filter: ProductFilter, searchTerm: string, page: number) {

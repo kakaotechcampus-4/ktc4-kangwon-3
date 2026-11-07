@@ -4,11 +4,11 @@ import { getErrorMessage } from "@/api/client.ts";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
+import { NAME_MAX_LENGTH } from "@/pages/Mypage/constants.ts";
+import { useMyInfo, useUpdateMyInfo } from "@/pages/Mypage/hooks/useMyInfo.ts";
+import { SOCIAL_PROVIDER_INFO } from "@/pages/Mypage/utils/socialProvider.ts";
 
-import { NAME_MAX_LENGTH } from "./constraints.ts";
 import EditableInfoRow from "./EditableInfoRow.tsx";
-import { SOCIAL_PROVIDER_INFO } from "./socialProvider.ts";
-import { useMyInfo, useUpdateMyInfo } from "./useMyInfo.ts";
 
 /** 마이페이지 "회원 정보" 섹션. 이름·이메일·로그인 방식을 보여주고, 이름만 인라인으로 수정할 수 있다. */
 function ProfileSection() {
