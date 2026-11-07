@@ -9,7 +9,7 @@
 | `app/tools/customs/evidence.py` | 관세법 제226조, 세관장확인 고시 제7조·별표 2, 대외무역법 시행령 제19조 읽기 |
 | `app/tools/customs/rules.py` | HS 표기, 요건 법령 ↔ 다른 규제 Tool 대응, 판매 방식별 안내 |
 | `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용): 법제처 조회, 모델 호출 단계, 원문 대조, 행 순위 |
-| `app/schemas/customs.py`, `app/prompts/customs/facts.md`·`review.md` | LLM 입출력 |
+| `app/tools/customs/schemas.py`, `app/prompts/customs/facts.md`·`review.md` | LLM 입출력 |
 | `app/eval/customs_runner.py` | 실제 실행·평가 채점 (`python -m app.eval.customs_runner`) |
 | `tests/tools/customs/` | 단위 테스트와 Fake(`conftest.py`) |
 | `tests/fixtures/customs_law/` | 실제 법제처·CLIP 응답 (출처·버전은 README) |
