@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { cn } from '@/lib/cn'
@@ -10,9 +10,12 @@ interface ProfileMenuProps {
 
 const MENU_ITEM_CLASS = 'flex w-full cursor-pointer items-center px-4 py-2.5 text-left text-sm font-medium hover:bg-button-hover-bg'
 
-/** 로그인한 회원의 프로필 칩과 드롭다운 메뉴(계정 정보, 마이페이지, 로그아웃). */
+/**
+ * 로그인한 회원의 프로필 칩과 드롭다운(계정 정보, 마이페이지, 로그아웃).
+ */
 function ProfileMenu({ onLogout }: ProfileMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
+    const panelId = useId()
     const containerRef = useRef<HTMLDivElement>(null)
     const chipRef = useRef<HTMLButtonElement>(null)
     const { data: userInfo, isPending } = useMyInfo()
@@ -56,8 +59,8 @@ function ProfileMenu({ onLogout }: ProfileMenuProps) {
             <button
                 ref={chipRef}
                 type="button"
-                aria-haspopup="menu"
                 aria-expanded={isOpen}
+                aria-controls={isOpen ? panelId : undefined}
                 onClick={() => setIsOpen((prev) => !prev)}
                 className="flex h-7.5 cursor-pointer items-center gap-2 rounded-full border border-neutral-line py-1 pr-2.5 pl-1"
             >
@@ -75,7 +78,7 @@ function ProfileMenu({ onLogout }: ProfileMenuProps) {
             </button>
             {isOpen && (
                 <div
-                    role="menu"
+                    id={panelId}
                     className="absolute top-full right-0 mt-2 w-50 overflow-hidden rounded-xl border border-box-line bg-white shadow-box"
                 >
                     {userInfo && (
@@ -84,12 +87,11 @@ function ProfileMenu({ onLogout }: ProfileMenuProps) {
                             <p className="truncate text-xs text-neutral-muted">{userInfo.email ?? '표시할 이메일이 없어요'}</p>
                         </div>
                     )}
-                    <Link to="/mypage" role="menuitem" onClick={close} className={cn(MENU_ITEM_CLASS, 'text-neutral-text')}>
+                    <Link to="/mypage" onClick={close} className={cn(MENU_ITEM_CLASS, 'text-neutral-text')}>
                         마이페이지
                     </Link>
                     <button
                         type="button"
-                        role="menuitem"
                         onClick={() => {
                             close()
                             onLogout()
