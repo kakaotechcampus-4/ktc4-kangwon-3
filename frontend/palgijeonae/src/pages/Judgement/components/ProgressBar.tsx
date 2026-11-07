@@ -1,5 +1,5 @@
-import type { ProductProgress } from "@/api/product";
-import { PipelineStage } from "@/api/product";
+import type { ProductProgress } from "@/api/types/product";
+import { PipelineStage } from "@/api/types/product";
 import { cn } from "@/lib/cn";
 
 interface Segment {

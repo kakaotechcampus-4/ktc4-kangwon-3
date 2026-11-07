@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react'
 import { http } from 'msw'
 import { Route } from 'react-router-dom'
 
-import { ProcessingStatusType, ResultStatus } from '@/api/types'
+import { ProcessingStatusType, ResultStatus } from '@/api/types/common'
 import ResultPage from '@/pages/Result'
 import { RESULT_MESSAGES, SERVER_MESSAGES } from '@/test/constants/messages'
 import { resultPage } from '@/test/drivers/resultPage'

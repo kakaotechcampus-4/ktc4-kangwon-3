@@ -1,5 +1,5 @@
-import type { Question } from "@/api/product";
-import type { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
+import type { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types/common";
+import type { Question } from "@/api/types/product";
 
 /** 질문 화면에 필요한 상품 정보와 question을 담은 타입 */
 export interface QuestionProduct {

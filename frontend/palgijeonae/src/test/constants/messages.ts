@@ -1,8 +1,8 @@
-import { SocialProvider } from '@/api/user'
+import { SocialProvider } from '@/api/users'
 import { PROCESSING_STATUS_LABELS } from '@/pages/Judgement/utils/processingStatusLabels'
-import { NAME_MAX_LENGTH } from '@/pages/Mypage/constraints'
-import { SOCIAL_PROVIDER_INFO } from '@/pages/Mypage/socialProvider'
-import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from '@/pages/Upload/constraints'
+import { NAME_MAX_LENGTH } from '@/pages/Mypage/constants'
+import { SOCIAL_PROVIDER_INFO } from '@/pages/Mypage/utils/socialProvider'
+import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from '@/pages/Upload/constants'
 
 // 통합 테스트가 비교하는 알림·안내 문구를 화면별로 모아 둔다. 문구가 바뀌면 이 파일만 고친다.
 // - 소스에서 export된 상수가 있으면 그것을 import해서 쓴다. (소스가 바뀌면 테스트도 따라간다)

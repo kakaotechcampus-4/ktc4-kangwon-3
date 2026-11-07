@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { ProcessingStatusType } from "@/api/types";
+import { ProcessingStatusType } from "@/api/types/common";
 import Button from "@/components/common/Button";
 import HelpTooltip from "@/components/common/HelpTooltip";
 import LoadingSpinner from "@/components/common/LoadingSpinner";

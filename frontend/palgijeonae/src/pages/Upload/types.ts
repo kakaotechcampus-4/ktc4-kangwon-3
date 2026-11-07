@@ -1,4 +1,4 @@
-import { SourceType } from "@/api/types.ts"
+import { SourceType } from "@/api/types/common.ts"
 
 export interface Product {
     id: string

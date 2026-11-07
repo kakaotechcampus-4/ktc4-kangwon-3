@@ -1,4 +1,4 @@
-import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types";
+import { ProcessingStatusType, ResultStatus, SourceType } from "@/api/types/common";
 import imageIcon from "@/assets/upload-img_txt.svg";
 import urlIcon from "@/assets/upload-url.svg";
 

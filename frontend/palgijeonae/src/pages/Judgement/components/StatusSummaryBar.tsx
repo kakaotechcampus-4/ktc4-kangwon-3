@@ -1,5 +1,5 @@
-import type { ProductResult } from "@/api/product";
-import { ProcessingStatusType } from "@/api/types";
+import { ProcessingStatusType } from "@/api/types/common";
+import type { ProductResult } from "@/api/types/product";
 import { cn } from "@/lib/cn";
 
 import { STATUS_SUMMARY_INFO } from "../utils/statusSummaryInfo";

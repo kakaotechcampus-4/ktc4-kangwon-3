@@ -2,19 +2,19 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { getErrorMessage } from "@/api/client";
-import { SourceType } from "@/api/types.ts"
+import { getErrorMessage } from "@/api/core/client";
+import { SourceType } from "@/api/types/common.ts"
 import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
+import AddedProductList from "@/pages/Upload/components/AddedProductList.tsx";
+import InputForm from "@/pages/Upload/components/InputForm.tsx";
+import InputTypeTabs, { type InputType } from "@/pages/Upload/components/InputTypeTabs.tsx";
+import { submitDiagnosis } from "@/pages/Upload/utils/diagnosisPipeline.ts";
+import { validateProduct } from "@/pages/Upload/utils/validation.ts";
 
-import AddedProductList from "./AddedProductList.tsx";
-import { submitDiagnosis } from "./diagnosisPipeline.ts";
-import InputForm from "./InputForm.tsx";
-import InputTypeTabs, { type InputType } from "./InputTypeTabs.tsx";
 import type { Product } from "./types.ts";
-import { validateProduct } from "./validation.ts";
 
 // 메인 페이지의 평가용 체험 버튼(useDemoStart)이 navigate state로 넘겨주는 샘플 상품.
 interface UploadLocationState {

@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 
-import apiClient from '@/api/client'
+import apiClient from '@/api/core/client'
 import logoutIcon from '@/assets/header-logout.png'
 import logo from '@/assets/logo.png'
 import { useAuthStore } from '@/store/useAuthStore'
