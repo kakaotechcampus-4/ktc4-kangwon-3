@@ -53,7 +53,6 @@ class LawAmendmentCallbackControllerTest {
     private static final String URL = "/internal/v1/ai/law-changes";
     private static final String LAW_CHANGES_JSON = """
             {
-              "checkedOn": "2026-11-06",
               "changes": [
                 {
                   "lawName": "어린이제품 안전 특별법 시행규칙",
@@ -122,7 +121,6 @@ class LawAmendmentCallbackControllerTest {
         then(lawAmendmentCallbackUseCase).should().receiveLawChanges(captor.capture());
 
         LawChangeCallbackRequest request = captor.getValue();
-        assertThat(request.checkedOn()).isEqualTo(LocalDate.of(2026, 11, 6));
         PublicLawChangeDto change = request.changes().getFirst();
         assertThat(change.toolName()).isEqualTo(ToolName.CHILDREN);
         assertThat(change.admrul()).isFalse();
@@ -135,7 +133,7 @@ class LawAmendmentCallbackControllerTest {
     void receiveLawChanges_withEmptyChanges_thenInvalid() throws Exception {
         // when
         mockMvc.perform(callback("""
-                        {"checkedOn": "2026-11-06", "changes": []}"""))
+                        {"changes": []}"""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"));
 

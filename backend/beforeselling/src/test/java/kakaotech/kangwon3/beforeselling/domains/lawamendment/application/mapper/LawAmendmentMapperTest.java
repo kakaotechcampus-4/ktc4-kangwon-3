@@ -25,8 +25,7 @@ class LawAmendmentMapperTest {
                 LocalDate.of(2026, 10, 20), LocalDate.of(2026, 4, 20));
         PublicLawChangeDto electrical = new PublicLawChangeDto("전기용품 안전기준",
                 "2100000", true, ToolName.ELECTRICAL, "300001", null, null, null, null);
-        LawChangeCallbackRequest request = new LawChangeCallbackRequest(
-                LocalDate.of(2026, 11, 6), List.of(children, electrical));
+        LawChangeCallbackRequest request = new LawChangeCallbackRequest(List.of(children, electrical));
 
         // when
         List<LawAmendment> result = lawAmendmentMapper.toLawAmendments(request);

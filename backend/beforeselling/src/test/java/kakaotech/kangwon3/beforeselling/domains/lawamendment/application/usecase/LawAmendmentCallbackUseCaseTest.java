@@ -12,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.BDDMockito.given;
@@ -32,7 +31,7 @@ class LawAmendmentCallbackUseCaseTest {
     void receiveLawChanges_thenCreateLawAmendments() {
         // given
         LawAmendmentCallbackUseCase useCase = new LawAmendmentCallbackUseCase(lawAmendmentService, lawAmendmentMapper);
-        LawChangeCallbackRequest request = new LawChangeCallbackRequest(LocalDate.of(2026, 11, 6), List.of(
+        LawChangeCallbackRequest request = new LawChangeCallbackRequest(List.of(
                 new PublicLawChangeDto("어린이제품 안전 특별법 시행규칙", "012345", false,
                         ToolName.CHILDREN, "291321", null, null, null, null)));
         List<LawAmendment> lawAmendments = List.of(LawAmendment.builder().build());
