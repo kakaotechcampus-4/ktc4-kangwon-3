@@ -1,12 +1,18 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository;
 
 import jakarta.persistence.EntityManager;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentContent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.AssessmentStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Determination;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProductImage;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ResultStatus;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.RiskLevel;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolReviewStatus;
 import kakaotech.kangwon3.beforeselling.global.config.JpaAuditingConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.CryptoProperties;
 import kakaotech.kangwon3.beforeselling.global.security.crypto.DatabaseEncryptionConverter;
@@ -26,6 +32,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -44,6 +51,8 @@ class ProductRepositoryTest {
     private static final UUID OTHER_USER_ID = UUID.randomUUID();
     private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
+    private static final String CHILDREN_LAW = "어린이제품 안전 특별법";
+    private static final String CHILDREN_RULE = "어린이제품 안전 특별법 시행규칙";
 
     @Autowired
     private ProductRepository productRepository;
@@ -403,6 +412,72 @@ class ProductRepositoryTest {
                 .map(name -> createProduct(name, null))
                 .toList());
         diagnosesRepository.save(diagnoses);
+    }
+
+    @Test
+    @DisplayName("법령 변경 재확인 대상은 그 분야 검토에서 해당 법령을 인용해 진단을 마친 상품만 한 번씩 고른다.")
+    void findCompletedByToolNameAndCitedLawName_thenOnlyCitingCompleted() {
+        // given
+        Product cited = completedProduct("법령을 인용한 완구", ToolName.CHILDREN, ToolReviewStatus.COMPLETED,
+                List.of(finding(CHILDREN_RULE), finding(CHILDREN_RULE, CHILDREN_LAW)));
+        Product citedIncomplete = completedProduct("일부만 검토하고 법령을 인용한 완구", ToolName.CHILDREN,
+                ToolReviewStatus.INCOMPLETE, List.of(finding(CHILDREN_RULE)));
+        Product otherLaw = completedProduct("다른 법령만 인용한 완구", ToolName.CHILDREN, ToolReviewStatus.COMPLETED,
+                List.of(finding(CHILDREN_LAW)));
+        Product noSource = completedProduct("근거 없이 끝난 완구", ToolName.CHILDREN, ToolReviewStatus.INCOMPLETE,
+                List.of());
+        Product otherTool = completedProduct("다른 분야에서 인용한 완구", ToolName.RADIO, ToolReviewStatus.COMPLETED,
+                List.of(finding(CHILDREN_RULE)));
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        diagnoses.addProducts(List.of(cited, citedIncomplete, otherLaw, noSource, otherTool));
+        diagnosesRepository.save(diagnoses);
+        flushAndClear();
+
+        // when
+        List<Product> result = productRepository.findCompletedByToolNameAndCitedLawName(
+                ToolName.CHILDREN, CHILDREN_RULE);
+
+        // then
+        assertThat(result).extracting(Product::getProductName)
+                .containsExactlyInAnyOrder("법령을 인용한 완구", "일부만 검토하고 법령을 인용한 완구");
+    }
+
+    @Test
+    @DisplayName("법령을 인용했어도 진단 중인 상품은 법령 변경 재확인 대상으로 고르지 않는다.")
+    void findCompletedByToolNameAndCitedLawName_withInProgress_thenExclude() {
+        // given
+        Product retried = completedProduct("재시도 중인 완구", ToolName.CHILDREN, ToolReviewStatus.COMPLETED,
+                List.of(finding(CHILDREN_RULE)));
+        ReflectionTestUtils.setField(retried, "processingStatus", ProcessingStatus.IN_PROGRESS);
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        diagnoses.addProducts(List.of(retried));
+        diagnosesRepository.save(diagnoses);
+        flushAndClear();
+
+        // when
+        List<Product> result = productRepository.findCompletedByToolNameAndCitedLawName(
+                ToolName.CHILDREN, CHILDREN_RULE);
+
+        // then
+        assertThat(result).isEmpty();
+    }
+
+    private Product completedProduct(String productName, ToolName toolName, ToolReviewStatus toolReviewStatus,
+                                     List<AssessmentContent.FindingContent> findings) {
+        Product product = createProduct(productName, null);
+        product.startDiagnoses();
+        product.complete(new AssessmentContent(AssessmentStatus.COMPLETED, ResultStatus.PURCHASING_AGENT_ALLOWED,
+                "요약", List.of(new AssessmentContent.ToolReviewContent(toolName, toolReviewStatus, null, findings)),
+                List.of(), List.of()));
+        return product;
+    }
+
+    private AssessmentContent.FindingContent finding(String... lawNames) {
+        return new AssessmentContent.FindingContent("판단", Determination.REQUIRED, RiskLevel.HIGH, "요약", "근거",
+                Arrays.stream(lawNames)
+                        .map(lawName -> new AssessmentContent.LegalSourceContent(
+                                "법제처 국가법령정보", lawName, "별표 1", null, null, null))
+                        .toList());
     }
 
     private Product createProduct(String productName, ResultStatus resultStatus) {
