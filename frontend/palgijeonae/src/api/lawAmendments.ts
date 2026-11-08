@@ -4,6 +4,8 @@ import type { ToolName } from "@/api/types/product";
 /** 개정 때문에 다시 진단할 수 있는 상품 */
 export interface RecheckProduct {
     productId: string
+    // 재진단 뒤 진행 화면(/judgement/:diagnosesId)으로 이동할 때 쓴다.
+    diagnosesId: string
     productName: string
 }
 

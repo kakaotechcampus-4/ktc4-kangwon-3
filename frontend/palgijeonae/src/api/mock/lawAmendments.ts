@@ -15,8 +15,8 @@ let mockLawAmendments: LawAmendment[] = [
         toolName: ToolName.Electrical,
         enforceDate: "2026-12-01",
         products: [
-            { productId: "product-1", productName: "무선 블루투스 이어폰 노이즈캔슬링 프리미엄 에디션 화이트" },
-            { productId: "product-2", productName: "휴대용 선풍기" },
+            { productId: "product-1", diagnosesId: "00000000-0000-0000-0000-000000000001", productName: "무선 블루투스 이어폰 노이즈캔슬링 프리미엄 에디션 화이트" },
+            { productId: "product-2", diagnosesId: "00000000-0000-0000-0000-000000000001", productName: "휴대용 선풍기" },
         ],
     },
     {
@@ -25,7 +25,7 @@ let mockLawAmendments: LawAmendment[] = [
         revisionType: null,
         toolName: ToolName.Children,
         enforceDate: null,
-        products: [{ productId: "product-3", productName: "유아용 장난감 세트" }],
+        products: [{ productId: "product-3", diagnosesId: "00000000-0000-0000-0000-000000000002", productName: "유아용 장난감 세트" }],
     },
 ];
 

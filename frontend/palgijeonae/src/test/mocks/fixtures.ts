@@ -91,6 +91,7 @@ export const buildUserInfo = (overrides: Partial<UserInfo> = {}): UserInfo => ({
 // 개정 알림에 담긴 재진단 대상 상품 하나
 export const buildRecheckProduct = (overrides: Partial<RecheckProduct> = {}): RecheckProduct => ({
   productId: 'product-1',
+  diagnosesId: 'diagnoses-1',
   productName: '테스트 상품',
   ...overrides,
 })
