@@ -7,6 +7,7 @@ from ...schemas.base import utc_now
 from ...schemas.schemas import (
     DraftAssessment,
     FollowUpQuestion,
+    ToolStatus,
     TraceEvent,
     VerificationIssue,
     VerificationIssueType as IssueType,
@@ -17,13 +18,26 @@ from ...observability.usage import CallUsage
 from ...tools.common.questions import answered_questions, field_for
 from ..base import AgentResult, BaseAgent, ModelFailurePhase
 from .errors import VerificationError
-from .rules import run_rule_checks
+from .rules import DEFINITIVE, run_rule_checks
 from .schemas import _Review
 
 _TOOL_RECOVERABLE_ISSUES = frozenset(
     {
         IssueType.TOOL_FAILURE,
         IssueType.MISSING_EVIDENCE,
+    }
+)
+
+# 불확실 판단(possibly_required·insufficient_information)만 가리키면 치명에서 경고로 낮추는 지적 유형.
+# Tool이 이미 "모른다"고 전달한 내용의 재지적이라 진단을 막을 이유가 못 됨 (#652 측정: 28회 중 실제 오류 1회).
+# 모순(contradiction)·방향 오류(incorrect_determination)·실행 실패(tool_failure)는 불확실 판단에서도 그대로 둠.
+# 근거와 다른 주장(unsupported_claim)도 그대로 둠. 판단이 불확실해도 서류·할 일 안내가 인용 근거와 어긋나는 건
+# Tool이 "모른다"고 전달한 것과 다른 사실 오류라 막아야 함 (#691 리뷰).
+_DEMOTABLE_ISSUES = frozenset(
+    {
+        IssueType.MISSING_TOOL,
+        IssueType.MISSING_EVIDENCE,
+        IssueType.INSUFFICIENT_PRODUCT_DATA,
     }
 )
 
@@ -194,6 +208,22 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
                 status="completed",
                 detail=f"_Review 검토 범위 확인: findings={len(draft.findings)}",
             )
+            review, demoted = self._demote_uncertain_issues(review, draft)
+            if demoted:
+                self._append_trace(
+                    trace,
+                    action="uncertain_issues_demoted",
+                    status="completed",
+                    detail=f"불확실 판단만 가리키는 모델 치명 지적 {len(demoted)}건을 경고로 낮춤: {demoted}",
+                )
+            review, dropped_tools = self._drop_completed_tool_requests(review, draft)
+            if dropped_tools:
+                self._append_trace(
+                    trace,
+                    action="completed_tool_requests_dropped",
+                    status="completed",
+                    detail=f"이미 성공한 Tool의 모델 재실행 요청 {len(dropped_tools)}건 제외: {dropped_tools}",
+                )
             review, dropped = self._drop_covered_questions(review, draft)
             if dropped:
                 self._append_trace(
@@ -373,6 +403,62 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             # 지적이 입력에 없는 판단 ID를 참조
             if unknown:
                 raise VerificationError(f"지적이 존재하지 않는 판단 ID를 참조합니다: {unknown}")
+
+    @staticmethod
+    def _demote_uncertain_issues(review: _Review, draft: DraftAssessment) -> tuple[_Review, list[str]]:
+        """불확실 판단만 가리키는 모델의 치명 지적을 경고로 낮춘다.
+
+        Tool이 possibly_required·insufficient_information으로 이미 "모른다"고 전달한 내용을 모델이 근거 부족으로
+        다시 지적해 진단이 "재확인 필요"로 끝나는 문제(#652)의 수정. 프롬프트의 검증 범위 경계를 모델이 안 지켜 코드로 확정.
+        프롬프트 자체를 더 조이면 확정 판단 모순 지적까지 약해져(측정 8회 중 2회 누락) 응답 후처리로만 낮춤.
+
+        규칙 검사의 지적과, 특정 판단을 가리키지 않는 지적(related_finding_ids 빈 목록)은 건드리지 않는다.
+        가리키는 ID가 실재하는지는 _check_scope가 먼저 확인한다.
+
+        Args:
+            review: 모델 검토 결과.
+            draft: 검증한 심사 초안.
+
+        Returns:
+            tuple[_Review, list[str]]: (낮춘 결과, 낮춘 지적의 유형 목록). 낮춘 게 없으면 받은 review 그대로.
+        """
+        uncertain = {f.finding_id for f in draft.findings if f.determination not in DEFINITIVE}
+        issues = []
+        demoted: list[str] = []
+        for issue in review.issues:
+            if (issue.severity == "critical" and issue.issue_type in _DEMOTABLE_ISSUES
+                    and issue.related_finding_ids
+                    and all(finding_id in uncertain for finding_id in issue.related_finding_ids)):
+                issues.append(issue.model_copy(update={"severity": "warning"}))
+                demoted.append(issue.issue_type.value)
+            else:
+                issues.append(issue)
+        if not demoted:
+            return review, []
+        return review.model_copy(update={"issues": issues}), demoted
+
+    @staticmethod
+    def _drop_completed_tool_requests(review: _Review, draft: DraftAssessment) -> tuple[_Review, list[str]]:
+        """이미 성공한 Tool의 모델 재실행 요청을 뺀다.
+
+        같은 입력으로 다시 돌려도 결과가 같아 라운드만 늘어남 (#652 측정: 모델 요청 35건 중 32건이 성공한 Tool).
+        실패한 Tool과 선택되지 않았던 Tool의 요청은 남긴다. 규칙 검사의 재실행 요청(확정 판단에 근거 없음 등)은
+        _merge에서 그대로 합쳐지므로 영향받지 않는다.
+
+        Args:
+            review: 모델 검토 결과.
+            draft: 검증한 심사 초안.
+
+        Returns:
+            tuple[_Review, list[str]]: (남긴 요청만 담은 결과, 뺀 Tool 이름 목록). 뺀 게 없으면 받은 review 그대로.
+        """
+        completed = {record.tool_name for record in draft.tool_results
+                     if record.selected and record.status is ToolStatus.SUCCESS}
+        kept = [tool for tool in review.additional_tools_required if tool not in completed]
+        dropped = [tool.value for tool in review.additional_tools_required if tool in completed]
+        if not dropped:
+            return review, []
+        return review.model_copy(update={"additional_tools_required": kept}), dropped
 
     @staticmethod
     def _drop_covered_questions(review: _Review, draft: DraftAssessment) -> tuple[_Review, list[str]]:
