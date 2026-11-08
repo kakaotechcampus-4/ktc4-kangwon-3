@@ -30,8 +30,10 @@ from ...schemas.schemas import (
 from ..base import RegulatoryTool
 from .errors import AdvertisingEvidenceError
 from .evidence import AdvertisingEvidence
-from .rules import RISK_ORDER, TYPE_LABELS, claim_action, claim_risk, find_kc_claims, normalize, sources_for
-from .schemas import AdvertisingClaim, AdvertisingReview
+from .rules import (
+    RISK_ORDER, TYPE_LABELS, action_key, claim_action, claim_risk, find_kc_claims, normalize, quote_list, sources_for,
+)
+from .schemas import AdvertisingClaim, AdvertisingReview, AdvertisingRiskType
 from .steps import AdvertisingReviewer, AdvertisingReviewInput
 
 _NO_LISTING_QUESTION = "판매자가 쓴 상품 설명·홍보 문구가 없어 표시·광고를 검토하지 못했습니다. 상세페이지의 상품 설명 문구를 알려주세요."
@@ -149,21 +151,20 @@ class AdvertisingTool(RegulatoryTool):
         findings: list[RegulatoryFinding] = []
         actions: list[str] = []
         sources: list[LegalSource] = []
+        # 찾은 문구는 하나씩 남기되(detected_phrases, 평가 채점 단위), 판단·할 일은 같은 근거·같은 안내를 받는 묶음마다 하나.
+        # 문구마다 카드와 할 일이 하나씩 나가 한 상품에 10줄까지 쌓였다 (2026-11-08 측정, 개발 50개 중 12개가 3줄 이상).
+        groups: dict[tuple, list[AdvertisingClaim]] = {}
         for claim in claims:
             level = claim_risk(claim)
-            claim_sources = sources_for(evidence, claim, level)
-            action = claim_action(claim, level)
             phrases.append(AdvertisingPhrase(text=claim.quote, risk_type=claim.risk_type.value, risk_level=level,
                                              reason=claim.reason, evidence_required=True))
-            findings.append(RegulatoryFinding(
-                tool_name=self.tool_name, subject=claim.quote, determination=Determination.POSSIBLY_REQUIRED,
-                risk_level=level, summary=f"{TYPE_LABELS[claim.risk_type]} 주장으로 실증이 필요할 수 있습니다.",
-                rationale=claim.reason, product_facts_used=[claim.quote], requirements=[action],
-                legal_sources=claim_sources,
-                assumptions=["판매자가 이 주장의 실증자료를 갖고 있는지는 확인하지 않았습니다."],
-            ))
+            groups.setdefault(action_key(claim, level), []).append(claim)
+        for (risk_type, level, _), group in groups.items():
+            group_sources = sources_for(evidence, group[0], level)
+            action = claim_action(group, level)
+            findings.append(self._group_finding(group, risk_type, level, action, group_sources))
             actions.append(action)
-            sources.extend(source for source in claim_sources if source not in sources)
+            sources.extend(source for source in group_sources if source not in sources)
 
         if not findings:
             # 판단이 비면 검증 규칙이 Tool 실패로 보고 재실행을 요청한다. 찾은 주장이 없다는 판단을 남긴다.
@@ -184,6 +185,37 @@ class AdvertisingTool(RegulatoryTool):
             required_actions=actions,
             # 실증자료가 있는지는 물어도 판단이 바뀌지 않아 질문으로 내지 않는다. 할 일(required_actions)로만 안내한다(#310).
             raw_response=review.model_dump(mode="json"),
+        )
+
+    def _group_finding(self, group: list[AdvertisingClaim], risk_type: AdvertisingRiskType, level: RiskLevel, action: str,
+                       sources: list[LegalSource]) -> RegulatoryFinding:
+        """같은 유형·위험도·안내를 받는 주장 묶음의 판단 하나.
+
+        문구가 하나면 전처럼 문구를 제목으로 쓴다. 여럿이면 제목은 "{유형} 주장 N건", 요약에 문구를 나열하고,
+        근거 설명은 문구마다 한 줄씩 적는다 (화면은 줄바꿈을 살려 보여 줌).
+
+        Args:
+            group: 묶인 주장들. 비어 있지 않음.
+            risk_type: 주장 유형.
+            level: 위험도.
+            action: 이 묶음의 할 일.
+            sources: 근거 조문.
+
+        Returns:
+            RegulatoryFinding: POSSIBLY_REQUIRED 판단.
+        """
+        label = TYPE_LABELS[risk_type]
+        if len(group) == 1:
+            subject, summary, rationale = group[0].quote, f"{label} 주장으로 실증이 필요할 수 있습니다.", group[0].reason
+        else:
+            subject = f"{label} 주장 {len(group)}건"
+            summary = f"{quote_list(group)} 문구는 {label} 주장으로 실증이 필요할 수 있습니다."
+            rationale = "\n".join(f"'{claim.quote}': {claim.reason}" for claim in group)
+        return RegulatoryFinding(
+            tool_name=self.tool_name, subject=subject, determination=Determination.POSSIBLY_REQUIRED,
+            risk_level=level, summary=summary, rationale=rationale,
+            product_facts_used=[claim.quote for claim in group], requirements=[action], legal_sources=sources,
+            assumptions=["판매자가 이 주장의 실증자료를 갖고 있는지는 확인하지 않았습니다."],
         )
 
     def _no_claim_finding(self, evidence: AdvertisingEvidence) -> RegulatoryFinding:

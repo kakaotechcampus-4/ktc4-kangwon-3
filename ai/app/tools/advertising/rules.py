@@ -105,21 +105,43 @@ def sources_for(evidence: AdvertisingEvidence, claim: AdvertisingClaim, risk_lev
     return sources
 
 
-def claim_action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
-    """주장 하나에 대해 판매 전에 할 일.
+def action_key(claim: AdvertisingClaim, risk_level: RiskLevel) -> tuple:
+    """같은 할 일 문장과 같은 근거 조문을 받는 주장끼리 묶는 키.
+
+    근거 조문(sources_for)은 유형·위험도로만 정해지고, 할 일(claim_action)은 거기에 인증 표기인지만 더 본다.
+    같은 키의 주장은 판단 하나·할 일 하나로 합친다 (문구마다 카드·할 일이 하나씩 나가 한 상품에 10줄까지 쌓이던 문제).
 
     Args:
         claim: 검토한 주장.
         risk_level: 주장의 위험도.
 
     Returns:
-        str: 인증 확인, 의약품 효능 문구 수정, 실증자료 준비 중 하나의 안내.
+        tuple: (유형, 위험도, 인증 표기 여부).
     """
-    if _is_certification(claim):
-        return (f"'{claim.quote}' 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
+    return (claim.risk_type, risk_level, _is_certification(claim))
+
+
+def quote_list(claims: list[AdvertisingClaim]) -> str:
+    """주장들의 인용을 "'A', 'B'"로 잇는다."""
+    return ", ".join(f"'{claim.quote}'" for claim in claims)
+
+
+def claim_action(claims: list[AdvertisingClaim], risk_level: RiskLevel) -> str:
+    """같은 키(action_key)의 주장 묶음에 대해 판매 전에 할 일.
+
+    Args:
+        claims: 같은 유형·위험도·인증 여부의 주장들. 비어 있지 않음.
+        risk_level: 주장의 위험도.
+
+    Returns:
+        str: 인증 확인, 의약품 효능 문구 수정, 실증자료 준비 중 하나의 안내. 조사는 마지막 인용의 받침으로 정한다.
+    """
+    quotes, last = quote_list(claims), claims[-1].quote
+    if _is_certification(claims[0]):
+        return (f"{quotes} 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
                 "확인되지 않으면 표기를 빼세요.")
     if risk_level is RiskLevel.HIGH:
-        return (f"'{claim.quote}'{topic_particle(claim.quote)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
+        return (f"{quotes}{topic_particle(last)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
                 "남기려면 객관적 근거 자료를 먼저 확인하세요.")
-    return (f"'{claim.quote}'{object_particle(claim.quote)} 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, "
+    return (f"{quotes}{object_particle(last)} 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, "
             "자료가 없으면 문구를 빼거나 고치세요.")

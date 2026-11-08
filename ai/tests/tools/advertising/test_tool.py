@@ -117,6 +117,43 @@ def test_의약품_효능처럼_읽히는_인체_주장만_위험도를_높이�
     assert EVIDENCE.medicinal_effect not in by_subject["자세 개선"].legal_sources
 
 
+def test_같은_유형과_위험도의_문구는_판단_하나와_할_일_하나로_묶는다():
+    # 문구마다 카드·할 일이 하나씩 나가 한 상품에 10줄까지 쌓이던 문제 (11/8 측정: 개발 50개 중 12개가 3줄 이상)
+    model = _StubModel([_claim("하중 300kg 버팀"), _claim("방수 원단"), _claim("습기 차단")])
+
+    result = _run(model, "하중 300kg 버팀 방수 원단 습기 차단")
+
+    # 찾은 문구는 그대로 셋 (평가 채점 단위)
+    assert [phrase.text for phrase in result.result.detected_phrases] == ["하중 300kg 버팀", "방수 원단", "습기 차단"]
+    [finding] = result.findings
+    assert finding.subject == "성능·품질 주장 3건"
+    assert finding.summary == "'하중 300kg 버팀', '방수 원단', '습기 차단' 문구는 성능·품질 주장으로 실증이 필요할 수 있습니다."
+    assert finding.rationale.splitlines() == ["'하중 300kg 버팀': 실증이 필요한 주장이다.", "'방수 원단': 실증이 필요한 주장이다.", "'습기 차단': 실증이 필요한 주장이다."]
+    assert finding.product_facts_used == ["하중 300kg 버팀", "방수 원단", "습기 차단"]
+    # 조사는 마지막 문구의 받침으로
+    assert result.required_actions == [
+        "'하중 300kg 버팀', '방수 원단', '습기 차단'을 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, 자료가 없으면 문구를 빼거나 고치세요."
+    ]
+
+
+def test_유형이나_위험도가_다른_문구는_따로_묶는다():
+    model = _StubModel([_claim("허리 디스크 치료", "body_effect"), _claim("자세 개선", "body_effect"),
+                        _claim("KC인증 완료", "safety_certification"), _claim("어린이에게 무해한 소재", "safety_certification")])
+
+    result = _run(model, "허리 디스크 치료 자세 개선 KC인증 완료 어린이에게 무해한 소재")
+
+    # 인체 효능 높음 / 인체 효능 보통 / 인증 표기 / 인증 아닌 안전 주장 → 넷
+    assert [finding.subject for finding in result.findings] == ["허리 디스크 치료", "자세 개선", "KC인증 완료", "어린이에게 무해한 소재"]
+    assert [action.split(" ")[0] for action in result.required_actions] == ["'허리", "'자세", "'KC인증", "'어린이에게"]
+
+
+def test_문구가_하나인_묶음은_전처럼_문구를_제목으로_쓴다():
+    result = _run(_StubModel([_claim("하중 300kg 버팀")]), "하중 300kg 버팀")
+
+    [finding] = result.findings
+    assert (finding.subject, finding.summary, finding.rationale) == ("하중 300kg 버팀", "성능·품질 주장으로 실증이 필요할 수 있습니다.", "실증이 필요한 주장이다.")
+
+
 def test_찾은_문구는_확정이_아니라_실증_필요로_돌려준다():
     model = _StubModel([_claim("국내 판매 1위", "ranking_absolute")])
 
