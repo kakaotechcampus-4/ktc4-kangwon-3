@@ -33,7 +33,6 @@ const FADE_OPTIONS: KeyframeAnimationOptions = { duration: 250, easing: "ease-ou
 
 // 상품명을 몇 글자까지 보여줄 지 결정
 const MAX_PRODUCT_NAME_LENGTH = 30;
-const MAX_PRODUCT_NAME_LENGTH_MOBILE = 20;
 
 interface ActionConfig {
     label: string
@@ -68,7 +67,9 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
 
 
     // 화면 상태가 실제로 바뀔 때마다 증가하는 트리거 값(첫 렌더는 0 → 효과 없음).
+    // 모바일은 원본 이름을 넘기고 CSS(truncate)가 한 줄에서 자른다. 데스크톱은 줄바꿈되므로 글자 수로 줄인다.
     const isMobile = useIsMobile();
+    const displayName = isMobile ? productName : truncateWithEllipsis(productName, MAX_PRODUCT_NAME_LENGTH);
     const changeCount = useStatusChangeCount(processingStatus);
     // changeCount가 바뀐 순간에만 카드 내용 크로스페이드를 한 번 재생한다.
     const contentRef = useAnimateOnChange<HTMLDivElement>(changeCount, FADE_KEYFRAMES, FADE_OPTIONS);
@@ -98,7 +99,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                         />
                         <div className="flex min-w-0 flex-col items-start gap-2">
                             <div className="flex max-w-full items-center gap-2 md:flex-wrap">
-                                <h2 className="min-w-0 truncate text-base font-bold text-black md:overflow-visible md:text-clip md:whitespace-normal md:text-lg">{truncateWithEllipsis(productName, isMobile ? MAX_PRODUCT_NAME_LENGTH_MOBILE : MAX_PRODUCT_NAME_LENGTH)}</h2>
+                                <h2 title={isMobile || displayName !== productName ? productName : undefined} className="min-w-0 truncate text-base font-bold text-black md:overflow-visible md:text-clip md:whitespace-normal md:text-lg">{displayName}</h2>
                                 <StatusBadge processingStatus={processingStatus} />
                             </div>
                             <p className="text-sm text-neutral-muted">{description}</p>
