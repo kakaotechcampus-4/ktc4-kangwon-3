@@ -156,7 +156,7 @@ const PRIVACY: PolicyDocument = {
         title: "한눈에 보기",
         highlights: [
             { label: "수집 항목", value: "이메일 · 이름(닉네임)" },
-            { label: "보관 기간", value: "회원 탈퇴 시 즉시 삭제" },
+            { label: "보관 기간", value: "탈퇴 시 지체 없이 파기" },
             { label: "제3자 제공", value: "하지 않음" },
         ],
     },
@@ -190,7 +190,7 @@ const PRIVACY: PolicyDocument = {
             id: "section-3",
             heading: "3. 보유 및 이용 기간",
             items: [
-                { label: "회원 정보", text: "회원 탈퇴 시까지 보유하며, 탈퇴하면 즉시 삭제합니다." },
+                { label: "회원 정보", text: "회원 탈퇴 시까지 보유하며, 탈퇴하면 지체 없이 파기합니다." },
                 { label: "진단 기록·이미지", text: "이용자가 마이페이지에서 삭제하거나 회원 탈퇴할 때까지 보유합니다." },
                 { label: "접속 로그", text: "통신비밀보호법에 따라 3개월간 보관합니다." },
             ],
@@ -202,9 +202,10 @@ const PRIVACY: PolicyDocument = {
             table: {
                 headers: ["수탁 업체", "위탁 업무"],
                 rows: [
-                    ["Amazon Web Services", "서버 운영, 데이터·이미지 저장, 알림 메일 발송"],
-                    ["LLM API 제공사 (OpenAI, Google 등)", "상품 글·이미지 분석 (모델 학습에 사용하지 않는 API 약관 적용)"],
-                    ["Sentry", "서비스 오류 모니터링"],
+                    ["Amazon Web Services", "서버 운영, 데이터·이미지 저장, 알림 메일 발송 (서울 리전)"],
+                    ["엘리스그룹 (Elice ML API)", "AI 모델 호출 중계 (상품 글·이미지 전달)"],
+                    ["OpenAI, TypeSafe AI", "상품 글·이미지 분석 (엘리스를 통한 재위탁)"],
+                    ["Sentry", "서비스 오류 모니터링 (웹·서버)"],
                 ],
             },
         },
