@@ -18,6 +18,7 @@ public record LawAmendmentResponse(
 
     public record RecheckProductResponse(
             UUID productId,
+            UUID diagnosesId,
             String productName
     ) {
     }
