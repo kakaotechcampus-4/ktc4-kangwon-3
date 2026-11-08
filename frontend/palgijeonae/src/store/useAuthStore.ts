@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+import { clearAllAnswerDrafts } from '@/pages/Question/utils/answerDraft'
+
 interface AuthState {
     accessToken: string | null
     isLoggedIn: boolean
@@ -16,6 +18,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     isLoggedIn: false,
     isAuthReady: false,
     login: (accessToken) => set({ accessToken, isLoggedIn: true, isAuthReady: true }),
-    logout: () => set({ accessToken: null, isLoggedIn: false, isAuthReady: true }),
+    // 직접 로그아웃, 토큰 만료로 인한 강제 로그아웃, 회원 탈퇴가 모두 이 동작을 거친다.
+    logout: () => {
+        clearAllAnswerDrafts()
+        set({ accessToken: null, isLoggedIn: false, isAuthReady: true })
+    },
     markAuthReady: () => set({ isAuthReady: true }),
 }))
