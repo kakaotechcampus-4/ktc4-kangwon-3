@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { useEscapeKey } from '@/hooks/useEscapeKey'
 import { cn } from '@/lib/cn'
 import { useMyInfo } from '@/pages/Mypage/hooks/useMyInfo'
 
@@ -20,7 +21,12 @@ function ProfileMenu({ onLogout }: ProfileMenuProps) {
     const chipRef = useRef<HTMLButtonElement>(null)
     const { data: userInfo, isPending } = useMyInfo()
 
-    // 열려 있는 동안만 바깥 클릭과 Esc를 감지한다.
+    useEscapeKey(isOpen, () => {
+        setIsOpen(false)
+        chipRef.current?.focus()
+    })
+
+    // 열려 있는 동안만 바깥 클릭을 감지한다.
     useEffect(() => {
         if (!isOpen) return
 
@@ -29,19 +35,9 @@ function ProfileMenu({ onLogout }: ProfileMenuProps) {
                 setIsOpen(false)
             }
         }
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setIsOpen(false)
-                chipRef.current?.focus()
-            }
-        }
 
         document.addEventListener('mousedown', handleMouseDown)
-        document.addEventListener('keydown', handleKeyDown)
-        return () => {
-            document.removeEventListener('mousedown', handleMouseDown)
-            document.removeEventListener('keydown', handleKeyDown)
-        }
+        return () => document.removeEventListener('mousedown', handleMouseDown)
     }, [isOpen])
 
     // 내 정보를 불러오는 동안은 이름 자리를 비워 둔 칩 모양만 보여준다.
