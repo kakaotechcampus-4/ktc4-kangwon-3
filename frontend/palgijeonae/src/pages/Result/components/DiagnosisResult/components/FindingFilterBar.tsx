@@ -24,7 +24,7 @@ const FILTER_SELECTED_CLASSES: Partial<Record<Determination, string>> = {
 function filterChipClassName(key: FindingFilter, selected: boolean) {
     const selectedClassName = key !== null ? FILTER_SELECTED_CLASSES[key] : undefined;
     return cn(
-        "px-3.5 py-1.5 border rounded-full text-sm font-semibold",
+        "shrink-0 whitespace-nowrap px-3.5 py-1.5 border rounded-full text-sm font-semibold",
         selected ? selectedClassName ?? NEUTRAL_SELECTED_CLASSES : "cursor-pointer border-box-line text-neutral-muted bg-white hover:bg-button-hover-bg",
     );
 }
@@ -37,7 +37,7 @@ interface FindingFilterBarProps {
 
 function FindingFilterBar({ counts, selected, onSelect }: FindingFilterBarProps) {
     return (
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="no-scrollbar flex min-w-0 flex-nowrap items-center gap-2.5 overflow-x-auto md:flex-wrap md:overflow-visible">
             {FILTER_OPTIONS.map(({ key, label }) => {
                 const count = counts.get(key) ?? 0;
                 if (count === 0) {

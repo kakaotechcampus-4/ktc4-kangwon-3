@@ -48,7 +48,7 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
                 questionPath={questionPath}
                 onNextStepsClick={onNextStepsClick}
             />
-            <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
+            <div className="flex w-full items-center justify-between gap-2.5 md:flex-wrap">
                 <FindingFilterBar counts={findingCounts} selected={findingFilter} onSelect={setFindingFilter} />
                 {allFindings.length > 0 && (
                     <HelpTooltip label="판정·위험도 설명" className="md:max-w-none md:whitespace-nowrap">
