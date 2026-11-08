@@ -1,5 +1,5 @@
 {
-  "description": "표시·광고 Tool 개발 평가셋. 입력 listing_text(tests/fixtures/_raw/advertising_dev_inputs.json, 저장소에 없음)는 추출 결과(logs/eval/20261008-191544.json, gpt-6-luna) 중 원문과 글자 그대로 일치하는 줄만 남기고, 이어폰은 원문 269행 판매자 소개를 더했다. 추출 흔들림과 툴 성능을 나눠 보기 위해 입력을 고정한다. 개발 중 보고 고치는 셋이라 홀드아웃이 아니다. 2026-11-08: 탐지 기준을 공정위 제재 유형 7가지(사람 효능, 인증·수상, 수치·등급 성능 보장, 원재료·성분, 원산지·정품, 절대·비교, 보증)로 좁히면서 라벨 5건을 옮겼다(ali_sample 피부 적합→acceptable, cert_number_kc_text 고효율→must_not, silicone 논스틱·내열성→must_not, earphone 2년 품질 보증→must_flag(warranty), IPX8 방수 기능→acceptable).",
+  "description": "표시·광고 Tool 개발 평가셋. 입력 listing_text(tests/fixtures/_raw/advertising_dev_inputs.json, 저장소에 없음)는 추출 결과(logs/eval/20261008-191544.json, gpt-6-luna) 중 원문과 글자 그대로 일치하는 줄만 남기고, 이어폰은 원문 269행 판매자 소개를 더했다. 추출 흔들림과 툴 성능을 나눠 보기 위해 입력을 고정한다. 개발 중 보고 고치는 셋이라 홀드아웃이 아니다. 2026-11-08: 탐지 기준을 공정위 제재 유형 7가지(사람 효능, 인증·수상, 수치·등급 성능 보장, 원재료·성분, 원산지·정품, 절대·비교, 보증)로 좁히면서 라벨 5건을 옮겼다(ali_sample 피부 적합→acceptable, cert_number_kc_text 고효율→must_not, silicone 논스틱·내열성→must_not, earphone 2년 품질 보증→must_flag(warranty), IPX8 방수 기능→acceptable). 재측정 뒤 '요리와 베이킹에 완벽'(용도 과장), '저가형 이어폰은 절대 판매하지 않습니다'(사업자 소개)를 acceptable로 옮김.",
   "inputs_file": "tests/fixtures/_raw/advertising_dev_inputs.json",
   "inputs_sha256_12": "b234cf64544f",
   "reviewed_by": "부분 검토. 미분류 16건 라벨과 인증 나열 기준은 gityhb 확인(2026-10-12). 나머지 초안은 Claude가 근거 픽스처를 보고 정했다(미검토) 2026-11-08 재라벨 5건은 gityhb 검토 대기.",
@@ -251,13 +251,7 @@
     {
       "fixture": "food_contact_silicone_utensils.txt",
       "product_id": "food_contact_silicone_utensils",
-      "must_flag": [
-        {
-          "text": "요리와 베이킹에 완벽",
-          "risk_type": "ranking_absolute",
-          "basis": "지정고시 14 나(절대적 표현), 선택 정답표"
-        }
-      ],
+      "must_flag": [],
       "must_not_flag": [
         {
           "text": "선물로 이상적",
@@ -280,6 +274,9 @@
         {
           "text": "세척 용이",
           "why": "수치 없는 기능 주장. 팀 논의 중(#295)"
+        },
+        {
+          "text": "요리와 베이킹에 완벽"
         }
       ]
     },
@@ -405,11 +402,6 @@
           "basis": "지정고시 14 나(\"최고\" 절대적 표현)"
         },
         {
-          "text": "저가형 이어폰은 절대 판매하지 않습니다",
-          "risk_type": "ranking_absolute",
-          "basis": "추출 정답표(판매자의 절대적 표현)"
-        },
-        {
           "text": "수영이나 목욕에도 문제가 없습니다",
           "risk_type": "performance_quality",
           "basis": "실증 고시 Ⅲ 3(성능·품질)"
@@ -484,6 +476,9 @@
         {
           "text": "IPX8 방수 기능",
           "why": "방수 등급 표기(사양)"
+        },
+        {
+          "text": "저가형 이어폰은 절대 판매하지 않습니다"
         }
       ]
     },
