@@ -4,8 +4,7 @@ import { useRef, useState } from "react";
 // import { ResultStatus } from "@/api/types/common.ts";
 import SectionIntro from "@/components/common/SectionIntro";
 import MyProductList from "@/pages/Mypage/components/MyProductList.tsx";
-// TODO: API 미구현 기능. 추후 구현 시 주석을 해제할 것.
-// import NotificationSettings from "@/pages/Mypage/components/NotificationSettings.tsx";
+import NotificationSettings from "@/pages/Mypage/components/NotificationSettings.tsx";
 import ProductFilterBar from "@/pages/Mypage/components/ProductFilterBar.tsx";
 import ProfileSection from "@/pages/Mypage/components/ProfileSection.tsx";
 import WithdrawSection from "@/pages/Mypage/components/WithdrawSection.tsx";
@@ -53,8 +52,7 @@ function MyPage() {
                 }}
             /> */}
             <ProfileSection />
-            {/* TODO: API 미구현 기능. 추후 구현 시 주석을 해제할 것. */}
-            {/* <NotificationSettings /> */}
+            <NotificationSettings />
             <ProductFilterBar
                 searchTerm={searchTerm}
                 onSearchTermChange={handleSearchTermChange}

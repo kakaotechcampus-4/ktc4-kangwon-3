@@ -1,25 +1,36 @@
-import { useState } from "react";
-
+import { getErrorMessage } from "@/api/core/client.ts";
 import DefaultBox from "@/components/common/DefaultBox";
 import SectionIntro from "@/components/common/SectionIntro";
+import { useNotificationSettings, useUpdateNotificationSettings } from "@/pages/Mypage/hooks/useNotificationSettings.ts";
 
 import SettingToggleRow from "./SettingToggleRow.tsx";
 
 // 추후 다른 세팅 확장성을 위해 SettingToggleRow를 여러 개를 포함하는 컴포넌트로 분리
 function NotificationSettings() {
-    // TODO: 백엔드 연동 전까지 쓰는 로컬 상태. 실제로는 설정 조회/변경 API와 연결해야 한다.
-    // TODO: 백엔드 api 스키마가 마련되지 않아 연동과 관련한 로직은 별도의 브랜치에서 진행한다.
-    const [revisionAlertEnabled, setRevisionAlertEnabled] = useState(false);
+    const { data, isPending } = useNotificationSettings();
+    const { mutate, isPending: isUpdating } = useUpdateNotificationSettings();
+
+    const handleLawAmendmentAlertChange = (enabled: boolean) => {
+        mutate(
+            { lawAmendmentAlertEnabled: enabled },
+            {
+                onError: (error) => {
+                    alert(getErrorMessage(error, "알림 설정을 바꾸지 못했어요. 다시 시도해주세요."));
+                },
+            },
+        );
+    };
 
     return (
         <DefaultBox className="flex flex-col gap-5">
             <SectionIntro title="알림 설정" size="xl"/>
             <hr className="w-full border-neutral-line" />
             <SettingToggleRow
-                title="고시 개정 알림"
-                description="관련 법령·고시가 바뀌면 마이페이지 상단에 알려드립니다."
-                checked={revisionAlertEnabled}
-                onChange={setRevisionAlertEnabled}
+                title="법령 개정 알림"
+                description="진단 근거 법령이 바뀌면 마이페이지 상단에 알려드려요."
+                checked={data?.lawAmendmentAlertEnabled ?? false}
+                onChange={handleLawAmendmentAlertChange}
+                disabled={isPending || isUpdating}
             />
         </DefaultBox>
     );
