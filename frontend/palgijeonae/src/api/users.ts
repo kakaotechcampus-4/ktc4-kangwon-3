@@ -29,3 +29,19 @@ export async function updateMyInfo(payload: { name: string }): Promise<UserInfo>
 export async function withdraw(): Promise<void> {
     await apiClient.delete("/api/v1/users/me");
 }
+
+export interface NotificationSettings {
+    lawAmendmentAlertEnabled: boolean
+}
+
+/** 알림 설정 조회 */
+export async function getNotificationSettings(): Promise<NotificationSettings> {
+    const response = await apiClient.get("/api/v1/users/me/notification-settings");
+    return response.data.data as NotificationSettings;
+}
+
+/** 알림 설정 수정 */
+export async function updateNotificationSettings(payload: NotificationSettings): Promise<NotificationSettings> {
+    const response = await apiClient.patch("/api/v1/users/me/notification-settings", payload);
+    return response.data.data as NotificationSettings;
+}
