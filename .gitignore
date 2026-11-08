@@ -57,7 +57,7 @@ __pycache__/
 .coverage.*
 htmlcov/
 coverage.xml
-coverage.json
+coverage*.json
 .venv/
 venv/
 *.egg-info/

@@ -31,6 +31,9 @@ jobs:
         working-directory: ai
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 바뀐 줄 커버리지(diff-cover)가 base 브랜치와 비교하므로 전체 이력 필요
+          fetch-depth: 0
 
       - name: Python 3.11 설치
         uses: actions/setup-python@v5
@@ -42,8 +45,34 @@ jobs:
       - name: 의존성 설치
         run: pip install -r requirements.txt
 
-      - name: 테스트 실행
-        run: pytest
+      - name: 단위 테스트 실행 (커버리지 측정)
+        run: pytest -m "not external_api and not integration" --cov --cov-report=
+        env:
+          COVERAGE_FILE: .coverage.unit
+
+      - name: 통합 테스트 실행 (커버리지 측정)
+        run: pytest -m integration --cov --cov-report=
+        env:
+          COVERAGE_FILE: .coverage.integration
+
+      - name: 커버리지 리포트 생성 (단위, 합산)
+        run: |
+          # 단위는 판단 로직 패키지만 (BE 단위 리포트의 domain·application에 해당)
+          COVERAGE_FILE=.coverage.unit coverage json -o coverage-unit.json \
+            --include="app/agents/*,app/tools/*,app/pipeline/*,app/diagnosis/*,app/sessions/*,app/callbacks/*,app/results/*"
+          coverage combine --keep .coverage.unit .coverage.integration
+          coverage report
+          coverage json -o coverage.json
+          coverage xml -o coverage.xml
+
+      - name: 커버리지 기준 검사 (단위 라인·분기 90%, 합산 라인 85%·분기 80%)
+        run: |
+          python scripts/check_coverage.py coverage-unit.json --line 90 --branch 90
+          python scripts/check_coverage.py coverage.json --line 85 --branch 80
+
+      - name: 바뀐 줄 커버리지 검사 (90%)
+        if: github.event_name == 'pull_request'
+        run: diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=90
 
   docker-build:
     runs-on: ubuntu-latest
