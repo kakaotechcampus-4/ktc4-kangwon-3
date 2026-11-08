@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/core/client";
+import { isInvalidIdError } from "@/api/core/invalidId";
 import { submitAnswers } from "@/api/products";
 import { ProcessingStatusType } from "@/api/types/common";
 import Button from "@/components/common/Button";
@@ -31,7 +32,16 @@ function QuestionPage() {
         }
     }, [isInvalidAccess, navigate]);
 
-    const { data: product, isPending, isError, refetch } = useQuestionProduct(productId, !isInvalidAccess);
+    const { data: product, isPending, isError, error, refetch } = useQuestionProduct(productId, !isInvalidAccess);
+
+    // 형식이 잘못됐거나 존재하지 않는 productId로 접근한 경우(400, 404)
+    const isInvalidId = isInvalidIdError(error);
+    useEffect(() => {
+        if (isInvalidId) {
+            alert("유효하지 않은 상품 id 입니다.");
+            navigate("/", { replace: true });
+        }
+    }, [isInvalidId, navigate]);
 
     const isNotAwaitingInput = product != null && product.processingStatus !== ProcessingStatusType.AwaitingInput;
 
@@ -88,7 +98,7 @@ function QuestionPage() {
                 title={currentRound ? `${currentRound}차 질문` : "진단에 필요한 질문이 몇 가지 있어요"}
                 description="상세페이지만으로는 판단이 어려운 부분이에요. 답해 주시면 진단서에 반영됩니다."
             />
-            {isPending ? (
+            {isInvalidId ? null : isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">

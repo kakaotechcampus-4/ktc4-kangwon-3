@@ -35,6 +35,7 @@ const renderQuestionPage = (route = '/question/product-1') => {
     route,
     extraRoutes: (
       <>
+        <Route path="/" element={<p>메인 화면</p>} />
         <Route path="/judgement/:diagnosesId" element={<p>진단 진행 화면</p>} />
         <Route path="/upload" element={<p>업로드 화면</p>} />
         <Route path="/result/product/:productId" element={<p>결과 화면</p>} />
@@ -307,6 +308,16 @@ describe('질문 화면 - 잘못된 접근', () => {
     expectNotified(COMMON_MESSAGES.INVALID_ACCESS_TO_UPLOAD)
     expect(getCurrentLocation()).toBe('/upload')
     expect(requestLog.all()).toEqual([])
+  })
+
+  it.each([400, 404])('존재하지 않거나 형식이 잘못된 상품 id(%i)면 오류 화면 없이 안내하고 메인으로 돌려보낸다', async (status) => {
+    server.use(http.get(PRODUCT_URL, () => errorResponse(status)))
+    const page = renderQuestionPage()
+
+    expect(await findStubScreen('메인 화면')).toBeInTheDocument()
+    expectNotified(QUESTION_MESSAGES.INVALID_PRODUCT_ID)
+    expect(getCurrentLocation()).toBe('/')
+    expect(page.hasText(QUESTION_MESSAGES.LOAD_FAILED)).toBe(false)
   })
 
   it('답변을 기다리는 상품이 아니면 안내하고 결과 화면으로 돌려보낸다', async () => {
