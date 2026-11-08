@@ -185,13 +185,10 @@ public class DiagnosesService {
     }
 
     private void validateImageKeyOwner(UUID userId, ProductCreateCommand command) {
-        boolean ownsProductImage = command.productImageKey() == null
-                || FileType.PRODUCT_MAIN.isOwnedBy(command.productImageKey(), userId);
-        boolean ownsDetailImages = CollectionUtils.isEmpty(command.imageKeys())
-                || command.imageKeys().stream().allMatch(key -> FileType.PRODUCT_DETAIL.isOwnedBy(key, userId));
-        if (!ownsProductImage || !ownsDetailImages) {
-            throw new BaseException(CommonResponseCode.NOT_FOUND);
+        if (command.productImageKey() != null) {
+            s3FileService.validateOwner(userId, FileType.PRODUCT_MAIN, List.of(command.productImageKey()));
         }
+        s3FileService.validateOwner(userId, FileType.PRODUCT_DETAIL, command.imageKeys());
     }
 
     private Product toProduct(ProductCreateCommand command) {

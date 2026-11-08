@@ -1,5 +1,8 @@
 package kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service;
 
+import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
+import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.FileType;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.entity.S3File;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.entity.S3FileStatus;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.repository.S3FileRepository;
@@ -11,6 +14,7 @@ import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +42,15 @@ public class S3FileService {
             return;
         }
         s3FileRepository.deleteByKeyIn(keys);
+    }
+
+    public void validateOwner(UUID userId, FileType type, List<String> keys) {
+        if (CollectionUtils.isEmpty(keys)) {
+            return;
+        }
+        if (!keys.stream().allMatch(key -> type.isOwnedBy(key, userId))) {
+            throw new BaseException(CommonResponseCode.NOT_FOUND);
+        }
     }
 
     public List<S3File> findExpiredPending(LocalDateTime threshold, Pageable pageable) {

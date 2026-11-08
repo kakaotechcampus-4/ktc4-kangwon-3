@@ -10,6 +10,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceTy
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.FileType;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileService;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteRequestedEvent;
 import org.junit.jupiter.api.DisplayName;
@@ -32,9 +33,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
@@ -154,54 +158,40 @@ class DiagnosesServiceTest {
     }
 
     @Test
-    @DisplayName("다른 사용자에게 발급된 대표 이미지 key로 진단을 요청하면 NOT_FOUND 예외가 발생하고 저장하지 않는다.")
-    void createDiagnoses_withOtherUsersProductImageKey_thenNotFound() {
+    @DisplayName("진단을 요청하면 대표 이미지 key는 대표 이미지 폴더로, 상세 이미지 key는 상세 이미지 폴더로 소유권을 확인한다.")
+    void createDiagnoses_thenValidateImageKeyOwnerByFolder() {
         // given
-        ProductCreateCommand command = new ProductCreateCommand(
-                PRODUCT_NAME, "product-main/" + OTHER_USER_ID + "/uuid_thumbnail.jpg",
-                SourceType.URL, SOURCE_URL, null, List.of());
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
+        List<String> imageKeys = List.of(DETAIL_KEY_PREFIX + "uuid_a1.jpg", DETAIL_KEY_PREFIX + "uuid_a2.jpg");
+
+        // when
+        diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(imageKeys)));
+
+        // then
+        then(s3FileService).should().validateOwner(USER_ID, FileType.PRODUCT_MAIN, List.of(PRODUCT_IMAGE_KEY));
+        then(s3FileService).should().validateOwner(USER_ID, FileType.PRODUCT_DETAIL, imageKeys);
+    }
+
+    @Test
+    @DisplayName("이미지 key 소유권 확인에서 거절되면 예외가 그대로 전파되고 저장·업로드 확정·AI 요청 이벤트가 일어나지 않는다.")
+    void createDiagnoses_withNotOwnedImageKey_thenNotFoundAndNotSave() {
+        // given
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
+                .given(s3FileService).validateOwner(any(), any(), anyList());
 
         // when & then
-        assertThatThrownBy(() -> diagnosesService.createDiagnoses(USER_ID, List.of(command)))
+        assertThatThrownBy(() -> diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(List.of()))))
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
         then(diagnosesRepository).should(never()).save(any());
         then(s3FileService).should(never()).markConfirmed(any());
+        then(eventPublisher).should(never()).publishEvent(any());
     }
 
     @Test
-    @DisplayName("상세 이미지 key 중 하나라도 다른 사용자의 key면 NOT_FOUND 예외가 발생하고 저장하지 않는다.")
-    void createDiagnoses_withOtherUsersDetailImageKey_thenNotFound() {
-        // given
-        List<String> imageKeys = List.of(
-                DETAIL_KEY_PREFIX + "uuid_a1.jpg", "product-detail/" + OTHER_USER_ID + "/uuid_b1.jpg");
-
-        // when & then
-        assertThatThrownBy(() -> diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(imageKeys))))
-                .isInstanceOf(BaseException.class)
-                .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.NOT_FOUND);
-        then(diagnosesRepository).should(never()).save(any());
-    }
-
-    @Test
-    @DisplayName("상세 이미지 key를 대표 이미지 자리에 넣으면 NOT_FOUND 예외가 발생한다.")
-    void createDiagnoses_withDetailKeyAsProductImageKey_thenNotFound() {
-        // given
-        ProductCreateCommand command = new ProductCreateCommand(
-                PRODUCT_NAME, DETAIL_KEY_PREFIX + "uuid_a1.jpg", SourceType.URL, SOURCE_URL, null, List.of());
-
-        // when & then
-        assertThatThrownBy(() -> diagnosesService.createDiagnoses(USER_ID, List.of(command)))
-                .isInstanceOf(BaseException.class)
-                .extracting(e -> ((BaseException) e).getResponseCode())
-                .isEqualTo(CommonResponseCode.NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("대표 이미지 없이 진단을 요청하면 소유권 확인 없이 저장된다.")
-    void createDiagnoses_withoutProductImageKey_thenSave() {
+    @DisplayName("대표 이미지 없이 진단을 요청하면 대표 이미지 소유권은 확인하지 않고 저장된다.")
+    void createDiagnoses_withoutProductImageKey_thenSkipProductImageOwnerAndSave() {
         // given
         given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
         ProductCreateCommand command = new ProductCreateCommand(
@@ -211,6 +201,7 @@ class DiagnosesServiceTest {
         diagnosesService.createDiagnoses(USER_ID, List.of(command));
 
         // then
+        then(s3FileService).should(never()).validateOwner(any(), eq(FileType.PRODUCT_MAIN), anyList());
         then(diagnosesRepository).should().save(any(Diagnoses.class));
     }
 
