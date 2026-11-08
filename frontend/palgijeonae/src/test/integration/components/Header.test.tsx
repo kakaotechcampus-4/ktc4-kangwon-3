@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http } from 'msw'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import Header from '@/components/common/Header'
 import { API_URL } from '@/test/mocks/handlers'
@@ -10,16 +10,7 @@ import { successResponse } from '@/test/mocks/responses'
 import { server } from '@/test/mocks/server'
 import { setAuthState } from '@/test/utils/auth'
 import { getCurrentLocation, renderWithProviders } from '@/test/utils/renderWithProviders'
-
-// 기본 matchMedia 스텁(vitest.setup.ts)은 데스크톱(matches: false)이라, 모바일 폭이 필요한 테스트에서 바꿔 쓴다.
-function useMobileViewport() {
-  window.matchMedia = vi.fn((query: string) => ({
-    matches: true,
-    media: query,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  })) as unknown as typeof window.matchMedia
-}
+import { setMobileViewport } from '@/test/utils/viewport'
 
 const openMenu = async () => {
   const user = userEvent.setup()
@@ -37,7 +28,7 @@ const queryMenuNav = () => screen.queryByRole('navigation', { name: '주요 메�
 
 describe('헤더 - 모바일 메뉴', () => {
   beforeEach(() => {
-    useMobileViewport()
+    setMobileViewport()
     setAuthState('loggedOut')
   })
 
