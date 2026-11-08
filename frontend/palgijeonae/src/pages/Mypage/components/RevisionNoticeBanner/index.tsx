@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { LawAmendment, RecheckProduct } from "@/api/lawAmendments.ts";
 import bell from "@/assets/mypage-bell.svg";
 import DefaultBox from "@/components/common/DefaultBox";
+import { useRediagnoseProduct } from "@/pages/Mypage/hooks/useRediagnoseProduct.ts";
 
 import AmendmentAccordionItem from "./components/AmendmentAccordionItem.tsx";
 
@@ -27,8 +28,14 @@ function RevisionNoticeBanner({ lawAmendments }: RevisionNoticeBannerProps) {
         });
     };
 
-    // 재진단 요청은 다음 커밋에서 연결한다.
-    const handleRediagnose = (_product: RecheckProduct) => {};
+    const { mutate: rediagnose, isPending, variables: rediagnosingProductId } = useRediagnoseProduct();
+
+    // 이전 진단 결과가 지워져 되돌릴 수 없으므로 먼저 확인한다.
+    const handleRediagnose = (product: RecheckProduct) => {
+        if (confirm(`'${product.productName}'을(를) 다시 진단할까요? 이전 진단 결과는 사라지고, 되돌릴 수 없어요.`)) {
+            rediagnose(product.productId);
+        }
+    };
 
     return (
         <section aria-label="법령 개정 알림">
@@ -49,6 +56,7 @@ function RevisionNoticeBanner({ lawAmendments }: RevisionNoticeBannerProps) {
                             amendment={amendment}
                             expanded={expandedIds.has(amendment.lawAmendmentId)}
                             onToggle={() => toggle(amendment.lawAmendmentId)}
+                            rediagnosingProductId={isPending ? rediagnosingProductId : undefined}
                             onRediagnose={handleRediagnose}
                         />
                     ))}
