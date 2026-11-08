@@ -58,9 +58,9 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
     if (!isEditing) {
         return (
             <div className="flex w-full items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <span className="w-16 shrink-0 text-sm font-semibold text-neutral-label">{title}</span>
-                    <span className="text-base text-black">{description}</span>
+                <div className="flex min-w-0 items-center gap-4">
+                    <span className="w-14 shrink-0 text-sm font-semibold text-neutral-label md:w-16">{title}</span>
+                    <span className="min-w-0 text-base break-all text-black">{description}</span>
                 </div>
                 {editable && (
                     <button
@@ -76,9 +76,9 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
     }
 
     return (
-        <div className="flex w-full items-center gap-3">
-            <label htmlFor={inputId} className="w-16 shrink-0 text-sm font-semibold text-neutral-label">{title}</label>
-            <div className="flex flex-1 items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-3 md:flex-nowrap">
+            <label htmlFor={inputId} className="w-14 shrink-0 text-sm font-semibold text-neutral-label md:w-16">{title}</label>
+            <div className="flex min-w-48 flex-1 items-center gap-2 md:min-w-0">
                 <input
                     id={inputId}
                     autoFocus
@@ -96,7 +96,7 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
                     {trimmedLength}/{maxLength}
                 </span>
             </div>
-            <Button text="취소" variant="secondary" size="sm" fontSize={14} onClick={cancelEditing} disabled={disabled} />
+            <Button text="취소" variant="secondary" size="sm" fontSize={14} className="ml-auto md:ml-0" onClick={cancelEditing} disabled={disabled} />
             <Button text="저장" size="sm" fontSize={14} onClick={handleSave} disabled={disabled || isInvalid} />
         </div>
     );
