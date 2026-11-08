@@ -6,6 +6,8 @@
 - 판매 방식별 안내(관세법 제226조, 고시 별표 2·제7조 제2항). HS가 후보이므로 모두 조건부로 쓴다.
 """
 
+import re
+
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
 from .evidence import ConfirmationRow, law_key
@@ -46,21 +48,44 @@ PRODUCT_CONDITIONED_LAWS: dict[str, tuple[str, str]] = {
 }
 
 
-def excluded_by_product(law_name: str, product: Product) -> str | None:
-    """상품 신호로 보아 이 요건 법령이 해당하지 않으면 그 이유를 돌려준다.
+# 요건 법령 → (해당 물품 설명, 뺄 수 있는 소재 표기, 남겨야 하는 소재 표기). 소재 글에 '뺄 수 있는 표기'가 있고
+# '남겨야 하는 표기'가 없을 때만 뺀다. 소재를 모르면 남긴다.
+# 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축(소·양·돼지·염소) 가죽과 인조 가죽은 대상이 아님.
+# 악어·뱀·도마뱀·타조·가오리·상어는 CITES 종이 섞여 있어 남긴다. "악어 무늬"처럼 무늬만 말해도 남긴다 (안전한 쪽).
+MATERIAL_CONDITIONED_LAWS: dict[str, tuple[str, re.Pattern[str], re.Pattern[str]]] = {
+    law_key("야생생물 보호 및 관리에 관한 법률"): (
+        "멸종위기종(CITES) 가죽이나 부위를 쓴 제품",
+        re.compile(r"소가죽|소 가죽|우피|카우하이드|cow ?hide|cowskin|송아지 ?가죽|카프|calf|양가죽|양 가죽|램스킨|sheepskin|lambskin"
+                   r"|돼지가죽|돼지 가죽|피그스킨|pigskin|염소가죽|고트스킨|goatskin|인조 ?가죽|합성 ?(?:가죽|피혁)|PU ?(?:가죽|레더|leather)"
+                   r"|비건 ?(?:가죽|레더)|vegan leather|faux leather|PVC", re.IGNORECASE),
+        re.compile(r"악어|크로커다일|crocodile|앨리게이터|alligator|케이맨|caiman|뱀|파이톤|python|스네이크|snake|도마뱀|리자드|lizard"
+                   r"|타조|ostrich|가오리|stingray|상어|shark|코끼리|elephant|상아|ivory|모피|fur", re.IGNORECASE),
+    ),
+}
+
+
+def excluded_by_product(law_name: str, product: Product, material_texts: list[str] | None = None) -> str | None:
+    """상품 신호나 소재 표기로 보아 이 요건 법령이 해당하지 않으면 그 이유를 돌려준다.
 
     Args:
         law_name: 요건 법령 이름.
         product: 상품 정보.
+        material_texts: 소재를 적은 글(통관 사실의 material·composition, 상품 이름, 소재 줄). None이면 소재로 빼지 않음.
 
     Returns:
         str | None: 해당하는 물품 설명(뺄 때). 남길 요건이면 None.
     """
-    condition = PRODUCT_CONDITIONED_LAWS.get(law_key(law_name))
-    if condition is None:
+    key = law_key(law_name)
+    condition = PRODUCT_CONDITIONED_LAWS.get(key)
+    if condition is not None:
+        signal, goods = condition
+        return goods if getattr(product, signal) is False else None
+    material = MATERIAL_CONDITIONED_LAWS.get(key)
+    if material is None or not material_texts:
         return None
-    signal, goods = condition
-    return goods if getattr(product, signal) is False else None
+    goods, excludable, keep = material
+    text = " ".join(material_texts)
+    return goods if excludable.search(text) and not keep.search(text) else None
 
 
 def format_hs(code: str) -> str:

@@ -53,3 +53,22 @@ def test_상품_신호가_False일_때만_조건부_요건을_뺀다():
     assert excluded_by_product(law, Product(product_id="p")) is None
     # 조건이 없는 법령은 신호와 상관없이 남김
     assert excluded_by_product("어린이제품 안전 특별법", Product(product_id="p", weapon_like=False)) is None
+
+
+def test_야생생물법은_가축_가죽이_명시되고_멸종위기종_표기가_없을_때만_뺀다():
+    from app.schemas.product import Product
+    from app.tools.customs.rules import excluded_by_product
+
+    law = "야생생물 보호 및 관리에 관한 법률(허가)"
+    product = Product(product_id="p")
+    assert excluded_by_product(law, product, ["탑 레이어 소가죽"]) is not None
+    assert excluded_by_product(law, product, ["소가죽 RFID 차단 지갑"]) is not None
+    assert excluded_by_product(law, product, ["Genuine Cowhide Leather"]) is not None
+    assert excluded_by_product(law, product, ["인조가죽(PU)"]) is not None
+    # 멸종위기종 표기가 같이 있으면 남김 (악어 무늬처럼 무늬만 말해도 안전한 쪽으로)
+    assert excluded_by_product(law, product, ["소가죽, 악어 무늬 프린트"]) is None
+    assert excluded_by_product(law, product, ["파이톤 가죽"]) is None
+    # 소재를 모르거나 가죽 종류가 없으면 남김
+    assert excluded_by_product(law, product, ["가죽"]) is None
+    assert excluded_by_product(law, product, []) is None
+    assert excluded_by_product(law, product) is None

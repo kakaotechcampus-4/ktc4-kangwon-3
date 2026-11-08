@@ -545,3 +545,34 @@ def test_무기_형태이거나_모르면_총포법_요건을_남긴다(weapon_l
     subjects = [finding.subject for finding in result.findings]
     assert "세관장확인 대상 후보 — 총포･도검･화약류 등의 안전관리에 관한 법률" in subjects
     assert "excluded_requirements" not in result.query
+
+
+def test_소가죽_상품의_야생생물법_요건은_빼고_이유를_가정에_남긴다():
+    # #640 소가죽 지갑: HS 4202.31에 야생생물법이 걸려 오지만 CITES 종 가죽에만 해당하는 요건
+    # 결정사례 가짜는 주전자 검색어만 알아 상품은 주전자 그대로 두고 소재만 소가죽으로 적음 (사실은 원문 인용이 맞아야 남음)
+    product, facts = product_and_facts(
+        text="소가죽 손잡이 전기주전자, 전기로 물을 끓임. 소재: 탑 레이어 소가죽",
+        values=(("product_type", "전기주전자"), ("material", "탑 레이어 소가죽"), ("function", "전기로 물을 끓임")))
+    cites = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                        agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [cites]}))
+    assert result.query["excluded_requirements"] == {"8516799000": [cites.law_name]}
+    assert result.required_actions == []
+    # 요건을 전부 뺀 HS만 남으면 '정보 부족'이 아니라 조회해서 해당 없음으로 본 확정 판단을 남긴다 (카드가 정보 부족으로 나가지 않게)
+    [finding] = result.findings
+    assert finding.subject == "세관장확인 대상 법령 — 상품에 해당하는 요건 없음"
+    assert finding.determination is Determination.NOT_REQUIRED and finding.risk_level is RiskLevel.LOW
+    assert "「야생생물 보호 및 관리에 관한 법률(허가)」은 상품 정보상 이 상품에 해당하지 않습니다" in finding.summary
+    assert finding.legal_sources and finding.legal_sources[0].article == "제226조"
+    assert any("멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 걸리는 요건" in text for text in finding.assumptions)
+
+
+def test_악어가죽_상품의_야생생물법_요건은_남긴다():
+    product, facts = product_and_facts(
+        text="악어가죽 손잡이 전기주전자, 전기로 물을 끓임. 소재: 악어가죽",
+        values=(("product_type", "전기주전자"), ("material", "악어가죽"), ("function", "전기로 물을 끓임")))
+    cites = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                        agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [cites]}))
+    assert "excluded_requirements" not in result.query
+    assert any("야생생물" in finding.subject for finding in result.findings)

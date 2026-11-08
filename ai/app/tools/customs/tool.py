@@ -6,6 +6,7 @@ HS 분류는 관세청이 정하므로 후보로만 낸다. 모델은 확정 판
 결과는 POSSIBLY_REQUIRED(요건 후보) 또는 INSUFFICIENT_INFORMATION(정보 부족·미확인)이다.
 """
 
+import re
 from collections import Counter
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -166,7 +167,8 @@ class CustomsTool(EvidenceSearchTool):
         if evidence is not None:
             query["documents"] = evidence.documents()
         requirements, unresolved = self._lookup_requirements(hs_codes, run.assumptions)
-        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions)
+        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions,
+                                                     _material_texts(product, facts))
         if excluded:
             query["excluded_requirements"] = excluded
         run.requirements = requirements
@@ -237,6 +239,23 @@ class CustomsTool(EvidenceSearchTool):
                     rationale=rationale, determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.LOW,
                     facts=facts, assumptions=[*run.assumptions, *notes], sources=case_sources,
                 ))
+        # 요건이 있었지만 상품 정보로 전부 뺀 HS만 남은 경우 (예: 소가죽 지갑의 야생생물법). 판단이 비면 기본 판단이
+        # "정보 부족"으로 나가므로, 조회해서 뺀 결과임을 확정 판단으로 남긴다. 근거 조문을 못 읽었으면 기본 판단으로 둠
+        only_excluded = [code for code in hs_codes if code not in unresolved and not query["requirements"].get(code)
+                         and code in excluded]
+        act_source = self._act_source(evidence) if only_excluded and not findings else None
+        if only_excluded and not findings and act_source:
+            labels = ", ".join(format_hs(code) for code in only_excluded)
+            laws = ", ".join(f"「{name}」" for name in dict.fromkeys(name for code in only_excluded for name in excluded[code]))
+            findings.append(self._finding(
+                subject="세관장확인 대상 법령 — 상품에 해당하는 요건 없음",
+                summary=(f"HS 후보 {labels}에 걸린 세관장확인 요건 {laws}은 상품 정보상 이 상품에 해당하지 않습니다. "
+                         "통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제가 없다는 뜻은 아닙니다."),
+                rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
+                facts=facts, assumptions=[*run.assumptions,
+                                          f"HS 후보({labels}) 기준입니다. 다른 HS로 분류되면 세관장확인 요건이 생길 수 있습니다."],
+                sources=[*act_source, *case_sources],
+            ))
         if unresolved:
             findings.append(self._finding(
                 subject="세관장확인 요건 — 조회하지 못함",
@@ -377,14 +396,32 @@ def _lone_headings(chosen: list, cases: Iterable[HsCase]) -> list[str]:
     return [case.case_id for case, _, _ in chosen if score(case) <= 1]
 
 
-def _exclude_by_product(requirements: list[Requirement], product: Product, assumptions: list[str]
-                        ) -> tuple[list[Requirement], dict[str, list[str]]]:
-    """상품 신호로 보아 해당하지 않는 요건을 뺀다. 뺀 이유는 가정에 남긴다.
+def _material_texts(product: Product, facts: list) -> list[str]:
+    """소재 조건 판단에 쓸 글. 통관 사실의 소재·구성 값, 상품 이름, 원문의 소재·재질 줄.
+
+    Args:
+        product: 상품 정보.
+        facts: 통관 사실 목록.
+
+    Returns:
+        list[str]: 소재를 적었을 만한 글.
+    """
+    texts = [fact.value for fact in facts if getattr(fact, "field", None) in ("material", "composition")]
+    if product.product_name:
+        texts.append(product.product_name)
+    texts += [line for line in product.listing_text if re.search(r"소재|재질|material", line, re.IGNORECASE)]
+    return texts
+
+
+def _exclude_by_product(requirements: list[Requirement], product: Product, assumptions: list[str],
+                        material_texts: list[str] | None = None) -> tuple[list[Requirement], dict[str, list[str]]]:
+    """상품 신호나 소재 표기로 보아 해당하지 않는 요건을 뺀다. 뺀 이유는 가정에 남긴다.
 
     Args:
         requirements: HS 후보의 세관장확인 요건.
         product: 상품 정보.
         assumptions: 결과에 남길 가정. 뺀 요건마다 이유를 더함.
+        material_texts: 소재를 적은 글. 소재 조건이 있는 법령(야생생물법)에 씀.
 
     Returns:
         tuple[list[Requirement], dict[str, list[str]]]: (남긴 요건, HS별로 뺀 법령).
@@ -393,7 +430,7 @@ def _exclude_by_product(requirements: list[Requirement], product: Product, assum
     excluded: dict[str, list[str]] = {}
     reasons: dict[str, tuple[str, list[str]]] = {}
     for item in requirements:
-        goods = excluded_by_product(item.law_name, product)
+        goods = excluded_by_product(item.law_name, product, material_texts)
         if goods is None:
             kept.append(item)
             continue
