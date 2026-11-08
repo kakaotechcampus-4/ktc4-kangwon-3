@@ -46,6 +46,8 @@ flowchart LR
 
 화면별 실제 모습은 [루트 README 주요 기능](../README.md#주요-기능)에서 확인할 수 있습니다.
 
+모바일(390px 기준)과 데스크톱을 모두 지원하며, 768px(`md`) 미만이 모바일 화면입니다.
+
 ## 기술 스택
 
 | 구분 | 주요 기술 |
@@ -67,7 +69,8 @@ src/
 │   └── layout/     # Header + 본문 레이아웃
 ├── pages/          # 페이지별 폴더. 페이지 전용 파일을 components/·hooks/·utils/로 나누고, 진입점(index.tsx)·types.ts·constants.ts는 페이지 폴더 바로 아래에 둠
 ├── store/          # Zustand 스토어 (인증)
-├── constants/      # 상태 배지 라벨
+├── hooks/          # 공용 훅 (useIsMobile, useEscapeKey, useBodyScrollLock, useFocusTrap)
+├── constants/      # 상태 배지 라벨, 헤더 메뉴
 ├── lib/            # 유틸 (클래스 병합, 글자 수 계산, 라우트 파라미터 검사)
 └── test/           # 단위·통합 테스트, MSW 핸들러, 테스트 유틸
 ```
