@@ -10,6 +10,11 @@ on:
     paths:
       - "ai/**"
   workflow_dispatch:
+    inputs:
+      skip-coverage:
+        description: "커버리지 기준 검사를 건너뜀 (긴급 배포용)"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write
@@ -58,21 +63,42 @@ jobs:
       - name: 커버리지 리포트 생성 (단위, 합산)
         run: |
           # 단위는 판단 로직 패키지만 (BE 단위 리포트의 domain·application에 해당)
-          COVERAGE_FILE=.coverage.unit coverage json -o coverage-unit.json \
-            --include="app/agents/*,app/tools/*,app/pipeline/*,app/diagnosis/*,app/sessions/*,app/callbacks/*,app/results/*"
+          UNIT_INCLUDE="app/agents/*,app/tools/*,app/pipeline/*,app/diagnosis/*,app/sessions/*,app/callbacks/*,app/results/*"
+          COVERAGE_FILE=.coverage.unit coverage json -o coverage-unit.json --include="$UNIT_INCLUDE"
+          COVERAGE_FILE=.coverage.unit coverage html -d htmlcov-unit --include="$UNIT_INCLUDE"
           coverage combine --keep .coverage.unit .coverage.integration
           coverage report
           coverage json -o coverage.json
           coverage xml -o coverage.xml
+          coverage html -d htmlcov
 
       - name: 커버리지 기준 검사 (단위 라인·분기 90%, 합산 라인 85%·분기 80%)
+        id: coverage
+        if: ${{ !inputs.skip-coverage }}
         run: |
           python scripts/check_coverage.py coverage-unit.json --line 90 --branch 90
           python scripts/check_coverage.py coverage.json --line 85 --branch 80
 
+      - name: 긴급 배포 안내 (실패 시)
+        if: failure() && steps.coverage.outcome == 'failure'
+        run: echo "::notice::커버리지 기준 미달로 실패했다면, 긴급 배포는 Actions에서 AI CI/CD를 수동 실행하고 skip-coverage를 켜면 됩니다."
+
       - name: 바뀐 줄 커버리지 검사 (90%)
         if: github.event_name == 'pull_request'
         run: diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=90
+
+      - name: 커버리지 리포트 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            ai/htmlcov
+            ai/htmlcov-unit
+            ai/coverage*.json
+            ai/coverage.xml
+          if-no-files-found: ignore
+          retention-days: 7
 
   docker-build:
     runs-on: ubuntu-latest

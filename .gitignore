@@ -55,7 +55,7 @@ __pycache__/
 *.py[cod]
 .coverage
 .coverage.*
-htmlcov/
+htmlcov*/
 coverage.xml
 coverage*.json
 .venv/
