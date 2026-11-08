@@ -51,6 +51,7 @@ app:
     from-name: 팔기전에
     region: ap-northeast-2
     type: NONE
+    my-page-url: http://localhost:5173/mypage
 
 oauth2:
   unlink:

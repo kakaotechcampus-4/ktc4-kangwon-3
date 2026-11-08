@@ -20,19 +20,20 @@
                    style="max-width:600px; width:100%; background-color:#ffffff; border-radius:10px; padding:32px;
                           font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif; color:#3B3B3B;">
                 <tr>
-                    <td style="font-size:22px; font-weight:bold; padding-bottom:8px;">
+                    <td style="font-size:22px; font-weight:bold; padding-bottom:24px;">
                         관련 법령이 개정되었습니다
                     </td>
                 </tr>
                 <tr>
-                    <td style="font-size:14px; color:#646464; padding-bottom:24px;">
-                        개정일 <span th:text="${amendedOn}">2026-09-03</span>
-                    </td>
-                </tr>
-                <tr>
                     <td style="background-color:#F5EED7; border-radius:8px; padding:20px; font-size:15px; line-height:1.6;">
-                        <strong th:text="${lawName}">어린이제품 안전 특별법 시행규칙 별표2</strong>
-                        <p style="margin:8px 0 0;" th:text="${summary}">완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다.</p>
+                        <p style="margin:0 0 12px;" th:each="law : ${laws}">
+                            <strong th:text="${law.lawName}">어린이제품 안전 특별법 시행규칙</strong><br>
+                            <span style="font-size:14px; color:#646464;">
+                                <span th:text="${law.revisionType}">일부개정</span>
+                                · 개정일 <span th:text="${law.amendedOn}">2026-09-03</span>
+                            </span>
+                        </p>
+                        <p style="margin:0;">개정된 법령이 시행되어 진단 기준이 바뀌었습니다. 다시 진단해 최신 기준으로 확인해 주세요.</p>
                     </td>
                 </tr>
                 <tr>

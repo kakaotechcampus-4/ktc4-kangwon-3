@@ -25,7 +25,9 @@ public interface LawAmendmentCallbackApi {
 
                     처리
                     - 변경을 저장합니다. 같은 변경(`documentId`·`serialNumber`)을 다시 받으면 저장하지 않고 200으로 응답합니다.
-                    - 그 분야(`toolName`) 검토에서 이 법령을 근거로 인용한(진단 결과 근거의 `lawName`이 같은) 상품을 재확인 대상으로 지정합니다.
+                    - 그 분야(`toolName`) 검토에서 이 법령을 근거로 인용한(진단 결과 근거의 `lawName`이 같은) 상품을 재확인 대상으로 지정하고,
+                      개정 알림을 켠 회원에게 메일을 보냅니다. 변경이 여러 건이어도 회원당 한 통으로 묶어 보냅니다.
+                      메일은 반영이 끝난 뒤 따로 보내므로 발송 결과는 응답에 영향을 주지 않습니다.
 
                     거절 조건
                     - 필수 값이 없거나 길이를 넘으면 `INVALID_METHOD_ARGUMENT`, 본문 형식이나 enum 값이 맞지 않으면 `BAD_REQUEST`입니다.

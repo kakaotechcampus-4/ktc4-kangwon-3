@@ -14,7 +14,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,6 +62,21 @@ class UserServiceTest {
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(CommonResponseCode.NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("회원 ID 여러 개로 조회하면 있는 회원만 반환한다.")
+    void getUsers_thenReturnExistingUsers() {
+        // given
+        UUID unknownId = UUID.randomUUID();
+        User user = createUser(USER_ID);
+        given(userRepository.findAllById(Set.of(USER_ID, unknownId))).willReturn(List.of(user));
+
+        // when
+        List<User> result = userService.getUsers(Set.of(USER_ID, unknownId));
+
+        // then
+        assertThat(result).containsExactly(user);
     }
 
     @Test
