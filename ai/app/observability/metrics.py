@@ -48,9 +48,9 @@ TOOL_RUN_BUCKETS = (1, 2, 5, 10, 20, 30, 60, 120, 300)
 HTTP_REQUEST_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 
 _OUTCOMES = {Completed: "completed", AwaitingInput: "awaiting_input", Failed: "failed"}
-# 콜백 이벤트 종류 (app/schemas/callback.py의 event_type)
-_CALLBACK_EVENT_TYPES = ("product_progress", "product_awaiting_input", "product_result", "product_failed")
-# 콜백 버린 사유 (app/callbacks/outbox.py)
+# 콜백 이벤트 종류 (app/schemas/callback.py의 event_type, 법령 변경 묶음은 app/callbacks/law_changes.py)
+_CALLBACK_EVENT_TYPES = ("product_progress", "product_awaiting_input", "product_result", "product_failed", "law_changes")
+# 콜백 버린 사유 (app/callbacks/outbox.py, app/callbacks/law_changes.py)
 _CALLBACK_DROP_REASONS = ("retry_exhausted", "not_retryable", "shutdown", "error")
 # 외부 API 서버·호출 결과 (app/clients 각 클라이언트의 API, measurements.ClientCall)
 _CLIENT_APIS = ("law", "data_go_kr", "customs_clip", "safety_korea", "radio", "marketplace", "backend", "llm")
