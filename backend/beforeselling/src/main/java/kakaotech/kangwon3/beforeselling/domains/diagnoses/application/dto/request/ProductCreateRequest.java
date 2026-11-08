@@ -25,6 +25,7 @@ public record ProductCreateRequest(
 
         String sourceUrl,
 
+        @Size(max = 20000, message = "상세페이지 내용은 20000자를 넘을 수 없습니다.")
         String sourceText,
 
         @Size(max = 20, message = "이미지는 최대 20장까지 등록할 수 있습니다.")
