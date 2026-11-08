@@ -63,7 +63,8 @@ export const submitDiagnosis = async (products: Product[]): Promise<string> => {
         }),
     );
 
-    // 실패 시 그 원인을 사용자에게 안내한다.
+    // 상품 묶음은 진단 하나로 다루므로 하나라도 실패하면 진단 요청을 보내지 않고 실패 원인을 사용자에게 안내한다. (부분 제출은 지원하지 않음)
+    // 이미 올라간 다른 상품의 이미지는 진단서로 이어지지 않아, 재시도하면 다시 올린다. 남은 파일의 정리는 BE에 맡기고, FE는 업로드 key를 보관하지 않는다.
     const failureMessages = results
         .map((result, index) =>
             result.status === "rejected"
