@@ -25,6 +25,7 @@ public interface LawAmendmentApi {
                     - 재확인 대상 상품을 재진단하거나 삭제하면 그 상품은 빠지고, 남은 상품이 없는 개정은 목록에서 빠집니다.
                     - 개정 알림 수신을 끈 회원(`lawAmendmentAlertEnabled`가 `false`)은 빈 목록입니다.
                     - `revisionType`(일부개정 등)과 `enforceDate`(시행일)는 AI가 보내지 않으면 `null`입니다.
+                    - 상품의 `diagnosesId`는 그 상품이 속한 진단서 ID입니다. 재진단해도 같은 진단서에서 다시 진단하므로 바뀌지 않아, 재진단 후 진행 화면(`/judgement/{diagnosesId}`)으로 바로 이동할 때 씁니다.
                     """)
     @ApiResponseExplanations(
             success = @ApiSuccessResponseExplanation(responseClass = LawAmendmentListResponse.class, description = "조회 성공"),
