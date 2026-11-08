@@ -16,7 +16,7 @@ from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.law import EvidenceUnavailable
 from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
-from .rules import excluded_by_product, format_hs, omission_status, related_tool, sale_actions
+from .rules import excluded_by_product, format_hs, law_note, omission_status, related_tool, sale_actions
 from .search import (
     CaseSearch, HsCase, Requirement, RequirementLookup,
 )
@@ -203,6 +203,7 @@ class CustomsTool(EvidenceSearchTool):
                 subject=f"세관장확인 대상 후보 — {law_name}",
                 summary=(f"HS {', '.join(format_hs(code) for code in codes)}로 분류되면 수입통관 때 「{law_name}」 요건을 "
                          f"세관장에게 확인받아야 할 가능성이 있습니다(확정 아님)."
+                         + (f" {law_note(law_name)}" if law_note(law_name) else "")
                          + (f"\n제출 서류: {', '.join(documents)}." if documents else "")),
                 rationale=rationale, determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=facts, assumptions=[*run.assumptions, *notes],

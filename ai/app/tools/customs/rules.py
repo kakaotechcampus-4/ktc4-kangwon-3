@@ -8,7 +8,6 @@
 
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
-from ..common.facts import object_particle
 from .evidence import ConfirmationRow, law_key
 
 # 세관장확인 요건 법령 → 같은 법을 판단하는 규제 Tool. 키는 law_key(공백·가운뎃점 무시).
@@ -82,41 +81,54 @@ def format_hs(code: str) -> str:
 
 def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None, documents: list[str],
                  agencies: list[str], omission: tuple[str, str] | None) -> list[str]:
-    """요건 법령 하나에 대해 판매 방식별로 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다.
+    """요건 법령 하나에 대한 할 일. 사입·수입과 구매대행을 한 문장에 담는다 (#640: 법령마다 200자 2문장이 나오던 것).
+
+    확인 기관 목록은 서류 이름에 발급처가 드러나 문장에서 뺀다. 판매 방식(구매대행/사입)은 사용자가 정한다.
 
     Args:
         law_name: 요건 법령 이름.
         hs_codes: 이 법령이 걸린 HS.
         row: 고시 별표 2의 해당 행. 없으면 None.
         documents: GW가 준 요건 확인 서류.
-        agencies: GW가 준 요건 확인 기관.
+        agencies: GW가 준 요건 확인 기관. 문장에는 쓰지 않음 (호출부 호환용).
         omission: 고시 제7조 제2항의 생략 판단. ("excepted", 조건) = 생략 제외 법령, ("omittable", "") = 생략 가능,
             None = 고시를 확인하지 못함.
 
     Returns:
-        list[str]: 사입·수입 판매 안내와 구매대행 안내.
+        list[str]: 문장 하나.
     """
     label = f"[「{law_name}」 · HS {', '.join(format_hs(code) for code in hs_codes)} 후보]"
     papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
-    who = f"{', '.join(agencies)}의 " if agencies else ""
-    import_action = (f"{label} 사입·수입 판매: 이 HS로 분류되면 수입신고 때 세관장확인을 받아야 합니다. "
-                     f"{who}{papers}{object_particle(papers)} 미리 갖춰야 통관됩니다(관세법 제226조, 세관장확인 고시 별표 2).")
     if omission is None:
-        return [import_action, f"{label} 구매대행: 개인 사용 목적 수입의 세관장확인 생략 여부는 확인이 필요합니다."]
-    status, condition = omission
-    if status == "excepted":
-        # 단서의 조건 원문은 괄호째 오므로 괄호를 벗겨 "(… 단서 조건: …)" 한 겹으로 쓴다.
-        condition = condition.strip()
-        if condition.startswith("(") and condition.endswith(")"):
-            condition = condition[1:-1].strip()
-        note = f" 조건: {condition}" if condition else ""
-        return [import_action,
-                f"{label} 구매대행: 상행위 이외 목적 등 대외무역법 시행령 제19조 사유의 수입이어도 「{law_name}」 요건은 "
-                f"세관장확인 생략 대상에서 빠집니다(세관장확인 고시 제7조 제2항 제1호 단서{note}). "
-                "구매대행으로 들여와도 통관 때 요건 확인이 필요할 수 있습니다."]
-    return [import_action,
-            f"{label} 구매대행: 상행위 이외 목적 등 대외무역법 시행령 제19조 사유에 해당하는 수입이면 세관장확인을 "
-            "생략할 수 있습니다(세관장확인 고시 제7조 제2항 제1호). 해당 여부는 확인이 필요합니다."]
+        agent = "구매대행 수입의 세관장확인 생략 여부는 확인이 필요합니다"
+    elif omission[0] == "excepted":
+        agent = "구매대행 수입도 세관장확인을 생략할 수 없습니다(세관장확인 고시 제7조 제2항 제1호 단서)"
+    else:
+        agent = ("개인 사용 목적 등 대외무역법 시행령 제19조 사유의 구매대행 수입은 세관장확인을 생략할 수 있습니다"
+                 "(세관장확인 고시 제7조 제2항 제1호, 해당 여부 확인 필요)")
+    note = law_note(law_name)
+    return [f"{label} 이 HS로 분류되면 수입신고 때 세관장확인을 받아야 하고, {agent}. "
+            f"미리 갖출 서류: {papers}(관세법 제226조, 세관장확인 고시 별표 2)." + (f" {note}" if note else "")]
+
+
+# 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당해 조건을 덧붙이는 설명 (#640).
+# 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축인 소·양·돼지 가죽은 대상이 아님.
+LAW_NOTES: dict[str, str] = {
+    law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, "
+                                        "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."),
+}
+
+
+def law_note(law_name: str) -> str | None:
+    """요건 법령에 덧붙일 해당 조건 설명.
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        str | None: 설명. 없으면 None.
+    """
+    return LAW_NOTES.get(law_key(law_name))
 
 
 def omission_status(law_name: str, exceptions: dict[str, str] | None) -> tuple[str, str] | None:

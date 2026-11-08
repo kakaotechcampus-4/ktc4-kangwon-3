@@ -146,12 +146,12 @@ def test_근거는_관세법_제226조와_고시_별표2_행과_결정사례다(
     assert all("OC=" not in (source.source_url or "") for source in sources)
 
 
-def test_생략_제외_법령은_구매대행이어도_통관_때_요건_확인이_필요할_수_있다고_안내한다():
+def test_생략_제외_법령은_구매대행도_생략할_수_없다고_한_문장으로_안내한다():
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()))
-    buying, importing = sorted(result.required_actions, key=lambda text: "구매대행" not in text)
-    assert "사입·수입 판매" in importing and "전기용품 및 생활용품 요건확인서" in importing
-    assert "생략 대상에서 빠집니다" in buying and "제7조 제2항 제1호 단서" in buying
+    [action] = result.required_actions
+    assert "세관장확인을 받아야 하고" in action and "전기용품 및 생활용품 요건확인서" in action
+    assert "구매대행 수입도 세관장확인을 생략할 수 없습니다" in action and "제7조 제2항 제1호 단서" in action
     # 재실행에서 이 판단이 빠지면 ToolExecutor가 이 판단의 할 일만 지울 수 있다.
     assert set(result.findings[0].requirements) == set(result.required_actions)
 
@@ -160,9 +160,20 @@ def test_생략_제외가_아닌_법령은_대외무역법_시행령_제19조_�
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()),
                           requirements=FakeRequirements({"8516799000": [FakeRequirements.RADIO]}))
-    buying = next(text for text in result.required_actions if "구매대행" in text)
-    assert "생략할 수 있습니다" in buying and "해당 여부는 확인이 필요합니다" in buying
+    [action] = result.required_actions
+    assert "생략할 수 있습니다" in action and "해당 여부 확인 필요" in action
     assert result.query["related_tools"] == {"전파법": ToolName.RADIO.value}
+
+
+def test_야생생물법_요건에는_판단_요약과_할_일에_멸종위기종_조건을_덧붙인다():
+    product, facts = product_and_facts()
+    cites = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                        agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [cites]}))
+    [finding] = result.findings
+    assert "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다." in finding.summary
+    assert finding.summary.index("해당하지 않습니다.") < finding.summary.index("제출 서류:")
+    assert result.required_actions[0].endswith("소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다.")
 
 
 def test_같은_HS의_요건이_여러_법령이면_법령마다_판단을_낸다():
