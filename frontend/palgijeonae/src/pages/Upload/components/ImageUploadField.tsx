@@ -90,17 +90,19 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                     onChange={(event) => handleFiles(event.target.files)}
                 />
 
-                <div className="flex size-14 shrink-0 items-center justify-center rounded-[10px] bg-[#E7EEFB] md:size-17.5">
-                    <img src={uploadInputIcon} alt="" className="size-9 object-contain md:size-12.5" />
-                </div>
+                <div className="flex items-center gap-4 md:gap-6">
+                    <div className="flex size-14 shrink-0 items-center justify-center rounded-[10px] bg-[#E7EEFB] md:size-17.5">
+                        <img src={uploadInputIcon} alt="" className="size-9 object-contain md:size-12.5" />
+                    </div>
 
-                <div className="flex flex-col gap-3.5">
-                    <p className="text-base leading-4.75 font-semibold text-black">
-                        {description}
-                    </p>
-                    <p className="text-sm leading-4.25 font-light text-neutral-border">
-                        이 영역에 이미지 파일을 끌어다 놓거나, 영역을 클릭한 뒤 붙여넣을 수 있어요.
-                    </p>
+                    <div className="flex min-w-0 flex-col gap-3.5">
+                        <p className="text-base leading-4.75 font-semibold text-black">
+                            {description}
+                        </p>
+                        <p className="text-sm leading-4.25 font-light text-neutral-border">
+                            이 영역에 이미지 파일을 끌어다 놓거나, 영역을 클릭한 뒤 붙여넣을 수 있어요.
+                        </p>
+                    </div>
                 </div>
 
                 <div className="shrink-0 md:ml-auto">
