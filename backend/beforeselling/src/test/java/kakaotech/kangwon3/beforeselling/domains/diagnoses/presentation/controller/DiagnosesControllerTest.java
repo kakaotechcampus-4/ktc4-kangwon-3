@@ -213,6 +213,43 @@ class DiagnosesControllerTest {
     }
 
     @Test
+    @DisplayName("상세페이지 URL이 2048자이면 진단을 요청할 수 있다.")
+    void createDiagnoses_withSourceUrlOf2048Chars_thenReturnDiagnosesId() throws Exception {
+        // given
+        given(diagnosesUseCase.createDiagnoses(any(UUID.class), any()))
+                .willReturn(new DiagnosesCreateResponse(DIAGNOSES_ID));
+        Map<String, Object> product = urlTypeProduct();
+        product.put("sourceUrl", urlOfLength(2048));
+        Map<String, Object> request = wrap(product);
+
+        // when & then
+        mockMvc.perform(post(BASE_URL)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.diagnosesId").value(DIAGNOSES_ID.toString()));
+    }
+
+    @Test
+    @DisplayName("상세페이지 URL이 2048자를 넘으면 400과 COMMON-002 코드를 응답한다.")
+    void createDiagnoses_withSourceUrlOver2048Chars_thenBadRequest() throws Exception {
+        // given
+        Map<String, Object> product = urlTypeProduct();
+        product.put("sourceUrl", urlOfLength(2049));
+        Map<String, Object> request = wrap(product);
+
+        // when & then
+        mockMvc.perform(post(BASE_URL)
+                        .with(authentication(loginUser()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"))
+                .andExpect(jsonPath("$.details[0].message").value("상세페이지 URL은 2048자를 넘을 수 없습니다."));
+    }
+
+    @Test
     @DisplayName("URL 등록 방식인데 상세페이지 URL이 없으면 400과 COMMON-002 코드를 응답한다.")
     void createDiagnoses_withUrlTypeAndNoSourceUrl_thenBadRequest() throws Exception {
         // given
@@ -333,6 +370,11 @@ class DiagnosesControllerTest {
         product.put("sourceType", SourceType.TEXT_IMAGE.name());
         product.put("sourceText", sourceText);
         return product;
+    }
+
+    private String urlOfLength(int length) {
+        String prefix = "https://ko.aliexpress.com/item/";
+        return prefix + "1".repeat(length - prefix.length());
     }
 
     private Map<String, Object> wrap(Map<String, Object>... products) {

@@ -23,6 +23,7 @@ public record ProductCreateRequest(
         @NotNull(message = "등록 방식은 필수입니다.")
         SourceType sourceType,
 
+        @Size(max = 2048, message = "상세페이지 URL은 2048자를 넘을 수 없습니다.")
         String sourceUrl,
 
         @Size(max = 20000, message = "상세페이지 내용은 20000자를 넘을 수 없습니다.")
