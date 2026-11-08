@@ -2,11 +2,13 @@ import { type ProcessingStatusType, type ResultStatus, type SourceType } from "@
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES, SOURCE_TYPE_INFO } from "@/constants/statusBadges";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/cn";
 import { truncateWithEllipsis } from "@/lib/text";
 
 // 제목이 길어도 레이아웃이 깨지지 않도록 화면에 보여줄 제목 길이를 제한한다.
 const MAX_DISPLAY_TITLE_LENGTH = 40;
+const MAX_DISPLAY_TITLE_LENGTH_MOBILE = 24;
 
 interface ProductPreviewProps {
     productName: string
@@ -14,32 +16,35 @@ interface ProductPreviewProps {
     resultStatus: ResultStatus | null
     processingStatus: ProcessingStatusType
     sourceType: SourceType
+    // 카드 오른쪽 위에 삭제 버튼 같은 동작이 겹쳐 놓일 때, 좁은 화면에서 글자가 그 밑으로 들어가지 않도록 자리를 비워 둔다.
+    hasTrailingAction?: boolean
 }
 
-function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType }: ProductPreviewProps) {
+function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType, hasTrailingAction = false }: ProductPreviewProps) {
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
-    const displayTitle = truncateWithEllipsis(productName, MAX_DISPLAY_TITLE_LENGTH);
-    const isProductNameLong = productName.length > MAX_DISPLAY_TITLE_LENGTH;
+    const isMobile = useIsMobile();
+    const displayTitle = truncateWithEllipsis(productName, isMobile ? MAX_DISPLAY_TITLE_LENGTH_MOBILE : MAX_DISPLAY_TITLE_LENGTH);
+    const isProductNameLong = displayTitle !== productName;
 
     return (
         <DefaultBox>
-            <div className="flex w-full flex-row gap-4">
+            <div className="flex w-full flex-row gap-3 md:gap-4">
                 <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"
-                    className="w-23 h-23 shrink-0 object-cover rounded-lg border border-box-line" />
-                <div className="flex min-w-0 flex-col items-start gap-2">
-                    <div className="flex items-center gap-2">
-                        <div className={cn("px-2.5 py-1 border rounded-full text-sm font-semibold", badge.className)}>
+                    className="size-16 shrink-0 object-cover rounded-lg border border-box-line md:size-23" />
+                <div className={cn("flex min-w-0 flex-col items-start gap-1.5 md:gap-2", hasTrailingAction && "pr-14 md:pr-0")}>
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 md:gap-2">
+                        <div className={cn("px-2 py-0.75 border rounded-full text-xs font-semibold md:px-2.5 md:py-1 md:text-sm", badge.className)}>
                             {badge.label}
                         </div>
                         <img src={SOURCE_TYPE_INFO[sourceType].icon}
                             alt={SOURCE_TYPE_INFO[sourceType].label}
-                            className="w-5 h-5" />
-                        <p className="text-base text-neutral-border font-semibold">{SOURCE_TYPE_INFO[sourceType].label}</p>
+                            className="size-4 md:size-5" />
+                        <p className="text-[13px] text-neutral-border font-semibold md:text-base">{SOURCE_TYPE_INFO[sourceType].label}</p>
                     </div>
-                    <h3 title={isProductNameLong ? productName : undefined} className="text-xl font-bold text-black">{displayTitle}</h3>
+                    <h3 title={isProductNameLong ? productName : undefined} className="line-clamp-2 text-[15px] leading-5.5 font-bold text-black md:line-clamp-none md:text-xl md:leading-7">{displayTitle}</h3>
                 </div>
             </div>
         </DefaultBox>
