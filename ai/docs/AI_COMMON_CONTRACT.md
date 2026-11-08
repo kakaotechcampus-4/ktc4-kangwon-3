@@ -559,6 +559,7 @@ class ExecutionEvent(BaseModel):
 
 위치: `app/schemas/callback.py`(DTO), `app/callbacks/`(이벤트 변환·발신함), `app/clients/backend/callback.py`(전송, #401).
 전달 방식: AI → BE `POST /internal/v1/ai/products/{productId}`, 헤더 `X-Internal-Token` (#305·#332). 응답 분류·재시도는 발신함이 맡는다.
+법령 점검이 찾은 법령 변경은 같은 헤더로 `POST /internal/v1/ai/law-changes`에 따로 보낸다 (#673). 이 절의 상품 실행 이벤트와는 별개다.
 
 | 내부 기록 | BE 전달 |
 | --- | --- |

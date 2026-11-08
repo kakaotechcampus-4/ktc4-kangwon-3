@@ -309,7 +309,7 @@ sequenceDiagram
 
 접수는 바로 202로 응답하고 결과는 콜백으로 보내, BE가 진단 시간 동안 요청을 붙잡고 있지 않는다.
 
-콜백: `POST {BE_BASE_URL}/internal/v1/ai/products/{productId}`
+진단 콜백: `POST {BE_BASE_URL}/internal/v1/ai/products/{productId}`
 
 | 종류 | 보내는 시점 |
 |---|---|
@@ -317,6 +317,8 @@ sequenceDiagram
 | `product_awaiting_input` | 판매자 질문 |
 | `product_result` | 진단 완료 |
 | `product_failed` | 진단 실패 |
+
+법령 변경 콜백: `POST {BE_BASE_URL}/internal/v1/ai/law-changes` (법령 점검에서 바뀐 법령을 찾았을 때)
 
 전체 형식: [AI_COMMON_CONTRACT.md](docs/AI_COMMON_CONTRACT.md)
 
