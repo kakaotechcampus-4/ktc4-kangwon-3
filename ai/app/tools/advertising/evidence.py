@@ -69,7 +69,7 @@ def _line_source(document: LawDocument, article: str, marker: str) -> LegalSourc
     """
     text = "\n".join(item.article_content or "" for item in document.body.articles)
     lines = [line.strip().removeprefix(_LIST_MARK) for line in text.splitlines()]
-    matches = [line for line in lines if line.startswith(marker)]
+    matches = [line for line in lines if compact(line).startswith(compact(marker))]
     if len(matches) != 1:
         raise EvidenceUnavailable(f"{document.name} {article}의 '{marker}' 줄을 유일하게 찾지 못했습니다.")
     return document.ref.source(article, normalize_text(matches[0]))
