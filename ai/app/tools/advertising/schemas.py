@@ -29,6 +29,8 @@ class AdvertisingClaim(StrictModel):
     quote: str = Field(min_length=1)
     risk_type: AdvertisingRiskType
     reason: str = Field(min_length=1)
+    # 인용이 한국어가 아닐 때 판매자에게 보여 줄 짧은 번역. 원문 대조·채점에는 쓰지 않는다 (2026-11-08)
+    translation: str | None = None
 
 
 class LineCheck(StrictModel):

@@ -113,6 +113,16 @@ def sources_for(evidence: AdvertisingEvidence, claim: AdvertisingClaim, risk_lev
     return sources
 
 
+def display_quote(claim: AdvertisingClaim) -> str:
+    """판매자에게 보여 줄 인용. 영문·외국어면 번역을 괄호로 붙인다: 'Sunburn Relief'(햇볕 화상 완화)."""
+    return f"'{claim.quote}'({claim.translation})" if claim.translation else f"'{claim.quote}'"
+
+
+def _particle_word(claim: AdvertisingClaim) -> str:
+    """조사를 정할 낱말. 번역이 붙으면 번역의 받침을 따른다."""
+    return claim.translation or claim.quote
+
+
 def claim_action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
     """주장 하나에 대해 판매 전에 할 일.
 
@@ -123,17 +133,18 @@ def claim_action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
     Returns:
         str: 인증 확인, 의약품 효능 문구 수정, 실증자료 준비 중 하나의 안내.
     """
+    shown, word = display_quote(claim), _particle_word(claim)
     if _is_certification(claim):
-        return (f"'{claim.quote}' 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
+        return (f"{shown} 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
                 "확인되지 않으면 표기를 빼세요.")
     if claim.risk_type is AdvertisingRiskType.WARRANTY:
-        return (f"'{claim.quote}' 보증 약속이 있습니다. 보증 주체, 기간, 범위를 밝히고 실제로 지킬 수 있는지 확인하세요. "
+        return (f"{shown} 보증 약속이 있습니다. 보증 주체, 기간, 범위를 밝히고 실제로 지킬 수 있는지 확인하세요. "
                 "지키기 어려우면 문구를 빼거나 고치세요.")
     if claim.risk_type is AdvertisingRiskType.ORIGIN_MAKER:
-        return (f"'{claim.quote}' 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지 수입 서류로 확인하고, "
+        return (f"{shown} 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지 수입 서류로 확인하고, "
                 "다르면 표기를 고치세요.")
     if risk_level is RiskLevel.HIGH:
-        return (f"'{claim.quote}'{topic_particle(claim.quote)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
+        return (f"{shown}{topic_particle(word)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
                 "남기려면 객관적 근거 자료를 먼저 확인하세요.")
-    return (f"'{claim.quote}'{object_particle(claim.quote)} 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, "
+    return (f"{shown}{object_particle(word)} 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, "
             "자료가 없으면 문구를 빼거나 고치세요.")

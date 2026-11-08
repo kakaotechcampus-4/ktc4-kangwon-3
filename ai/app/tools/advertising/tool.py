@@ -156,8 +156,10 @@ class AdvertisingTool(RegulatoryTool):
             action = claim_action(claim, level)
             phrases.append(AdvertisingPhrase(text=claim.quote, risk_type=claim.risk_type.value, risk_level=level,
                                              reason=claim.reason, evidence_required=True))
+            # 제목은 원문 인용, 영문이면 번역을 괄호로. 채점·원문 대조는 phrases의 text(원문 그대로)로 한다
+            subject = f"{claim.quote}({claim.translation})" if claim.translation else claim.quote
             findings.append(RegulatoryFinding(
-                tool_name=self.tool_name, subject=claim.quote, determination=Determination.POSSIBLY_REQUIRED,
+                tool_name=self.tool_name, subject=subject, determination=Determination.POSSIBLY_REQUIRED,
                 risk_level=level, summary=f"{TYPE_LABELS[claim.risk_type]} 주장으로 실증이 필요할 수 있습니다.",
                 rationale=claim.reason, product_facts_used=[claim.quote], requirements=[action],
                 legal_sources=claim_sources,

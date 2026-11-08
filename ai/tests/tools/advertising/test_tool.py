@@ -59,8 +59,9 @@ class _StubModel:
         return {"raw": raw, "parsed": None, "parsing_error": None}
 
 
-def _claim(quote: str, risk_type: str = "performance_quality") -> dict:
-    return {"quote": quote, "risk_type": risk_type, "reason": "실증이 필요한 주장이다."}
+def _claim(quote: str, risk_type: str = "performance_quality", translation: str | None = None) -> dict:
+    # translation은 모델 출력 칸이라 None이어도 항상 넣는다 (trace 비교 테스트가 model_dump와 맞춤)
+    return {"quote": quote, "risk_type": risk_type, "reason": "실증이 필요한 주장이다.", "translation": translation}
 
 
 def _product(*lines: str) -> Product:
@@ -337,6 +338,26 @@ def test_원산지_정품_주장은_수입_서류_확인_안내를_받는다():
 
     assert result.required_actions[0].startswith("'100% 정품' 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지")
     assert EVIDENCE.type_sources[AdvertisingRiskType.ORIGIN_MAKER] in result.findings[0].legal_sources
+
+
+def test_영문_인용은_번역을_괄호로_붙여_보여_주고_조사는_번역을_따른다():
+    model = _StubModel([_claim("Sunburn Relief", "body_effect", translation="햇볕 화상 완화"),
+                        _claim("1 year warranty", "warranty", translation="1년 보증")])
+
+    result = _run(model, "Sunburn Relief 1 year warranty")
+
+    assert [f.subject for f in result.findings] == ["Sunburn Relief(햇볕 화상 완화)", "1 year warranty(1년 보증)"]
+    assert result.required_actions[0].startswith("'Sunburn Relief'(햇볕 화상 완화)를 뒷받침하는")
+    assert result.required_actions[1].startswith("'1 year warranty'(1년 보증) 보증 약속이 있습니다.")
+    # 채점·원문 대조에 쓰는 문구는 원문 그대로
+    assert [p.text for p in result.result.detected_phrases] == ["Sunburn Relief", "1 year warranty"]
+
+
+def test_한국어_인용은_번역_없이_그대로_보여_준다():
+    result = _run(_StubModel([_claim("99.9% 살균")]), "99.9% 살균")
+
+    assert result.findings[0].subject == "99.9% 살균"
+    assert result.required_actions[0].startswith("'99.9% 살균'을 뒷받침하는")
 
 
 def test_유형마다_라벨과_근거_조문이_있다():
