@@ -29,7 +29,7 @@ function Preview() {
                     onCurrentSlideEnd={next}
                     prefersReducedMotion={prefersReducedMotion}
                 />
-                <div className="flex w-full flex-col gap-6 px-6 py-7">
+                <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-6 md:py-7">
                     <p className="text-center text-base font-medium text-neutral-text">{currentSlide.caption}</p>
                     <div className="grid w-full grid-cols-1">
                         {PREVIEW_SLIDES.map((slide, slideIndex) => {
