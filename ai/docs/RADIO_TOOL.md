@@ -9,7 +9,7 @@
 | `app/tools/radio/search.py` | 조회 인터페이스 `RadioItemSearch`, `LawApiItemSearch` |
 | `app/tools/radio/evidence.py` | 전파법 제58조의2, 고시 별표 1(1~10절), 시행령 별표 6의2 읽기 |
 | `app/tools/common/` | 규제 Tool 공용 (어린이제품 Tool과 같이 씀) |
-| `app/schemas/radio.py`, `app/prompts/radio/facts.md`·`review.md` | 모델 입출력 |
+| `app/tools/radio/schemas.py`, `app/prompts/radio/facts.md`·`review.md` | 모델 입출력 |
 | `tests/tools/radio/` | 단위 테스트와 법제처 Fake(`conftest.py`) |
 | `tests/fixtures/radio_law/` | 실제 법제처 응답 원문 |
 

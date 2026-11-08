@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from .base import StrictModel
+from ...schemas.base import StrictModel
 
 CustomsField = Literal["product_type", "material", "function", "intended_use", "composition"]
 

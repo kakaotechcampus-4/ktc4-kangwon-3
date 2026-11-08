@@ -4,7 +4,7 @@ import pytest
 
 from app.agents.verification import VerificationAgent
 from app.schemas.agent import ToolSelectionItem
-from app.schemas.electrical import ElectricalFact, ElectricalFacts, ElectricalReview, ElectricalSelection
+from app.tools.electrical.schemas import ElectricalFact, ElectricalFacts, ElectricalReview, ElectricalSelection
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,

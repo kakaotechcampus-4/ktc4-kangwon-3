@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from .base import StrictModel
+from ...schemas.base import StrictModel
 
 ChildrenField = Literal["product_type", "target_age", "intended_use", "material", "excluded_kind"]
 

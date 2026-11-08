@@ -7,9 +7,9 @@
 
 import re
 
-from ...schemas.advertising import AdvertisingClaim, AdvertisingRiskType
 from ...schemas.schemas import LegalSource, RiskLevel
 from ..common.facts import object_particle, topic_particle
+from .schemas import AdvertisingClaim, AdvertisingRiskType
 
 _SOURCE_NAME = "국가법령정보센터"
 # 버전(MST·일련번호)을 고정한 공개 열람 주소. 요청 URL(OC 포함)은 쓰지 않는다.

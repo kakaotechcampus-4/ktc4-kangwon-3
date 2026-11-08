@@ -20,7 +20,7 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, LegalSource, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.advertising import rules as advertising
-from app.schemas.advertising import AdvertisingReview
+from app.tools.advertising.schemas import AdvertisingReview
 from app.tools.advertising import AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool
 from app.tools.advertising.tool import _NO_LISTING_QUESTION
 
