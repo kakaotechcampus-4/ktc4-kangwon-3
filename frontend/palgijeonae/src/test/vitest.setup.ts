@@ -62,8 +62,9 @@ afterEach(() => {
   window.matchMedia = originalMatchMedia
   Element.prototype.animate = originalAnimate
 
-  // 테스트 사이에 상태가 새지 않게 초기화한다: 응답 오버라이드, 요청 기록, 인증 스토어
+  // 테스트 사이에 상태가 새지 않게 초기화한다: 응답 오버라이드, 요청 기록, 세션 저장소(답변 임시 저장), 인증 스토어
   server.resetHandlers()
   requestLog.clear()
+  sessionStorage.clear()
   useAuthStore.setState(useAuthStore.getInitialState(), true)
 })
