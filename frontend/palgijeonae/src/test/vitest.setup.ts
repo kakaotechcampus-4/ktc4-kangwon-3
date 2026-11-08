@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 
-import { configure } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 
 import { useAuthStore } from '@/store/useAuthStore'
 
@@ -51,6 +51,9 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  // 스텁을 되돌리기 전에 화면부터 내린다. (남아 있으면 useIsMobile이 사라진 matchMedia를 부른다)
+  cleanup()
+
   URL.createObjectURL = originalCreateObjectURL
   URL.revokeObjectURL = originalRevokeObjectURL
   window.alert = originalAlert

@@ -5,7 +5,7 @@ import pytest
 from app.agents.verification import VerificationAgent
 from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Product
-from app.schemas.radio import RadioFact, RadioFacts, RadioReview, RadioSelection
+from app.tools.radio.schemas import RadioFact, RadioFacts, RadioReview, RadioSelection
 from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
 )

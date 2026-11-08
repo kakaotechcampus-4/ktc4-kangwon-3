@@ -136,7 +136,7 @@ def _production_database(settings: Settings) -> AppDatabase:
     return AppDatabase(
         # 재시작 때 되살릴 세션 보관소 (#565)
         archive=SessionArchiveDatabase(session_factory),
-        # 예약 작업: 법령 점검(기동 30초 뒤·매일, 시행예정 포함 본문), CLIP 결정사례 적재(매주 새 사례)
+        # 예약 작업: 법령 점검(매일, 기동 때는 안 돎. 시행예정 포함 본문), CLIP 결정사례 적재(매주 새 사례)
         background=(lambda: run_law_refresh(daily_refresh), lambda: run_weekly_clip_ingest(clip_ingest)),
         # 연결 닫기 (실행 중 점검은 끝까지 돌고 닫힌 연결 오류는 그 문서 실패로 남음)
         close=close,

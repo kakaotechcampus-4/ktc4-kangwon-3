@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from app.clients.law import AdmrulTextClient
-from app.schemas.clients.law_request import LawTextRequest
+from app.clients.law.schemas.request import LawTextRequest
 from app.utils.law_text import build_article_text
 
 

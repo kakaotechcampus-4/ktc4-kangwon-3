@@ -3,8 +3,13 @@ import { type ClipboardEvent, type DragEvent, useRef } from "react";
 import uploadInputIcon from "@/assets/upload-inputImage.png";
 import Button from "@/components/common/Button";
 import HelpTooltip from "@/components/common/HelpTooltip";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from "@/pages/Upload/constants.ts";
 import { isAllowedImageType, isWithinFileSizeLimit } from "@/pages/Upload/utils/validation.ts";
+
+// 안내 문구만 나눈다. 끌어다 놓기·붙여넣기 동작은 좁은 데스크톱 창에서도 쓸 수 있도록 화면 폭과 상관없이 항상 켜 둔다.
+const DESKTOP_HINT = "이 영역에 이미지 파일을 끌어다 놓거나, 영역을 클릭한 뒤 붙여넣을 수 있어요.";
+const MOBILE_HINT = "탭해서 사진을 고를 수 있어요.";
 
 interface ImageUploadFieldProps {
     id: string
@@ -21,6 +26,7 @@ interface ImageUploadFieldProps {
 
 function ImageUploadField({ id, title, description, multiple = false, isOption = false, optionLabel = "선택", helperText, countLabel, tooltip, onChange }: ImageUploadFieldProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isMobile = useIsMobile();
 
     const handleFiles = (fileList: FileList | null) => {
         if (!fileList) {
@@ -64,9 +70,9 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
         <div className="flex w-full flex-col items-start gap-3.5">
             <div className="flex w-full items-center justify-between gap-3.75">
                 <div className="flex items-center gap-3.75">
-                    <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
+                    <h3 className="text-base leading-6 font-semibold text-black md:text-xl">{title}</h3>
                     {isOption && <span className="text-xs leading-3.5 text-neutral-border">{optionLabel}</span>}
-                    {tooltip && <HelpTooltip label={`${title} 설명`} className="max-w-sm">{tooltip}</HelpTooltip>}
+                    {tooltip && <HelpTooltip label={`${title} 설명`} className="max-w-[min(24rem,calc(100vw-40px))]">{tooltip}</HelpTooltip>}
                 </div>
                 {countLabel && <span className="text-xs leading-3.5 text-neutral-border">{countLabel}</span>}
             </div>
@@ -78,7 +84,7 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                 onDrop={handleDrop}
                 onPaste={handlePaste}
                 tabIndex={0}
-                className="flex w-full items-center gap-6 rounded-[10px] border border-dashed border-neutral-border py-6.5 px-4.75 focus-within:border-solid focus-within:border-black focus-within:ring-1 focus-within:ring-black"
+                className="flex w-full flex-col items-stretch gap-4 rounded-xl border border-dashed border-box-dashed bg-white py-5 px-4.75 outline-none md:flex-row md:items-center md:gap-6 md:py-6.5 focus-within:border-solid focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/15 focus-visible:border-solid focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15"
             >
                 <input
                     ref={fileInputRef}
@@ -90,21 +96,23 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                     onChange={(event) => handleFiles(event.target.files)}
                 />
 
-                <div className="flex h-17.5 w-17.5 shrink-0 items-center justify-center rounded-[10px] bg-[#E7EEFB]">
-                    <img src={uploadInputIcon} alt="" className="h-12.5 w-12.5 object-contain" />
+                <div className="flex items-center gap-4 md:gap-6">
+                    <div className="flex size-14 shrink-0 items-center justify-center rounded-[10px] bg-[#E7EEFB] md:size-17.5">
+                        <img src={uploadInputIcon} alt="" className="size-9 object-contain md:size-12.5" />
+                    </div>
+
+                    <div className="flex min-w-0 flex-col gap-3.5">
+                        <p className="text-base leading-4.75 font-semibold text-black">
+                            {description}
+                        </p>
+                        <p className="text-sm leading-4.25 font-light text-neutral-border">
+                            {isMobile ? MOBILE_HINT : DESKTOP_HINT}
+                        </p>
+                    </div>
                 </div>
 
-                <div className="flex flex-col gap-3.5">
-                    <p className="text-base leading-4.75 font-semibold text-black">
-                        {description}
-                    </p>
-                    <p className="text-sm leading-4.25 font-light text-neutral-border">
-                        이 영역에 이미지 파일을 끌어다 놓거나, 영역을 클릭한 뒤 붙여넣을 수 있어요.
-                    </p>
-                </div>
-
-                <div className="ml-auto shrink-0">
-                    <Button text="파일 선택" variant="secondary" fontSize={14} onClick={() => fileInputRef.current?.click()} />
+                <div className="shrink-0 md:ml-auto">
+                    <Button text="파일 선택" variant="secondary" fontSize={14} className="w-full md:w-auto" onClick={() => fileInputRef.current?.click()} />
                 </div>
             </div>
         </div>

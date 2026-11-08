@@ -1,4 +1,5 @@
 import type { LegalSource } from "@/api/types/product";
+import DefaultBox from "@/components/common/DefaultBox";
 
 enum LawCardField {
     Source = "source",
@@ -38,21 +39,21 @@ function LawCard({ legalSource }: LawCardProps) {
     };
 
     return (
-        <div className="flex w-full flex-col gap-3 rounded-2xl border border-neutral-border px-6 py-4.5">
+        <DefaultBox className="items-stretch gap-3">
             {FIELD_ORDER.filter((field) => fieldValues[field]).map((field) => (
-                <div key={field} className="flex items-center gap-4">
-                    <p className="w-21 shrink-0 text-sm font-bold text-neutral-muted">{FIELD_LABELS[field]}</p>
+                <div key={field} className="flex flex-col items-start gap-0.5 md:flex-row md:items-center md:gap-4">
+                    <p className="shrink-0 text-sm font-bold text-neutral-muted md:w-21">{FIELD_LABELS[field]}</p>
                     <p className="text-sm whitespace-pre-line text-black">{fieldValues[field]}</p>
                 </div>
             ))}
             {sourceUrl && (
-                <div className="pl-25">
+                <div className="md:pl-25">
                     <a href={sourceUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-primary">
                         법령 원문 보기
                     </a>
                 </div>
             )}
-        </div>
+        </DefaultBox>
     );
 }
 

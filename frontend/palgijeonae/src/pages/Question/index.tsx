@@ -131,7 +131,7 @@ function QuestionPage() {
                         ))}
                     </div>
                     <div className="flex w-full justify-end">
-                        <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} />
+                        <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} className="w-full md:w-auto" />
                     </div>
                 </div>
             )}

@@ -1,9 +1,9 @@
 """전파 Tool의 모델 호출 단계: 조건 추출, 기자재 선택."""
 
 from ...prompts import PromptName
-from ...schemas.radio import RadioFacts, RadioReview
 from ..base import ToolStep
 from .errors import RadioToolError
+from .schemas import RadioFacts, RadioReview
 
 
 class RadioFactsStep(ToolStep[RadioFacts]):

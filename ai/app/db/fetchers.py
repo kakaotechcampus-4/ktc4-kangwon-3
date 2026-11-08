@@ -157,7 +157,7 @@ class CachedFetcherBase(ABC, Generic[_R]):
                 logger.warning("%s 조회 실패 — 만료된 캐시로 대신함 (만료 %s)", self._name, cached.expires_at)
                 self._record("stale")
                 return cached.response
-            self._record(missed)
+            # 실패는 캐시 결과로 안 셈 (외부 API 지표에 남음)
             raise
         if not self._accepts(response):
             if cached is not None:

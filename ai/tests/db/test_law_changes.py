@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.db.law_changes import LawChangeKind, detect_changes, versions_of
-from app.schemas.clients.law_response import AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse
+from app.clients.law.schemas.response import AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse
 
 
 @dataclass(frozen=True)

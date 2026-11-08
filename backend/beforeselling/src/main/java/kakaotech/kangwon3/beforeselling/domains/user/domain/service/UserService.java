@@ -63,6 +63,13 @@ public class UserService {
     }
 
     @Transactional
+    public User updateLawAmendmentAlertEnabled(UUID userId, boolean lawAmendmentAlertEnabled) {
+        User user = getUser(userId);
+        user.updateLawAmendmentAlertEnabled(lawAmendmentAlertEnabled);
+        return user;
+    }
+
+    @Transactional
     public void updateSocialRefreshToken(UUID userId, String refreshToken) {
         User user = getUser(userId);
         user.updateSocialRefreshToken(refreshToken);

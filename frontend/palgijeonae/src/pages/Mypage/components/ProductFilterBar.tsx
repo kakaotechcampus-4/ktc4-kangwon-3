@@ -15,17 +15,17 @@ const FILTER_TABS: { key: ProductFilter; label: string }[] = [
 
 // 선택된 탭들에 서로 다른 색을 얹는다.
 const FILTER_TAB_SELECTED_CLASSES: Record<ProductFilter, string> = {
-    all: "text-black bg-neutral-border",
-    [ResultStatus.PurchasingAgentAllowed]: "text-status-success bg-status-success-bg",
-    [ResultStatus.DirectImportCertificationRequired]: "text-status-danger bg-status-danger-bg",
-    [ResultStatus.RecheckRequired]: "text-status-warning bg-status-warning-bg",
+    all: "border-primary/40 text-primary bg-primary-soft",
+    [ResultStatus.PurchasingAgentAllowed]: "border-status-success/40 text-status-success bg-status-success-bg",
+    [ResultStatus.DirectImportCertificationRequired]: "border-status-danger/40 text-status-danger bg-status-danger-bg",
+    [ResultStatus.RecheckRequired]: "border-status-warning/40 text-status-warning bg-status-warning-bg",
 };
 
 // 선택되지 않은 탭들은 공통 스타일링을 사용한다.
 function filterTabClassName(tone: ProductFilter, selected: boolean) {
     return cn(
-        "px-3.5 py-1.5 border rounded-full text-sm font-semibold",
-        selected ? FILTER_TAB_SELECTED_CLASSES[tone] : "cursor-pointer text-neutral-border bg-white",
+        "shrink-0 whitespace-nowrap px-3.5 py-1.5 border rounded-full text-sm font-semibold",
+        selected ? FILTER_TAB_SELECTED_CLASSES[tone] : "cursor-pointer border-box-line text-neutral-muted bg-white enabled:hover:bg-button-hover-bg",
     );
 }
 
@@ -68,7 +68,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
                     placeholder="상품명으로 검색하세요"
                     value={draftSearchTerm}
                     onChange={(event) => handleChange(event.target.value)}
-                    className="w-full rounded-full border border-neutral-border px-5 py-3 pr-20"
+                    className="w-full rounded-full border border-field-line bg-white px-5 py-3 pr-20 shadow-button-secondary outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15"
                 />
                 {draftSearchTerm && (
                     <button
@@ -86,7 +86,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
                     <img src={search} alt="검색" className="h-full w-full" />
                 </button>
             </form>
-            <div className="flex w-full items-center gap-2">
+            <div className="no-scrollbar flex w-full flex-nowrap items-center gap-2 overflow-x-auto md:overflow-visible">
                 {FILTER_TABS.map(({ key, label }) => (
                     <button
                         key={key}

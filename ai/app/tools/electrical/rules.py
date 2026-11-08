@@ -7,10 +7,10 @@
 
 import re
 
-from ...schemas.electrical import ElectricalFact
 from ...schemas.product import Product
 from ..common.facts import object_particle
 from .evidence import AnnexBlock, compact
+from .schemas import ElectricalFact
 
 _VOLTAGE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*[Vv](?![A-Za-z])")
 

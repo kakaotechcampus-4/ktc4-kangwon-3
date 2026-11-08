@@ -12,7 +12,7 @@ interface FormFieldProps {
 }
 
 const FIELD_CLASSES =
-    "box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border";
+    "box-border w-full rounded-xl border border-field-line bg-white px-4.75 text-sm text-black outline-none placeholder:font-light placeholder:text-neutral-border focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15";
 
 function FormField({ id, title, placeholder, variant = 'input', value, onChange, maxLength, label = "필수" }: FormFieldProps) {
     // 네이티브 maxLength는 한글 등 IME 조합 중에는 실시간으로 길이를 막지 못하므로 직접 잘라준다.
@@ -31,7 +31,7 @@ function FormField({ id, title, placeholder, variant = 'input', value, onChange,
         <div className="flex w-full flex-col items-start gap-3.5">
             <div className="flex w-full items-center justify-between gap-3.75">
                 <div className="flex items-center gap-3.75">
-                    <label className="text-xl leading-6 font-semibold text-black" htmlFor={id}>{title}</label>
+                    <label className="text-base leading-6 font-semibold text-black md:text-xl" htmlFor={id}>{title}</label>
                     {label && <span className="text-xs leading-3.5 text-neutral-border">{label}</span>}
                 </div>
                 {maxLength !== undefined && (

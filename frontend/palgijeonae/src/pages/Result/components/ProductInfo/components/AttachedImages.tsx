@@ -32,7 +32,7 @@ function AttachedImages({ productName, imageUrls }: AttachedImagesProps) {
                         type="button"
                         onClick={() => setSelectedIndex(index)}
                         aria-label={`${productName} 상세 이미지 ${index + 1} 크게 보기`}
-                        className="relative h-50 w-50 shrink-0 cursor-pointer overflow-hidden rounded-xl bg-gray-100"
+                        className="relative size-40 shrink-0 cursor-pointer overflow-hidden rounded-xl bg-gray-100 md:size-50"
                     >
                         <img
                             src={imageUrl}

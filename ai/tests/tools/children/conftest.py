@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.schemas.clients.law_response import (
+from app.clients.law.schemas.response import (
     AdmrulSearchResponse, AdmrulTextResponse, LawAnnex, LawArticle, LawSearchResponse, LawTextResponse,
 )
 from app.tools.children.evidence import (

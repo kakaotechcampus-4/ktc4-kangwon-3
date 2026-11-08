@@ -14,8 +14,8 @@ function DemoButton() {
     }
 
     return (
-        <div className="flex items-center gap-3">
-            <Button text="예시 상품으로 체험하기" onClick={startDemo} fontSize={15} variant="secondary" />
+        <div className="flex flex-col items-end gap-1.5 md:flex-row md:items-center md:gap-3">
+            <Button text="예시 상품으로 체험하기" onClick={startDemo} fontSize={15} variant="secondary" className="w-full px-3 md:w-auto md:px-6" />
             <HelpTooltip label="예시 상품 체험 설명">
                 미리 준비된 상품이 담긴 업로드 페이지로 이동해요.{"\n"}
                 이동한 업로드 페이지에서 "진단 시작하기" 버튼을 누르면 실제 에이전트가 진단을 시작해요.

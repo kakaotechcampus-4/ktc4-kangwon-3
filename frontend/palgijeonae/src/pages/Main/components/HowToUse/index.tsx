@@ -8,7 +8,7 @@ function HowToUse() {
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="이렇게 진행돼요" description="상품을 담으면 결과까지 아래 순서로 이어져요." size="2xl" />
-            <ol className="flex flex-col pl-15">
+            <ol className="flex flex-col pl-11 md:pl-15">
                 {HOW_TO_USE_STEPS.map((step, index) => (
                     <HowToUseStep
                         key={step.key}

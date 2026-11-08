@@ -32,7 +32,7 @@
 
 ### 2.1 사용량 기록
 
-`app/usage.py`는 모델명, 토큰 수, 예상 비용, 지연 시간, 성공 여부 등을 JSONL로 기록합니다. 
+`app/observability/usage.py`는 모델명, 토큰 수, 예상 비용, 지연 시간, 성공 여부 등을 JSONL로 기록합니다. 
 Verification Agent는 `UsageMetadataCallbackHandler`를 사용하고, Extraction Agent는 `include_raw=True'옵션을 사용하여 사용량을 읽고 있습니다.
 
 현재 기록에는 다음과 같은 공통 정보가 필요해 보입니다.

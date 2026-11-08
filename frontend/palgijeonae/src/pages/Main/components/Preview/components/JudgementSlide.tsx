@@ -8,7 +8,7 @@ const JUDGEMENT_PRODUCTS = [PREVIEW_PRODUCTS.earphoneInProgress, PREVIEW_PRODUCT
 /** 메인 페이지 미리보기: 진단 진행 화면. */
 function JudgementSlide() {
     return (
-        <PreviewFrame label="진단 진행 화면 미리보기" baseWidth={1000} maxHeight={520}>
+        <PreviewFrame label="진단 진행 화면 미리보기" baseWidth={1000} maxHeight={520} mobileMaxHeight={660}>
             <div className="flex w-full flex-col gap-6">
                 <StatusSummaryBar products={JUDGEMENT_PRODUCTS} />
                 <ul className="flex flex-col gap-4">

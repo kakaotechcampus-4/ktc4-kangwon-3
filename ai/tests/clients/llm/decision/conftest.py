@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.schemas.clients.decision_request import DecisionRequest
+from app.clients.llm.decision.schemas.request import DecisionRequest
 
 BASE_URL = "https://gateway.test/v1"
 API_KEY = "test-api-key"

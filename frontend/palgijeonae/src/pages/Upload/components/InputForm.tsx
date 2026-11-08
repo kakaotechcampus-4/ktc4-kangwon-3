@@ -116,7 +116,7 @@ function InputForm({ type, onAdd }: InputFormProps) {
                     <FormField
                         id="product-link"
                         title="제품 상세페이지 링크"
-                        placeholder="https://...... 상품의 상세 정보가 담긴 상품 페이지 링크를 업로드 하세요."
+                        placeholder="https://...... 상품 페이지 링크를 업로드 하세요."
                         value={link}
                         onChange={setLink}
                     />
@@ -134,17 +134,17 @@ function InputForm({ type, onAdd }: InputFormProps) {
                 files={imageFiles}
                 onRemove={() => setImage(null)}
             />
-            <div className="flex w-full items-center justify-between gap-4">
+            <div className="flex w-full flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex min-w-0 items-center gap-2">
-                    <HelpTooltip label="입력 방법 추가 설명" className="max-w-sm">
+                    <HelpTooltip label="입력 방법 추가 설명" className="max-w-[min(24rem,calc(100vw-40px))]">
                         {helpTooltip}
                     </HelpTooltip>
-                    <p className="truncate text-sm text-neutral-dark">
+                    <p className="text-sm text-neutral-dark md:truncate">
                         {helpText}
                     </p>
                 </div>
                 <div className="shrink-0">
-                    <Button text="상품 추가하기" onClick={handleAddProduct} fontSize={15} />
+                    <Button text="상품 추가하기" onClick={handleAddProduct} fontSize={15} className="w-full md:w-auto" />
                 </div>
             </div>
         </div>

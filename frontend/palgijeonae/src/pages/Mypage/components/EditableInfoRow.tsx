@@ -58,15 +58,15 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
     if (!isEditing) {
         return (
             <div className="flex w-full items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <span className="w-16 shrink-0 text-sm font-semibold text-neutral-label">{title}</span>
-                    <span className="text-base text-black">{description}</span>
+                <div className="flex min-w-0 items-center gap-4">
+                    <span className="w-14 shrink-0 text-sm font-semibold text-neutral-label md:w-16">{title}</span>
+                    <span className="min-w-0 text-base break-all text-black">{description}</span>
                 </div>
                 {editable && (
                     <button
                         type="button"
                         onClick={startEditing}
-                        className="shrink-0 cursor-pointer rounded-full border border-neutral-border px-3 py-1 text-sm font-semibold text-neutral-dark"
+                        className="shrink-0 cursor-pointer rounded-full border border-box-line bg-white px-3 py-1 text-sm font-semibold text-neutral-text shadow-button-secondary transition-colors duration-150 outline-none hover:border-button-line-hover hover:bg-button-hover-bg focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/25"
                     >
                         {title} 수정
                     </button>
@@ -76,9 +76,9 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
     }
 
     return (
-        <div className="flex w-full items-center gap-3">
-            <label htmlFor={inputId} className="w-16 shrink-0 text-sm font-semibold text-neutral-label">{title}</label>
-            <div className="flex flex-1 items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-3 md:flex-nowrap">
+            <label htmlFor={inputId} className="w-14 shrink-0 text-sm font-semibold text-neutral-label md:w-16">{title}</label>
+            <div className="flex min-w-48 flex-1 items-center gap-2 md:min-w-0">
                 <input
                     id={inputId}
                     autoFocus
@@ -90,14 +90,16 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
                             cancelEditing();
                         }
                     }}
-                    className="h-10 w-full rounded-lg border border-neutral-border px-3 text-base text-black disabled:opacity-50"
+                    className="h-10 w-full rounded-lg border border-field-line bg-white px-3 text-base text-black outline-none focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15 disabled:opacity-50"
                 />
                 <span className={cn("shrink-0 text-xs", trimmedLength > maxLength ? "text-status-danger" : "text-neutral-border")}>
                     {trimmedLength}/{maxLength}
                 </span>
             </div>
-            <Button text="취소" variant="secondary" fontSize={14} onClick={cancelEditing} disabled={disabled} />
-            <Button text="저장" fontSize={14} onClick={handleSave} disabled={disabled || isInvalid} />
+            <div className="ml-auto flex items-center gap-3 md:ml-0">
+                <Button text="취소" variant="secondary" size="sm" fontSize={14} onClick={cancelEditing} disabled={disabled} />
+                <Button text="저장" size="sm" fontSize={14} onClick={handleSave} disabled={disabled || isInvalid} />
+            </div>
         </div>
     );
 }

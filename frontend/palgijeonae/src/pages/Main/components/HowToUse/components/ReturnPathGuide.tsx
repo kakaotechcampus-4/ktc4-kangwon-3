@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import DefaultBox from "@/components/common/DefaultBox";
 import ProductPreview from "@/components/common/ProductPreview";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { NOOP, PREVIEW_PRODUCTS } from "@/pages/Main/constants";
 import ResultBanner from "@/pages/Result/components/DiagnosisResult/components/ResultBanner";
 
@@ -39,11 +40,19 @@ const JUDGEMENT_PREVIEW_PATH = "/judgement/preview-diagnoses";
 
 /** 진단 진행 화면에서 벗어났다가 다시 돌아오는 3가지 경로 안내. */
 function ReturnPathGuide() {
+    const isMobile = useIsMobile();
+
     return (
         <DefaultBox variant="dashed" align="left" className="gap-2">
             <p className="text-lg font-bold text-black">화면을 떠났다면 이렇게 돌아와요</p>
             <ReturnPathRow number={1} preview={<MiniHeaderPreview />}>
-                오른쪽 위 <b className="font-semibold text-black">마이페이지</b> 클릭
+                오른쪽 위{" "}
+                {isMobile ? (
+                    <><b className="font-semibold text-black">메뉴</b>를</>
+                ) : (
+                    <><b className="font-semibold text-black">프로필</b>을</>
+                )}{" "}
+                눌러 <b className="font-semibold text-black">마이페이지</b> 선택
             </ReturnPathRow>
             <ReturnPathRow
                 number={2}

@@ -8,7 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.clients.customs import CLIPClient
-from app.schemas.clients.customs_request import CLIPSearchRequest
+from app.clients.customs.schemas.request import CLIPSearchRequest
 
 
 def _item(doc_id: str, hs: str = "8414.59-9000") -> dict:
