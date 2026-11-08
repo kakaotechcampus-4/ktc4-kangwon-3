@@ -33,8 +33,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class S3PresignedUrlProvider {
 
-    private static final String KEY_DELIMITER = "/";
-
     /**
      * Spring MediaTypeFactory가 내장한 mime.types에는 없는 확장자에 대한 보강 매핑.
      * (예: HEIC/HEIF는 아이폰 기본 사진 포맷이지만 org/springframework/http/mime.types 에 누락되어 있음)
@@ -104,7 +102,7 @@ public class S3PresignedUrlProvider {
     private String createKey(UUID userId, FileType type, String fileName) {
         String sanitizedFileName = StringUtils.getFilename(fileName);
         String uniqueFileName = "%s_%s".formatted(UUID.randomUUID(), sanitizedFileName);
-        return String.join(KEY_DELIMITER, type.getFolderName(), String.valueOf(userId), uniqueFileName);
+        return type.keyPrefix(userId) + uniqueFileName;
     }
 
     private String presign(String key, String contentType, long fileSize) {
