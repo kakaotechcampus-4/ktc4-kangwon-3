@@ -10,12 +10,23 @@ export interface PolicyTable {
     rows: [string, string][]
 }
 
+/** 개인정보 국외 이전을 받는 자 한 곳. via가 있으면 이름 옆에 전달 경로를 함께 보여준다. */
+export interface PolicyTransfer {
+    name: string
+    via?: string
+    rows: { label: string, value: string }[]
+}
+
 export interface PolicySection {
     // 목차에서 이 조항으로 스크롤할 때 쓰는 앵커 id
     id: string
     heading: string
     items: PolicyItem[]
     table?: PolicyTable
+    // 국외 이전을 받는 자 목록. items 다음에 보여준다.
+    transfers?: PolicyTransfer[]
+    // 표나 카드 목록 뒤에 이어서 보여줄 항목 (예: 국외 이전의 거부 방법)
+    trailingItems?: PolicyItem[]
 }
 
 export interface PolicyHighlight {
