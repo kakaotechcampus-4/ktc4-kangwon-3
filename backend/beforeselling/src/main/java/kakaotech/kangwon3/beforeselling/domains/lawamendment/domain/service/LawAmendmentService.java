@@ -46,9 +46,7 @@ public class LawAmendmentService {
             recheckProductsByAmendment.put(saved, createRecheckProducts(saved));
         }
 
-        if (!recheckProductsByAmendment.isEmpty()) {
-            lawAmendmentMailService.sendLawAmendmentMails(recheckProductsByAmendment);
-        }
+        lawAmendmentMailService.sendLawAmendmentMails(recheckProductsByAmendment);
         return List.copyOf(recheckProductsByAmendment.keySet());
     }
 

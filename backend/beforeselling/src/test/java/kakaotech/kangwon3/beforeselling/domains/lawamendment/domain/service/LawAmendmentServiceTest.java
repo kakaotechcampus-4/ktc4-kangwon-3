@@ -102,7 +102,7 @@ class LawAmendmentServiceTest {
     }
 
     @Test
-    @DisplayName("이미 받은 변경을 다시 받으면 저장하지 않고 재확인 대상 지정과 메일 발송도 다시 하지 않는다.")
+    @DisplayName("이미 받은 변경을 다시 받으면 저장하지 않고 재확인 대상 지정도 다시 하지 않으며 메일 발송 대상에서도 뺀다.")
     void createLawAmendments_withReceived_thenSkip() {
         // given
         LawAmendment lawAmendment = createLawAmendment();
@@ -115,7 +115,7 @@ class LawAmendmentServiceTest {
         assertThat(created).isEmpty();
         then(lawAmendmentRepository).should(never()).save(any());
         then(lawAmendmentProductRepository).should(never()).saveAll(any());
-        then(lawAmendmentMailService).should(never()).sendLawAmendmentMails(any());
+        then(lawAmendmentMailService).should().sendLawAmendmentMails(Map.of());
     }
 
     @Test
