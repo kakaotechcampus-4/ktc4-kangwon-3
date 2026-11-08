@@ -96,8 +96,10 @@ function EditableInfoRow({ title, description, editable = false, maxLength = Inf
                     {trimmedLength}/{maxLength}
                 </span>
             </div>
-            <Button text="취소" variant="secondary" size="sm" fontSize={14} className="ml-auto md:ml-0" onClick={cancelEditing} disabled={disabled} />
-            <Button text="저장" size="sm" fontSize={14} onClick={handleSave} disabled={disabled || isInvalid} />
+            <div className="ml-auto flex items-center gap-3 md:ml-0">
+                <Button text="취소" variant="secondary" size="sm" fontSize={14} onClick={cancelEditing} disabled={disabled} />
+                <Button text="저장" size="sm" fontSize={14} onClick={handleSave} disabled={disabled || isInvalid} />
+            </div>
         </div>
     );
 }
