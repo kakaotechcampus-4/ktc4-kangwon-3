@@ -25,14 +25,14 @@ function renderDescription(description: string) {
 function HowToUseStep({ stepNumber, isLast, title, tag, description, tips, preview }: HowToUseStepProps) {
     return (
         <li className={cn("relative @container", !isLast && "pb-12")}>
-            {!isLast && <span aria-hidden className="absolute top-9 bottom-0 -left-11 w-0.5 bg-primary" />}
-            <span className="absolute -left-15 top-0 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-base font-bold text-white">
+            {!isLast && <span aria-hidden className="absolute top-7 bottom-0 -left-7.75 w-0.5 bg-primary md:top-9 md:-left-11" />}
+            <span className="absolute -left-11 top-0 flex size-7 items-center justify-center rounded-full bg-primary text-sm font-bold text-white md:-left-15 md:size-9 md:text-base">
                 {stepNumber}
             </span>
             {/* 뷰포트가 아니라 이 영역이 실제로 받는 너비 기준으로 2단 여부를 판단한다 (main 폭이 줄면 뷰포트와 무관하게 좁아짐) */}
             <div className="grid grid-cols-1 items-start gap-7 @2xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
                 <div className="flex flex-col gap-2.5 pt-1">
-                    <h3 className="flex flex-wrap items-center gap-2 text-xl font-semibold text-black">
+                    <h3 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-black md:text-xl">
                         {title}
                         {tag && (
                             <span className="rounded-full bg-status-warning-bg px-2.5 py-1 text-sm font-semibold text-status-warning">
@@ -40,19 +40,19 @@ function HowToUseStep({ stepNumber, isLast, title, tag, description, tips, previ
                             </span>
                         )}
                     </h3>
-                    <p className="text-base leading-relaxed whitespace-pre-line text-neutral-text">
+                    <p className="text-[15px] leading-relaxed whitespace-pre-line text-neutral-text md:text-base">
                         {renderDescription(description)}
                     </p>
                     <ul className="flex flex-col gap-1.5">
                         {tips.map((tip) => (
-                            <li key={tip} className="flex items-start gap-2 text-base text-neutral-border">
+                            <li key={tip} className="flex items-start gap-2 text-[15px] text-neutral-border md:text-base">
                                 <span className="mt-1.5 size-1.25 shrink-0 rounded-full bg-primary" />
                                 {tip}
                             </li>
                         ))}
                     </ul>
                 </div>
-                <div className="rounded-2xl border border-box-line bg-white p-3.5">
+                <div className="rounded-2xl border border-box-line bg-white p-2.5 md:p-3.5">
                     <div className="w-full bg-white p-4 rounded-xl border border-neutral-line">
                     {preview}
                     </div>
