@@ -20,4 +20,13 @@ public enum FileType {
     public String keyPrefix(UUID userId) {
         return folderName + KEY_DELIMITER + userId + KEY_DELIMITER;
     }
+
+    public boolean isOwnedBy(String key, UUID userId) {
+        String prefix = keyPrefix(userId);
+        if (key == null || !key.startsWith(prefix)) {
+            return false;
+        }
+        String fileName = key.substring(prefix.length());
+        return !fileName.isEmpty() && !fileName.contains(KEY_DELIMITER);
+    }
 }

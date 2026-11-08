@@ -8,6 +8,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnos
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.FileType;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileService;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteRequestedEvent;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,8 @@ public class DiagnosesService {
     // 저장과 함께 진단을 시작하고, 커밋 후 AI에 진단을 요청하도록 이벤트를 발행한다.
     @Transactional
     public Diagnoses createDiagnoses(UUID userId, List<ProductCreateCommand> commands) {
+        commands.forEach(command -> validateImageKeyOwner(userId, command));
+
         Diagnoses diagnoses = Diagnoses.pending(userId);
         diagnoses.addProducts(commands.stream().map(this::toProduct).toList());
         // AI는 접수(202) 직후부터 콜백을 보내므로, 커밋 시점에 이미 진단 중이어야 결과를 받을 수 있다.
@@ -179,6 +182,16 @@ public class DiagnosesService {
 
         log.debug("회원 탈퇴에 따른 진단서 삭제 완료. userId={}, 진단서 수={}, 대상 key 수={}",
                 userId, diagnosesList.size(), imageKeys.size());
+    }
+
+    private void validateImageKeyOwner(UUID userId, ProductCreateCommand command) {
+        boolean ownsProductImage = command.productImageKey() == null
+                || FileType.PRODUCT_MAIN.isOwnedBy(command.productImageKey(), userId);
+        boolean ownsDetailImages = CollectionUtils.isEmpty(command.imageKeys())
+                || command.imageKeys().stream().allMatch(key -> FileType.PRODUCT_DETAIL.isOwnedBy(key, userId));
+        if (!ownsProductImage || !ownsDetailImages) {
+            throw new BaseException(CommonResponseCode.NOT_FOUND);
+        }
     }
 
     private Product toProduct(ProductCreateCommand command) {
