@@ -4,11 +4,15 @@ import { getMyInfo, updateMyInfo } from "@/api/users.ts";
 
 const MY_INFO_QUERY_KEY = ["myInfo"];
 
+// 자주 변하지 않고 자주 쓰는 값이므로 5분 캐시 유지.
+const MY_INFO_STALE_TIME_MS = 5 * 60 * 1000;
+
 // 내 정보 조회.
 export function useMyInfo() {
     return useQuery({
         queryKey: MY_INFO_QUERY_KEY,
         queryFn: getMyInfo,
+        staleTime: MY_INFO_STALE_TIME_MS,
     });
 }
 
