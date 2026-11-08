@@ -335,7 +335,7 @@ uvicorn app.main:app --reload   # http://localhost:8000/docs
 - DB까지 함께 실행하려면 `docker compose up -d`를 사용합니다. BE와 같이 쓰는 네트워크가 필요해 처음 한 번 `docker network create be-ai-net`을 실행합니다.
 - 로컬 BE와 연결하려면 `BE_BASE_URL`에 BE 주소를 넣고, `INTERNAL_API_TOKEN`을 BE와 같은 값으로 맞춥니다.
 - BE 없이 확인하려면 샌드박스 API를 사용합니다. ([BE 연동](#be-연동))
-- 필수 환경변수는 LLM 게이트웨이, 공공데이터포털, 법제처 키와 BE 연동 값, 입력 확인 경계값입니다. 하나라도 비어 있으면 서버가 기동하지 않아, 설정 누락을 진단 도중이 아닌 배포 시점에 발견합니다. 문턱값은 저장소에 기록하지 않고 팀 내에서 공유합니다. (항목별 설명은 [`.env.example`](.env.example) 참고()
+- 필수 환경변수는 LLM 게이트웨이, 공공데이터포털, 법제처 키와 BE 연동 값, 입력 확인 경계값입니다. 하나라도 비어 있으면 서버가 기동하지 않아, 설정 누락을 진단 도중이 아닌 배포 시점에 발견합니다. 문턱값은 저장소에 기록하지 않고 팀 내에서 공유합니다. (항목별 설명은 [`.env.example`](.env.example) 참고)
 - 서버 없이 진단 한 건의 단계별 입출력을 파일로 남기려면 trace CLI를 사용합니다. ([AI_TRACE.md](docs/AI_TRACE.md))
 
 ---
