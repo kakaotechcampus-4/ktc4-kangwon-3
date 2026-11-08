@@ -12,7 +12,7 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .text_base import LawTextBaseClient
-from ...schemas.clients.law_response import (
+from .schemas.response import (
     AdmrulTextResponse,
     LawArticle,
     LawAttachment,

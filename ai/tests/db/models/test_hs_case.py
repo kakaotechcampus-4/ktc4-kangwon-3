@@ -4,7 +4,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
 from app.db.models import HsCase
-from app.schemas.clients.customs_response import CLIPCase
+from app.clients.customs.schemas.response import CLIPCase
 
 
 def test_결정사례는_문서_ID가_키라_다시_적재해도_같은_행이다():

@@ -1,7 +1,7 @@
 """판단 클라이언트 예외."""
 
-from ....schemas.clients.decision_response import DecisionUsage
 from ...errors import ClientError
+from .schemas.response import DecisionUsage
 
 
 class DecisionRequestError(ClientError, ValueError):

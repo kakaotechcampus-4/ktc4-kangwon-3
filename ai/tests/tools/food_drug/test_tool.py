@@ -4,7 +4,7 @@ import pytest
 
 from app.agents.verification import VerificationAgent
 from app.schemas.agent import ToolSelectionItem
-from app.schemas.food_drug import DeviceReview, DeviceSelection, FoodDrugFact, FoodDrugFacts, Judgment, Judgments
+from app.tools.food_drug.schemas import DeviceReview, DeviceSelection, FoodDrugFact, FoodDrugFacts, Judgment, Judgments
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,

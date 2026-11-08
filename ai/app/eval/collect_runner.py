@@ -31,7 +31,7 @@ from ..config import agent_profile
 from ..observability.agent_sinks import agent_sinks
 from ..pipeline.url_source import MAX_ALL_IMAGES, UrlSource, UrlSourceBuilder, client_for
 from ..schemas.agent import ExtractionInput
-from ..schemas.clients.marketplace_request import ProductPageRequest
+from ..clients.marketplace.schemas.request import ProductPageRequest
 from .runner import _AI_ROOT, describe_metadata, run_metadata
 
 OUT_DIR = _AI_ROOT / "data" / "collect_probe"

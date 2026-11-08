@@ -12,7 +12,6 @@
 
 from ...agents.base import ModelLike
 from ...observability.trace import trace_note
-from ...schemas.advertising import AdvertisingClaim, AdvertisingReview
 from ...schemas.agent import ToolSelectionItem
 from ...schemas.product import Product
 from ...schemas.schemas import (
@@ -30,6 +29,7 @@ from ..base import RegulatoryTool
 from .rules import (
     LAW_ARTICLE_5, RISK_ORDER, TYPE_LABELS, claim_action, claim_risk, find_kc_claims, normalize, sources_for,
 )
+from .schemas import AdvertisingClaim, AdvertisingReview
 from .steps import AdvertisingReviewer, AdvertisingReviewInput
 
 _NO_LISTING_QUESTION = "판매자가 쓴 상품 설명·홍보 문구가 없어 표시·광고를 검토하지 못했습니다. 상세페이지의 상품 설명 문구를 알려주세요."

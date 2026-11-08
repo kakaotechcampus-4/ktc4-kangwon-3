@@ -7,8 +7,9 @@
 
 import re
 
-from ...schemas.advertising import AdvertisingClaim, AdvertisingRiskType
 from ...schemas.schemas import LegalSource, RiskLevel
+from ..common.facts import object_particle, topic_particle
+from .schemas import AdvertisingClaim, AdvertisingRiskType
 
 _SOURCE_NAME = "국가법령정보센터"
 # 버전(MST·일련번호)을 고정한 공개 열람 주소. 요청 URL(OC 포함)은 쓰지 않는다.
@@ -204,6 +205,7 @@ def claim_action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
         return (f"'{claim.quote}' 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
                 "확인되지 않으면 표기를 빼세요.")
     if risk_level is RiskLevel.HIGH:
-        return (f"'{claim.quote}'는 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
+        return (f"'{claim.quote}'{topic_particle(claim.quote)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
                 "남기려면 객관적 근거 자료를 먼저 확인하세요.")
-    return f"'{claim.quote}'를 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, 자료가 없으면 문구를 빼거나 고치세요."
+    return (f"'{claim.quote}'{object_particle(claim.quote)} 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, "
+            "자료가 없으면 문구를 빼거나 고치세요.")

@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from app.clients.law import AdmrulSearchClient, EflawSearchClient, LawSearchClient, LicbylSearchClient
-from app.schemas.clients.law_request import LawSearchRequest
+from app.clients.law.schemas.request import LawSearchRequest
 
 
 def _xml(body: str):

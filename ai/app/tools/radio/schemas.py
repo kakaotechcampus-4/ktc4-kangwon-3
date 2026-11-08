@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from .base import StrictModel
+from ...schemas.base import StrictModel
 
 RadioField = Literal["product_type", "wireless_feature", "frequency", "output_power", "intended_use"]
 

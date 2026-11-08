@@ -10,7 +10,7 @@ import pytest
 
 from app.clients.llm.decision import DecisionRequestError, DecisionResponseError
 from app.clients.llm.decision.typesafe import TypeSafeDecisionClient
-from app.schemas.clients.decision_response import ChoiceAnswer, DecisionUsage, ScoreAnswer, YesNoAnswer
+from app.clients.llm.decision.schemas.response import ChoiceAnswer, DecisionUsage, ScoreAnswer, YesNoAnswer
 
 from .conftest import API_KEY, BASE_URL
 

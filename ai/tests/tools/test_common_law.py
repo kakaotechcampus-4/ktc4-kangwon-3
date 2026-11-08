@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from app.schemas.clients.law_response import LawSearchItem, LawSearchResponse, LawTextResponse
+from app.clients.law.schemas.response import LawSearchItem, LawSearchResponse, LawTextResponse
 from app.tools.common.law import EvidenceUnavailable, load_law, select_version
 
 NAME, LAW_ID = "의료기기법", "009514"

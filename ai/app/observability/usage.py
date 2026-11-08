@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from ..config.catalog import CHAT_MODELS, DECISION_MODELS
 
 if TYPE_CHECKING:
-    from ..schemas.clients.decision_response import DecisionUsage
+    from ..clients.llm.decision.schemas.response import DecisionUsage
 
 USAGE_LOG = Path(__file__).resolve().parents[2] / "logs" / "usage.jsonl"
 # 기록 파일 크기 상한. 넘으면 usage.jsonl.1부터 한 칸씩 밀고 새 파일 (docker logs 상한과 같은 10MB × 5개)

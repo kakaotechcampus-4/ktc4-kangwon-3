@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage
 from app.clients.llm.decision import TypeSafeDecisionClient
 from app.observability.trace import trace_run, trace_step
 from app.prompts import PromptName, get_prompt
-from app.schemas.clients.decision_request import YesNoQuestion
+from app.clients.llm.decision.schemas.request import YesNoQuestion
 
 def _read(path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
