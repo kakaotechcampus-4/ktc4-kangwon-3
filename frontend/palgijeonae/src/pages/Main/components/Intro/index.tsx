@@ -25,10 +25,11 @@ function Intro() {
                 <img src={Favicon} alt="" className="size-10 shrink-0 object-contain md:size-13" />
                 <h1 className="text-[22px] font-extrabold leading-8 text-black md:text-4xl md:leading-10">이 물건, 팔아도 되나요?</h1>
             </div>
-            <div className="flex w-full flex-col items-start gap-3">
-                <p className="text-base leading-5.5 text-neutral-text md:text-lg">구매대행·사입으로 판매할 상품이 국내 법령에 걸리는지,</p>
-                <p className="text-base leading-5.5 text-neutral-text md:text-lg">AI 에이전트가 관련 법령과 규제를 실제로 짚어서 확인해요.</p>
-            </div>
+            <p className="text-base leading-5.5 text-neutral-text md:text-lg md:leading-8.5">
+                구매대행·사입으로 판매할 상품이 국내 법령에 걸리는지,{" "}
+                <br className="hidden md:block" />
+                AI 에이전트가 관련 법령과 규제를 실제로 짚어서 확인해요.
+            </p>
             {isAuthReady && (
                 <div className="grid w-full grid-cols-2 items-start gap-2 [&>*:only-child]:col-span-2 md:flex md:flex-wrap md:items-center md:gap-2.5">
                     <Button text={isLoggedIn ? "상품 확인 시작하기" : "로그인 후 진단 시작"} onClick={handleButtonClick} fontSize={15} className="w-full px-3 md:w-auto md:px-6.25" />
