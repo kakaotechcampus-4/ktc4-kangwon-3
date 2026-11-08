@@ -56,6 +56,7 @@ class LawAmendmentControllerTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID LAW_AMENDMENT_ID = UUID.randomUUID();
     private static final UUID PRODUCT_ID = UUID.randomUUID();
+    private static final UUID DIAGNOSES_ID = UUID.randomUUID();
 
     @Autowired
     private MockMvc mockMvc;
@@ -100,7 +101,7 @@ class LawAmendmentControllerTest {
         given(lawAmendmentUseCase.getLawAmendments(USER_ID)).willReturn(new LawAmendmentListResponse(List.of(
                 new LawAmendmentResponse(LAW_AMENDMENT_ID, "어린이제품 안전 특별법 시행규칙", "일부개정",
                         ToolName.CHILDREN, LocalDate.of(2026, 10, 20),
-                        List.of(new LawAmendmentResponse.RecheckProductResponse(PRODUCT_ID, "대나무 헬리콥터"))))));
+                        List.of(new LawAmendmentResponse.RecheckProductResponse(PRODUCT_ID, DIAGNOSES_ID, "대나무 헬리콥터"))))));
 
         // when & then
         mockMvc.perform(get(URL).with(authentication(loginUser())))
@@ -112,6 +113,7 @@ class LawAmendmentControllerTest {
                 .andExpect(jsonPath("$.data.lawAmendments[0].toolName").value("CHILDREN"))
                 .andExpect(jsonPath("$.data.lawAmendments[0].enforceDate").value("2026-10-20"))
                 .andExpect(jsonPath("$.data.lawAmendments[0].products[0].productId").value(PRODUCT_ID.toString()))
+                .andExpect(jsonPath("$.data.lawAmendments[0].products[0].diagnosesId").value(DIAGNOSES_ID.toString()))
                 .andExpect(jsonPath("$.data.lawAmendments[0].products[0].productName").value("대나무 헬리콥터"));
     }
 
