@@ -5,8 +5,8 @@ import re
 import httpx
 
 from ..request import RequestClient
-from ...schemas.clients.customs_request import CLIPSearchRequest
-from ...schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
+from .schemas.request import CLIPSearchRequest
+from .schemas.response import CLIPCase, CLIPSearchResponse
 
 # HS 코드 한 개 (10단위 8414.59-9000, 6단위 9032.89)
 # 10단위는 점 대신 하이픈·공백이 섞인 표기도 있음 (8525-10-9010, 8479. 89-9099, 5407-52.0000)

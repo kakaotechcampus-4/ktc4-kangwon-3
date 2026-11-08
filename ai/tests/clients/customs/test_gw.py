@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.clients.customs import CustomsGwClient
-from app.schemas.clients.customs_request import CustomsGwConfirmationRequest
+from app.clients.customs.schemas.request import CustomsGwConfirmationRequest
 
 _OK = (
     "<response><header><resultCode>00</resultCode><resultMsg>정상서비스.</resultMsg></header>"

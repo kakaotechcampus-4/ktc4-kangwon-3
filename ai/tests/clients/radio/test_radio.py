@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.clients.radio import RadioAuthInfoClient, RadioAuthStatusClient
-from app.schemas.clients.radio_request import RadioAuthRequest
+from app.clients.radio.schemas.request import RadioAuthRequest
 
 
 def _xml(body: str):

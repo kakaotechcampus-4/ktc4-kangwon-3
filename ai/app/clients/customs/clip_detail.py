@@ -13,8 +13,8 @@ import httpx
 
 from ..request import RequestClient
 from .clip import parse_hs_codes
-from ...schemas.clients.customs_request import CLIPDetailRequest
-from ...schemas.clients.customs_response import CLIPCase
+from .schemas.request import CLIPDetailRequest
+from .schemas.response import CLIPCase
 
 # 상세 표의 한 줄: <th>항목</th> <td>값</td>
 _ROW_RE = re.compile(r"<th[^>]*>(.*?)</th>\s*<td[^>]*>(.*?)</td>", re.S)

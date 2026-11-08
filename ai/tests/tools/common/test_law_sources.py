@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from app.schemas.clients.law_response import AdmrulSearchItem, AdmrulSearchResponse
+from app.clients.law.schemas.response import AdmrulSearchItem, AdmrulSearchResponse
 from app.schemas.schemas import ToolName
 from app.tools.children import evidence as children
 from app.tools.common.law_sources import LAW_SOURCES, LawSource, applied_version

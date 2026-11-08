@@ -447,7 +447,7 @@ def test_일부_HS만_요건이_없으면_그_HS도_따로_알린다():
 
 
 def test_문서_ID가_없는_사례는_물품명과_HS로_구분한다():
-    from app.schemas.clients.customs_response import CLIPCase
+    from app.clients.customs.schemas.response import CLIPCase
     from app.tools.customs.search import HsCase
     first = HsCase.from_clip(CLIPCase(hs_codes=["3924100000"], product_name="주걱", description="", decision_reason=""))
     second = HsCase.from_clip(CLIPCase(hs_codes=["4419909000"], product_name="주걱", description="", decision_reason=""))

@@ -3,7 +3,7 @@
 import pytest
 
 from app.clients.law import AdmrulSearchClient, LawSearchClient
-from app.schemas.clients.law_request import LawSearchRequest
+from app.clients.law.schemas.request import LawSearchRequest
 from app.tools.common.law_sources import LAW_SOURCES
 
 pytestmark = pytest.mark.external_api

@@ -7,7 +7,7 @@ from app.config import CUSTOMS_GW_TTL_SECONDS
 from app.db import customs_cache
 from app.db.errors import DatabaseNotConfiguredError
 from app.db.fetchers import OnDemandFetcher
-from app.schemas.clients.customs_response import CustomsGwConfirmationResponse
+from app.clients.customs.schemas.response import CustomsGwConfirmationResponse
 
 
 def test_GW_조회_객체는_조회할_때_쌓고_하루_보관한다():

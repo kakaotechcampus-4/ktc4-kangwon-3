@@ -10,7 +10,7 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .text_base import LawTextBaseClient
-from ...schemas.clients.law_response import LawArticle, LawItem, LawParagraph, LawSubItem, LawTextResponse
+from .schemas.response import LawArticle, LawItem, LawParagraph, LawSubItem, LawTextResponse
 
 
 class LawTextClient(LawTextBaseClient[LawTextResponse]):

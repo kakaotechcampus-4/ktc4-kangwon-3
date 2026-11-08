@@ -15,9 +15,9 @@ from urllib.parse import unquote
 
 import httpx
 
+from .schemas.request import AnnexFileRequest
+from .schemas.response import AnnexFileResponse
 from ..request import RequestClient
-from ...schemas.clients.law_request import AnnexFileRequest
-from ...schemas.clients.law_response import AnnexFileResponse
 
 _BASE_URL = "https://www.law.go.kr"
 _DOWNLOAD_PATH = "/LSW/flDownload.do"
