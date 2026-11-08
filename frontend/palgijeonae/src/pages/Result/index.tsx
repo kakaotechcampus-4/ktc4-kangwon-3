@@ -38,7 +38,7 @@ function ResultPage() {
         }
     }, [isInvalidAccess, navigate]);
 
-    const { data, isPending, isError, refetch, isNotFoundError } = useProductResults(productId, diagnosesId, isInvalidAccess);
+    const { data, isPending, isError, refetch, isInvalidId } = useProductResults(productId, diagnosesId, isInvalidAccess);
     // product undefined error 방지
     const products = data ?? EMPTY_PRODUCT_RESULTS;
 
@@ -52,11 +52,11 @@ function ResultPage() {
     const disabledTabs = isDiagnosisComplete ? [] : [ResultTabKey.NextSteps];
 
     useEffect(() => {
-        if (isNotFoundError) {
+        if (isInvalidId) {
             alert("유효하지 않은 상품/진단서 id 입니다.");
             navigate("/", { replace: true });
         }
-    }, [isNotFoundError, navigate]);
+    }, [isInvalidId, navigate]);
 
     const handleNextStepsClick = () => {
         setSelectedTab(ResultTabKey.NextSteps);
@@ -83,7 +83,7 @@ function ResultPage() {
     return (
         <div className="flex w-full flex-col gap-8">
             <SectionIntro title="진단 결과" description={`${products.length}개 상품에 대한 판정입니다. 상품을 눌러 각각의 근거를 확인하세요.`} />
-            {isNotFoundError ? null : isPending ? (
+            {isInvalidId ? null : isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">

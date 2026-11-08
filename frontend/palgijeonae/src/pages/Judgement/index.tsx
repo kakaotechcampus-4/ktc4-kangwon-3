@@ -27,19 +27,19 @@ function JudgementPage() {
         }
     }, [isInvalidAccess, navigate]);
 
-    const { data, isPending, isError, refetch, isNotFoundError } = useJudgementProducts(diagnosesId, !isInvalidAccess);
+    const { data, isPending, isError, refetch, isInvalidId } = useJudgementProducts(diagnosesId, !isInvalidAccess);
     const isDiagnosisDone = data != null
         && (data.processingStatus === ProcessingStatusType.Completed || data.processingStatus === ProcessingStatusType.Failed);
     // 폴링으로 바뀌는 상태를 스크린리더에게도 알린다.
     const announcement = useStatusAnnouncement(data?.products, isDiagnosisDone);
 
-    // 존재하지 않는 diagnosesId로 접근한 경우(404)
+    // 형식이 잘못됐거나 존재하지 않는 diagnosesId로 접근한 경우(400, 404)
     useEffect(() => {
-        if (isNotFoundError) {
+        if (isInvalidId) {
             alert("유효하지 않은 진단서 id 입니다.");
             navigate("/", { replace: true });
         }
-    }, [isNotFoundError, navigate]);
+    }, [isInvalidId, navigate]);
 
     return (
         <div className="flex w-full flex-col gap-8">
@@ -52,7 +52,7 @@ function JudgementPage() {
                 }
             />
             <p role="status" className="sr-only">{announcement}</p>
-            {isNotFoundError ? null : isPending ? (
+            {isInvalidId ? null : isPending ? (
                 <LoadingSpinner />
             ) : isError ? (
                 <div className="flex w-full flex-col items-center gap-3 py-12">

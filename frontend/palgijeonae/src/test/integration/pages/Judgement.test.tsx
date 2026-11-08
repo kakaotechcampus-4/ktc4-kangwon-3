@@ -123,6 +123,16 @@ describe('진단 진행 화면 - 조회', () => {
     expect(page.hasMessage(JUDGEMENT_MESSAGES.LOAD_FAILED)).toBe(false)
   })
 
+  it('진단서 id 형식이 잘못된 경우(400)에도 오류 화면 없이 안내하고 메인으로 돌려보낸다', async () => {
+    server.use(http.get(DIAGNOSES_URL, () => errorResponse(400)))
+    const page = renderJudgementPage()
+
+    expect(await findStubScreen('메인 화면')).toBeInTheDocument()
+    expectNotified(JUDGEMENT_MESSAGES.NOT_FOUND)
+    expect(getCurrentLocation()).toBe('/')
+    expect(page.hasMessage(JUDGEMENT_MESSAGES.LOAD_FAILED)).toBe(false)
+  })
+
   it.each(['undefined', 'null'])('diagnosesId가 "%s"로 들어오면 안내하고 요청 없이 업로드 화면으로 돌려보낸다', async (diagnosesId) => {
     renderJudgementPage(`/judgement/${diagnosesId}`)
 
