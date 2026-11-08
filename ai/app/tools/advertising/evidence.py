@@ -9,7 +9,8 @@ from datetime import date
 
 from ...schemas.schemas import LegalSource
 from ..common.law import (
-    DocRef, EvidenceUnavailable, LawDocument, LawLookup, law_paragraph, load_admrul, load_law, normalize_text,
+    DocRef, EvidenceUnavailable, LawDocument, LawLookup, compact, law_paragraph, load_admrul, load_law,
+    normalize_text,
 )
 from .schemas import AdvertisingRiskType
 
