@@ -205,4 +205,18 @@ class UserServiceTest {
         ReflectionTestUtils.setField(user, "id", id);
         return user;
     }
+
+    @Test
+    @DisplayName("개정 알림 수신을 끄면 회원의 수신 여부가 꺼진다.")
+    void updateLawAmendmentAlertEnabled_thenChanged() {
+        // given
+        User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "홍길동");
+        given(userRepository.findById(USER_ID)).willReturn(Optional.of(user));
+
+        // when
+        User result = userService.updateLawAmendmentAlertEnabled(USER_ID, false);
+
+        // then
+        assertThat(result.isLawAmendmentAlertEnabled()).isFalse();
+    }
 }

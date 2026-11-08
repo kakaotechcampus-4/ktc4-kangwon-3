@@ -7,10 +7,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from ...agents.base import BaseAgent, ModelFailurePhase
 from ...prompts import PromptName
-from ...schemas.advertising import AdvertisingReview
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
 from .errors import AdvertisingReviewError
+from .schemas import AdvertisingReview
 
 
 @dataclass(frozen=True)

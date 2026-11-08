@@ -1,7 +1,7 @@
 """실제 진단 함수. 파이프라인을 실행마다 조립해 돌리고, 결과로 세션 결말을 정함.
 
 파이프라인(pipeline/runner.py)은 진행 알림·로그·trace·다시 실행을 모름. 단계·Tool hook으로 붙임
-(diagnosis/progress.py·run_log.py·tracing.py·replay.py). 묶는 순서는 ``_stage_hooks``.
+(diagnosis/progress.py·run_log.py·tracing.py·replay.py·langsmith_trace.py). 묶는 순서는 ``_stage_hooks``.
 검증 모델 검토가 실패하면 규칙 검사 결과로 진행 (통과는 재확인 필요로 바꿈, diagnosis/stages.py). 규칙 결과도 없으면 재시도 가능 실패.
 파이프라인이 끝난 뒤 Tool의 부족한 정보가 남아 있으면 판매자 질문으로 넘김 (지난 회차에 물은 질문은 빼고).
 
@@ -28,6 +28,7 @@ from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, JobDone, JobFailed, JobNeedsInput, Outcome, ProgressReporter
 from ..tools.common.questions import answered_questions, help_text
 from .assembly import PipelineParts
+from .langsmith_trace import stage_hook as langsmith_stage_hook, tool_hook as langsmith_tool_hook, traced_job, tracing_on
 from .progress import ProgressStageHook, ProgressToolHook
 from .replay import ReplaySkipHook, ReplayStopHook, StageReplay
 from .run_log import error_text, log_tool_failure, mark_retry_round
@@ -51,14 +52,16 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
     Returns:
         DiagnosisJob: 실행 입력·컨텍스트·진행 알림을 받아 결말을 돌려주는 진단 함수.
     """
+    tracing = tracing_on()
 
     def run(job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter) -> Outcome:
         # 기록 중엔 Tool 순차 실행 (기록기가 열린 단계·진행 중 호출을 객체 하나에 둠)
         max_parallel = 1 if current_trace() else MAX_PARALLEL_TOOLS
         executor = ToolExecutor(
             parts.tools, max_parallel=max_parallel,
-            # 앞이 바깥: 진행 알림 → 실패 로그
-            tool_hook=chain_tool_hooks(ProgressToolHook(progress), log_tool_failure),
+            # 앞이 바깥: 진행 알림 → 실패 로그 → LangSmith
+            tool_hook=chain_tool_hooks(ProgressToolHook(progress), log_tool_failure,
+                                       *([langsmith_tool_hook] if tracing else [])),
         )
         pipeline = CompliancePipeline(
             extractor=JobInputExtraction(parts.extraction, job_input),
@@ -66,7 +69,7 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
             tool_executor=executor,
             aggregator=parts.aggregator,
             verifier=RulesFallbackVerification(parts.verifier),
-            stage_hook=chain_stage_hooks(*_stage_hooks(job_input, progress, replay)),
+            stage_hook=chain_stage_hooks(*_stage_hooks(job_input, progress, replay, tracing)),
         )
         try:
             result = pipeline.run(job_input.source)
@@ -90,27 +93,32 @@ def build_job(parts: PipelineParts, questions: QuestionBuilder, replay: StageRep
         trace_finish(result.termination_reason.value, result=result)
         return JobDone(result)
 
-    return run
+    return traced_job(run) if tracing else run
 
 
-def _stage_hooks(job_input: DiagnosisInput, progress: ProgressReporter, replay: StageReplay | None) -> list[StageHook]:
+def _stage_hooks(job_input: DiagnosisInput, progress: ProgressReporter, replay: StageReplay | None,
+                 tracing: bool = False) -> list[StageHook]:
     """단계 hook 목록. 앞이 바깥.
 
-    로그 필드 → 진행 알림 → 다시 실행 멈춤 → trace → 다시 실행 건너뛰기 → 실제 단계.
+    로그 필드 → 진행 알림 → 다시 실행 멈춤 → trace → 다시 실행 건너뛰기 → LangSmith → 실제 단계.
     진행 알림은 trace 단계를 열기 전에, 멈춤 결말은 trace 단계가 닫힌 뒤에, replayed 표시는 trace 단계 안에 남음.
+    LangSmith에는 실제로 돌린 단계만 남음 (건너뛴 단계 제외).
 
     Args:
         job_input: 이번 실행 입력.
         progress: 이번 실행의 진행 알림.
         replay: 단계 다시 실행 설정. 없으면 다시 실행 hook을 안 붙임.
+        tracing: LangSmith 기록을 켠 실행이면 True.
 
     Returns:
         list[StageHook]: 바깥부터 차례로.
     """
     hooks: list[StageHook] = [mark_retry_round, ProgressStageHook(progress)]
     if replay is None:
-        return [*hooks, TraceStageHook(job_input)]
-    return [*hooks, ReplayStopHook(replay), TraceStageHook(job_input), ReplaySkipHook(replay)]
+        hooks += [TraceStageHook(job_input)]
+    else:
+        hooks += [ReplayStopHook(replay), TraceStageHook(job_input), ReplaySkipHook(replay)]
+    return [*hooks, langsmith_stage_hook] if tracing else hooks
 
 
 def _stage_failure(exc: AIServiceError | VerificationError) -> AIServiceError:

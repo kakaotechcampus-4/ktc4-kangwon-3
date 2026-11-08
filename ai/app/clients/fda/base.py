@@ -6,7 +6,7 @@ import httpx
 
 from ..request import ResponseT
 from ..data_go_kr import DataGoKrClient
-from ...schemas.clients.fda_request import FdaPaginationRequest
+from .schemas.request import FdaPaginationRequest
 
 
 class FdaBaseClient(DataGoKrClient[FdaPaginationRequest, ResponseT]):

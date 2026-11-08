@@ -2,6 +2,7 @@
 
 import logging
 import time
+from contextlib import contextmanager
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -9,7 +10,7 @@ import pytest
 
 from app.agents.verification import VerificationError
 from app.config.session import MAX_PARALLEL_TOOLS
-from app.diagnosis import job as job_module
+from app.diagnosis import job as job_module, langsmith_trace
 from app.observability.logs import current_run_fields, run_log_context
 from app.observability.trace import trace_run, trace_step
 from app.diagnosis.assembly import PipelineParts
@@ -115,6 +116,45 @@ def pipeline(monkeypatch):
 
 def _no_questions(result, question_round):
     raise AssertionError("질문을 만들면 안 됨")
+
+
+@pytest.fixture
+def langsmith_names(monkeypatch):
+    """langsmith.trace를 가짜로 바꿔 열린 이름을 모은다. 외부 전송 없음."""
+    names = []
+
+    @contextmanager
+    def fake_trace(name, run_type="chain", **options):
+        names.append(name)
+        yield SimpleNamespace(end=lambda **values: None)
+
+    monkeypatch.setattr(langsmith_trace, "trace", fake_trace)
+    return names
+
+
+def test_LangSmith를_켠_실행은_진단·단계·Tool을_묶는다(pipeline, monkeypatch, langsmith_names):
+    monkeypatch.setattr(job_module, "tracing_on", lambda: True)
+
+    outcome = build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobDone)
+    assert langsmith_names == [
+        "diagnosis:p-1", "extraction", "selection", "tool_execution", "aggregation", "verification",
+        "tool_execution #1", "aggregation #1", "verification #1",
+    ]
+    langsmith_names.clear()
+    assert pipeline["executor_options"]["tool_hook"](ToolName.RADIO, lambda: "결과") == "결과"
+    assert langsmith_names == ["tool:radio_compliance"]
+
+
+def test_LangSmith를_끈_실행은_아무것도_묶지_않는다(pipeline, monkeypatch, langsmith_names):
+    monkeypatch.setattr(job_module, "tracing_on", lambda: False)
+
+    outcome = build_job(_parts([]), _no_questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
+
+    assert isinstance(outcome, JobDone)
+    assert pipeline["executor_options"]["tool_hook"](ToolName.RADIO, lambda: "결과") == "결과"
+    assert langsmith_names == []
 
 
 def test_단계마다_진행_알림을_보내고_재실행_회차도_다시_알린다(pipeline):

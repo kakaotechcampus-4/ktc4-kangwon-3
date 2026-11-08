@@ -4,7 +4,7 @@ import pytest
 
 from app.agents.verification import VerificationAgent
 from app.schemas.agent import ToolSelectionItem
-from app.schemas.food_drug import DeviceReview, DeviceSelection, FoodDrugFact, FoodDrugFacts, Judgment, Judgments
+from app.tools.food_drug.schemas import DeviceReview, DeviceSelection, FoodDrugFact, FoodDrugFacts, Judgment, Judgments
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
@@ -23,7 +23,7 @@ _EVIDENCE = load_food_drug_evidence(FakeLaw(), AS_OF)
 
 @pytest.fixture(autouse=True)
 def no_usage_file(monkeypatch):
-    monkeypatch.setattr("app.usage.record", lambda *a, **kw: None)
+    monkeypatch.setattr("app.observability.usage.record", lambda *a, **kw: None)
 
 
 class _Structured:

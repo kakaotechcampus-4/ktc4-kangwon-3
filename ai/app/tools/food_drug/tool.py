@@ -12,7 +12,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...schemas.food_drug import FoodDrugFact, FoodDrugFacts
 from ...schemas.product import Product
 from ...schemas.schemas import Determination, FoodDrugAssessment, LegalSource, RegulatoryFinding, RiskLevel, ToolName
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
@@ -24,6 +23,7 @@ from .rules import (
     banned_action, claim_action, cosmetic_actions, device_actions, functional_action, health_food_action,
     imported_food_actions,
 )
+from .schemas import FoodDrugFact, FoodDrugFacts
 from .search import rank_devices
 from .steps import FoodDrugFactsStep, FoodDrugReviewStep
 

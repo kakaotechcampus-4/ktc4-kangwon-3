@@ -12,7 +12,7 @@ export function truncateGraphemes(text: string, maxLength: number): string {
 
 // 상품명 등 화면/음성에 보여줄 텍스트를 줄이되, 원문이 짧으면 그대로 둔다.
 export function truncateWithEllipsis(text: string, maxLength: number): string {
-    return countGraphemes(text) > maxLength ? `${truncateGraphemes(text, maxLength)}...` : text;
+    return countGraphemes(text) > maxLength ? `${truncateGraphemes(text, maxLength).trimEnd()}...` : text;
 }
 
 // 백엔드 길이 제한(.length, 자바 String.length()와 동일한 UTF-16 코드 유닛 기준)에 맞춰 자르되,

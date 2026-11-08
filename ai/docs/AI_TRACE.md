@@ -182,4 +182,48 @@ jq '.steps[] | select(.kind == "selection") | .output' logs/traces/kc-fan/run-1.
 - 저장한 결과는 그때 스키마 모양. 스키마가 바뀐 뒤 옛 trace로 단계 다시 실행하면 읽기 오류
 - 재진단 · 단계 다시 실행은 이전 결과를 trace 파일에서 읽어 판단 · 진단서 ID 등이 이미 `f1`, `a1`처럼 번호. 새 실행은 그 번호 다음부터 셈 (이전 `f5`까지면 새 판단은 `f6`부터)
 - 이미지 자르기 기록(`app/diagnosis/tracing.py`)은 `ImageSplitter`의 내부 메서드(`_tiles`)·값(`_max_tiles`)에 기대고, 상한 판단을 같은 순서로 다시 셈. `ImageSplitter`를 바꾸면 같이 확인
-- 파이프라인 단계 기록은 단계 hook(`app/diagnosis/tracing.py`·`replay.py`)으로 붙임. 묶는 순서는 `app/diagnosis/job.py`의 `_stage_hooks` 한 곳 (진행 알림 → 다시 실행 멈춤 → trace → 다시 실행 건너뛰기). 순서를 바꾸면 `replayed` 표시·멈춤 결말 위치가 달라짐
+- 파이프라인 단계 기록은 단계 hook(`app/diagnosis/tracing.py`·`replay.py`)으로 붙임. 묶는 순서는 `app/diagnosis/job.py`의 `_stage_hooks` 한 곳 (진행 알림 → 다시 실행 멈춤 → trace → 다시 실행 건너뛰기 → LangSmith). 순서를 바꾸면 `replayed` 표시·멈춤 결말 위치가 달라짐
+
+## 6. LangSmith
+
+진단의 모델 호출을 웹 화면에서 봄. trace 파일과 별개이고 함께 쓸 수 있음.
+
+| | trace 파일 | LangSmith |
+|---|---|---|
+| 볼 때 | 파일 열기, `jq` | 웹 화면 |
+| 두 실행 비교 | `diff` (같은 입력이면 같은 ID) | 없음 |
+| 단계 다시 실행 | `--from`, `--stage` | 없음 |
+| 공유 | 안 함 (5절) | 같은 계정의 화면 링크 |
+
+### 6.1 켜기
+
+`.env`에 넣음. 키는 LangSmith 설정 화면에서 발급.
+
+```bash
+LANGSMITH_TRACING=true
+LANGSMITH_API_KEY=<API 키>
+LANGSMITH_PROJECT=<프로젝트 이름>   # 예: 로컬 ktc4-local, 서버 ktc4-prod
+```
+
+켜고 `trace_cli`나 서버로 진단을 돌리면 화면에 아래처럼 남음.
+
+```text
+diagnosis:<상품 ID>
+├ extraction
+├ selection
+├ tool_execution
+│ └ tool:<Tool 이름>
+├ aggregation
+└ verification       (재실행은 verification #1처럼 회차가 붙음)
+```
+
+단계·Tool 이름은 hook으로 붙임 (`app/diagnosis/langsmith_trace.py`). 에이전트·Tool 코드는 고치지 않음. 단계 다시 실행에서 건너뛴 단계는 남지 않음.
+
+### 6.2 주의
+
+- 프롬프트·상품 문구·모델 응답이 LangSmith로 전송됨
+- `.env`를 읽는 실행은 모두 켜짐. 로컬 컨테이너도 다시 만들면 켜짐. 켜 둔 채 평가 러너를 돌리면 호출이 진단으로 묶이지 않고 하나씩 전송됨 → 앞에 `LANGSMITH_TRACING=false`를 붙임
+- 테스트는 항상 끔 (`tests/conftest.py`)
+- 전송 서버 장애 때 진단 결과는 그대로. 오류 로그가 남고 프로세스 종료가 늦어질 수 있음
+- 모델·Tool 호출 외의 코드 판정과 외부 조회는 화면에 따로 보이지 않음
+- 화면의 비용은 LangSmith 단가 기준. 실제 비용은 `logs/usage.jsonl`로 봄

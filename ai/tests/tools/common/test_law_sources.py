@@ -2,8 +2,9 @@
 
 from datetime import date
 
-from app.schemas.clients.law_response import AdmrulSearchItem, AdmrulSearchResponse
+from app.clients.law.schemas.response import AdmrulSearchItem, AdmrulSearchResponse
 from app.schemas.schemas import ToolName
+from app.tools.advertising import evidence as advertising
 from app.tools.children import evidence as children
 from app.tools.common.law_sources import LAW_SOURCES, LawSource, applied_version
 from app.tools.customs import evidence as customs
@@ -36,6 +37,10 @@ def test_Tool이_불러오는_문서가_모두_들어_있다():
             food_drug.DEVICE_RULE, food_drug.HEALTH_FOOD_ACT, food_drug.COSMETICS_ACT, food_drug.COSMETICS_RULE)),
         LawSource(*food_drug.DEVICE_NOTICE, True, ToolName.FOOD_DRUG),
         LawSource(*food_drug.COSMETICS_NOTICE, True, ToolName.FOOD_DRUG),
+        LawSource(*advertising.LAW_ACT, False, ToolName.LABEL_AD),
+        *(LawSource(*doc, True, ToolName.LABEL_AD) for doc in (
+            advertising.DESIGNATION_NOTICE, advertising.SUBSTANTIATION_NOTICE, advertising.AWARD_CERT_GUIDELINE,
+            advertising.CONSUMER_SAFETY_GUIDELINE)),
     }
 
     assert expected <= set(LAW_SOURCES)

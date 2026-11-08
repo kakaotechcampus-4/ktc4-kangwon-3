@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 
 import deleteIcon from "@/assets/delete-gray.svg";
 import ImageLightbox from "@/components/common/ImageLightbox";
+import { cn } from "@/lib/cn";
 
 const thumbnailVariants = cva("relative", {
     variants: {
         thumbnailSize: {
-            lg: 'h-39 w-39',
+            lg: 'aspect-square w-full md:h-39 md:w-39',
             sm: 'h-16 w-16',
         },
     },
@@ -55,7 +56,7 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedIm
     return (
         <div className="flex w-full flex-col items-start gap-3.5">
             <div className="flex w-full items-center justify-between">
-                <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
+                <h3 className="text-base leading-6 font-semibold text-black md:text-xl">{title}</h3>
                 {hasOverflow && (
                     <button
                         type="button"
@@ -67,7 +68,7 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedIm
                     </button>
                 )}
             </div>
-            <div className="flex w-full flex-wrap gap-4">
+            <div className={cn(thumbnailSize === "sm" ? "flex w-full flex-wrap gap-4" : "grid w-full grid-cols-3 gap-3 md:flex md:flex-wrap md:gap-4")}>
                 {files.slice(0, visibleCount).map((file, index) => {
                     const isLastVisible = index === visibleCount - 1;
                     const showMoreOverlay = isLastVisible && hiddenCount > 0;

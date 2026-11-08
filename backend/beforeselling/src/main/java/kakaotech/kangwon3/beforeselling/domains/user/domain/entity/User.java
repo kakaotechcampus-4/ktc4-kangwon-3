@@ -56,6 +56,10 @@ public class User extends BaseEntity {
     @Column(name = "social_refresh_token", columnDefinition = "TEXT")
     private String socialRefreshToken;
 
+    // 개정 알림(마이페이지 배너·메일) 수신 여부
+    @Column(name = "law_amendment_alert_enabled", nullable = false)
+    private boolean lawAmendmentAlertEnabled = true;
+
     @Builder(access = AccessLevel.PRIVATE)
     private User(String email, String name, String socialId, SocialProvider socialProvider, Role role) {
         this.email = email;
@@ -81,6 +85,10 @@ public class User extends BaseEntity {
 
     public void updateName(String name) {
         this.name = name.trim();
+    }
+
+    public void updateLawAmendmentAlertEnabled(boolean lawAmendmentAlertEnabled) {
+        this.lawAmendmentAlertEnabled = lawAmendmentAlertEnabled;
     }
 
     private static String resolveName(String name) {

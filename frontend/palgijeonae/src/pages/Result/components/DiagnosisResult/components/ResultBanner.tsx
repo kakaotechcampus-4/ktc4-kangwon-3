@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { BANNER_ACTION_LABELS, BannerAction, resolveBannerConfig } from "@/pages/Result/components/DiagnosisResult/utils/bannerConfig";
 import { useRetryDiagnosis } from "@/pages/Result/hooks/useRetryDiagnosis";
 
-const ACTION_BUTTON_CLASS = "cursor-pointer rounded-full px-5 py-3 text-sm font-semibold text-white";
+const ACTION_BUTTON_CLASS = "w-full cursor-pointer rounded-full px-5 py-3 text-center text-sm font-semibold text-white md:w-auto";
 
 interface ResultBannerProps {
     product: ProductResult
@@ -46,10 +46,10 @@ function ResultBanner({ product, judgementPath, questionPath, onNextStepsClick }
     return (
         <DefaultBox tone={config.tone}>
             <div className={cn("flex flex-row items-center gap-4", config.textColorClass)}>
-                <img src={config.icon} alt="" className="h-10 w-10 shrink-0" />
+                <img src={config.icon} alt="" className="size-8.5 shrink-0 md:size-10" />
                 <div className="flex flex-col gap-2">
-                    <p className="text-lg font-bold">{title}</p>
-                    <p className="whitespace-pre-line text-base font-medium">{description}</p>
+                    <p className="text-base font-bold md:text-lg">{title}</p>
+                    <p className="whitespace-pre-line text-sm font-medium md:text-base">{description}</p>
                 </div>
             </div>
             {action && (

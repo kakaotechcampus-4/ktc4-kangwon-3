@@ -26,7 +26,7 @@ function WithdrawSection() {
     };
 
     return (
-        <div className="flex w-full items-center justify-between gap-4 border-t border-neutral-border/40 pt-6">
+        <div className="flex w-full flex-col items-start gap-3 border-t border-neutral-border/40 pt-6 md:flex-row md:items-center md:justify-between md:gap-4">
             <div className="flex flex-col gap-1">
                 <h3 className="text-base font-semibold text-black">회원 탈퇴</h3>
                 <p className="text-sm text-neutral-border">탈퇴하면 진단 기록이 모두 삭제되고 복구할 수 없어요.</p>

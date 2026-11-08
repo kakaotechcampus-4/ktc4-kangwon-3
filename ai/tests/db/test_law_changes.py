@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.db.law_changes import LawChangeKind, detect_changes, versions_of
-from app.schemas.clients.law_response import AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse
+from app.clients.law.schemas.response import AdmrulSearchItem, AdmrulSearchResponse, LawSearchItem, LawSearchResponse
 
 
 @dataclass(frozen=True)
@@ -77,3 +77,22 @@ def test_행정규칙도_발령일로_같은_변경을_찾는다():
     assert _kinds(detect_changes(NOTICE, listed, listed, today=date(2026, 11, 1), select=_latest_issued)) == [
         (LawChangeKind.SKIPPED, "2100000283202", None)]
     assert detect_changes(NOTICE, listed, listed, today=date(2026, 11, 2), select=_latest_issued) == []
+
+
+def test_검색_응답의_제개정구분을_판에_담는다():
+    law = LawSearchResponse(total_count=1, items=[LawSearchItem(
+        mst="285339", law_id=LAW.document_id, law_name=LAW.name, revision_type="일부개정")])
+    notice = AdmrulSearchResponse(total_count=1, items=[AdmrulSearchItem(
+        serial_number="2100000285148", rule_id=NOTICE.document_id, name=NOTICE.name, revision_type="제정")])
+
+    assert versions_of(LAW, law)[0].revision_type == "일부개정"
+    assert versions_of(NOTICE, notice)[0].revision_type == "제정"
+
+
+def test_제개정구분만_달라지면_새_판으로_보지_않는다():
+    def listed(revision_type):
+        return LawSearchResponse(total_count=1, items=[LawSearchItem(
+            mst="285339", law_id=LAW.document_id, law_name=LAW.name, promulgate_date="20260407",
+            enforce_date="20261008", revision_type=revision_type)])
+
+    assert detect_changes(LAW, listed("일부개정"), listed("타법개정"), today=date(2026, 10, 27), select=None) == []

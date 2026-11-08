@@ -6,8 +6,8 @@ from pydantic import ValidationError
 
 from app.clients.marketplace import BlockedUrlError, MarketplaceBaseClient, PageTooLargeError, matches_domain
 from app.clients.marketplace.base import MAX_REDIRECTS
-from app.schemas.clients.marketplace_request import ProductPageRequest
-from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from app.clients.marketplace.schemas.request import ProductPageRequest
+from app.clients.marketplace.schemas.response import ProductPage, ProductPageImage
 
 URL = "https://yuntan.en.made-in-china.com/product/jZbflYzyZctU/China-Power-Bank.html"
 

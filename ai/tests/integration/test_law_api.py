@@ -3,7 +3,7 @@
 import pytest
 
 from app.clients.law import AnnexFileClient, LawSearchClient, LawTextClient
-from app.schemas.clients.law_request import AnnexFileRequest, LawSearchRequest, LawTextRequest
+from app.clients.law.schemas.request import AnnexFileRequest, LawSearchRequest, LawTextRequest
 from app.utils.annex_file import Table, read_annex_file
 
 pytestmark = pytest.mark.external_api

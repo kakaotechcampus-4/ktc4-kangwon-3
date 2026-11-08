@@ -6,7 +6,7 @@ import re
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-from ...schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from .schemas.response import ProductPage, ProductPageImage
 from .base import MarketplaceBaseClient
 
 # 이미지 주소: //image.made-in-china.com/{크기}j00{사진 ID}/{이름}.{확장자}

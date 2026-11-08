@@ -13,7 +13,7 @@ interface ProductInfoCardProps {
     sourceText: string | null
 }
 
-const VALUE_CLASS = "flex-1 text-base text-black";
+const VALUE_CLASS = "text-base text-black md:flex-1";
 
 function ProductInfoCard({ productName, sourceType, sourceUrl, sourceText }: ProductInfoCardProps) {
     return (

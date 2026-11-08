@@ -8,7 +8,7 @@
 import httpx
 
 from .base import FdaBaseClient
-from ...schemas.clients.fda_response import MedicalDeviceItem, MedicalDeviceResponse
+from .schemas.response import MedicalDeviceItem, MedicalDeviceResponse
 
 
 class MedicalDeviceClient(FdaBaseClient[MedicalDeviceResponse]):

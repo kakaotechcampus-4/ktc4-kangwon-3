@@ -3,6 +3,9 @@ package kakaotech.kangwon3.beforeselling.domains.user.presentation.controller;
 import jakarta.servlet.http.Cookie;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.UserProfileModifyRequest;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.UserProfileResponse;
+import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.NotificationSettingModifyRequest;
+import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.NotificationSettingResponse;
+import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.NotificationSettingUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.UserProfileUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.application.usecase.UserWithdrawalUseCase;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
@@ -69,6 +72,9 @@ class UserControllerTest {
 
     @MockitoBean
     private UserProfileUseCase userProfileUseCase;
+
+    @MockitoBean
+    private NotificationSettingUseCase notificationSettingUseCase;
 
     @MockitoBean
     private JwtProvider jwtProvider;
@@ -211,5 +217,52 @@ class UserControllerTest {
     private Authentication loginUser(UUID userId) {
         return UsernamePasswordAuthenticationToken.authenticated(
                 new UserPrincipal(userId, Role.USER), null, List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
+    }
+
+    @Test
+    @DisplayName("내 알림 설정을 조회하면 개정 알림 수신 여부를 응답한다.")
+    void getMyNotificationSetting_thenReturnSetting() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        given(notificationSettingUseCase.getMyNotificationSetting(userId))
+                .willReturn(new NotificationSettingResponse(true));
+
+        // when & then
+        mockMvc.perform(get("/api/v1/users/me/notification-settings")
+                        .with(authentication(loginUser(userId))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.lawAmendmentAlertEnabled").value(true));
+    }
+
+    @Test
+    @DisplayName("개정 알림 수신을 끄면 바뀐 알림 설정을 응답한다.")
+    void modifyMyNotificationSetting_thenReturnModifiedSetting() throws Exception {
+        // given
+        UUID userId = UUID.randomUUID();
+        given(notificationSettingUseCase.modifyMyNotificationSetting(userId, new NotificationSettingModifyRequest(false)))
+                .willReturn(new NotificationSettingResponse(false));
+
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/me/notification-settings")
+                        .with(authentication(loginUser(userId)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"lawAmendmentAlertEnabled": false}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.lawAmendmentAlertEnabled").value(false));
+    }
+
+    @Test
+    @DisplayName("개정 알림 수신 여부를 보내지 않으면 400과 COMMON-002 코드를 응답하고 설정을 바꾸지 않는다.")
+    void modifyMyNotificationSetting_withoutValue_thenBadRequest() throws Exception {
+        // when & then
+        mockMvc.perform(patch("/api/v1/users/me/notification-settings")
+                        .with(authentication(loginUser(UUID.randomUUID())))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"));
+        then(notificationSettingUseCase).should(never()).modifyMyNotificationSetting(any(), any());
     }
 }

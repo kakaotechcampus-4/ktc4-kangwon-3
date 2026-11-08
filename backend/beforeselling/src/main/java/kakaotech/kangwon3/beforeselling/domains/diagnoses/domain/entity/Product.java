@@ -322,6 +322,25 @@ public class Product extends BaseEntity {
         this.requestedAt = LocalDateTime.now();
     }
 
+    // 진단을 마친 상품을 처음부터 다시 진단한다. 결과는 새 결과로 바뀌므로 이전 결과·질문·진행 상태를 지운다.
+    public void rediagnose() {
+        if (processingStatus != ProcessingStatus.COMPLETED) {
+            throw new BaseException(CommonResponseCode.CONFLICT);
+        }
+
+        this.processingStatus = ProcessingStatus.IN_PROGRESS;
+        this.runId = null;
+        this.assessmentStatus = null;
+        this.resultStatus = null;
+        this.summary = null;
+        toolReviews.clear();
+        requiredActions.clear();
+        notices.clear();
+        questions.clear();
+        progresses.clear();
+        this.requestedAt = LocalDateTime.now();
+    }
+
     // 재요청 기한을 넘겼는지. 컬럼 추가 전에 만든 상품은 생성 시각을 기준으로 한다.
     public boolean isRequestedBefore(LocalDateTime deadline) {
         LocalDateTime requested = requestedAt != null ? requestedAt : getCreatedAt();

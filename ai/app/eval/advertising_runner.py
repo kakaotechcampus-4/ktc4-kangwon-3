@@ -14,6 +14,7 @@ import json
 import sys
 import time
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 from ..agents.base import AgentError
@@ -23,6 +24,8 @@ from ..schemas.agent import ToolSelectionItem
 from ..schemas.product import Product
 from ..schemas.schemas import ToolName
 from ..tools.advertising import AdvertisingReviewer, AdvertisingTool
+from ..tools.advertising.evidence import load_advertising_evidence
+from ..tools.common.law import KST, CachedLoader, LawApiClients
 from .advertising_scoring import CaseScore, load_eval_set, score_case
 from .runner import _AI_ROOT, RESULT_DIR, describe_metadata, run_metadata
 
@@ -154,14 +157,20 @@ def main() -> int:
         reviewer = AdvertisingReviewer(model, configured_model=name, usage_agent="advertising-eval")
     else:
         reviewer = AdvertisingReviewer(usage_agent="advertising-eval")
-    tool = AdvertisingTool(reviewer=reviewer)
+    law_client = LawApiClients.from_oc(load_settings().law_oc)
+    evidence = CachedLoader(lambda as_of: load_advertising_evidence(law_client, as_of))
+    today = datetime.now(KST).date()
+    tool = AdvertisingTool(reviewer=reviewer, evidence=lambda: evidence.load(today))
     targets = [case["product_id"] for case in truth["cases"] if not args.only or case["product_id"] in args.only]
     meta = run_metadata(runs=args.runs, profile=profile, prompt=reviewer.prompt)
     meta["inputs_sha256_12"] = truth["inputs_sha256_12"]
     meta["truth"] = args.truth.name
     print(describe_metadata(meta))
 
-    results = {product_id: run_case(tool, product_id, inputs[product_id], args.runs) for product_id in targets}
+    try:
+        results = {product_id: run_case(tool, product_id, inputs[product_id], args.runs) for product_id in targets}
+    finally:
+        law_client.close()
     out = args.out or RESULT_DIR / f"advertising-{time.strftime('%Y%m%d-%H%M%S')}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({"meta": meta, "results": results}, ensure_ascii=False, indent=1), encoding="utf-8")

@@ -8,7 +8,7 @@ import pytest
 from app.domain.context import ExecutionContext, RunType
 from app.observability.logs import current_run_fields, run_log_context
 from app.observability.measurements import CacheLookup, measurement_sinks
-from app.schemas.clients.customs_response import CustomsGwConfirmation, CustomsGwConfirmationResponse
+from app.clients.customs.schemas.response import CustomsGwConfirmation, CustomsGwConfirmationResponse
 from app.tools.common.law import EvidenceUnavailable
 from app.tools.customs.search import ClipCaseSearch, DatabaseFirstCaseSearch, GwRequirementLookup, requirement_lookup
 

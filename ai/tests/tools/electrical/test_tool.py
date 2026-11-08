@@ -4,7 +4,7 @@ import pytest
 
 from app.agents.verification import VerificationAgent
 from app.schemas.agent import ToolSelectionItem
-from app.schemas.electrical import ElectricalFact, ElectricalFacts, ElectricalReview, ElectricalSelection
+from app.tools.electrical.schemas import ElectricalFact, ElectricalFacts, ElectricalReview, ElectricalSelection
 from app.schemas.product import Product
 from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
@@ -74,7 +74,7 @@ class Search:
 @pytest.fixture(autouse=True)
 def no_usage_file(monkeypatch):
     # 테스트가 운영 사용량 로그를 변경하지 않도록 한다.
-    monkeypatch.setattr("app.usage.record", lambda *a, **kw: None)
+    monkeypatch.setattr("app.observability.usage.record", lambda *a, **kw: None)
 
 
 def decision(selected=True):

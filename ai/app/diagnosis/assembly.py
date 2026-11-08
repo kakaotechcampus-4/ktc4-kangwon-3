@@ -15,6 +15,7 @@ from ..pipeline.runner import SelectionStage, VerificationStage
 from ..pipeline.url_source import UrlSourceBuilder
 from ..schemas.schemas import ToolName
 from ..tools.advertising import AdvertisingTool
+from ..tools.advertising.search import evidence_loader as advertising_evidence_loader
 from ..tools.base import RegulatoryTool
 from ..tools.children import ChildrenTool
 from ..tools.children.search import item_search as children_item_search
@@ -64,7 +65,7 @@ def build_tools() -> dict[ToolName, RegulatoryTool]:
         FoodDrugTool(evidence=food_drug_evidence_loader()),
         ElectricalTool(item_search=electrical_item_search()),
         ChildrenTool(item_search=children_item_search()),
-        AdvertisingTool(),
+        AdvertisingTool(evidence=advertising_evidence_loader()),
     ]
     return {tool.tool_name: tool for tool in tools}
 

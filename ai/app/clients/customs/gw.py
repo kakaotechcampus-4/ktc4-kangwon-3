@@ -11,8 +11,8 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from ..data_go_kr import DataGoKrClient
-from ...schemas.clients.customs_request import CustomsGwConfirmationRequest
-from ...schemas.clients.customs_response import (
+from .schemas.request import CustomsGwConfirmationRequest
+from .schemas.response import (
     CustomsGwConfirmation,
     CustomsGwConfirmationResponse,
 )
