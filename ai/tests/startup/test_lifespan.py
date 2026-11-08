@@ -21,6 +21,8 @@ from app.sessions.manager import SessionManager
 from app.startup.parts import AppDatabase
 from tests.app_harness import TOKEN, FakeBackend, app_env, client, fake_parts, wait_until
 
+pytestmark = pytest.mark.integration
+
 PRODUCT = {"diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}]}
 
 

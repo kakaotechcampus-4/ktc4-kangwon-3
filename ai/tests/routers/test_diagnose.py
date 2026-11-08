@@ -32,6 +32,8 @@ _SETTINGS = config.Settings(
     data_go_kr_key="k", safetykorea_key="k", law_oc="oc", internal_api_token=TOKEN,
     be_base_url="http://be-server:8080", database_url="",
 )
+pytestmark = pytest.mark.integration
+
 CONTENT = "/api/ai/v1/dummy/diagnose/content"
 PRODUCTION_CONTENT = "/api/ai/v1/diagnose/content"
 

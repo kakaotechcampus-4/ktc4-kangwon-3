@@ -9,6 +9,8 @@ from app.routers.exception_handlers import register_exception_handlers
 from app.routers import dev_auth
 from app.routers.dev_auth import DEV_API_KEY_HEADER, require_dev_api_key
 
+pytestmark = pytest.mark.integration
+
 KEY = "test-dev-api-key-0123456789abcdefgh"
 _BASE = {
     "api_key": "test-key", "base_url": "https://mlapi.run/example/v1",

@@ -14,6 +14,8 @@ from app.domain.context import PipelineStage
 from app.schemas.request import DiagnosisRequest
 from app.schemas.response import DiagnosisConflict
 
+pytestmark = pytest.mark.integration
+
 
 def _build_app() -> FastAPI:
     test_app = FastAPI()
