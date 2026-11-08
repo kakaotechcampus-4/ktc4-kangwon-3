@@ -53,7 +53,7 @@ function HowToUseStep({ stepNumber, isLast, title, tag, description, tips, previ
                     </ul>
                 </div>
                 <div className="rounded-2xl border border-box-line bg-white p-2.5 md:p-3.5">
-                    <div className="w-full bg-white p-4 rounded-xl border border-neutral-line">
+                    <div className="w-full bg-white p-3 md:p-4 rounded-xl border border-neutral-line">
                     {preview}
                     </div>
                 </div>

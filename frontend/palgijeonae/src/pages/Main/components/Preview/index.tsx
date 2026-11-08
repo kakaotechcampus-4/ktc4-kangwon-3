@@ -38,7 +38,7 @@ function Preview() {
                                 <div
                                     key={slide.key}
                                     className={cn(
-                                        "col-start-1 row-start-1 overflow-hidden p-5 rounded-xl border border-box-line bg-white transition-opacity duration-450",
+                                        "col-start-1 row-start-1 overflow-hidden p-3 md:p-5 rounded-xl border border-box-line bg-white transition-opacity duration-450",
                                         isActive ? "visible opacity-100" : "invisible opacity-0",
                                     )}
                                 >
