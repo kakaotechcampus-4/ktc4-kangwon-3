@@ -18,6 +18,7 @@ interface InputFormProps {
 
 // 입력 방식별 안내 문구
 const HELP_CONTENT: Record<InputFormProps["type"], { text: string; tooltip: string }> = {
+    // 가능한 도메인 판단은 AI에게 맡기므로 FE는 지원 사이트 목록을 노출하거나 도메인을 검증하지 않는다. 진단 중 실패하면 결과 페이지에서 안내한다.
     [SourceType.Url]: {
         text: "상세정보가 포함된 판매할 제품의 링크를 첨부하세요.",
         tooltip: "일부 링크는 AI가 접근하기 어려울 수 있습니다. 실패 시 텍스트 / 이미지 입력을 사용해주세요.",
