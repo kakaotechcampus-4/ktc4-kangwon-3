@@ -169,9 +169,10 @@ flowchart LR
 |---|---|---|
 | 추출 | 상품 23개 | [EXTRACTION_EVAL.md](docs/EXTRACTION_EVAL.md) |
 | 선택 | 상품 11개 × Tool 6개 | [SELECTION_EVAL.md](docs/SELECTION_EVAL.md) |
+| 시나리오 (추출 → 선택 끝단) | 상품 65개 (개발 50, 홀드아웃 15) | [SCENARIO_EVAL.md](docs/SCENARIO_EVAL.md) |
 | 통관·전기안전·식약·표시광고 | Tool별 정답표 | 각 Tool 문서 ([문서](#문서)) |
 
-측정에서 찾은 실패는 원인을 분석해 프롬프트·규칙·후처리를 고치고, 같은 조건으로 재측정한 결과를 PR에 남깁니다. 수정마다 평가에 쓰지 않은 상품으로도 재측정해 평가셋에만 맞춘 수정이 아닌지 확인합니다.
+측정에서 찾은 실패는 원인을 분석해 프롬프트·규칙·후처리를 고치고, 같은 조건으로 재측정한 결과를 PR에 남깁니다. 수정마다 평가에 쓰지 않은 상품으로도 재측정해 평가셋에만 맞춘 수정이 아닌지 확인합니다. 시나리오 평가는 실제 상품 원문을 사용자가 붙여 넣는 그대로 넣고 추출 → 선택을 이어 돌려, 걸리는 규제 분야를 빠짐없이 골랐는지 상품 단위로 셉니다.
 
 아래는 그렇게 고친 사례 중 일부입니다. 전체 수정 기록은 [AI fix PR 목록](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pulls?q=is%3Apr+is%3Amerged+%22%5BAI%5D+fix%22+in%3Atitle)에서 볼 수 있습니다.
 
@@ -390,7 +391,7 @@ uvicorn app.main:app --reload   # http://localhost:8000/docs
 | [DB_CACHE.md](docs/DB_CACHE.md) | 외부 API 캐시, 법령 개정 확인 |
 | [AI_SESSION_ARCHIVE.md](docs/AI_SESSION_ARCHIVE.md) | 진단 세션 DB 보관과 재시작 복원 |
 | [TEST_STRATEGY.md](docs/TEST_STRATEGY.md) | 테스트 계층, 지표, 테스트셋 구성 기준 |
-| [EXTRACTION_EVAL.md](docs/EXTRACTION_EVAL.md), [SELECTION_EVAL.md](docs/SELECTION_EVAL.md) | 추출·선택 평가 |
+| [EXTRACTION_EVAL.md](docs/EXTRACTION_EVAL.md), [SELECTION_EVAL.md](docs/SELECTION_EVAL.md), [SCENARIO_EVAL.md](docs/SCENARIO_EVAL.md) | 추출·선택·시나리오 끝단 평가 |
 | [CUSTOMS](docs/CUSTOMS_TOOL.md), [ELECTRICAL](docs/ELECTRICAL_TOOL.md), [RADIO](docs/RADIO_TOOL.md), [FOOD_DRUG](docs/FOOD_DRUG_TOOL.md), [CHILDREN](docs/CHILDREN_TOOL.md) | 분야별 Tool 설계와 평가 |
 
 ---
