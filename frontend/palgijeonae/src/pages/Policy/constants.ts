@@ -243,7 +243,7 @@ const PRIVACY: PolicyDocument = {
                     name: "Functional Software, Inc. (Sentry)",
                     rows: [
                         { label: "이전 국가", value: "미국" },
-                        { label: "이전 항목", value: "오류 발생 시 접속 정보·브라우저 정보·오류 로그" },
+                        { label: "이전 항목", value: "오류 발생 시 회원 식별자(내부 ID)·접속 정보·브라우저 정보·오류 로그" },
                         { label: "시기·방법", value: "오류 발생 시 네트워크로 전송" },
                         { label: "목적", value: "서비스 오류 모니터링" },
                         { label: "보유 기간", value: "각 업체의 개인정보 처리 정책에 따름" },
