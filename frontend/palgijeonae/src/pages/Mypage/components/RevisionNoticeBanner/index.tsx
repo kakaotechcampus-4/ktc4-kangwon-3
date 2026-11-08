@@ -28,12 +28,12 @@ function RevisionNoticeBanner({ lawAmendments }: RevisionNoticeBannerProps) {
         });
     };
 
-    const { mutate: rediagnose, isPending, variables: rediagnosingProductId } = useRediagnoseProduct();
+    const { mutate: rediagnose, isPending, variables: rediagnosingProduct } = useRediagnoseProduct();
 
     // 이전 진단 결과가 지워져 되돌릴 수 없으므로 먼저 확인한다.
     const handleRediagnose = (product: RecheckProduct) => {
         if (confirm(`'${product.productName}'을(를) 다시 진단할까요? 이전 진단 결과는 사라지고, 되돌릴 수 없어요.`)) {
-            rediagnose(product.productId);
+            rediagnose(product);
         }
     };
 
@@ -56,7 +56,7 @@ function RevisionNoticeBanner({ lawAmendments }: RevisionNoticeBannerProps) {
                             amendment={amendment}
                             expanded={expandedIds.has(amendment.lawAmendmentId)}
                             onToggle={() => toggle(amendment.lawAmendmentId)}
-                            rediagnosingProductId={isPending ? rediagnosingProductId : undefined}
+                            rediagnosingProductId={isPending ? rediagnosingProduct?.productId : undefined}
                             onRediagnose={handleRediagnose}
                         />
                     ))}

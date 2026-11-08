@@ -687,7 +687,7 @@ const LAW_AMENDMENTS = [
     lawName: ELECTRICAL_LAW,
     products: [
       buildRecheckProduct({ productId: 'product-1', productName: '무드등' }),
-      buildRecheckProduct({ productId: 'product-2', productName: '선풍기' }),
+      buildRecheckProduct({ productId: 'product-2', diagnosesId: 'diagnoses-2', productName: '선풍기' }),
     ],
   }),
   buildLawAmendment({
@@ -752,7 +752,9 @@ describe('마이페이지 - 개정 알림', () => {
     expectConfirmed(MYPAGE_MESSAGES.rediagnoseConfirm('선풍기'))
     expect(await findStubScreen('진행 화면')).toBeInTheDocument()
     expect(requestLog.find('POST', '/api/v1/products/product-2/rediagnosis')).toHaveLength(1)
-    expect(getCurrentLocation()).toBe('/judgement/diagnoses-1')
+    expect(getCurrentLocation()).toBe('/judgement/diagnoses-2')
+    // 개정 알림 응답의 diagnosesId로 이동하므로 상품을 따로 조회하지 않는다.
+    expect(requestLog.find('GET', '/api/v1/products/product-2')).toHaveLength(0)
     expectNotNotified()
   })
 
