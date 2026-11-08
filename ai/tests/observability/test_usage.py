@@ -5,9 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from app import usage
 from app.config import Price
 from app.clients.llm.decision.schemas.response import DecisionUsage
+from app.observability import usage
 
 
 def test_handler_사용량을_합산하고_캐시_입력을_분리한다():

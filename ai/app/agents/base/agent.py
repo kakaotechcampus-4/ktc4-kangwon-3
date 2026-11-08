@@ -22,10 +22,10 @@ from ...clients.llm.decision import (
 from ...config import DecisionProfile, agent_decision_profile
 from ...observability.agent_sinks import agent_sinks
 from ...observability.trace import current_trace
+from ...observability.usage import CallUsage, estimate_krw, from_completion, from_decision, from_response
 from ...prompts import PromptName, PromptSnapshot, get_prompt
 from ...clients.llm.decision.schemas.request import DecisionQuestion, DecisionRequest
 from ...clients.llm.decision.schemas.response import DecisionResponse
-from ...usage import CallUsage, estimate_krw, from_completion, from_decision, from_response
 from .errors import AgentError, MissingParsedOutput, ModelFailurePhase
 from .guardrail import attach_guardrail, extra_guardrail_path, get_guardrail
 from .meta import AgentResult, AgentRunMeta

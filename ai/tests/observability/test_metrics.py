@@ -19,7 +19,7 @@ from app.schemas.agent import ExtractionInput
 from app.schemas.callback import PublicQuestionDto
 from app.schemas.schemas import ExecutionEndReason, FinalVerificationStatus, ToolName
 from app.schemas.session import DiagnosisSession, SessionStatus
-from app.usage import CallUsage
+from app.observability.usage import CallUsage
 from app.sessions.events import SessionEvent
 from app.sessions.manager import SessionSnapshot
 from app.sessions.transitions import AskUser, Change, ChangeStage, Complete, Fail, ReportTool, Resume, Start, apply

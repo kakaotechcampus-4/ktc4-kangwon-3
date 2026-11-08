@@ -4,7 +4,7 @@ from time import perf_counter
 
 from app.observability.agent_sinks import agent_sinks
 from app.clients.llm.decision.schemas.request import YesNoQuestion
-from app.usage import CallUsage
+from app.observability.usage import CallUsage
 
 
 def test_성공하면_사용량을_한_번_기록한다(fakes, stub_model, records):
