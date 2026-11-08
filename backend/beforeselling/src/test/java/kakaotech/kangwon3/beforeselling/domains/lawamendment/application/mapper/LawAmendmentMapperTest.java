@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.lawamendment.application.mapper;
 
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Diagnoses;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.Product;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceType;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
@@ -60,9 +61,11 @@ class LawAmendmentMapperTest {
         // given
         LawAmendment children = lawAmendment("어린이제품 안전 특별법 시행규칙", ToolName.CHILDREN);
         LawAmendment electrical = lawAmendment("전기용품 안전기준", ToolName.ELECTRICAL);
-        Product toy = product("대나무 헬리콥터");
-        Product doll = product("인형");
-        Product charger = product("충전기");
+        Diagnoses firstDiagnoses = diagnoses();
+        Diagnoses secondDiagnoses = diagnoses();
+        Product toy = product(firstDiagnoses, "대나무 헬리콥터");
+        Product doll = product(secondDiagnoses, "인형");
+        Product charger = product(firstDiagnoses, "충전기");
         List<LawAmendmentProduct> recheckProducts = List.of(
                 LawAmendmentProduct.of(children, toy),
                 LawAmendmentProduct.of(electrical, charger),
@@ -83,11 +86,15 @@ class LawAmendmentMapperTest {
                                 LocalDate.of(2026, 10, 20)));
         assertThat(response.lawAmendments().getFirst().products())
                 .extracting(LawAmendmentResponse.RecheckProductResponse::productId,
+                        LawAmendmentResponse.RecheckProductResponse::diagnosesId,
                         LawAmendmentResponse.RecheckProductResponse::productName)
-                .containsExactly(tuple(toy.getId(), "대나무 헬리콥터"), tuple(doll.getId(), "인형"));
+                .containsExactly(
+                        tuple(toy.getId(), firstDiagnoses.getId(), "대나무 헬리콥터"),
+                        tuple(doll.getId(), secondDiagnoses.getId(), "인형"));
         assertThat(response.lawAmendments().get(1).products())
-                .extracting(LawAmendmentResponse.RecheckProductResponse::productName)
-                .containsExactly("충전기");
+                .extracting(LawAmendmentResponse.RecheckProductResponse::diagnosesId,
+                        LawAmendmentResponse.RecheckProductResponse::productName)
+                .containsExactly(tuple(firstDiagnoses.getId(), "충전기"));
     }
 
     @Test
@@ -110,8 +117,15 @@ class LawAmendmentMapperTest {
         return lawAmendment;
     }
 
-    private Product product(String productName) {
+    private Diagnoses diagnoses() {
+        Diagnoses diagnoses = Diagnoses.pending(UUID.randomUUID());
+        ReflectionTestUtils.setField(diagnoses, "id", UUID.randomUUID());
+        return diagnoses;
+    }
+
+    private Product product(Diagnoses diagnoses, String productName) {
         Product product = Product.pending(productName, null, SourceType.URL, "https://example.com", null);
+        diagnoses.addProducts(List.of(product));
         ReflectionTestUtils.setField(product, "id", UUID.randomUUID());
         return product;
     }

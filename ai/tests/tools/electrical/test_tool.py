@@ -210,7 +210,7 @@ def test_전압이_없어도_품목_검토는_하고_전압을_질문으로_남�
     result, model, _ = run(product, facts, review(select(FAN_ROW, rationale="선풍기 품목입니다. 전압 확인 필요.")))
 
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
-    assert "정격 전압 정보가 필요합니다." in result.missing_information
+    assert "제품의 정격 전압 확인이 필요합니다." in result.missing_information
     assert result.query["low_voltage"] is None
     assert model.calls == [ElectricalFacts, ElectricalReview]
 
@@ -243,7 +243,7 @@ def test_제품_종류가_없으면_조회하지_않는다():
     product, facts = product_and_facts(values=(("power_source", "AC"), ("rated_voltage", "220V")))
     result, model, search = run(product, facts)
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
-    assert "제품 종류 정보가 필요합니다." in result.missing_information
+    assert "어떤 제품인지(제품 종류) 확인이 필요합니다." in result.missing_information
     assert model.calls == [ElectricalFacts] and search.calls == 0
 
 
@@ -260,7 +260,7 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다(problem
     result, _, search = run(product, facts)
 
     assert result.status is ToolStatus.SUCCESS
-    assert result.missing_information == ["제품 종류 정보가 필요합니다."]
+    assert result.missing_information == ["어떤 제품인지(제품 종류) 확인이 필요합니다."]
     assert result.query["dropped_facts"] == 1
     assert search.calls == 0
 
@@ -271,7 +271,7 @@ def test_저전압_기준_양쪽에_걸친_전압은_충돌로_묻고_저전압�
     facts.facts.append(ElectricalFact(field="rated_voltage", value="24V", evidence_id="listing-1", quote="정격 24V"))
     result, _, _ = run(product, facts, review(select()))
     assert "정격 전압 정보가 서로 달라 확인이 필요합니다." in result.missing_information
-    assert "정격 전압 정보가 필요합니다." not in result.missing_information
+    assert "제품의 정격 전압 확인이 필요합니다." not in result.missing_information
     assert result.query["conflicted"] == ["rated_voltage"]
     assert result.query["low_voltage"] is None
 
@@ -360,7 +360,7 @@ def test_전기_조건이_있으면_맞는_품목이_없어도_빠진_전압을_
     product, facts = product_and_facts("USB 충전식 미니 가습기",
                                        (("product_type", "미니 가습기"), ("power_source", "USB 충전식")))
     result, _, _ = run(product, facts, review())
-    assert result.missing_information == ["정격 전압 정보가 필요합니다."]
+    assert result.missing_information == ["제품의 정격 전압 확인이 필요합니다."]
 
 
 # -- 저전압 규칙 (운용요령 제3조) --
@@ -440,7 +440,7 @@ def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후�
     assert finding.determination is Determination.POSSIBLY_REQUIRED
     assert any("전지(건전지·충전지)만으로 동작하는 구조라면" in item for item in finding.assumptions)
     assert any("공통 비고" in (source.article or "") for source in finding.legal_sources)
-    assert any("건전지·충전지로만 동작" in question for question in result.missing_information)
+    assert any("건전지나 충전지로만 동작" in question for question in result.missing_information)
     assert '"common_notes"' in model.last_payload
 
 

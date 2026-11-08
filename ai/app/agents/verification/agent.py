@@ -15,6 +15,7 @@ from ...schemas.schemas import (
     VerificationStatus as Status,
 )
 from ...observability.usage import CallUsage
+from ...tools.common.questions import answered_questions, field_for
 from ..base import AgentResult, BaseAgent, ModelFailurePhase
 from .errors import VerificationError
 from .rules import DEFINITIVE, run_rule_checks
@@ -221,6 +222,14 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
                     action="completed_tool_requests_dropped",
                     status="completed",
                     detail=f"이미 성공한 Tool의 모델 재실행 요청 {len(dropped_tools)}건 제외: {dropped_tools}",
+                )
+            review, dropped = self._drop_covered_questions(review, draft)
+            if dropped:
+                self._append_trace(
+                    trace,
+                    action="covered_questions_dropped",
+                    status="completed",
+                    detail=f"Tool이 이미 묻거나 판매자가 답한 조건의 모델 질문 {len(dropped)}개 제외: {dropped}",
                 )
             result = self._merge(rules, review)
         except VerificationError as exc:
@@ -451,6 +460,29 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
         return review.model_copy(update={"additional_tools_required": kept}), dropped
 
     @staticmethod
+    def _drop_covered_questions(review: _Review, draft: DraftAssessment) -> tuple[_Review, list[str]]:
+        """Tool이 이번에 묻는 조건이나 판매자가 지난 회차에 답한 조건을 다시 묻는 모델 질문을 뺀다.
+
+        같은 정보를 말만 바꿔 두 번 묻지 않기 위함. 프롬프트로도 막지만 모델이 지키지 않을 때가 있어 코드로 확정.
+        Tool 질문은 진단 단계가 그대로 판매자 질문으로 옮기고, 답한 질문은 다시 묻지 않음 (diagnosis/job.py).
+
+        Args:
+            review: 모델 검토 결과.
+            draft: 검증한 심사 초안.
+
+        Returns:
+            tuple[_Review, list[str]]: (남긴 질문만 담은 검토 결과, 뺀 질문의 조건 필드).
+        """
+        asked = [text for record in draft.tool_results for text in record.missing_information]
+        asked += answered_questions(draft.product.listing_text)
+        covered = {field for field in map(field_for, asked) if field is not None}
+        kept = [q for q in review.follow_up_questions if q.topic not in covered]
+        dropped = [q.topic for q in review.follow_up_questions if q.topic in covered]
+        if not dropped:
+            return review, []
+        return review.model_copy(update={"follow_up_questions": kept}), dropped
+
+    @staticmethod
     def _unique_issues(issues: list[VerificationIssue]) -> list[VerificationIssue]:
         """내용이 같은 이슈를 처음 것만 남긴다 (issue_id 제외).
 
@@ -499,7 +531,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
         for question in review.follow_up_questions:
             existing = questions.get(question.question)
             if existing is None:
-                questions[question.question] = FollowUpQuestion(**question.model_dump())
+                questions[question.question] = FollowUpQuestion(**question.model_dump(exclude={"topic"}))
             # 규칙·모델에 같은 질문 → 한쪽이라도 필수면 필수로
             elif question.required and not existing.required:
                 questions[question.question] = existing.model_copy(update={"required": True})

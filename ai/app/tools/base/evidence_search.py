@@ -12,6 +12,7 @@ from ...schemas.product import Product
 from ...schemas.schemas import Determination, LegalSource, RegulatoryFinding, RiskLevel, ToolResult, ToolStatus
 from ..common.facts import group_facts, product_snippets, quote_matches
 from ..common.law import EvidenceUnavailable
+from ..common.questions import question_text
 from .errors import ToolModelError
 from .run import ToolRun
 from .steps import ToolStep, ToolStepInput
@@ -37,7 +38,8 @@ class EvidenceSearchTool(RegulatoryTool):
         review_step: 후보 선택 단계 클래스.
         error_class: 조회 실패 때 던질 예외. ToolModelError 하위.
         field_labels: 조건 필드 → 표시 이름.
-        questions: 재질문 문구. 없는 필드는 "{표시 이름} 정보가 필요합니다."
+        questions: Tool 고유 재질문 문구. 없는 필드는 공통 카탈로그(common/questions.py), 거기에도 없으면
+            "{표시 이름} 정보가 필요합니다."
         empty_fields: 인용할 원문이 없을 때 물을 필드.
         base_assumptions: 조건 추출 전부터 넣는 가정 (원문 범위 안내 다음).
         conflict_note: 추출 단계 모순 가정의 끝 문장.
@@ -353,6 +355,9 @@ class EvidenceSearchTool(RegulatoryTool):
     def _question(self, run: ToolRun, field: str) -> str:
         """재질문 문구. 값이 서로 달라 판단하지 않은 필드는 확인 요청 문구.
 
+        Tool 고유 문구(questions)가 우선이고, 나머지는 공통 카탈로그. 같은 조건은 어느 Tool이 물어도 같은 문장이어야
+        진단 단계가 질문 하나로 합친다.
+
         Args:
             run: 실행 상태.
             field: 조건 필드.
@@ -362,8 +367,8 @@ class EvidenceSearchTool(RegulatoryTool):
         """
         label = self.field_labels[field]
         if field in run.conflicted:
-            return f"{label} 정보가 서로 달라 확인이 필요합니다."
-        return self.questions.get(field, f"{label} 정보가 필요합니다.")
+            return question_text(field, label, conflicted=True)
+        return self.questions.get(field) or question_text(field, label)
 
     def _result(self, run: ToolRun, findings: list[RegulatoryFinding]) -> ToolResult:
         """결과를 조립한다. 판단이 비면 정보 부족 판단 하나를 넣음 (빈 후보를 비대상 근거로 쓰지 않음).

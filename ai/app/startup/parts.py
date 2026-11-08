@@ -7,12 +7,13 @@ from dataclasses import dataclass
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..agents.input_guard import InputGuardAgent
-from ..clients.backend import BackendCallbackClient
+from ..callbacks.law_changes import LawChangeNotifier
+from ..clients.backend import BackendCallbackClient, BackendLawChangeClient
 from ..clients.llm.embedding import embed_texts_sync
 from ..config import SESSION_DRAIN_SECONDS, SESSION_SWEEP_SECONDS, Settings
 from ..diagnosis import build_job, build_parts, build_questions, guarded
 from ..dummy import run_case_diagnosis
-from ..db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, SessionArchiveDatabase, build_law_fetchers,
+from ..db import (CUSTOMS_GW_CACHE, DatabaseNotConfiguredError, LawChange, SessionArchiveDatabase, build_law_fetchers,
                   get_session_factory, init_db, log_law_changes, purge_expired_responses, refresh_laws, run_law_refresh,
                   run_scheduled_clip_ingest, run_weekly_clip_ingest)
 from ..sessions.job import DiagnosisJob
@@ -30,7 +31,7 @@ class AppDatabase:
     Attributes:
         archive: 재시작 때 되살릴 세션 보관소.
         background: 기동 뒤 돌릴 예약 작업 (법령 점검·결정사례 적재). 종료 때 취소.
-        close: 예약 작업을 멈춘 뒤 부르는 정리 (법령 조회 연결 닫기).
+        close: 예약 작업을 멈춘 뒤 부르는 정리 (법령 변경 재시도 끊기, 법령 변경 전송·법령 조회 연결 닫기).
     """
 
     archive: SessionArchive
@@ -111,10 +112,22 @@ def _production_database(settings: Settings) -> AppDatabase:
     """
     session_factory = get_session_factory()
     law_fetchers = build_law_fetchers(settings.law_oc, session_factory, measure=False)
+    law_change_sender = BackendLawChangeClient(settings.be_base_url, settings.internal_api_token)
+    law_change_notifier = LawChangeNotifier(law_change_sender)
+
+    def on_law_changes(changes: list[LawChange]) -> None:
+        # 전체 변경을 먼저 로그로 남김 (못 보냈을 때 재전송 자료)
+        log_law_changes(changes)
+        law_change_notifier(changes)
 
     def daily_refresh() -> None:
-        refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version, on_change=log_law_changes)
+        refresh_laws(law_fetchers, LAW_SOURCES, select=applied_version, on_change=on_law_changes)
         purge_expired_responses(session_factory, [CUSTOMS_GW_CACHE])
+
+    def close() -> None:
+        law_change_notifier.close()
+        law_change_sender.close()
+        law_fetchers.close()
 
     def clip_ingest():
         return run_scheduled_clip_ingest(session_factory, embed=lambda texts: embed_texts_sync(texts, settings),
@@ -125,6 +138,6 @@ def _production_database(settings: Settings) -> AppDatabase:
         archive=SessionArchiveDatabase(session_factory),
         # 예약 작업: 법령 점검(매일, 기동 때는 안 돎. 시행예정 포함 본문), CLIP 결정사례 적재(매주 새 사례)
         background=(lambda: run_law_refresh(daily_refresh), lambda: run_weekly_clip_ingest(clip_ingest)),
-        # 법령 조회 연결 닫기 (실행 중 점검은 끝까지 돌고 닫힌 연결 오류는 그 문서 실패로 남음)
-        close=law_fetchers.close,
+        # 연결 닫기 (실행 중 점검은 끝까지 돌고 닫힌 연결 오류는 그 문서 실패로 남음)
+        close=close,
     )

@@ -45,6 +45,7 @@ public class LawAmendmentMapper {
                         LinkedHashMap::new,
                         Collectors.mapping(recheckProduct -> new RecheckProductResponse(
                                         recheckProduct.getProduct().getId(),
+                                        recheckProduct.getProduct().getDiagnoses().getId(),
                                         recheckProduct.getProduct().getProductName()),
                                 Collectors.toList())));
 

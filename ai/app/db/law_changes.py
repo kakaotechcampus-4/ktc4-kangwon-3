@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from enum import StrEnum
 from typing import Any, Protocol
@@ -41,11 +41,13 @@ class LawVersion:
         version: 법령일련번호(MST) 또는 행정규칙일련번호.
         enforce_date: 시행일(YYYYMMDD).
         issued_date: 공포일·발령일(YYYYMMDD).
+        revision_type: 제개정구분명 (제정, 일부개정 등). 표시용이라 판 비교에서 뺌.
     """
 
     version: str
     enforce_date: str | None
     issued_date: str | None
+    revision_type: str | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True)
@@ -86,10 +88,10 @@ def versions_of(source: LawSourceLike, response: Any) -> list[LawVersion]:
         list[LawVersion]: 목록 순서대로의 판.
     """
     if source.is_admrul:
-        return [LawVersion(item.serial_number, item.enforce_date, item.issue_date) for item in response.items
-                if item.rule_id == source.document_id and item.serial_number]
-    return [LawVersion(item.mst, item.enforce_date, item.promulgate_date) for item in response.items
-            if item.law_id == source.document_id and item.mst]
+        return [LawVersion(item.serial_number, item.enforce_date, item.issue_date, item.revision_type)
+                for item in response.items if item.rule_id == source.document_id and item.serial_number]
+    return [LawVersion(item.mst, item.enforce_date, item.promulgate_date, item.revision_type)
+            for item in response.items if item.law_id == source.document_id and item.mst]
 
 
 def detect_changes(source: LawSourceLike, before: Any | None, after: Any, *, today: date,

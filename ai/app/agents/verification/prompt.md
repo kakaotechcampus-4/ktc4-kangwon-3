@@ -58,6 +58,25 @@
 - 사용자 답변 없이는 검증할 수 없으면 질문의 `required`를 true로 둔다.
 - 참고 목적의 질문은 `required`를 false로 둔다.
 
+## 질문 작성 규칙
+
+`follow_up_questions`는 규제 지식이 없는 판매자가 읽고 바로 답할 수 있어야 한다.
+
+- `question`: **무엇을** 확인해야 하는지 상품에 맞춰 구체적으로 쓴다. 한 질문에 한 가지만 묻는다.
+  "기능 정보가 필요합니다"처럼 항목 이름만 적지 않는다.
+- `reason`: **어떻게** 답하면 되는지 예시를 들어 1~2문장으로 쓴다. 답이 예/아니오면 어느 경우가 예인지 적는다.
+  법령 이름이나 내부 용어(`determination`, Tool 이름 등)는 쓰지 않는다. 끝은 "~ 주세요"로 맺는다.
+- Tool 결과의 `missing_information`에 이미 있는 항목(전원 방식, 정격 전압 등)은 서버가 그대로 판매자 질문으로
+  옮기므로 **다시 묻지 않는다**. 같은 정보를 말만 바꿔 물으면 판매자가 같은 답을 두 번 쓰게 된다.
+  거기에 없는 정보만 질문한다.
+- 상품 정보 `listing_text`의 `[사용자 답변]` 줄은 판매자가 지난 회차에 이미 답한 내용이다. 답이 "모르겠어요"였더라도
+  같은 정보를 다시 묻지 않는다. 판매자도 모르는 정보는 질문이 아니라 지적으로 남긴다.
+
+| 나쁜 예 | 좋은 예 |
+| --- | --- |
+| question: "기능 정보가 필요합니다." / reason: "통관 판단에 필요한 정보예요." | question: "선풍기에 어떤 기능이 있는지 확인이 필요합니다." / reason: "회전, 풍량 3단 조절, 타이머처럼 기능을 하나씩 나열해 주세요." |
+| question: "전원 방식 정보가 필요합니다." / reason: "전기용품 판단에 필요한 정보예요." | question: "선풍기가 어떤 전원으로 작동하는지 확인이 필요합니다." / reason: "콘센트에 꽂아 사용(AC 220V), USB 충전, 건전지 중 무엇인지 적어 주세요. 어댑터가 함께 오면 그것도 적어 주세요." |
+
 최종 `status`는 이 출력과 코드 규칙 검사 결과를 합친 뒤 서버가 계산한다.
 모델은 `status`를 출력하지 않는다. 최종 승인은 규제 면제나 기관 승인을 뜻하지 않는다.
 
@@ -69,3 +88,10 @@
 - `additional_tools_required`에는 입력에 쓰인 툴 이름만 넣는다. 중복은 넣지 않는다.
 - 최종 `review_summary`는 규칙 검사 결과와 병합한 뒤 서버가 생성하므로 출력하지 않는다.
 - `recommended_action`은 다음에 무엇을 하면 되는지 한 문장으로 쓴다. 없으면 null.
+- `follow_up_questions[].topic`은 그 질문이 묻는 상품 조건이다. 아래 중 하나를 고르고, 어디에도 맞지 않으면 `other`.
+  `product_type`(제품 종류) `material`(재질) `intended_use`(용도) `function`(기능) `composition`(구성품)
+  `power_source`(전원 방식) `rated_voltage`(정격 전압) `rated_power`(정격 소비전력) `battery_only`(전지로만 동작하는지)
+  `adapter_included`(어댑터 포함) `wireless_feature`(무선 기능) `frequency`(주파수) `output_power`(무선 출력)
+  `target_age`(사용 연령) `excluded_kind`(의약품, 의료기기, 화장품, 식품용 기구 표시) `food_contact`(음식 접촉) `edible`(먹는 것) `skin_applied`(바르는 것)
+  `health_claim`(효능 문구) `beauty_claim`(피부·모발 효과 문구) `ingredient`(성분).
+  서버는 Tool이 이미 묻거나 판매자가 이미 답한 조건의 질문을 `topic`으로 찾아 뺀다.

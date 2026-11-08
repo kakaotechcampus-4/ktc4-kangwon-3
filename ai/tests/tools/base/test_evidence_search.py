@@ -143,7 +143,7 @@ def test_인용할_원문이_없으면_모델_없이_정보_부족_판단을_돌
     [finding] = result.findings
     assert (finding.subject, finding.determination) == ("가짜 판정", Determination.INSUFFICIENT_INFORMATION)
     assert finding.assumptions == [NO_SNIPPETS]
-    assert result.missing_information == ["제품 종류 정보가 필요합니다.", "기능을 알려 주세요."]
+    assert result.missing_information == ["어떤 제품인지(제품 종류) 확인이 필요합니다.", "기능을 알려 주세요."]
     assert result.query == {"dropped_facts": 0, "dropped_candidates": 0, "not_applicable": 0, "conflicted": []}
 
 

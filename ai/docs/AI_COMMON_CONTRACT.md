@@ -559,6 +559,7 @@ class ExecutionEvent(BaseModel):
 
 위치: `app/schemas/callback.py`(DTO), `app/callbacks/`(이벤트 변환·발신함), `app/clients/backend/callback.py`(전송, #401).
 전달 방식: AI → BE `POST /internal/v1/ai/products/{productId}`, 헤더 `X-Internal-Token` (#305·#332). 응답 분류·재시도는 발신함이 맡는다.
+법령 점검이 찾은 법령 변경은 같은 헤더로 `POST /internal/v1/ai/law-changes`에 따로 보낸다 (#673). 이 절의 상품 실행 이벤트와는 별개다.
 
 | 내부 기록 | BE 전달 |
 | --- | --- |
@@ -579,7 +580,7 @@ class ExecutionEvent(BaseModel):
 
 질문 `PublicQuestionDto`: `questionKey`(≤50자), `questionOrder`(1부터), `questionText`, `helpText`.
 
-- 질문 키는 회차·순서로 만든다: `r{회차}_q{순서}`(예: `r1_q1`). 같은 문장은 한 번만, 꼭 필요한 질문을 앞에 두고 검증이 준 이유를 `helpText`로 보낸다(`app/diagnosis/questions.py`).
+- 질문 키는 회차·순서로 만든다: `r{회차}_q{순서}`(예: `r1_q1`). 같은 문장은 한 번만, 꼭 필요한 질문을 앞에 두고 검증이 준 이유를 `helpText`로 보낸다(`app/diagnosis/questions.py`). Tool의 부족한 정보로 만든 질문은 질문 카탈로그(`app/tools/common/questions.py`)의 답하는 법·예시를 `helpText`로 보낸다.
 - 재실행 회차에는 Tool 실행·집계·검증 단계 알림이 다시 나간다. Tool 진행은 다시 실행하는 Tool만 started·completed를 다시 보내고 skipped는 다시 보내지 않는다(`app/diagnosis/progress.py`).
 - 질문은 최대 2회차. 2회차에는 1회차에 없던 새 키만 묻는다. 재진단 요청은 이번 회차 질문에 **모두** 답해야 한다(아니면 422).
 - `toolName`·카드의 분야 이름은 BE `ToolName` 값: `CUSTOMS`, `CHILDREN`, `ELECTRICAL`, `RADIO`, `FOOD_DRUG`, `LABEL_AD`.
