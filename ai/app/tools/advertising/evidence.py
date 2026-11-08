@@ -35,6 +35,7 @@ class AdvertisingEvidence:
         substantiation_targets: 주장 유형별 실증 운영 고시 항목.
         type_sources: 주장 유형별 지정고시·심사지침 항목.
         medicinal_effect: 소비자 안전 심사지침의 의약품 효능 항목.
+        recommendation: 지정고시 12 가(전문가·기관의 추천·권장 사실이 없는데 있는 것처럼). 추천 주장에 더한다.
         refs: 읽은 문서 버전.
     """
 
@@ -43,6 +44,7 @@ class AdvertisingEvidence:
     substantiation_targets: dict[AdvertisingRiskType, LegalSource]
     type_sources: dict[AdvertisingRiskType, LegalSource]
     medicinal_effect: LegalSource
+    recommendation: LegalSource
     refs: tuple[DocRef, ...]
 
     def documents(self) -> list[dict[str, str]]:
@@ -119,5 +121,6 @@ def load_advertising_evidence(client: LawLookup, as_of: date) -> AdvertisingEvid
             AdvertisingRiskType.WARRANTY: _line_source(designation, "11", "자기가 공급하는 상품 등에 관하여 보증"),
         },
         medicinal_effect=_line_source(consumer_safety, "Ⅴ 1 가", "의약품이 아닌 상품의 효능 등을 객관적 근거"),
+        recommendation=_line_source(designation, "12 가", "가. 전문가, 연구기관, 유명단체에 의한 추천"),
         refs=(law.ref, designation.ref, substantiation.ref, award_cert.ref, consumer_safety.ref),
     )

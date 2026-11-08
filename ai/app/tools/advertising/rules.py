@@ -14,6 +14,8 @@ from .schemas import AdvertisingClaim, AdvertisingRiskType
 _MEDICINAL_WORDS = ("치료", "예방", "완치", "질병", "질환")
 # 영문 인증 표기. 'Certified 3C CCC', 'CE Certified', 'FDA 승인'처럼 외국 인증을 받았다는 표기도 인증 확인 안내로 보낸다
 # (2026-11-08: 실증자료 안내로 잘못 나가던 문제). 'Ceramic'처럼 낱말 안의 글자는 제외
+# 추천·권장 주장. 인증·수상과 같은 유형이지만 근거 조문은 지정고시 12 가(전문가·기관 추천)가 정확해 함께 붙인다
+_RECOMMEND = re.compile(r"추천|권장|recommend", re.IGNORECASE)
 _FOREIGN_CERT = re.compile(r"certif|(?<![A-Za-z])(?:CE|CCC|3C|RoHS|FCC|FDA|UL|CB|GS|TÜV|TUV)(?![A-Za-z])", re.IGNORECASE)
 
 # 국내 인증(KC) 표기. 실제 인증 여부는 상품 글만으로 알 수 없어 모델 판단과 관계없이 코드가 찾아 확인을 안내한다.
@@ -110,6 +112,8 @@ def sources_for(evidence: AdvertisingEvidence, claim: AdvertisingClaim, risk_lev
                evidence.type_sources[claim.risk_type]]
     if risk_level is RiskLevel.HIGH:
         sources.append(evidence.medicinal_effect)
+    if claim.risk_type is AdvertisingRiskType.SAFETY_CERTIFICATION and _RECOMMEND.search(claim.quote):
+        sources.append(evidence.recommendation)
     return sources
 
 

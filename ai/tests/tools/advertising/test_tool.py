@@ -325,11 +325,11 @@ def test_영문_인증_표기도_인증_확인_안내를_받는다(quote):
 
 
 def test_보증_약속은_보증_확인_안내를_받는다():
-    result = _run(_StubModel([_claim("2년 품질 보증", "warranty")]), "2년 품질 보증")
+    result = _run(_StubModel([_claim("평생 무상 보증", "warranty")]), "평생 무상 보증")
 
     [finding] = result.findings
     assert finding.summary == "보증 약속 주장으로 실증이 필요할 수 있습니다."
-    assert result.required_actions[0].startswith("'2년 품질 보증' 보증 약속이 있습니다. 보증 주체, 기간, 범위를 밝히고")
+    assert result.required_actions[0].startswith("'평생 무상 보증' 보증 약속이 있습니다. 보증 주체, 기간, 범위를 밝히고")
     assert EVIDENCE.type_sources[AdvertisingRiskType.WARRANTY] in finding.legal_sources
 
 
@@ -342,15 +342,15 @@ def test_원산지_정품_주장은_수입_서류_확인_안내를_받는다():
 
 def test_영문_인용은_번역을_괄호로_붙여_보여_주고_조사는_번역을_따른다():
     model = _StubModel([_claim("Sunburn Relief", "body_effect", translation="햇볕 화상 완화"),
-                        _claim("1 year warranty", "warranty", translation="1년 보증")])
+                        _claim("lifetime warranty", "warranty", translation="평생 보증")])
 
-    result = _run(model, "Sunburn Relief 1 year warranty")
+    result = _run(model, "Sunburn Relief lifetime warranty")
 
-    assert [f.subject for f in result.findings] == ["Sunburn Relief(햇볕 화상 완화)", "1 year warranty(1년 보증)"]
+    assert [f.subject for f in result.findings] == ["Sunburn Relief(햇볕 화상 완화)", "lifetime warranty(평생 보증)"]
     assert result.required_actions[0].startswith("'Sunburn Relief'(햇볕 화상 완화)를 뒷받침하는")
-    assert result.required_actions[1].startswith("'1 year warranty'(1년 보증) 보증 약속이 있습니다.")
+    assert result.required_actions[1].startswith("'lifetime warranty'(평생 보증) 보증 약속이 있습니다.")
     # 채점·원문 대조에 쓰는 문구는 원문 그대로
-    assert [p.text for p in result.result.detected_phrases] == ["Sunburn Relief", "1 year warranty"]
+    assert [p.text for p in result.result.detected_phrases] == ["Sunburn Relief", "lifetime warranty"]
 
 
 def test_한국어_인용은_번역_없이_그대로_보여_준다():
@@ -358,6 +358,17 @@ def test_한국어_인용은_번역_없이_그대로_보여_준다():
 
     assert result.findings[0].subject == "99.9% 살균"
     assert result.required_actions[0].startswith("'99.9% 살균'을 뒷받침하는")
+
+
+def test_추천_주장에는_지정고시_12호_추천_조항을_근거로_더한다():
+    result = _run(_StubModel([_claim("피부과 전문의 추천", "safety_certification")]), "피부과 전문의 추천 제품")
+
+    [finding] = result.findings
+    assert EVIDENCE.recommendation in finding.legal_sources
+    assert "추천" in EVIDENCE.recommendation.quoted_text
+    # 인증 표기에는 붙이지 않는다
+    other = _run(_StubModel([_claim("KC 인증 완료", "safety_certification")]), "KC 인증 완료")
+    assert EVIDENCE.recommendation not in other.findings[0].legal_sources
 
 
 def test_유형마다_라벨과_근거_조문이_있다():
