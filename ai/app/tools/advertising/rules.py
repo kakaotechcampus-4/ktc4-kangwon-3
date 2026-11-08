@@ -12,6 +12,9 @@ from .schemas import AdvertisingClaim, AdvertisingRiskType
 
 # 의약품 효능처럼 읽히는 낱말. 소비자 안전 지침 Ⅴ 1 가가 "부당한 표시·광고가 된다"로 단정하는 유형이라 위험도를 높인다.
 _MEDICINAL_WORDS = ("치료", "예방", "완치", "질병", "질환")
+# 영문 인증 표기. 'Certified 3C CCC', 'CE Certified', 'FDA 승인'처럼 외국 인증을 받았다는 표기도 인증 확인 안내로 보낸다
+# (2026-11-08: 실증자료 안내로 잘못 나가던 문제). 'Ceramic'처럼 낱말 안의 글자는 제외
+_FOREIGN_CERT = re.compile(r"certif|(?<![A-Za-z])(?:CE|CCC|3C|RoHS|FCC|FDA|UL|CB|GS|TÜV|TUV)(?![A-Za-z])", re.IGNORECASE)
 
 # 국내 인증(KC) 표기. 실제 인증 여부는 상품 글만으로 알 수 없어 모델 판단과 관계없이 코드가 찾아 확인을 안내한다.
 # "KC 인증정보"는 AliExpress 사양 칸 이름이라 뺀다(값이 "확인되지 않음"인 경우가 있다).
@@ -21,11 +24,15 @@ _KC_MARK = re.compile(r"(?<![A-Za-z])KC\s*(?:인증(?!정보)|마크|안전인�
                       re.IGNORECASE)
 _KC_REASON = "국내 인증(KC) 표기다. 실제로 인증을 받은 제품인지 상품 글만으로는 확인할 수 없다."
 
+# 판단 제목·요약에 쓰는 유형 이름 (판매자 화면에 나가므로 가운뎃점 대신 띄어쓰기)
 TYPE_LABELS = {
-    AdvertisingRiskType.BODY_EFFECT: "인체 효능·효과",
-    AdvertisingRiskType.SAFETY_CERTIFICATION: "안전·인증",
-    AdvertisingRiskType.PERFORMANCE_QUALITY: "성능·품질",
-    AdvertisingRiskType.RANKING_ABSOLUTE: "순위·절대적 표현",
+    AdvertisingRiskType.BODY_EFFECT: "인체 효능",
+    AdvertisingRiskType.SAFETY_CERTIFICATION: "인증 수상",
+    AdvertisingRiskType.PERFORMANCE_QUALITY: "성능 품질",
+    AdvertisingRiskType.INGREDIENT_MATERIAL: "원재료 성분",
+    AdvertisingRiskType.ORIGIN_MAKER: "원산지 제조자",
+    AdvertisingRiskType.RANKING_ABSOLUTE: "절대 표현",
+    AdvertisingRiskType.WARRANTY: "보증 약속",
 }
 RISK_ORDER = (RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH)
 
@@ -70,7 +77,8 @@ def _is_certification(claim: AdvertisingClaim) -> bool:
         bool: 안전·인증 유형이고 인용에 "인증"이나 KC 표기가 있으면 True.
     """
     return claim.risk_type is AdvertisingRiskType.SAFETY_CERTIFICATION and (
-        "인증" in claim.quote or _KC_MARK.search(claim.quote) is not None)
+        "인증" in claim.quote or _KC_MARK.search(claim.quote) is not None
+        or _FOREIGN_CERT.search(claim.quote) is not None)
 
 
 def claim_risk(claim: AdvertisingClaim) -> RiskLevel:
@@ -118,6 +126,12 @@ def claim_action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
     if _is_certification(claim):
         return (f"'{claim.quote}' 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
                 "확인되지 않으면 표기를 빼세요.")
+    if claim.risk_type is AdvertisingRiskType.WARRANTY:
+        return (f"'{claim.quote}' 보증 약속이 있습니다. 보증 주체, 기간, 범위를 밝히고 실제로 지킬 수 있는지 확인하세요. "
+                "지키기 어려우면 문구를 빼거나 고치세요.")
+    if claim.risk_type is AdvertisingRiskType.ORIGIN_MAKER:
+        return (f"'{claim.quote}' 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지 수입 서류로 확인하고, "
+                "다르면 표기를 고치세요.")
     if risk_level is RiskLevel.HIGH:
         return (f"'{claim.quote}'{topic_particle(claim.quote)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
                 "남기려면 객관적 근거 자료를 먼저 확인하세요.")

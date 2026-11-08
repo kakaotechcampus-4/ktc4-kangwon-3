@@ -315,6 +315,36 @@ def test_모델이_이미_인용한_KC_표기는_한_번만_남긴다():
     assert result.query["kc_claims_added"] == 0
 
 
+@pytest.mark.parametrize("quote", ["Certified 3C CCC Certified", "CE Certified", "FDA 승인", "RoHS 인증"])
+def test_영문_인증_표기도_인증_확인_안내를_받는다(quote):
+    # 'Certified 3C CCC Certified'가 실증자료 안내로 나가던 문제 (11/8 측정)
+    result = _run(_StubModel([_claim(quote, "safety_certification")]), quote)
+
+    assert "인증번호와 인증서로 확인" in result.required_actions[0]
+
+
+def test_보증_약속은_보증_확인_안내를_받는다():
+    result = _run(_StubModel([_claim("2년 품질 보증", "warranty")]), "2년 품질 보증")
+
+    [finding] = result.findings
+    assert finding.summary == "보증 약속 주장으로 실증이 필요할 수 있습니다."
+    assert result.required_actions[0].startswith("'2년 품질 보증' 보증 약속이 있습니다. 보증 주체, 기간, 범위를 밝히고")
+    assert EVIDENCE.type_sources[AdvertisingRiskType.WARRANTY] in finding.legal_sources
+
+
+def test_원산지_정품_주장은_수입_서류_확인_안내를_받는다():
+    result = _run(_StubModel([_claim("100% 정품", "origin_maker")]), "100% 정품 Made in Korea")
+
+    assert result.required_actions[0].startswith("'100% 정품' 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지")
+    assert EVIDENCE.type_sources[AdvertisingRiskType.ORIGIN_MAKER] in result.findings[0].legal_sources
+
+
+def test_유형마다_라벨과_근거_조문이_있다():
+    for risk_type in AdvertisingRiskType:
+        assert risk_type in advertising.TYPE_LABELS and "·" not in advertising.TYPE_LABELS[risk_type]
+        assert risk_type in EVIDENCE.substantiation_targets and risk_type in EVIDENCE.type_sources
+
+
 def test_인증이_아닌_안전_주장은_실증자료_안내를_받는다():
     model = _StubModel([_claim("어린이에게 무해한 소재", "safety_certification")])
 
