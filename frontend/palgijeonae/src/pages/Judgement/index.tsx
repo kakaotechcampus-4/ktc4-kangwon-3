@@ -71,9 +71,9 @@ function JudgementPage() {
                 </p>
             ) : (
                 <div className="flex w-full flex-col gap-6">
-                    <div className="flex flex-wrap w-full items-center justify-between gap-3 py-4">
+                    <div className="flex w-full flex-col items-start gap-2 py-4 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-3">
                         <StatusSummaryBar products={data.products} />
-                        <div className="flex items-center justify-end gap-3">
+                        <div className="flex items-center gap-3 md:justify-end">
                             <span className="text-sm text-neutral-muted">결과는 언제 볼 수 있나요?</span>
                             <HelpTooltip label="결과 확인 방법 안내">
                                 먼저 진단이 완료된 상품은 결과 보기 버튼으로 개별로 확인할 수 있어요.{"\n"}
@@ -88,7 +88,7 @@ function JudgementPage() {
                             </li>
                         ))}
                     </ul>
-                    <div className="flex w-full items-center justify-between">
+                    <div className="flex w-full flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
                         <p id="report-hint" className="text-sm text-neutral-muted">
                             {isDiagnosisDone
                                 ? "페이지를 나가도 진단은 계속돼요. 마이페이지에서 다시 볼 수 있어요."
@@ -100,6 +100,7 @@ function JudgementPage() {
                             fontSize={15}
                             ariaDisabled={!isDiagnosisDone}
                             ariaDescribedBy="report-hint"
+                            className="w-full md:w-auto"
                         />
                     </div>
                 </div>
