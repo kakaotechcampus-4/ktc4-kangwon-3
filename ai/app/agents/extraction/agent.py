@@ -16,6 +16,7 @@ from .guessed_flags import (
     drop_conflicted_power,
     drop_contradicted_claim_false,
     drop_contradicted_plant_false,
+    drop_contradicted_plant_true,
     drop_guessed_false,
     drop_unsupported_false,
 )
@@ -86,6 +87,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         코드는 칸을 true·false로 정하지 않고, 근거가 없거나 모순인 확정만 None(애매함)으로 되돌림(guessed_flags).
             - 상품 종류로 짐작한 false, 원문에 부정 표기가 없는 false
             - 소재 줄·효능 표방 문구와 어긋나는 false (근거를 conflicts에 남김)
+            - 소재 줄이 동물성 소재이고 원문에 식물성 표기가 없는 plant_material true
             - 코드 규칙이 배터리 모순을 찾은 페이지의 배터리 칸, 전원 방식 모순을 찾은 페이지의 electrical_powered
         제목↔스펙표 모순은 conflicts에만 남기고 칸은 그대로 둠 (전원 방식도 스펙표끼리 모순일 때만 칸을 되돌림).
         규칙 추출은 모델과 독립으로 실행하고 결과만 합침. product_id·source_url은 요청 값 그대로.
@@ -106,6 +108,8 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
         unsupported = drop_unsupported_false(payload, "\n".join(source.text_blocks))
         # 코드는 O/X를 대신 정하지 않는다. 페이지 근거와 어긋나는 false만 '애매함'(None)으로 돌리고 근거를 모순으로 남긴다.
         plant_dropped, plant_conflicts = drop_contradicted_plant_false(payload, "\n".join(source.text_blocks))
+        # 가죽·울 같은 동물성 소재를 식물성으로 낸 true. 부품의 식물성 소재는 제목에만 있을 수 있어 제목도 합쳐 본다.
+        plant_true_dropped = drop_contradicted_plant_true(payload, "\n".join([*titles, *source.text_blocks]))
         # 표방 문구는 판매자 제목에 자주 있다. Temu는 잘린 제목 줄만 구역에 남고 전체 제목은 따로 찾으므로 제목도 합쳐 본다.
         claim_dropped, claim_conflicts = drop_contradicted_claim_false(payload, "\n".join([*titles, *source.text_blocks]))
         battery_conflicts = detect_battery_capacity_conflict(source.text_blocks)
@@ -122,6 +126,7 @@ class ExtractionAgent(BaseAgent[ExtractionInput, ProductAttributes, Product]):
             "guessed_false_to_none": guessed,
             "unsupported_false_to_none": unsupported,
             "contradicted_false_to_none": plant_dropped + claim_dropped,
+            "contradicted_true_to_none": plant_true_dropped,
             "conflicted_battery_to_none": conflicted,
             "conflicted_power_to_none": power_dropped,
             "titles_restored": payload["listing_text"][:len(payload["listing_text"]) - len(output.listing_text)],

@@ -15,7 +15,7 @@ from app.pipeline.extraction_step import ExtractionStep
 from app.pipeline.url_source import SiteConfig, UrlSourceBuilder
 from app.routers._dummy import build_dummy_assessment
 from app.schemas.agent import ExtractionInput
-from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from app.clients.marketplace.schemas.response import ProductPage, ProductPageImage
 from app.schemas.product import Product
 from app.schemas.session import DiagnosisInput
 

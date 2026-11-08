@@ -8,7 +8,7 @@ import pytest
 from app.domain.context import ExecutionContext, RunType
 from app.observability.logs import current_run_fields, run_log_context
 from app.observability.measurements import CacheLookup, measurement_sinks
-from app.schemas.clients.customs_response import CustomsGwConfirmation, CustomsGwConfirmationResponse
+from app.clients.customs.schemas.response import CustomsGwConfirmation, CustomsGwConfirmationResponse
 from app.tools.common.law import EvidenceUnavailable
 from app.tools.customs.search import ClipCaseSearch, DatabaseFirstCaseSearch, GwRequirementLookup, requirement_lookup
 
@@ -171,16 +171,14 @@ class _Gw:
         self.calls.append("close")
 
 
-def test_GW_응답을_요건으로_옮기고_HS별로_캐시한다():
-    calls, now = [], [0.0]
-    lookup = GwRequirementLookup("key", ttl_seconds=10, clock=lambda: now[0], client_factory=lambda key: _Gw(calls))
+def test_GW_응답을_요건으로_옮기고_조회마다_조회_객체를_열고_닫는다():
+    calls = []
+    lookup = GwRequirementLookup("key", client_factory=lambda key: _Gw(calls))
     first = lookup.lookup("8518301000")
     assert [(item.law_name, item.agency, item.document) for item in first] == [
         ("전파법", "국립전파연구원", "적합성평가 확인서")]  # 법령명이 없는 행은 뺀다
-    assert lookup.lookup("8518301000") == first and calls == ["8518301000", "close"]
-    now[0] = 11
-    lookup.lookup("8518301000")
-    assert calls.count("8518301000") == 2
+    assert lookup.lookup("8518301000") == first
+    assert calls == ["8518301000", "close"] * 2
 
 
 def test_서비스_키가_없으면_조회할_수_없다고_알린다():

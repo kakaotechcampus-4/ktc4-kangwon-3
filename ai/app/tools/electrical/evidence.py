@@ -14,7 +14,7 @@ from datetime import date
 from enum import StrEnum
 from typing import Protocol
 
-from ...schemas.clients.law_response import LawTextResponse
+from ...clients.law.schemas.response import LawTextResponse
 from ...schemas.schemas import LegalSource
 from ..common.law import (
     CachedLoader, DocRef, EvidenceUnavailable, LawApiClients, LawLookup, LawLookupError, annex_text, article_text,

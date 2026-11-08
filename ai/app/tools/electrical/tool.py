@@ -13,9 +13,9 @@ from .rules import (
     BATTERY_SEARCH_TERMS, ESS_WORDS, PURCHASE_SUMMARY, battery_only_state, excluded_by_low_voltage,
     is_battery_or_supply, is_ess_component, item_name, low_voltage, mentions_battery, power_conflicts, sale_actions,
 )
+from .schemas import ElectricalFact
 from .search import ElectricalItemSearch
 from .steps import ElectricalFactsStep, ElectricalReviewStep
-from ...schemas.electrical import ElectricalFact
 from ...schemas.schemas import Determination, ElectricalAssessment, RegulatoryFinding, RiskLevel, ToolName
 
 _FIELDS = {

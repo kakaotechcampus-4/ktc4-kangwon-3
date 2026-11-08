@@ -5,6 +5,7 @@
 - rules.py: KC 표기 찾기, 위험도, 근거 묶기, 할 일 문구
 - evidence.py: 기준일 판 본문에서 근거 조문 읽기
 - search.py: 근거 조회(기준일별 캐시, DB 먼저)
+- schemas.py: 모델 구조화 출력
 - errors.py: AdvertisingReviewError, AdvertisingEvidenceError
 """
 

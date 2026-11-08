@@ -3,7 +3,7 @@
 from app.agents.decision_selection import QUESTIONS, TOOL_QUESTIONS
 from app.agents.decision_selection.questions import QUESTION_LABELS, SUBJECT_NOTE
 from app.clients.llm.decision import check_request
-from app.schemas.clients.decision_request import DecisionRequest
+from app.clients.llm.decision.schemas.request import DecisionRequest
 from app.schemas.schemas import ToolName
 
 

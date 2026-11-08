@@ -13,7 +13,7 @@ from app.db.clip_ingest import (
     refill_hs_codes, run_scheduled_clip_ingest, run_weekly_clip_ingest, seconds_until_weekly,
 )
 from app.observability.measurements import ClipIngestRun, measurement_sinks
-from app.schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
+from app.clients.customs.schemas.response import CLIPCase, CLIPSearchResponse
 
 
 def _case(doc_id: str, **overrides) -> CLIPCase:

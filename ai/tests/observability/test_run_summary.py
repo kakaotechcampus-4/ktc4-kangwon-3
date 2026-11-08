@@ -5,7 +5,7 @@ from app.domain.context import PipelineStage
 from app.observability.agent_sinks import agent_sinks
 from app.observability.measurements import ToolRun, measurement_sinks
 from app.observability.run_summary import current_summary, run_summary
-from app.usage import CallUsage
+from app.observability.usage import CallUsage
 
 S = PipelineStage
 

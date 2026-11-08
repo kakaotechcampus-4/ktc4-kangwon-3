@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.schemas.clients.law_request import LicbylTextRequest
-from app.schemas.clients.law_response import LawAnnex, LawArticle, LawItem, LawParagraph, LawSubItem, LawTextResponse
+from app.clients.law.schemas.request import LicbylTextRequest
+from app.clients.law.schemas.response import LawAnnex, LawArticle, LawItem, LawParagraph, LawSubItem, LawTextResponse
 from app.utils.law_text import build_article_text, select_annex
 
 

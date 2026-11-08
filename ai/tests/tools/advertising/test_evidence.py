@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from app.schemas.advertising import AdvertisingRiskType as RiskType
+from app.tools.advertising.schemas import AdvertisingRiskType as RiskType
 from app.tools.advertising.evidence import (
     DESIGNATION_NOTICE, LAW_ACT, SUBSTANTIATION_NOTICE, AdvertisingEvidence, load_advertising_evidence,
 )

@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from .base import StrictModel
+from ...schemas.base import StrictModel
 
 FoodDrugField = Literal[
     "product_type", "material", "intended_use", "food_contact", "edible", "skin_applied",

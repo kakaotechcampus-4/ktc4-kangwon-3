@@ -7,11 +7,11 @@
 from dataclasses import dataclass
 from datetime import date
 
-from ...schemas.advertising import AdvertisingRiskType
 from ...schemas.schemas import LegalSource
 from ..common.law import (
     DocRef, EvidenceUnavailable, LawDocument, LawLookup, law_paragraph, load_admrul, load_law, normalize_text,
 )
+from .schemas import AdvertisingRiskType
 
 # (문서 이름, 법령ID·행정규칙ID)
 LAW_ACT = ("표시ㆍ광고의 공정화에 관한 법률", "002011")

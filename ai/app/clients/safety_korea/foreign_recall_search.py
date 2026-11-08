@@ -8,8 +8,8 @@
 import httpx
 
 from .base import SafetyKoreaBaseClient
-from ...schemas.clients.safety_korea_request import ForeignRecallSearchRequest
-from ...schemas.clients.safety_korea_response import ForeignRecallItem, ForeignRecallSearchResponse
+from .schemas.request import ForeignRecallSearchRequest
+from .schemas.response import ForeignRecallItem, ForeignRecallSearchResponse
 
 
 class ForeignRecallSearchClient(SafetyKoreaBaseClient[ForeignRecallSearchRequest, ForeignRecallSearchResponse]):
