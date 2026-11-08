@@ -15,16 +15,16 @@ function AgentCard({ icon, name, role, description, chips, alwaysCheckTag, rever
     return (
         <div
             className={cn(
-                "grid items-center gap-7 rounded-3xl border border-box-line bg-white p-7 shadow-box",
-                reverse ? "grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]" : "grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]",
+                "grid grid-cols-1 items-center gap-4 rounded-3xl border border-box-line bg-white p-4 shadow-box md:gap-7 md:p-7",
+                reverse ? "md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]" : "md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]",
             )}
         >
-            <div className={cn("flex h-full flex-col items-start justify-center gap-4 rounded-3xl bg-primary-soft px-6 py-7", reverse && "order-2")}>
-                <div className="grid size-16 shrink-0 place-items-center rounded-full bg-primary">
-                    <img src={icon} alt="" className="size-8" />
+            <div className={cn("flex h-full flex-row items-center gap-4 rounded-3xl bg-primary-soft px-4 py-4 md:flex-col md:items-start md:justify-center md:px-6 md:py-7", reverse && "md:order-2")}>
+                <div className="grid size-12 shrink-0 place-items-center rounded-full bg-primary md:size-16">
+                    <img src={icon} alt="" className="size-6 md:size-8" />
                 </div>
                 <div>
-                    <p className="text-xl font-bold text-black">{name}</p>
+                    <p className="text-lg font-bold text-black md:text-xl">{name}</p>
                     <p className="mt-0.5 text-sm text-neutral-text">{role}</p>
                 </div>
                 {alwaysCheckTag && (
@@ -32,7 +32,7 @@ function AgentCard({ icon, name, role, description, chips, alwaysCheckTag, rever
                 )}
             </div>
             <div className="flex flex-col gap-3.5">
-                <p className="whitespace-pre-line text-base font-medium leading-relaxed text-neutral-text">{description}</p>
+                <p className="text-sm font-medium leading-relaxed whitespace-normal text-neutral-text md:text-base md:whitespace-pre-line">{description}</p>
                 <div className="flex flex-wrap gap-1.5">
                     {chips.map((chip) => (
                         <span key={chip} className="rounded-full border border-box-line px-3 py-1 text-xs text-neutral-dark">
