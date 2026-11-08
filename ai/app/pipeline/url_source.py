@@ -17,8 +17,8 @@ from ..agents.image_triage import MAX_IMAGES as MAX_TRIAGE_IMAGES
 from ..agents.image_triage import ImageTriageAgent, ImageTriageInput
 from ..clients.marketplace import MadeInChinaClient, MarketplaceBaseClient, matches_domain
 from ..schemas.agent import ExtractionInput, ImageCategory, ImageTriageResponse
-from ..schemas.clients.marketplace_request import ProductPageRequest
-from ..schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from ..clients.marketplace.schemas.request import ProductPageRequest
+from ..clients.marketplace.schemas.response import ProductPage, ProductPageImage
 from .errors import UnsupportedSiteError
 
 # 추출에 넣을 이미지 방식. 사이트마다 페이지·이미지 성격이 달라 사이트별로 정함

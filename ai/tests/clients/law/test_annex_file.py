@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.clients.law import AnnexFileClient
-from app.schemas.clients.law_request import AnnexFileRequest
+from app.clients.law.schemas.request import AnnexFileRequest
 
 # 법제처 응답의 Content-Disposition (퍼센트 인코딩된 UTF-8 파일명)
 _DISPOSITION = 'attachment; filename="%5B%EB%B3%84%ED%91%9C%201%5D%20%EC%84%B8%EB%B6%80%ED%92%88%EB%AA%A9.hwp"'

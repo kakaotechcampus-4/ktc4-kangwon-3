@@ -9,9 +9,9 @@ from abc import ABC, abstractmethod
 import httpx
 
 from ....prompts import fingerprint
-from ....schemas.clients.decision_request import ChoiceQuestion, DecisionQuestion, DecisionRequest, ScoreQuestion
-from ....schemas.clients.decision_response import DecisionAnswer, DecisionResponse, DecisionUsage, RefusedAnswer
 from ...request import RequestClient
+from .schemas.request import ChoiceQuestion, DecisionQuestion, DecisionRequest, ScoreQuestion
+from .schemas.response import DecisionAnswer, DecisionResponse, DecisionUsage, RefusedAnswer
 from ..client import TIMEOUT_SECONDS
 from .errors import DecisionRequestError, DecisionResponseError
 

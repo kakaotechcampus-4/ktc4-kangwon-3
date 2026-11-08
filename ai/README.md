@@ -350,7 +350,7 @@ uvicorn app.main:app --reload   # http://localhost:8000/docs
 | 지표 (접수·완료·실패, 대기열 사용률, 단계·Tool 시간, 모델 비용, 콜백) | Grafana "AI 서버 개요" 대시보드 (Prometheus가 `/metrics` 수집) | [AI_METRICS.md](docs/AI_METRICS.md) |
 | 오류 (ERROR 로그, 진단서·상품·실행·단계별 필터) | Sentry | [AI_LOGGING.md](docs/AI_LOGGING.md) |
 | 로그 (진단서·상품·실행 ID 포함, 진단 요약) | `docker logs` | [AI_LOGGING.md](docs/AI_LOGGING.md) |
-| 모델 사용량 (호출별 토큰·예상 비용) | `python -m app.usage` | - |
+| 모델 사용량 (호출별 토큰·예상 비용) | `python -m app.observability.usage` | - |
 
 **장애 대응**
 

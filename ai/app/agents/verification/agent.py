@@ -13,7 +13,7 @@ from ...schemas.schemas import (
     VerificationResult,
     VerificationStatus as Status,
 )
-from ...usage import CallUsage
+from ...observability.usage import CallUsage
 from ..base import AgentResult, BaseAgent, ModelFailurePhase
 from .errors import VerificationError
 from .rules import run_rule_checks

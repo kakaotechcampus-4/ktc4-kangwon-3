@@ -25,7 +25,7 @@ from time import perf_counter
 
 from dotenv import load_dotenv
 
-from .. import usage as usage_module
+from ..observability import usage as usage_module
 from ..config import ENV_FILE, MODEL_PROFILES, TOOL_PROFILES
 from ..config.settings import OVERRIDES_ENV, ConfigError, parse_profile_overrides
 from ..schemas.agent import ToolSelectionItem

@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from app.clients.law import LawTextClient
-from app.schemas.clients.law_request import LawTextRequest
+from app.clients.law.schemas.request import LawTextRequest
 
 _BASIC_INFO = (
     "<기본정보><법령ID>004698</법령ID><법령명_한글>전기용품 및 생활용품 안전관리법 시행령</법령명_한글>"

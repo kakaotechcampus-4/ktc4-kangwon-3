@@ -4,7 +4,7 @@ import pytest
 
 from app.agents.decision_selection import QUESTIONS
 from app.agents.decision_selection.assemble import assemble
-from app.schemas.clients.decision_response import ChoiceAnswer, RefusedAnswer, YesNoAnswer
+from app.clients.llm.decision.schemas.response import ChoiceAnswer, RefusedAnswer, YesNoAnswer
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName
 

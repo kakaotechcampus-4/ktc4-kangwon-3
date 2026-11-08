@@ -10,7 +10,7 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .search_base import LawSearchBaseClient
-from ...schemas.clients.law_response import LawSearchItem, LawSearchResponse
+from .schemas.response import LawSearchItem, LawSearchResponse
 
 
 class LawSearchClient(LawSearchBaseClient[LawSearchResponse]):

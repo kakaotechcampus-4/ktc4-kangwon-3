@@ -6,8 +6,8 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .base import LawGoKrClient
+from .schemas.request import LawSearchRequest
 from ..request import ResponseT
-from ...schemas.clients.law_request import LawSearchRequest
 
 
 class LawSearchBaseClient(LawGoKrClient[LawSearchRequest, ResponseT]):

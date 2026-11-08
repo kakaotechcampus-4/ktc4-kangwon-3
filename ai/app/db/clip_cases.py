@@ -8,7 +8,7 @@ from collections.abc import Callable
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from ..schemas.clients.customs_response import CLIPCase
+from ..clients.customs.schemas.response import CLIPCase
 from .fetchers import SHARED_DB_SKIP, DbSkip
 from .models.hs_case import HsCase
 from .repositories.hs_case import HsCaseRepository

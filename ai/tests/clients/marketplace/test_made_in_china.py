@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from app.clients.marketplace import MadeInChinaClient
-from app.schemas.clients.marketplace_request import ProductPageRequest
+from app.clients.marketplace.schemas.request import ProductPageRequest
 
 URL = "https://seller.en.made-in-china.com/product/AbCd/China-Power-Bank.html"
 _LD = {

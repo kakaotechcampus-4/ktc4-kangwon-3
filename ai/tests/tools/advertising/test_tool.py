@@ -4,9 +4,9 @@
 프롬프트·규칙을 평가셋에 맞추게 된다.
 """
 
+import dataclasses
 import json
-import re
-from pathlib import Path
+from datetime import date
 
 import pytest
 from langchain_core.messages import AIMessage
@@ -17,15 +17,21 @@ from app.prompts import PromptName, get_prompt
 from app.schemas.agent import ToolSelectionItem
 from app.schemas.product import Product
 from app.schemas.schemas import (
-    Determination, DraftAssessment, LegalSource, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
+    Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.advertising import rules as advertising
-from app.schemas.advertising import AdvertisingReview
-from app.tools.advertising import AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool
+from app.tools.advertising.schemas import AdvertisingReview, AdvertisingRiskType
+from app.tools.advertising import (
+    AdvertisingEvidenceError, AdvertisingReviewError, AdvertisingReviewer, AdvertisingTool,
+)
+from app.tools.advertising.evidence import load_advertising_evidence
 from app.tools.advertising.tool import _NO_LISTING_QUESTION
+from app.tools.common.law import EvidenceUnavailable
 
-LAW_DIR = Path(__file__).parents[2] / "fixtures" / "advertising_law"
+from .conftest import FakeLaw
+
 DECISION = ToolSelectionItem(tool_name=ToolName.LABEL_AD, selected=True, reason="효능 표방 문구가 있다.")
+EVIDENCE = load_advertising_evidence(FakeLaw(), date(2026, 11, 7))
 
 
 class _StubModel:
@@ -61,8 +67,12 @@ def _product(*lines: str) -> Product:
     return Product(product_id="ad-1", product_name="접이식 캠핑 의자", listing_text=list(lines))
 
 
+def _tool(model: _StubModel) -> AdvertisingTool:
+    return AdvertisingTool(model, evidence=lambda: EVIDENCE)
+
+
 def _run(model: _StubModel, *lines: str):
-    return AdvertisingTool(model).execute(_product(*lines), DECISION)
+    return _tool(model).execute(_product(*lines), DECISION)
 
 
 def test_listing_text에_없는_인용은_버리고_query에_남긴다():
@@ -103,8 +113,8 @@ def test_의약품_효능처럼_읽히는_인체_주장만_위험도를_높이�
     assert levels == {"허리 디스크 치료": RiskLevel.HIGH, "자세 개선": RiskLevel.MEDIUM, "방수 원단": RiskLevel.MEDIUM}
     assert result.result.overall_risk is RiskLevel.HIGH
     by_subject = {finding.subject: finding for finding in result.findings}
-    assert advertising.MEDICINAL_EFFECT_SOURCE in by_subject["허리 디스크 치료"].legal_sources
-    assert advertising.MEDICINAL_EFFECT_SOURCE not in by_subject["자세 개선"].legal_sources
+    assert EVIDENCE.medicinal_effect in by_subject["허리 디스크 치료"].legal_sources
+    assert EVIDENCE.medicinal_effect not in by_subject["자세 개선"].legal_sources
 
 
 def test_찾은_문구는_확정이_아니라_실증_필요로_돌려준다():
@@ -117,7 +127,7 @@ def test_찾은_문구는_확정이_아니라_실증_필요로_돌려준다():
     assert result.status is ToolStatus.SUCCESS
     assert phrase.evidence_required is True and phrase.risk_type == "ranking_absolute"
     assert finding.determination is Determination.POSSIBLY_REQUIRED
-    assert advertising.SUBSTANTIATION_TARGETS[advertising.AdvertisingRiskType.RANKING_ABSOLUTE] in finding.legal_sources
+    assert EVIDENCE.substantiation_targets[AdvertisingRiskType.RANKING_ABSOLUTE] in finding.legal_sources
     # 실증자료 유무는 답을 받아도 판단이 바뀌지 않아 질문하지 않고 할 일로만 안내한다(#310).
     assert result.missing_information == []
     assert "실증자료" in result.required_actions[0]
@@ -140,8 +150,50 @@ def test_의심_문구가_없으면_실증이_필요한_주장_없음_판단_하
     assert result.result.overall_risk is RiskLevel.LOW
     [finding] = result.findings
     assert (finding.determination, finding.risk_level) == (Determination.NOT_REQUIRED, RiskLevel.LOW)
-    assert finding.legal_sources == [advertising.LAW_ARTICLE_5]
+    assert finding.legal_sources == [EVIDENCE.article_5]
     assert result.required_actions == [] and result.missing_information == []
+
+
+def test_결과_query에_읽은_문서_판을_남긴다():
+    result = _run(_StubModel([]), "색상: 카키")
+
+    assert result.query["documents"] == EVIDENCE.documents()
+
+
+def test_실행할_때마다_그때의_적용_판_근거를_쓴다():
+    revised = dataclasses.replace(
+        EVIDENCE, article_5=EVIDENCE.article_5.model_copy(update={"quoted_text": "① 개정된 문구"}))
+    versions = iter([EVIDENCE, revised])
+    tool = AdvertisingTool(_StubModel([]), evidence=lambda: next(versions))
+
+    first = tool.execute(_product("색상: 카키"), DECISION)
+    second = tool.execute(_product("색상: 카키"), DECISION)
+
+    assert first.findings[0].legal_sources == [EVIDENCE.article_5]
+    assert second.findings[0].legal_sources[0].quoted_text == "① 개정된 문구"
+
+
+def test_근거를_읽지_못하면_모델을_부르지_않고_Tool_예외로_끝낸다():
+    model = _StubModel(error=AssertionError("모델을 부르면 안 된다"))
+
+    def unavailable():
+        raise EvidenceUnavailable("문서를 찾지 못했습니다.")
+
+    with pytest.raises(AdvertisingEvidenceError) as caught:
+        AdvertisingTool(model, evidence=unavailable).execute(_product("방수 원단"), DECISION)
+
+    assert model.received == []
+    assert isinstance(caught.value.__cause__, EvidenceUnavailable)
+
+
+def test_검토할_문구가_없으면_근거를_읽지_않는다():
+    def unexpected():
+        raise AssertionError("근거를 읽으면 안 된다")
+
+    result = AdvertisingTool(_StubModel([]), evidence=unexpected).execute(_product(" "), DECISION)
+
+    assert result.status is ToolStatus.SUCCESS
+    assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
 
 
 def _verification_issues(result) -> tuple[list, list]:
@@ -191,7 +243,7 @@ def test_미선택이면_모델을_부르지_않고_건너뛴다():
     model = _StubModel(error=AssertionError("모델을 부르면 안 된다"))
     decision = DECISION.model_copy(update={"selected": False, "reason": "의심 문구가 없다."})
 
-    result = AdvertisingTool(model).execute(_product("방수 원단"), decision)
+    result = _tool(model).execute(_product("방수 원단"), decision)
 
     assert model.received == []
     assert result.status is ToolStatus.SKIPPED and result.selected is False
@@ -201,7 +253,7 @@ def test_다른_툴의_선택_결정은_받지_않는다():
     decision = DECISION.model_copy(update={"tool_name": ToolName.RADIO})
 
     with pytest.raises(ValueError):
-        AdvertisingTool(_StubModel([])).execute(_product("방수 원단"), decision)
+        _tool(_StubModel([])).execute(_product("방수 원단"), decision)
 
 
 def test_모델_호출_실패는_툴_예외로_감싼다():
@@ -214,37 +266,13 @@ def test_모델에는_상품_이름을_비우고_판매자_문구만_보낸다()
     model = _StubModel([])
     reviewer = AdvertisingReviewer(model)
 
-    AdvertisingTool(reviewer=reviewer).execute(_product("방수 원단", " "), DECISION)
+    AdvertisingTool(reviewer=reviewer, evidence=lambda: EVIDENCE).execute(_product("방수 원단", " "), DECISION)
 
     system, human = model.received[0]
     # 시스템 프롬프트는 광고 프롬프트 + 가드레일
     assert system.content == reviewer.prompt.text
     assert system.content.startswith(get_prompt(PromptName.ADVERTISING).text.rstrip("\n"))
     assert json.loads(human.content) == {"product_name": None, "category": None, "listing_text": ["방수 원단"]}
-
-
-def _law_text() -> str:
-    """픽스처 원문을 하나로 이어 공백을 지운 문자열. 조문 JSON은 항 내용까지 펼친다."""
-    parts = []
-    for path in sorted(LAW_DIR.iterdir()):
-        if path.suffix == ".txt":
-            parts.append(path.read_text(encoding="utf-8"))
-        elif path.suffix == ".json":
-            for article in json.loads(path.read_text(encoding="utf-8")):
-                parts.append(article["article_content"] or "")
-                parts.extend(paragraph["content"] or "" for paragraph in article["paragraphs"])
-    return re.sub(r"\s+", "", "".join(parts))
-
-
-def _all_sources() -> list[LegalSource]:
-    return [advertising.LAW_ARTICLE_3, advertising.LAW_ARTICLE_5, advertising.MEDICINAL_EFFECT_SOURCE,
-            *advertising.SUBSTANTIATION_TARGETS.values(), *advertising.TYPE_SOURCES.values()]
-
-
-@pytest.mark.parametrize("source", _all_sources(), ids=lambda source: f"{source.law_name} {source.article}")
-def test_근거_인용은_법제처_원문에_그대로_있다(source: LegalSource):
-    assert source.is_mock is False
-    assert re.sub(r"\s+", "", source.quoted_text) in _law_text()
 
 
 def test_모델은_줄별_검토를_주장_목록보다_먼저_쓴다():
@@ -307,3 +335,19 @@ def test_기록_중이면_원문과_대조해_남긴_주장·버린_인용·코�
     assert [claim["quote"] for claim in step["claims"]["kc_added"]] == ["KC인증"]
     assert [call["component"] for call in step["calls"]] == ["advertising"]
     assert [finding["subject"] for finding in step["result"]["findings"]] == ["하중 300kg 버팀", "KC인증"]
+
+
+@pytest.mark.parametrize(("quote", "risk_type", "expected"), [
+    # 받침이 있으면 을·은, 없으면 를·는 (실사이트 2026-11-06: "'RFID 차단'를 뒷받침하는 …"으로 나감)
+    ("습기 차단", "performance_quality", "'습기 차단'을 뒷받침하는"),
+    ("오래가는 배터리", "performance_quality", "'오래가는 배터리'를 뒷받침하는"),
+    ("관절염 예방", "body_effect", "'관절염 예방'은 의약품 효능처럼"),
+    ("불면증 치료", "body_effect", "'불면증 치료'는 의약품 효능처럼"),
+    # 문장부호로 끝나면 그 앞 글자의 받침으로 (리뷰 #643)
+    ("습기 차단.", "performance_quality", "'습기 차단.'을 뒷받침하는"),
+    ("관절염 예방!", "body_effect", "'관절염 예방!'은 의약품 효능처럼"),
+])
+def test_할_일_문구의_조사는_인용한_문구의_받침에_따라_정한다(quote, risk_type, expected):
+    result = _run(_StubModel([_claim(quote, risk_type)]), quote)
+
+    assert result.required_actions[0].startswith(expected)

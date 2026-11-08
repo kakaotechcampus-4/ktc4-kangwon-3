@@ -6,7 +6,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.clients.safety_korea_request import (
+from app.clients.safety_korea.schemas.request import (
     CertSearchRequest,
     ForeignRecallSearchRequest,
     RecallSearchRequest,

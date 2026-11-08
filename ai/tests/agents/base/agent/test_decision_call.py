@@ -13,8 +13,8 @@ from app.clients.llm.decision import (
     DecisionRequestError, DecisionResponseError, TypeSafeDecisionClient, questions_fingerprint,
 )
 from app.config import DECISION_PROFILES
-from app.schemas.clients.decision_request import YesNoQuestion
-from app.schemas.clients.decision_response import YesNoAnswer
+from app.clients.llm.decision.schemas.request import YesNoQuestion
+from app.clients.llm.decision.schemas.response import YesNoAnswer
 
 JEV = "typesafe/jev-latest"
 SUBJECT = {"product_name": "색연필 24색 세트"}

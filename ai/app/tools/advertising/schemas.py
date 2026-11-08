@@ -7,7 +7,7 @@ from enum import StrEnum
 
 from pydantic import Field
 
-from .base import StrictModel
+from ...schemas.base import StrictModel
 
 
 # 「표시ㆍ광고 내용의 실증에 관한 운영 고시」 Ⅲ(실증자료 요청의 주요대상) 1~4호를 그대로 나눈 유형.

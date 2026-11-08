@@ -16,7 +16,7 @@
 | §3 프롬프트 로더 | 구현됨 | `app/prompts/__init__.py` |
 | §4.2 BaseAgent | 구현됨 (#364) | `app/agents/base/`, Tool 안 모델 호출은 `app/tools/base/steps.py` |
 | §4.3 context 인자 | 미구현. 공개 메서드는 `run(input)` | — |
-| §5 UsageRecord·Sink | 미구현. 평탄한 JSONL `record()` 유지 + 지표 sink 등록표(#379) | `app/usage.py`, `app/observability/` |
+| §5 UsageRecord·Sink | 미구현. 평탄한 JSONL `record()` 유지 + 지표 sink 등록표(#379) | `app/observability/` |
 | §6.1 예외·응답 코드 | 구현됨 (#382) | `app/domain/errors.py` |
 | §6.2 Client·Tool 오류 경계 | 일부. ToolExecutor 구분·Client 예외 변환은 미구현 | — |
 | §6.3 API 경계 | 구현됨 | `app/routers/exception_handlers.py` |
@@ -275,11 +275,10 @@ def _review_with_trace(
 
 ## 5. 사용량 스키마 — M2
 
-예정 위치: `app/observability/usage.py`
-기존 `app/usage.py`는 이관 중 호환 진입점으로 사용할 수 있다.
+위치: `app/observability/usage.py`
 
 > **현재 상태 (미구현)**: UsageRecord·UsageSink·record_usage는 없다. 지금은 아래처럼 동작한다.
-> - `app/usage.py`의 `record(agent, usage, *, configured_model, reasoning_effort, subject_id, ok, elapsed_ms, error_type, failure_phase)`가 평탄한 JSONL 한 줄을 쓴다. 쓰기 실패는 그대로 무시(`pass`).
+> - `app/observability/usage.py`의 `record(agent, usage, *, configured_model, reasoning_effort, subject_id, ok, elapsed_ms, error_type, failure_phase)`가 평탄한 JSONL 한 줄을 쓴다. 쓰기 실패는 그대로 무시(`pass`).
 > - `CallUsage`는 dataclass. `cached_tokens`(모르면 0), `reasoning_tokens`·`cache_write_tokens` 추가. 수집 함수는 `from_response`·`from_handler`·`from_completion`.
 > - 에이전트 실행 결과는 sink 등록표(`app/observability/agent_sinks.py`, #379)로 나간다. 사용량 JSONL과 Prometheus 지표(`ai_agent_*`, `observability/metrics.py`)가 그 sink다. sink 오류는 WARNING만 남기고 판정을 바꾸지 않는다.
 > - 아래 5.1~5.3은 M2 목표로 남긴다.

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from ...schemas.schemas import ToolName
+from ..advertising import evidence as advertising
 from ..children import evidence as children
 from ..customs import evidence as customs
 from ..electrical import evidence as electrical
@@ -55,6 +56,11 @@ LAW_SOURCES: tuple[LawSource, ...] = (
     LawSource(*food_drug.COSMETICS_ACT, is_admrul=False, tool=ToolName.FOOD_DRUG),
     LawSource(*food_drug.COSMETICS_RULE, is_admrul=False, tool=ToolName.FOOD_DRUG),
     LawSource(*food_drug.COSMETICS_NOTICE, is_admrul=True, tool=ToolName.FOOD_DRUG),
+    LawSource(*advertising.LAW_ACT, is_admrul=False, tool=ToolName.LABEL_AD),
+    LawSource(*advertising.DESIGNATION_NOTICE, is_admrul=True, tool=ToolName.LABEL_AD),
+    LawSource(*advertising.SUBSTANTIATION_NOTICE, is_admrul=True, tool=ToolName.LABEL_AD),
+    LawSource(*advertising.AWARD_CERT_GUIDELINE, is_admrul=True, tool=ToolName.LABEL_AD),
+    LawSource(*advertising.CONSUMER_SAFETY_GUIDELINE, is_admrul=True, tool=ToolName.LABEL_AD),
 )
 
 

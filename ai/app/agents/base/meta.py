@@ -3,8 +3,8 @@
 from dataclasses import dataclass
 from typing import Generic
 
+from ...observability.usage import CallUsage
 from ...schemas.base import StrictModel
-from ...usage import CallUsage
 from .protocols import ResultT
 
 

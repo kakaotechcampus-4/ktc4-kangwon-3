@@ -1,6 +1,6 @@
 """OpenAI 판단 형식 클라이언트 (Luna, `openai/gpt-6-luna`)."""
 
-from ....schemas.clients.decision_request import (
+from .schemas.request import (
     ChoiceQuestion,
     DecisionOption,
     DecisionQuestion,
@@ -8,7 +8,7 @@ from ....schemas.clients.decision_request import (
     ScoreQuestion,
     YesNoQuestion,
 )
-from ....schemas.clients.decision_response import (
+from .schemas.response import (
     ChoiceAnswer,
     DecisionAnswer,
     DecisionUsage,

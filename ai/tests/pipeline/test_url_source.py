@@ -7,7 +7,7 @@ from app.pipeline.url_source import (
     MAX_ALL_IMAGES, MAX_IMAGES, SITES, SiteConfig, UrlSourceBuilder, select_images,
 )
 from app.schemas.agent import ImageTriageItem, ImageTriageResponse
-from app.schemas.clients.marketplace_response import ProductPage, ProductPageImage
+from app.clients.marketplace.schemas.response import ProductPage, ProductPageImage
 
 URL = "https://seller.en.made-in-china.com/product/AbCd/China-Power-Bank.html"
 
