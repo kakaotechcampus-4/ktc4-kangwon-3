@@ -61,7 +61,7 @@ export const validateProduct = (product: Product): string | null => {
         return null;
     }
 
-    // 이미지는 보조 입력이라 텍스트 없이 이미지만으로는 제출할 수 없다.
+    // 이미지는 보조 입력이라 텍스트 없이 이미지만으로는 제출할 수 없다. (FE에서 의도적으로 막는다.)
     if (!product.content?.trim()) {
         return "상세페이지 내용을 입력해주세요.";
     }
