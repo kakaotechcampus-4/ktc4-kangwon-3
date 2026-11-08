@@ -24,7 +24,7 @@ const FILTER_TAB_SELECTED_CLASSES: Record<ProductFilter, string> = {
 // 선택되지 않은 탭들은 공통 스타일링을 사용한다.
 function filterTabClassName(tone: ProductFilter, selected: boolean) {
     return cn(
-        "px-3.5 py-1.5 border rounded-full text-sm font-semibold",
+        "shrink-0 whitespace-nowrap px-3.5 py-1.5 border rounded-full text-sm font-semibold",
         selected ? FILTER_TAB_SELECTED_CLASSES[tone] : "cursor-pointer border-box-line text-neutral-muted bg-white enabled:hover:bg-button-hover-bg",
     );
 }
@@ -86,7 +86,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
                     <img src={search} alt="검색" className="h-full w-full" />
                 </button>
             </form>
-            <div className="flex w-full items-center gap-2">
+            <div className="no-scrollbar flex w-full flex-nowrap items-center gap-2 overflow-x-auto md:overflow-visible">
                 {FILTER_TABS.map(({ key, label }) => (
                     <button
                         key={key}
