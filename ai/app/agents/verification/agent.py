@@ -31,11 +31,12 @@ _TOOL_RECOVERABLE_ISSUES = frozenset(
 # 불확실 판단(possibly_required·insufficient_information)만 가리키면 치명에서 경고로 낮추는 지적 유형.
 # Tool이 이미 "모른다"고 전달한 내용의 재지적이라 진단을 막을 이유가 못 됨 (#652 측정: 28회 중 실제 오류 1회).
 # 모순(contradiction)·방향 오류(incorrect_determination)·실행 실패(tool_failure)는 불확실 판단에서도 그대로 둠.
+# 근거와 다른 주장(unsupported_claim)도 그대로 둠. 판단이 불확실해도 서류·할 일 안내가 인용 근거와 어긋나는 건
+# Tool이 "모른다"고 전달한 것과 다른 사실 오류라 막아야 함 (#691 리뷰).
 _DEMOTABLE_ISSUES = frozenset(
     {
         IssueType.MISSING_TOOL,
         IssueType.MISSING_EVIDENCE,
-        IssueType.UNSUPPORTED_CLAIM,
         IssueType.INSUFFICIENT_PRODUCT_DATA,
     }
 )

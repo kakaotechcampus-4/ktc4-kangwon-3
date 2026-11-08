@@ -3,7 +3,7 @@
 from app.agents.verification import VerificationAgent
 from app.agents.verification.schemas import _Issue
 from app.schemas.product import Product
-from app.schemas.schemas import ToolName, VerificationStatus
+from app.schemas.schemas import Determination, RegulatoryFinding, RiskLevel, ToolName, VerificationStatus
 
 
 def test_모델_지적과_규칙_지적이_함께_병합된다(samples, stub_model, records):
@@ -69,6 +69,29 @@ def test_critical_지적은_필수_질문보다_먼저다(samples, stub_model, r
 
     # 틀린 전제 위에서 사용자에게 묻지 않도록 초안 보완을 먼저 요구한다.
     assert result.status is VerificationStatus.REVISION_REQUIRED
+
+
+def test_확정_판단의_결함이_경고로만_적히고_불확실_판단_치명만_있으면_낮춘_뒤_통과한다(samples, stub_model, records):
+    # #652 낮추기는 치명 지적만 건드린다. 확정 판단(f2)의 실제 결함을 모델이 경고로 적으면 막히지 않고 통과하므로,
+    # 확정 판단 결함을 막는 건 모델이 치명으로 적어 주는 데 달려 있다 (#691 리뷰에서 짚은 전제를 테스트로 남김)
+    draft = samples.draft()
+    definitive = RegulatoryFinding(
+        finding_id="f2", tool_name=ToolName.ELECTRICAL, subject="안전확인 대상",
+        determination=Determination.NOT_REQUIRED, risk_level=RiskLevel.LOW,
+        summary="안전확인 대상이 아닙니다.", rationale="품목표에 없습니다.", legal_sources=[samples.law_source()],
+    )
+    samples.tool_record(draft, ToolName.ELECTRICAL).findings.append(definitive)
+    draft.findings.append(definitive.model_copy(deep=True))
+    real_defect = _Issue(severity="warning", issue_type="contradiction", description="요약이 판정과 다릅니다.",
+                         related_finding_ids=["f2"], recommended_action=None)
+    uncertain_only = _Issue(severity="critical", issue_type="insufficient_product_data",
+                            description="전원 방식 정보가 없습니다.", related_finding_ids=["f1"], recommended_action=None)
+    review = samples.review(issues=[real_defect, uncertain_only], checked_finding_ids=["f1", "f2"])
+
+    result = VerificationAgent(stub_model(review)).run(draft)
+
+    assert [issue.severity for issue in result.issues] == ["warning", "warning"]
+    assert result.status is VerificationStatus.APPROVED_WITH_WARNINGS
 
 
 def test_critical_수정과_추가_툴이_겹치면_revision_required가_된다(samples, stub_model, records):

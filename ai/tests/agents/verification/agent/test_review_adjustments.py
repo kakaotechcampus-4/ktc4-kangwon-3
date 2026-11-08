@@ -4,6 +4,8 @@
 규칙 검사의 지적·재실행 요청은 건드리지 않는다.
 """
 
+import pytest
+
 from app.agents.verification import VerificationAgent
 from app.agents.verification.schemas import _Issue
 from app.schemas.schemas import (
@@ -74,13 +76,16 @@ def test_판단을_가리키지_않는_치명_지적은_낮추지_않는다(samp
     assert issue.severity == "critical"
 
 
-def test_모순_지적은_불확실_판단을_가리켜도_그대로_둔다(samples, stub_model, records):
-    review = samples.review(issues=[_issue("contradiction", ["f1"])])
+@pytest.mark.parametrize("issue_type", ["contradiction", "incorrect_determination", "unsupported_claim", "tool_failure"])
+def test_모순_방향_오류_근거와_다른_주장_지적은_불확실_판단을_가리켜도_그대로_둔다(samples, stub_model, records, issue_type):
+    # unsupported_claim: 판단이 불확실해도 서류·할 일 안내가 인용 근거와 다른 사실 오류는 막아야 함 (#691 리뷰)
+    review = samples.review(issues=[_issue(issue_type, ["f1"])])
 
     result = VerificationAgent(stub_model(review)).run(samples.draft())
 
     [issue] = result.issues
     assert issue.severity == "critical"
+    # tool_failure는 Tool 재실행으로 고칠 수 있는 치명이라 재실행 Tool이 없으면 역시 수정 필요
     assert result.status is VerificationStatus.REVISION_REQUIRED
 
 
