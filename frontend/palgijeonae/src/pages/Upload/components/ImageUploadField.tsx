@@ -3,8 +3,13 @@ import { type ClipboardEvent, type DragEvent, useRef } from "react";
 import uploadInputIcon from "@/assets/upload-inputImage.png";
 import Button from "@/components/common/Button";
 import HelpTooltip from "@/components/common/HelpTooltip";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { ALLOWED_IMAGE_EXTENSIONS_LABEL, MAX_FILE_SIZE_MB } from "@/pages/Upload/constants.ts";
 import { isAllowedImageType, isWithinFileSizeLimit } from "@/pages/Upload/utils/validation.ts";
+
+// 안내 문구만 나눈다. 끌어다 놓기·붙여넣기 동작은 좁은 데스크톱 창에서도 쓸 수 있도록 화면 폭과 상관없이 항상 켜 둔다.
+const DESKTOP_HINT = "이 영역에 이미지 파일을 끌어다 놓거나, 영역을 클릭한 뒤 붙여넣을 수 있어요.";
+const MOBILE_HINT = "탭해서 사진을 고를 수 있어요.";
 
 interface ImageUploadFieldProps {
     id: string
@@ -21,6 +26,7 @@ interface ImageUploadFieldProps {
 
 function ImageUploadField({ id, title, description, multiple = false, isOption = false, optionLabel = "선택", helperText, countLabel, tooltip, onChange }: ImageUploadFieldProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isMobile = useIsMobile();
 
     const handleFiles = (fileList: FileList | null) => {
         if (!fileList) {
@@ -100,7 +106,7 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                             {description}
                         </p>
                         <p className="text-sm leading-4.25 font-light text-neutral-border">
-                            이 영역에 이미지 파일을 끌어다 놓거나, 영역을 클릭한 뒤 붙여넣을 수 있어요.
+                            {isMobile ? MOBILE_HINT : DESKTOP_HINT}
                         </p>
                     </div>
                 </div>
