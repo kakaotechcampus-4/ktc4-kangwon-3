@@ -2,14 +2,18 @@ import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/cn";
 
-const trackVariants = cva("relative h-7 w-12 shrink-0 rounded-full transition-colors", {
-    variants: {
-        checked: {
-            true: "bg-primary",
-            false: "bg-neutral-border/40",
+const trackVariants = cva(
+    // 보이는 크기(28px)는 그대로 두고, 가상 요소로 위아래 터치 영역을 44px까지 넓힌다.
+    "relative h-7 w-12 shrink-0 rounded-full transition-colors before:absolute before:inset-x-0 before:-inset-y-2 before:content-['']",
+    {
+        variants: {
+            checked: {
+                true: "bg-primary",
+                false: "bg-field-line",
+            },
         },
     },
-});
+);
 
 const knobVariants = cva("absolute top-1 left-1 h-5 w-5 rounded-full bg-white transition-transform", {
     variants: {

@@ -79,6 +79,28 @@ export const handlers = [
     return successResponse(null)
   }),
 
+  // 법령 개정 알림 조회: 기본은 빈 목록(배너 없음)
+  http.get(`${API_URL}/api/v1/law-amendments`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse({ lawAmendments: [] })
+  }),
+
+  // 진단을 마친 상품 재진단
+  http.post(`${API_URL}/api/v1/products/:productId/rediagnosis`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse(null)
+  }),
+
+  // 알림 설정 조회·수정: 기본은 켜짐. 수정은 요청 본문을 그대로 돌려준다.
+  http.get(`${API_URL}/api/v1/users/me/notification-settings`, async ({ request }) => {
+    await recordRequest(request)
+    return successResponse({ lawAmendmentAlertEnabled: true })
+  }),
+  http.patch(`${API_URL}/api/v1/users/me/notification-settings`, async ({ request }) => {
+    const { lawAmendmentAlertEnabled } = await recordRequest<{ lawAmendmentAlertEnabled: boolean }>(request)
+    return successResponse({ lawAmendmentAlertEnabled })
+  }),
+
   // 회원 정보 조회·이름 수정·탈퇴
   http.get(`${API_URL}/api/v1/users/me`, async ({ request }) => {
     await recordRequest(request)

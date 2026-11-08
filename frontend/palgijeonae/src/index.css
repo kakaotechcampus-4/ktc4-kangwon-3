@@ -61,6 +61,9 @@ body {
 
     --color-status-warning: #8A6510;
     --color-status-warning-bg: #F5EED7;   /* 재확인 필요 / 경고 배너 */
+
+    --color-status-notice: #6A4C9C;
+    --color-status-notice-bg: #EFEAF6;    /* 법령 개정 알림 */
 }
 
 @utility no-scrollbar {

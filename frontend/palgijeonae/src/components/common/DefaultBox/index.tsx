@@ -21,6 +21,7 @@ const defaultBoxVariants = cva(
                 success: "border-status-success/40 bg-status-success-bg shadow-box-tone",
                 warning: "border-status-warning/40 bg-status-warning-bg shadow-box-tone",
                 danger: "border-status-danger/40 bg-status-danger-bg shadow-box-tone",
+                notice: "border-status-notice/40 bg-status-notice-bg shadow-box-tone",
             },
             // tone과 달리 배경은 채우지 않고 테두리 색만 상태에 맞춘다.
             borderTone: {

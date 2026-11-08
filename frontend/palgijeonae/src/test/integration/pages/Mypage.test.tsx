@@ -8,7 +8,7 @@ import type { MyProductItem } from '@/pages/Mypage/types'
 import { useAuthStore } from '@/store/useAuthStore'
 import { MYPAGE_MESSAGES, SERVER_MESSAGES } from '@/test/constants/messages'
 import { myPage } from '@/test/drivers/myPage'
-import { buildMyProduct, buildUserInfo } from '@/test/mocks/fixtures'
+import { buildLawAmendment, buildMyProduct, buildRecheckProduct, buildUserInfo } from '@/test/mocks/fixtures'
 import { API_URL } from '@/test/mocks/handlers'
 import { recordRequest, requestLog } from '@/test/mocks/requestLog'
 import { errorResponse, successResponse } from '@/test/mocks/responses'
@@ -22,6 +22,9 @@ import { getCurrentLocation, renderWithProviders } from '@/test/utils/renderWith
 const PRODUCTS_URL = `${API_URL}/api/v1/products`
 const PRODUCT_URL = `${API_URL}/api/v1/products/:productId`
 const MY_INFO_URL = `${API_URL}/api/v1/users/me`
+const LAW_AMENDMENTS_URL = `${API_URL}/api/v1/law-amendments`
+const REDIAGNOSIS_URL = `${API_URL}/api/v1/products/:productId/rediagnosis`
+const NOTIFICATION_SETTINGS_URL = `${API_URL}/api/v1/users/me/notification-settings`
 
 // 테스트가 응답에 넣는 데이터. 화면 문구가 아니라 이 테스트의 입력값이다.
 const USER = buildUserInfo()
@@ -37,6 +40,7 @@ const renderMyPage = () => {
       <>
         <Route path="/" element={<p>메인 화면</p>} />
         <Route path="/result/product/:productId" element={<p>결과 화면</p>} />
+        <Route path="/judgement/:diagnosesId" element={<p>진행 화면</p>} />
       </>
     ),
   })
@@ -671,5 +675,156 @@ describe('마이페이지 - 회원 탈퇴', () => {
     expect(getCurrentLocation()).toBe('/mypage')
     expect(useAuthStore.getState().isLoggedIn).toBe(true)
     expect(page.isWithdrawEnabled()).toBe(true)
+  })
+})
+
+// 개정 알림 테스트가 응답에 넣는 데이터. 화면 문구가 아니라 이 테스트의 입력값이다.
+const ELECTRICAL_LAW = '전기용품 안전기준'
+const CHILDREN_LAW = '어린이제품 안전 특별법'
+const LAW_AMENDMENTS = [
+  buildLawAmendment({
+    lawAmendmentId: 'law-amendment-1',
+    lawName: ELECTRICAL_LAW,
+    products: [
+      buildRecheckProduct({ productId: 'product-1', productName: '무드등' }),
+      buildRecheckProduct({ productId: 'product-2', diagnosesId: 'diagnoses-2', productName: '선풍기' }),
+    ],
+  }),
+  buildLawAmendment({
+    lawAmendmentId: 'law-amendment-2',
+    lawName: CHILDREN_LAW,
+    revisionType: null,
+    enforceDate: null,
+    products: [buildRecheckProduct({ productId: 'product-3', productName: '물놀이 튜브' })],
+  }),
+]
+
+describe('마이페이지 - 개정 알림', () => {
+  const renderWithAmendments = async () => {
+    server.use(
+      http.get(LAW_AMENDMENTS_URL, async ({ request }) => {
+        await recordRequest(request)
+        return successResponse({ lawAmendments: LAW_AMENDMENTS })
+      }),
+    )
+    mockProductServer(makeProducts(1))
+    const { page } = renderMyPage()
+    await page.waitForAmendment(ELECTRICAL_LAW)
+    return page
+  }
+
+  it('개정 목록이 있으면 배너에 개정과 상품을 보여준다', async () => {
+    const page = await renderWithAmendments()
+
+    expect(page.hasAmendment(ELECTRICAL_LAW)).toBe(true)
+    expect(page.hasAmendment(CHILDREN_LAW)).toBe(true)
+    expect(page.recheckProductNames()).toEqual(['무드등', '선풍기', '물놀이 튜브'])
+  })
+
+  it('개정 목록이 비어 있으면 배너를 보여주지 않는다', async () => {
+    mockProductServer(makeProducts(1))
+    const { page } = renderMyPage()
+    await page.waitForProduct('상품-01')
+    await page.waitForLawAmendmentsRequest()
+
+    expect(page.hasRevisionBanner()).toBe(false)
+  })
+
+  it('개정을 누르면 상품이 보이고, 다시 누르면 접힌다', async () => {
+    const page = await renderWithAmendments()
+
+    await page.expandAmendment(CHILDREN_LAW)
+
+    expect(page.isAmendmentExpanded(CHILDREN_LAW)).toBe(true)
+    expect(page.visibleRecheckProductNames()).toContain('물놀이 튜브')
+
+    await page.toggleAmendment(CHILDREN_LAW)
+
+    expect(page.isAmendmentExpanded(CHILDREN_LAW)).toBe(false)
+    expect(page.visibleRecheckProductNames()).not.toContain('물놀이 튜브')
+  })
+
+  it('재진단하기를 누르고 확인하면 재진단을 요청하고 진행 화면으로 이동한다', async () => {
+    const page = await renderWithAmendments()
+
+    await page.rediagnose('선풍기')
+
+    expectConfirmed(MYPAGE_MESSAGES.rediagnoseConfirm('선풍기'))
+    expect(await findStubScreen('진행 화면')).toBeInTheDocument()
+    expect(requestLog.find('POST', '/api/v1/products/product-2/rediagnosis')).toHaveLength(1)
+    expect(getCurrentLocation()).toBe('/judgement/diagnoses-2')
+    // 개정 알림 응답의 diagnosesId로 이동하므로 상품을 따로 조회하지 않는다.
+    expect(requestLog.find('GET', '/api/v1/products/product-2')).toHaveLength(0)
+    expectNotNotified()
+  })
+
+  it('확인을 취소하면 재진단 요청을 보내지 않는다', async () => {
+    declineConfirm()
+    const page = await renderWithAmendments()
+
+    await page.rediagnose('선풍기')
+
+    expect(requestLog.find('POST', '/api/v1/products/product-2/rediagnosis')).toHaveLength(0)
+    expect(getCurrentLocation()).toBe('/mypage')
+    expect(page.isRediagnoseEnabled('선풍기')).toBe(true)
+  })
+
+  it('재진단을 요청하는 동안에는 그 상품의 버튼만 비활성화한다', async () => {
+    const gate = createGate()
+    server.use(
+      http.post(REDIAGNOSIS_URL, async ({ request }) => {
+        await recordRequest(request)
+        await gate.promise
+        return successResponse(null)
+      }),
+    )
+    const page = await renderWithAmendments()
+
+    await page.rediagnose('선풍기')
+
+    await page.waitUntilRediagnoseDisabled('선풍기')
+    expect(page.isRediagnoseEnabled('무드등')).toBe(true)
+    expect(page.isRediagnoseEnabled('물놀이 튜브')).toBe(true)
+
+    gate.release()
+
+    expect(await findStubScreen('진행 화면')).toBeInTheDocument()
+  })
+
+  it('재진단에 실패하면 서버의 오류 메시지를 안내하고, 화면을 그대로 두며 버튼을 다시 활성화한다', async () => {
+    server.use(http.post(REDIAGNOSIS_URL, () => errorResponse(409, { detailMessage: SERVER_MESSAGES.REDIAGNOSE_NOT_ALLOWED })))
+    const page = await renderWithAmendments()
+
+    await page.rediagnose('선풍기')
+
+    await waitForNotified(SERVER_MESSAGES.REDIAGNOSE_NOT_ALLOWED)
+    expect(getCurrentLocation()).toBe('/mypage')
+    expect(page.isRediagnoseEnabled('선풍기')).toBe(true)
+  })
+})
+
+describe('마이페이지 - 알림 설정', () => {
+  it('법령 개정 알림 토글을 누르면 변경한 값을 서버에 보내고 토글 상태가 바뀐다', async () => {
+    mockProductServer(makeProducts(1))
+    const { page } = renderMyPage()
+    await page.waitForAlertSettingsLoaded()
+    expect(page.isLawAmendmentAlertOn()).toBe(true)
+
+    await page.toggleLawAmendmentAlert()
+
+    await page.waitForLawAmendmentAlert(false)
+    expect(requestLog.find('PATCH', '/api/v1/users/me/notification-settings').map((entry) => entry.body)).toEqual([{ lawAmendmentAlertEnabled: false }])
+  })
+
+  it('알림 설정을 바꾸지 못하면 서버의 오류 메시지를 안내하고, 토글 상태를 그대로 둔다', async () => {
+    server.use(http.patch(NOTIFICATION_SETTINGS_URL, () => errorResponse(500, { detailMessage: SERVER_MESSAGES.NOTIFICATION_NOT_SAVED })))
+    mockProductServer(makeProducts(1))
+    const { page } = renderMyPage()
+    await page.waitForAlertSettingsLoaded()
+
+    await page.toggleLawAmendmentAlert()
+
+    await waitForNotified(SERVER_MESSAGES.NOTIFICATION_NOT_SAVED)
+    expect(page.isLawAmendmentAlertOn()).toBe(true)
   })
 })

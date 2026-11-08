@@ -56,3 +56,8 @@ export async function submitAnswers(productId: string, answers: AnswerSubmission
 export async function retryDiagnosis(productId: string): Promise<void> {
     await apiClient.post(`/api/v1/products/${productId}/retry`);
 }
+
+/** 진단을 마친(COMPLETED) 상품을 다시 진단한다. 실패한 상품용인 retryDiagnosis와 달리 이전 진단 결과가 지워진다. */
+export async function rediagnoseProduct(productId: string): Promise<void> {
+    await apiClient.post(`/api/v1/products/${productId}/rediagnosis`);
+}
