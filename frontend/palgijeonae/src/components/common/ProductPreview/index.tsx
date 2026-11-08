@@ -8,7 +8,6 @@ import { truncateWithEllipsis } from "@/lib/text";
 
 // 제목이 길어도 레이아웃이 깨지지 않도록 화면에 보여줄 제목 길이를 제한한다.
 const MAX_DISPLAY_TITLE_LENGTH = 40;
-const MAX_DISPLAY_TITLE_LENGTH_MOBILE = 24;
 
 interface ProductPreviewProps {
     productName: string
@@ -25,8 +24,9 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
     const isMobile = useIsMobile();
-    const displayTitle = truncateWithEllipsis(productName, isMobile ? MAX_DISPLAY_TITLE_LENGTH_MOBILE : MAX_DISPLAY_TITLE_LENGTH);
-    const isProductNameLong = displayTitle !== productName;
+    // 모바일은 원본 이름을 넘기고 CSS(line-clamp)가 두 줄에서 자른다. 데스크톱은 글자 수로 줄인다.
+    const displayTitle = isMobile ? productName : truncateWithEllipsis(productName, MAX_DISPLAY_TITLE_LENGTH);
+    const isProductNameLong = isMobile || displayTitle !== productName;
 
     return (
         <DefaultBox>
@@ -44,7 +44,7 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
                             className="size-4 md:size-5" />
                         <p className="text-[13px] text-neutral-border font-semibold md:text-base">{SOURCE_TYPE_INFO[sourceType].label}</p>
                     </div>
-                    <h3 title={isProductNameLong ? productName : undefined} className="line-clamp-2 text-[15px] leading-5.5 font-bold text-black md:line-clamp-none md:text-xl md:leading-7">{displayTitle}</h3>
+                    <h3 title={isProductNameLong ? productName : undefined} className="line-clamp-2 wrap-break-word text-[15px] leading-5.5 font-bold text-black md:line-clamp-none md:text-xl md:leading-7">{displayTitle}</h3>
                 </div>
             </div>
         </DefaultBox>
