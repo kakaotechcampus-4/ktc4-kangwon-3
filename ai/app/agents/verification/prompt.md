@@ -92,6 +92,6 @@
   `product_type`(제품 종류) `material`(재질) `intended_use`(용도) `function`(기능) `composition`(구성품)
   `power_source`(전원 방식) `rated_voltage`(정격 전압) `rated_power`(정격 소비전력) `battery_only`(전지로만 동작하는지)
   `adapter_included`(어댑터 포함) `wireless_feature`(무선 기능) `frequency`(주파수) `output_power`(무선 출력)
-  `target_age`(사용 연령) `food_contact`(음식 접촉) `edible`(먹는 것) `skin_applied`(바르는 것)
+  `target_age`(사용 연령) `excluded_kind`(의약품, 의료기기, 화장품, 식품용 기구 표시) `food_contact`(음식 접촉) `edible`(먹는 것) `skin_applied`(바르는 것)
   `health_claim`(효능 문구) `beauty_claim`(피부·모발 효과 문구) `ingredient`(성분).
   서버는 Tool이 이미 묻거나 판매자가 이미 답한 조건의 질문을 `topic`으로 찾아 뺀다.

@@ -36,7 +36,7 @@ def test_카탈로그에_있는_필드는_그_질문_문장을_쓴다():
 
 
 def test_카탈로그에_없는_필드는_표시_이름으로_기본_문장을_만든다():
-    assert question_text("excluded_kind", "제외 물품 해당 여부") == "제외 물품 해당 여부 정보가 필요합니다."
+    assert question_text("serial_number", "일련번호") == "일련번호 정보가 필요합니다."
 
 
 def test_값이_서로_다른_필드는_카탈로그와_상관없이_확인_요청_문장이다():
