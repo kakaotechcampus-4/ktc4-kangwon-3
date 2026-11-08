@@ -30,7 +30,7 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 
 | 종류 | 검증하는 것 | 도구 | 위치 | 실행 |
 |---|---|---|---|---|
-| 단위 | 함수 하나의 판단과 분기 | Vitest | `src/test/unit/` | `npm test`, PR·develop CI |
+| 단위 | 함수·훅·공용 컴포넌트 하나의 판단과 동작 | Vitest, React Testing Library | `src/test/unit/` | `npm test`, PR·develop CI |
 | 통합 | 화면 하나의 동작(조작 → 요청 → 화면 변화·이동) | Vitest, React Testing Library, user-event, MSW, jsdom | `src/test/integration/` | `npm test`, PR·develop CI |
 
 - 단위와 통합은 같은 명령(`npm test`)으로 함께 실행됩니다.
@@ -69,16 +69,18 @@ src/test/
 ├── vitest.setup.ts          # 모든 테스트 전에 실행: MSW 시작, 브라우저 API 스텁, 상태 초기화
 ├── unit/                    # 소스 경로를 그대로 따라갑니다 (src/lib/text.ts → unit/lib/text.test.ts)
 │   ├── api/
+│   ├── components/
+│   ├── hooks/
 │   ├── lib/
 │   └── pages/{Question,Upload}/utils/
 ├── integration/
-│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute)
+│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute, Header, 업로드 입력·상품 카드, 진단 카드, 마이페이지 목록 등)
 │   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry)
 ├── drivers/                 # 화면별 드라이버: 통합 테스트가 화면을 조작·조회하는 통로 (uploadPage, judgementPage ...)
 ├── constants/               # messages.ts: 통합 테스트가 비교하는 알림·안내 문구
 ├── infra/                   # 테스트 기반 자체 검증
 ├── mocks/                   # MSW 서버·핸들러·응답 헬퍼·요청 기록·픽스처
-├── utils/                   # renderWithProviders, 인증 시나리오, 알림·확인 헬퍼, createGate, LocationDisplay
+├── utils/                   # renderWithProviders, 인증 시나리오, 알림·확인 헬퍼, 모바일 폭 스텁(viewport), createGate, LocationDisplay
 ├── smoke.test.tsx           # 테스트 환경이 동작하는지 확인하는 최소 테스트
 └── browserStubs.test.tsx    # 브라우저 API 스텁 확인
 ```
@@ -197,11 +199,12 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 | `window.alert` | 아무것도 안 함 | `expectNotified(QUESTION_MESSAGES.ANSWER_ALL)` (`utils/notifications.ts`) |
 | `window.confirm` | 기본은 **확인(true)** | `expectConfirmed(...)`, 취소는 `declineConfirm()` (`utils/confirmations.ts`) |
 | `Element.scrollIntoView` | 아무것도 안 함 | `expect(Element.prototype.scrollIntoView).toHaveBeenCalled()` |
-| `window.matchMedia` | `matches: false` ("동작 줄이기" 꺼짐) | - |
+| `window.matchMedia` | `matches: false` ("동작 줄이기" 꺼짐, 화면 폭은 데스크톱) | 모바일 폭이 필요하면 테스트에서 `setMobileViewport()` (`utils/viewport.ts`) |
 | `Element.animate` | `cancel`이 있는 mock | - |
 
 - **`FormData`는 모킹하지 않고 기본 구현을 씁니다.** 앱 코드가 쓰지 않는 `FileReader`도 스텁하지 않습니다.
 - 앱 코드가 새 브라우저 API를 쓰게 되어 jsdom에서 오류가 나면, 테스트마다 따로 막지 말고 `vitest.setup.ts`에 같은 방식으로 추가합니다. (`beforeEach`에서 교체, `afterEach`에서 원복)
+- `afterEach`는 스텁을 되돌리기 전에 렌더된 화면부터 내립니다(`cleanup()`). 화면이 남은 채로 스텁이 사라지면 `useIsMobile`처럼 렌더 중에 `matchMedia`를 부르는 훅이 오류를 냅니다.
 
 ## 9. 작성 규칙
 
