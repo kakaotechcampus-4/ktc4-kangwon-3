@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import deleteIcon from "@/assets/delete-gray.svg";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import { cn } from "@/lib/cn";
 
 export interface LightboxImage {
@@ -43,13 +44,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [goToPrev, goToNext, onClose]);
 
-    useEffect(() => {
-        const originalOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-        return () => {
-            document.body.style.overflow = originalOverflow;
-        };
-    }, []);
+    useBodyScrollLock(true);
 
     useEffect(() => {
         const previouslyFocusedElement = document.activeElement as HTMLElement | null;
@@ -90,7 +85,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
                 type="button"
                 onClick={onClose}
                 aria-label="닫기"
-                className="absolute top-6 right-6 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white shadow"
+                className="absolute top-6 right-6 z-10 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white shadow"
             >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
