@@ -51,7 +51,7 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
             <div className="flex w-full flex-wrap items-center justify-between gap-2.5">
                 <FindingFilterBar counts={findingCounts} selected={findingFilter} onSelect={setFindingFilter} />
                 {allFindings.length > 0 && (
-                    <HelpTooltip label="판정·위험도 설명" className="max-w-none whitespace-nowrap">
+                    <HelpTooltip label="판정·위험도 설명" className="md:max-w-none md:whitespace-nowrap">
                         {DETERMINATION_LEGEND_ORDER.map((determination) => (
                             <p key={determination}>
                                 <span className="font-semibold">{DETERMINATION_LABELS[determination]}</span>

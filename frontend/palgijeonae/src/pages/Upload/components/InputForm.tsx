@@ -136,7 +136,7 @@ function InputForm({ type, onAdd }: InputFormProps) {
             />
             <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex min-w-0 items-center gap-2">
-                    <HelpTooltip label="입력 방법 추가 설명" className="max-w-sm">
+                    <HelpTooltip label="입력 방법 추가 설명" className="max-w-[min(24rem,calc(100vw-40px))]">
                         {helpTooltip}
                     </HelpTooltip>
                     <p className="truncate text-sm text-neutral-dark">

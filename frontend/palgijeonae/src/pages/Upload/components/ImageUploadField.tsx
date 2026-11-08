@@ -66,7 +66,7 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                 <div className="flex items-center gap-3.75">
                     <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
                     {isOption && <span className="text-xs leading-3.5 text-neutral-border">{optionLabel}</span>}
-                    {tooltip && <HelpTooltip label={`${title} 설명`} className="max-w-sm">{tooltip}</HelpTooltip>}
+                    {tooltip && <HelpTooltip label={`${title} 설명`} className="max-w-[min(24rem,calc(100vw-40px))]">{tooltip}</HelpTooltip>}
                 </div>
                 {countLabel && <span className="text-xs leading-3.5 text-neutral-border">{countLabel}</span>}
             </div>

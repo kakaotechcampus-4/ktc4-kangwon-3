@@ -4,6 +4,7 @@ import {
     FloatingPortal,
     offset,
     shift,
+    useClick,
     useDismiss,
     useFloating,
     useFocus,
@@ -36,12 +37,14 @@ function HelpTooltip({ label, children, className }: HelpTooltipProps) {
         open: isOpen,
         onOpenChange: setIsOpen,
         placement: "top",
-        middleware: [offset(8), flip(), shift({ padding: 8 })],
+        middleware: [offset(8), flip(), shift({ padding: 20 })],
         whileElementsMounted: autoUpdate,
     });
 
+    // 터치에는 hover가 없어서 탭으로 열고, 바깥을 탭하면 닫는다. 마우스는 hover·focus로 열기 때문에 click은 마우스를 무시한다.
     const { getReferenceProps, getFloatingProps } = useInteractions([
         useHover(context),
+        useClick(context, { ignoreMouse: true, toggle: false }),
         useFocus(context),
         useDismiss(context),
         useRole(context, { role: "tooltip" }),
@@ -67,7 +70,7 @@ function HelpTooltip({ label, children, className }: HelpTooltipProps) {
                         style={floatingStyles}
                         {...getFloatingProps()}
                         className={cn(
-                            "pointer-events-none z-50 flex w-max max-w-xs flex-col gap-1 whitespace-pre-line rounded-lg bg-neutral-dark px-4 py-3 text-sm text-white shadow-lg",
+                            "pointer-events-none z-50 flex w-max max-w-[min(20rem,calc(100vw-40px))] flex-col gap-1 whitespace-pre-line rounded-lg bg-neutral-dark px-4 py-3 text-sm text-white shadow-lg",
                             className,
                         )}
                     >
