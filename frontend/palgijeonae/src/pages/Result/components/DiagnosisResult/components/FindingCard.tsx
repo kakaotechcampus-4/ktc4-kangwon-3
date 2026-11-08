@@ -37,14 +37,14 @@ function FindingCard({ finding }: FindingCardProps) {
         <DefaultBox>
             <div className="flex w-full flex-col gap-5.5">
                 <div className="w-full overflow-hidden">
-                    <div className="float-right ml-4 flex shrink-0 items-center gap-2.5">
+                    <div className="mb-2.5 flex shrink-0 items-center gap-2.5 md:float-right md:mb-0 md:ml-4">
                         {showRiskMeter && <RiskMeter riskLevel={finding.riskLevel} />}
                         <DeterminationBadge determination={finding.determination} />
                     </div>
-                    <p className="text-xl font-bold text-black">{finding.subject}</p>
+                    <p className="text-lg font-bold text-black md:text-xl">{finding.subject}</p>
                 </div>
-                <p className="text-base font-medium leading-relaxed whitespace-pre-line text-black">{finding.summary}</p>
-                <p className="text-sm leading-relaxed whitespace-pre-line text-neutral-text">{finding.rationale}</p>
+                <p className="text-[15px] font-medium leading-relaxed whitespace-pre-line text-black md:text-base">{finding.summary}</p>
+                <p className="text-[13px] leading-relaxed whitespace-pre-line text-neutral-text md:text-sm">{finding.rationale}</p>
             </div>
             {firstLegalSource && (
                 <>

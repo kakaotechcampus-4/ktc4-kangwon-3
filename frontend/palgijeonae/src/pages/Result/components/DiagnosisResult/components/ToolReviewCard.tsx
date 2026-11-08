@@ -37,10 +37,10 @@ function ToolReviewCard({ toolReview, findingFilter }: ToolReviewCardProps) {
 
     return (
         <div className="flex w-full flex-col gap-5">
-            <div className="relative w-full">
+            <div className="flex w-full flex-col gap-1 md:relative md:block">
                 <SectionIntro title={TOOL_NAME_LABELS[toolReview.toolName]} description={toolReview.message ?? ""} size="2xl" />
                 {statusText && (
-                    <p className={cn("absolute top-3 right-1 text-sm font-semibold", statusText.className)}>
+                    <p className={cn("text-sm font-semibold md:absolute md:top-3 md:right-1", statusText.className)}>
                         {statusText.label}
                     </p>
                 )}
