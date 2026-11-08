@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import axios from "axios";
 
+import { isInvalidIdError } from "@/api/core/invalidId";
 import { getDiagnosesDetail } from "@/api/diagnoses";
 import { getProduct } from "@/api/products";
 import type { ProductResult } from "@/api/types/product";
@@ -26,8 +26,8 @@ export function useProductResults(
         enabled: !isInvalidAccess,
     });
 
-    // 존재하지 않는 id로 접근한 경우(404)
-    const isNotFoundError = axios.isAxiosError(query.error) && query.error.response?.status === 404;
+    // 형식이 잘못됐거나 존재하지 않는 id로 접근한 경우(400, 404)
+    const isInvalidId = isInvalidIdError(query.error);
 
-    return { ...query, isNotFoundError };
+    return { ...query, isInvalidId };
 }
