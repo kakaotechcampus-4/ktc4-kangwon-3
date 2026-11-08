@@ -63,7 +63,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                     조건에 맞는 상품이 없어요.
                 </p>
             ) : (
-                <ul className="flex w-full flex-col gap-3.5">
+                <ul aria-label="전체 상품" className="flex w-full flex-col gap-3.5">
                     {products.map((product) => {
                         const isDeletingThis = isDeleting && deletingProductId === product.productId;
                         return (

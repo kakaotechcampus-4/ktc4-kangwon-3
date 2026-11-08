@@ -1,5 +1,6 @@
+import type { LawAmendment, RecheckProduct } from '@/api/lawAmendments'
 import { ProcessingStatusType, ResultStatus, SourceType } from '@/api/types/common'
-import type { DiagnosesDetail, ProductFailure, ProductResult, Question } from '@/api/types/product'
+import { type DiagnosesDetail, type ProductFailure, type ProductResult, type Question, ToolName } from '@/api/types/product'
 import { SocialProvider, type UserInfo } from '@/api/users'
 import type { MyProductItem } from '@/pages/Mypage/types'
 
@@ -84,5 +85,24 @@ export const buildUserInfo = (overrides: Partial<UserInfo> = {}): UserInfo => ({
   name: '홍길동',
   email: 'gildong@example.com',
   socialProvider: SocialProvider.Kakao,
+  ...overrides,
+})
+
+// 개정 알림에 담긴 재진단 대상 상품 하나
+export const buildRecheckProduct = (overrides: Partial<RecheckProduct> = {}): RecheckProduct => ({
+  productId: 'product-1',
+  diagnosesId: 'diagnoses-1',
+  productName: '테스트 상품',
+  ...overrides,
+})
+
+// 법령 개정 알림 하나. 기본값은 상품 하나가 걸린 일부개정이다.
+export const buildLawAmendment = (overrides: Partial<LawAmendment> = {}): LawAmendment => ({
+  lawAmendmentId: 'law-amendment-1',
+  lawName: '전기용품 및 생활용품 안전관리법 시행규칙',
+  revisionType: '일부개정',
+  toolName: ToolName.Electrical,
+  enforceDate: '2026-12-01',
+  products: [buildRecheckProduct()],
   ...overrides,
 })

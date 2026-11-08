@@ -440,7 +440,7 @@ def test_음식_접촉도_효능_문구도_없으면_비대상이_아니라_정�
     result, model = run(product, facts)
     assert model.calls == ["FoodDrugFacts"]
     finding = result.findings[0]
-    assert finding.determination is Determination.INSUFFICIENT_INFORMATION and "비대상 판단이 아닙니다" in finding.summary
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION and "판단하지 못했습니다" in finding.summary
     assert result.required_actions == [] and result.missing_information == []
 
 
