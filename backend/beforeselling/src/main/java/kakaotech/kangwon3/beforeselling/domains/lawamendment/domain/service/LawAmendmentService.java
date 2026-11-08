@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -59,5 +60,21 @@ public class LawAmendmentService {
 
         log.info("법령 개정 재확인 대상 지정. lawAmendmentId={}, lawName={}, toolName={}, productCount={}",
                 lawAmendment.getId(), lawAmendment.getLawName(), lawAmendment.getToolName(), products.size());
+    }
+
+    /**
+     * 사용자의 재확인 대상 상품을 법령 변경과 함께 조회한다.
+     */
+    public List<LawAmendmentProduct> getRecheckProducts(UUID userId) {
+        return lawAmendmentProductRepository.findWithLawAmendmentAndProductByUserId(userId);
+    }
+
+    /**
+     * 상품을 모든 법령 변경의 재확인 대상에서 뺀다.
+     */
+    @Transactional
+    public void removeRecheckProducts(UUID productId) {
+        int removed = lawAmendmentProductRepository.deleteByProductId(productId);
+        log.debug("재확인 대상 해제. productId={}, removedCount={}", productId, removed);
     }
 }

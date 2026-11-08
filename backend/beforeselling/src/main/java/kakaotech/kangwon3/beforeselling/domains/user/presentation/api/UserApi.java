@@ -5,7 +5,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.NotificationSettingModifyRequest;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.UserProfileModifyRequest;
+import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.NotificationSettingResponse;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.UserProfileResponse;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiErrorResponseExplanation;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiResponseExplanations;
@@ -48,6 +50,39 @@ public interface UserApi {
     ResponseEntity<ApiResponse<UserProfileResponse>> modifyMyProfile(
             @Parameter(hidden = true) UserPrincipal principal,
             @Valid UserProfileModifyRequest request);
+
+    @Operation(
+            summary = "내 알림 설정 조회",
+            description = """
+                    로그인한 회원의 알림 설정을 조회합니다.
+                    - `lawAmendmentAlertEnabled`: 개정 알림(마이페이지 배너·메일) 수신 여부. 가입 시 `true`입니다.
+                    """)
+    @ApiResponseExplanations(
+            success = @ApiSuccessResponseExplanation(responseClass = NotificationSettingResponse.class, description = "조회 성공"),
+            errors = {
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
+            }
+    )
+    ResponseEntity<ApiResponse<NotificationSettingResponse>> getMyNotificationSetting(
+            @Parameter(hidden = true) UserPrincipal principal);
+
+    @Operation(
+            summary = "내 알림 설정 수정",
+            description = """
+                    로그인한 회원의 알림 설정을 바꾸고, 바뀐 설정을 반환합니다.
+                    - `lawAmendmentAlertEnabled`를 `false`로 바꾸면 개정 알림 조회가 빈 목록이 되고 개정 알림 메일도 받지 않습니다.
+                    - `lawAmendmentAlertEnabled`가 없거나 `null`이면 `INVALID_METHOD_ARGUMENT`입니다.
+                    """)
+    @ApiResponseExplanations(
+            success = @ApiSuccessResponseExplanation(responseClass = NotificationSettingResponse.class, description = "수정 성공"),
+            errors = {
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "INVALID_METHOD_ARGUMENT"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
+            }
+    )
+    ResponseEntity<ApiResponse<NotificationSettingResponse>> modifyMyNotificationSetting(
+            @Parameter(hidden = true) UserPrincipal principal,
+            @Valid NotificationSettingModifyRequest request);
 
     @Operation(
             summary = "회원 탈퇴",
