@@ -32,10 +32,8 @@ export type PageNav = keyof typeof PAGE_NAV_LABELS
 
 export function myPage(user: User = userEvent.setup()) {
   // ── 상품 목록 ───────────────────────────────────────────────
-  // NOTE(source): 상품 목록(ul)에는 이름이 없고 이 화면의 유일한 list라서 role만으로 찾는다. 상품 이름은 각 항목의 제목 heading에서 읽는다.
-  // 소스에서 목록에 aria-label(예: "진단한 상품")을 붙이면 getByRole('list', { name })으로 찾을 수 있다.
   const productItems = (): HTMLElement[] => {
-    const list = screen.queryByRole('list')
+    const list = screen.queryByRole('list', { name: /전체 상품/ })
     return list ? within(list).getAllByRole('listitem') : []
   }
   const nameOf = (item: HTMLElement) => within(item).getByRole('heading').textContent?.trim() ?? ''
