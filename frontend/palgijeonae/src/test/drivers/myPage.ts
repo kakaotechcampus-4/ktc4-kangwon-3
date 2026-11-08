@@ -48,6 +48,23 @@ export function myPage(user: User = userEvent.setup()) {
 
   const deleteButton = (name: string) => screen.getByRole('button', { name: `${name} 삭제` })
 
+  // ── 개정 알림 배너 ───────────────────────────────────────────
+  const banner = () => screen.queryByRole('region', { name: '법령 개정 알림' })
+  const bannerScope = () => within(banner() as HTMLElement)
+  const amendmentToggle = (lawName: string) => bannerScope().getByRole('button', { name: (accessibleName) => accessibleName.includes(lawName) })
+  const isExpanded = (lawName: string) => amendmentToggle(lawName).getAttribute('aria-expanded') === 'true'
+  const productNameOf = (button: HTMLElement) => (button.getAttribute('aria-label') ?? '').replace(/ 재진단하기$/, '')
+  // 접힌 개정의 상품은 화면에 보이지 않는다. 접힘 여부와 상관없이 읽으려면 hidden을 포함한다.
+  const rediagnoseButton = (name: string) => bannerScope().getByRole('button', { name: `${name} 재진단하기`, hidden: true })
+  const expandAllAmendments = async (user: User) => {
+    for (const toggle of bannerScope().queryAllByRole('button', { expanded: false })) {
+      await user.click(toggle)
+    }
+  }
+
+  // ── 알림 설정 ───────────────────────────────────────────────
+  const alertSwitch = () => screen.getByRole('switch', { name: /법령 개정 알림/ })
+
   // ── 회원 정보 ───────────────────────────────────────────────
   const nameInput = () => screen.getByLabelText(/^이름$/)
   const saveButton = () => screen.getByRole('button', { name: /^저장$/ })
@@ -147,6 +164,41 @@ export function myPage(user: User = userEvent.setup()) {
     hasCancelButton: () => screen.queryByRole('button', { name: /^취소$/ }) !== null,
     isSaveEnabled: () => !(saveButton() as HTMLButtonElement).disabled,
     isCancelEnabled: () => !(cancelButton() as HTMLButtonElement).disabled,
+
+    // ── 개정 알림 배너 ───────────────────────────────────────
+    hasRevisionBanner: () => banner() !== null,
+    /** 개정 알림 조회 요청을 보낼 때까지 기다린다. (배너가 없어야 하는 경우, 요청 전에 확인하지 않도록) */
+    waitForLawAmendmentsRequest: () => waitFor(() => expect(requestLog.find('GET', '/api/v1/law-amendments').length).toBeGreaterThan(0)),
+    waitForAmendment: async (lawName: string) => {
+      await waitFor(() => expect(banner()).not.toBeNull())
+      await waitFor(() => expect(amendmentToggle(lawName)).toBeInTheDocument())
+    },
+    hasAmendment: (lawName: string) => banner() !== null && bannerScope().queryAllByRole('button', { name: (accessibleName) => accessibleName.includes(lawName) }).length > 0,
+    /** 접힘 여부와 상관없이 배너에 담긴 모든 상품 이름 */
+    recheckProductNames: () => bannerScope().queryAllByRole('button', { name: / 재진단하기$/, hidden: true }).map(productNameOf),
+    /** 지금 화면에 보이는(펼쳐진 개정의) 상품 이름 */
+    visibleRecheckProductNames: () => bannerScope().queryAllByRole('button', { name: / 재진단하기$/ }).map(productNameOf),
+    isAmendmentExpanded: isExpanded,
+    toggleAmendment: (lawName: string) => user.click(amendmentToggle(lawName)),
+    /** 접혀 있을 때만 눌러 펼친다. (처음 펼침 상태에 기대지 않는다) */
+    async expandAmendment(lawName: string) {
+      if (!isExpanded(lawName)) {
+        await user.click(amendmentToggle(lawName))
+      }
+    },
+    /** 상품의 재진단 버튼을 누른다. 접힌 개정이 있으면 먼저 모두 펼친다. */
+    async rediagnose(name: string) {
+      await expandAllAmendments(user)
+      await user.click(rediagnoseButton(name))
+    },
+    isRediagnoseEnabled: (name: string) => !(rediagnoseButton(name) as HTMLButtonElement).disabled,
+    waitUntilRediagnoseDisabled: (name: string) => waitFor(() => expect((rediagnoseButton(name) as HTMLButtonElement).disabled).toBe(true)),
+
+    // ── 알림 설정 ────────────────────────────────────────────
+    waitForAlertSettingsLoaded: () => waitFor(() => expect(alertSwitch()).toBeEnabled()),
+    isLawAmendmentAlertOn: () => alertSwitch().getAttribute('aria-checked') === 'true',
+    toggleLawAmendmentAlert: () => user.click(alertSwitch()),
+    waitForLawAmendmentAlert: (on: boolean) => waitFor(() => expect(alertSwitch().getAttribute('aria-checked')).toBe(String(on))),
 
     // ── 회원 탈퇴 ────────────────────────────────────────────
     clickWithdraw: () => user.click(screen.getByRole('button', { name: /^탈퇴하기$/ })),

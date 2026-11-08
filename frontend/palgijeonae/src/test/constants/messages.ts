@@ -81,6 +81,8 @@ export const MYPAGE_MESSAGES = {
   LIST_LOAD_FAILED: '상품 목록을 불러오지 못했어요.',
   PROFILE_LOAD_FAILED: '회원 정보를 불러오지 못했어요.',
   deleteConfirm: (productName: string) => `'${productName}'의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`,
+  // NOTE(source): RevisionNoticeBanner의 재진단 확인 문구. 소스에 export가 없다.
+  rediagnoseConfirm: (productName: string) => `'${productName}'을(를) 다시 진단할까요? 이전 진단 결과는 사라지고, 되돌릴 수 없어요.`,
   WITHDRAW_CONFIRM_TITLE: '정말 탈퇴할까요?',
   WITHDRAW_CONFIRM_DATA: '지금까지 진단한 모든 상품과 진단 결과',
   WITHDRAW_DONE: '탈퇴가 완료되었습니다. 그동안 팔기전에를 이용해주셔서 감사합니다.',
@@ -98,4 +100,6 @@ export const SERVER_MESSAGES = {
   PRODUCT_NOT_DELETABLE: '삭제할 수 없는 상품입니다.',
   NAME_TAKEN: '이미 사용 중인 이름입니다.',
   WITHDRAW_BLOCKED: '진행 중인 진단이 있어 탈퇴할 수 없습니다.',
+  REDIAGNOSE_NOT_ALLOWED: '진단을 마친 상품만 다시 진단할 수 있습니다.',
+  NOTIFICATION_NOT_SAVED: '알림 설정을 저장하지 못했습니다.',
 }
