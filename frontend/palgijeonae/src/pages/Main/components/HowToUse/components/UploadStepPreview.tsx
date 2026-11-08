@@ -56,7 +56,7 @@ function UploadStepPreview() {
                             <HelpTooltip label="입력 방법 추가 설명">
                                 분석을 위해 필요한 정보가 상세페이지에 충분히 포함되어 있는지 확인하세요.
                             </HelpTooltip>
-                            <p className="text-sm text-neutral-dark md:truncate">상세페이지를 텍스트나 이미지로 입력하세요. 둘 다 입력할 수도 있습니다.</p>
+                            <p className="text-sm text-neutral-dark md:truncate">상세페이지 본문을 텍스트로 입력하세요. 상세페이지 이미지는 선택 사항입니다.</p>
                         </div>
                         <div className="shrink-0">
                             <Button text="상품 추가하기" onClick={NOOP} fontSize={15} className="w-full md:w-auto" />
