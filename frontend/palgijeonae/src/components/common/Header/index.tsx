@@ -106,7 +106,7 @@ function Header() {
                     id={menuId}
                     onClose={() => setIsMenuOpen(false)}
                     onLogout={() => logoutMutation.mutate()}
-                    returnFocusRef={menuButtonRef}
+                    triggerRef={menuButtonRef}
                 />
             )}
         </header>

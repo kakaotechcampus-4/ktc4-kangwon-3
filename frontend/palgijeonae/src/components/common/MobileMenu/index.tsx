@@ -1,10 +1,11 @@
-import type { RefObject } from 'react'
+import { type RefObject, useRef } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 
 import Button from '@/components/common/Button'
 import { NAV_ITEMS } from '@/constants/navigation'
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock'
 import { useEscapeKey } from '@/hooks/useEscapeKey'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
 import { cn } from '@/lib/cn'
 import { useMyInfo } from '@/pages/Mypage/hooks/useMyInfo'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -13,8 +14,8 @@ interface MobileMenuProps {
     id: string
     onClose: () => void
     onLogout: () => void
-    // Esc로 닫을 때 포커스를 돌려줄 햄버거 버튼
-    returnFocusRef: RefObject<HTMLElement | null>
+    // 메뉴를 여는 햄버거 버튼. Esc로 닫을 때 포커스를 돌려주고, Tab 이동 범위에도 포함한다.
+    triggerRef: RefObject<HTMLElement | null>
 }
 
 const MEMBER_ITEM_CLASS = 'flex h-12 w-full cursor-pointer items-center px-5 text-left text-base font-medium'
@@ -61,21 +62,23 @@ function MemberMenu({ onClose, onLogout }: MemberMenuProps) {
 }
 
 /** 모바일 헤더 아래로 펼쳐지는 메뉴 패널. 열려 있는 동안에만 렌더하며, 마운트된 동안 배경 스크롤을 잠근다. */
-function MobileMenu({ id, onClose, onLogout, returnFocusRef }: MobileMenuProps) {
+function MobileMenu({ id, onClose, onLogout, triggerRef }: MobileMenuProps) {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
     const isAuthReady = useAuthStore((state) => state.isAuthReady)
     const navigate = useNavigate()
+    const panelRef = useRef<HTMLDivElement>(null)
 
     useBodyScrollLock(true)
     useEscapeKey(true, () => {
         onClose()
-        returnFocusRef.current?.focus()
+        triggerRef.current?.focus()
     })
+    useFocusTrap(true, [triggerRef, panelRef])
 
     return (
         <div className="fixed inset-x-0 top-14.25 bottom-0">
             <div role="presentation" className="absolute inset-0 bg-black/40" onClick={onClose} />
-            <div id={id} className="relative max-h-full overflow-y-auto border-b border-neutral-line bg-white shadow-box">
+            <div id={id} ref={panelRef} className="relative max-h-full overflow-y-auto border-b border-neutral-line bg-white shadow-box">
                 <nav aria-label="주요 메뉴" className="flex flex-col py-2">
                     {NAV_ITEMS.map(({ label, to }) => (
                         <NavLink

@@ -107,6 +107,20 @@ describe('헤더 - 모바일 메뉴', () => {
     expect(screen.getByRole('button', { name: '메뉴 열기' })).toHaveFocus()
   })
 
+  it('Tab으로 메뉴 안에서만 이동한다: 끝에서 Tab이면 햄버거 버튼으로, 햄버거 버튼에서 Shift+Tab이면 끝으로 간다', async () => {
+    renderWithProviders(<Header />)
+
+    const user = await openMenu()
+    const loginButton = getMenuPanel().getByRole('button', { name: '로그인' })
+    loginButton.focus()
+
+    await user.tab()
+    expect(screen.getByRole('button', { name: '메뉴 닫기' })).toHaveFocus()
+
+    await user.tab({ shift: true })
+    expect(loginButton).toHaveFocus()
+  })
+
   it('로그인 전에는 메뉴에 로그인 버튼이 있고, 누르면 로그인 화면으로 이동하며 메뉴가 닫힌다', async () => {
     renderWithProviders(<Header />, { route: '/' })
 
