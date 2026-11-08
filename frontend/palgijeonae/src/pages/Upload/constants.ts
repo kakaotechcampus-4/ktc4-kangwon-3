@@ -4,6 +4,9 @@ export const MAX_PRODUCT_NAME_LENGTH = 100;
 // 백엔드 제한(코드 유닛 기준). 입력 중 실시간으로 자르지 않고 제출 시점에 검증하는 기준.
 export const MAX_PRODUCT_NAME_CODE_UNIT_LENGTH = 200;
 
+// 상세페이지 본문 길이 제한. 백엔드(Java String 길이)와 같은 코드 유닛 기준이라 입력 중 자르기와 제출 검증에 같은 값을 쓴다.
+export const MAX_PRODUCT_CONTENT_LENGTH = 20000;
+
 // 상세페이지 이미지 장수 제한
 export const MAX_PRODUCT_IMAGE_COUNT = 20;
 
