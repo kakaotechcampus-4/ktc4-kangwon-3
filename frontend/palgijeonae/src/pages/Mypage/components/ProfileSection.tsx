@@ -27,7 +27,7 @@ function ProfileSection() {
     return (
         <DefaultBox className="flex flex-col gap-5">
             <SectionIntro title="회원 정보" size="xl" />
-            <hr className="w-full border-neutral-border" />
+            <hr className="w-full border-neutral-line" />
             {isPending ? (
                 <LoadingSpinner />
             ) : isError || !userInfo ? (

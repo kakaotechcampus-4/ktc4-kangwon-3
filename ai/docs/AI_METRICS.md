@@ -167,7 +167,7 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
   | 값 | 응답 캐시 | 결정사례 DB |
   |---|---|---|
   | `hit` | 만료 전 DB 값을 씀 | 가까운 사례를 찾아 CLIP을 안 부름 |
-  | `miss` | 없거나 만료돼 외부 API로 받음 (실패해도 셈) | 가까운 사례가 없어 CLIP으로 찾음 |
+  | `miss` | 없거나 만료돼 외부 API로 받음 (실패는 안 셈, `ai_client_calls`에서 봄) | 가까운 사례가 없어 CLIP으로 찾음 |
   | `stale` | 외부 API 실패·저장 조건 불일치로 만료된 DB 값을 씀 | (없음) |
   | `skipped` | DB 장애로 건너뛰고 외부 API로 받음 | DB·임베딩 실패로 CLIP으로 찾음 |
 
@@ -175,9 +175,9 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - DB 없이 뜬 서버(DATABASE_URL 없음)는 세지 않음
 - 재는 곳: `CachedFetcherBase.fetch_parsed`, `DatabaseFirstCaseSearch._near`
 - 법령 점검: 문서 하나라도 실패하면 `partial`, 전부 실패하면 `failed`. 실패한 문서는 법령이 낡은 채 남아 `ok`만 성공 시각을 바꿈
-  - 재는 곳: `refresh_laws` (기동 30초 뒤 1번, 매일 00:05 KST). 기동 직후 바로 돌면 몇 초 만에 끝나 첫 수집 전에 1이 돼 안 세짐
+  - 재는 곳: `refresh_laws` (매일 00:05 KST, 기동 때는 안 돎). CLI `law-refresh`는 별도 프로세스라 안 세짐
 - 법령 변경 `kind`: `announced`(새 판 발표)·`applied`(근거로 고르는 판이 바뀜)·`skipped`(시행일이 됐지만 나중 판이 있어 안 씀, 사람이 확인할 것). `tool`은 그 문서를 근거로 쓰는 Tool
-  - 같은 날 재기동하면 그날의 `applied`·`skipped`를 다시 셀 수 있음 (변경 로그와 같음)
+  - 시행일 00:05 점검을 놓치면 그날의 `applied`·`skipped`는 다음 날 점검에서도 안 나옴. 그날 CLI `law-refresh`를 돌리면 변경 로그에 남음 (별도 프로세스라 지표로는 안 세짐)
 - CLIP 주간 적재: 상세 하나라도 실패하면 `partial`, 저장한 사례 없이 실패만 있으면 `failed`, 목록 수집·임베딩·저장 오류도 `failed`. hs_cases가 비어(초기 적재 전) 건너뛰면 `skipped`
   - 재는 곳: `run_scheduled_clip_ingest` (매주 일요일 03:00 KST, 기동 직후엔 돌지 않음). 직접 돌리는 `cli clip-ingest`는 세지 않음
 
@@ -209,7 +209,8 @@ Counter는 수집 때 이름 끝에 `_total`이 붙음 (`ai_client_calls` → `a
 - 기관별 실패율 급증: `ai_client_calls`
 - 대기열 거절 발생: `ai_session_rejected`
 - Tool 실패율 급증: `ai_tool_runs`
-- 법령 점검 마지막 성공이 하루 넘게 지남: `time() - ai_law_refresh_last_success_timestamp > 86400`
+- 법령 점검 마지막 성공이 하루 넘게 지남: `time() - (ai_law_refresh_last_success_timestamp > 0) > 86400` (재기동 뒤 첫 점검 전엔 0)
+- 법령 점검이 실패로 끝남: `increase(ai_law_refresh_runs_total{result=~"failed|partial"}[1d]) > 0` (재기동 뒤 점검이 계속 실패하면 성공 시각이 0에 머물러 위 식으로 안 잡힘)
 - 사람이 확인할 법령 변경: `increase(ai_law_changes_total{kind="skipped"}[1d]) > 0`
 - CLIP 주간 적재가 실패로 끝남: `increase(ai_clip_ingest_runs_total{result=~"failed|partial"}[1d]) > 0` (기동 직후엔 돌지 않아 성공 시각 기준 알람은 재기동 뒤 오탐)
 - CLIP 주간 적재가 멈춤 (스케줄러가 돌지 않아 실패도 안 남는 경우): `ai_clip_ingest_last_success_timestamp > 0 and time() - ai_clip_ingest_last_success_timestamp > 8 * 86400` (성공 시각 0은 재기동 직후라 제외)

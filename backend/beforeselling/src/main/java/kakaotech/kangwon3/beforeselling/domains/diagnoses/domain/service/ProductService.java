@@ -122,6 +122,21 @@ public class ProductService {
     }
 
     /**
+     * 진단을 마친 상품 재진단. 이전 결과를 지우고 상품을 다시 진단 중으로 바꾼 뒤 진단서 전체 상태를 다시 계산한다.
+     * 커밋 뒤에 AI에 진단을 다시 요청하도록 이벤트를 발행한다. 요청 결과 처리는 진단서 생성 때와 같다.
+     */
+    @Transactional
+    public void rediagnoseProduct(UUID userId, UUID productId) {
+        Product product = lockOwnedProduct(userId, productId);
+
+        product.rediagnose();
+        product.getDiagnoses().refreshProcessingStatus();
+
+        eventPublisher.publishEvent(AiDiagnosesRequestedEvent.of(product.getDiagnoses().getId(), List.of(product)));
+        log.info("상품 재진단. productId={}", productId);
+    }
+
+    /**
      * AI 진행 상황 반영(진행 콜백). 단계·툴별 최신 상태만 남기고 처리 상태는 바꾸지 않는다.
      */
     @Transactional
@@ -302,6 +317,13 @@ public class ProductService {
      */
     public List<UUID> findResumePendingProductIds(int limit) {
         return productRepository.findIdsByResumePending(PageRequest.of(0, limit));
+    }
+
+    /**
+     * 법령 변경 재확인 대상 조회. 그 분야 검토에서 해당 법령을 근거로 인용한, 결과가 나온 상품을 가져온다.
+     */
+    public List<Product> findCompletedByToolNameAndCitedLawName(ToolName toolName, String lawName) {
+        return productRepository.findCompletedByToolNameAndCitedLawName(toolName, lawName);
     }
 
     // 빈 문자열로 들어온 검색어는 "검색하지 않음"으로 취급한다.

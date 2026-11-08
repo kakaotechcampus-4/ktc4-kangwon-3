@@ -1,9 +1,9 @@
 """어린이제품 Tool의 모델 호출 단계: 조건 추출, 품목 선택."""
 
 from ...prompts import PromptName
-from ...schemas.children import ChildrenFacts, ChildrenReview
 from ..base import ToolStep
 from .errors import ChildrenToolError
+from .schemas import ChildrenFacts, ChildrenReview
 
 
 class ChildrenFactsStep(ToolStep[ChildrenFacts]):

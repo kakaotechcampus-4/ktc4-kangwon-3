@@ -51,14 +51,16 @@ function UploadStepPreview() {
                         isOption={true}
                         onChange={NOOP}
                     />
-                    <div className="flex w-full items-center justify-between gap-4">
+                    <div className="flex w-full flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="flex min-w-0 items-center gap-2">
                             <HelpTooltip label="입력 방법 추가 설명">
                                 분석을 위해 필요한 정보가 상세페이지에 충분히 포함되어 있는지 확인하세요.
                             </HelpTooltip>
-                            <p className="truncate text-sm text-neutral-dark">상세페이지를 텍스트나 이미지로 입력하세요. 둘 다 입력할 수도 있습니다.</p>
+                            <p className="text-sm text-neutral-dark md:truncate">상세페이지를 텍스트나 이미지로 입력하세요. 둘 다 입력할 수도 있습니다.</p>
                         </div>
-                        <Button text="상품 추가하기" onClick={NOOP} fontSize={15} />
+                        <div className="shrink-0">
+                            <Button text="상품 추가하기" onClick={NOOP} fontSize={15} className="w-full md:w-auto" />
+                        </div>
                     </div>
                 </DefaultBox>
                 <AddedProduct

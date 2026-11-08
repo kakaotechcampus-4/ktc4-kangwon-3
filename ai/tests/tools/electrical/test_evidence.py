@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from app.schemas.clients.law_response import AdmrulSearchResponse
+from app.clients.law.schemas.response import AdmrulSearchResponse
 from app.tools.electrical.evidence import (
     NOTICE_ID, NOTICE_NAME, CachedLoader, EvidenceUnavailable,
     LawApiClients, LawApiEvidenceSource, LawLookupError, Scheme, article_text, compact, purchase_agent_status, select_version,

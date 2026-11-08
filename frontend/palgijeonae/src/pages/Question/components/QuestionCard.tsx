@@ -21,9 +21,9 @@ function QuestionCard({ id, questionNumber, title, description, answer, onChange
     };
 
     return (
-        <DefaultBox align="left" className="focus-within:border-primary">
-            <div className="flex flex-row items-start gap-4 w-full">
-                <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 text-primary text-base font-semibold leading-none flex items-center justify-center">
+        <DefaultBox align="left" className="focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/15">
+            <div className="flex flex-row items-start gap-3 w-full md:gap-4">
+                <div className="size-7 shrink-0 rounded-full bg-primary/10 text-primary text-sm font-semibold leading-none flex items-center justify-center md:size-8 md:text-base">
                     {questionNumber}
                 </div>
                 <div className="flex flex-col w-full gap-4">
@@ -34,7 +34,7 @@ function QuestionCard({ id, questionNumber, title, description, answer, onChange
                             aria-label={title}
                             onChange={(e) => handleChange(e.target.value)}
                             maxLength={MAX_ANSWER_LENGTH}
-                            className="box-border w-full rounded-[10px] border border-neutral-border px-4.75 text-sm text-black placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2 focus:border-primary"
+                            className="box-border w-full rounded-xl border border-field-line bg-white px-4.75 text-sm text-black outline-none placeholder:font-light placeholder:text-neutral-border min-h-30 max-h-50 py-2 focus:border-primary"
                             placeholder="주어진 질문에 자유롭게 답변하세요. 답변 분석은 AI가 합니다." />
                         <span className="text-xs leading-3.5 text-neutral-border">{answer.length}/{MAX_ANSWER_LENGTH}</span>
                     </div>

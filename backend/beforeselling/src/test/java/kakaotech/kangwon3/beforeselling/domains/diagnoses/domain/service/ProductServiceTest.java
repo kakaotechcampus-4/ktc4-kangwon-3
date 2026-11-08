@@ -464,6 +464,43 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("진단을 마친 상품을 재진단하면 상품과 진단서가 진행 중이 되고 그 상품만 담은 AI 진단 요청 이벤트를 발행한다.")
+    void rediagnoseProduct_thenInProgressAndPublishRequestEvent() {
+        // given: 상품 A는 완료, 상품 B는 실패라 진단서는 끝난 상태
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
+        diagnoses.getProducts().get(0).complete(assessmentContent("요약"));
+        failByScheduler(diagnoses.getProducts().get(1));
+        diagnoses.refreshProcessingStatus();
+        givenLockedDiagnoses(diagnoses);
+        Product product = diagnoses.getProducts().getFirst();
+
+        // when
+        productService.rediagnoseProduct(USER_ID, PRODUCT_ID);
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        ArgumentCaptor<AiDiagnosesRequestedEvent> captor = ArgumentCaptor.forClass(AiDiagnosesRequestedEvent.class);
+        then(eventPublisher).should().publishEvent(captor.capture());
+        assertThat(captor.getValue().diagnosesId()).isEqualTo(DIAGNOSES_ID);
+        assertThat(captor.getValue().products())
+                .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
+                .containsExactly(PRODUCT_ID);
+    }
+
+    @Test
+    @DisplayName("진단을 마치지 않은 상품을 재진단하면 CONFLICT 예외가 발생하고 이벤트를 발행하지 않는다.")
+    void rediagnoseProduct_whenNotCompleted_thenThrowConflict() {
+        // given: 진행 중인 상품
+        Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A"));
+        givenLockedDiagnoses(diagnoses);
+
+        // when & then
+        assertResponseCode(() -> productService.rediagnoseProduct(USER_ID, PRODUCT_ID), CommonResponseCode.CONFLICT);
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
     @DisplayName("재시도할 수 없는 상품이면 CONFLICT 예외가 발생하고 이벤트를 발행하지 않는다.")
     void retryDiagnoses_whenNotRetryable_thenThrowConflict() {
         // given: 진행 중인 상품

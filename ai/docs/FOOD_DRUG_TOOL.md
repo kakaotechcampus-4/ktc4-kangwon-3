@@ -9,7 +9,7 @@
 | `app/tools/food_drug/search.py` | 근거 캐시(기준일별), 의료기기 품목 순위 |
 | `app/tools/food_drug/rules.py` | 판매 방식별 안내 문구 |
 | `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용) |
-| `app/schemas/food_drug.py`, `app/prompts/food_drug/facts.md`·`review.md` | LLM 입출력 |
+| `app/tools/food_drug/schemas.py`, `app/prompts/food_drug/facts.md`·`review.md` | LLM 입출력 |
 | `app/eval/food_drug_runner.py` | 실제 실행·평가 채점 (`python -m app.eval.food_drug_runner`) |
 | `tests/tools/food_drug/` | 단위 테스트와 법제처 Fake(`conftest.py`) |
 | `tests/fixtures/food_drug_law/` | 실제 법제처 응답(조문 JSON, 별표 원문). 출처·버전은 README |

@@ -94,6 +94,19 @@ public class ProductController implements ProductApi {
         return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
     }
 
+    // 진단을 마친 상품 재진단. 이전 결과를 지우고 AI 진단 요청은 비동기로 보낸다.
+    @Override
+    @PostMapping("/{productId}/rediagnosis")
+    @RateLimit(RateLimitPolicy.AI)
+    public ResponseEntity<ApiResponse<Void>> rediagnoseProduct(
+            @LoginUser UserPrincipal principal,
+            @PathVariable UUID productId
+    ) {
+        productUseCase.rediagnoseProduct(principal.userId(), productId);
+
+        return ResponseEntity.ok(ApiResponse.ofSuccess(CommonResponseCode.OK));
+    }
+
     // 상품 단건 삭제
     @Override
     @DeleteMapping("/{productId}")

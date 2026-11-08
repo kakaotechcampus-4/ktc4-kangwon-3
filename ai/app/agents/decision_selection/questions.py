@@ -1,6 +1,6 @@
 """판단 선택 질문 목록. Tool마다 상품 사실을 묻는 예/아니오 질문, 답 확률과 문턱값 비교는 조립 단계 몫."""
 
-from ...schemas.clients.decision_request import YesNoQuestion
+from ...clients.llm.decision.schemas.request import YesNoQuestion
 from ...schemas.schemas import ToolName
 
 # 모든 질문 앞에 붙이는 판단 대상 설명

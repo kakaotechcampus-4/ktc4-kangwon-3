@@ -9,8 +9,8 @@ import pytest
 from app.clients.llm.decision import (
     DecisionClient, DecisionRequestError, DecisionResponseError, questions_fingerprint,
 )
-from app.schemas.clients.decision_request import DecisionRequest
-from app.schemas.clients.decision_response import DecisionUsage
+from app.clients.llm.decision.schemas.request import DecisionRequest
+from app.clients.llm.decision.schemas.response import DecisionUsage
 
 from .conftest import API_KEY, BASE_URL
 

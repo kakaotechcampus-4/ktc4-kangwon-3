@@ -1,7 +1,7 @@
 """법령 본문 응답 후처리. 조문 전문 조립(DB 적재·임베딩용), 별표 하나 고르기."""
 
-from ..schemas.clients.law_request import LicbylTextRequest
-from ..schemas.clients.law_response import LawAnnex, LawArticle, LawTextResponse
+from ..clients.law.schemas.request import LicbylTextRequest
+from ..clients.law.schemas.response import LawAnnex, LawArticle, LawTextResponse
 
 
 def build_article_text(article: LawArticle) -> str:

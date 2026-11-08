@@ -9,7 +9,7 @@
 | `app/tools/customs/evidence.py` | 관세법 제226조, 세관장확인 고시 제7조·별표 2, 대외무역법 시행령 제19조 읽기 |
 | `app/tools/customs/rules.py` | HS 표기, 요건 법령 ↔ 다른 규제 Tool 대응, 판매 방식별 안내 |
 | `app/tools/common/` | 규제 Tool 공용 모듈(어린이 Tool #313과 같은 내용): 법제처 조회, 모델 호출 단계, 원문 대조, 행 순위 |
-| `app/schemas/customs.py`, `app/prompts/customs/facts.md`·`review.md` | LLM 입출력 |
+| `app/tools/customs/schemas.py`, `app/prompts/customs/facts.md`·`review.md` | LLM 입출력 |
 | `app/eval/customs_runner.py` | 실제 실행·평가 채점 (`python -m app.eval.customs_runner`) |
 | `tests/tools/customs/` | 단위 테스트와 Fake(`conftest.py`) |
 | `tests/fixtures/customs_law/` | 실제 법제처·CLIP 응답 (출처·버전은 README) |
@@ -54,7 +54,7 @@ Product (추출 에이전트 결과)
 
 ### 세관장확인 요건 (GW)
 
-- `GwRequirementLookup`은 관세청 세관장확인대상물품 GW(`CustomsGwClient`, 공공데이터포털 키 `DATA_GO_KR_KEY`)로 HS 10자리를 조회한다. HS별로 6시간 캐시한다.
+- `GwRequirementLookup`은 관세청 세관장확인대상물품 GW(`CustomsGwClient`, 공공데이터포털 키 `DATA_GO_KR_KEY`)로 HS 10자리를 조회한다.
 - `requirement_lookup()`은 GW 응답을 DB(`api_response_cache`)에서 먼저 찾고, 없으면 받아서 하루 보관한다.
 - 빈 목록은 **통관 단계의 세관장확인이 없다**는 뜻일 뿐 국내 판매 규제가 없다는 뜻이 아니다.
 - 키가 없으면 `EvidenceUnavailable` → 요건 "조회하지 못함"(정보 부족) + UNI-PASS 확인 안내. 6자리 HS도 GW를 조회할 수 없어 같은 처리다.

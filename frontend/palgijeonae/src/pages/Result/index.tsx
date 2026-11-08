@@ -117,7 +117,7 @@ function ResultPage() {
                 </div>
             )}
             <div className="flex w-full justify-end">
-                <Button text="메인페이지로 이동" onClick={() => navigate("/")} fontSize={15} />
+                <Button text="메인페이지로 이동" onClick={() => navigate("/")} fontSize={15} className="w-full md:w-auto" />
             </div>
         </div>
     );

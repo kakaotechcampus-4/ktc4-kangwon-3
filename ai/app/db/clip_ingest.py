@@ -22,8 +22,8 @@ from sqlalchemy.orm import Session
 from ..clients.customs import CLIPClient, CLIPDetailClient
 from ..config import CLIP_INGEST_WEEKLY_AT
 from ..observability.measurements import ClipIngestRun, measurement_sinks
-from ..schemas.clients.customs_request import CLIPDetailRequest, CLIPSearchRequest
-from ..schemas.clients.customs_response import CLIPCase, CLIPSearchResponse
+from ..clients.customs.schemas.request import CLIPDetailRequest, CLIPSearchRequest
+from ..clients.customs.schemas.response import CLIPCase, CLIPSearchResponse
 from .models.hs_case import HsCase
 from .repositories.hs_case import HsCaseRepository
 

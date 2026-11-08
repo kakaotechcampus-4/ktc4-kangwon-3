@@ -3,7 +3,7 @@ import { cva } from "class-variance-authority";
 import { Provider } from "@/pages/Login/types.ts"
 
 const buttonVariants = cva(
-    "flex flex-row cursor-pointer items-center justify-center gap-5 self-stretch rounded-xl border py-2.5 pr-8 pl-5",
+    "flex flex-row cursor-pointer items-center justify-center gap-5 self-stretch rounded-xl border py-2.5 pr-6 pl-5 md:pr-8",
     {
         variants: {
             provider: {
@@ -15,7 +15,7 @@ const buttonVariants = cva(
     },
 );
 
-const labelVariants = cva("text-lg leading-7 font-semibold", {
+const labelVariants = cva("text-[17px] leading-7 font-semibold md:text-lg", {
     variants: {
         provider: {
             [Provider.Kakao]: "text-black/85",

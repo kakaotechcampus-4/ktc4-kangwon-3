@@ -9,7 +9,7 @@
 | `app/tools/children/search.py` | 품목 조회 인터페이스 `ChildrenItemSearch`, `LawApiItemSearch` |
 | `app/tools/children/evidence.py` | 법 제2조, 시행규칙 별표 1~3, 운용요령 별표 3~5 읽기 |
 | `app/tools/common/` | 규제 Tool 공용: 법제처 조회·버전 선택·캐시(`law.py`), 품목 행 순위(`ranking.py`), 원문 대조(`facts.py`), 모델 호출 단계(`agent.py`, BaseAgent #284) |
-| `app/schemas/children.py`, `app/prompts/children/facts.md`·`review.md` | 모델 입출력 |
+| `app/tools/children/schemas.py`, `app/prompts/children/facts.md`·`review.md` | 모델 입출력 |
 | `tests/tools/children/` | 단위 테스트와 법제처 Fake(`conftest.py`) |
 | `tests/fixtures/children_law/` | 실제 법제처 응답 원문 |
 

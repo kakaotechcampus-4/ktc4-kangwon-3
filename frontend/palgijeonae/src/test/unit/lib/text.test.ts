@@ -84,6 +84,11 @@ describe('truncateWithEllipsis', () => {
     expect(truncateWithEllipsis('블루투스 이어폰', 4)).toBe('블루투스...')
   })
 
+  it('자른 끝이 공백이면 공백을 지우고 ...를 붙인다', () => {
+    expect(truncateWithEllipsis('TWS earbuds', 4)).toBe('TWS...')
+    expect(truncateWithEllipsis('블루투스 이어폰', 5)).toBe('블루투스...')
+  })
+
   it('이모지는 한 글자로 세고 반으로 자르지 않는다', () => {
     expect(truncateWithEllipsis(`${EMOJI}${EMOJI}${EMOJI}`, 2)).toBe(`${EMOJI}${EMOJI}...`)
     expect(truncateWithEllipsis(`${FAMILY}${FAMILY}`, 2)).toBe(`${FAMILY}${FAMILY}`)

@@ -23,8 +23,8 @@ from time import perf_counter
 from ..clients.law import AdmrulSearchClient, AdmrulTextClient, AnnexFileClient, LawSearchClient, LawTextClient
 from ..config import load_settings
 from ..schemas.annex import AnnexParseRecord, AnnexSource
-from ..schemas.clients.law_request import AnnexFileRequest, LawSearchRequest, LawTextRequest
-from ..schemas.clients.law_response import LawAnnex
+from ..clients.law.schemas.request import AnnexFileRequest, LawSearchRequest, LawTextRequest
+from ..clients.law.schemas.response import LawAnnex
 from ..utils.annex_check import check_annex
 from ..utils.annex_file import parse_annex, read_annex_file
 from .annex_file_audit import audit_annex

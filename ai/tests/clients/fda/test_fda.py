@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.clients.fda import CosmeticsRegulationClient, MedicalDeviceClient
-from app.schemas.clients.fda_request import CosmeticsRegulationRequest, MedicalDeviceRequest
+from app.clients.fda.schemas.request import CosmeticsRegulationRequest, MedicalDeviceRequest
 
 _OK_HEADER = {"resultCode": "00", "resultMsg": "NORMAL SERVICE."}
 

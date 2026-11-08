@@ -22,7 +22,7 @@ Tool 코드는 클라이언트 자리에 조회 객체를 넣기만 하고 데�
 | 세관장확인 GW `customs.gw` | `OnDemandFetcher` | Tool이 HS를 조회할 때 | 1일 | 오류(만료 값으로 판정하지 않음) |
 | 결정사례 `hs_cases` | `ClipCaseDatabase` | 매주 결정사례 적재 | 사라진 사례만 삭제 | DB에 가까운 사례가 없거나 DB 장애면 CLIP API로 찾음 |
 
-- 법령 점검 대상은 `tools/common/law_sources.LAW_SOURCES`(Tool 근거 문서 21개)다.
+- 법령 점검 대상은 `tools/common/law_sources.LAW_SOURCES`(Tool 근거 문서 26개)다. 표시광고 Tool도 다른 Tool처럼 적용 판 본문에서 근거 조문을 읽는다. 고시·지침은 본문이 한 덩어리라 항목의 시작 문구로 줄을 찾고, 개정으로 시작 문구가 사라지면 Tool이 실패한다. 이때는 `tools/advertising/evidence.py`의 시작 문구를 사람이 고친다.
 - KC·전파 인증, CLIP 검색 결과는 바뀌는 데이터라 캐시하지 않는다.
 - 법령·행정규칙 검색은 빈 결과를 저장하지 않는다. 매일 점검은 검색 결과에 그 문서 ID가 없으면 저장하지 않는다.
 
@@ -30,7 +30,7 @@ Tool 코드는 클라이언트 자리에 조회 객체를 넣기만 하고 데�
 
 | 시점 | 할 일 |
 |---|---|
-| 기동 | vector 확장과 표 생성(`init_db`, 있으면 건너뜀) → 30초 뒤 법령 점검 1회(`LAW_REFRESH_START_DELAY_SECONDS`) → 만료된 `customs.gw` 행 정리 |
+| 기동 | vector 확장과 표 생성(`init_db`, 있으면 건너뜀). 법령 점검은 돌지 않음(바로 받으려면 아래 CLI `law-refresh`) |
 | 매일 00:05 KST (`LAW_REFRESH_AT`) | 법령 점검 → 만료된 `customs.gw` 행 정리 |
 | 매주 일요일 03:00 KST (`CLIP_INGEST_WEEKLY_AT`) | 결정사례 적재. `hs_cases`가 비어 있으면 건너뜀(첫 적재는 아래 CLI·덤프로). 기동 때는 돌지 않음 |
 

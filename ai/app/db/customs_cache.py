@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..clients.customs import CustomsGwClient
 from ..config import CUSTOMS_GW_TTL_SECONDS
-from ..schemas.clients.customs_response import CustomsGwConfirmationResponse
+from ..clients.customs.schemas.response import CustomsGwConfirmationResponse
 from .engine import get_session_factory
 from .errors import DatabaseNotConfiguredError
 from .fetchers import OnDemandFetcher

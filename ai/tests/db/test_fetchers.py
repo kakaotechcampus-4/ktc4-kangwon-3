@@ -9,7 +9,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.db import fetchers
 from app.db.fetchers import DbSkip, OnDemandFetcher, ScheduledFetcher, request_key
-from app.observability.measurements import CacheLookup, measurement_sinks
+from app.observability.measurements import measurement_sinks
 
 NOW = datetime(2026, 10, 25, 12, tzinfo=timezone.utc)
 
@@ -391,13 +391,23 @@ def test_Tool_조회마다_캐시_결과를_측정_기록으로_남긴다(db, mo
     assert {record.cache for record in records} == {"law.search"}
 
 
-def test_조회가_실패해도_캐시_결과는_남긴다(db):
+def test_조회가_실패하면_캐시_결과를_남기지_않는다(db):
     records = []
 
     with measurement_sinks.added(records.append), pytest.raises(TimeoutError):
         _on_demand(_Client(error=TimeoutError()), db).fetch_parsed(_Request(mst="1"))
 
-    assert records == [CacheLookup("law.search", "miss")]
+    assert records == []
+
+
+def test_DB도_조회도_실패하면_캐시_결과를_남기지_않는다(db):
+    db.fail = True
+    records = []
+
+    with measurement_sinks.added(records.append), pytest.raises(TimeoutError):
+        _on_demand(_Client(error=TimeoutError()), db).fetch_parsed(_Request(mst="1"))
+
+    assert records == []
 
 
 def test_DB를_안_쓰거나_measure가_꺼진_조회_객체는_측정_기록을_남기지_않는다(db):

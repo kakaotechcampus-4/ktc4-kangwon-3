@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.clients.customs import CLIPDetailClient
-from app.schemas.clients.customs_request import CLIPDetailRequest
+from app.clients.customs.schemas.request import CLIPDetailRequest
 
 
 def _page(*, hs: str = "3304.99-1000", enforce: str = "19881228", description: str = "백색크림상.",

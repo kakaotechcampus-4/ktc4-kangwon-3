@@ -10,7 +10,7 @@ import pytest
 
 from app.clients.llm.decision import DecisionResponseError
 from app.clients.llm.decision.openai import OpenAIDecisionClient
-from app.schemas.clients.decision_response import ChoiceAnswer, DecisionUsage, RefusedAnswer, ScoreAnswer, YesNoAnswer
+from app.clients.llm.decision.schemas.response import ChoiceAnswer, DecisionUsage, RefusedAnswer, ScoreAnswer, YesNoAnswer
 
 from .conftest import API_KEY, BASE_URL
 

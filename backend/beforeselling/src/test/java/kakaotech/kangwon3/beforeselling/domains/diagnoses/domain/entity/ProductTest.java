@@ -962,6 +962,51 @@ class ProductTest {
                 .containsExactly("target_age");
     }
 
+    @Test
+    @DisplayName("진단을 마친 상품을 재진단하면 진행 중이 되고 이전 결과와 실행 기록이 지워진다.")
+    void rediagnose_whenCompleted_thenInProgressAndResultCleared() {
+        // given
+        Product product = createAwaitingInputProduct(question("sales_type", 1));
+        product.answerQuestions(Map.of(product.getQuestions().getFirst().getId(), "구매대행"));
+        product.assignRun("run-2");
+        product.recordProgress("run-2", 1, PipelineStage.EXTRACTION, StageStatus.STARTED, null);
+        product.complete(new AssessmentContent(AssessmentStatus.COMPLETED, ResultStatus.PURCHASING_AGENT_ALLOWED,
+                "구매대행으로 판매할 수 있습니다.",
+                List.of(new AssessmentContent.ToolReviewContent(ToolName.CHILDREN, ToolReviewStatus.COMPLETED, null,
+                        List.of(finding("안전확인 대상 여부", List.of(legalSource("어린이제품 안전 특별법", "제2조")))))),
+                List.of("안전확인 신고"), List.of("통관 시 확인")));
+        LocalDateTime beforeRediagnose = LocalDateTime.now();
+
+        // when
+        product.rediagnose();
+
+        // then
+        assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
+        assertThat(product.getRunId()).isNull();
+        assertThat(product.getAssessmentStatus()).isNull();
+        assertThat(product.getResultStatus()).isNull();
+        assertThat(product.getSummary()).isNull();
+        assertThat(product.getToolReviews()).isEmpty();
+        assertThat(product.getRequiredActions()).isEmpty();
+        assertThat(product.getNotices()).isEmpty();
+        assertThat(product.getQuestions()).isEmpty();
+        assertThat(product.getProgresses()).isEmpty();
+        assertThat(product.getRequestedAt()).isAfterOrEqualTo(beforeRediagnose);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ProcessingStatus.class, names = "COMPLETED", mode = EnumSource.Mode.EXCLUDE)
+    @DisplayName("진단을 마치지 않은 상품을 재진단하면 CONFLICT 예외가 발생한다.")
+    void rediagnose_whenNotCompleted_thenThrowConflict(ProcessingStatus status) {
+        // given
+        Product product = createProduct();
+        ReflectionTestUtils.setField(product, "processingStatus", status);
+
+        // when & then
+        assertConflict(product::rediagnose);
+        assertThat(product.getProcessingStatus()).isEqualTo(status);
+    }
+
     private AssessmentContent completedContent(List<AssessmentContent.ToolReviewContent> toolReviews) {
         return new AssessmentContent(AssessmentStatus.COMPLETED, ResultStatus.PURCHASING_AGENT_ALLOWED,
                 "구매대행으로 판매할 수 있습니다.", toolReviews, List.of(), List.of());

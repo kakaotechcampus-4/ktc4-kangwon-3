@@ -7,9 +7,9 @@ from xml.etree.ElementTree import Element
 import httpx
 
 from .base import LawGoKrClient
+from .schemas.request import LawTextRequest
+from .schemas.response import LawAnnex
 from ..request import ResponseT
-from ...schemas.clients.law_request import LawTextRequest
-from ...schemas.clients.law_response import LawAnnex
 
 # 조문 위 구획 단계 (상위부터)
 _HEADING_LEVELS = ("편", "장", "절", "관")

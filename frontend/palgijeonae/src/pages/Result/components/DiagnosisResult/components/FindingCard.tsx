@@ -37,14 +37,14 @@ function FindingCard({ finding }: FindingCardProps) {
         <DefaultBox>
             <div className="flex w-full flex-col gap-5.5">
                 <div className="w-full overflow-hidden">
-                    <div className="float-right ml-4 flex shrink-0 items-center gap-2.5">
+                    <div className="mb-2.5 flex shrink-0 items-center gap-2.5 md:float-right md:mb-0 md:ml-4">
                         {showRiskMeter && <RiskMeter riskLevel={finding.riskLevel} />}
                         <DeterminationBadge determination={finding.determination} />
                     </div>
-                    <p className="text-xl font-bold text-black">{finding.subject}</p>
+                    <p className="text-lg font-bold text-black md:text-xl">{finding.subject}</p>
                 </div>
-                <p className="text-base font-medium leading-relaxed whitespace-pre-line text-black">{finding.summary}</p>
-                <p className="text-sm leading-relaxed whitespace-pre-line text-neutral-text">{finding.rationale}</p>
+                <p className="text-[15px] font-medium leading-relaxed whitespace-pre-line text-black md:text-base">{finding.summary}</p>
+                <p className="text-[13px] leading-relaxed whitespace-pre-line text-neutral-text md:text-sm">{finding.rationale}</p>
             </div>
             {firstLegalSource && (
                 <>
@@ -53,15 +53,15 @@ function FindingCard({ finding }: FindingCardProps) {
                         onClick={() => setIsExpanded((prev) => !prev)}
                         aria-expanded={isExpanded}
                         aria-controls={legalSourcesId}
-                        className="flex w-full cursor-pointer flex-wrap items-center gap-2"
+                        className="flex w-full cursor-pointer items-start gap-2 text-left"
                     >
-                        <img src={toggleStyle.icon} alt="" className="h-6 w-6" />
-                        <p className={cn("text-base font-bold", toggleStyle.textColorClass)}>근거</p>
-                        <p className={cn("text-sm", toggleStyle.textColorClass)}>{firstLegalSourceLabel}</p>
+                        <img src={toggleStyle.icon} alt="" className="h-6 w-6 shrink-0" />
+                        <p className={cn("shrink-0 text-base leading-6 font-bold", toggleStyle.textColorClass)}>근거</p>
+                        <p className={cn("min-w-0 text-sm leading-6 wrap-break-word", toggleStyle.textColorClass)}>{firstLegalSourceLabel}</p>
                         {restLegalSources.length > 0 && (
-                            <p className="text-sm text-neutral-muted">외 {restLegalSources.length}건</p>
+                            <p className="shrink-0 text-sm leading-6 text-neutral-muted">외 {restLegalSources.length}건</p>
                         )}
-                        <img src={toggleIcon} alt="" className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                        <img src={toggleIcon} alt="" className={cn("mt-1 h-4 w-4 shrink-0 transition-transform", isExpanded && "rotate-180")} />
                     </button>
                     {isExpanded && (
                         <div id={legalSourcesId} className="flex w-full flex-col gap-5">

@@ -6,11 +6,17 @@ html {
     scrollbar-gutter: stable;
 }
 
+body {
+    background-color: var(--color-surface-page);
+}
+
 @theme {
     --font-sans: 'Pretendard Variable', 'Pretendard', sans-serif;
     /* Primary - CTA 버튼 (진단서 확인하기, 상품 추가하기 등) */
     --color-primary: #1058FC;
     --color-primary-soft: #E7EEFB;    /* 에이전트 소개 카드 배경 */
+    --color-primary-hover: #0D4FE3;   /* primary 버튼 hover */
+    --color-primary-active: #0B45C8;  /* primary 버튼 pressed */
 
     /* 진행 카드 반복 애니메이션 (Judgement/ProductProgressCard) */
     --animate-progress-sweep: progress-sweep 1.6s ease-in-out infinite;
@@ -21,12 +27,30 @@ html {
 
     /* Neutral - 텍스트, 테두리, 비활성 탭 */
     --color-neutral-dark: #646464;    /* 선택된 탭 배경, 보조 설명 텍스트 */
-    --color-neutral-border: #767676;  /* 카드 테두리, placeholder, 비활성 텍스트 */
+    --color-neutral-border: #707070;  /* 카드 테두리, placeholder, 비활성 텍스트. 페이지 배경(#F3F6FC) 위에서도 글자 대비 4.5:1 이상이 되도록 정함 */
     --color-neutral-label: #6E7682;   /* 진단 근거 상세 라벨(주관부처, 근거조문 등) */
     --color-neutral-muted: #57626F;   /* 진단 근거 상세 본문 텍스트 */
     --color-neutral-text: #3B3B3B;
     --color-neutral-line: #E3E5E8;    /* 카드 테두리(연한 구분선) */
     --color-neutral-bg: #F3F6FC;      /* 카드 배경, 페이지 배경 */
+
+    /* Surface - 서비스 배경과 DefaultBox ("소프트 라인" 스타일) */
+    --color-surface-page: #F3F6FC;    /* 서비스 전체 배경(body) */
+    --color-box-line: #D5DAE1;        /* DefaultBox·썸네일 기본 테두리 */
+    --color-field-line: #7C8797;      /* 입력창 테두리. 경계가 3:1 이상 보여야 하는 UI라 box-line보다 진하게 둔다 */
+    --color-box-dashed: #B8BFC9;      /* DefaultBox dashed 테두리 */
+    --shadow-box: 0 4px 12px rgba(16, 24, 40, 0.08), 0 1px 3px rgba(16, 24, 40, 0.06);
+    --shadow-box-tone: 0 1px 4px rgba(16, 24, 40, 0.05);
+
+    /* Button - "소프트 아웃라인" 스타일 */
+    --color-button-line-hover: #C4CBD5;   /* secondary hover 테두리 */
+    --color-button-hover-bg: #F5F7FA;     /* secondary hover 배경 */
+    --color-button-active-bg: #EEF1F5;    /* secondary pressed 배경 */
+    --color-button-disabled-bg: #E4E9F2;  /* primary disabled 배경 */
+    --color-button-disabled-text: #9AA3B2;
+    --shadow-button-primary: 0 2px 6px rgba(16, 88, 252, 0.22);
+    --shadow-button-primary-hover: 0 4px 10px rgba(16, 88, 252, 0.28);
+    --shadow-button-secondary: 0 1px 2px rgba(16, 24, 40, 0.05);
 
     /* Status - 진단 결과 상태 (배지, 태그, 경고 배너 공통) */
     --color-status-success: #2F7A4D;
@@ -37,6 +61,14 @@ html {
 
     --color-status-warning: #8A6510;
     --color-status-warning-bg: #F5EED7;   /* 재확인 필요 / 경고 배너 */
+}
+
+@utility no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 @keyframes progress-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }

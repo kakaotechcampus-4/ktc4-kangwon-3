@@ -1,7 +1,7 @@
 """진단 파이프라인 부품 조립. 기동 때 한 번 만들어 모든 진단이 같이 씀.
 
 에이전트·Tool은 실행마다 상태를 새로 만들어서(ToolRun 등) 여러 진단이 동시에 써도 됨.
-법제처·GW 조회 경로는 기준일·HS별 캐시를 객체 안에 두므로 한 번만 만들어야 캐시가 공유됨.
+법제처 조회 경로는 기준일별 캐시를 객체 안에 두므로 한 번만 만들어야 캐시가 공유됨.
 """
 
 from dataclasses import dataclass
@@ -15,6 +15,7 @@ from ..pipeline.runner import SelectionStage, VerificationStage
 from ..pipeline.url_source import UrlSourceBuilder
 from ..schemas.schemas import ToolName
 from ..tools.advertising import AdvertisingTool
+from ..tools.advertising.search import evidence_loader as advertising_evidence_loader
 from ..tools.base import RegulatoryTool
 from ..tools.children import ChildrenTool
 from ..tools.children.search import item_search as children_item_search
@@ -64,7 +65,7 @@ def build_tools() -> dict[ToolName, RegulatoryTool]:
         FoodDrugTool(evidence=food_drug_evidence_loader()),
         ElectricalTool(item_search=electrical_item_search()),
         ChildrenTool(item_search=children_item_search()),
-        AdvertisingTool(),
+        AdvertisingTool(evidence=advertising_evidence_loader()),
     ]
     return {tool.tool_name: tool for tool in tools}
 
