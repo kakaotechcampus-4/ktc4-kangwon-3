@@ -78,14 +78,14 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
             aria-modal="true"
             aria-label="이미지 미리보기"
             tabIndex={-1}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white/20 p-6 backdrop-blur-xs"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white/20 p-4 backdrop-blur-xs md:p-6"
             onClick={onClose}
         >
             <button
                 type="button"
                 onClick={onClose}
                 aria-label="닫기"
-                className="absolute top-6 right-6 z-10 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white shadow"
+                className="absolute top-3 right-3 z-10 flex h-10 w-10 md:top-6 md:right-6 cursor-pointer items-center justify-center rounded-full bg-white shadow"
             >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
                     <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
@@ -101,9 +101,9 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
                         type="button"
                         onClick={goToPrev}
                         aria-label="이전 이미지"
-                        className="absolute left-0 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white shadow"
+                        className="absolute left-0 z-10 flex h-10 w-10 cursor-pointer md:h-12 md:w-12 items-center justify-center rounded-full bg-white shadow"
                     >
-                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <svg viewBox="0 0 24 24" className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" strokeWidth={2}>
                             <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </button>
@@ -131,9 +131,9 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
                         type="button"
                         onClick={goToNext}
                         aria-label="다음 이미지"
-                        className="absolute right-0 z-10 flex h-12 w-12 cursor-pointer items-center justify-center rounded-full bg-white shadow"
+                        className="absolute right-0 z-10 flex h-10 w-10 cursor-pointer md:h-12 md:w-12 items-center justify-center rounded-full bg-white shadow"
                     >
-                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2}>
+                        <svg viewBox="0 0 24 24" className="h-5 w-5 md:h-6 md:w-6" fill="none" stroke="currentColor" strokeWidth={2}>
                             <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </button>
@@ -142,7 +142,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
 
             {images.length > 1 && (
                 <div
-                    className="flex w-full max-w-240 gap-3 overflow-x-auto px-6"
+                    className="flex w-full max-w-240 gap-3 overflow-x-auto px-4 md:px-6"
                     onClick={(event) => event.stopPropagation()}
                 >
                     {images.map((image, index) => (
