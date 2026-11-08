@@ -263,7 +263,7 @@ def test_제품_종류가_없으면_조회하지_않는다():
     result, model, calls, _ = run(product, facts)
     assert model.calls == ["CustomsFacts"] and calls == []
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
-    assert result.missing_information == ["제품 종류 정보가 필요합니다."]
+    assert result.missing_information == ["어떤 제품인지(제품 종류) 확인이 필요합니다."]
 
 
 def test_비슷한_결정사례가_없으면_선택_모델을_부르지_않고_정보부족이다():
@@ -313,7 +313,7 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다():
 def test_HS를_가르는_조건만_묻고_나머지는_가정으로_남긴다():
     product, facts = product_and_facts(values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
     result, _, _, _ = run(product, facts, review(select(needed_fields=["material", "intended_use"])))
-    assert result.missing_information == ["재질 정보가 필요합니다."]
+    assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
     assert any("용도 확인이 더 필요합니다" in text for text in result.findings[0].assumptions)
 
 

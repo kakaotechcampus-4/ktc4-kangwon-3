@@ -200,18 +200,22 @@ def _questions(result, question_round):
 
 
 def test_Tool의_부족한_정보가_남으면_질문으로_넘겨_답변을_기다린다(pipeline):
+    voltage = "제품의 정격 전압 확인이 필요합니다."
     pipeline["result"] = _missing(_result(), {
-        ToolName.ELECTRICAL: ["정격 전압 정보가 필요합니다."],
-        ToolName.RADIO: ["정격 전압 정보가 필요합니다.", "무선 기능 정보가 필요합니다."],
+        ToolName.ELECTRICAL: [voltage],
+        ToolName.RADIO: [voltage, "무선 기능 정보가 필요합니다."],
     })
 
     outcome = build_job(_parts([]), _questions)(DiagnosisInput(source=SOURCE), CONTEXT, _Progress())
 
     assert isinstance(outcome, JobNeedsInput)
     assert outcome.result.verification_status is FinalVerificationStatus.INCOMPLETE
-    # 같은 문장은 질문 하나로, 관련 Tool을 모음
+    # 같은 문장은 질문 하나로, 관련 Tool을 모음. 도움말은 답하는 법(카탈로그) + 어느 분야 판단에 쓰는지
     assert [(q.question, q.related_tools, q.reason) for q in outcome.result.follow_up_questions] == [
-        ("정격 전압 정보가 필요합니다.", [ToolName.RADIO, ToolName.ELECTRICAL], "전파, 전기용품 판단에 필요한 정보예요."),
+        (voltage, [ToolName.RADIO, ToolName.ELECTRICAL],
+         "예: AC 220V, DC 5V, 3.7V. 제품 뒷면 라벨이나 어댑터, 상세페이지 사양표에 적힌 전압을 그대로 적어 주세요. "
+         "전파, 전기용품 판단에 필요해요."),
+        # 카탈로그에 없는 Tool 고유 문장은 분야만
         ("무선 기능 정보가 필요합니다.", [ToolName.RADIO], "전파 판단에 필요한 정보예요."),
     ]
     assert [q.question_key for q in outcome.questions] == ["r1_q1", "r1_q2"]

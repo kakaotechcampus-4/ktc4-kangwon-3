@@ -32,11 +32,6 @@ _FIELDS = {
     "edible": "먹는 것 여부", "skin_applied": "바르는 것 여부", "health_claim": "효능 표방 문구",
     "beauty_claim": "피부·모발 효과 문구", "ingredient": "성분",
 }
-_QUESTIONS = {
-    "food_contact": "음식이나 음료에 직접 닿는 용도(먹을 때 쓰거나 담는 것, 조리·보관에 쓰는 것)인가요?",
-    "edible": "사람이 먹거나 마시는 제품인가요?",
-    "skin_applied": "피부·모발 등 몸에 바르거나 뿌려 쓰는 제품인가요?",
-}
 # 값이 판단 결과("예"/"아니오")인 조건. 값은 인용 안에 그대로 있지 않아도 된다(인용은 판단의 원문 근거).
 _JUDGED_FIELDS = ("food_contact", "edible", "skin_applied")
 _TERMS_LIMIT = 3
@@ -71,7 +66,6 @@ class FoodDrugTool(EvidenceSearchTool):
     review_step = FoodDrugReviewStep
     error_class = FoodDrugToolError
     field_labels = _FIELDS
-    questions = _QUESTIONS
     conflict_note = ". 용도·효능과 관련된 모순이면 결과가 달라질 수 있습니다."
     insufficient = (
         "식품·화장품·의료기기 해당 여부",

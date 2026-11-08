@@ -7,9 +7,10 @@ Tool·검증은 이 줄을 다른 문구와 같이 읽음.
 
 from ..schemas.product import Product
 from ..schemas.session import DiagnosisInput
+from ..tools.common.questions import ANSWER_PREFIX
 from .questions import build_questions
 
-ANSWER_PREFIX = "[사용자 답변]"
+__all__ = ["ANSWER_PREFIX", "with_answers"]
 
 
 def with_answers(product: Product, job_input: DiagnosisInput) -> Product:

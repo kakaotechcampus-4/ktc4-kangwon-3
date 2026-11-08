@@ -138,7 +138,7 @@ def test_인용할_원문이_없으면_모델을_부르지_않고_정보부족�
     result = ChildrenTool(model, item_search=Search()).execute(Product(product_id="p1", for_children=True), decision())
     assert model.calls == []
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
-    assert "제품 종류 정보가 필요합니다." in result.missing_information
+    assert "어떤 제품인지(제품 종류) 확인이 필요합니다." in result.missing_information
 
 
 def test_맞는_품목을_고르면_후보와_근거_원문과_판매_전_할_일을_낸다():
@@ -193,7 +193,7 @@ def test_연령을_모르면_공급자적합성확인으로_단정하지_않고_
     result, _, _ = run(product, facts, review())
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
     assert "fallback" not in result.query
-    assert result.missing_information == ["사용 대상 연령(예: '만 3세 이상', '36개월 미만') 정보가 필요합니다."]
+    assert result.missing_information == ["사용 대상 연령 확인이 필요합니다."]
 
 
 def test_만_13세_이하를_포함하지_않으면_품목을_조회하지_않고_대상_아닐_가능성만_낸다():
@@ -252,7 +252,7 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다(problem
     result, _, search = run(product, facts)
     assert result.status is ToolStatus.SUCCESS
     assert result.query["dropped_facts"] == 1
-    assert "제품 종류 정보가 필요합니다." in result.missing_information
+    assert "어떤 제품인지(제품 종류) 확인이 필요합니다." in result.missing_information
     assert search.calls == [[]]
 
 
@@ -317,7 +317,7 @@ def test_연령과_무관한_상품_모순은_조회를_막지_않고_가정으�
     result, _, search = run(product, facts, review(select()))
     assert search.calls[0] != []
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
-    assert "제품 종류 정보가 필요합니다." not in result.missing_information
+    assert "어떤 제품인지(제품 종류) 확인이 필요합니다." not in result.missing_information
     assert any("배터리 용량 표기" in note for note in result.findings[0].assumptions)
 
 

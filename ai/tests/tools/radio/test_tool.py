@@ -145,7 +145,7 @@ def test_무선_기능_원문_근거가_없으면_후보를_내지_않는다():
     assert search.calls == []
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
     assert any("무선 기능 근거를 찾지 못해" in note for note in result.findings[0].assumptions)
-    assert result.missing_information == ["무선 기능(블루투스·Wi-Fi·무선충전·RF 리모컨 등) 정보가 필요합니다."]
+    assert result.missing_information == ["제품에 무선 기능이 있는지, 있다면 어떤 기능인지 확인이 필요합니다."]
 
 
 def test_주파수는_판단을_바꾸지_않아_질문하지_않고_가정으로_남긴다():
