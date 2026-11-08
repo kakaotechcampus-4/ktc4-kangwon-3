@@ -210,6 +210,46 @@ holdout = 대표·조건 변형·대조를 dev와 다른 상품으로 + 엣지 5
 | 관세 결정사례 DB 조회가 실패하면 CLIP으로 넘어간다 | 관세 수치는 조회 경로와 함께 봄. "결정사례 없음" 분기는 단위 테스트로만 덮음 |
 | 테스트 전용 서버가 없다 (develop 머지 = 운영 배포) | 실제 모델 평가는 머지 전에 돌림 |
 
+## 9. 커버리지
+
+`pytest-cov`(coverage.py)로 단위, 통합, 합산(단위 + 통합) 커버리지를 라인·분기로 따로 측정한다. BE(JaCoCo)와 같은 구성이다. 합산 수치 하나만 보면 통합 테스트가 지나간 줄에 단위 테스트의 공백이 가려진다.
+
+커버리지는 코드가 테스트로 실행됐는지만 본다. 실제 모델의 판단이 맞는지는 3·4절의 평가셋 지표로 따로 본다.
+
+**단위와 통합의 구분**
+- 통합: 앱을 띄워 요청·세션·콜백이 이어지는 흐름을 보는 테스트. 파일에 `pytestmark = pytest.mark.integration`을 붙인다 (`tests/routers/`, `tests/test_flow.py` 등).
+- 단위: 나머지 전부. 표시가 없으면 단위로 실행·측정되므로, 흐름 테스트를 새로 만들면 표시를 꼭 붙인다.
+- 실제 외부 API를 부르는 테스트(`external_api`)는 둘 다에서 빠진다.
+
+**리포트**
+| 리포트 | 측정 범위 | 위치 (`ai/` 기준) |
+|---|---|---|
+| 단위 | 판단 로직 패키지(`agents`·`tools`·`pipeline`·`diagnosis`·`sessions`·`callbacks`·`results`) | `htmlcov-unit/index.html`, `coverage-unit.json` |
+| 합산 | `app/` 전체에서 `app/eval` 제외 | `htmlcov/index.html`, `coverage.json`, `coverage.xml` |
+
+- `app/eval`은 실제 모델을 불러 정답률을 재는 평가 실행 코드라 측정에서 뺀다 (`.coveragerc`).
+- 통합 리포트는 따로 만들지 않는다. 통합만의 수치는 기준에 쓰지 않는다.
+
+**기준**
+| 대상 | 라인 | 분기 | 검사 시점 |
+|---|---|---|---|
+| 단위 | 90% | 90% | PR·develop 푸시 |
+| 합산 | 85% | 80% | PR·develop 푸시 |
+| PR에서 바뀐 줄 | 90% | — | PR (`diff-cover`, base 브랜치 대비) |
+
+- 통합에는 기준을 두지 않는다. 기준을 맞추려고 단위 테스트가 이미 확인한 분기를 통합 테스트로 다시 쓰게 되기 때문이다.
+- 전체 기준은 실제 수치보다 낮아 큰 하락만 막는다. 새 코드의 테스트 누락은 바뀐 줄 기준으로 잡는다.
+- 기준에 못 미치면 CI가 실패하고 배포도 막힌다. 실패하면 Actions 산출물 `coverage-report`에 HTML 리포트가 올라간다 (7일 보관).
+- 긴급 배포가 필요하면 Actions에서 `AI CI/CD`를 수동 실행하고 `skip-coverage`를 켠다.
+
+**로컬 실행** (`ai/`에서)
+```
+pytest --cov --cov-report=html                          # 전체(단위 + 통합) 측정, htmlcov/index.html
+pytest -m "not external_api and not integration" --cov  # 단위만
+pytest -m integration --cov                             # 통합만
+python scripts/check_coverage.py coverage.json --line 85 --branch 80  # --cov-report=json 결과로 기준 검사
+```
+
 ---
 
 ## 부록 A. 분기 ID 목록 (A·B 분기)
