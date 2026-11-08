@@ -12,11 +12,11 @@ function RequiredActionsSection({ requiredActions }: RequiredActionsSectionProps
             <div className="flex w-full flex-col gap-4">
                 {requiredActions.length > 0 ? (
                     requiredActions.map((action, index) => (
-                        <DefaultBox key={index} className="flex-row items-center gap-4">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base leading-none font-semibold text-primary">
+                        <DefaultBox key={index} className="flex-row items-center gap-3 md:gap-4">
+                            <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm leading-none font-semibold text-primary md:size-8 md:text-base">
                                 {index + 1}
                             </div>
-                            <p className="flex-1 text-base leading-relaxed whitespace-pre-line text-black">{action}</p>
+                            <p className="flex-1 text-[15px] leading-relaxed whitespace-pre-line text-black md:text-base">{action}</p>
                         </DefaultBox>
                     ))
                 ) : (

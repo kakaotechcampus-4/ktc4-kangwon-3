@@ -31,7 +31,7 @@ function FormField({ id, title, placeholder, variant = 'input', value, onChange,
         <div className="flex w-full flex-col items-start gap-3.5">
             <div className="flex w-full items-center justify-between gap-3.75">
                 <div className="flex items-center gap-3.75">
-                    <label className="text-xl leading-6 font-semibold text-black" htmlFor={id}>{title}</label>
+                    <label className="text-base leading-6 font-semibold text-black md:text-xl" htmlFor={id}>{title}</label>
                     {label && <span className="text-xs leading-3.5 text-neutral-border">{label}</span>}
                 </div>
                 {maxLength !== undefined && (

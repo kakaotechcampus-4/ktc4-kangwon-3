@@ -45,7 +45,7 @@ interface ResultTabsProps {
 
 function ResultTabs({ selected, onSelect, disabledTabs = [] }: ResultTabsProps) {
     return (
-        <div role="tablist" className="flex items-start gap-7.5 border-b border-neutral-line px-2.5">
+        <div role="tablist" className="flex items-start gap-5 border-b border-neutral-line px-1.5 md:gap-7.5 md:px-2.5">
             {TAB_ORDER.map((tab) => {
                 const isSelected = tab === selected;
                 const isDisabled = disabledTabs.includes(tab);
@@ -60,7 +60,7 @@ function ResultTabs({ selected, onSelect, disabledTabs = [] }: ResultTabsProps) 
                         onClick={() => !isDisabled && onSelect(tab)}
                         className={cn(tabVariants({ selected: isSelected, disabled: isDisabled }))}
                     >
-                        <img src={isSelected ? info.iconSelected : info.icon} alt="" className="h-7.5 w-7.5" />
+                        <img src={isSelected ? info.iconSelected : info.icon} alt="" className="size-6 md:size-7.5" />
                         {info.label}
                     </button>
                 );

@@ -22,8 +22,8 @@ function QuestionCard({ id, questionNumber, title, description, answer, onChange
 
     return (
         <DefaultBox align="left" className="focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/15">
-            <div className="flex flex-row items-start gap-4 w-full">
-                <div className="w-8 h-8 shrink-0 rounded-full bg-primary/10 text-primary text-base font-semibold leading-none flex items-center justify-center">
+            <div className="flex flex-row items-start gap-3 w-full md:gap-4">
+                <div className="size-7 shrink-0 rounded-full bg-primary/10 text-primary text-sm font-semibold leading-none flex items-center justify-center md:size-8 md:text-base">
                     {questionNumber}
                 </div>
                 <div className="flex flex-col w-full gap-4">

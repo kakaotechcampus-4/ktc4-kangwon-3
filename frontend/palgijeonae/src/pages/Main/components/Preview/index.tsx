@@ -29,7 +29,7 @@ function Preview() {
                     onCurrentSlideEnd={next}
                     prefersReducedMotion={prefersReducedMotion}
                 />
-                <div className="flex w-full flex-col gap-6 px-6 py-7">
+                <div className="flex w-full flex-col gap-6 px-4 py-5 md:px-6 md:py-7">
                     <p className="text-center text-base font-medium text-neutral-text">{currentSlide.caption}</p>
                     <div className="grid w-full grid-cols-1">
                         {PREVIEW_SLIDES.map((slide, slideIndex) => {
@@ -38,7 +38,7 @@ function Preview() {
                                 <div
                                     key={slide.key}
                                     className={cn(
-                                        "col-start-1 row-start-1 overflow-hidden p-5 rounded-xl border border-box-line bg-white transition-opacity duration-450",
+                                        "col-start-1 row-start-1 overflow-hidden p-3 md:p-5 rounded-xl border border-box-line bg-white transition-opacity duration-450",
                                         isActive ? "visible opacity-100" : "invisible opacity-0",
                                     )}
                                 >

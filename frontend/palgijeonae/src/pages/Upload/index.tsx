@@ -83,7 +83,7 @@ function UploadPage() {
                     )}
                     <AddedProductList products={products} onRemove={handleRemoveProduct} />
                     <div className="flex w-full justify-end">
-                        <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} />
+                        <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} className="w-full md:w-auto" />
                     </div>
                 </>
             )}

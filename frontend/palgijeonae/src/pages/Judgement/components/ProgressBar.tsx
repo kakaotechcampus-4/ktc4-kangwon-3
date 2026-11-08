@@ -70,7 +70,7 @@ function ProgressBar({ progresses }: ProgressBarProps) {
                             aria-hidden="true"
                             className={cn("h-1.5 w-full rounded-sm transition-[background-color,opacity] duration-500", BAR_CLASSES[status])}
                         />
-                        <p className={cn("text-xs leading-4", LABEL_CLASSES[status])}>
+                        <p className={cn("text-[10px] leading-4 tracking-tight whitespace-nowrap md:text-xs md:tracking-normal", LABEL_CLASSES[status])}>
                             {segment.label}
                             <span className="sr-only">{SEGMENT_SR_TEXT[status]}</span>
                         </p>

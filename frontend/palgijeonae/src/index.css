@@ -63,6 +63,14 @@ body {
     --color-status-warning-bg: #F5EED7;   /* 재확인 필요 / 경고 배너 */
 }
 
+@utility no-scrollbar {
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
 @keyframes progress-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 @keyframes segment-breathe { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.85; } }
 @keyframes preview-progress { from { width: 0; } to { width: 100%; } }

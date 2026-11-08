@@ -4,6 +4,7 @@ import { ProcessingStatusType } from "@/api/types/common";
 import type { ProductResult } from "@/api/types/product";
 import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/cn";
 import { truncateWithEllipsis } from "@/lib/text";
 
@@ -24,7 +25,7 @@ const CARD_BORDER_TONE: Record<ProcessingStatusType, "neutral" | "success" | "wa
     [ProcessingStatusType.Failed]: "danger",
 };
 
-const ACTION_BUTTON_BASE_CLASS = "shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-sm font-semibold shadow-button-secondary transition-colors duration-150 outline-none focus-visible:ring-3";
+const ACTION_BUTTON_BASE_CLASS = "w-full shrink-0 cursor-pointer rounded-full border bg-white px-5 py-2.5 text-center text-sm font-semibold md:w-auto shadow-button-secondary transition-colors duration-150 outline-none focus-visible:ring-3";
 
 // 컴포넌트 안에서 만들면 렌더마다 새 배열/객체가 생겨 useAnimateOnChange의 effect가 매번 재실행된다
 const FADE_KEYFRAMES: Keyframe[] = [{ opacity: 0.25 }, { opacity: 1 }];
@@ -66,6 +67,9 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
 
 
     // 화면 상태가 실제로 바뀔 때마다 증가하는 트리거 값(첫 렌더는 0 → 효과 없음).
+    // 모바일은 원본 이름을 넘기고 CSS(truncate)가 한 줄에서 자른다. 데스크톱은 줄바꿈되므로 글자 수로 줄인다.
+    const isMobile = useIsMobile();
+    const displayName = isMobile ? productName : truncateWithEllipsis(productName, MAX_PRODUCT_NAME_LENGTH);
     const changeCount = useStatusChangeCount(processingStatus);
     // changeCount가 바뀐 순간에만 카드 내용 크로스페이드를 한 번 재생한다.
     const contentRef = useAnimateOnChange<HTMLDivElement>(changeCount, FADE_KEYFRAMES, FADE_OPTIONS);
@@ -86,16 +90,16 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
             <StatusFlash status={processingStatus} trigger={changeCount} />
             {isRunning && <ProgressSweep />}
             <div ref={contentRef} className="relative flex w-full flex-col gap-5">
-                <div className="flex w-full flex-row items-center justify-between gap-4">
+                <div className="flex w-full flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex min-w-0 flex-row items-center gap-4">
                         <img
                             src={productImageUrl ?? defaultThumbnail}
                             alt=""
-                            className="h-16 w-16 shrink-0 rounded-lg border border-box-line object-cover"
+                            className="size-14 shrink-0 rounded-lg border border-box-line object-cover md:size-16"
                         />
-                        <div className="flex flex-col items-start gap-2">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
-                                <h2 className="text-lg font-bold text-black">{truncateWithEllipsis(productName, MAX_PRODUCT_NAME_LENGTH)}</h2>
+                        <div className="flex min-w-0 flex-col items-start gap-2">
+                            <div className="flex max-w-full items-center gap-2 md:flex-wrap">
+                                <h2 title={isMobile || displayName !== productName ? productName : undefined} className="min-w-0 truncate text-base font-bold text-black md:overflow-visible md:text-clip md:whitespace-normal md:text-lg">{displayName}</h2>
                                 <StatusBadge processingStatus={processingStatus} />
                             </div>
                             <p className="text-sm text-neutral-muted">{description}</p>

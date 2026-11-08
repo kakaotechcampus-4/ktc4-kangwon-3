@@ -7,6 +7,7 @@ import imageIcon from "@/assets/upload-img_txt.svg"
 import toggleIcon from "@/assets/upload-toggle.svg"
 import urlIcon from "@/assets/upload-url.svg"
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/cn";
 import { truncateWithEllipsis } from "@/lib/text";
 import { isHttpUrl } from "@/lib/url";
@@ -28,9 +29,11 @@ const MAX_DISPLAY_TITLE_LENGTH = 40;
 function AddedProduct({ type, title, productImageFile, link, content, images, onRemove }: AddedProductProps) {
     const [expanded, setExpanded] = useState(false);
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
-    const displayTitle = truncateWithEllipsis(title, MAX_DISPLAY_TITLE_LENGTH);
-    // 제목이 길 경우 잘라서 보여주고, 마우스를 올리면 전체 제목을 보여준다.
-    const isTitleLong = title.length > MAX_DISPLAY_TITLE_LENGTH;
+    const isMobile = useIsMobile();
+    // 모바일은 원본 제목을 넘기고 CSS(truncate)가 한 줄에서 자른다. 데스크톱은 글자 수로 줄인다.
+    const displayTitle = isMobile ? title : truncateWithEllipsis(title, MAX_DISPLAY_TITLE_LENGTH);
+    // 제목이 잘렸을 수 있으면(모바일은 항상) 마우스를 올렸을 때 전체 제목을 보여준다.
+    const isTitleLong = isMobile || displayTitle !== title;
 
     // 자동으로 해제 되게끔 File을 받아와 useEffect 안에서 url을 생성한다.
     useEffect(() => {
@@ -46,18 +49,18 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
 
     return (
         <DefaultBox>
-            <div className="relative flex w-full gap-5 pb-4">
+            <div className="relative flex w-full gap-4 pb-9 md:gap-5 md:pb-4">
                 <img src={thumbnail ? thumbnail : defaultThumbnail}
                     alt="상품 썸네일"
-                    className="w-20 h-20 object-cover rounded-lg border border-box-line" />
-                <div className="flex flex-col gap-3">
+                    className="size-16 object-cover rounded-lg border border-box-line md:size-20" />
+                <div className="flex min-w-0 flex-col gap-3 pr-7 md:pr-0">
                     <div className="flex gap-2 items-center">
                         <img src={type === SourceType.Url ? urlIcon : imageIcon}
                             alt=""
                             className="w-5 h-5" />
                         <p className="text-base text-neutral-border font-bold">{type === SourceType.Url ? "URL" : "이미지 / 텍스트"}</p>
                     </div>
-                    <h3 title={isTitleLong ? title : undefined} className="text-xl font-bold text-neutral-dark">{displayTitle}</h3>
+                    <h3 title={isTitleLong ? title : undefined} className="truncate text-base font-bold text-neutral-dark md:overflow-visible md:text-clip md:whitespace-normal md:text-xl">{displayTitle}</h3>
                 </div>
                 <button
                     type="button"

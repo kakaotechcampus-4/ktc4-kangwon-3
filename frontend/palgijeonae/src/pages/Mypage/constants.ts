@@ -3,6 +3,7 @@ export const PAGE_SIZE = 10;
 
 // 페이지네이션에서 한 화면에 보여줄 페이지 번호 버튼 개수
 export const PAGE_GROUP_SIZE = 10;
+export const PAGE_GROUP_SIZE_MOBILE = 5;
 
 // 회원 이름 최대 길이
 export const NAME_MAX_LENGTH = 20;
