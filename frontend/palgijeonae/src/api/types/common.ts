@@ -22,7 +22,7 @@ export enum ProcessingStatusType {
 /** 진단이 완료된 상품의 결과 상태
  * - PurchasingAgentAllowed: 구매대행 허용
  * - DirectImportCertificationRequired: 직수입 인증 필요
- * - RecheckRequired: 재검토 필요 (개정됨)
+ * - RecheckRequired: AI가 판정을 끝내지 못해 다시 확인이 필요함 (법령 개정과는 별개)
 */
 export enum ResultStatus {
     PurchasingAgentAllowed = "PURCHASING_AGENT_ALLOWED",
