@@ -5,7 +5,8 @@ import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
-import { PAGE_GROUP_SIZE } from "@/pages/Mypage/constants.ts";
+import { useIsMobile } from "@/hooks/useIsMobile.ts";
+import { PAGE_GROUP_SIZE, PAGE_GROUP_SIZE_MOBILE } from "@/pages/Mypage/constants.ts";
 import { useDeleteProduct } from "@/pages/Mypage/hooks/useDeleteProduct.ts";
 import type { MyProductItem } from "@/pages/Mypage/types.ts";
 
@@ -24,6 +25,7 @@ interface MyProductListProps {
 
 function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange, onProductDeleted }: MyProductListProps) {
     const { mutate: deleteProduct, isPending: isDeleting, variables: deletingProductId } = useDeleteProduct();
+    const isMobile = useIsMobile();
 
     const handleDelete = (product: MyProductItem) => {
         const confirmed = confirm(`'${product.productName}'의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`);
@@ -73,6 +75,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                                         resultStatus={product.resultStatus}
                                         processingStatus={product.processingStatus}
                                         sourceType={product.sourceType}
+                                        hasTrailingAction
                                     />
                                 </Link>
                                 <button
@@ -80,7 +83,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                                     onClick={() => handleDelete(product)}
                                     disabled={isDeletingThis}
                                     aria-label={`${product.productName} 삭제`}
-                                    className="absolute top-4.5 right-6 cursor-pointer rounded-full border border-box-line bg-white px-3 py-1 text-sm font-semibold text-neutral-muted transition-colors duration-150 outline-none hover:border-status-danger/40 hover:bg-status-danger-bg hover:text-status-danger focus-visible:border-status-danger/40 focus-visible:bg-status-danger-bg focus-visible:text-status-danger focus-visible:ring-3 focus-visible:ring-status-danger/15 disabled:cursor-default disabled:opacity-50"
+                                    className="absolute top-4.5 right-4 cursor-pointer rounded-full border border-box-line bg-white px-2.5 py-0.75 text-xs font-bold text-neutral-muted md:right-6 md:px-3 md:py-1 md:text-sm md:font-semibold transition-colors duration-150 outline-none hover:border-status-danger/40 hover:bg-status-danger-bg hover:text-status-danger focus-visible:border-status-danger/40 focus-visible:bg-status-danger-bg focus-visible:text-status-danger focus-visible:ring-3 focus-visible:ring-status-danger/15 disabled:cursor-default disabled:opacity-50"
                                 >
                                     {isDeletingThis ? "삭제 중" : "삭제"}
                                 </button>
@@ -89,7 +92,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                     })}
                 </ul>
             )}
-            <Pagination page={page} totalPages={totalPages} hasNext={hasNext} onPageChange={onPageChange} pageGroupSize={PAGE_GROUP_SIZE} />
+            <Pagination page={page} totalPages={totalPages} hasNext={hasNext} onPageChange={onPageChange} pageGroupSize={isMobile ? PAGE_GROUP_SIZE_MOBILE : PAGE_GROUP_SIZE} />
         </div>
     );
 }
