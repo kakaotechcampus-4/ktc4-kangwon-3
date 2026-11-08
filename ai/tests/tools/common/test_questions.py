@@ -50,7 +50,7 @@ def test_카탈로그_질문_문장으로_도움말을_되찾는다():
 
 def test_모순_문장의_도움말은_표시_이름을_넣어_만든다():
     assert help_text(f"정격 전압{CONFLICT_SUFFIX}") == (
-        "상품명·상세 설명·속성표에 적힌 정격 전압 값이 서로 달라요. 실제 판매하는 상품 기준으로 어느 쪽이 맞는지 알려 주세요."
+        "상품명, 상세 설명, 속성표에 적힌 정격 전압 값이 서로 달라요. 실제 판매하는 상품 기준으로 어느 쪽이 맞는지 알려 주세요."
     )
 
 
@@ -68,9 +68,35 @@ def test_카탈로그_질문_문장으로_조건_필드를_되찾는다():
     assert field_for(" 제품의 정격 전압 확인이 필요합니다. ") == "rated_voltage"
 
 
-@pytest.mark.parametrize("question", ["기능을 알려 주세요.", f"정격 전압{CONFLICT_SUFFIX}", NO_LISTING_QUESTION.question, ""])
-def test_카탈로그_질문이_아니면_조건_필드가_없다(question):
+@pytest.mark.parametrize("question", ["기능을 알려 주세요.", f"일련번호{CONFLICT_SUFFIX}", NO_LISTING_QUESTION.question, ""])
+def test_카탈로그_질문도_아는_모순_문장도_아니면_조건_필드가_없다(question):
     assert field_for(question) is None
+
+
+def test_모순_문장은_표시_이름으로_조건_필드를_되찾는다():
+    # 리뷰 #684: Tool이 모순으로 전원 방식을 물으면 검증 모델의 power_source 질문도 빠져야 한다
+    assert field_for(question_text("power_source", "전원 방식", conflicted=True)) == "power_source"
+    assert field_for(question_text("intended_use", "제품 용도", conflicted=True)) == "intended_use"
+
+
+def test_Tool의_표시_이름은_모두_카탈로그_labels에_있다():
+    # 표시 이름이 어긋나면 모순 문장에서 필드를 못 찾아 중복 제거가 조용히 빠진다
+    import importlib
+    from app.tools.base.evidence_search import EvidenceSearchTool
+    missing = []
+    for name in ("customs", "electrical", "radio", "children", "food_drug"):
+        module = importlib.import_module(f"app.tools.{name}.tool")
+        tool = next(obj for obj in vars(module).values()
+                    if isinstance(obj, type) and issubclass(obj, EvidenceSearchTool) and obj is not EvidenceSearchTool)
+        for field, label in tool.field_labels.items():
+            if label not in QUESTIONS[field].labels:
+                missing.append((name, field, label))
+    assert missing == []
+
+
+def test_가운뎃점을_쓰지_않는다():
+    for item in (*QUESTIONS.values(), NO_LISTING_QUESTION):
+        assert "·" not in item.question and "·" not in item.help
 
 
 def test_답변_줄에서_지난_회차_질문_문장을_모은다():

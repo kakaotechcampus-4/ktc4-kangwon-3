@@ -4,7 +4,7 @@ from app.agents.verification import VerificationAgent
 from app.agents.verification.schemas import _Question
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName, VerificationStatus
-from app.tools.common.questions import ANSWER_PREFIX, QUESTIONS
+from app.tools.common.questions import ANSWER_PREFIX, QUESTIONS, question_text
 
 VOLTAGE = QUESTIONS["rated_voltage"].question
 
@@ -28,6 +28,17 @@ def test_Tool이_이미_묻는_조건의_모델_질문은_뺀다(samples, stub_m
     result = VerificationAgent(stub_model(review)).run(draft)
 
     assert [q.question for q in result.follow_up_questions] == ["전지 용량이 표기되어 있나요?"]
+
+
+def test_Tool이_모순으로_묻는_조건의_모델_질문도_뺀다(samples, stub_model):
+    # 리뷰 #684: "전원 방식 정보가 서로 달라 확인이 필요합니다."와 모델의 power_source 질문이 같은 것을 두 번 묻던 문제
+    conflict = question_text("power_source", "전원 방식", conflicted=True)
+    draft = _with_missing(samples.draft(), ToolName.ELECTRICAL, [conflict])
+    review = samples.review(follow_up_questions=[_question("power_source", "DC 12V와 AC 220V 중 어느 전원인가요?")])
+
+    result = VerificationAgent(stub_model(review)).run(draft)
+
+    assert result.follow_up_questions == []
 
 
 def test_판매자가_지난_회차에_답한_조건의_모델_질문은_답이_모름이어도_뺀다(samples, stub_model):

@@ -440,7 +440,7 @@ def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후�
     assert finding.determination is Determination.POSSIBLY_REQUIRED
     assert any("전지(건전지·충전지)만으로 동작하는 구조라면" in item for item in finding.assumptions)
     assert any("공통 비고" in (source.article or "") for source in finding.legal_sources)
-    assert any("건전지·충전지로만 동작" in question for question in result.missing_information)
+    assert any("건전지나 충전지로만 동작" in question for question in result.missing_information)
     assert '"common_notes"' in model.last_payload
 
 
