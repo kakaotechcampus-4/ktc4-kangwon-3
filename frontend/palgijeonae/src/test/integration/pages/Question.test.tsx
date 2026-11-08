@@ -1,10 +1,11 @@
-import { screen } from '@testing-library/react'
+import { cleanup, screen } from '@testing-library/react'
 import { http } from 'msw'
 import { Route } from 'react-router-dom'
 
 import { ProcessingStatusType } from '@/api/types/common'
 import type { ProductResult } from '@/api/types/product'
 import QuestionPage from '@/pages/Question'
+import { loadAnswerDraft, saveAnswerDraft } from '@/pages/Question/utils/answerDraft'
 import { COMMON_MESSAGES, QUESTION_MESSAGES, SERVER_MESSAGES } from '@/test/constants/messages'
 import { questionPage } from '@/test/drivers/questionPage'
 import { buildProductResult, buildQuestion } from '@/test/mocks/fixtures'
@@ -297,6 +298,114 @@ describe('질문 화면 - 답변 제출', () => {
       { answers: [{ questionId: 'question-1', answerText: '네' }] },
       { answers: [{ questionId: 'question-1', answerText: '네' }] },
     ])
+  })
+})
+
+describe('질문 화면 - 답변 임시 저장', () => {
+  // 새로고침을 흉내 낸다. 화면을 내렸다가 같은 주소로 다시 연다.
+  const reload = async () => {
+    cleanup()
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+    return page
+  }
+
+  it('답변을 쓰다가 새로고침하면 같은 회차의 답변을 복원한다', async () => {
+    mockProduct({ questions: threeQuestions })
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+    await page.answer(BATTERY, '네')
+    await page.answer(CHILDREN, '아니요')
+
+    const reloaded = await reload()
+
+    expect(reloaded.answerValue(BATTERY)).toBe('네')
+    expect(reloaded.answerValue(CHILDREN)).toBe('아니요')
+    expect(reloaded.answerValue(POWER)).toBe('')
+    expect(reloaded.hasProgress(2, 3)).toBe(true)
+  })
+
+  it('복원한 답변을 고치면 다음 새로고침에도 고친 값이 남는다', async () => {
+    mockProduct({ questions: threeQuestions })
+    saveAnswerDraft('product-1', 1, { q1: '네' })
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+    expect(page.answerValue(BATTERY)).toBe('네')
+
+    await page.clearAnswer(BATTERY)
+    await page.answer(BATTERY, '아니요')
+
+    const reloaded = await reload()
+    expect(reloaded.answerValue(BATTERY)).toBe('아니요')
+  })
+
+  it('다른 회차에 저장된 답변은 복원하지 않는다', async () => {
+    saveAnswerDraft('product-1', 1, { old: '지난 회차 답변', new: '엉뚱한 값' })
+    mockProduct({
+      questions: [
+        buildQuestion({ questionId: 'old', questionRound: 1, questionText: OLD_ROUND_QUESTION }),
+        buildQuestion({ questionId: 'new', questionRound: 2, questionText: NEW_ROUND_QUESTION }),
+      ],
+    })
+    const page = renderQuestionPage()
+
+    await page.waitUntilLoaded(2)
+
+    expect(page.answerValue(NEW_ROUND_QUESTION)).toBe('')
+  })
+
+  it('현재 회차 질문에 없는 질문의 저장된 답변은 무시하고, 제출에도 포함하지 않는다', async () => {
+    mockProduct({ questions: [buildQuestion({ questionId: 'q1', questionText: BATTERY })] })
+    saveAnswerDraft('product-1', 1, { q1: '네', ghost: '사라진 질문의 답변' })
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+    expect(page.answerValue(BATTERY)).toBe('네')
+
+    await page.submit()
+
+    expect(await findStubScreen('진단 진행 화면')).toBeInTheDocument()
+    expect(requestLog.find('POST', '/api/v1/products/product-1/answers')[0].body).toEqual({
+      answers: [{ questionId: 'q1', answerText: '네' }],
+    })
+  })
+
+  it('다른 상품의 임시 저장은 복원하지 않는다', async () => {
+    saveAnswerDraft('product-other', 1, { q1: '다른 상품의 답변' })
+    const page = renderQuestionPage()
+
+    await page.waitUntilLoaded()
+
+    expect(page.answerValue(BATTERY)).toBe('')
+  })
+
+  it('답변을 제출하면 그 회차의 임시 저장을 지운다', async () => {
+    mockProduct({ questions: threeQuestions })
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+    await page.answer(BATTERY, '네')
+    await page.answer(CHILDREN, '아니요')
+    await page.answer(POWER, '배터리로만 써요')
+    expect(loadAnswerDraft('product-1', 1)).not.toEqual({})
+
+    await page.submit()
+
+    expect(await findStubScreen('진단 진행 화면')).toBeInTheDocument()
+    expect(loadAnswerDraft('product-1', 1)).toEqual({})
+  })
+
+  it('제출에 실패하면 임시 저장을 그대로 둔다', async () => {
+    mockProduct({ questions: threeQuestions })
+    server.use(http.post(ANSWERS_URL, () => errorResponse(400, { detailMessage: SERVER_MESSAGES.ANSWER_NOT_SAVED })))
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+    await page.answer(BATTERY, '네')
+    await page.answer(CHILDREN, '아니요')
+    await page.answer(POWER, '배터리로만 써요')
+
+    await page.submit()
+
+    await waitForNotified(SERVER_MESSAGES.ANSWER_NOT_SAVED)
+    expect(loadAnswerDraft('product-1', 1)).toEqual({ q1: '네', q2: '아니요', q3: '배터리로만 써요' })
   })
 })
 
