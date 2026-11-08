@@ -30,8 +30,9 @@ function ToolReviewCard({ toolReview, findingFilter }: ToolReviewCardProps) {
         (finding) => findingFilter === null || finding.determination === findingFilter,
     );
 
-    // 필터링된 finding 항목이 없다면 표시하지 않음
-    if (visibleFindings.length === 0) {
+    // 필터를 적용해서 finding이 비게 된 분야는 숨긴다.
+    // 전체 보기에서는 finding이 없어도 분야명·상태·메시지를 보여준다. 정보 부족으로 분야를 확인하지 못해 finding 없이 내려오는 경우에 대비한 안전장치다.
+    if (visibleFindings.length === 0 && findingFilter !== null) {
         return null;
     }
 
