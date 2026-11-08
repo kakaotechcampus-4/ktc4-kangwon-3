@@ -64,7 +64,7 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
         <div className="flex w-full flex-col items-start gap-3.5">
             <div className="flex w-full items-center justify-between gap-3.75">
                 <div className="flex items-center gap-3.75">
-                    <h3 className="text-xl leading-6 font-semibold text-black">{title}</h3>
+                    <h3 className="text-base leading-6 font-semibold text-black md:text-xl">{title}</h3>
                     {isOption && <span className="text-xs leading-3.5 text-neutral-border">{optionLabel}</span>}
                     {tooltip && <HelpTooltip label={`${title} 설명`} className="max-w-[min(24rem,calc(100vw-40px))]">{tooltip}</HelpTooltip>}
                 </div>
@@ -78,7 +78,7 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                 onDrop={handleDrop}
                 onPaste={handlePaste}
                 tabIndex={0}
-                className="flex w-full items-center gap-6 rounded-xl border border-dashed border-box-dashed bg-white py-6.5 px-4.75 outline-none focus-within:border-solid focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/15 focus-visible:border-solid focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15"
+                className="flex w-full flex-col items-stretch gap-4 rounded-xl border border-dashed border-box-dashed bg-white py-5 px-4.75 outline-none md:flex-row md:items-center md:gap-6 md:py-6.5 focus-within:border-solid focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/15 focus-visible:border-solid focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15"
             >
                 <input
                     ref={fileInputRef}
@@ -90,8 +90,8 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                     onChange={(event) => handleFiles(event.target.files)}
                 />
 
-                <div className="flex h-17.5 w-17.5 shrink-0 items-center justify-center rounded-[10px] bg-[#E7EEFB]">
-                    <img src={uploadInputIcon} alt="" className="h-12.5 w-12.5 object-contain" />
+                <div className="flex size-14 shrink-0 items-center justify-center rounded-[10px] bg-[#E7EEFB] md:size-17.5">
+                    <img src={uploadInputIcon} alt="" className="size-9 object-contain md:size-12.5" />
                 </div>
 
                 <div className="flex flex-col gap-3.5">
@@ -103,8 +103,8 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                     </p>
                 </div>
 
-                <div className="ml-auto shrink-0">
-                    <Button text="파일 선택" variant="secondary" fontSize={14} onClick={() => fileInputRef.current?.click()} />
+                <div className="shrink-0 md:ml-auto">
+                    <Button text="파일 선택" variant="secondary" fontSize={14} className="w-full md:w-auto" onClick={() => fileInputRef.current?.click()} />
                 </div>
             </div>
         </div>
