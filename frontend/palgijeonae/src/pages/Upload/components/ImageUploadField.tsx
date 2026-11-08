@@ -78,7 +78,7 @@ function ImageUploadField({ id, title, description, multiple = false, isOption =
                 onDrop={handleDrop}
                 onPaste={handlePaste}
                 tabIndex={0}
-                className="flex w-full items-center gap-6 rounded-[10px] border border-dashed border-neutral-border py-6.5 px-4.75 focus-within:border-solid focus-within:border-black focus-within:ring-1 focus-within:ring-black"
+                className="flex w-full items-center gap-6 rounded-xl border border-dashed border-box-dashed bg-white py-6.5 px-4.75 outline-none focus-within:border-solid focus-within:border-primary focus-within:ring-3 focus-within:ring-primary/15 focus-visible:border-solid focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/15"
             >
                 <input
                     ref={fileInputRef}

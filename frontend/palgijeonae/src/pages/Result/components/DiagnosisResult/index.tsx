@@ -67,7 +67,7 @@ function DiagnosisResultTab({ product, onNextStepsClick }: DiagnosisResultTabPro
                 {visibleToolReviews.map((toolReview) => (
                     <ToolReviewCard key={toolReview.productToolReviewId} toolReview={toolReview} findingFilter={findingFilter} />
                 ))}
-                {skippedToolReviews.length > 0 && <hr className="w-full border-neutral-border" />}
+                {skippedToolReviews.length > 0 && <hr className="w-full border-neutral-line" />}
                 <SkippedToolReviews toolReviews={skippedToolReviews} />
             </div>
         </div>

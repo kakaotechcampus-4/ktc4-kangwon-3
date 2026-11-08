@@ -80,7 +80,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                                     onClick={() => handleDelete(product)}
                                     disabled={isDeletingThis}
                                     aria-label={`${product.productName} 삭제`}
-                                    className="absolute top-[18px] right-6 cursor-pointer rounded-full border bg-white px-3 py-1 text-sm font-semibold text-neutral-dark hover:border-status-danger hover:text-status-danger focus-visible:border-status-danger focus-visible:text-status-danger disabled:cursor-default disabled:opacity-50"
+                                    className="absolute top-4.5 right-6 cursor-pointer rounded-full border border-box-line bg-white px-3 py-1 text-sm font-semibold text-neutral-muted transition-colors duration-150 outline-none hover:border-status-danger/40 hover:bg-status-danger-bg hover:text-status-danger focus-visible:border-status-danger/40 focus-visible:bg-status-danger-bg focus-visible:text-status-danger focus-visible:ring-3 focus-visible:ring-status-danger/15 disabled:cursor-default disabled:opacity-50"
                                 >
                                     {isDeletingThis ? "삭제 중" : "삭제"}
                                 </button>

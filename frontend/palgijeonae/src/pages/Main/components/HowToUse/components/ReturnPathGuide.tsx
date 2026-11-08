@@ -43,7 +43,7 @@ function ReturnPathGuide() {
         <DefaultBox variant="dashed" align="left" className="gap-2">
             <p className="text-lg font-bold text-black">화면을 떠났다면 이렇게 돌아와요</p>
             <ReturnPathRow number={1} preview={<MiniHeaderPreview />}>
-                오른쪽 위 <b className="font-semibold text-black">마이페이지</b> 클릭
+                오른쪽 위 <b className="font-semibold text-black">프로필</b>을 눌러 <b className="font-semibold text-black">마이페이지</b> 선택
             </ReturnPathRow>
             <ReturnPathRow
                 number={2}

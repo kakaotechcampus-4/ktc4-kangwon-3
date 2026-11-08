@@ -2,11 +2,11 @@ import { cva } from "class-variance-authority";
 
 import { truncateWithEllipsis } from "@/lib/text";
 
-const tabVariants = cva("shrink-0 rounded-[20px] border px-[15px] py-[7px] text-base font-medium", {
+const tabVariants = cva("shrink-0 cursor-pointer rounded-full border px-3.75 py-1.75 text-base font-medium transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-primary/25", {
     variants: {
         selected: {
-            true: "border-primary bg-primary/10 text-primary",
-            false: "border-neutral-border bg-white text-neutral-border",
+            true: "border-primary/40 bg-primary-soft text-primary",
+            false: "border-box-line bg-white text-neutral-muted hover:bg-button-hover-bg",
         },
     },
 });

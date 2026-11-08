@@ -55,7 +55,7 @@ function HelpTooltip({ label, children, className }: HelpTooltipProps) {
                 type="button"
                 aria-label={label}
                 aria-describedby={tooltipId}
-                className="flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border border-neutral-border text-xs leading-none font-medium text-neutral-border"
+                className="flex h-5 w-5 shrink-0 cursor-help items-center justify-center rounded-full border border-field-line bg-white text-xs leading-none font-medium text-neutral-dark transition-colors duration-150 outline-none hover:bg-button-hover-bg focus-visible:border-primary focus-visible:ring-3 focus-visible:ring-primary/25"
             >
                 ?
             </button>

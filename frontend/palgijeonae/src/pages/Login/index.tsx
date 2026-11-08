@@ -35,7 +35,7 @@ function LoginPage() {
     }
 
     return (
-        <div className="flex w-lg flex-col rounded-2xl gap-5 px-10 pt-8 pb-12 border border-neutral-border mt-10">
+        <div className="flex w-lg flex-col rounded-2xl gap-5 px-10 pt-8 pb-12 border border-box-line bg-white shadow-box mt-10">
             <SectionIntro title="로그인" description="소셜 계정으로 간편하게 로그인 하세요." />
             <LoginButton
                 provider={Provider.Kakao}
