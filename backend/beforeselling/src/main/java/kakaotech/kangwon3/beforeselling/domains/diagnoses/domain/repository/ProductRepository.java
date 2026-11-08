@@ -71,6 +71,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
         join s.finding f
         join f.toolReview r
         join r.product p
+        join fetch p.diagnoses
         where r.toolName = :toolName
           and s.lawName = :lawName
           and p.processingStatus = kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ProcessingStatus.COMPLETED
