@@ -1,8 +1,14 @@
 """테스트 공통 설정."""
 
+import os
+
 import pytest
 
-from app.observability import usage
+# .env에 LangSmith 키가 있어도 테스트 호출은 보내지 않음. load_dotenv가 덮어쓰지 않으니 app import 전에 정함
+os.environ["LANGSMITH_TRACING"] = "false"
+os.environ["LANGSMITH_TRACING_V2"] = "false"
+
+from app.observability import usage  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
