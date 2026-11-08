@@ -32,4 +32,27 @@ class UserTest {
         assertThat(user.getName()).isEqualTo("홍길동");
         assertThat(user.getRole()).isEqualTo(Role.USER);
     }
+
+    @Test
+    @DisplayName("새로 가입한 회원은 개정 알림을 받는다.")
+    void socialSignup_thenLawAmendmentAlertEnabled() {
+        // when
+        User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "홍길동");
+
+        // then
+        assertThat(user.isLawAmendmentAlertEnabled()).isTrue();
+    }
+
+    @Test
+    @DisplayName("개정 알림 수신을 끄면 수신 여부가 꺼짐으로 바뀐다.")
+    void updateLawAmendmentAlertEnabled_thenChanged() {
+        // given
+        User user = User.socialSignup(SocialProvider.KAKAO, "social-id", "user@example.com", "홍길동");
+
+        // when
+        user.updateLawAmendmentAlertEnabled(false);
+
+        // then
+        assertThat(user.isLawAmendmentAlertEnabled()).isFalse();
+    }
 }
