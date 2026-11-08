@@ -23,7 +23,7 @@ const HELP_CONTENT: Record<InputFormProps["type"], { text: string; tooltip: stri
         tooltip: "일부 링크는 AI가 접근하기 어려울 수 있습니다. 실패 시 텍스트 / 이미지 입력을 사용해주세요.",
     },
     [SourceType.TextImage]: {
-        text: "상세페이지를 텍스트나 이미지로 입력하세요. 둘 다 입력할 수도 있습니다.",
+        text: "상세페이지 본문을 텍스트로 입력하세요. 상세페이지 이미지는 선택 사항입니다.",
         tooltip: "분석을 위해 필요한 정보가 상세페이지에 충분히 포함되어 있는지 확인하세요.",
     },
 };
