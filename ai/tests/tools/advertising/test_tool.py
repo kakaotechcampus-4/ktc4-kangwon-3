@@ -307,3 +307,19 @@ def test_기록_중이면_원문과_대조해_남긴_주장·버린_인용·코�
     assert [claim["quote"] for claim in step["claims"]["kc_added"]] == ["KC인증"]
     assert [call["component"] for call in step["calls"]] == ["advertising"]
     assert [finding["subject"] for finding in step["result"]["findings"]] == ["하중 300kg 버팀", "KC인증"]
+
+
+@pytest.mark.parametrize(("quote", "risk_type", "expected"), [
+    # 받침이 있으면 을·은, 없으면 를·는 (실사이트 2026-11-06: "'RFID 차단'를 뒷받침하는 …"으로 나감)
+    ("습기 차단", "performance_quality", "'습기 차단'을 뒷받침하는"),
+    ("오래가는 배터리", "performance_quality", "'오래가는 배터리'를 뒷받침하는"),
+    ("관절염 예방", "body_effect", "'관절염 예방'은 의약품 효능처럼"),
+    ("불면증 치료", "body_effect", "'불면증 치료'는 의약품 효능처럼"),
+    # 문장부호로 끝나면 그 앞 글자의 받침으로 (리뷰 #643)
+    ("습기 차단.", "performance_quality", "'습기 차단.'을 뒷받침하는"),
+    ("관절염 예방!", "body_effect", "'관절염 예방!'은 의약품 효능처럼"),
+])
+def test_할_일_문구의_조사는_인용한_문구의_받침에_따라_정한다(quote, risk_type, expected):
+    result = _run(_StubModel([_claim(quote, risk_type)]), quote)
+
+    assert result.required_actions[0].startswith(expected)

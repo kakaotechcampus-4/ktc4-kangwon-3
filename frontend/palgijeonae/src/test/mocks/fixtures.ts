@@ -1,6 +1,6 @@
-import type { DiagnosesDetail, ProductFailure, ProductResult, Question } from '@/api/product'
-import { ProcessingStatusType, ResultStatus, SourceType } from '@/api/types'
-import { SocialProvider, type UserInfo } from '@/api/user'
+import { ProcessingStatusType, ResultStatus, SourceType } from '@/api/types/common'
+import type { DiagnosesDetail, ProductFailure, ProductResult, Question } from '@/api/types/product'
+import { SocialProvider, type UserInfo } from '@/api/users'
 import type { MyProductItem } from '@/pages/Mypage/types'
 
 // 질문은 최대 2회차까지만 생성된다. (BE 콜백 검증: questionRound는 @Min(1) @Max(2)) questionOrder는 한 회차 안에서의 순서다.

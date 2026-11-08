@@ -1,4 +1,4 @@
-import type { Question } from '@/api/product'
+import type { Question } from '@/api/types/product'
 import { getCurrentRoundQuestions } from '@/lib/questions'
 
 const makeQuestion = (questionId: string, questionRound: number, questionOrder = 1): Question => ({

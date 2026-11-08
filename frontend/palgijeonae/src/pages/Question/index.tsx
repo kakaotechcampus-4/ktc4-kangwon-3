@@ -2,20 +2,19 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getErrorMessage } from "@/api/client";
-import { submitAnswers } from "@/api/question";
-import { ProcessingStatusType } from "@/api/types";
+import { getErrorMessage } from "@/api/core/client";
+import { submitAnswers } from "@/api/products";
+import { ProcessingStatusType } from "@/api/types/common";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
 import SectionIntro from "@/components/common/SectionIntro";
 import { getCurrentRoundQuestions } from "@/lib/questions";
 import { isMissingRouteParam } from "@/lib/routeParams";
-
-import { computeAnswerState } from "./answerState";
-import ProgressSummary from "./ProgressSummary";
-import Question from "./Question";
-import { useQuestionProduct } from "./useQuestionProduct";
+import ProgressSummary from "@/pages/Question/components/ProgressSummary";
+import QuestionCard from "@/pages/Question/components/QuestionCard";
+import { useQuestionProduct } from "@/pages/Question/hooks/useQuestionProduct";
+import { computeAnswerState } from "@/pages/Question/utils/answerState";
 
 function QuestionPage() {
     const { productId } = useParams<{ productId?: string }>();
@@ -120,7 +119,7 @@ function QuestionPage() {
                     <ProgressSummary currentAnswered={currentAnswered} />
                     <div className="flex flex-col gap-4">
                         {currentQuestions.map((question, index) => (
-                            <Question
+                            <QuestionCard
                                 key={question.questionId}
                                 id={question.questionId}
                                 questionNumber={index + 1}

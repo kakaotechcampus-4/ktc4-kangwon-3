@@ -2,9 +2,9 @@ import { screen } from '@testing-library/react'
 import { http } from 'msw'
 import { Route } from 'react-router-dom'
 
-import { SourceType } from '@/api/types'
+import { SourceType } from '@/api/types/common'
 import UploadPage from '@/pages/Upload'
-import { MAX_FILE_SIZE_BYTES } from '@/pages/Upload/constraints'
+import { MAX_FILE_SIZE_BYTES } from '@/pages/Upload/constants'
 import type { Product } from '@/pages/Upload/types'
 import { SERVER_MESSAGES, UPLOAD_MESSAGES } from '@/test/constants/messages'
 import { uploadPage } from '@/test/drivers/uploadPage'
@@ -211,7 +211,7 @@ describe('업로드 화면 - 입력 검증', () => {
     expect(page.productNames()).toEqual([])
   })
 
-  // 어떤 형식이 http(s)가 아닌지는 단위 테스트가 다룬다. (unit/pages/Upload/validation.test.ts, unit/lib/url.test.ts) 여기서는 화면에 안내가 뜨는지만 확인한다.
+  // 어떤 형식이 http(s)가 아닌지는 단위 테스트가 다룬다. (unit/pages/Upload/utils/validation.test.ts, unit/lib/url.test.ts) 여기서는 화면에 안내가 뜨는지만 확인한다.
   it('링크가 http(s)로 시작하지 않으면 안내하고 추가하지 않는다', async () => {
     const page = renderUploadPage()
 

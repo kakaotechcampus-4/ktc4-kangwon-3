@@ -1,6 +1,6 @@
-import type { ProductProgress, ProductResult } from "@/api/product";
-import { PipelineStage } from "@/api/product";
-import { ProcessingStatusType } from "@/api/types";
+import { ProcessingStatusType } from "@/api/types/common";
+import type { ProductProgress, ProductResult } from "@/api/types/product";
+import { PipelineStage } from "@/api/types/product";
 import { getCurrentRoundQuestions } from "@/lib/questions";
 
 // ProgressBar.tsx의 PROGRESS_SEGMENTS도 이 세 단계를 "정리·검증" 한 구간으로 묶어서 보여준다.

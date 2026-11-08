@@ -54,7 +54,7 @@ Product (추출 에이전트 결과)
 
 ### 세관장확인 요건 (GW)
 
-- `GwRequirementLookup`은 관세청 세관장확인대상물품 GW(`CustomsGwClient`, 공공데이터포털 키 `DATA_GO_KR_KEY`)로 HS 10자리를 조회한다. HS별로 6시간 캐시한다.
+- `GwRequirementLookup`은 관세청 세관장확인대상물품 GW(`CustomsGwClient`, 공공데이터포털 키 `DATA_GO_KR_KEY`)로 HS 10자리를 조회한다.
 - `requirement_lookup()`은 GW 응답을 DB(`api_response_cache`)에서 먼저 찾고, 없으면 받아서 하루 보관한다.
 - 빈 목록은 **통관 단계의 세관장확인이 없다**는 뜻일 뿐 국내 판매 규제가 없다는 뜻이 아니다.
 - 키가 없으면 `EvidenceUnavailable` → 요건 "조회하지 못함"(정보 부족) + UNI-PASS 확인 안내. 6자리 HS도 GW를 조회할 수 없어 같은 처리다.

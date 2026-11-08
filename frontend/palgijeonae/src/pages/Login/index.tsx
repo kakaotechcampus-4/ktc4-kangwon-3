@@ -6,9 +6,9 @@ import kakao from "@/assets/login-kakao.png"
 // TODO: Naver 로그인 기능은 공개 심사 준비 이슈로 화면에 표시하지 않음.
 // import naver from "@/assets/login-naver.png"
 import SectionIntro from "@/components/common/SectionIntro/index.tsx"
+import LoginButton from "@/pages/Login/components/LoginButton.tsx"
 import { useAuthStore } from "@/store/useAuthStore.ts"
 
-import LoginButton from "./LoginButton.tsx"
 import { Provider } from "./types.ts"
 
 const API_URL = import.meta.env.VITE_API_URL

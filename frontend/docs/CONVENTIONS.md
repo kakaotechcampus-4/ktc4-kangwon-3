@@ -21,7 +21,9 @@
 
 ```
 src/
-├── api/            # 도메인별 API 함수(product.ts, result.ts, user.ts ...), client.ts, types.ts
+├── api/            # BE 리소스별 API 함수(products.ts, diagnoses.ts, uploads.ts, users.ts)
+│   ├── core/       # axios 인스턴스·인터셉터(client.ts), 쿼리 재시도 정책, Sentry 전송 정책
+│   ├── types/      # 여러 페이지가 함께 쓰는 도메인 타입·enum(product.ts, common.ts)
 │   └── mock/       # BE 없이 화면을 볼 때 쓰는 목업(실제 API와 같은 이름·시그니처)
 ├── components/
 │   ├── common/     # 여러 페이지에서 쓰는 공용 컴포넌트
@@ -35,9 +37,8 @@ src/
 
 - **`test/`**: 테스트는 소스 옆이 아니라 이곳에 모읍니다. 테스트 종류·폴더 구조·실행 방법은 [TEST_POLICY.md](TEST_POLICY.md)를, 통합 테스트 작성 규칙은 [테스트 작성](#테스트-작성)을 따릅니다.
 - **`components/common/`**: 2곳 이상에서 재사용하는 컴포넌트만 둡니다. 컴포넌트마다 폴더를 만들고 그 안에 `index.tsx` 하나로 작성합니다(예: `components/common/Button/index.tsx`).
-- **`pages/<Page>/`**: 그 페이지에서만 쓰는 컴포넌트·훅·타입·상수를 전부 같은 폴더에 flat 구조로 둡니다. 파일명은 `index.tsx`(페이지 진입점), `ComponentName.tsx`, `useSomething.ts`, `types.ts`, `constants.ts`처럼 역할이 드러나게 짓습니다(예: `pages/Mypage/MyProductList.tsx`, `pages/Mypage/useMyInfo.ts`).
-- 페이지 안에서 하나의 하위 기능이 파일 여러 개로 묶일 만큼 커지면(탭 하나, 섹션 하나 등) 그 하위 기능만의 폴더를 만들고, 그 폴더 안에서 다시 같은 flat 구조(진입점 `index.tsx` + 나머지 파일들)를 반복합니다(예: `pages/Result/DiagnosisResult/`에 `index.tsx`, `FindingCard.tsx`, `bannerConfig.ts`가 함께 있음).
-- 같은 역할의 여러 하위 컴포넌트를 모아둘 땐 `components/`, 로직용 훅을 모아둘 땐 `hooks/`, 순수 함수를 모아둘 땐 `utils/`처럼 역할별 하위 폴더를 쓸 수 있습니다(예: `pages/Judgement/components/`, `pages/Judgement/hooks/`).
+- **`pages/<Page>/`**: 그 페이지에서만 쓰는 파일을 역할별 폴더에 나눠 둡니다. 컴포넌트는 `components/`, 훅은 `hooks/`, 순수 함수는 `utils/`에 두고, `index.tsx`(페이지 진입점), `types.ts`, `constants.ts`만 페이지 폴더 바로 아래에 둡니다(예: `pages/Mypage/components/MyProductList.tsx`, `pages/Mypage/hooks/useMyInfo.ts`, `pages/Mypage/constants.ts`). 파일이 하나뿐인 폴더(예: `pages/NotFound/`)는 나누지 않습니다.
+- 페이지 안에서 하나의 하위 기능이 파일 여러 개로 묶일 만큼 커지면(탭 하나, 섹션 하나 등) 그 폴더를 페이지의 `components/` 아래에 두고, 그 폴더 안에서 다시 같은 구조(진입점 `index.tsx` + `components/`, `utils/` …)를 반복합니다(예: `pages/Result/components/DiagnosisResult/`에 `index.tsx`, `components/FindingCard.tsx`, `utils/bannerConfig.ts`가 함께 있음).
 - 2번 이상 반복되는 마크업·로직만 별도 파일/컴포넌트로 분리합니다. 한 번만 쓰이는 조각을 미리 분리하지 않습니다.
 
 ## 네이밍
@@ -51,7 +52,7 @@ src/
 | enum 타입 | PascalCase | `ResultStatus`, `SourceType` |
 | enum 멤버 | PascalCase 키 + BE와 동일한 문자열 값 | `InProgress = "IN_PROGRESS"` |
 
-- 상태값은 느슨한 문자열 리터럴 대신 꼭 enum으로 다룹니다([`api/types.ts`](../palgijeonae/src/api/types.ts), [`api/product.ts`](../palgijeonae/src/api/product.ts)). enum에는 멤버별 의미를 설명하는 JSDoc을 답니다.
+- 상태값은 느슨한 문자열 리터럴 대신 꼭 enum으로 다룹니다([`api/types/common.ts`](../palgijeonae/src/api/types/common.ts), [`api/types/product.ts`](../palgijeonae/src/api/types/product.ts)). enum에는 멤버별 의미를 설명하는 JSDoc을 답니다.
 
 ## 컴포넌트 작성 규칙
 
@@ -75,23 +76,23 @@ export default Example;
 
 ## import 규칙
 
-- 다른 폴더의 모듈은 `@/` 별칭으로 가져옵니다(`@/api/client`, `@/components/common/Button`). 같은 폴더 안의 파일만 `./`로 가져옵니다. `../` 같은 상위 폴더 상대 경로는 쓰지 않습니다.
-- 페이지·컴포넌트 import에는 `.tsx`/`.ts` 확장자를 붙입니다(`"./MyProductList.tsx"`, `"@/api/user.ts"`). 기존 코드 중 일부는 아직 확장자 없이 돼 있지만, 새로 작성하는 코드는 확장자를 붙입니다.
+- 다른 폴더의 모듈은 `@/` 별칭으로 가져옵니다(`@/api/core/client`, `@/components/common/Button`). 같은 폴더 안의 파일만 `./`로 가져옵니다. `../` 같은 상위 폴더 상대 경로는 쓰지 않습니다.
+- 페이지·컴포넌트 import에는 `.tsx`/`.ts` 확장자를 붙입니다(`"./MyProductList.tsx"`, `"@/api/users.ts"`). 기존 코드 중 일부는 아직 확장자 없이 돼 있지만, 새로 작성하는 코드는 확장자를 붙입니다.
 - import 순서·그룹(외부 패키지 → `@/` → `./`)과 정렬은 직접 맞추지 않고 `eslint-plugin-simple-import-sort`가 자동으로 처리합니다. `npm run lint -- --fix`로 정리하세요.
 - 쓰지 않는 import는 `eslint-plugin-unused-imports`가 에러로 잡습니다. 의도적으로 안 쓰는 매개변수는 `_` 접두사를 붙이면 허용됩니다(`unused-imports/no-unused-vars`).
 
 ## API·타입 정의 위치
 
-- API 함수는 도메인별로 `src/api/*.ts`에 둡니다(`api/product.ts`, `api/result.ts`, `api/user.ts` ...). `apiClient`([`api/client.ts`](../palgijeonae/src/api/client.ts))를 사용하고, 함수는 BE 응답의 `data`만 꺼내 돌려줍니다.
+- API 함수는 BE 리소스(요청 URL의 첫 경로)별로 `src/api/*.ts`에 둡니다(`api/products.ts`, `api/diagnoses.ts`, `api/uploads.ts`, `api/users.ts`). 화면 이름이 아니라 리소스 이름으로 파일을 나누고, 새 엔드포인트는 같은 리소스 파일에 추가합니다. `apiClient`([`api/core/client.ts`](../palgijeonae/src/api/core/client.ts))를 사용하고, 함수는 BE 응답의 `data`만 꺼내 돌려줍니다.
   ```ts
   export async function getMyInfo(): Promise<UserInfo> {
       const response = await apiClient.get("/api/v1/users/me");
       return response.data.data as UserInfo;
   }
   ```
-- 여러 페이지가 함께 쓰는 도메인 타입·enum은 `api/types.ts`(상태값 등 전역 enum) 또는 해당 도메인 API 파일(`api/product.ts`의 `ToolName`, `Determination` 등)에 둡니다.
+- 여러 페이지가 함께 쓰는 도메인 타입·enum은 `api/types/`(`common.ts`의 상태값 등 전역 enum, `product.ts`의 `ToolName`, `Determination` 등)에 둡니다. 한 API 파일에서만 쓰는 요청 타입·enum은 그 파일에 둡니다(`api/products.ts`의 `SortType`).
 - 한 페이지에서만 쓰는 타입은 그 페이지 폴더의 `types.ts`에 둡니다(`pages/Mypage/types.ts`, `pages/Result/types.ts`).
-- BE API가 아직 준비되지 않았을 때는 `api/*.ts` 함수 내부를 모듈 상태 기반 목업으로 임시 대체하고, 연동되면 `api/mock/*Mock.ts`로 옮깁니다(기존 [`api/mock/`](../palgijeonae/src/api/mock) 참고). 이미 연동된 API 함수를 다시 목업으로 보고 싶을 때는 호출부의 import만 `@/api/X` → `@/api/mock/XMock`으로 바꾸면 됩니다.
+- BE API가 아직 준비되지 않았을 때는 `api/*.ts` 함수 내부를 모듈 상태 기반 목업으로 임시 대체하고, 연동되면 `api/mock/` 아래 같은 이름의 파일로 옮깁니다(기존 [`api/mock/`](../palgijeonae/src/api/mock) 참고). 이미 연동된 API 함수를 다시 목업으로 보고 싶을 때는 호출부의 import만 `@/api/X` → `@/api/mock/X`로 바꾸면 됩니다. 목업 파일은 실제 API 파일과 같은 이름으로 둡니다(`api/products.ts` ↔ `api/mock/products.ts`).
 
 ## 상태 관리
 
@@ -101,8 +102,8 @@ export default Example;
 
 ## 에러 처리
 
-- 401(`AUTH-001`, 토큰 만료)은 `apiClient`의 응답 인터셉터([`api/client.ts`](../palgijeonae/src/api/client.ts))가 자동으로 토큰을 재발급받아 원래 요청을 한 번 재시도합니다. 개별 호출부에서 따로 처리하지 않습니다. 재발급도 실패하면 로그아웃 후 `/login`으로 보냅니다.
-- BE 에러 메시지는 직접 파싱하지 않고 `getErrorMessage(error, fallback)`([`api/client.ts`](../palgijeonae/src/api/client.ts))로 꺼냅니다. `details[0].message` → `message` → `fallback` 순으로 찾고, 429(`COMMON-011`)는 `Retry-After` 헤더로 만든 전용 문구를 우선합니다.
+- 401(`AUTH-001`, 토큰 만료)은 `apiClient`의 응답 인터셉터([`api/core/client.ts`](../palgijeonae/src/api/core/client.ts))가 자동으로 토큰을 재발급받아 원래 요청을 한 번 재시도합니다. 개별 호출부에서 따로 처리하지 않습니다. 재발급도 실패하면 로그아웃 후 `/login`으로 보냅니다.
+- BE 에러 메시지는 직접 파싱하지 않고 `getErrorMessage(error, fallback)`([`api/core/client.ts`](../palgijeonae/src/api/core/client.ts))로 꺼냅니다. `details[0].message` → `message` → `fallback` 순으로 찾고, 429(`COMMON-011`)는 `Retry-After` 헤더로 만든 전용 문구를 우선합니다.
 - 요청 실패 알림과 삭제·탈퇴 같은 되돌릴 수 없는 액션의 사전 확인은 `alert`/`confirm`으로 처리합니다(커스텀 토스트·모달 없음).
 
 ## 스타일

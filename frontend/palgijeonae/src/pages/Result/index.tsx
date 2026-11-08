@@ -1,20 +1,20 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import type { ProductResult } from "@/api/product";
+import type { ProductResult } from "@/api/types/product";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
 import ProductTabs from "@/components/common/ProductTabs";
 import SectionIntro from "@/components/common/SectionIntro";
 import { isMissingRouteParam } from "@/lib/routeParams";
+import DiagnosisResultTab from "@/pages/Result/components/DiagnosisResult";
+import NextStepTab from "@/pages/Result/components/NextSteps";
+import ProductInfoTab from "@/pages/Result/components/ProductInfo";
+import ResultTabs from "@/pages/Result/components/ResultTabs";
+import { useProductResults } from "@/pages/Result/hooks/useProductResults";
 
-import DiagnosisResultTab from "./DiagnosisResult";
-import NextStepTab from "./NextSteps";
-import ProductInfoTab from "./ProductInfo";
-import ResultTabs from "./ResultTabs";
 import { ResultTabKey } from "./types";
-import { useProductResults } from "./useProductResults";
 
 
 // data가 로딩 중(undefined)일 때 매 렌더 새 배열이 생기지 않도록 고정된 레퍼런스 재사용.

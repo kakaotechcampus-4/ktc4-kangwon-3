@@ -49,12 +49,12 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 
 | 확인하고 싶은 것 | 종류 | 예시 |
 |---|---|---|
-| 상품명·내용·이미지 검증 | 단위 | `unit/pages/Upload/validation.test.ts` |
+| 상품명·내용·이미지 검증 | 단위 | `unit/pages/Upload/utils/validation.test.ts` |
 | 이모지·조합 문자 글자 수 계산과 자르기 | 단위 | `unit/lib/text.test.ts` |
-| 이미지 업로드와 진단 payload 조립, 업로드 실패 메시지 | 단위 | `unit/pages/Upload/diagnosisPipeline.test.ts` |
-| 답변 여부, 최신 회차 질문 계산 | 단위 | `unit/pages/Question/answerState.test.ts`, `unit/lib/questions.test.ts` |
+| 이미지 업로드와 진단 payload 조립, 업로드 실패 메시지 | 단위 | `unit/pages/Upload/utils/diagnosisPipeline.test.ts` |
+| 답변 여부, 최신 회차 질문 계산 | 단위 | `unit/pages/Question/utils/answerState.test.ts`, `unit/lib/questions.test.ts` |
 | URL·라우트 파라미터 판별 | 단위 | `unit/lib/url.test.ts`, `unit/lib/routeParams.test.ts` |
-| 오류 코드별 Sentry 레벨, 경로 템플릿 | 단위 | `unit/api/sentryErrorPolicy.test.ts` |
+| 오류 코드별 Sentry 레벨, 경로 템플릿 | 단위 | `unit/api/core/sentryErrorPolicy.test.ts` |
 | 상품 추가·삭제, 입력 검증, 진단 요청 성공·실패 | 통합 | `integration/pages/Upload.test.tsx` |
 | 미응답 안내, 답변 제출, 제출 후 이동 | 통합 | `integration/pages/Question.test.tsx` |
 | 폴링, 상태별 카드, 진단서 이동 | 통합 | `integration/pages/Judgement.test.tsx` |
@@ -70,7 +70,7 @@ src/test/
 ├── unit/                    # 소스 경로를 그대로 따라갑니다 (src/lib/text.ts → unit/lib/text.test.ts)
 │   ├── api/
 │   ├── lib/
-│   └── pages/{Question,Upload}/
+│   └── pages/{Question,Upload}/utils/
 ├── integration/
 │   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute)
 │   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry)

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
-import { ResultStatus } from '@/api/types'
+import { ResultStatus } from '@/api/types/common'
 import type { ProductFilter } from '@/pages/Mypage/types'
 import { requestLog } from '@/test/mocks/requestLog'
 

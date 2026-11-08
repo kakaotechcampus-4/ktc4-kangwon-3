@@ -6,7 +6,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { getRetryDelay, shouldRetryQuery } from './api/queryRetry.ts'
+import { getRetryDelay, shouldRetryQuery } from '@/api/core/queryRetry.ts'
+
 import App from './App.tsx'
 import ErrorBoundary from './components/common/ErrorBoundary/index.tsx'
 

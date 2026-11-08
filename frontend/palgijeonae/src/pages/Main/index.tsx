@@ -1,7 +1,7 @@
-import AgentIntro from "./AgentIntro"
-import HowToUse from "./HowToUse"
-import Intro from "./Intro"
-import Preview from "./Preview"
+import AgentIntro from "@/pages/Main/components/AgentIntro"
+import HowToUse from "@/pages/Main/components/HowToUse"
+import Intro from "@/pages/Main/components/Intro"
+import Preview from "@/pages/Main/components/Preview"
 
 /** 메인 페이지. 소개·서비스 미리보기·사용 방법·에이전트 소개 섹션을 순서대로 배치한다. */
 function MainPage() {

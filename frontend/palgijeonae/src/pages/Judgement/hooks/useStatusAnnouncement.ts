@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import type { ProductResult } from "@/api/product";
-import { ProcessingStatusType } from "@/api/types";
+import { ProcessingStatusType } from "@/api/types/common";
+import type { ProductResult } from "@/api/types/product";
 import { truncateWithEllipsis } from "@/lib/text";
 
 // 스크린리더로 알릴 상태만. 진행 중으로 바뀌는 건(PENDING → IN_PROGRESS, 답변 후 재진행) 알리지 않는다.
