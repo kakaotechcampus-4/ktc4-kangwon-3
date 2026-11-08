@@ -12,6 +12,7 @@ import MainPage from './pages/Main/index.tsx'
 import MyPage from './pages/Mypage/index.tsx'
 import NotFoundPage from './pages/NotFound/index.tsx'
 import OAuthCallbackPage from './pages/OAuthCallback/index.tsx'
+import PolicyPage from './pages/Policy/index.tsx'
 import QuestionPage from './pages/Question/index.tsx'
 import ResultPage from './pages/Result/index.tsx'
 import UploadPage from './pages/Upload/index.tsx'
@@ -59,6 +60,7 @@ function App() {
             <Route path="/" element={<MainPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+            <Route path="/policy/:type" element={<PolicyPage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route path="/upload" element={<UploadPage />} />
