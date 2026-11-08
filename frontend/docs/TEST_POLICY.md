@@ -69,6 +69,7 @@ src/test/
 ├── vitest.setup.ts          # 모든 테스트 전에 실행: MSW 시작, 브라우저 API 스텁, 상태 초기화
 ├── unit/                    # 소스 경로를 그대로 따라갑니다 (src/lib/text.ts → unit/lib/text.test.ts)
 │   ├── api/
+│   ├── components/
 │   ├── hooks/
 │   ├── lib/
 │   └── pages/{Question,Upload}/utils/

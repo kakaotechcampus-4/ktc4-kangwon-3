@@ -103,8 +103,8 @@ function MobileMenu({ id, onClose, onLogout, triggerRef }: MobileMenuProps) {
                         {isLoggedIn ? (
                             <MemberMenu onClose={onClose} onLogout={onLogout} />
                         ) : (
-                            <div className="flex flex-col px-5 py-2 [&>button]:w-full">
-                                <Button text="로그인" variant="secondary" fontSize={16} onClick={() => navigate('/login')} />
+                            <div className="flex flex-col px-5 py-2">
+                                <Button text="로그인" variant="secondary" fontSize={16} className="self-stretch" onClick={() => navigate('/login')} />
                             </div>
                         )}
                     </div>
