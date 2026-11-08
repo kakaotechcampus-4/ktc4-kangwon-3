@@ -119,6 +119,16 @@ def _unsupported_claim() -> _Issue:
     )
 
 
+def _contradiction() -> _Issue:
+    return _Issue(
+        severity="critical",
+        issue_type="contradiction",
+        description="요약과 판정의 방향이 서로 다릅니다.",
+        related_finding_ids=["f1"],
+        recommended_action=None,
+    )
+
+
 def _law_source(**overrides) -> LegalSource:
     values = {
         "source_name": "국가법령정보센터",
@@ -146,5 +156,6 @@ def samples() -> SimpleNamespace:
         review=_review,
         battery_question=_battery_question,
         unsupported_claim=_unsupported_claim,
+        contradiction=_contradiction,
         law_source=_law_source,
     )

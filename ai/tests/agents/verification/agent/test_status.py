@@ -59,8 +59,9 @@ def test_추가_툴과_필수_질문이_겹치면_질문을_먼저_본다(sample
 
 
 def test_critical_지적은_필수_질문보다_먼저다(samples, stub_model, records):
+    # 불확실 판단의 근거 부족 지적은 경고로 낮아지므로(#652) 낮아지지 않는 모순 지적으로 검사한다
     review = samples.review(
-        issues=[samples.unsupported_claim()],
+        issues=[samples.contradiction()],
         follow_up_questions=[samples.battery_question()],
     )
 
@@ -71,7 +72,8 @@ def test_critical_지적은_필수_질문보다_먼저다(samples, stub_model, r
 
 
 def test_critical_수정과_추가_툴이_겹치면_revision_required가_된다(samples, stub_model, records):
-    review = samples.review(issues=[samples.unsupported_claim()], additional_tools_required=[ToolName.RADIO])
+    # 모델이 요청한 RADIO는 미선택 Tool이라 후처리에서 빠지지 않고, 모순 지적은 경고로 낮아지지 않는다 (#652)
+    review = samples.review(issues=[samples.contradiction()], additional_tools_required=[ToolName.RADIO])
 
     result = VerificationAgent(stub_model(review)).run(samples.draft())
 
