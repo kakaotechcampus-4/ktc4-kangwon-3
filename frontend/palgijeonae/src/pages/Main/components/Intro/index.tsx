@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom"
 
 import Favicon from "@/assets/favicon.svg"
 import Button from "@/components/common/Button"
+import { useIsMobile } from "@/hooks/useIsMobile"
 import DemoButton from "@/pages/Main/components/Intro/components/DemoButton"
 import { useAuthStore } from "@/store/useAuthStore.ts"
 
@@ -10,6 +11,7 @@ function Intro() {
     const isLoggedIn = useAuthStore((state) => state.isLoggedIn)
     const isAuthReady = useAuthStore((state) => state.isAuthReady)
     const navigate = useNavigate()
+    const isMobile = useIsMobile()
 
     const handleButtonClick = () => {
         if (isLoggedIn) {
@@ -30,8 +32,8 @@ function Intro() {
                 <p className="text-base leading-5.5 text-neutral-text md:text-lg">AI 에이전트가 관련 법령과 규제를 실제로 짚어서 확인해요.</p>
             </div>
             {isAuthReady && (
-                <div className="flex w-full flex-col items-stretch gap-2.5 md:flex-row md:flex-wrap md:items-center">
-                    <Button text={isLoggedIn ? "상품 확인 시작하기" : "로그인 후 진단 시작"} onClick={handleButtonClick} fontSize={15} className="w-full self-stretch md:w-auto md:self-start" />
+                <div className="flex w-full flex-wrap items-center gap-2 md:gap-2.5">
+                    <Button text={isLoggedIn ? "상품 확인 시작하기" : "로그인 후 진단 시작"} onClick={handleButtonClick} fontSize={isMobile ? 13 : 15} className="px-3 py-2.5 md:px-6.25 md:py-3.5" />
                     <DemoButton />
                 </div>
             )}
