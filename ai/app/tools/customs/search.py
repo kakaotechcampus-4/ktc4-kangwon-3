@@ -9,8 +9,6 @@
 """
 
 import logging
-import threading
-import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
@@ -295,29 +293,21 @@ class RequirementLookup(Protocol):
 
 
 class GwRequirementLookup:
-    """관세청 세관장확인대상물품 GW로 HS 10자리의 수입 요건을 조회한다. HS별로 캐시한다.
+    """관세청 세관장확인대상물품 GW로 HS 10자리의 수입 요건을 조회한다.
 
     빈 목록은 통관 단계의 세관장확인이 없다는 뜻일 뿐, 국내 판매 규제가 없다는 뜻은 아니다.
 
     Args:
         service_key: 공공데이터포털 서비스 키. 빈 값이면 조회할 수 없다(EvidenceUnavailable).
-        ttl_seconds: HS별 캐시 유지 시간.
-        clock: 현재 시각 함수. 테스트에서 시간을 흘릴 때 주입.
         client_factory: 서비스 키로 GW 클라이언트를 만드는 함수(테스트는 Fake).
     """
 
-    def __init__(self, service_key: str | None, *, ttl_seconds: float = 6 * 3600,
-                 clock: Callable[[], float] = time.monotonic,
-                 client_factory: Callable[[str], object] = CustomsGwClient):
+    def __init__(self, service_key: str | None, *, client_factory: Callable[[str], object] = CustomsGwClient):
         self._service_key = service_key
-        self._ttl = ttl_seconds
-        self._clock = clock
         self._client_factory = client_factory
-        self._lock = threading.Lock()
-        self._cache: dict[str, tuple[float, list[Requirement]]] = {}
 
     def lookup(self, hs_code: str) -> list[Requirement]:
-        """HS 하나의 세관장확인 요건을 조회한다. 캐시가 있으면 그대로 돌려준다.
+        """HS 하나의 세관장확인 요건을 조회한다.
 
         Args:
             hs_code: HS 10자리.
@@ -330,10 +320,6 @@ class GwRequirementLookup:
         """
         if not self._service_key:
             raise EvidenceUnavailable("세관장확인 GW 서비스 키(DATA_GO_KR_KEY)가 없어 요건을 조회하지 못했습니다.")
-        with self._lock:
-            cached = self._cache.get(hs_code)
-            if cached is not None and self._clock() - cached[0] < self._ttl:
-                return cached[1]
         client = self._client_factory(self._service_key)
         try:
             response = client.fetch_parsed(CustomsGwConfirmationRequest(hs_code=hs_code))
@@ -341,12 +327,9 @@ class GwRequirementLookup:
             close = getattr(client, "close", None)
             if close is not None:
                 close()
-        requirements = [Requirement(hs_code=hs_code, law_name=item.law_name, agency=item.req_agency_name,
-                                    document=item.req_document_name, apply_start_date=item.apply_start_date)
-                        for item in response.items if item.law_name]
-        with self._lock:
-            self._cache[hs_code] = (self._clock(), requirements)
-        return requirements
+        return [Requirement(hs_code=hs_code, law_name=item.law_name, agency=item.req_agency_name,
+                            document=item.req_document_name, apply_start_date=item.apply_start_date)
+                for item in response.items if item.law_name]
 
 
 def _load_on_demand(as_of: date) -> CustomsEvidence:
@@ -402,7 +385,7 @@ def case_search() -> ClipCaseSearch | DatabaseFirstCaseSearch:
 def requirement_lookup() -> GwRequirementLookup:
     """세관장확인 요건 조회 경로를 만든다. GW 응답은 DB 캐시를 먼저 봄.
 
-    키는 설정의 DATA_GO_KR_KEY(필수). HS별 캐시는 객체 안에 있어 조립하는 쪽이 한 번 만들어 공유함.
+    키는 설정의 DATA_GO_KR_KEY(필수).
 
     Returns:
         GwRequirementLookup: 조회할 때 GW 조회 객체를 열고 닫는 요건 조회 경로.
