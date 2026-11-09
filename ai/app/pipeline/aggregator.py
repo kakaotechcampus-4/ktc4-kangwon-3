@@ -3,6 +3,7 @@
 from collections.abc import Iterable
 
 from ..schemas.pipeline import SelectionResult
+from ..tools.customs.related import follow_related_tools
 from ..schemas.product import Product
 from ..schemas.schemas import (
     Determination,
@@ -27,6 +28,8 @@ class ResultAggregator:
         tool_results = [
             result.model_copy(deep=True) for result in selection_result.tool_results
         ]
+        # 다른 Tool이 맡는 법령의 세관장확인 요건은 그 Tool 판단에 맞춤 (복사본만 고침, #640)
+        followed_notes = follow_related_tools(tool_results)
         findings = [
             finding.model_copy(deep=True)
             for result in tool_results
@@ -39,7 +42,7 @@ class ResultAggregator:
             item for result in tool_results for item in result.missing_information
         )
         assumptions = self._unique(
-            assumption for finding in findings for assumption in finding.assumptions
+            [*(assumption for finding in findings for assumption in finding.assumptions), *followed_notes]
         )
         selected_tools = [
             decision.tool_name
