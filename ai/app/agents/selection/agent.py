@@ -7,17 +7,12 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ...prompts import PromptName, get_prompt
 from ...schemas.agent import ToolSelectionResponse
 from ...schemas.product import Product
-from ...schemas.schemas import ToolName
+from ...tools.registry import ALWAYS_RUN_REASON, ALWAYS_RUN_TOOLS
 from ..base import BaseAgent
 from .errors import SelectionFailedError
 
 # 평가 러너 호환용. 러너가 공용 로더로 옮겨가면 제거 (#171 §3.2)
 PROMPT_PATH = get_prompt(PromptName.SELECTION).path
-
-# 모델 판단과 상관없이 항상 실행하는 Tool (#588). 실상품 평가에서 모델이 표시광고를 고른 회차가 18%뿐이었고,
-# 표시광고는 결과 상태 계산에서 빠져 있어(results/status.py) 오경고가 진단 결론을 바꾸지 않는다.
-ALWAYS_RUN_TOOLS = frozenset({ToolName.LABEL_AD})
-ALWAYS_RUN_REASON = "판매 문구의 표시·광고 표현은 모든 상품에서 확인합니다."
 
 
 class SelectionAgent(BaseAgent[Product, ToolSelectionResponse, ToolSelectionResponse]):

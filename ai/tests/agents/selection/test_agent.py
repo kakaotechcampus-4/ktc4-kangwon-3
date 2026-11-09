@@ -5,7 +5,8 @@ import json
 
 import pytest
 
-from app.agents.selection import ALWAYS_RUN_REASON, SelectionAgent, SelectionFailedError
+from app.agents.selection import SelectionAgent, SelectionFailedError
+from app.tools.registry import ALWAYS_RUN_REASON
 from app.schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName
