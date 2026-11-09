@@ -1,6 +1,10 @@
 """규칙 검사와 모델 검토를 합쳐 심사 초안을 검증한다. Tool 재실행·재시도 제한은 파이프라인 몫."""
 
 import json
+from collections.abc import Sequence
+from typing import Literal
+
+from pydantic import Field, create_model
 
 from ...prompts import PromptName
 from ...schemas.base import utc_now
@@ -77,6 +81,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
         subject_id: str,
         rules: VerificationResult,
         trace: list[TraceEvent] | None,
+        output_schema: type[_Review],
     ) -> tuple[_Review, CallUsage | None, float]:
         """모델 검토를 호출한다. 실패하면 trace를 남기고 같은 예외를 다시 던짐 (#171 §4.2).
 
@@ -87,6 +92,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             subject_id: 사용량 기록 대상 상품 ID.
             rules: 규칙 검사 결과. 실패 시 예외의 partial_result로 보존.
             trace: 실행 이력. None이면 기록 안 함.
+            output_schema: 이번 초안의 판단 ID로 좁힌 출력 스키마 (``review_schema``).
 
         Returns:
             tuple[_Review, CallUsage | None, float]: 모델 검토 결과, 사용량, 호출 시작 시각.
@@ -95,7 +101,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             VerificationError: 호출·파싱 실패. 원인은 ``__cause__``.
         """
         try:
-            return self._call_model(messages, subject_id=subject_id, partial_result=rules)
+            return self._call_model(messages, subject_id=subject_id, partial_result=rules, output_schema=output_schema)
         except VerificationError as exc:
             # 모델 호출·파싱 실패 → trace만 남기고 같은 예외를 그대로 다시 던짐 (원인은 __cause__ 유지)
             cause = exc.__cause__
@@ -189,6 +195,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             subject_id=subject_id,
             rules=rules,
             trace=trace,
+            output_schema=review_schema([finding.finding_id for finding in draft.findings]),
         )
 
         self._append_trace(
@@ -595,3 +602,23 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
             return Status.APPROVED_WITH_WARNINGS
 
         return Status.APPROVED
+
+
+def review_schema(finding_ids: Sequence[str]) -> type[_Review]:
+    """검토한 판단 ID를 초안의 판단 ID로 제한한 출력 스키마를 만든다 (#742).
+
+    값은 초안의 판단 ID만, 개수는 판단 수로 고정. strict 구조화 출력이라 같은 ID를 끝없이 반복하거나(#720)
+    ID를 틀리게 옮겨 적는 출력은 생성되지 않음. 같은 ID를 두 번 쓰고 하나를 빠뜨리는 것은 막지 못해
+    검토 범위 확인(_check_scope)이 그대로 잡음.
+
+    Args:
+        finding_ids: 초안의 판단 ID.
+
+    Returns:
+        type[_Review]: checked_finding_ids만 좁힌 _Review. 이름이 같아 요청 스키마 이름도 그대로.
+    """
+    ids = tuple(dict.fromkeys(finding_ids))
+    # 판단이 없으면 값 목록을 만들 수 없어 빈 목록만 허용
+    item = Literal[ids] if ids else str
+    checked = (list[item], Field(min_length=len(ids), max_length=len(ids)))
+    return create_model("_Review", __base__=_Review, checked_finding_ids=checked)

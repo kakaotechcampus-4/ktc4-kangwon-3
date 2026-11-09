@@ -6,7 +6,7 @@ import json
 import pytest
 
 from app.agents.verification import VerificationAgent, VerificationError
-from app.agents.verification.schemas import _Review
+from app.agents.verification.agent import review_schema
 
 
 def test_조회_파라미터와_원시_응답은_모델에_보내지_않는다(samples, stub_model, records):
@@ -55,8 +55,9 @@ def test_요청_본문은_검토_스키마를_strict로_넘길_때와_같다(sam
     actual: list[dict] = []
     agent = VerificationAgent(fake_gateway("{}", "stop", actual))
     expected: list[dict] = []
+    # 검토 판단 ID는 초안의 판단 ID로 좁힌 스키마로 보냄 (#742)
     reference = fake_gateway("{}", "stop", expected).with_structured_output(
-        _Review, method="json_schema", strict=True,
+        review_schema([finding.finding_id for finding in draft.findings]), method="json_schema", strict=True,
     )
 
     # 응답 "{}"는 스키마와 맞지 않아 양쪽 모두 실패하지만 요청 본문은 이미 기록됨
