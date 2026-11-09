@@ -444,6 +444,55 @@ def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후�
     assert '"common_notes"' in model.last_payload
 
 
+# -- 고른 품목의 판단을 바꾸지 않는 질문은 묻지 않음 --
+
+def test_전지_행만_고르면_전원_전압과_전지_전용_여부를_묻지_않는다():
+    # 보조배터리: 전지 행은 비고에 저전압도 포함하고, 전지 자체라 전지 전용 구조 제외도 해당 없음
+    product, facts = product_and_facts("휴대용 보조배터리 리튬폴리머 10000mAh", (("product_type", "보조배터리"),))
+    chosen = review(select(BATTERY_ROW, needed_fields=["battery_only", "power_source"]))
+    result, _, _ = run(product, facts, chosen)
+    assert result.query["selected_items"] == [BATTERY_ROW]
+    assert result.missing_information == []
+    assumptions = result.findings[0].assumptions
+    assert "전원 방식, 정격 전압은 고른 품목의 판단을 바꾸지 않아 묻지 않았습니다." in assumptions
+    assert "품목 확정에는 배터리 전용 여부, 전원 방식 확인이 더 필요합니다." in assumptions
+
+
+def test_저전압이면_빠질_수_있는_행을_고르면_전원_전압을_묻는다():
+    # 팬 행은 저전압 포함 비고가 없어 USB 5V면 제외될 수 있음 → 전원·전압 답이 판단을 바꿈
+    product, facts = product_and_facts("탁상용 선풍기", (("product_type", "탁상용 선풍기"),), search_terms=["선풍기"])
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    assert result.query["selected_items"] == [FAN_ROW]
+    assert "제품이 어떤 전원으로 작동하는지(전원 방식) 확인이 필요합니다." in result.missing_information
+    assert "제품의 정격 전압 확인이 필요합니다." in result.missing_information
+
+
+def test_전지_언급이_없는_콘센트_제품에는_전지_전용_여부를_묻지_않는다():
+    # 220V 스탠드 선풍기: 본체 행을 골라도 전지·충전 언급이 없으면 전지 전용 구조일 수 없음
+    product, facts = product_and_facts(
+        "스탠드 선풍기 220V 플러그", (("product_type", "스탠드 선풍기"), ("rated_voltage", "220V")),
+        search_terms=["선풍기"])
+    result, _, _ = run(product, facts, review(select(FAN_ROW, needed_fields=["battery_only"])))
+    assert result.query["selected_items"] == [FAN_ROW]
+    assert not any("건전지나 충전지로만" in question for question in result.missing_information)
+    assert any("배터리 전용 여부 확인이 더 필요합니다" in item for item in result.findings[0].assumptions)
+
+
+def test_본체_행이고_전지_언급이_있으면_모델이_요청한_전지_전용_여부를_묻는다():
+    # 전압을 적으면 저전압이라 팬 행이 후보에서 빠지므로 전압 없이 둠
+    product, facts = product_and_facts("USB 충전식 미니 선풍기", (("product_type", "미니 선풍기"),),
+                                       search_terms=["선풍기"])
+    result, _, _ = run(product, facts, review(select(FAN_ROW, needed_fields=["battery_only"])))
+    assert any("건전지나 충전지로만" in question for question in result.missing_information)
+
+
+def test_고른_행이_없으면_전원_전압을_지금처럼_묻는다():
+    product, facts = product_and_facts("휴대용 보조배터리 3.7V", (("product_type", "보조배터리"), ("rated_voltage", "3.7V")))
+    result, _, _ = run(product, facts, review())
+    assert result.query["selected_items"] == []
+    assert "제품이 어떤 전원으로 작동하는지(전원 방식) 확인이 필요합니다." in result.missing_information
+
+
 def test_전지_전용_여부는_예_아니오와_원문_근거만_받는다():
     product, facts = product_and_facts(values=(("product_type", "전기포트"), ("battery_only", "전지 전용")))
     result, _, _ = run(product, facts, review(select()))
