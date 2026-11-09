@@ -6,6 +6,7 @@ import {
     ALLOWED_IMAGE_MIME_TYPES,
     MAX_FILE_SIZE_BYTES,
     MAX_FILE_SIZE_MB,
+    MAX_PRODUCT_CONTENT_LENGTH,
     MAX_PRODUCT_IMAGE_COUNT,
     MAX_PRODUCT_NAME_CODE_UNIT_LENGTH,
     MAX_PRODUCT_NAME_LENGTH,
@@ -60,9 +61,14 @@ export const validateProduct = (product: Product): string | null => {
         return null;
     }
 
-    // 이미지는 보조 입력이라 텍스트 없이 이미지만으로는 제출할 수 없다.
+    // 이미지는 보조 입력이라 텍스트 없이 이미지만으로는 제출할 수 없다. (FE에서 의도적으로 막는다.)
     if (!product.content?.trim()) {
         return "상세페이지 내용을 입력해주세요.";
+    }
+
+    // 입력창은 붙여넣기도 잘라 주지만, 서버가 거절하기 전에 제출 직전에도 한 번 더 막는다.
+    if (product.content.length > MAX_PRODUCT_CONTENT_LENGTH) {
+        return `상세페이지 내용은 ${MAX_PRODUCT_CONTENT_LENGTH}자를 넘을 수 없습니다.`;
     }
 
     if ((product.images?.length ?? 0) > MAX_PRODUCT_IMAGE_COUNT) {

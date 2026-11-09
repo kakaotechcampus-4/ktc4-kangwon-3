@@ -1,6 +1,17 @@
 import type { LawAmendment, RecheckProduct } from '@/api/lawAmendments'
 import { ProcessingStatusType, ResultStatus, SourceType } from '@/api/types/common'
-import { type DiagnosesDetail, type ProductFailure, type ProductResult, type Question, ToolName } from '@/api/types/product'
+import {
+  Determination,
+  type DiagnosesDetail,
+  type Finding,
+  type ProductFailure,
+  type ProductResult,
+  type Question,
+  RiskLevel,
+  ToolName,
+  type ToolReview,
+  ToolReviewStatus,
+} from '@/api/types/product'
 import { SocialProvider, type UserInfo } from '@/api/users'
 import type { MyProductItem } from '@/pages/Mypage/types'
 
@@ -104,5 +115,27 @@ export const buildLawAmendment = (overrides: Partial<LawAmendment> = {}): LawAme
   toolName: ToolName.Electrical,
   enforceDate: '2026-12-01',
   products: [buildRecheckProduct()],
+  ...overrides,
+})
+
+// 분야 카드 안의 판정 항목 하나. 기본값은 조치가 필요한 항목이다.
+export const buildFinding = (overrides: Partial<Finding> = {}): Finding => ({
+  productFindingId: 'finding-1',
+  subject: '전기용품 안전인증',
+  determination: Determination.Required,
+  riskLevel: RiskLevel.High,
+  summary: '안전인증이 필요한 상품이에요.',
+  rationale: '전기용품 및 생활용품 안전관리법에 따라 인증이 필요해요.',
+  legalSources: [],
+  ...overrides,
+})
+
+// 분야별 검토 카드 하나. 기본값은 판정 항목이 하나 있는 검토 완료 분야다.
+export const buildToolReview = (overrides: Partial<ToolReview> = {}): ToolReview => ({
+  productToolReviewId: 'tool-review-1',
+  toolName: ToolName.Electrical,
+  status: ToolReviewStatus.Completed,
+  message: null,
+  findings: [buildFinding()],
   ...overrides,
 })

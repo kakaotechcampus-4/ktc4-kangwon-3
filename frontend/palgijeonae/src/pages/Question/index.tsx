@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/core/client";
@@ -14,12 +14,12 @@ import { getCurrentRoundQuestions } from "@/lib/questions";
 import { isMissingRouteParam } from "@/lib/routeParams";
 import ProgressSummary from "@/pages/Question/components/ProgressSummary";
 import QuestionCard from "@/pages/Question/components/QuestionCard";
+import { useAnswerDraft } from "@/pages/Question/hooks/useAnswerDraft";
 import { useQuestionProduct } from "@/pages/Question/hooks/useQuestionProduct";
 import { computeAnswerState } from "@/pages/Question/utils/answerState";
 
 function QuestionPage() {
     const { productId } = useParams<{ productId?: string }>();
-    const [answers, setAnswers] = useState<Record<string, string>>({});
     const navigate = useNavigate();
 
     const isInvalidAccess = isMissingRouteParam(productId);
@@ -55,6 +55,7 @@ function QuestionPage() {
 
     const currentQuestions = getCurrentRoundQuestions(product?.questions ?? []);
     const currentRound = currentQuestions[0]?.questionRound;
+    const { answers, setAnswer, clearDraft } = useAnswerDraft(productId, currentQuestions);
     const { currentAnswered, firstUnansweredId } = computeAnswerState(currentQuestions, answers);
 
     const { mutate: runSubmitAnswers, isPending: isSubmitting } = useMutation({
@@ -64,16 +65,13 @@ function QuestionPage() {
                 currentQuestions.map((question) => ({ questionId: question.questionId, answerText: answers[question.questionId] })),
             ),
         onSuccess: () => {
+            clearDraft();
             navigate(`/judgement/${product!.diagnosesId}`);
         },
         onError: (error) => {
             alert(getErrorMessage(error, "답변 제출에 실패했습니다. 다시 시도해주세요."));
         },
     });
-
-    const handleAnswerChange = (questionId: string, value: string) => {
-        setAnswers((prev) => ({ ...prev, [questionId]: value }));
-    };
 
     // 답변하지 않은 질문의 textarea를 포커스하고 스크롤한다.
     const focusQuestion = (questionId: string) => {
@@ -136,7 +134,7 @@ function QuestionPage() {
                                 title={question.questionText}
                                 description={question.helpText ?? ""}
                                 answer={answers[question.questionId] ?? ""}
-                                onChange={(value) => handleAnswerChange(question.questionId, value)}
+                                onChange={(value) => setAnswer(question.questionId, value)}
                             />
                         ))}
                     </div>

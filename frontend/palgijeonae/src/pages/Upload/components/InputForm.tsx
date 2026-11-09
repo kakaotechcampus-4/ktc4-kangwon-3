@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { SourceType } from "@/api/types/common.ts"
 import Button from "@/components/common/Button/index.tsx";
 import HelpTooltip from "@/components/common/HelpTooltip/index.tsx";
-import { MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "@/pages/Upload/constants.ts";
+import { MAX_PRODUCT_CONTENT_LENGTH, MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_LENGTH } from "@/pages/Upload/constants.ts";
 import type { Product } from "@/pages/Upload/types.ts";
 import { validateProduct } from "@/pages/Upload/utils/validation.ts";
 
@@ -18,12 +18,13 @@ interface InputFormProps {
 
 // 입력 방식별 안내 문구
 const HELP_CONTENT: Record<InputFormProps["type"], { text: string; tooltip: string }> = {
+    // 가능한 도메인 판단은 AI에게 맡기므로 FE는 지원 사이트 목록을 노출하거나 도메인을 검증하지 않는다. 진단 중 실패하면 결과 페이지에서 안내한다.
     [SourceType.Url]: {
         text: "상세정보가 포함된 판매할 제품의 링크를 첨부하세요.",
         tooltip: "일부 링크는 AI가 접근하기 어려울 수 있습니다. 실패 시 텍스트 / 이미지 입력을 사용해주세요.",
     },
     [SourceType.TextImage]: {
-        text: "상세페이지를 텍스트나 이미지로 입력하세요. 둘 다 입력할 수도 있습니다.",
+        text: "상세페이지 본문을 텍스트로 입력하세요. 상세페이지 이미지는 선택 사항입니다.",
         tooltip: "분석을 위해 필요한 정보가 상세페이지에 충분히 포함되어 있는지 확인하세요.",
     },
 };
@@ -85,6 +86,7 @@ function InputForm({ type, onAdd }: InputFormProps) {
                         variant="textarea"
                         value={productContent}
                         onChange={setProductContent}
+                        maxLength={MAX_PRODUCT_CONTENT_LENGTH}
                     />
                     <ImageUploadField
                         id="product-content-images"
