@@ -34,7 +34,7 @@ npx playwright test --ui     # 화면을 보면서
 
 | 경로 | 역할 |
 |---|---|
-| `compose.e2e.yml` | BE(소스에서 빌드), PostgreSQL, Redis, mock-ai. 호스트 포트 2xxxx, 값은 모두 E2E 전용 더미 |
+| `compose.e2e.yml` | BE, PostgreSQL, Redis, mock-ai. BE는 로컬에서는 이미지 안에서 소스로 빌드하고, CI에서는 러너가 Gradle 캐시로 미리 만든 jar를 씀(`E2E_APP_TARGET=deploy`, [#723](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pull/723)). 호스트 포트 2xxxx, 값은 모두 E2E 전용 더미 |
 | `playwright.config.ts` | FE를 빌드해 `vite preview`로 띄움 |
 | `seed/users.sql` | 테스트 사용자 1명 |
 | `fixtures/auth.ts` | 로그인 우회. 리프레시 토큰을 Redis에 넣고 쿠키로 주입하면 FE가 실제 재발급 API로 액세스 토큰을 받음 |
@@ -45,6 +45,6 @@ npx playwright test --ui     # 화면을 보면서
 
 ## CI
 
-[`e2e.yml`](../.github/workflows/e2e.yml)이 develop에 FE·BE·mock-ai·E2E 변경이 병합되면 돌고, 수동으로도 실행할 수 있습니다. 전체 스택을 띄워 느리기 때문에 PR마다 돌리지 않고 배포도 막지 않습니다. 실패하면 Playwright 리포트와 스택 로그를 남깁니다.
+[`e2e.yml`](../.github/workflows/e2e.yml)이 FE·BE·mock-ai·E2E가 바뀐 develop 대상 PR과 develop 병합에서 돌고, 수동으로도 실행할 수 있습니다. 아직 필수 체크가 아니라 실패해도 병합할 수 있고, 배포도 막지 않습니다. 실패하면 Playwright 리포트와 스택 로그를 남기고, 병합 후·수동 실행에서는 Discord로 알립니다.
 
 도입 PR: [#577](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pull/577)

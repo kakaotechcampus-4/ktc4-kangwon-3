@@ -30,11 +30,12 @@
 kakaotech.kangwon3.beforeselling
 ├── domains/            # 도메인마다 presentation · application · domain 3계층
 │   ├── auth/           # 소셜 로그인(카카오·네이버·구글), 토큰 재발급, 로그아웃
-│   ├── user/           # 회원 탈퇴(진단서 삭제, 토큰 폐기, 소셜 연결 해제)
-│   └── diagnoses/      # 진단서·상품 생성·조회·삭제, 질문 답변, 재시도, AI 콜백 수신
-│       ├── presentation/   # api(Swagger 명세 인터페이스), controller
-│       ├── application/    # dto, usecase, mapper, event, scheduler
-│       └── domain/         # entity, repository, service
+│   ├── user/           # 내 정보 조회·수정, 개정 알림 설정, 회원 탈퇴(진단서 삭제, 토큰 폐기, 소셜 연결 해제)
+│   ├── diagnoses/      # 진단서·상품 생성·조회·삭제, 질문 답변, 재시도, 재진단, AI 콜백 수신
+│   │   ├── presentation/   # api(Swagger 명세 인터페이스), controller
+│   │   ├── application/    # dto, usecase, mapper, event, scheduler
+│   │   └── domain/         # entity, repository, service
+│   └── lawamendment/   # AI 개정 감지 콜백 수신, 재확인 대상 상품 연결, 개정 목록 조회, 알림 메일
 └── global/             # 보안(JWT, 내부 토큰), 처리율 제한, S3·AI 연동, 공통 응답·예외
 ```
 
