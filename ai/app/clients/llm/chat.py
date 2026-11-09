@@ -3,12 +3,10 @@
 from typing import TYPE_CHECKING
 
 from ...config import ModelProfile, Settings, agent_profile, load_settings, tool_profile
-from .client import TIMEOUT_SECONDS, get_llm_client
+from .client import MAX_RETRIES, TIMEOUT_SECONDS, get_llm_client
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
-
-MAX_RETRIES = 1
 
 
 def build_chat_model(profile: ModelProfile, settings: Settings | None = None) -> "BaseChatModel":

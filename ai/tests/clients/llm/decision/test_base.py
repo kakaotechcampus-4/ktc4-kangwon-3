@@ -3,11 +3,14 @@
 제공사 형식과 무관한 동작이라 가짜 하위 클라이언트로 확인. 실제 네트워크 요청은 보내지 않는다.
 """
 
+from collections.abc import Callable
+
 import httpx
 import pytest
 
+from app.clients.llm.client import MAX_RETRIES
 from app.clients.llm.decision import (
-    DecisionClient, DecisionRequestError, DecisionResponseError, questions_fingerprint,
+    DecisionClient, DecisionRequestError, DecisionResponseError, base, questions_fingerprint,
 )
 from app.clients.llm.decision.schemas.request import DecisionRequest
 from app.clients.llm.decision.schemas.response import DecisionUsage
@@ -78,6 +81,83 @@ def test_HTTP_오류는_HTTPStatusError_그대로(wire, decision_request):
 
     with pytest.raises(httpx.HTTPStatusError):
         client.decide(decision_request)
+
+
+@pytest.fixture
+def waits(monkeypatch) -> list[float]:
+    """재시도 대기를 실제로 기다리지 않고 대기 시간만 모은다."""
+    waits: list[float] = []
+    monkeypatch.setattr(base.time, "sleep", waits.append)
+    return waits
+
+
+def _fail_then(first: Callable[[httpx.Request], httpx.Response]) -> Callable[[httpx.Request], httpx.Response]:
+    """첫 요청은 first로 실패시키고, 다음 요청부터 정상 답을 돌려준다."""
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return first(request) if len(calls) == 1 else _ok(*ALL_NAMES)
+
+    return handler
+
+
+def _raise(error: type[httpx.TransportError]) -> Callable[[httpx.Request], httpx.Response]:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise error("응답 없음", request=request)
+
+    return handler
+
+
+@pytest.mark.parametrize("first", [
+    lambda request: httpx.Response(503, json={}),
+    lambda request: httpx.Response(429, json={}),
+    _raise(httpx.ConnectError),
+    _raise(httpx.ReadTimeout),
+], ids=["5xx", "429", "연결 실패", "시간 초과"])
+def test_일시_오류면_잠시_뒤_한_번_다시_보내_답을_받는다(wire, decision_request, waits, first):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    sent = wire(client, _fail_then(first))
+
+    response = client.decide(decision_request)
+
+    assert set(response.answers) == set(ALL_NAMES)
+    assert len(sent) == 2
+    assert waits == [base.RETRY_DELAY_SECONDS]
+
+
+@pytest.mark.parametrize("status", [400, 401, 404])
+def test_요청이나_키가_잘못된_오류는_다시_보내지_않는다(wire, decision_request, waits, status):
+    # 만료 키(401)처럼 같은 요청이면 또 실패함
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    sent = wire(client, _fail_then(lambda request: httpx.Response(status, json={})))
+
+    with pytest.raises(httpx.HTTPStatusError):
+        client.decide(decision_request)
+
+    assert (len(sent), waits) == (1, [])
+
+
+def test_응답_형식_오류는_다시_보내지_않는다(wire, decision_request, waits):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    sent = wire(client, _fail_then(lambda request: httpx.Response(200, text="Not Found")))
+
+    with pytest.raises(DecisionResponseError):
+        client.decide(decision_request)
+
+    assert (len(sent), waits) == (1, [])
+
+
+def test_재시도까지_실패하면_마지막_오류를_그대로_올린다(wire, decision_request, waits):
+    responses = iter([httpx.Response(503, json={}), httpx.Response(502, json={})])
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    sent = wire(client, lambda request: next(responses))
+
+    with pytest.raises(httpx.HTTPStatusError) as caught:
+        client.decide(decision_request)
+
+    assert caught.value.response.status_code == 502
+    assert len(sent) == 1 + MAX_RETRIES
 
 
 @pytest.mark.parametrize(("questions", "message"), [

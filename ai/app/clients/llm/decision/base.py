@@ -4,6 +4,8 @@ POST {OPENAI_BASE_URL}/decisions. 요청·응답 형식은 모델 제공사마�
 """
 
 import json
+import logging
+import time
 from abc import ABC, abstractmethod
 
 import httpx
@@ -12,10 +14,14 @@ from ....prompts import fingerprint
 from ...request import RequestClient
 from .schemas.request import ChoiceQuestion, DecisionQuestion, DecisionRequest, ScoreQuestion
 from .schemas.response import DecisionAnswer, DecisionResponse, DecisionUsage, RefusedAnswer
-from ..client import TIMEOUT_SECONDS
+from ..client import MAX_RETRIES, TIMEOUT_SECONDS
 from .errors import DecisionRequestError, DecisionResponseError
 
+logger = logging.getLogger(__name__)
+
 DECISIONS_PATH = "/decisions"
+# 일시 오류 뒤 다시 보내기 전 대기(초). 선택 단계는 진단 시간에 그대로 더해져 짧게 둠
+RETRY_DELAY_SECONDS = 0.5
 # 맵 대신 배열·null처럼 모양이 다르면 AttributeError·IndexError도 남 (pydantic ValidationError는 ValueError 하위)
 _SHAPE_ERRORS = (KeyError, TypeError, ValueError, AttributeError, IndexError)
 
@@ -105,7 +111,7 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
     # -- RequestClient 구현 --
 
     def _send(self, request: DecisionRequest) -> httpx.Response:
-        """판단 요청을 POST로 보낸다.
+        """판단 요청을 POST로 보낸다. 일시 오류(연결 실패·시간 초과·429·5xx)면 MAX_RETRIES번까지 다시 보냄.
 
         Args:
             request: 판단 요청.
@@ -114,9 +120,21 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
             httpx.Response: JSON 원문 응답.
 
         Raises:
-            httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우.
+            httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우. 일시 오류면 재시도를 다 쓴 뒤.
+            httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우. 재시도를 다 쓴 뒤.
         """
-        return self._post(DECISIONS_PATH, json=self._to_payload(request))
+        payload = self._to_payload(request)
+        retries = 0
+        while True:
+            try:
+                return self._post(DECISIONS_PATH, json=payload)
+            except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+                if retries >= MAX_RETRIES or not _retryable(exc):
+                    raise
+                retries += 1
+                logger.warning("판단 호출 일시 오류, %.1f초 뒤 다시 보냄 (모델 %s, %s)", RETRY_DELAY_SECONDS,
+                               request.model, _error_label(exc))
+                time.sleep(RETRY_DELAY_SECONDS)
 
     def _parse(self, raw: httpx.Response) -> DecisionResponse:
         """JSON 원문을 공통 응답으로 바꾼다.
@@ -181,6 +199,35 @@ def questions_fingerprint(questions: list[DecisionQuestion]) -> str:
     """
     dumped = [question.model_dump() for question in questions]
     return fingerprint(json.dumps(dumped, ensure_ascii=False, sort_keys=True))
+
+
+def _retryable(error: httpx.HTTPError) -> bool:
+    """같은 요청을 다시 보내 볼 만한 오류인지 본다. 400·401·404처럼 요청·키가 잘못된 오류는 다시 보내도 같음.
+
+    Args:
+        error: 보내기 실패 예외.
+
+    Returns:
+        bool: 응답을 못 받았거나(연결 실패·시간 초과) 429·5xx면 True.
+    """
+    if isinstance(error, httpx.HTTPStatusError):
+        status = error.response.status_code
+        return status == 429 or status >= 500
+    return isinstance(error, httpx.TransportError)
+
+
+def _error_label(error: httpx.HTTPError) -> str:
+    """로그용 오류 이름. 상태 오류면 상태 코드를 붙임.
+
+    Args:
+        error: 보내기 실패 예외.
+
+    Returns:
+        str: 예: "HTTP 503", "ConnectTimeout".
+    """
+    if isinstance(error, httpx.HTTPStatusError):
+        return f"HTTP {error.response.status_code}"
+    return type(error).__name__
 
 
 def _duplicates(values: list[str], label: str) -> list[str]:

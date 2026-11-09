@@ -11,6 +11,8 @@ from ..base import DEAD_CONNECTION_SECONDS, BaseClient, keepalive_transport
 
 # 요청 하나의 대기 상한(초). 모델 호출에 그대로 넘김
 TIMEOUT_SECONDS = 45.0
+# 일시 오류(연결 실패·시간 초과·429·5xx) 재시도 횟수 (첫 호출 제외). 채팅·판단 모델 공통
+MAX_RETRIES = 1
 
 _clients: dict[str, "LlmClient"] = {}
 _lock = Lock()
