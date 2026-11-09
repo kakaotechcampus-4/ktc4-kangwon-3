@@ -37,7 +37,7 @@ def test_판단_답으로_6개_Tool_선택을_돌려주고_한_번_기록한다(
     result = _agent(lambda request: _jev_reply(children_kind=0.82)).run_with_meta(_PRODUCT)
 
     picked = {item.tool_name for item in result.result.decisions if item.selected}
-    assert picked == {ToolName.CUSTOMS, ToolName.CHILDREN}
+    assert picked == {ToolName.CUSTOMS, ToolName.CHILDREN, ToolName.LABEL_AD}
     assert (result.meta.model, result.meta.prompt_sha256) == (JEV, questions_fingerprint(list(QUESTIONS)))
     assert [(row["agent"], row["ok"]) for row in records] == [("decision_selection", True)]
 

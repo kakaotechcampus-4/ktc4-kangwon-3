@@ -6,6 +6,7 @@ from ...schemas.agent import ToolSelectionItem, ToolSelectionResponse
 from ...clients.llm.decision.schemas.response import DecisionAnswer, RefusedAnswer, YesNoAnswer
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
+from ...tools.registry import ALWAYS_RUN_REASON, ALWAYS_RUN_TOOLS
 from .questions import QUESTION_LABELS, TOOL_QUESTIONS
 from .rules import TRUE_FIELDS, rule_reasons, unknown_wireless_fields
 from .thresholds import threshold
@@ -22,7 +23,7 @@ FACT_FIELDS: dict[ToolName, tuple[str, ...]] = {
 
 
 def assemble(product: Product, answers: Mapping[str, DecisionAnswer], model: str) -> ToolSelectionResponse:
-    """코드 규칙에 걸린 Tool은 선택하고, 나머지는 판단 답을 문턱값과 비교해 정한다.
+    """코드 규칙에 걸린 Tool은 선택하고, 나머지는 판단 답을 문턱값과 비교해 정한다. 항상 실행 Tool은 늘 선택.
 
     Args:
         product: 추출된 상품 정보.
@@ -43,7 +44,7 @@ def assemble(product: Product, answers: Mapping[str, DecisionAnswer], model: str
         elif tool is ToolName.RADIO and (reason := _radio_electric_reason(product, answers, model)):
             decisions.append(_item(tool, True, reason))
         else:
-            decisions.append(_judge(tool, product, answers, threshold(model, tool)))
+            decisions.append(_always_run(_judge(tool, product, answers, threshold(model, tool))))
     return ToolSelectionResponse(decisions=decisions)
 
 
@@ -96,6 +97,20 @@ def _judge(tool: ToolName, product: Product, answers: Mapping[str, DecisionAnswe
                                   "실제 해당 여부는 Tool 결과 기준"))
     checked = ", ".join(f"{QUESTION_LABELS[name]} {p:.2f}" for name, p in probabilities.items())
     return _item(tool, False, f"{facts}열지 않은 이유: 판단 모델이 본 해당 가능성 {checked} 모두 기준 {limit} 미만")
+
+
+def _always_run(item: ToolSelectionItem) -> ToolSelectionItem:
+    """항상 실행하는 Tool이면 선택으로 고정한다. 판단 답으로 이미 골랐으면 그 이유를 남긴다.
+
+    Args:
+        item: 판단 답으로 정한 선택 결과.
+
+    Returns:
+        ToolSelectionItem: 항상 실행 Tool이면 선택된 결과, 아니면 그대로.
+    """
+    if item.selected or item.tool_name not in ALWAYS_RUN_TOOLS:
+        return item
+    return _item(item.tool_name, True, ALWAYS_RUN_REASON)
 
 
 def _facts(tool: ToolName, product: Product) -> str:

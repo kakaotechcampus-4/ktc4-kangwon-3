@@ -7,6 +7,7 @@ from app.agents.decision_selection.assemble import assemble
 from app.clients.llm.decision.schemas.response import ChoiceAnswer, RefusedAnswer, YesNoAnswer
 from app.schemas.product import Product
 from app.schemas.schemas import ToolName
+from app.tools.registry import ALWAYS_RUN_REASON
 
 JEV = "typesafe/jev-latest"
 # 무선 필드를 다 채워 원칙 2가 끼어들지 않는 상품
@@ -60,12 +61,18 @@ def test_모두_문턱값_미만이면_관련_필드와_질문별_답을_이유�
     ))
 
 
-def test_관련_필드가_없는_표시광고는_판단_내용만_쓴다():
+def test_표시광고는_해당_가능성이_낮아도_항상_선택한다():
     picked = _picked(assemble(_product(**_PLAIN), _answers(), JEV))
 
+    assert picked[ToolName.LABEL_AD] == (True, ALWAYS_RUN_REASON)
+
+
+def test_판단_답으로_고른_표시광고는_관련_필드_없이_판단_내용을_이유로_남긴다():
+    picked = _picked(assemble(_product(**_PLAIN), _answers(ad_effect=0.9), JEV))
+
     selected, reason = picked[ToolName.LABEL_AD]
-    assert not selected
-    assert reason.startswith("열지 않은 이유: 판단 모델이 본 해당 가능성 효능·효과 표현 0.05, ")
+    assert selected
+    assert reason.startswith("열어 본 이유: 판단 모델이 본 해당 가능성 효능·효과 표현 0.90 ")
 
 
 def test_답을_거부한_질문이_있으면_선택한다():
