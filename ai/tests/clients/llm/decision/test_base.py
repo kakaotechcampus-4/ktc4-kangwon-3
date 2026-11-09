@@ -1,7 +1,11 @@
 """판단 클라이언트 공통 베이스가 경로·인증으로 보내고, 잘못된 응답을 DecisionResponseError로 바꾸는지 확인한다.
 
+LangSmith 실행 안에서 부르면 호출을 실행으로 남기는지도 가짜 trace로 확인.
 제공사 형식과 무관한 동작이라 가짜 하위 클라이언트로 확인. 실제 네트워크 요청은 보내지 않는다.
 """
+
+from contextlib import contextmanager
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -9,10 +13,15 @@ import pytest
 from app.clients.llm.decision import (
     DecisionClient, DecisionRequestError, DecisionResponseError, questions_fingerprint,
 )
+from app.clients.llm.decision import base
+from app.clients.llm.decision.openai import OpenAIDecisionClient
 from app.clients.llm.decision.schemas.request import DecisionRequest
 from app.clients.llm.decision.schemas.response import DecisionUsage
+from app.clients.llm.decision.typesafe import TypeSafeDecisionClient
 
 from .conftest import API_KEY, BASE_URL
+from .test_openai import LUNA_BODY
+from .test_typesafe import JEV_BODY
 
 
 class _EchoDecisionClient(DecisionClient):
@@ -182,3 +191,107 @@ def test_질문_순서가_바뀌면_지문이_바뀐다(decision_request):
     questions = decision_request.questions
 
     assert questions_fingerprint(list(reversed(questions))) != questions_fingerprint(questions)
+
+
+class _Recorder:
+    """langsmith.trace 대신 연 실행과 끝낼 때 받은 값·올라온 예외를 모은다."""
+
+    def __init__(self) -> None:
+        self.opened: list[dict] = []
+        self.outputs: list[dict] = []
+        self.errors: list[BaseException] = []
+
+    @contextmanager
+    def __call__(self, name, run_type="chain", **kwargs):
+        self.opened.append({"name": name, "run_type": run_type, **kwargs})
+        try:
+            yield SimpleNamespace(end=lambda outputs: self.outputs.append(outputs))
+        except BaseException as exc:
+            self.errors.append(exc)
+            raise
+
+
+@pytest.fixture
+def recorder(monkeypatch) -> _Recorder:
+    """진단 묶음(LangSmith 실행) 안인 상태로 만들고 열린 실행을 모음. 외부 전송 없음."""
+    recorder = _Recorder()
+    monkeypatch.setattr(base, "trace", recorder)
+    monkeypatch.setattr(base, "get_current_run_tree", lambda: object())
+    return recorder
+
+
+def test_LangSmith_실행_밖이면_기록하지_않는다(wire, decision_request, monkeypatch):
+    # 입력 가드·평가 러너처럼 진단 묶음 밖에서 부른 경우
+    recorder = _Recorder()
+    monkeypatch.setattr(base, "trace", recorder)
+    monkeypatch.setattr(base, "get_current_run_tree", lambda: None)
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: _ok(*ALL_NAMES))
+
+    client.decide(decision_request)
+
+    assert recorder.opened == []
+
+
+def test_LangSmith_실행_안이면_요청과_답_사용량을_실행으로_남긴다(wire, decision_request, recorder):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: _ok(*ALL_NAMES))
+
+    client.decide(decision_request)
+
+    [opened] = recorder.opened
+    assert (opened["name"], opened["run_type"]) == ("decision:test/decision-model", "llm")
+    assert opened["inputs"] == {
+        "subject": decision_request.subject,
+        "questions": [question.model_dump(mode="json") for question in decision_request.questions],
+        "image_count": 0,
+    }
+    [outputs] = recorder.outputs
+    assert outputs["answers"] == {name: {"type": "refused"} for name in ALL_NAMES}
+    assert outputs["model"] == "m"
+    assert outputs["usage_metadata"] == {
+        "input_tokens": 10, "output_tokens": 0, "total_tokens": 10,
+        "input_token_details": {"cache_read": 0, "cache_creation": 0},
+    }
+
+
+def test_이미지는_개수만_남긴다(wire, decision_request, recorder):
+    request = decision_request.model_copy(update={"images": ["data:image/png;base64,AAAA"] * 2})
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: _ok(*ALL_NAMES))
+
+    client.decide(request)
+
+    assert recorder.opened[0]["inputs"]["image_count"] == 2
+    assert "data:image" not in str(recorder.opened[0]["inputs"])
+
+
+@pytest.mark.parametrize(("response", "error"), [
+    (httpx.Response(500, json={}), httpx.HTTPStatusError),
+    (httpx.Response(200, json={"model": "m", "answers": _answers("kind_kids"), "input_tokens": 10}),
+     DecisionResponseError),
+])
+def test_호출이_실패하면_실행에_예외를_남기고_그대로_올린다(wire, decision_request, recorder, response, error):
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    wire(client, lambda request: response)
+
+    with pytest.raises(error):
+        client.decide(decision_request)
+
+    assert [type(exc) for exc in recorder.errors] == [error]
+    assert recorder.outputs == []
+
+
+@pytest.mark.parametrize(("client_class", "body", "model"), [
+    (TypeSafeDecisionClient, JEV_BODY, "typesafe/jev-latest"),
+    (OpenAIDecisionClient, LUNA_BODY, "openai/gpt-6-luna"),
+])
+def test_Jev와_Luna_판단_클라이언트_모두_모델_이름으로_남긴다(wire, decision_request, recorder, client_class, body,
+                                                     model):
+    client = client_class(BASE_URL, API_KEY)
+    wire(client, lambda request: httpx.Response(200, json=body))
+
+    client.decide(decision_request.model_copy(update={"model": model}))
+
+    assert [opened["name"] for opened in recorder.opened] == [f"decision:{model}"]
+    assert set(recorder.outputs[0]["answers"]) == set(ALL_NAMES)

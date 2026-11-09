@@ -5,8 +5,10 @@ POST {OPENAI_BASE_URL}/decisions. 요청·응답 형식은 모델 제공사마�
 
 import json
 from abc import ABC, abstractmethod
+from typing import Any
 
 import httpx
+from langsmith.run_helpers import get_current_run_tree, trace
 
 from ....prompts import fingerprint
 from ...request import RequestClient
@@ -47,6 +49,9 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
     def decide(self, request: DecisionRequest) -> DecisionResponse:
         """질문을 보내고 질문마다 답을 받는다. 에이전트가 부르는 입구.
 
+        LangSmith 실행(진단 묶음) 안에서 불리면 호출 하나를 실행으로 남김. 판단 호출은 LangChain을 거치지 않아
+        자동 기록되지 않음. 묶음 밖 호출(입력 가드·평가 러너)은 남기지 않음.
+
         Args:
             request: 판단 요청.
 
@@ -59,6 +64,29 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
             httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우.
             DecisionResponseError: 응답을 공통 모양으로 바꿀 수 없거나, 질문과 맞지 않는 답(누락·종류 불일치·
                 후보에 없는 값·단계 수 불일치)이 있는 경우.
+        """
+        if get_current_run_tree() is None:
+            return self._decide(request)
+        # 예외는 trace가 오류로 남기고 그대로 올림
+        with trace(f"decision:{request.model}", "llm", inputs=_trace_inputs(request)) as run:
+            response = self._decide(request)
+            run.end(outputs=_trace_outputs(response))
+            return response
+
+    def _decide(self, request: DecisionRequest) -> DecisionResponse:
+        """요청을 검사해 보내고 답이 질문과 맞는지 확인한다.
+
+        Args:
+            request: 판단 요청.
+
+        Returns:
+            DecisionResponse: 질문 이름별 답과 토큰 사용량.
+
+        Raises:
+            DecisionRequestError: 질문 이름·후보 값이 겹쳐 보낼 수 없는 경우.
+            httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우.
+            httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우.
+            DecisionResponseError: 응답을 공통 모양으로 바꿀 수 없거나 질문과 맞지 않는 답이 있는 경우.
         """
         check_request(request)
         response = self.fetch_parsed(request)
@@ -181,6 +209,43 @@ def questions_fingerprint(questions: list[DecisionQuestion]) -> str:
     """
     dumped = [question.model_dump() for question in questions]
     return fingerprint(json.dumps(dumped, ensure_ascii=False, sort_keys=True))
+
+
+def _trace_inputs(request: DecisionRequest) -> dict[str, Any]:
+    """LangSmith 실행에 남길 요청. 이미지는 data URI라 커서 개수만 남김.
+
+    Args:
+        request: 판단 요청.
+
+    Returns:
+        dict[str, Any]: 판단 대상·질문·이미지 개수.
+    """
+    return {
+        "subject": request.subject,
+        "questions": [question.model_dump(mode="json") for question in request.questions],
+        "image_count": len(request.images),
+    }
+
+
+def _trace_outputs(response: DecisionResponse) -> dict[str, Any]:
+    """LangSmith 실행에 남길 응답. 토큰은 LangSmith 사용량 칸(usage_metadata) 이름으로 넣음.
+
+    Args:
+        response: 판단 응답.
+
+    Returns:
+        dict[str, Any]: 질문 이름별 답·실제 모델 이름·토큰 사용량.
+    """
+    usage = response.usage
+    return {
+        "answers": {name: answer.model_dump(mode="json") for name, answer in response.answers.items()},
+        "model": usage.model,
+        "usage_metadata": {
+            "input_tokens": usage.input_tokens, "output_tokens": usage.output_tokens,
+            "total_tokens": usage.input_tokens + usage.output_tokens,
+            "input_token_details": {"cache_read": usage.cached_tokens, "cache_creation": usage.cache_write_tokens},
+        },
+    }
 
 
 def _duplicates(values: list[str], label: str) -> list[str]:
