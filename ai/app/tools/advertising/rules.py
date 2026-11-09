@@ -17,8 +17,9 @@ _MEDICINAL_WORDS = ("치료", "예방", "완치", "질병", "질환")
 # (2026-11-08: 실증자료 안내로 잘못 나가던 문제). 'Ceramic'처럼 낱말 안의 글자는 제외
 # 추천·권장 주장. 인증·수상과 같은 유형이지만 근거 조문은 지정고시 12 가(전문가·기관 추천)가 정확해 함께 붙인다
 _RECOMMEND = re.compile(r"추천|권장|recommend", re.IGNORECASE)
-# 수상·특허·선정 표기. 수상·인증 심사지침이 인증과 함께 다룬다
-_AWARD = re.compile(r"수상|특허|선정|award|patent", re.IGNORECASE)
+# 수상·특허·선정 표기. 수상·인증 심사지침이 인증과 함께 다룬다.
+# '선정'은 판매자가 골랐다는 말('안전한 원료만 선정한')이면 수상 표기가 아니라 뺀다
+_AWARD = re.compile(r"수상|특허|선정(?!\s*(?:한|하|해|했))|award|patent", re.IGNORECASE)
 _FOREIGN_CERT = re.compile(r"certif|(?<![A-Za-z])(?:CE|CCC|3C|RoHS|FCC|FDA|UL|CB|GS|TÜV|TUV)(?![A-Za-z])", re.IGNORECASE)
 
 # 국내 인증(KC) 표기. 실제 인증 여부는 상품 글만으로 알 수 없어 모델 판단과 관계없이 코드가 찾아 확인을 안내한다.
