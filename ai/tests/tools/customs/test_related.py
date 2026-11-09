@@ -73,15 +73,30 @@ def test_맡는_Tool이_대상이면_판정을_따르고_세관장확인_할_일
     assert customs.result.applicable_requirements == [LAW]
 
 
-def test_맡는_Tool이_정보_부족이면_정보_부족으로_바꾸고_할_일을_뺀다():
+def test_맡는_Tool이_정보_부족이면_통관_요건을_그대로_둔다():
+    # 판단하지 못한 것이지 대상이 아닌 것이 아니다. 실사이트 전동 클렌저(11/9): 전기 Tool이 정격 전압을 몰라
+    # 정보 부족으로 끝났는데 전안법 세관장확인 서류 안내까지 사라짐
+    for tool, law in ((ToolName.ELECTRICAL, LAW), (ToolName.CHILDREN, "어린이제품 안전 특별법")):
+        action = f"[「{law}」 · HS 8543.70-9090 후보] …"
+        customs = _customs((law, action, tool))
+
+        notes = follow_related_tools(_results(customs, _tool(tool, Determination.INSUFFICIENT_INFORMATION)))
+
+        [finding] = customs.findings
+        assert notes == []
+        assert (finding.determination, finding.risk_level) == (Determination.POSSIBLY_REQUIRED, RiskLevel.MEDIUM)
+        assert finding.requirements == [action] and customs.required_actions == [action]
+        assert "followed_requirements" not in customs.query
+
+
+def test_대상_아님과_정보_부족이_섞이면_따르지_않는다():
+    # 판단 여러 개 중 하나라도 정하지 못했으면 '대상 아님'으로 모으지 않는다
     customs = _customs((LAW, ACTION, ToolName.ELECTRICAL))
-    results = _results(customs, _tool(ToolName.ELECTRICAL, Determination.INSUFFICIENT_INFORMATION))
+    results = _results(customs, _tool(ToolName.ELECTRICAL, Determination.NOT_REQUIRED,
+                                      Determination.INSUFFICIENT_INFORMATION))
 
-    follow_related_tools(results)
-
-    [finding] = customs.findings
-    assert (finding.determination, finding.risk_level) == (Determination.INSUFFICIENT_INFORMATION, RiskLevel.UNKNOWN)
-    assert customs.required_actions == []
+    assert follow_related_tools(results) == []
+    assert customs.required_actions == [ACTION]
 
 
 def test_전파_Tool이_정보_부족이면_전파법_요건을_그대로_둔다():
