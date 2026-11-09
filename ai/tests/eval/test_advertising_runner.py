@@ -44,7 +44,7 @@ def test_실행하면_표시광고_Tool_프로필을_측정_조건으로_남긴�
     assert advertising_runner.main() == 0
 
     meta = json.loads(out.read_text(encoding="utf-8"))["meta"]
-    assert (meta["model"], meta["model_profile"]["profile"]) == ("openai/gpt-4.1-mini", "mini")
+    assert (meta["model"], meta["model_profile"]["profile"]) == ("openai/gpt-6-luna", "luna-low")
     assert meta["prompt_path"] == "app/prompts/advertising.md"
 
 
