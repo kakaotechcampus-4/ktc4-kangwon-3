@@ -1,6 +1,7 @@
 """진단 입력 → 상품 정보(Product) 추출 단계 (#432).
 
-재진단이면 이전 추출 결과를 그대로 쓰고, URL만 있으면 수집해서 추출 입력을 만든다.
+재진단이면 이전 추출 결과를 그대로 쓰고, 글 없이 URL이 오면 수집해서 추출 입력을 만든다.
+URL과 함께 온 이미지(예: BE가 보내는 대표 이미지)를 쓸지는 사이트 설정대로 수집기가 정함.
 실패는 오류 코드·재시도 여부를 담은 AIServiceError로 던짐. 진단 함수(#320)는 이를 JobFailed로 옮기기만 하면 됨.
 진행 알림(EXTRACTION)과 사용자 답변 전달은 진단 함수 몫.
 """
@@ -59,7 +60,8 @@ class ExtractionStep:
         if job_input.previous is not None:
             return job_input.previous.product
         source = job_input.source
-        if not source.text_blocks and not source.image_urls:
+        # 이미지가 함께 와도 URL이면 수집 (함께 온 이미지만으로 진단하면 페이지 글이 빠짐)
+        if source.source_url and not source.text_blocks:
             source = self._collect(source)
         if source.image_urls:
             source = source.model_copy(update={"image_urls": self._image_splitter.prepare(source.image_urls)})
@@ -72,15 +74,18 @@ class ExtractionStep:
         """URL로 페이지를 수집해 추출 입력을 만든다. 수집 시간은 모델 호출 시간과 나눠 로그로 남김 (#410)."""
         started = time.perf_counter()
         try:
-            collected = self._url_builder.build(source.source_url, product_id=source.product_id).extraction_input
+            built = self._url_builder.build(source.source_url, product_id=source.product_id,
+                                            uploaded=source.image_urls)
+            collected = built.extraction_input
         except UnsupportedSiteError as exc:
             raise _failure(AIResponseCode.UNSUPPORTED_SITE, retryable=False) from exc
         except httpx.HTTPError as exc:
             raise _failure(AIResponseCode.SOURCE_FETCH_FAILED, retryable=True) from exc
         except ImageTriageFailedError as exc:
             raise _failure(AIResponseCode.PIPELINE_ERROR, retryable=_retryable(exc)) from exc
-        logger.info("URL 수집 완료 (product_id=%s, 글 %d개, 이미지 %d장, %dms)", source.product_id,
-                    len(collected.text_blocks), len(collected.image_urls), (time.perf_counter() - started) * 1000)
+        logger.info("URL 수집 완료 (product_id=%s, 글 %d개, 이미지 %d장, 함께 온 이미지 제외 %d장, %dms)",
+                    source.product_id, len(collected.text_blocks), len(collected.image_urls), built.uploaded_dropped,
+                    (time.perf_counter() - started) * 1000)
         if not collected.text_blocks and not collected.image_urls:
             raise _failure(AIResponseCode.EMPTY_SOURCE, retryable=False)
         return collected

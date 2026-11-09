@@ -186,6 +186,20 @@ def test_all이면_분류하지_않고_후보_이미지를_상한까지_넘긴�
     assert source.extraction_input.image_urls == [f"https://img/img{n}.jpg" for n in range(MAX_ALL_IMAGES)]
 
 
+@pytest.mark.parametrize(("use", "image_urls", "dropped"), [
+    (True, ["https://img/img0.jpg", "https://s3/thumbnail.png"], 0),
+    (False, ["https://img/img0.jpg"], 1),
+])
+def test_함께_온_이미지는_사이트_설정이_켜져_있을_때만_페이지_이미지_뒤에_넣는다(use, image_urls, dropped):
+    page = _page(_image("img0"))
+    sites = {"made-in-china.com": SiteConfig(lambda: _FakeClient(page), images="all", uploaded_images=use)}
+
+    source = UrlSourceBuilder(sites=sites).build(URL, product_id="p-1", uploaded=["https://s3/thumbnail.png"])
+
+    assert source.extraction_input.image_urls == image_urls
+    assert source.uploaded_dropped == dropped
+
+
 def test_빌더에_이미지_방식을_주면_사이트_설정보다_우선한다():
     page = _page(_image("main", "gallery"), _image("spec"))
     triage = _FakeTriage(_triage("product", "specification"))
@@ -200,6 +214,8 @@ def test_빌더에_이미지_방식을_주면_사이트_설정보다_우선한�
 def test_Made_in_China는_글만_쓴다():
     # 이미지를 넣으면 chemical_product 등 판정이 흔들림 (3개 상품 비교 실험)
     assert SITES["made-in-china.com"].images == "none"
+    # 함께 온 대표 이미지도 넣으면 재질문이 늘어남 (예시 상품 3개 실험)
+    assert SITES["made-in-china.com"].uploaded_images is False
 
 
 def test_selected는_후보가_분류_한도를_넘으면_앞에서부터_한도까지만_분류한다():

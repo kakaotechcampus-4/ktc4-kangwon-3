@@ -5,11 +5,11 @@
     - selected: 후보 이미지를 썸네일로 분류(ImageTriageAgent)해 사양·인증·포장만
     - all: 분류 없이 후보 이미지 전부 (상한까지)
 클라이언트는 형식 변환만, 분류 에이전트는 분류만 하고 이미지를 쓸지·몇 장을 넘길지는 여기서 정함.
-추출 단계(ExtractionStep)가 URL만 있는 상품에 씀 (#320).
+추출 단계(ExtractionStep)가 글 없이 URL이 온 상품에 씀 (#320). URL과 함께 온 이미지는 사이트 설정(uploaded_images)대로 넣거나 뺌.
 """
 
-from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, replace
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -32,16 +32,20 @@ class SiteConfig:
     Attributes:
         client: 상품 페이지 클라이언트 생성 함수.
         images: 추출에 넣을 이미지 방식.
+        uploaded_images: URL과 함께 온 이미지(예: BE가 보내는 대표 이미지)를 추출에 넣을지.
     """
 
     client: Callable[[], MarketplaceBaseClient]
     images: ImagePolicy
+    uploaded_images: bool = False
 
 
 # 도메인 → 사이트. 도메인은 클라이언트의 DOMAINS (판매자 하위 도메인 포함)
 SITES: Mapping[str, SiteConfig] = {
     # 사양·인증이 글로 충실해 글만. 이미지를 넣으면 chemical_product 등 판정이 흔들림 (3개 상품 비교 실험)
-    **{domain: SiteConfig(MadeInChinaClient, images="none") for domain in MadeInChinaClient.DOMAINS},
+    # 함께 온 대표 이미지도 글자 없는 상품 사진이라 넣으면 음식 접촉 등 짐작이 늘어 재질문 증가 (예시 상품 3개 실험)
+    **{domain: SiteConfig(MadeInChinaClient, images="none", uploaded_images=False)
+       for domain in MadeInChinaClient.DOMAINS},
 }
 # selected에서 넘길 분류. 판정에 쓸 글자가 있는 이미지
 KEEP_CATEGORIES = frozenset({ImageCategory.SPECIFICATION, ImageCategory.CERTIFICATION, ImageCategory.PACKAGE})
@@ -61,6 +65,7 @@ class UrlSource:
         triage: 후보 이미지 분류. selected가 아니면 분류하지 않아 빈 결과.
         selected: 추출에 넘긴 이미지. 넘기는 순서대로.
         extraction_input: 추출 에이전트 입력.
+        uploaded_dropped: 사이트 설정으로 추출에 넣지 않은, URL과 함께 온 이미지 수.
     """
 
     page: ProductPage
@@ -68,6 +73,7 @@ class UrlSource:
     triage: ImageTriageResponse
     selected: list[ProductPageImage]
     extraction_input: ExtractionInput
+    uploaded_dropped: int = 0
 
 
 class UrlSourceBuilder:
@@ -90,12 +96,13 @@ class UrlSourceBuilder:
         self._sites = sites
         self._images = images
 
-    def build(self, url: str, *, product_id: str) -> UrlSource:
+    def build(self, url: str, *, product_id: str, uploaded: Sequence[str] = ()) -> UrlSource:
         """상품 주소 하나를 추출 입력으로 만든다.
 
         Args:
             url: 상품 페이지 주소.
             product_id: 추출 입력의 상품 ID. 분류 사용량 기록 대상 ID로도 씀.
+            uploaded: URL과 함께 온 이미지 주소. 사이트 설정(uploaded_images)이 켜져 있을 때만 추출에 넣음.
 
         Returns:
             UrlSource: 수집·분류·고른 이미지·추출 입력.
@@ -111,7 +118,8 @@ class UrlSourceBuilder:
             page = client.fetch_parsed(ProductPageRequest(url=url))
         finally:
             client.close()
-        return self._from_page(page, product_id, self._images or site.images)
+        source = self._from_page(page, product_id, self._images or site.images)
+        return _with_uploaded(source, uploaded, use=site.uploaded_images)
 
     def build_from_html(self, url: str, html: str, *, product_id: str) -> UrlSource:
         """저장해 둔 상품 페이지 HTML로 추출 입력을 만든다. 페이지 요청은 보내지 않음.
@@ -166,6 +174,25 @@ class UrlSourceBuilder:
                 image_urls=[image.url for image in selected],
             ),
         )
+
+
+def _with_uploaded(source: UrlSource, uploaded: Sequence[str], *, use: bool) -> UrlSource:
+    """URL과 함께 온 이미지를 사이트 설정대로 추출 입력에 더하거나 뺀다.
+
+    Args:
+        source: 페이지로 만든 결과.
+        uploaded: URL과 함께 온 이미지 주소.
+        use: 추출에 넣을지 (사이트 설정 uploaded_images).
+
+    Returns:
+        UrlSource: 켜져 있으면 페이지 이미지 뒤에 붙인 결과, 꺼져 있으면 뺀 수만 남긴 결과.
+    """
+    if not uploaded:
+        return source
+    if not use:
+        return replace(source, uploaded_dropped=len(uploaded))
+    image_urls = [*source.extraction_input.image_urls, *uploaded]
+    return replace(source, extraction_input=source.extraction_input.model_copy(update={"image_urls": image_urls}))
 
 
 def site_for(url: str, sites: Mapping[str, SiteConfig] = SITES) -> SiteConfig:
