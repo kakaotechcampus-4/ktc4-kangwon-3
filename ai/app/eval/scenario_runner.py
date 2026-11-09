@@ -2,7 +2,8 @@
 
     cd ai
     python -m app.eval.scenario_runner --truth-dir <정답 폴더> --raw-dir <원문 폴더> [--extraction-truth-dir <추출 정답 폴더>]
-        [--input-file text_as_pasted.txt] [--runs 3] [--retries 2] --report <보고서.md> --title "개발 표본 (펼친 글)"
+        [--input-file text_as_pasted.txt] [--runs 3] [--retries 2] [--selector decision|llm]
+        --report <보고서.md> --title "개발 표본 (펼친 글)"
     python -m app.eval.scenario_runner --rescore logs/eval/scenario-<시각>.json [--truth-dir <정답 폴더>] --report <보고서.md> --title "..."
 
 상품마다 추출 N회 → 추출 결과마다 선택 1회. 실패한 회차는 최대 retries번 다시 시도하고, 그래도 실패하면 빈 회차로
@@ -18,16 +19,19 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..agents.decision_selection import QUESTIONS, DecisionSelectionAgent, DecisionSelectionFailedError
 from ..agents.extraction import ExtractionAgent, ExtractionFailedError
 from ..agents.selection import PROMPT_PATH as SELECTION_PROMPT_PATH
 from ..agents.selection import SelectionAgent, SelectionFailedError
-from ..config import agent_profile
+from ..clients.llm.decision import questions_fingerprint
+from ..config import ConfigError, agent_decision_profile, agent_profile
 from ..schemas.agent import ExtractionInput
 from ..schemas.product import Product
 from .errors import RawFixtureMissing
 from .runner import RESULT_DIR, prompt_fingerprint, run_metadata
 from .scenario_scoring import render_report, summarize
 from .scoring import load_truth
+from .selection_runner import DecisionSelector
 from .selection_scoring import load_selection_truth
 
 MAX_WORKERS = 4
@@ -89,7 +93,7 @@ def run_product(extractor, selector, item: ProductInput, runs: int, retries: int
         if product is not None:
             selection, select_retries = _with_retry(
                 lambda: selector.run(Product.model_validate({**product, "product_id": source.product_id})).model_dump(mode="json"),
-                retries, (SelectionFailedError,),
+                retries, (SelectionFailedError, DecisionSelectionFailedError),
             )
             result["retries"] += select_retries
         result["runs"].append({"extracted": product, "selection": selection})
@@ -97,14 +101,32 @@ def run_product(extractor, selector, item: ProductInput, runs: int, retries: int
     return result
 
 
-def build_agents() -> tuple[ExtractionAgent, SelectionAgent, dict]:
-    """운영 기본 프로필의 추출·선택 에이전트와 측정 조건."""
+def build_agents(selector: str = "decision") -> tuple[ExtractionAgent, SelectionAgent | DecisionSelector, dict]:
+    """운영 기본 프로필의 추출·선택 에이전트와 측정 조건.
+
+    Args:
+        selector: "decision"이면 판단 선택 에이전트(파이프라인과 같음), "llm"이면 채팅 모델 선택 에이전트.
+
+    Returns:
+        tuple: 추출 에이전트, 선택 에이전트, 측정 조건. 판단 선택은 판단 호출 실패로 전부 선택한 회차를 실패로 셈.
+
+    Raises:
+        ConfigError: 판단 프로필이 정해지지 않은 경우.
+    """
     extractor = ExtractionAgent(usage_agent="scenario-eval")
-    selector = SelectionAgent(usage_agent="scenario-eval")
     meta = run_metadata(runs=0, profile=agent_profile("extraction"))
-    meta["selection_model"] = agent_profile("selection").model.id
-    meta["selection_prompt_sha256"] = prompt_fingerprint(SELECTION_PROMPT_PATH)
-    return extractor, selector, meta
+    meta["selector"] = selector
+    if selector == "llm":
+        meta["selection_model"] = agent_profile("selection").model.id
+        meta["selection_prompt_sha256"] = prompt_fingerprint(SELECTION_PROMPT_PATH)
+        return extractor, SelectionAgent(usage_agent="scenario-eval"), meta
+    profile = agent_decision_profile("decision_selection")
+    if profile is None:
+        raise ConfigError("decision_selection 판단 프로필이 정해지지 않았습니다.")
+    meta["selection_model"] = profile.model.id
+    # 판단 선택은 프롬프트 대신 질문 목록 지문
+    meta["selection_prompt_sha256"] = questions_fingerprint(list(QUESTIONS))
+    return extractor, DecisionSelector(DecisionSelectionAgent(usage_agent="scenario-eval")), meta
 
 
 def _load_truths(truth_dir: Path, extraction_truth_dir: Path | None, names: list[str]) -> tuple[dict, dict]:
@@ -135,6 +157,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", type=Path, help="보고서 마크다운 경로")
     parser.add_argument("--title", default="시나리오 평가")
     parser.add_argument("--rescore", type=Path, help="저장된 결과 JSON을 재채점만 한다")
+    parser.add_argument("--selector", choices=("decision", "llm"), default="decision",
+                        help="선택 에이전트 (기본 decision: 파이프라인과 같은 판단 선택, llm: 채팅 모델 선택)")
     args = parser.parse_args(argv)
 
     if args.rescore:
@@ -154,7 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     items = plan_products(args.truth_dir, args.raw_dir, args.input_file)
     # 정답표 형식 오류도 모델을 돌리기 전에 잡는다.
     truths, extraction = _load_truths(args.truth_dir, args.extraction_truth_dir, [i.name for i in items])
-    extractor, selector, meta = build_agents()
+    extractor, selector, meta = build_agents(args.selector)
     meta["runs"] = args.runs
     print(f"상품 {len(items)}개 × {args.runs}회, 입력 {args.input_file}", file=sys.stderr)
 

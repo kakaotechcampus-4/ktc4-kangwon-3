@@ -126,7 +126,7 @@ def test_저장한_결과를_재채점하면_같은_숫자가_나온다(tmp_path
     _write_truth(truth_dir, "strat_01", "strat_01/text.txt", selected={"customs_requirements", "radio_compliance"})
     _write_raw(raw_dir, "strat_01", "text.txt")
     monkeypatch.setattr(scenario_runner, "RESULT_DIR", tmp_path / "out")
-    monkeypatch.setattr(scenario_runner, "build_agents", lambda: (_FakeExtractor(), _FakeSelector(), {"model": "가짜"}))
+    monkeypatch.setattr(scenario_runner, "build_agents", lambda selector: (_FakeExtractor(), _FakeSelector(), {"model": "가짜"}))
     report = tmp_path / "report.md"
 
     assert scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir), "--runs", "2",
@@ -154,7 +154,7 @@ def test_예상_밖_예외가_나도_그_상품만_실패로_남기고_결과를
     _write_truth(truth_dir, "strat_01", "strat_01/text.txt")
     _write_raw(raw_dir, "strat_01", "text.txt")
     monkeypatch.setattr(scenario_runner, "RESULT_DIR", tmp_path / "out")
-    monkeypatch.setattr(scenario_runner, "build_agents", lambda: (_CrashingExtractor(), _FakeSelector(), {"model": "가짜"}))
+    monkeypatch.setattr(scenario_runner, "build_agents", lambda selector: (_CrashingExtractor(), _FakeSelector(), {"model": "가짜"}))
 
     assert scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir), "--runs", "2"]) == 0
 
@@ -169,7 +169,7 @@ def test_없는_추출_정답_폴더를_주면_모델을_돌리기_전에_멈춘
     _write_truth(truth_dir, "strat_01", "strat_01/text.txt")
     _write_raw(raw_dir, "strat_01", "text.txt")
     built = []
-    monkeypatch.setattr(scenario_runner, "build_agents", lambda: built.append(1) or (_FakeExtractor(), _FakeSelector(), {}))
+    monkeypatch.setattr(scenario_runner, "build_agents", lambda selector: built.append(1) or (_FakeExtractor(), _FakeSelector(), {}))
 
     with pytest.raises(SystemExit):
         scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir),
@@ -184,7 +184,7 @@ def test_재채점은_저장된_정답_경로_대신_지정한_정답_폴더를_
     _write_truth(truth_dir, "strat_01", "strat_01/text.txt", selected={"customs_requirements", "radio_compliance"})
     _write_raw(raw_dir, "strat_01", "text.txt")
     monkeypatch.setattr(scenario_runner, "RESULT_DIR", tmp_path / "out")
-    monkeypatch.setattr(scenario_runner, "build_agents", lambda: (_FakeExtractor(), _FakeSelector(), {"model": "가짜"}))
+    monkeypatch.setattr(scenario_runner, "build_agents", lambda selector: (_FakeExtractor(), _FakeSelector(), {"model": "가짜"}))
     scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir), "--runs", "1"])
     saved_path = next((tmp_path / "out").glob("scenario-*.json"))
     moved = tmp_path / "moved_truth"
@@ -207,3 +207,42 @@ def test_추출_정답은_상품_이름으로_찾는다(tmp_path, monkeypatch, n
     _, extraction = scenario_runner._load_truths(truth_dir, extraction_dir, [name])
 
     assert extraction[name] == f"{name}_설명.json"
+
+
+@pytest.mark.parametrize(("argv", "expected"), [([], "decision"), (["--selector", "llm"], "llm")])
+def test_선택_에이전트는_기본이_판단_선택이고_옵션으로_바꾼다(tmp_path, monkeypatch, argv, expected):
+    truth_dir, raw_dir = tmp_path / "truth", tmp_path / "raw"
+    _write_truth(truth_dir, "strat_01", "strat_01/text.txt")
+    _write_raw(raw_dir, "strat_01", "text.txt")
+    monkeypatch.setattr(scenario_runner, "RESULT_DIR", tmp_path / "out")
+    chosen = []
+    monkeypatch.setattr(scenario_runner, "build_agents",
+                        lambda selector: chosen.append(selector) or (_FakeExtractor(), _FakeSelector(), {}))
+
+    scenario_runner.main(["--truth-dir", str(truth_dir), "--raw-dir", str(raw_dir), "--runs", "1", *argv])
+
+    assert chosen == [expected]
+
+
+class _FakeDecisionAgent:
+    def __init__(self, failures: int = 0, **kwargs):
+        self.failures = failures
+
+    def run_with_meta(self, product):
+        failed = self.failures > 0
+        self.failures -= 1
+        return SimpleNamespace(result=_FakeSelector().run(product),
+                               meta=SimpleNamespace(failure_phase="call" if failed else None))
+
+
+def test_판단_선택은_판단_모델_조건을_남기고_전부_선택_대체를_실패로_보고_다시_시도한다(tmp_path, monkeypatch):
+    agent = _FakeDecisionAgent(failures=1)
+    monkeypatch.setattr(scenario_runner, "ExtractionAgent", lambda **kw: _FakeExtractor())
+    monkeypatch.setattr(scenario_runner, "DecisionSelectionAgent", lambda **kw: agent)
+    _write_raw(tmp_path, "s", "text.txt")
+
+    extractor, selector, meta = scenario_runner.build_agents("decision")
+    result = run_product(extractor, selector, ProductInput("s", tmp_path / "s" / "text.txt", False), runs=1, retries=2)
+
+    assert (meta["selector"], meta["selection_model"]) == ("decision", "typesafe/jev-latest")
+    assert result["runs"][0]["selection"] is not None and result["retries"] == 1
