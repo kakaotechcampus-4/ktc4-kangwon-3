@@ -1,6 +1,7 @@
 """판단 선택 코드 규칙. 판단 모델 없이 상품 정보만으로 선택이 정해지는 Tool과 걸린 규칙.
 
-통관 항상 선택(원칙 3), true 필드, 모순 시 정보 부족(원칙 6), 전기 제품 무선 정보 없음(원칙 2) 순.
+통관 항상 선택(원칙 3), true 필드, 모순 시 정보 부족(원칙 6), 상품을 모를 때 정보 부족(원칙 1),
+전기 제품 무선 정보 없음(원칙 2) 순.
 """
 
 from ...schemas.product import Product
@@ -16,6 +17,9 @@ TRUE_FIELDS: dict[ToolName, tuple[str, ...]] = {
     ToolName.ELECTRICAL: ("electrical_powered", "battery_included", "battery_is_the_product", "heating"),
     ToolName.CHILDREN: ("for_children",),
 }
+
+# 원칙 1용 상품 식별 필드. 모두 None이면 어떤 상품인지 모름
+_PRODUCT_IDENTITY_FIELDS = ("product_name", "category", "intended_use")
 
 # 원칙 2용 전기 제품 신호
 _ELECTRIC_FIELDS = ("electrical_powered", "battery_included")
@@ -39,6 +43,8 @@ def rule_reasons(product: Product) -> dict[ToolName, list[str]]:
             reasons[name] = hits
     for name, reason in _conflict_reasons(product).items():
         reasons.setdefault(name, [reason])
+    for name, reason in _unknown_product_reasons(product).items():
+        reasons.setdefault(name, [reason])
     if ToolName.RADIO not in reasons and (reason := _radio_unknown_reason(product)):
         reasons[ToolName.RADIO] = [reason]
     return reasons
@@ -59,6 +65,26 @@ def _conflict_reasons(product: Product) -> dict[ToolName, str]:
         return {}
     return {
         name: f"conflicts 있음, {'·'.join(fields)}=None (상품 정보 모순으로 정보 부족)"
+        for name, fields in TRUE_FIELDS.items()
+        if all(getattr(product, field) is None for field in fields)
+    }
+
+
+def _unknown_product_reasons(product: Product) -> dict[ToolName, str]:
+    """원칙 1: 어떤 상품인지 모르면(상품명·종류·용도 모두 없음) 관련 필드가 전부 None인 Tool을 정보 부족으로 선택.
+
+    판단 모델은 정보가 없으면 해당 가능성을 낮게 봐 미선택하므로 코드로 막음.
+
+    Args:
+        product: 추출된 상품 정보.
+
+    Returns:
+        dict[ToolName, str]: 규칙에 걸린 Tool별 규칙 설명. 상품을 알 수 있으면 빈 dict.
+    """
+    if any(getattr(product, field) is not None for field in _PRODUCT_IDENTITY_FIELDS):
+        return {}
+    return {
+        name: f"{'·'.join(_PRODUCT_IDENTITY_FIELDS)}·{'·'.join(fields)}=None (어떤 상품인지 몰라 정보 부족)"
         for name, fields in TRUE_FIELDS.items()
         if all(getattr(product, field) is None for field in fields)
     }

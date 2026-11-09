@@ -8,11 +8,33 @@ from app.schemas.schemas import ToolName
 
 
 def _product(**fields) -> Product:
-    return Product(product_id="rule-001", source_url=None, **fields)
+    return Product(product_id="rule-001", source_url=None, **({"product_name": "상품"} | fields))
 
 
-def test_정보가_없으면_통관만_선택된다():
+def test_상품명만_있고_필드가_비면_통관만_선택된다():
     assert set(rule_reasons(_product())) == {ToolName.CUSTOMS}
+
+
+def test_어떤_상품인지_모르면_관련_필드가_전부_None인_Tool을_모두_선택한다():
+    reasons = rule_reasons(_product(product_name=None))
+
+    assert set(reasons) == set(TRUE_FIELDS) | {ToolName.CUSTOMS}
+    assert reasons[ToolName.CHILDREN] == [
+        "product_name·category·intended_use·for_children=None (어떤 상품인지 몰라 정보 부족)"
+    ]
+
+
+def test_어떤_상품인지_몰라도_관련_필드에_값이_있는_Tool은_이_규칙으로_고르지_않는다():
+    reasons = rule_reasons(_product(product_name=None, for_children=False))
+
+    assert ToolName.CHILDREN not in reasons
+
+
+@pytest.mark.parametrize("field", ["product_name", "category", "intended_use"])
+def test_상품명_종류_용도_중_하나라도_있으면_이_규칙을_걸지_않는다(field):
+    reasons = rule_reasons(_product(**({"product_name": None} | {field: "선풍기"})))
+
+    assert set(reasons) == {ToolName.CUSTOMS}
 
 
 @pytest.mark.parametrize(("tool", "field"), [(tool, field) for tool, fields in TRUE_FIELDS.items() for field in fields])

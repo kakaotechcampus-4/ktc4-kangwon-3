@@ -15,7 +15,8 @@ _PLAIN = {"wireless_comm": False, "wireless_charging": False, "wireless_shield":
 
 
 def _product(**fields) -> Product:
-    return Product(product_id="assemble-001", source_url=None, **fields)
+    # 상품명이 없으면 정보 부족 규칙(원칙 1)이 판단 답보다 먼저 걸려 기본으로 채움
+    return Product(product_id="assemble-001", source_url=None, **({"product_name": "상품"} | fields))
 
 
 def _answers(**probabilities) -> dict:
