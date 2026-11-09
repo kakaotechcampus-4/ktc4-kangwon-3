@@ -1,6 +1,7 @@
 """진단을 LangSmith 실행으로 묶음. LANGSMITH_TRACING을 켠 실행에서만 붙음 (diagnosis/job.py).
 
-모델 호출은 LangChain이 자동으로 보냄. 여기서는 그 호출을 단계·Tool별로 묶고 이름만 붙임.
+채팅 모델 호출은 LangChain이, 판단 모델 호출은 판단 클라이언트(clients/llm/decision/base.py)가 보냄.
+여기서는 그 호출을 단계·Tool별로 묶고 이름만 붙임.
 로컬 trace 파일(observability/trace.py)과 별개로 동작함.
 """
 
