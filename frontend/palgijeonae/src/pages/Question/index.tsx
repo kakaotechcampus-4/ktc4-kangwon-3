@@ -93,10 +93,7 @@ function QuestionPage() {
 
     return (
         <div className="relative flex w-full flex-col gap-8">
-            {/* 본문 위 여백에 띄워서 제목 위치가 밀리지 않게 한다. */}
-            <div className="absolute -top-7.5 left-0">
-                <BackButton diagnosesId={product?.diagnosesId} />
-            </div>
+            <BackButton diagnosesId={product?.diagnosesId} className="-mb-4 md:absolute md:-top-14 md:left-0 md:mb-0" />
             <SectionIntro
                 title={currentRound ? `${currentRound}차 질문` : "진단에 필요한 질문이 몇 가지 있어요"}
                 description="상세페이지만으로는 판단이 어려운 부분이에요. 답해 주시면 진단서에 반영됩니다."

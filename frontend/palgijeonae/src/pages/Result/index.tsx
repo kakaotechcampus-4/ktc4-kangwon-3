@@ -86,10 +86,7 @@ function ResultPage() {
 
     return (
         <div className="relative flex w-full flex-col gap-8">
-            {/* 본문 위 여백에 띄워서 제목 위치가 밀리지 않게 한다. */}
-            <div className="absolute -top-7.5 left-0">
-                <BackButton diagnosesId={judgementDiagnosesId} />
-            </div>
+            <BackButton diagnosesId={judgementDiagnosesId} className="-mb-4 md:absolute md:-top-14 md:left-0 md:mb-0" />
             <SectionIntro title="진단 결과" description={`${products.length}개 상품에 대한 판정입니다. 상품을 눌러 각각의 근거를 확인하세요.`} />
             {isInvalidId ? null : isPending ? (
                 <LoadingSpinner />
