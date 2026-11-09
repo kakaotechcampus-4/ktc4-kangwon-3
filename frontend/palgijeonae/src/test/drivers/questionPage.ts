@@ -50,6 +50,13 @@ export function questionPage(user: User = userEvent.setup()) {
     hasProgress: (answered: number, total: number) => screen.queryAllByText(QUESTION_MESSAGES.progress(answered, total)).length > 0,
     isAllAnswered: () => screen.queryAllByText(QUESTION_MESSAGES.PROGRESS_COMPLETE).length > 0,
 
+    // ── 이전으로 ─────────────────────────────────────────────
+    hasBackButton: () => screen.queryByRole('button', { name: '이전으로' }) !== null,
+    waitForBackButton: async () => {
+      await screen.findByRole('button', { name: '이전으로' })
+    },
+    clickBack: () => user.click(screen.getByRole('button', { name: '이전으로' })),
+
     // ── 제출 ────────────────────────────────────────────────
     submit: () => user.click(submitButton()),
     hasSubmitButton: () => screen.queryByRole('button', { name: /답변 완료하기/ }) !== null,
