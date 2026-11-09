@@ -11,7 +11,6 @@ function MainPage() {
             <Preview />
             <HowToUse />
             <AgentIntro />
-            <p className="text-sm leading-4.5 text-neutral-text md:text-base">국가법령정보센터·관세청 등이 공개한 법령과 고시를 기준으로 확인합니다.</p>
         </div>
     );
 }

@@ -17,6 +17,11 @@ export const COMMON_MESSAGES = {
   INVALID_ACCESS: '잘못된 접근입니다.',
 }
 
+export const POLICY_MESSAGES = {
+  // NOTE(source): NotFound 화면의 문구. 소스에 export가 없다.
+  NOT_FOUND: '404 - 페이지를 찾을 수 없습니다.',
+}
+
 export const UPLOAD_MESSAGES = {
   // NOTE(source): validation.ts의 오류 문구. 소스에 export가 없다.
   TITLE_REQUIRED: '제품명을 입력해주세요.',
