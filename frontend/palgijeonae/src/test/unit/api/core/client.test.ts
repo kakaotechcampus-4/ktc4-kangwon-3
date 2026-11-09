@@ -105,7 +105,7 @@ describe('getErrorMessage: 타임아웃 판별', () => {
   it('요청이 중단된 오류(timeout 문구 없음)는 타임아웃 안내로 바꾸지 않는다', () => {
     const aborted = new AxiosError('Request aborted', AxiosError.ECONNABORTED)
 
-    expect(getErrorMessage(aborted, '기본 메시지')).toBe('Request aborted')
+    expect(getErrorMessage(aborted, '기본 메시지')).toBe('기본 메시지')
   })
 
   it('ETIMEDOUT도 타임아웃으로 본다', () => {
