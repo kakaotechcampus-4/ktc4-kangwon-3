@@ -47,6 +47,8 @@ def test_build_chat_model은_프로필에_있는_옵션만_보낸다(captured, p
         # 게이트웨이의 비스트리밍 출력 한도(2,000토큰)를 피한다. 빠지면 긴 페이지 추출이 실패한다.
         "streaming": True,
         "stream_usage": True,
+        # 같은 값을 반복 출력하면 모델 한도(32,768토큰)까지 가지 않고 일찍 끊는다.
+        "max_tokens": 8192,
     }
 
 
