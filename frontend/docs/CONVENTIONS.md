@@ -21,8 +21,8 @@
 
 ```
 src/
-├── api/            # BE 리소스별 API 함수(products.ts, diagnoses.ts, uploads.ts, users.ts)
-│   ├── core/       # axios 인스턴스·인터셉터(client.ts), 쿼리 재시도 정책, Sentry 전송 정책
+├── api/            # BE 리소스별 API 함수(products.ts, diagnoses.ts, uploads.ts, users.ts, lawAmendments.ts)
+│   ├── core/       # axios 인스턴스·인터셉터(client.ts), 쿼리 재시도 정책, Sentry 전송 정책, 유효하지 않은 ID·세션 거부 판별
 │   ├── types/      # 여러 페이지가 함께 쓰는 도메인 타입·enum(product.ts, common.ts)
 │   └── mock/       # BE 없이 화면을 볼 때 쓰는 목업(실제 API와 같은 이름·시그니처)
 ├── components/
@@ -105,6 +105,8 @@ export default Example;
 
 - 401(`AUTH-001`, 토큰 만료)은 `apiClient`의 응답 인터셉터([`api/core/client.ts`](../palgijeonae/src/api/core/client.ts))가 자동으로 토큰을 재발급받아 원래 요청을 한 번 재시도합니다. 개별 호출부에서 따로 처리하지 않습니다. 재발급도 실패하면 로그아웃 후 `/login`으로 보냅니다.
 - BE 에러 메시지는 직접 파싱하지 않고 `getErrorMessage(error, fallback)`([`api/core/client.ts`](../palgijeonae/src/api/core/client.ts))로 꺼냅니다. `details[0].message` → `message` → `fallback` 순으로 찾고, 429(`COMMON-011`)는 `Retry-After` 헤더로 만든 전용 문구를 우선합니다.
+- 진단서·상품 id를 주소로 받는 화면(진행, 질문, 결과)은 조회가 400이나 404로 실패하면 둘 다 "유효하지 않은 ID"로 안내합니다. 사용자가 주소를 직접 바꿀 수 있어 두 상태가 모두 나올 수 있고, 사용자에게는 같은 상황이기 때문입니다. 판별은 `isInvalidIdError`([`api/core/invalidId.ts`](../palgijeonae/src/api/core/invalidId.ts))를 씁니다.
+- 세션 복구(reissue) 요청이 4xx(429 제외)로 거절되면 다시 로그인해야 하는 상태로 봅니다. 네트워크 오류·타임아웃·5xx는 일시 실패일 수 있어 세션이 끝났다고 보지 않습니다. 판별은 `isSessionRejectedError`([`api/core/sessionRejected.ts`](../palgijeonae/src/api/core/sessionRejected.ts))를 씁니다.
 - 요청 실패 알림과 삭제·탈퇴 같은 되돌릴 수 없는 액션의 사전 확인은 `alert`/`confirm`으로 처리합니다(커스텀 토스트·모달 없음).
 
 ## 스타일

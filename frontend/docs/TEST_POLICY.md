@@ -55,12 +55,17 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 | 답변 여부, 최신 회차 질문 계산 | 단위 | `unit/pages/Question/utils/answerState.test.ts`, `unit/lib/questions.test.ts` |
 | URL·라우트 파라미터 판별 | 단위 | `unit/lib/url.test.ts`, `unit/lib/routeParams.test.ts` |
 | 오류 코드별 Sentry 레벨, 경로 템플릿 | 단위 | `unit/api/core/sentryErrorPolicy.test.ts` |
+| 유효하지 않은 ID(400·404)·세션 거부 판별 | 단위 | `unit/api/core/invalidId.test.ts`, `unit/api/core/sessionRejected.test.ts` |
+| 로그인 상태 저장 | 단위 | `unit/store/useAuthStore.test.ts` |
 | 상품 추가·삭제, 입력 검증, 진단 요청 성공·실패 | 통합 | `integration/pages/Upload.test.tsx` |
 | 미응답 안내, 답변 제출, 제출 후 이동 | 통합 | `integration/pages/Question.test.tsx` |
 | 폴링, 상태별 카드, 진단서 이동 | 통합 | `integration/pages/Judgement.test.tsx` |
-| 검색·필터·페이지, 상품 삭제, 이름 수정, 회원 탈퇴 | 통합 | `integration/pages/Mypage.test.tsx` |
+| 검색·필터·페이지, 상품 삭제, 이름 수정, 회원 탈퇴, 법령 개정 알림·재진단, 알림 설정 | 통합 | `integration/pages/Mypage.test.tsx` |
 | 재진단 성공·실패·중복 클릭 방지 | 통합 | `integration/pages/ResultRetry.test.tsx` |
 | 인증 준비 전 대기, 비로그인 리다이렉트 | 통합 | `integration/components/ProtectedRoute.test.tsx` |
+| 로그인 버튼, 약관 동의 안내 링크 | 통합 | `integration/pages/Login.test.tsx` |
+| 이용약관·개인정보처리방침 탭 전환, 목차 이동 | 통합 | `integration/pages/Policy.test.tsx` |
+| 푸터 메뉴, 정책 링크, 문의 메일 | 통합 | `integration/components/Footer.test.tsx` |
 
 ## 4. 폴더 구조
 
@@ -72,10 +77,11 @@ src/test/
 │   ├── components/
 │   ├── hooks/
 │   ├── lib/
+│   ├── store/
 │   └── pages/{Question,Upload}/utils/
 ├── integration/
-│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute, Header, 업로드 입력·상품 카드, 진단 카드, 마이페이지 목록 등)
-│   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry)
+│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute, Header, Footer, 업로드 입력·상품 카드, 진단 카드, 마이페이지 목록 등)
+│   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry, Login, Policy)
 ├── drivers/                 # 화면별 드라이버: 통합 테스트가 화면을 조작·조회하는 통로 (uploadPage, judgementPage ...)
 ├── constants/               # messages.ts: 통합 테스트가 비교하는 알림·안내 문구
 ├── infra/                   # 테스트 기반 자체 검증
@@ -103,7 +109,7 @@ src/test/
 | `testTimeout` | 15초 | 렌더하고 조작을 이어 가는 통합 테스트가 부하에서 기본 5초를 넘길 때를 견딥니다 |
 
 - **API 주소는 절대 URL로 쓰지 않습니다.** jsdom의 XHR은 다른 출처 응답에 CORS 헤더가 없으면 MSW가 만든 응답도 `Network Error`로 처리합니다. 다른 출처로 나가는 요청(S3)만 응답에 CORS 헤더를 넣습니다.
-- 테스트 사이에 상태가 새지 않도록 매 테스트 후 응답 오버라이드, 요청 기록, 인증 스토어, 브라우저 API 스텁을 모두 초기화합니다.
+- 테스트 사이에 상태가 새지 않도록 매 테스트 후 응답 오버라이드, 요청 기록, 인증 스토어, 세션 저장소(답변 임시 저장), 브라우저 API 스텁을 모두 초기화합니다.
 
 ## 6. API 모킹 (MSW)
 
@@ -118,7 +124,7 @@ src/test/
 | `fixtures.ts` | 응답 데이터를 만드는 빌더 (`buildProductResult`, `buildQuestion` 등) |
 
 - **핸들러가 없는 요청은 오류로 처리합니다** (`onUnhandledFrame: 'error'`). 새 API를 호출하는 화면을 테스트하면 먼저 기본 핸들러를 추가해야 하고, 실수로 실제 네트워크에 나가는 일이 없습니다.
-- 기본 핸들러가 다루는 API: presigned URL 발급, S3 업로드(PUT), 진단 제출, 상품 단건 조회, 질문 답변 제출, 진단서 조회, 재진단, 마이페이지 상품 목록·삭제, 회원 정보 조회·수정·탈퇴.
+- 기본 핸들러가 다루는 API: presigned URL 발급, S3 업로드(PUT), 진단 제출, 상품 단건 조회, 질문 답변 제출, 진단서 조회, 재진단, 마이페이지 상품 목록·삭제, 법령 개정 알림 조회, 개정 상품 재진단, 알림 설정 조회·수정, 회원 정보 조회·수정·탈퇴.
 
 ### 응답 덮어쓰기
 
@@ -239,6 +245,7 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 |---|---|
 | 의존성 설치 | `npm ci` |
 | 전체 테스트 실행 | `npm test` |
+| 커버리지 측정 | `npm run test:coverage` |
 | 파일을 저장할 때마다 다시 실행 (watch) | `npm run test:watch` |
 | 특정 파일만 실행 | `npx vitest run src/test/unit/lib/text.test.ts` |
 | 특정 폴더만 실행 | `npx vitest run src/test/integration` |
@@ -247,19 +254,22 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 | 린트 | `npm run lint` |
 | 타입 검사 + 빌드 | `npm run build` |
 
-- PR을 올리기 전에 `npm run lint`, `npm test`, `npm run build`를 로컬에서 모두 통과시킵니다.
+- PR을 올리기 전에 `npm run lint`, `npm run test:coverage`, `npm run build`를 로컬에서 모두 통과시킵니다.
 - 전체 실행은 1분 안팎이 걸립니다. 대부분 테스트 환경을 만드는 시간이라, 하나만 고칠 때는 특정 파일만 실행하는 것이 빠릅니다.
-- 커버리지는 측정하지 않습니다.
+- 커버리지는 `npm run test:coverage`로 측정합니다. 구문(statements)·분기(branches)·함수(functions)·줄(lines) 모두 70% 이상이어야 하며([`vite.config.ts`](../palgijeonae/vite.config.ts)의 `thresholds`), 못 미치면 명령이 실패합니다. 결과는 터미널 표와 `coverage/index.html`(파일별로 비어 있는 줄 확인)로 볼 수 있습니다.
+- 측정 대상은 `src/` 아래 소스입니다. 테스트 코드와 보조 파일(`src/test/`), BE 없이 화면을 볼 때만 쓰는 목업(`src/api/mock/`), 타입 선언, 앱 시작 코드(`main.tsx`, `instrument.ts`)는 제외합니다.
 
 ## 11. CI
 
 | 워크플로 | 실행 시점 | 하는 일 |
 |---|---|---|
-| [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/`가 바뀐 PR(develop·main 대상), develop push, 수동 실행 | `npm ci`, `npm run lint`, `npm test`, `npm run build` |
+| [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/`가 바뀐 PR(develop·main 대상), develop push, 수동 실행 | `npm ci`, `npm run lint`, `npm run test:coverage`, `npm run build` |
 
-- 단위·통합 테스트는 PR마다 CI에서 실행됩니다. **테스트가 하나라도 실패하면 CI가 실패하므로, 고친 뒤에 머지합니다.**
+- 단위·통합 테스트는 PR마다 CI에서 실행됩니다. **테스트가 하나라도 실패하거나 커버리지가 기준에 못 미치면 CI가 실패하므로, 고친 뒤에 머지합니다.**
 - develop에서는 CI가 성공해야 [`frontend-deploy.yml`](../../.github/workflows/frontend-deploy.yml)이 배포하므로, 테스트가 실패하면 배포되지 않습니다.
-- CI에서 실패했는데 로컬에서는 통과한다면, 같은 순서로 `npm ci` → `npm run lint` → `npm test` → `npm run build`를 실행해 봅니다. 운영체제(대소문자를 구분하는 파일 경로)나 설치된 의존성 차이가 원인인 경우가 많습니다.
+- 긴급 배포가 필요하면 Actions에서 `Frontend CI`를 수동 실행하고 `skip-coverage`를 켭니다. 테스트는 그대로 돌고 커버리지 기준 검사만 건너뜁니다. 이 경우 자동 배포는 일어나지 않으므로 `Deploy Frontend to EC2`를 수동 실행합니다.
+- CI는 커버리지 리포트를 `frontend-coverage` 아티팩트(7일 보관)로 올립니다.
+- CI에서 실패했는데 로컬에서는 통과한다면, 같은 순서로 `npm ci` → `npm run lint` → `npm run test:coverage` → `npm run build`를 실행해 봅니다. 운영체제(대소문자를 구분하는 파일 경로)나 설치된 의존성 차이가 원인인 경우가 많습니다.
 
 ## 12. 문제 해결
 
