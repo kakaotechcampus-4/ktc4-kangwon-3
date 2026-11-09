@@ -4,6 +4,7 @@
 - 요건 법령과 다른 규제 Tool의 대응(검증 단계가 교차 확인할 수 있게 결과에 남긴다).
 - 상품 신호가 아니라고 나오면 빼는 요건(HS 하나에 여러 물품이 묶여 일부 물품에만 걸리는 요건).
 - 판매 방식별 안내(관세법 제226조, 고시 별표 2·제7조 제2항). HS가 후보이므로 모두 조건부로 쓴다.
+  판매자가 읽는 문장이라 줄로 나누고 쉬운 말로 쓴다.
 """
 
 import re
@@ -121,9 +122,12 @@ def format_hs(code: str) -> str:
 
 def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None, documents: list[str],
                  agencies: list[str], omission: tuple[str, str] | None) -> list[str]:
-    """요건 법령 하나에 대한 할 일. 사입·수입과 구매대행을 한 문장에 담는다 (#640: 법령마다 200자 2문장이 나오던 것).
+    """요건 법령 하나에 대한 할 일. 머리말, 할 일, 서류, 구매대행을 줄로 나눈 한 건으로 낸다.
 
-    확인 기관 목록은 서류 이름에 발급처가 드러나 문장에서 뺀다. 판매 방식(구매대행/사입)은 사용자가 정한다.
+    #640: 법령마다 200자 2문장이 나오던 것을 한 건으로 줄였고, 실사이트 화면(11/9 전동 클렌저)에서 여전히 읽기 어려워
+    판매자가 읽는 말로 풀었다. '세관장확인'은 '세관에 서류를 내는 일'로, 조문 번호는 서류 줄에만 남긴다
+    (전체 근거는 판단 카드의 근거에 있음). HS가 후보라 "내야 할 수 있습니다"로 쓴다.
+    확인 기관 목록은 서류 이름에 발급처가 드러나 뺀다. 판매 방식(구매대행/사입)은 사용자가 정한다.
 
     Args:
         law_name: 요건 법령 이름.
@@ -135,20 +139,40 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
             None = 고시를 확인하지 못함.
 
     Returns:
-        list[str]: 문장 하나.
+        list[str]: 줄바꿈으로 나눈 할 일 한 건.
     """
-    label = f"[「{law_name}」 · HS {', '.join(format_hs(code) for code in hs_codes)} 후보]"
     papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
-    if omission is None:
-        agent = "구매대행 수입의 세관장확인 생략 여부는 확인이 필요합니다"
-    elif omission[0] == "excepted":
-        agent = "구매대행 수입도 세관장확인을 생략할 수 없습니다(세관장확인 고시 제7조 제2항 제1호 단서)"
-    else:
-        agent = ("개인 사용 목적 등 대외무역법 시행령 제19조 사유의 구매대행 수입은 세관장확인을 생략할 수 있습니다"
-                 "(세관장확인 고시 제7조 제2항 제1호, 해당 여부 확인 필요)")
+    lines = [
+        f"[{law_name}] · 품목번호 HS {', '.join(format_hs(code) for code in hs_codes)} 후보",
+        "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.",
+        f"- 미리 갖출 서류: {papers} (관세법 제226조, 세관장확인 고시 별표 2)",
+        f"- {_agent_line(omission)}",
+    ]
     note = law_note(law_name)
-    return [f"{label} 이 HS로 분류되면 수입신고 때 세관장확인을 받아야 하고, {agent}. "
-            f"미리 갖출 서류: {papers}(관세법 제226조, 세관장확인 고시 별표 2)." + (f" {note}" if note else "")]
+    if note:
+        lines.append(f"- 참고: {note}")
+    return ["\n".join(lines)]
+
+
+def _agent_line(omission: tuple[str, str] | None) -> str:
+    """구매대행으로 들여올 때도 서류가 필요한지 한 줄. 근거는 세관장확인 고시 제7조 제2항 제1호.
+
+    Args:
+        omission: omission_status 결과.
+
+    Returns:
+        str: 생략 제외 법령이면 "구매대행도 해당"(고시가 범위를 좁혔으면 그 조건을 덧붙임), 생략할 수 있는 법령이면
+            생략될 수 있다는 안내, 고시를 읽지 못했으면 확인하지 못했다는 안내.
+    """
+    if omission is None:
+        return "구매대행: 생략 여부를 확인하지 못함"
+    kind, condition = omission
+    if kind == "excepted":
+        # 고시가 법령 뒤에 붙인 조건(예: 약사법은 오·남용우려 의약품에 한정). 빼면 범위를 넓혀 안내하게 됨
+        scope = condition.strip().removeprefix("(").removesuffix(")").strip()
+        return f"구매대행도 해당 (고시 조건: {scope})" if scope else "구매대행도 해당"
+    # 고시 문구가 "생략할 수 있다"이고 대외무역법 시행령 제19조 사유는 수입 건마다 달라 확정하지 않음
+    return "구매대행: 구매자 개인이 쓰려고 들여오는 경우 등에는 생략될 수 있음"
 
 
 # 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당해 조건을 덧붙이는 설명 (#640).
