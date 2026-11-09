@@ -110,14 +110,24 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         self._usage_agent = usage_agent or self.component_name
         self._decision_client = decision_client
         self._decision_profile, self._decision_model = self._prepare_decision(decision_client, decision_model)
-        self._structured = (
-            None
-            if model is None
-            else model.with_structured_output(
-                type_to_response_format_param(self.output_schema)["json_schema"],
-                include_raw=True,
-                **self.structured_output_options,
-            )
+        # 요청마다 스키마를 바꿔 부를 때(_call_model의 output_schema) 다시 감쌀 원래 모델
+        self._model = model
+        self._structured = None if model is None else self._structured_output(model, self.output_schema)
+
+    def _structured_output(self, model: ModelLike, schema: type[BaseModel]) -> Any:
+        """모델을 구조화 출력 호출로 감싼다.
+
+        Args:
+            model: 구조화 출력 모델.
+            schema: 출력 스키마.
+
+        Returns:
+            Any: ``invoke``가 ``{"raw", "parsed", "parsing_error"}``를 돌려주는 호출 객체.
+        """
+        return model.with_structured_output(
+            type_to_response_format_param(schema)["json_schema"],
+            include_raw=True,
+            **self.structured_output_options,
         )
 
     def _prepare_decision(
@@ -317,6 +327,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         *,
         subject_id: str,
         partial_result: object | None = None,
+        output_schema: type[BaseModel] | None = None,
     ) -> tuple[OutputT, CallUsage | None, float]:
         """모델을 호출해 구조화 출력을 받는다. 실패는 바로 기록하고, 성공 기록은 후처리 뒤 호출부가 남김.
 
@@ -324,6 +335,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             messages: 모델에 보낼 메시지.
             subject_id: 사용량 기록 대상 ID (상품 ID).
             partial_result: 실패 시 예외에 담을 부분 결과.
+            output_schema: 이번 호출에만 쓸 출력 스키마 (입력에 따라 허용 값을 좁힐 때). None이면 ``output_schema``.
 
         Returns:
             tuple[OutputT, CallUsage | None, float]: 검증된 출력, 사용량, 호출 시작 시각(perf_counter).
@@ -336,12 +348,14 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         # 모델 미주입 상태 (creates_default_model=False 에이전트를 모델 없이 만든 경우)
         if self._structured is None:
             raise RuntimeError(f"{self.component_name}: 모델 없이 _invoke를 호출했습니다.")
+        schema = output_schema or self.output_schema
+        structured = self._structured if output_schema is None else self._structured_output(self._model, schema)
 
         if (trace := current_trace()) is not None:
             trace.begin_call(self.component_name, messages)
         started_at = perf_counter()
         try:
-            result = self._structured.invoke(messages)
+            result = structured.invoke(messages)
         except (LengthFinishReasonError, ContentFilterFinishReasonError) as exc:
             # 응답은 받았으나 길이 초과·콘텐츠 필터로 출력이 잘림 → 예외에 담긴 사용량 기록
             if trace is not None:
@@ -355,7 +369,7 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
         raw_message = result.get("raw")
         usage = from_response(raw_message)
         try:
-            output = parse_structured_output(result, self.output_schema, self.component_name)
+            output = parse_structured_output(result, schema, self.component_name)
         except Exception as cause:
             # 응답은 받았으나 거절·JSON 오류·스키마 위반·빈 출력 → 쓴 토큰까지 기록
             if trace is not None:
