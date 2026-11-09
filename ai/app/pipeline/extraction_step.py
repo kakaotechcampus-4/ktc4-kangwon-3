@@ -33,7 +33,7 @@ class ExtractionStep:
 
     Args:
         extractor: 추출 에이전트.
-        url_builder: URL만 있는 입력을 추출 입력으로 만드는 수집기.
+        url_builder: 글 없이 URL이 온 입력을 추출 입력으로 만드는 수집기.
         image_splitter: 세로로 긴 캡처를 조각으로 자르는 처리 (#462). None이면 기본 설정.
     """
 

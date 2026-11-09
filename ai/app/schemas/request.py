@@ -13,7 +13,8 @@ class DiagnosisProductInput(ApiRequestModel):
         product_id: BE 상품 ID (UUID v7). 세션 ID로 사용.
         text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
         image_urls: 이미지 URL 목록. base64 data URI도 받음 (#389).
-        source_url: 상품 페이지 URL. 텍스트·이미지가 있으면 출처 표시용, 없으면 수집 대상.
+        source_url: 상품 페이지 URL. 텍스트가 있으면 출처 표시용, 없으면 수집 대상.
+            함께 온 이미지는 사이트 설정대로 수집 결과에 더하거나 뺌.
     """
 
     product_id: str = Field(min_length=1)
@@ -98,7 +99,8 @@ class DevDiagnosisProductInput(ApiRequestModel):
     Args:
         text_blocks: 상품 상세페이지에서 복사한 텍스트 블록 목록.
         image_urls: 이미지 URL 목록 (base64 data URI도 받음).
-        source_url: 상품 페이지 URL. 텍스트·이미지가 있으면 출처 표시용, 없으면 수집 대상.
+        source_url: 상품 페이지 URL. 텍스트가 있으면 출처 표시용, 없으면 수집 대상.
+            함께 온 이미지는 사이트 설정대로 수집 결과에 더하거나 뺌.
     """
 
     text_blocks: list[str] = Field(default_factory=list)
