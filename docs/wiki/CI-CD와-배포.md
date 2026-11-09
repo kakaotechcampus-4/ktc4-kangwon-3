@@ -24,7 +24,7 @@ flowchart LR
 |---|---|---|
 | [`backend.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/backend.yml) | `backend/beforeselling/**` | 배포 스크립트 검사·테스트, `./gradlew build`(단위·통합 테스트, Flyway 마이그레이션 검증, 커버리지 최소 기준 검사) → 이미지를 ECR에 push → Blue-Green 배포 → API 응답 확인 |
 | [`ai.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/ai.yml) | `ai/**` | `pytest`, Docker 빌드 → 이미지를 ECR에 push → `docker compose up --no-build --wait` → `/health/ready` 확인 |
-| [`frontend-ci.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/**` | `npm ci`, `npm run lint`, `npm test`, `npm run build` |
+| [`frontend-ci.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/**` | `npm ci`, `npm run lint`, `npm run test:coverage`(테스트와 커버리지 최소 기준 검사), `npm run build`. 커버리지 리포트를 `frontend-coverage` 아티팩트로 올림 |
 | [`frontend-deploy.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/frontend-deploy.yml) | develop의 Frontend CI 성공 | 빌드 → S3 → EC2 릴리스 폴더에 풀고 `current` 링크 교체 |
 | [`infra-nginx.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/infra-nginx.yml) | `infra/nginx/**` | `nginx -t` 검증 → 설정 반영 → reload → 외부 확인 |
 | [`infra-monitoring.yml`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/workflows/infra-monitoring.yml) | `infra/monitoring/**` | 설정 검증 → Prometheus·Grafana 재기동 → 헬스 확인 |
@@ -35,6 +35,7 @@ flowchart LR
 - 같은 파트의 배포가 겹치지 않도록 워크플로마다 `concurrency`를 겁니다.
 - 모든 워크플로는 Actions 탭에서 수동으로도 실행할 수 있습니다.
 - BE는 커버리지가 최소 기준에 못 미치면 빌드가 실패해 배포도 막힙니다. 긴급 배포가 필요하면 `Backend CI/CD`를 수동 실행하고 `skip-coverage`를 켭니다. 테스트는 그대로 돌고 커버리지 검사만 건너뜁니다.
+- FE도 구문·분기·함수·줄 커버리지가 70%에 못 미치면 `Frontend CI`가 실패해 develop 자동 배포가 일어나지 않습니다. 긴급 배포가 필요하면 `Frontend CI`를 수동 실행하고 `skip-coverage`를 켠 뒤, 배포는 `Deploy Frontend to EC2`를 수동 실행합니다. 테스트는 그대로 돌고 커버리지 검사만 건너뜁니다.
 
 ## 파트별 배포 방식
 
