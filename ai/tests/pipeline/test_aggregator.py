@@ -223,3 +223,34 @@ def test_선택된_Tool이_finding을_반환하지_않으면_정보_부족으로
     assert draft.selected_tools == [ToolName.ELECTRICAL]
     assert draft.findings == []
     assert draft.overall_status is OverallStatus.INSUFFICIENT_INFORMATION
+
+def test_다른_Tool이_맡는_법령의_통관_요건은_그_Tool_판단을_따르고_원본은_바꾸지_않는다():
+    # #640: 세관장확인 API는 HS 단위라 해당 없는 법령도 딸려 옴. 전기 Tool이 대상 아님이면 통관의 전안법 판단도 따름
+    from app.schemas.schemas import CustomsAssessment
+
+    law = "전기용품 및 생활용품 안전관리법"
+    action = f"[「{law}」 · HS 8516.79-9000 후보] 이 HS로 분류되면 수입신고 때 세관장확인을 받아야 하고, …"
+    customs = ToolResult(
+        tool_name=ToolName.CUSTOMS, status=ToolStatus.SUCCESS, selected=True, selection_reason="수입 상품",
+        query={"related_tools": {law: ToolName.ELECTRICAL.value}},
+        result=CustomsAssessment(applicable_requirements=[law]),
+        findings=[RegulatoryFinding(
+            tool_name=ToolName.CUSTOMS, subject=f"세관장확인 대상 후보 — {law}",
+            determination=Determination.POSSIBLY_REQUIRED, risk_level=RiskLevel.MEDIUM,
+            summary="가능성이 있습니다.", rationale="결정사례", requirements=[action])],
+        required_actions=[action],
+    )
+    electrical = _tool_result(findings=[_finding(determination=Determination.NOT_REQUIRED)])
+    selection_result = _selection_result(customs, electrical)
+
+    draft = ResultAggregator().aggregate(Product(product_id="p1"), selection_result)
+
+    customs_finding = next(f for f in draft.findings if f.tool_name is ToolName.CUSTOMS)
+    assert customs_finding.determination is Determination.NOT_REQUIRED
+    assert draft.required_actions == []
+    assert f"「{law}」 세관장확인 요건은 같은 법을 판단한 전기안전 분야 결과(대상 아님)를 따랐습니다." in draft.assumptions
+    assert draft.overall_status is OverallStatus.LIKELY_COMPLIANT
+    # 원본 선택 결과는 그대로 (재실행 회차가 다시 조립할 수 있게)
+    original = next(r for r in selection_result.tool_results if r.tool_name is ToolName.CUSTOMS)
+    assert original.findings[0].determination is Determination.POSSIBLY_REQUIRED
+    assert original.required_actions == [action]

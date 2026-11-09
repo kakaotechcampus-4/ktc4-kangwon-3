@@ -3,7 +3,7 @@ import { useId, useRef, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 import apiClient from '@/api/core/client'
-import logo from '@/assets/logo.png'
+import logo from '@/assets/logo.svg'
 import MobileMenu from '@/components/common/MobileMenu'
 import ProfileMenu from '@/components/common/ProfileMenu'
 import { NAV_ITEMS } from '@/constants/navigation'

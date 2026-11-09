@@ -79,6 +79,8 @@ export const RESULT_MESSAGES = {
   RETRYABLE_FAILURE: '진단에 실패했어요. 다시 시도해 주세요.',
   NOT_RETRYABLE_FAILURE: '진단을 완료할 수 없어요.',
   UNKNOWN_FAILURE: '진단에 실패했어요.',
+  // NOTE(source): Result 화면의 조회 실패 안내. 소스에 export가 없다.
+  LOAD_FAILED: '결과를 불러오지 못했어요.',
 }
 
 export const MYPAGE_MESSAGES = {

@@ -4,11 +4,13 @@
 - 요건 법령과 다른 규제 Tool의 대응(검증 단계가 교차 확인할 수 있게 결과에 남긴다).
 - 상품 신호가 아니라고 나오면 빼는 요건(HS 하나에 여러 물품이 묶여 일부 물품에만 걸리는 요건).
 - 판매 방식별 안내(관세법 제226조, 고시 별표 2·제7조 제2항). HS가 후보이므로 모두 조건부로 쓴다.
+  판매자가 읽는 문장이라 줄로 나누고 쉬운 말로 쓴다.
 """
+
+import re
 
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
-from ..common.facts import object_particle
 from .evidence import ConfirmationRow, law_key
 
 # 세관장확인 요건 법령 → 같은 법을 판단하는 규제 Tool. 키는 law_key(공백·가운뎃점 무시).
@@ -26,6 +28,18 @@ RELATED_TOOLS: dict[str, ToolName] = {
         ("위생용품 관리법", ToolName.FOOD_DRUG),
     )
 }
+
+
+def requirement_subject(law_name: str) -> str:
+    """요건 법령 하나에 대한 통관 판단의 제목. 종합 단계(related.py)가 이 제목으로 판단을 찾는다.
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        str: 판단 제목.
+    """
+    return f"세관장확인 대상 후보 — {law_name}"
 
 
 def related_tool(law_name: str) -> ToolName | None:
@@ -47,21 +61,82 @@ PRODUCT_CONDITIONED_LAWS: dict[str, tuple[str, str]] = {
 }
 
 
-def excluded_by_product(law_name: str, product: Product) -> str | None:
-    """상품 신호로 보아 이 요건 법령이 해당하지 않으면 그 이유를 돌려준다.
+# 요건 법령 → (해당 물품 설명, 뺄 수 있는 소재 표기, 남겨야 하는 소재 표기). 소재 글에 '뺄 수 있는 표기'가 있고
+# '남겨야 하는 표기'가 없을 때만 뺀다. 소재를 모르면 남기고, 종류를 모르는 가죽 표기가 같이 있어도 남긴다.
+# 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축(소·양·돼지·염소) 가죽과 인조 가죽은 대상이 아님.
+# 악어·뱀·도마뱀·타조·가오리·상어는 CITES 종이 섞여 있어 남긴다. "악어 무늬"처럼 무늬만 말해도 남긴다 (안전한 쪽).
+# 송아지 가죽은 '카프스킨', 'calfskin'처럼 가죽을 붙인 표기만 본다. '카프'만 두면 '스카프', 'calf'만 두면
+# 'mid-calf'(종아리)에서 걸려 소재를 모르는 상품의 요건이 빠진다 (리뷰 #708). 'calf leather'도 'wide calf leather boots'처럼
+# 종아리 뜻으로 쓰여 넣지 않는다. 'fur'는 'Furla', 'furniture' 안에서 걸리지 않게 낱말로만 본다.
+# 'PVC'도 'PVC 가죽'처럼 가죽을 붙인 표기만 본다. 'PVC'만 두면 '안감: PVC', 'PVC 무첨가'에서 걸린다 (리뷰 #708).
+MATERIAL_CONDITIONED_LAWS: dict[str, tuple[str, re.Pattern[str], re.Pattern[str]]] = {
+    law_key("야생생물 보호 및 관리에 관한 법률"): (
+        "멸종위기종(CITES) 가죽이나 부위를 쓴 제품",
+        re.compile(r"소가죽|소 가죽|우피|카우하이드|cow ?hide|cowskin|송아지 ?가죽|카프 ?(?:스킨|가죽|레더)|calf ?(?:skin|hide)|양가죽|양 가죽|램스킨|sheepskin|lambskin"
+                   r"|돼지가죽|돼지 가죽|피그스킨|pigskin|염소가죽|고트스킨|goatskin|인조 ?가죽|합성 ?(?:가죽|피혁)|PU ?(?:가죽|레더|leather)"
+                   r"|비건 ?(?:가죽|레더)|vegan leather|faux leather|PVC ?(?:가죽|레더|leather)", re.IGNORECASE),
+        re.compile(r"악어|크로커다일|crocodile|앨리게이터|alligator|케이맨|caiman|뱀|파이톤|python|스네이크|snake|도마뱀|리자드|lizard"
+                   r"|타조|ostrich|가오리|stingray|상어|shark|코끼리|elephant|상아|ivory|모피|(?<![A-Za-z])furs?(?![A-Za-z])", re.IGNORECASE),
+    ),
+}
+
+
+# 종류를 밝히지 않은 가죽 표기. 뺄 수 있는 표기를 지우고도 이게 남으면 일부 소재만 확인된 상품으로 본다
+_UNSPECIFIED_LEATHER = re.compile(r"가죽|피혁|레더|leather", re.IGNORECASE)
+# 뺄 수 있는 표기 바로 뒤에 붙은 가죽 낱말 ('Cowhide Leather'의 Leather). 같은 소재를 가리켜 함께 지운다
+_LEATHER_SUFFIX = re.compile(r" ?(?:가죽|레더|leather)", re.IGNORECASE)
+
+
+def _without_excludable(text: str, excludable: re.Pattern[str]) -> str:
+    """뺄 수 있는 소재 표기(와 바로 뒤의 가죽 낱말)를 지운 나머지 글.
+
+    Args:
+        text: 소재 글.
+        excludable: 뺄 수 있는 소재 표기.
+
+    Returns:
+        str: 나머지 글.
+    """
+    parts: list[str] = []
+    position = 0
+    for match in excludable.finditer(text):
+        parts.append(text[position:match.start()])
+        position = match.end()
+        suffix = _LEATHER_SUFFIX.match(text, position)
+        if suffix is not None:
+            position = suffix.end()
+    parts.append(text[position:])
+    return " ".join(parts)
+
+
+def excluded_by_product(law_name: str, product: Product, material_texts: list[str] | None = None) -> str | None:
+    """상품 신호나 소재 표기로 보아 이 요건 법령이 해당하지 않으면 그 이유를 돌려준다.
 
     Args:
         law_name: 요건 법령 이름.
         product: 상품 정보.
+        material_texts: 소재를 적은 글(통관 사실의 material·composition, 상품 이름, 소재 줄). None이면 소재로 빼지 않음.
 
     Returns:
         str | None: 해당하는 물품 설명(뺄 때). 남길 요건이면 None.
     """
-    condition = PRODUCT_CONDITIONED_LAWS.get(law_key(law_name))
-    if condition is None:
+    key = law_key(law_name)
+    condition = PRODUCT_CONDITIONED_LAWS.get(key)
+    if condition is not None:
+        signal, goods = condition
+        return goods if getattr(product, signal) is False else None
+    material = MATERIAL_CONDITIONED_LAWS.get(key)
+    if material is None or not material_texts:
         return None
-    signal, goods = condition
-    return goods if getattr(product, signal) is False else None
+    goods, excludable, keep = material
+    text = " ".join(material_texts)
+    if not excludable.search(text) or keep.search(text):
+        return None
+    # 일부 소재만 확인된 상품은 빼지 않는다 (리뷰 #708: 안감은 인조 가죽인데 겉감 가죽의 종류는 모르는 경우).
+    # 뺄 수 있는 표기를 지우고도 종류를 모르는 가죽 표기가 남으면 남긴다
+    if _UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)):
+        return None
+    return goods
 
 
 def format_hs(code: str) -> str:
@@ -82,41 +157,77 @@ def format_hs(code: str) -> str:
 
 def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None, documents: list[str],
                  agencies: list[str], omission: tuple[str, str] | None) -> list[str]:
-    """요건 법령 하나에 대해 판매 방식별로 할 일. 판매 방식(구매대행/사입)은 사용자가 정한다.
+    """요건 법령 하나에 대한 할 일. 머리말, 할 일, 서류, 구매대행을 줄로 나눈 한 건으로 낸다.
+
+    #640: 법령마다 200자 2문장이 나오던 것을 한 건으로 줄였고, 실사이트 화면(11/9 전동 클렌저)에서 여전히 읽기 어려워
+    판매자가 읽는 말로 풀었다. '세관장확인'은 '세관에 서류를 내는 일'로, 조문 번호는 서류 줄에만 남긴다
+    (전체 근거는 판단 카드의 근거에 있음). HS가 후보라 "내야 할 수 있습니다"로 쓴다.
+    확인 기관 목록은 서류 이름에 발급처가 드러나 뺀다. 판매 방식(구매대행/사입)은 사용자가 정한다.
 
     Args:
         law_name: 요건 법령 이름.
         hs_codes: 이 법령이 걸린 HS.
         row: 고시 별표 2의 해당 행. 없으면 None.
         documents: GW가 준 요건 확인 서류.
-        agencies: GW가 준 요건 확인 기관.
+        agencies: GW가 준 요건 확인 기관. 문장에는 쓰지 않음 (호출부 호환용).
         omission: 고시 제7조 제2항의 생략 판단. ("excepted", 조건) = 생략 제외 법령, ("omittable", "") = 생략 가능,
             None = 고시를 확인하지 못함.
 
     Returns:
-        list[str]: 사입·수입 판매 안내와 구매대행 안내.
+        list[str]: 줄바꿈으로 나눈 할 일 한 건.
     """
-    label = f"[「{law_name}」 · HS {', '.join(format_hs(code) for code in hs_codes)} 후보]"
     papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
-    who = f"{', '.join(agencies)}의 " if agencies else ""
-    import_action = (f"{label} 사입·수입 판매: 이 HS로 분류되면 수입신고 때 세관장확인을 받아야 합니다. "
-                     f"{who}{papers}{object_particle(papers)} 미리 갖춰야 통관됩니다(관세법 제226조, 세관장확인 고시 별표 2).")
+    lines = [
+        f"[{law_name}] · 품목번호 HS {', '.join(format_hs(code) for code in hs_codes)} 후보",
+        "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.",
+        f"- 미리 갖출 서류: {papers} (관세법 제226조, 세관장확인 고시 별표 2)",
+        f"- {_agent_line(omission)}",
+    ]
+    note = law_note(law_name)
+    if note:
+        lines.append(f"- 참고: {note}")
+    return ["\n".join(lines)]
+
+
+def _agent_line(omission: tuple[str, str] | None) -> str:
+    """구매대행으로 들여올 때도 서류가 필요한지 한 줄. 근거는 세관장확인 고시 제7조 제2항 제1호.
+
+    Args:
+        omission: omission_status 결과.
+
+    Returns:
+        str: 생략 제외 법령이면 "구매대행도 해당"(고시가 범위를 좁혔으면 그 조건을 덧붙임), 생략할 수 있는 법령이면
+            생략될 수 있다는 안내, 고시를 읽지 못했으면 확인하지 못했다는 안내.
+    """
     if omission is None:
-        return [import_action, f"{label} 구매대행: 개인 사용 목적 수입의 세관장확인 생략 여부는 확인이 필요합니다."]
-    status, condition = omission
-    if status == "excepted":
-        # 단서의 조건 원문은 괄호째 오므로 괄호를 벗겨 "(… 단서 조건: …)" 한 겹으로 쓴다.
-        condition = condition.strip()
-        if condition.startswith("(") and condition.endswith(")"):
-            condition = condition[1:-1].strip()
-        note = f" 조건: {condition}" if condition else ""
-        return [import_action,
-                f"{label} 구매대행: 상행위 이외 목적 등 대외무역법 시행령 제19조 사유의 수입이어도 「{law_name}」 요건은 "
-                f"세관장확인 생략 대상에서 빠집니다(세관장확인 고시 제7조 제2항 제1호 단서{note}). "
-                "구매대행으로 들여와도 통관 때 요건 확인이 필요할 수 있습니다."]
-    return [import_action,
-            f"{label} 구매대행: 상행위 이외 목적 등 대외무역법 시행령 제19조 사유에 해당하는 수입이면 세관장확인을 "
-            "생략할 수 있습니다(세관장확인 고시 제7조 제2항 제1호). 해당 여부는 확인이 필요합니다."]
+        return "구매대행: 생략 여부를 확인하지 못함"
+    kind, condition = omission
+    if kind == "excepted":
+        # 고시가 법령 뒤에 붙인 조건(예: 약사법은 오·남용우려 의약품에 한정). 빼면 범위를 넓혀 안내하게 됨
+        scope = condition.strip().removeprefix("(").removesuffix(")").strip()
+        return f"구매대행도 해당 (고시 조건: {scope})" if scope else "구매대행도 해당"
+    # 고시 문구가 "생략할 수 있다"이고 대외무역법 시행령 제19조 사유는 수입 건마다 달라 확정하지 않음
+    return "구매대행: 구매자 개인이 쓰려고 들여오는 경우 등에는 생략될 수 있음"
+
+
+# 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당해 조건을 덧붙이는 설명 (#640).
+# 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축인 소·양·돼지 가죽은 대상이 아님.
+LAW_NOTES: dict[str, str] = {
+    law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, "
+                                        "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."),
+}
+
+
+def law_note(law_name: str) -> str | None:
+    """요건 법령에 덧붙일 해당 조건 설명.
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        str | None: 설명. 없으면 None.
+    """
+    return LAW_NOTES.get(law_key(law_name))
 
 
 def omission_status(law_name: str, exceptions: dict[str, str] | None) -> tuple[str, str] | None:

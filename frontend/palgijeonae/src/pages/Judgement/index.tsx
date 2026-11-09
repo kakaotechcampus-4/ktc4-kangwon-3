@@ -1,11 +1,12 @@
 import { useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { ProcessingStatusType } from "@/api/types/common";
 import Button from "@/components/common/Button";
 import HelpTooltip from "@/components/common/HelpTooltip";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import SectionIntro from "@/components/common/SectionIntro";
+import { createFromState } from "@/lib/fromState";
 import { isMissingRouteParam } from "@/lib/routeParams";
 
 import ProductProgressCard from "./components/ProductProgressCard";
@@ -16,6 +17,7 @@ import { useStatusAnnouncement } from "./hooks/useStatusAnnouncement";
 function JudgementPage() {
     const { diagnosesId } = useParams<{ diagnosesId?: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const isInvalidAccess = isMissingRouteParam(diagnosesId);
 
@@ -96,7 +98,7 @@ function JudgementPage() {
                         </p>
                         <Button
                             text="진단서 보기 →"
-                            onClick={() => isDiagnosisDone && navigate(`/result/diagnoses/${diagnosesId}`)}
+                            onClick={() => isDiagnosisDone && navigate(`/result/diagnoses/${diagnosesId}`, { state: createFromState(location) })}
                             fontSize={15}
                             ariaDisabled={!isDiagnosisDone}
                             ariaDescribedBy="report-hint"

@@ -18,6 +18,11 @@ function NavigatePage() {
   return <button onClick={() => navigate('/judgement/diagnoses-1')}>이동</button>
 }
 
+function BackPage() {
+  const navigate = useNavigate()
+  return <button onClick={() => navigate(-1)}>뒤로</button>
+}
+
 function FailingQueryPage() {
   const { isError, isPending } = useQuery({
     queryKey: ['always-fail'],
@@ -45,6 +50,29 @@ describe('renderWithProviders', () => {
 
     expect(screen.getByText('진단 진행 화면')).toBeInTheDocument()
     expect(getCurrentLocation()).toBe('/judgement/diagnoses-1')
+  })
+
+  it('history로 이전 항목을 깔아 두면 현재 주소는 route이고, navigate(-1)로 그 항목에 돌아간다', async () => {
+    renderWithProviders(<BackPage />, {
+      path: '/result',
+      route: '/result',
+      history: ['/mypage'],
+      extraRoutes: <Route path="/mypage" element={<p>마이페이지 화면</p>} />,
+    })
+    expect(getCurrentLocation()).toBe('/result')
+
+    await userEvent.click(screen.getByRole('button', { name: '뒤로' }))
+
+    expect(screen.getByText('마이페이지 화면')).toBeInTheDocument()
+    expect(getCurrentLocation()).toBe('/mypage')
+  })
+
+  it('history를 주지 않으면 이전 항목이 없어서 navigate(-1)을 해도 주소가 그대로다', async () => {
+    renderWithProviders(<BackPage />, { path: '/result', route: '/result' })
+
+    await userEvent.click(screen.getByRole('button', { name: '뒤로' }))
+
+    expect(getCurrentLocation()).toBe('/result')
   })
 
   it('QueryClient는 재시도하지 않아서 실패한 조회를 바로 확인할 수 있다', async () => {

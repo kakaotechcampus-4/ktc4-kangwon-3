@@ -21,7 +21,8 @@ public interface LawAmendmentProductRepository extends JpaRepository<LawAmendmen
             """)
     List<LawAmendmentProduct> findWithLawAmendmentAndProductByUserId(@Param("userId") UUID userId);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    // 재진단 트랜잭션 안에서 불리므로 영속성 컨텍스트를 비우지 않는다. 비우면 재진단 중인 상품이 준영속이 된다.
+    @Modifying(flushAutomatically = true)
     @Query("delete from LawAmendmentProduct lap where lap.product.id = :productId")
     int deleteByProductId(@Param("productId") UUID productId);
 }

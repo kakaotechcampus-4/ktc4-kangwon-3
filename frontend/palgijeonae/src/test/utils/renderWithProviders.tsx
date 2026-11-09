@@ -15,14 +15,16 @@ interface RenderOptions {
   // 처음 열려 있는 주소. 예: '/question/product-1'
   // 다른 화면이 navigate state로 넘겨주는 값이 필요하면 객체로 준다. 예: { pathname: '/upload', state: { demoProducts } }
   route?: InitialEntry
+  // route 앞에 깔아 둘 이전 히스토리. navigate(-1)로 돌아갈 항목이 필요할 때 준다. 예: ['/mypage']
+  history?: InitialEntry[]
   queryClient?: QueryClient
 }
 
 // 실제 라우터 컨텍스트(MemoryRouter)와 QueryClient 안에 <Route> 구성을 그대로 렌더한다. 보호 라우트처럼 중첩 Route가 필요할 때 쓴다.
-export function renderRoutes(routes: ReactNode, { route = '/', queryClient = createTestQueryClient() }: RenderOptions = {}) {
+export function renderRoutes(routes: ReactNode, { route = '/', history = [], queryClient = createTestQueryClient() }: RenderOptions = {}) {
   const result = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
+      <MemoryRouter initialEntries={[...history, route]}>
         <Routes>{routes}</Routes>
         <LocationDisplay />
       </MemoryRouter>

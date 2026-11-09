@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/core/client.ts";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
@@ -6,6 +6,7 @@ import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import { useIsMobile } from "@/hooks/useIsMobile.ts";
+import { createFromState } from "@/lib/fromState.ts";
 import { PAGE_GROUP_SIZE, PAGE_GROUP_SIZE_MOBILE } from "@/pages/Mypage/constants.ts";
 import { useDeleteProduct } from "@/pages/Mypage/hooks/useDeleteProduct.ts";
 import type { MyProductItem } from "@/pages/Mypage/types.ts";
@@ -26,6 +27,7 @@ interface MyProductListProps {
 function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange, onProductDeleted }: MyProductListProps) {
     const { mutate: deleteProduct, isPending: isDeleting, variables: deletingProductId } = useDeleteProduct();
     const isMobile = useIsMobile();
+    const location = useLocation();
 
     const handleDelete = (product: MyProductItem) => {
         const confirmed = confirm(`'${product.productName}'의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`);
@@ -68,7 +70,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                         const isDeletingThis = isDeleting && deletingProductId === product.productId;
                         return (
                             <li key={product.productId} className="relative">
-                                <Link to={`/result/product/${product.productId}`} className="block w-full cursor-pointer">
+                                <Link to={`/result/product/${product.productId}`} state={createFromState(location)} className="block w-full cursor-pointer">
                                     <ProductPreview
                                         productName={product.productName}
                                         productImageUrl={product.productImageUrl}

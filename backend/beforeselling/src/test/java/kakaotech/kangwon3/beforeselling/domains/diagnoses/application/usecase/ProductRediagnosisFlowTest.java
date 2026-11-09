@@ -14,6 +14,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolReviewStatus;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
+import kakaotech.kangwon3.beforeselling.domains.lawamendment.application.event.ProductRediagnosedEventListener;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.entity.LawAmendment;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.entity.LawAmendmentProduct;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.domain.repository.LawAmendmentProductRepository;
@@ -30,20 +31,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.after;
 import static org.mockito.Mockito.timeout;
 
 /**
- * 진단을 마친 상품 재진단부터 이전 결과 삭제, 재확인 대상 해제, 커밋 뒤 AI 재요청까지 실제 DB와 트랜잭션으로 확인한다.
+ * 진단을 마친 상품 재진단부터 이전 결과 삭제, 재확인 대상 해제(재진단 이벤트 리스너), 커밋 뒤 AI 재요청까지 실제 DB와 트랜잭션으로 확인한다.
  * AI 서버만 목으로 둔다.
  */
 @Tag("integration")
@@ -71,6 +76,9 @@ class ProductRediagnosisFlowTest {
 
     @MockitoBean
     private AiDiagnosesClient aiDiagnosesClient;
+
+    @MockitoSpyBean
+    private ProductRediagnosedEventListener productRediagnosedEventListener;
 
     @AfterEach
     void tearDown() {
@@ -115,6 +123,33 @@ class ProductRediagnosisFlowTest {
                 .containsExactly(product.getId().toString());
         await().atMost(Duration.ofSeconds(3)).untilAsserted(() ->
                 assertThat(productRepository.findById(product.getId()).orElseThrow().getRunId()).isEqualTo("run-2"));
+    }
+
+    @Test
+    @DisplayName("재확인 대상 해제가 실패하면 재진단도 함께 롤백되어 결과와 재확인 연결이 남고 AI에 다시 요청하지 않는다.")
+    void rediagnoseProduct_whenRemoveRecheckFails_thenRollbackTogether() {
+        // given
+        Diagnoses diagnoses = saveCompletedDiagnoses();
+        Product product = diagnoses.getProducts().getFirst();
+        LawAmendment lawAmendment = lawAmendmentRepository.save(LawAmendment.builder()
+                .lawName("어린이제품 안전 특별법 시행규칙")
+                .documentId("012345")
+                .toolName(ToolName.CHILDREN)
+                .serialNumber("291321")
+                .build());
+        lawAmendmentProductRepository.save(LawAmendmentProduct.of(lawAmendment, product));
+        willThrow(new IllegalStateException("재확인 대상 해제 실패"))
+                .given(productRediagnosedEventListener).handle(any());
+
+        // when & then
+        assertThatThrownBy(() -> productUseCase.rediagnoseProduct(USER_ID, product.getId()))
+                .isInstanceOf(IllegalStateException.class);
+
+        ProductResponse response = productUseCase.getProduct(USER_ID, product.getId());
+        assertThat(response.processingStatus()).isEqualTo(ProcessingStatus.COMPLETED);
+        assertThat(response.toolReviews()).isNotEmpty();
+        assertThat(lawAmendmentProductRepository.count()).isOne();
+        then(aiDiagnosesClient).should(after(500).never()).requestDiagnoses(any());
     }
 
     // 법령 근거가 달린 분야별 결과까지 받은 완료 상품

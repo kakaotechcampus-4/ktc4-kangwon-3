@@ -37,6 +37,13 @@ export function resultPage(user: User = userEvent.setup()) {
       await screen.findByText(textMatcher(text, options))
     },
 
+    // ── 이전으로 ─────────────────────────────────────────────
+    hasBackButton: () => screen.queryByRole('button', { name: '이전으로' }) !== null,
+    waitForBackButton: async () => {
+      await screen.findByRole('button', { name: '이전으로' })
+    },
+    clickBack: () => user.click(screen.getByRole('button', { name: '이전으로' })),
+
     // ── 다시 시도 (재진단) ────────────────────────────────────
     hasRetryButton: () => screen.queryByRole('button', { name: /다시 시도/ }) !== null,
     waitForRetryButton: async () => {

@@ -146,23 +146,34 @@ def test_근거는_관세법_제226조와_고시_별표2_행과_결정사례다(
     assert all("OC=" not in (source.source_url or "") for source in sources)
 
 
-def test_생략_제외_법령은_구매대행이어도_통관_때_요건_확인이_필요할_수_있다고_안내한다():
+def test_생략_제외_법령은_구매대행도_해당한다고_한_건으로_안내한다():
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()))
-    buying, importing = sorted(result.required_actions, key=lambda text: "구매대행" not in text)
-    assert "사입·수입 판매" in importing and "전기용품 및 생활용품 요건확인서" in importing
-    assert "생략 대상에서 빠집니다" in buying and "제7조 제2항 제1호 단서" in buying
+    [action] = result.required_actions
+    assert "세관에 아래 서류를 내야 할 수 있습니다." in action and "전기용품 및 생활용품 요건확인서" in action
+    assert action.split("\n")[-1] == "- 구매대행도 해당"
     # 재실행에서 이 판단이 빠지면 ToolExecutor가 이 판단의 할 일만 지울 수 있다.
     assert set(result.findings[0].requirements) == set(result.required_actions)
 
 
-def test_생략_제외가_아닌_법령은_대외무역법_시행령_제19조_사유면_생략할_수_있다고_안내한다():
+def test_생략_제외가_아닌_법령은_구매대행이면_생략될_수_있다고_안내한다():
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()),
                           requirements=FakeRequirements({"8516799000": [FakeRequirements.RADIO]}))
-    buying = next(text for text in result.required_actions if "구매대행" in text)
-    assert "생략할 수 있습니다" in buying and "해당 여부는 확인이 필요합니다" in buying
+    [action] = result.required_actions
+    assert action.split("\n")[-1] == "- 구매대행: 구매자 개인이 쓰려고 들여오는 경우 등에는 생략될 수 있음"
     assert result.query["related_tools"] == {"전파법": ToolName.RADIO.value}
+
+
+def test_야생생물법_요건에는_판단_요약과_할_일에_멸종위기종_조건을_덧붙인다():
+    product, facts = product_and_facts()
+    cites = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                        agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [cites]}))
+    [finding] = result.findings
+    assert "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다." in finding.summary
+    assert finding.summary.index("해당하지 않습니다.") < finding.summary.index("제출 서류:")
+    assert result.required_actions[0].endswith("소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다.")
 
 
 def test_같은_HS의_요건이_여러_법령이면_법령마다_판단을_낸다():
@@ -253,7 +264,7 @@ def test_근거_법령을_확인하지_못해도_요건_후보는_내고_생략_
     finding = result.findings[0]
     assert finding.determination is Determination.POSSIBLY_REQUIRED
     assert [source.source_name for source in finding.legal_sources] == ["관세청 품목분류 결정사례(CLIP)"]
-    assert any("생략 여부는 확인이 필요합니다" in text for text in result.required_actions)
+    assert any("- 구매대행: 생략 여부를 확인하지 못함" in text for text in result.required_actions)
 
 
 # -- 정보 부족·대조 실패 --
@@ -421,7 +432,7 @@ def test_법령명을_별표2와_대응하지_못하면_구매대행_생략_여�
                       document="요건확인서")
     result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [odd]}))
     buying = next(text for text in result.required_actions if "구매대행" in text)
-    assert "확인이 필요합니다" in buying and "생략할 수 있습니다" not in buying
+    assert buying.split("\n")[-1] == "- 구매대행: 생략 여부를 확인하지 못함"
 
 
 class _FixedCases:
@@ -534,3 +545,34 @@ def test_무기_형태이거나_모르면_총포법_요건을_남긴다(weapon_l
     subjects = [finding.subject for finding in result.findings]
     assert "세관장확인 대상 후보 — 총포･도검･화약류 등의 안전관리에 관한 법률" in subjects
     assert "excluded_requirements" not in result.query
+
+
+def test_소가죽_상품의_야생생물법_요건은_빼고_이유를_가정에_남긴다():
+    # #640 소가죽 지갑: HS 4202.31에 야생생물법이 걸려 오지만 CITES 종 가죽에만 해당하는 요건
+    # 결정사례 가짜는 주전자 검색어만 알아 상품은 주전자 그대로 두고 소재만 소가죽으로 적음 (사실은 원문 인용이 맞아야 남음)
+    product, facts = product_and_facts(
+        text="소가죽 손잡이 전기주전자, 전기로 물을 끓임. 소재: 탑 레이어 소가죽",
+        values=(("product_type", "전기주전자"), ("material", "탑 레이어 소가죽"), ("function", "전기로 물을 끓임")))
+    cites = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                        agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [cites]}))
+    assert result.query["excluded_requirements"] == {"8516799000": [cites.law_name]}
+    assert result.required_actions == []
+    # 요건을 전부 뺀 HS만 남으면 '정보 부족'이 아니라 조회해서 해당 없음으로 본 확정 판단을 남긴다 (카드가 정보 부족으로 나가지 않게)
+    [finding] = result.findings
+    assert finding.subject == "세관장확인 대상 법령 — 상품에 해당하는 요건 없음"
+    assert finding.determination is Determination.NOT_REQUIRED and finding.risk_level is RiskLevel.LOW
+    assert "「야생생물 보호 및 관리에 관한 법률(허가)」은 상품 정보상 이 상품에 해당하지 않습니다" in finding.summary
+    assert finding.legal_sources and finding.legal_sources[0].article == "제226조"
+    assert any("멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 걸리는 요건" in text for text in finding.assumptions)
+
+
+def test_악어가죽_상품의_야생생물법_요건은_남긴다():
+    product, facts = product_and_facts(
+        text="악어가죽 손잡이 전기주전자, 전기로 물을 끓임. 소재: 악어가죽",
+        values=(("product_type", "전기주전자"), ("material", "악어가죽"), ("function", "전기로 물을 끓임")))
+    cites = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                        agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [cites]}))
+    assert "excluded_requirements" not in result.query
+    assert any("야생생물" in finding.subject for finding in result.findings)
