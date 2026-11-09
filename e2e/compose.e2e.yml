@@ -37,7 +37,8 @@ services:
   app:
     build:
       context: ../backend/beforeselling
-      target: local
+      # CI는 러너에서 만든 jar를 쓰도록 deploy로 바꾼다.
+      target: ${E2E_APP_TARGET:-local}
     image: beforeselling-app:e2e
     depends_on:
       db:
