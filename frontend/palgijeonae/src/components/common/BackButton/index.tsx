@@ -28,7 +28,7 @@ function BackButton({ diagnosesId }: BackButtonProps) {
     };
 
     return (
-        <button type="button" onClick={handleClick} className="flex cursor-pointer items-center gap-1 self-start text-sm font-medium text-neutral-muted">
+        <button type="button" onClick={handleClick} className="flex cursor-pointer items-center gap-1 py-1 text-sm font-medium text-neutral-muted">
             <img src={nextPageIcon} alt="" className="h-4 w-4 -scale-x-100" />
             이전으로
         </button>
