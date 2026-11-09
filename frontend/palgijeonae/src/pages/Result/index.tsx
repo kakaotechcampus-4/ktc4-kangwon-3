@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { ProductResult } from "@/api/types/product";
+import BackButton from "@/components/common/BackButton";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
@@ -47,6 +48,9 @@ function ResultPage() {
 
     const currentProduct = products[selectedProductIndex];
 
+    // 이전 경로를 모를 때 돌아갈 진행 화면. 진단서 모드는 URL 값을, 상품 단건 모드는 불러온 상품의 값을 쓴다.
+    const judgementDiagnosesId = isMissingDiagnosesId ? currentProduct?.diagnosesId : diagnosesId;
+
     // 진단이 끝나기 전에는 다음단계 탭을 비활성화 한다.
     const isDiagnosisComplete = currentProduct?.resultStatus != null;
     const disabledTabs = isDiagnosisComplete ? [] : [ResultTabKey.NextSteps];
@@ -81,7 +85,11 @@ function ResultPage() {
     } : null;
 
     return (
-        <div className="flex w-full flex-col gap-8">
+        <div className="relative flex w-full flex-col gap-8">
+            {/* 본문 위 여백에 띄워서 제목 위치가 밀리지 않게 한다. */}
+            <div className="absolute -top-7.5 left-0">
+                <BackButton diagnosesId={judgementDiagnosesId} />
+            </div>
             <SectionIntro title="진단 결과" description={`${products.length}개 상품에 대한 판정입니다. 상품을 눌러 각각의 근거를 확인하세요.`} />
             {isInvalidId ? null : isPending ? (
                 <LoadingSpinner />
