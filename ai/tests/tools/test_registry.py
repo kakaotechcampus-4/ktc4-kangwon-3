@@ -39,3 +39,23 @@ def test_등록된_모든_Tool은_모델_프로필이_있다():
     from app.config import TOOL_PROFILES
 
     assert {name.value for name in TOOL_REGISTRY} <= set(TOOL_PROFILES)
+
+
+# 정보 부족 카드의 둘째 문장(화면의 판단 근거). 어떤 상품일 때 무엇을 확인해야 하는지 분야마다 적는다
+INSUFFICIENT_GUIDES = {
+    ToolName.CUSTOMS: "통관 때 필요한 서류가 있는지는 관세사나 세관에 직접 확인이 필요합니다.",
+    ToolName.RADIO: "블루투스, Wi-Fi 같은 무선 기능이 있는 상품이라면 전파 인증 대상인지 직접 확인이 필요합니다.",
+    ToolName.FOOD_DRUG: "음식에 닿거나, 먹거나, 몸에 바르는 상품이라면 직접 확인이 필요합니다.",
+    ToolName.ELECTRICAL: "전기를 쓰는 상품이라면 KC 인증 대상인지 직접 확인이 필요합니다.",
+    ToolName.CHILDREN: "만 13세 이하 어린이가 쓰는 상품이라면 KC 인증 대상인지 직접 확인이 필요합니다.",
+}
+
+
+@pytest.mark.parametrize("name", list(INSUFFICIENT_GUIDES))
+def test_정보_부족_카드는_어떤_상품이면_직접_확인해야_하는지_알려_준다(name):
+    _, summary, rationale = TOOL_REGISTRY[name].insufficient
+
+    assert rationale == INSUFFICIENT_GUIDES[name]
+    # 본문이 이미 "판단하지 못했습니다"로 끝나므로 같은 말을 되풀이하지 않고, 겹친 부정문도 쓰지 않음
+    assert summary.endswith("판단하지 못했습니다.")
+    assert "보류" not in rationale and "보지는 않습니다" not in rationale

@@ -113,8 +113,9 @@ def test_결정사례로_HS_후보를_찾고_그_HS의_세관장확인_요건을
     assert requirements.calls == ["8516799000"]
     finding = result.findings[0]
     assert finding.determination is Determination.POSSIBLY_REQUIRED
-    assert finding.subject == "세관장확인 대상 후보 — 전기용품 및 생활용품 안전관리법"
-    assert "8516.79-9000" in finding.summary and "확정 아님" in finding.summary
+    assert finding.subject == "통관 서류가 필요할 수 있음 — 전기용품 및 생활용품 안전관리법"
+    # 본문은 할 일 문구와 같은 말로 품목번호와 서류를 줄마다 적음
+    assert finding.summary == "- 품목번호: HS 8516.79-9000 후보\n- 미리 갖출 서류: 전기용품 및 생활용품 요건확인서"
     assert result.result.hs_code_candidates == ["8516.79-9000"]
     assert result.result.applicable_requirements == ["전기용품 및 생활용품 안전관리법"]
     assert result.query["selected_cases"] == [KETTLE_CASE]
@@ -128,8 +129,8 @@ def test_고른_결정사례가_여럿이면_사례마다_이유를_줄을_나�
     result, _, _, _ = run(product, facts, chosen)
 
     assert result.findings[0].rationale == "전기로 물을 끓이는 주전자로 같은 물품입니다.\n무선 주전자로 같은 물품입니다."
-    # 요약도 판단 문장과 제출 서류를 줄을 나눔
-    assert "(확정 아님).\n제출 서류: " in result.findings[0].summary
+    # 요약도 품목번호와 서류를 줄을 나눔
+    assert "후보\n- 미리 갖출 서류: " in result.findings[0].summary
 
 
 def test_근거는_관세법_제226조와_고시_별표2_행과_결정사례다():
@@ -172,7 +173,9 @@ def test_야생생물법_요건에는_판단_요약과_할_일에_멸종위기�
     result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [cites]}))
     [finding] = result.findings
     assert "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다." in finding.summary
-    assert finding.summary.index("해당하지 않습니다.") < finding.summary.index("제출 서류:")
+    assert finding.summary.split("\n") == [
+        "- 품목번호: HS 8516.79-9000 후보", "- 미리 갖출 서류: 국제적멸종위기 동식물 수입허가서",
+        "- 악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, 소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."]
     assert result.required_actions[0].endswith("소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다.")
 
 
@@ -195,14 +198,16 @@ def test_모델에는_후보_사례의_앞부분만_들어간다():
 
 # -- 요건이 없거나 확인하지 못한 경우 --
 
-def test_조회해서_요건이_없으면_정보부족이_아니라_HS_후보_기준_요건_없음으로_낸다():
+def test_조회해서_요건이_없으면_정보부족이_아니라_통관_서류_필요_없음으로_낸다():
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({}))
     finding = result.findings[0]
-    assert finding.subject == "세관장확인 대상 법령 — HS 후보 기준 없음"
+    assert finding.subject == "통관 서류 필요 없음"
     assert finding.determination is Determination.NOT_REQUIRED
     assert finding.risk_level is RiskLevel.LOW
-    assert "국내 판매 규제가 없다는 뜻은 아닙니다" in finding.summary
+    # 화면에 나가는 요약은 품목번호만. 국내 판매 규제 안내는 화면에 안 나가는 가정에 남김
+    assert finding.summary == "품목번호: HS 8516.79-9000"
+    assert any("국내 판매 규제" in note and "없다는 뜻은 아닙니다" in note for note in finding.assumptions)
     assert any("다른 HS로 분류되면" in note for note in finding.assumptions)
     # 확정 판단이라 인용문과 공개 주소가 있는 근거 조문을 붙인다(관세법 제226조)
     assert any(source.quoted_text and source.source_url for source in finding.legal_sources)
@@ -225,9 +230,9 @@ def test_GW가_요건_종류를_붙인_같은_법령은_판단_하나로_묶는�
     product, facts = product_and_facts()
     table = {"8516799000": [FakeRequirements.ELECTRICAL, permit]}
     result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements(table))
-    candidates = [finding for finding in result.findings if finding.subject.startswith("세관장확인 대상 후보")]
+    candidates = [finding for finding in result.findings if finding.subject.startswith("통관 서류가 필요할 수 있음")]
     assert len(candidates) == 1
-    assert candidates[0].subject == "세관장확인 대상 후보 — 전기용품 및 생활용품 안전관리법"
+    assert candidates[0].subject == "통관 서류가 필요할 수 있음 — 전기용품 및 생활용품 안전관리법"
 
 
 def test_GW_키가_없으면_요건_미확인으로_내고_확인_방법을_안내한다():
@@ -235,7 +240,9 @@ def test_GW_키가_없으면_요건_미확인으로_내고_확인_방법을_안�
     missing_key = FakeRequirements(error=EvidenceUnavailable("세관장확인 GW 서비스 키(DATA_GO_KR_KEY)가 없어 요건을 조회하지 못했습니다."))
     result, _, _, _ = run(product, facts, review(select()), requirements=missing_key)
     finding = result.findings[0]
-    assert finding.subject == "세관장확인 요건 — 조회하지 못함"
+    assert finding.subject == "통관 서류 — 조회하지 못함"
+    assert finding.summary == ("- 품목번호: HS 8516.79-9000 후보\n"
+                               "- 필요한 서류를 조회하지 못했습니다. 관세사나 세관에 직접 확인이 필요합니다.")
     assert finding.determination is Determination.INSUFFICIENT_INFORMATION
     assert result.result.hs_code_candidates == ["8516.79-9000"]
     assert any("UNI-PASS" in text for text in result.required_actions)
@@ -250,7 +257,7 @@ def test_6단위_HS는_요건을_조회하지_않고_미확인으로_남긴다(m
     result, _, _, requirements = run(product, facts, review(select()))
     assert requirements.calls == []
     assert result.query["hs_candidates"] == ["851679"]
-    assert result.findings[0].subject == "세관장확인 요건 — 조회하지 못함"
+    assert result.findings[0].subject == "통관 서류 — 조회하지 못함"
     assert result.result.hs_code_candidates == ["8516.79"]
 
 
@@ -412,7 +419,7 @@ def test_식품용_기구_요건은_실리콘_주걱_HS에서_찾는다():
                                        (("product_type", "실리콘 주걱"), ("material", "실리콘")),
                                        search_terms=("실리콘 주걱",))
     result, _, _, _ = run(product, facts, review(select(SPATULA_CASE, fact_fields=["product_type", "material"])))
-    assert result.findings[0].subject == "세관장확인 대상 후보 — 수입식품안전관리 특별법"
+    assert result.findings[0].subject == "통관 서류가 필요할 수 있음 — 수입식품안전관리 특별법"
     assert result.query["related_tools"] == {"수입식품안전관리 특별법": ToolName.FOOD_DRUG.value}
     assert isinstance(FakeRequirements.FOOD, Requirement)
 
@@ -452,9 +459,10 @@ def test_일부_HS만_요건이_없으면_그_HS도_따로_알린다():
                        evidence=lambda: _EVIDENCE)
     result = tool.execute(product, decision())
     subjects = [finding.subject for finding in result.findings]
-    assert "세관장확인 대상 후보 — 전기용품 및 생활용품 안전관리법" in subjects
-    empty = next(finding for finding in result.findings if finding.subject == "세관장확인 대상 법령 — HS 후보 기준 없음")
-    assert "8419.81-0000" in empty.summary and "8516.79" not in empty.summary
+    assert "통관 서류가 필요할 수 있음 — 전기용품 및 생활용품 안전관리법" in subjects
+    empty = next(finding for finding in result.findings if finding.subject == "통관 서류 필요 없음")
+    # 요건이 있는 다른 후보 카드와 어긋나 보이지 않게, 이 번호로 분류될 때의 결과임을 밝힘
+    assert empty.summary == "품목번호: HS 8419.81-0000 (이 번호로 분류될 때)"
 
 
 def test_문서_ID가_없는_사례는_물품명과_HS로_구분한다():
@@ -523,7 +531,7 @@ def test_무기_형태가_아닌_상품이면_HS에_걸린_총포법_요건은_�
     result = _toy_result(False)
 
     subjects = [finding.subject for finding in result.findings]
-    assert subjects == ["세관장확인 대상 후보 — 어린이제품 안전 특별법"]
+    assert subjects == ["통관 서류가 필요할 수 있음 — 어린이제품 안전 특별법"]
     assert result.query["excluded_requirements"] == {"9503003919": [_GUN.law_name]}
     assert result.query["requirements"]["9503003919"] == []
     assert result.result.applicable_requirements == ["어린이제품 안전 특별법"]
@@ -535,7 +543,7 @@ def test_무기_형태가_아닌_상품이면_HS에_걸린_총포법_요건은_�
 def test_요건을_뺀_HS는_조회_결과_요건_없음으로_안내하지_않는다():
     result = _toy_result(False)
 
-    assert all("HS 후보 기준 없음" not in finding.subject for finding in result.findings)
+    assert all("통관 서류 필요 없음" not in finding.subject for finding in result.findings)
 
 
 @pytest.mark.parametrize("weapon_like", [True, None])
@@ -543,7 +551,7 @@ def test_무기_형태이거나_모르면_총포법_요건을_남긴다(weapon_l
     result = _toy_result(weapon_like)
 
     subjects = [finding.subject for finding in result.findings]
-    assert "세관장확인 대상 후보 — 총포･도검･화약류 등의 안전관리에 관한 법률" in subjects
+    assert "통관 서류가 필요할 수 있음 — 총포･도검･화약류 등의 안전관리에 관한 법률" in subjects
     assert "excluded_requirements" not in result.query
 
 
@@ -560,9 +568,12 @@ def test_소가죽_상품의_야생생물법_요건은_빼고_이유를_가정�
     assert result.required_actions == []
     # 요건을 전부 뺀 HS만 남으면 '정보 부족'이 아니라 조회해서 해당 없음으로 본 확정 판단을 남긴다 (카드가 정보 부족으로 나가지 않게)
     [finding] = result.findings
-    assert finding.subject == "세관장확인 대상 법령 — 상품에 해당하는 요건 없음"
+    # 판매자에게는 '요건 없음'과 같은 결론이라 같은 제목과 품목번호로 내고, 뺀 요건은 한 줄로 알림
+    assert finding.subject == "통관 서류 필요 없음"
     assert finding.determination is Determination.NOT_REQUIRED and finding.risk_level is RiskLevel.LOW
-    assert "「야생생물 보호 및 관리에 관한 법률(허가)」은 상품 정보상 이 상품에 해당하지 않습니다" in finding.summary
+    assert finding.summary == ("품목번호: HS 8516.79-9000\n"
+                               "멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 필요한 서류는 제외했습니다.")
+    assert any("국내 판매 규제" in text for text in finding.assumptions)
     assert finding.legal_sources and finding.legal_sources[0].article == "제226조"
     assert any("멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 걸리는 요건" in text for text in finding.assumptions)
 
