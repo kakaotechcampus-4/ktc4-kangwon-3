@@ -80,12 +80,13 @@ AGENT_PROFILES = {
 # MODEL_PROFILE_OVERRIDES 환경변수로 잠깐 바꿀 수 있음 (예: tool.electrical_safety=luna-low)
 # Tool 안에서 BaseAgent를 쓰면 model_profile = ("tool", ToolName 값)으로 이 표를 씀
 TOOL_PROFILES = {
-    "electrical_safety": "mini",
-    "labeling_advertising_detection": "mini",
-    "children_product_safety": "mini",
-    "radio_compliance": "mini",
-    "customs_requirements": "mini",
-    "food_drug_safety": "mini",
+    # 11-09 모델 선택 테스트(#701): mini 대비 위험한 오답이 크게 줄고 비용도 낮아 6개 모두 luna-low
+    "electrical_safety": "luna-low",
+    "labeling_advertising_detection": "luna-low",
+    "children_product_safety": "luna-low",
+    "radio_compliance": "luna-low",
+    "customs_requirements": "luna-low",
+    "food_drug_safety": "luna-low",
 }
 
 
