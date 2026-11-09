@@ -6,7 +6,7 @@ import { errorResponse } from '@/test/mocks/responses'
 import { server } from '@/test/mocks/server'
 
 const TIMEOUT_MESSAGE = '응답이 지연되고 있어요. 잠시 후 다시 시도해주세요.'
-const NETWORK_MESSAGE = '네트워크 연결을 확인하고 다시 시도해주세요.'
+const NETWORK_MESSAGE = '서버에 연결하지 못했어요. 네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요.'
 // NOTE(source): 타임아웃 값이 export되지 않아 소스(client.ts, diagnosis.ts)의 값과 같게 직접 둔다.
 const API_TIMEOUT_MS = 10_000
 const S3_UPLOAD_TIMEOUT_MS = 60_000

@@ -132,9 +132,9 @@ export function getErrorMessage(error: unknown, fallback: string): string {
             return '응답이 지연되고 있어요. 잠시 후 다시 시도해주세요.'
         }
 
-        // 서버에 닿지 못한 경우(오프라인, 연결 실패 등). axios 기본 문구(Network Error)를 그대로 보여주지 않는다.
+        // 서버에 닿지 못한 경우. 네트워크 문제인지 서버 문제인지 구분할 수 없어 원인을 단정하지 않는 문구를 쓰고, axios 기본 문구(Network Error)는 보여주지 않는다.
         if (error.code === AxiosError.ERR_NETWORK) {
-            return '네트워크 연결을 확인하고 다시 시도해주세요.'
+            return '서버에 연결하지 못했어요. 네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요.'
         }
 
         // 요청 한도 초과(429 COMMON-011): Retry-After 헤더(초)로 안내 문구를 만든다.
