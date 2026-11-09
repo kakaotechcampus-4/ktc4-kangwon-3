@@ -16,6 +16,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageSta
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.ProductRediagnosedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -53,6 +54,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.times;
 import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
@@ -464,7 +466,7 @@ class ProductServiceTest {
     }
 
     @Test
-    @DisplayName("진단을 마친 상품을 재진단하면 상품과 진단서가 진행 중이 되고 그 상품만 담은 AI 진단 요청 이벤트를 발행한다.")
+    @DisplayName("진단을 마친 상품을 재진단하면 상품과 진단서가 진행 중이 되고 재진단 이벤트와 그 상품만 담은 AI 진단 요청 이벤트를 차례로 발행한다.")
     void rediagnoseProduct_thenInProgressAndPublishRequestEvent() {
         // given: 상품 A는 완료, 상품 B는 실패라 진단서는 끝난 상태
         Diagnoses diagnoses = createRunningDiagnoses(List.of("상품 A", "상품 B"));
@@ -480,12 +482,15 @@ class ProductServiceTest {
         // then
         assertThat(product.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
         assertThat(diagnoses.getProcessingStatus()).isEqualTo(ProcessingStatus.IN_PROGRESS);
-        ArgumentCaptor<AiDiagnosesRequestedEvent> captor = ArgumentCaptor.forClass(AiDiagnosesRequestedEvent.class);
-        then(eventPublisher).should().publishEvent(captor.capture());
-        assertThat(captor.getValue().diagnosesId()).isEqualTo(DIAGNOSES_ID);
-        assertThat(captor.getValue().products())
-                .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
-                .containsExactly(PRODUCT_ID);
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        then(eventPublisher).should(times(2)).publishEvent(captor.capture());
+        assertThat(captor.getAllValues().getFirst()).isEqualTo(new ProductRediagnosedEvent(PRODUCT_ID));
+        assertThat(captor.getAllValues().get(1)).isInstanceOfSatisfying(AiDiagnosesRequestedEvent.class, event -> {
+            assertThat(event.diagnosesId()).isEqualTo(DIAGNOSES_ID);
+            assertThat(event.products())
+                    .extracting(AiDiagnosesRequestedEvent.ProductInput::productId)
+                    .containsExactly(PRODUCT_ID);
+        });
     }
 
     @Test

@@ -12,6 +12,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.StageSta
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiDiagnosesRequestedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.AiResumeRequestedEvent;
+import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.event.ProductRediagnosedEvent;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.ProductRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
@@ -124,6 +125,7 @@ public class ProductService {
     /**
      * 진단을 마친 상품 재진단. 이전 결과를 지우고 상품을 다시 진단 중으로 바꾼 뒤 진단서 전체 상태를 다시 계산한다.
      * 커밋 뒤에 AI에 진단을 다시 요청하도록 이벤트를 발행한다. 요청 결과 처리는 진단서 생성 때와 같다.
+     * 재진단 사실도 이벤트로 알려, 받는 쪽이 같은 트랜잭션 안에서 후속 처리를 하게 한다(예: 법령 개정 재확인 대상 해제).
      */
     @Transactional
     public void rediagnoseProduct(UUID userId, UUID productId) {
@@ -132,6 +134,7 @@ public class ProductService {
         product.rediagnose();
         product.getDiagnoses().refreshProcessingStatus();
 
+        eventPublisher.publishEvent(new ProductRediagnosedEvent(productId));
         eventPublisher.publishEvent(AiDiagnosesRequestedEvent.of(product.getDiagnoses().getId(), List.of(product)));
         log.info("상품 재진단. productId={}", productId);
     }
