@@ -80,6 +80,18 @@ def test_야생생물법은_가축_가죽이_명시되고_멸종위기종_표기
     assert excluded_by_product(law, product, ["Genuine calf hide belt"]) is not None
     # 'calf leather'는 종아리 뜻으로도 쓰여 빼는 표기로 보지 않는다 (남기는 쪽)
     assert excluded_by_product(law, product, ["Wide calf leather boots"]) is None
+    # 일부 소재만 확인된 상품은 남긴다. 안감은 인조 소재인데 겉감 가죽의 종류는 모르는 경우 (리뷰 #708)
+    assert excluded_by_product(law, product, ["겉감: 가죽, 안감: PVC"]) is None
+    assert excluded_by_product(law, product, ["천연가죽 가방 (안감 PVC 가죽)"]) is None
+    assert excluded_by_product(law, product, ["겉감 천연가죽, 안감 인조가죽"]) is None
+    assert excluded_by_product(law, product, ["Genuine leather, PU leather lining"]) is None
+    assert excluded_by_product(law, product, ["겉감 가죽, 안감 돈피(피그스킨)"]) is None
+    # 'PVC'만으로는 인조 가죽 표기로 보지 않는다 ('PVC 무첨가'는 PVC가 없다는 말)
+    assert excluded_by_product(law, product, ["PVC 무첨가 친환경 소재"]) is None
+    assert excluded_by_product(law, product, ["PVC 가죽 가방"]) is not None
+    # 뺄 수 있는 표기 바로 뒤의 가죽 낱말은 같은 소재라 남은 가죽으로 세지 않는다
+    assert excluded_by_product(law, product, ["Genuine Cowhide Leather wallet"]) is not None
+    assert excluded_by_product(law, product, ["소가죽 레더 카드지갑"]) is not None
     # 모피(fur)는 낱말일 때만 남긴다. 'Furla', 'furniture' 안의 글자는 모피 표기가 아니다
     assert excluded_by_product(law, product, ["Furla 소가죽 지갑"]) is not None
     assert excluded_by_product(law, product, ["소가죽 가구 furniture"]) is not None
