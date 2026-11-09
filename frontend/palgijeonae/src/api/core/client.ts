@@ -92,6 +92,7 @@ apiClient.interceptors.response.use(
             const path = toPathTemplate(error.config?.url ?? '')
 
             // 이슈 제목(에러 타입)은 그대로 두고, 설명만 사용자에게 보여주는 것과 같은 한글 메시지로 바꾼다.
+            originalMessages.set(error, error.message)
             error.message = getErrorMessage(error, error.message)
 
             Sentry.withScope((scope) => {
@@ -112,12 +113,17 @@ interface ApiErrorResponse {
     details?: { message: string }[]
 }
 
+// 응답 인터셉터가 error.message를 한글로 바꾸기 전의 메시지. 바뀐 뒤에 getErrorMessage를 다시 불러도 같은 판별을 하려고 남겨 둔다.
+const originalMessages = new WeakMap<object, string>()
+
 // ECONNABORTED는 요청 중단("Request aborted")에도 쓰여서 메시지로 타임아웃만 골라낸다.
 function isTimeoutError(error: AxiosError): boolean {
-    return error.code === AxiosError.ETIMEDOUT || (error.code === AxiosError.ECONNABORTED && error.message.includes('timeout'))
+    const message = originalMessages.get(error) ?? error.message
+    return error.code === AxiosError.ETIMEDOUT || (error.code === AxiosError.ECONNABORTED && message.includes('timeout'))
 }
 
 // 백엔드 에러 응답(details[0].message 우선, 없으면 message)에서 사용자에게 보여줄 메시지를 꺼낸다.
+// 백엔드 에러 형식이 아닌 응답(본문 없는 5xx 등)은 axios 기본 영문 문구 대신 fallback을 돌려준다.
 export function getErrorMessage(error: unknown, fallback: string): string {
     if (axios.isAxiosError<ApiErrorResponse>(error)) {
         const data = error.response?.data
@@ -126,13 +132,18 @@ export function getErrorMessage(error: unknown, fallback: string): string {
             return '응답이 지연되고 있어요. 잠시 후 다시 시도해주세요.'
         }
 
+        // 서버에 닿지 못한 경우. 네트워크 문제인지 서버 문제인지 구분할 수 없어 원인을 단정하지 않는 문구를 쓰고, axios 기본 문구(Network Error)는 보여주지 않는다.
+        if (error.code === AxiosError.ERR_NETWORK) {
+            return '서버에 연결하지 못했어요. 네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요.'
+        }
+
         // 요청 한도 초과(429 COMMON-011): Retry-After 헤더(초)로 안내 문구를 만든다.
         if (data?.code === 'COMMON-011') {
             const retryAfter = Number(error.response?.headers['retry-after'])
             return retryAfter > 0 ? `${retryAfter}초 후 다시 시도해주세요.` : '잠시 후 다시 시도해주세요.'
         }
 
-        return data?.details?.[0]?.message ?? data?.message ?? error.message
+        return data?.details?.[0]?.message ?? data?.message ?? fallback
     }
 
     if (error instanceof Error) {

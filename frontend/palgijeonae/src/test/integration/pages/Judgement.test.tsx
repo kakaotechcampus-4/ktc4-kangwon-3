@@ -201,7 +201,7 @@ describe('진단 진행 화면 - 상태별 카드', () => {
     expect(card.resultLinkHref()).toBe('/result/product/p3')
   })
 
-  it('실패한 상품은 오류 메시지를 안내하고, 이동 버튼은 없다', async () => {
+  it('실패한 상품은 오류 메시지를 안내하고, 결과 화면으로 가는 버튼을 노출한다', async () => {
     const page = renderJudgementPage()
     await page.waitUntilLoaded()
 
@@ -209,7 +209,7 @@ describe('진단 진행 화면 - 상태별 카드', () => {
     expect(card.hasStatusLabel(STATUS_LABELS[ProcessingStatusType.Failed])).toBe(true)
     // 설명 줄과 하단 안내 박스에 같은 오류 메시지가 보인다.
     expect(card.textCount(FAILURE_MESSAGE)).toBe(2)
-    expect(card.hasAnyLink()).toBe(false)
+    expect(card.resultLinkHref()).toBe('/result/product/p4')
   })
 
   it('질문에 답변하기 버튼을 누르면 그 상품의 질문 화면으로 이동한다', async () => {
@@ -230,6 +230,16 @@ describe('진단 진행 화면 - 상태별 카드', () => {
 
     expect(await findStubScreen('결과 화면')).toBeInTheDocument()
     expect(getCurrentLocation()).toBe('/result/product/p3')
+  })
+
+  it('실패한 상품의 결과 보기 버튼을 누르면 그 상품의 결과 화면으로 이동한다', async () => {
+    const page = renderJudgementPage()
+    await page.waitUntilLoaded()
+
+    await page.card(FAILED_NAME).goToResult()
+
+    expect(await findStubScreen('결과 화면')).toBeInTheDocument()
+    expect(getCurrentLocation()).toBe('/result/product/p4')
   })
 })
 

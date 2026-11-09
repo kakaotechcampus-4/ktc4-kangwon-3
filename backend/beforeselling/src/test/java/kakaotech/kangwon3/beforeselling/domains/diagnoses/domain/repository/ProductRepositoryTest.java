@@ -443,6 +443,29 @@ class ProductRepositoryTest {
     }
 
     @Test
+    @DisplayName("법령 변경 재확인 대상을 고를 때 진단서도 함께 가져와 회원 ID를 추가 조회 없이 읽는다.")
+    void findCompletedByToolNameAndCitedLawName_thenFetchDiagnoses() {
+        // given
+        Product cited = completedProduct("법령을 인용한 완구", ToolName.CHILDREN, ToolReviewStatus.COMPLETED,
+                List.of(finding(CHILDREN_RULE)));
+        Diagnoses diagnoses = Diagnoses.pending(USER_ID);
+        diagnoses.addProducts(List.of(cited));
+        diagnosesRepository.save(diagnoses);
+        flushAndClear();
+
+        // when
+        List<Product> result = productRepository.findCompletedByToolNameAndCitedLawName(
+                ToolName.CHILDREN, CHILDREN_RULE);
+
+        // then
+        assertThat(result).singleElement()
+                .satisfies(product -> {
+                    assertThat(Hibernate.isInitialized(product.getDiagnoses())).isTrue();
+                    assertThat(product.getDiagnoses().getUserId()).isEqualTo(USER_ID);
+                });
+    }
+
+    @Test
     @DisplayName("법령을 인용했어도 진단 중인 상품은 법령 변경 재확인 대상으로 고르지 않는다.")
     void findCompletedByToolNameAndCitedLawName_withInProgress_thenExclude() {
         // given

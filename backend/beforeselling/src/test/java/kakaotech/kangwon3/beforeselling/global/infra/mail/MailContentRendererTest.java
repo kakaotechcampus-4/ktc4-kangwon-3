@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.thymeleaf.autoconfigure.ThymeleafAutoConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,9 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MailContentRendererTest {
 
     private static final Map<String, Object> VARIABLES = Map.of(
-            "amendedOn", "2026-09-29",
-            "lawName", "어린이제품 안전 특별법 시행규칙 별표2",
-            "summary", "완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다.",
+            "laws", List.of(
+                    Map.of("lawName", "어린이제품 안전 특별법", "revisionType", "일부개정", "amendedOn", "2026-09-29"),
+                    Map.of("lawName", "어린이제품 안전 특별법 시행규칙", "revisionType", "전부개정", "amendedOn", "2026-09-30")),
             "affectedProductCount", 2,
             "myPageUrl", "https://palgijeone.com/mypage");
 
@@ -32,7 +33,7 @@ class MailContentRendererTest {
     private MailContentRenderer mailContentRenderer;
 
     @Test
-    @DisplayName("HTML 템플릿에 변수 값을 채워 렌더링한다.")
+    @DisplayName("HTML 템플릿에 변경된 법령을 모두 나열해 렌더링한다.")
     void renderHtml_thenFillVariables() {
         // when
         String html = mailContentRenderer.renderHtml(MailTemplate.LAW_AMENDMENT, VARIABLES);
@@ -40,21 +41,23 @@ class MailContentRendererTest {
         // then
         assertThat(html)
                 .contains("<html")
-                .contains("2026-09-29")
-                .contains("어린이제품 안전 특별법 시행규칙 별표2")
-                .contains("완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다.")
+                .contains("어린이제품 안전 특별법</strong>", "일부개정", "2026-09-29")
+                .contains("어린이제품 안전 특별법 시행규칙</strong>", "전부개정", "2026-09-30")
                 .contains("https://palgijeone.com/mypage");
     }
 
     @Test
-    @DisplayName("텍스트 템플릿은 .txt 파일을 TEXT 모드로 읽어 변수 값을 채운다.")
+    @DisplayName("텍스트 템플릿은 .txt 파일을 TEXT 모드로 읽어 변경된 법령을 한 줄씩 나열한다.")
     void renderText_thenFillVariablesWithoutHtml() {
         // when
         String text = mailContentRenderer.renderText(MailTemplate.LAW_AMENDMENT, VARIABLES);
 
         // then
         assertThat(text)
-                .contains("개정일 2026-09-29")
+                .contains("""
+                        - 어린이제품 안전 특별법 (일부개정, 개정일 2026-09-29)
+                        - 어린이제품 안전 특별법 시행규칙 (전부개정, 개정일 2026-09-30)
+                        """)
                 .contains("재확인이 필요한 상품이 2개 있습니다.")
                 .contains("https://palgijeone.com/mypage")
                 .doesNotContain("<html")

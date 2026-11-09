@@ -1,5 +1,5 @@
 import { SourceType } from '@/api/types/common.ts'
-import { MAX_FILE_SIZE_BYTES, MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_CODE_UNIT_LENGTH, MAX_PRODUCT_NAME_LENGTH } from '@/pages/Upload/constants.ts'
+import { MAX_FILE_SIZE_BYTES, MAX_PRODUCT_CONTENT_LENGTH, MAX_PRODUCT_IMAGE_COUNT, MAX_PRODUCT_NAME_CODE_UNIT_LENGTH, MAX_PRODUCT_NAME_LENGTH } from '@/pages/Upload/constants.ts'
 import type { Product } from '@/pages/Upload/types.ts'
 import { isAllowedImageType, isWithinFileSizeLimit, validateImageFile, validateProduct } from '@/pages/Upload/utils/validation.ts'
 
@@ -179,6 +179,22 @@ describe('validateProduct', () => {
     it('이미지가 있어도 텍스트 없이는 제출할 수 없다 (이미지는 보조 입력)', () => {
       const product = makeTextImageProduct({ content: '', images: [makeImage()] })
       expect(validateProduct(product)).toBe('상세페이지 내용을 입력해주세요.')
+    })
+
+    it(`${MAX_PRODUCT_CONTENT_LENGTH}자는 통과한다 (경계)`, () => {
+      expect(validateProduct(makeTextImageProduct({ content: 'a'.repeat(MAX_PRODUCT_CONTENT_LENGTH) }))).toBeNull()
+    })
+
+    it(`${MAX_PRODUCT_CONTENT_LENGTH + 1}자는 길이 오류다 (경계)`, () => {
+      expect(validateProduct(makeTextImageProduct({ content: 'a'.repeat(MAX_PRODUCT_CONTENT_LENGTH + 1) }))).toBe(
+        `상세페이지 내용은 ${MAX_PRODUCT_CONTENT_LENGTH}자를 넘을 수 없습니다.`,
+      )
+    })
+
+    it('서버처럼 코드 유닛으로 세므로 이모지는 한 글자가 둘로 계산된다', () => {
+      const emoji = '😀' // 코드 유닛 2
+      expect(validateProduct(makeTextImageProduct({ content: emoji.repeat(MAX_PRODUCT_CONTENT_LENGTH / 2) }))).toBeNull()
+      expect(validateProduct(makeTextImageProduct({ content: emoji.repeat(MAX_PRODUCT_CONTENT_LENGTH / 2 + 1) }))).not.toBeNull()
     })
 
     it('텍스트 입력에서는 링크가 없어도 된다', () => {

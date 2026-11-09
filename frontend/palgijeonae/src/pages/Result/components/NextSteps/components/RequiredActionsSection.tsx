@@ -1,6 +1,7 @@
 import DefaultBox from "@/components/common/DefaultBox";
 import SectionIntro from "@/components/common/SectionIntro";
 
+// 해야 할 일은 AI가 완성된 문장으로 내려주므로, FE에서 분류하지 않고 받은 문장을 그대로 나열한다.
 interface RequiredActionsSectionProps {
     requiredActions: string[]
 }

@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 from app.observability.http_requests import record_http_requests
 from app.observability.measurements import measurement_sinks
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def client():

@@ -16,6 +16,10 @@ class AdvertisingRiskType(StrEnum):
     SAFETY_CERTIFICATION = "safety_certification"  # 2. 안전 또는 환경, 신기술 (인증 표방 포함)
     PERFORMANCE_QUALITY = "performance_quality"  # 3. 성능, 효능, 품질
     RANKING_ABSOLUTE = "ranking_absolute"  # 4. 순위 표현, 지정고시 14 나 절대적 표현
+    # 2026-11-08: 공정위 제재 유형에 맞춰 추가. 지정고시 4(원재료·성분), 10(원산지·제조자), 11(보증·A/S)
+    INGREDIENT_MATERIAL = "ingredient_material"
+    ORIGIN_MAKER = "origin_maker"
+    WARRANTY = "warranty"
 
 
 class AdvertisingClaim(StrictModel):
@@ -25,6 +29,8 @@ class AdvertisingClaim(StrictModel):
     quote: str = Field(min_length=1)
     risk_type: AdvertisingRiskType
     reason: str = Field(min_length=1)
+    # 인용이 한국어가 아닐 때 판매자에게 보여 줄 짧은 번역. 원문 대조·채점에는 쓰지 않는다 (2026-11-08)
+    translation: str | None = None
 
 
 class LineCheck(StrictModel):

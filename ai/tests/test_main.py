@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 from app import main
 from tests.app_harness import FakeBackend, app_env, client, fake_parts
 
+pytestmark = pytest.mark.integration
+
 PRODUCT = {"diagnosisId": "d-1", "products": [{"productId": "p-1", "textBlocks": ["상품 설명"]}]}
 
 

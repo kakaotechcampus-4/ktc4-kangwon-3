@@ -23,5 +23,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // 커버리지는 `npm run test:coverage`로 측정하고, CI는 아래 기준에 못 미치면 실패한다.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      include: ['src/**/*.{ts,tsx}'],
+      // 테스트 코드와 테스트 보조 파일, BE 없이 화면을 볼 때만 쓰는 목업, 타입 선언, 앱 시작 코드(main, Sentry 초기화)는 측정하지 않는다.
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/api/mock/**', 'src/**/*.d.ts', 'src/main.tsx', 'src/instrument.ts'],
+      thresholds: { statements: 70, branches: 70, functions: 70, lines: 70 },
+    },
   },
 })

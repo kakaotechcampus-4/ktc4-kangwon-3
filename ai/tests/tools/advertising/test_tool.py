@@ -59,8 +59,9 @@ class _StubModel:
         return {"raw": raw, "parsed": None, "parsing_error": None}
 
 
-def _claim(quote: str, risk_type: str = "performance_quality") -> dict:
-    return {"quote": quote, "risk_type": risk_type, "reason": "실증이 필요한 주장이다."}
+def _claim(quote: str, risk_type: str = "performance_quality", translation: str | None = None) -> dict:
+    # translation은 모델 출력 칸이라 None이어도 항상 넣는다 (trace 비교 테스트가 model_dump와 맞춤)
+    return {"quote": quote, "risk_type": risk_type, "reason": "실증이 필요한 주장이다.", "translation": translation}
 
 
 def _product(*lines: str) -> Product:
@@ -130,7 +131,8 @@ def test_찾은_문구는_확정이_아니라_실증_필요로_돌려준다():
     assert EVIDENCE.substantiation_targets[AdvertisingRiskType.RANKING_ABSOLUTE] in finding.legal_sources
     # 실증자료 유무는 답을 받아도 판단이 바뀌지 않아 질문하지 않고 할 일로만 안내한다(#310).
     assert result.missing_information == []
-    assert "실증자료" in result.required_actions[0]
+    assert result.required_actions[0] == ("'국내 판매 1위'를 뒷받침하는 시험 결과나 조사 자료를 준비하세요. "
+                                          "자료가 없으면 문구를 빼거나 고치세요.")
 
 
 def test_근거_조문은_중복_없이_모은다():
@@ -151,6 +153,7 @@ def test_의심_문구가_없으면_실증이_필요한_주장_없음_판단_하
     [finding] = result.findings
     assert (finding.determination, finding.risk_level) == (Determination.NOT_REQUIRED, RiskLevel.LOW)
     assert finding.legal_sources == [EVIDENCE.article_5]
+    assert finding.summary == "판매자 문구에서 문제가 될 만한 광고 표현을 찾지 못했습니다."
     assert result.required_actions == [] and result.missing_information == []
 
 
@@ -315,12 +318,149 @@ def test_모델이_이미_인용한_KC_표기는_한_번만_남긴다():
     assert result.query["kc_claims_added"] == 0
 
 
-def test_인증이_아닌_안전_주장은_실증자료_안내를_받는다():
+@pytest.mark.parametrize("quote", ["Certified 3C CCC Certified", "CE Certified", "FDA 승인", "RoHS 인증"])
+def test_영문_인증_표기도_인증_확인_안내를_받는다(quote):
+    # 'Certified 3C CCC Certified'가 실증자료 안내로 나가던 문제 (11/8 측정)
+    result = _run(_StubModel([_claim(quote, "safety_certification")]), quote)
+
+    assert "인증번호와 인증서로 확인" in result.required_actions[0]
+
+
+def test_보증_약속은_보증_확인_안내를_받는다():
+    result = _run(_StubModel([_claim("평생 무상 보증", "warranty")]), "평생 무상 보증")
+
+    [finding] = result.findings
+    # 요약, 설명, 할 일이 모두 '보증 내용을 밝혀라'로 맞는다 (리뷰 #704: 요약만 실증 안내였음)
+    assert finding.summary == "구체적인 조건 없이 보증을 약속한 문구입니다."
+    assert finding.rationale == "보증 내용, 기간, 범위를 정확하게 기재하지 않으면 부당한 광고가 될 수 있습니다."
+    assert result.required_actions[0].startswith("'평생 무상 보증' 문구가 있습니다. 누가, 언제까지, 어디까지 보증하는지 적고")
+    assert EVIDENCE.type_sources[AdvertisingRiskType.WARRANTY] in finding.legal_sources
+
+
+def test_원산지_정품_주장은_수입_서류_확인_안내를_받는다():
+    result = _run(_StubModel([_claim("100% 정품", "origin_maker")]), "100% 정품 Made in Korea")
+
+    [finding] = result.findings
+    assert finding.summary == "원산지, 제조사, 정품 여부를 내세운 표기입니다."
+    assert result.required_actions[0].startswith("'100% 정품' 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지")
+    # 정품, 공식 여부까지 덮도록 근거는 10호 나목이 아니라 머리 문장 (리뷰 #704)
+    origin_source = EVIDENCE.type_sources[AdvertisingRiskType.ORIGIN_MAKER]
+    assert origin_source in finding.legal_sources
+    assert origin_source.article == "10" and "원산지 및 제조자에 관하여" in origin_source.quoted_text
+
+
+def test_영문_인용은_번역을_괄호로_붙여_보여_주고_조사는_번역을_따른다():
+    model = _StubModel([_claim("Sunburn Relief", "body_effect", translation="햇볕 화상 완화"),
+                        _claim("lifetime warranty", "warranty", translation="평생 보증")])
+
+    result = _run(model, "Sunburn Relief lifetime warranty")
+
+    assert [f.subject for f in result.findings] == ["Sunburn Relief(햇볕 화상 완화)", "lifetime warranty(평생 보증)"]
+    assert result.required_actions[0].startswith("'Sunburn Relief'(햇볕 화상 완화)를 뒷받침하는")
+    assert result.required_actions[1].startswith("'lifetime warranty'(평생 보증) 문구가 있습니다.")
+    # 채점·원문 대조에 쓰는 문구는 원문 그대로
+    assert [p.text for p in result.result.detected_phrases] == ["Sunburn Relief", "lifetime warranty"]
+
+
+def test_한국어_인용은_번역_없이_그대로_보여_준다():
+    result = _run(_StubModel([_claim("99.9% 살균")]), "99.9% 살균")
+
+    assert result.findings[0].subject == "99.9% 살균"
+    assert result.required_actions[0].startswith("'99.9% 살균'을 뒷받침하는")
+
+
+def test_추천_주장에는_지정고시_12호_추천_조항을_근거로_더한다():
+    result = _run(_StubModel([_claim("피부과 전문의 추천", "safety_certification")]), "피부과 전문의 추천 제품")
+
+    [finding] = result.findings
+    assert EVIDENCE.recommendation in finding.legal_sources
+    assert "추천" in EVIDENCE.recommendation.quoted_text
+    # 인증 표기에는 붙이지 않는다
+    other = _run(_StubModel([_claim("KC 인증 완료", "safety_certification")]), "KC 인증 완료")
+    assert EVIDENCE.recommendation not in other.findings[0].legal_sources
+
+
+def test_유형마다_근거_조문이_있고_주장_종류마다_화면_안내가_있다():
+    for risk_type in AdvertisingRiskType:
+        assert risk_type in EVIDENCE.substantiation_targets and risk_type in EVIDENCE.type_sources
+    for kind in advertising.ClaimKind:
+        summary, rationale = advertising.NOTICES[kind]
+        # 판매자가 읽는 문장: 가운뎃점, 법령 용어(실증), 내부 유형 이름을 쓰지 않는다
+        for text in (summary, rationale):
+            assert text.endswith("니다.") and "·" not in text and "실증" not in text and "_" not in text
+
+
+@pytest.mark.parametrize(("quote", "risk_type", "summary"), [
+    ("자세 개선", "body_effect", "몸에 효과가 있다는 주장입니다."),
+    ("허리 디스크 치료", "body_effect", "의약품 효능처럼 읽히는 문구입니다."),
+    ("KC 인증 완료", "safety_certification", "인증을 받았다는 표기입니다."),
+    ("CE Certified", "safety_certification", "인증을 받았다는 표기입니다."),
+    ("디자인 어워드 수상", "safety_certification", "수상, 특허, 추천을 내세운 표기입니다."),
+    ("특허받은 구조", "safety_certification", "수상, 특허, 추천을 내세운 표기입니다."),
+    ("물리치료사 추천", "safety_certification", "수상, 특허, 추천을 내세운 표기입니다."),
+    ("올해의 캠핑용품 대상 선정", "safety_certification", "수상, 특허, 추천을 내세운 표기입니다."),
+    # 판매자가 골랐다는 '선정'은 수상 표기가 아니다
+    ("무해한 원단만 선정한 제품", "safety_certification", "안전하다거나 친환경이라는 주장입니다."),
+    ("무해한 원단만 선정하여 제작", "safety_certification", "안전하다거나 친환경이라는 주장입니다."),
+    # 인증이 아닌 안전, 친환경 주장에 '인증 수상' 라벨이 붙던 문제 (리뷰 #704)
+    ("BPA 프리", "safety_certification", "안전하다거나 친환경이라는 주장입니다."),
+    ("어린이에게 무해한 소재", "safety_certification", "안전하다거나 친환경이라는 주장입니다."),
+    ("친환경 원단", "safety_certification", "안전하다거나 친환경이라는 주장입니다."),
+    ("하중 300kg 버팀", "performance_quality", "성능을 수치로 내세우거나 효과를 보장하는 주장입니다."),
+    ("오가닉 코튼 100%", "ingredient_material", "원재료나 성분을 내세운 주장입니다."),
+    ("타사 대비 3배", "ranking_absolute", "1위, 최고, 유일처럼 단정하거나 다른 상품보다 낫다고 비교하는 표현입니다."),
+])
+def test_판단_요약은_주장_종류에_맞는_문장으로_나간다(quote, risk_type, summary):
+    result = _run(_StubModel([_claim(quote, risk_type)]), quote)
+
+    [finding] = result.findings
+    assert finding.summary == summary
+    assert (finding.summary, finding.rationale) in advertising.NOTICES.values()
+
+
+def test_판단_설명에는_모델이_쓴_이유를_내지_않고_문구_결과에만_남긴다():
+    # 모델 이유에는 내부 유형 이름이 섞여 나온다 (2026-11-09 견본: '... body_effect 유형에 해당함')
+    claim = _claim("자세 개선", "body_effect") | {"reason": "자세가 좋아진다는 주장으로 body_effect 유형에 해당함"}
+
+    result = _run(_StubModel([claim]), "자세 개선")
+
+    assert "body_effect" not in result.findings[0].rationale
+    assert result.result.detected_phrases[0].reason == claim["reason"]
+
+
+def test_인증이_아닌_안전_주장은_근거_자료_안내를_받고_수상_인증_지침을_근거로_붙이지_않는다():
     model = _StubModel([_claim("어린이에게 무해한 소재", "safety_certification")])
 
     result = _run(model, "어린이에게 무해한 소재")
 
-    assert "실증자료" in result.required_actions[0]
+    [finding] = result.findings
+    assert result.required_actions[0].startswith("'어린이에게 무해한 소재'를 뒷받침하는 시험 결과나 조사 자료를 준비하세요.")
+    # 근거는 실증 고시 Ⅲ 2(안전 또는 환경). '수상·인증 사실이 없는데'로 시작하는 지침은 맞지 않는다 (리뷰 #704)
+    assert EVIDENCE.substantiation_targets[AdvertisingRiskType.SAFETY_CERTIFICATION] in finding.legal_sources
+    assert EVIDENCE.type_sources[AdvertisingRiskType.SAFETY_CERTIFICATION] not in finding.legal_sources
+
+
+@pytest.mark.parametrize("quote", ["KC 인증 완료", "디자인 어워드 수상"])
+def test_인증과_수상_표기에는_수상_인증_지침을_근거로_붙인다(quote):
+    result = _run(_StubModel([_claim(quote, "safety_certification")]), quote)
+
+    assert EVIDENCE.type_sources[AdvertisingRiskType.SAFETY_CERTIFICATION] in result.findings[0].legal_sources
+
+
+def test_수상_특허_추천_표기는_사실_확인_안내를_받는다():
+    result = _run(_StubModel([_claim("특허받은 구조", "safety_certification")]), "특허받은 구조")
+
+    assert result.required_actions[0] == ("'특허받은 구조' 표기가 있습니다. 수상, 특허, 추천 사실을 보여 줄 자료가 있는지 "
+                                          "확인하고, 없으면 표기를 빼세요.")
+
+
+def test_원재료_성분_주장의_근거는_지정고시_4호_머리_문장이다():
+    # '순면 100%'처럼 양을 부풀린 주장(나목)까지 덮도록 가목이 아니라 머리 문장 (리뷰 #704)
+    result = _run(_StubModel([_claim("오가닉 코튼 100%", "ingredient_material")]), "오가닉 코튼 100%")
+
+    source = EVIDENCE.type_sources[AdvertisingRiskType.INGREDIENT_MATERIAL]
+    assert source in result.findings[0].legal_sources
+    assert source.article == "4" and "사실과 다르게 또는 과장하여" in source.quoted_text
 
 
 def test_기록_중이면_원문과_대조해_남긴_주장·버린_인용·코드가_더한_KC_표기를_Tool_단계에_남긴다(tmp_path):

@@ -10,6 +10,7 @@ import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.SourceTy
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.repository.DiagnosesRepository;
 import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.infra.s3.FileType;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileService;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.event.S3FileDeleteRequestedEvent;
 import org.junit.jupiter.api.DisplayName;
@@ -32,9 +33,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 import java.util.UUID;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +49,8 @@ class DiagnosesServiceTest {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID OTHER_USER_ID = UUID.randomUUID();
     private static final String PRODUCT_NAME = "대나무 헬리콥터";
-    private static final String PRODUCT_IMAGE_KEY = "product-main/1/uuid_thumbnail.jpg";
+    private static final String PRODUCT_IMAGE_KEY = "product-main/" + USER_ID + "/uuid_thumbnail.jpg";
+    private static final String DETAIL_KEY_PREFIX = "product-detail/" + USER_ID + "/";
     private static final String SOURCE_URL = "https://ko.aliexpress.com/item/100500628491";
 
     @Mock
@@ -119,7 +124,7 @@ class DiagnosesServiceTest {
         // given
         given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
         List<String> imageKeys = List.of(
-                "product-detail/1/uuid_a1.jpg", "product-detail/1/uuid_a2.jpg", "product-detail/1/uuid_a3.jpg");
+                DETAIL_KEY_PREFIX + "uuid_a1.jpg", DETAIL_KEY_PREFIX + "uuid_a2.jpg", DETAIL_KEY_PREFIX + "uuid_a3.jpg");
 
         // when
         diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(imageKeys)));
@@ -130,9 +135,9 @@ class DiagnosesServiceTest {
         assertThat(diagnosesCaptor.getValue().getProducts().getFirst().getImages())
                 .extracting(ProductImage::getImageKey, ProductImage::getSortOrder)
                 .containsExactly(
-                        tuple("product-detail/1/uuid_a1.jpg", 0),
-                        tuple("product-detail/1/uuid_a2.jpg", 1),
-                        tuple("product-detail/1/uuid_a3.jpg", 2));
+                        tuple(DETAIL_KEY_PREFIX + "uuid_a1.jpg", 0),
+                        tuple(DETAIL_KEY_PREFIX + "uuid_a2.jpg", 1),
+                        tuple(DETAIL_KEY_PREFIX + "uuid_a3.jpg", 2));
     }
 
     @Test
@@ -143,13 +148,61 @@ class DiagnosesServiceTest {
 
         // when
         diagnosesService.createDiagnoses(USER_ID, List.of(
-                createCommand(List.of("product-detail/1/uuid_a1.jpg")),
-                createCommand(List.of("product-detail/1/uuid_b1.jpg"))));
+                createCommand(List.of(DETAIL_KEY_PREFIX + "uuid_a1.jpg")),
+                createCommand(List.of(DETAIL_KEY_PREFIX + "uuid_b1.jpg"))));
 
         // then
         then(s3FileService).should().markConfirmed(List.of(
-                PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg",
-                PRODUCT_IMAGE_KEY, "product-detail/1/uuid_b1.jpg"));
+                PRODUCT_IMAGE_KEY, DETAIL_KEY_PREFIX + "uuid_a1.jpg",
+                PRODUCT_IMAGE_KEY, DETAIL_KEY_PREFIX + "uuid_b1.jpg"));
+    }
+
+    @Test
+    @DisplayName("진단을 요청하면 대표 이미지 key는 대표 이미지 폴더로, 상세 이미지 key는 상세 이미지 폴더로 소유권을 확인한다.")
+    void createDiagnoses_thenValidateImageKeyOwnerByFolder() {
+        // given
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
+        List<String> imageKeys = List.of(DETAIL_KEY_PREFIX + "uuid_a1.jpg", DETAIL_KEY_PREFIX + "uuid_a2.jpg");
+
+        // when
+        diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(imageKeys)));
+
+        // then
+        then(s3FileService).should().validateOwner(USER_ID, FileType.PRODUCT_MAIN, List.of(PRODUCT_IMAGE_KEY));
+        then(s3FileService).should().validateOwner(USER_ID, FileType.PRODUCT_DETAIL, imageKeys);
+    }
+
+    @Test
+    @DisplayName("이미지 key 소유권 확인에서 거절되면 예외가 그대로 전파되고 저장·업로드 확정·AI 요청 이벤트가 일어나지 않는다.")
+    void createDiagnoses_withNotOwnedImageKey_thenNotFoundAndNotSave() {
+        // given
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND))
+                .given(s3FileService).validateOwner(any(), any(), anyList());
+
+        // when & then
+        assertThatThrownBy(() -> diagnosesService.createDiagnoses(USER_ID, List.of(createCommand(List.of()))))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+        then(diagnosesRepository).should(never()).save(any());
+        then(s3FileService).should(never()).markConfirmed(any());
+        then(eventPublisher).should(never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("대표 이미지 없이 진단을 요청하면 대표 이미지 소유권은 확인하지 않고 저장된다.")
+    void createDiagnoses_withoutProductImageKey_thenSkipProductImageOwnerAndSave() {
+        // given
+        given(diagnosesRepository.save(any(Diagnoses.class))).willReturn(createDiagnoses(DIAGNOSES_ID));
+        ProductCreateCommand command = new ProductCreateCommand(
+                PRODUCT_NAME, null, SourceType.URL, SOURCE_URL, null, List.of());
+
+        // when
+        diagnosesService.createDiagnoses(USER_ID, List.of(command));
+
+        // then
+        then(s3FileService).should(never()).validateOwner(any(), eq(FileType.PRODUCT_MAIN), anyList());
+        then(diagnosesRepository).should().save(any(Diagnoses.class));
     }
 
     @Test
@@ -226,7 +279,7 @@ class DiagnosesServiceTest {
     @DisplayName("회원 탈퇴 시 모든 진단서에 속한 상품 이미지 key에 대해 S3 삭제 이벤트가 한 번에 발행된다.")
     void removeAllByUserId_thenPublishS3FileDeleteEventForAllDiagnoses() {
         // given
-        Diagnoses first = createDiagnoses(DIAGNOSES_ID, List.of("product-detail/1/uuid_a1.jpg"));
+        Diagnoses first = createDiagnoses(DIAGNOSES_ID, List.of(DETAIL_KEY_PREFIX + "uuid_a1.jpg"));
         Diagnoses second = createDiagnoses(DIAGNOSES_ID_2);
         given(diagnosesRepository.findWithProductsByUserId(USER_ID)).willReturn(List.of(first, second));
 
@@ -236,7 +289,7 @@ class DiagnosesServiceTest {
         // then
         then(eventPublisher).should().publishEvent(eventCaptor.capture());
         assertThat(eventCaptor.getValue().keys())
-                .containsExactly(PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg", PRODUCT_IMAGE_KEY);
+                .containsExactly(PRODUCT_IMAGE_KEY, DETAIL_KEY_PREFIX + "uuid_a1.jpg", PRODUCT_IMAGE_KEY);
     }
 
     @Test
@@ -267,14 +320,14 @@ class DiagnosesServiceTest {
         // when
         diagnosesService.createDiagnoses(USER_ID, List.of(new ProductCreateCommand(
                 PRODUCT_NAME, PRODUCT_IMAGE_KEY, SourceType.TEXT_IMAGE, null, "상세 설명",
-                List.of("product-detail/1/uuid_a1.jpg"))));
+                List.of(DETAIL_KEY_PREFIX + "uuid_a1.jpg"))));
 
         // then
         ArgumentCaptor<AiDiagnosesRequestedEvent> captor = ArgumentCaptor.forClass(AiDiagnosesRequestedEvent.class);
         then(eventPublisher).should().publishEvent(captor.capture());
         assertThat(captor.getValue()).isEqualTo(new AiDiagnosesRequestedEvent(DIAGNOSES_ID, List.of(
                 new AiDiagnosesRequestedEvent.ProductInput(productId, SourceType.TEXT_IMAGE, null, "상세 설명",
-                        List.of(PRODUCT_IMAGE_KEY, "product-detail/1/uuid_a1.jpg")))));
+                        List.of(PRODUCT_IMAGE_KEY, DETAIL_KEY_PREFIX + "uuid_a1.jpg")))));
     }
 
     @Test

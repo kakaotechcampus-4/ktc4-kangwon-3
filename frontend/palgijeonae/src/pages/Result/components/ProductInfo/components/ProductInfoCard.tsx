@@ -27,14 +27,11 @@ function ProductInfoCard({ productName, sourceType, sourceUrl, sourceText }: Pro
             {sourceUrl && (
                 <InfoRow label="상세페이지">
                     {isHttpUrl(sourceUrl) ? (
-                        <a
-                            href={sourceUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cn(VALUE_CLASS, "min-w-0 text-primary underline break-all")}
-                        >
-                            {sourceUrl}
-                        </a>
+                        <p className={cn(VALUE_CLASS, "min-w-0 break-all")}>
+                            <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                                {sourceUrl}
+                            </a>
+                        </p>
                     ) : (
                         <p className={cn(VALUE_CLASS, "min-w-0 break-all")}>{sourceUrl}</p>
                     )}

@@ -40,7 +40,7 @@ interface ActionConfig {
     className: string
 }
 
-// 답변이 필요하거나 완료된 상품만 버튼 노출.
+// 답변이 필요하거나 완료, 실패한 상품만 버튼 노출. 실패한 상품은 결과 화면에서 재진단할 수 있다.
 const ACTION_CONFIG: Partial<Record<ProcessingStatusType, ActionConfig>> = {
     [ProcessingStatusType.AwaitingInput]: {
         label: "질문에 답변하기 →",
@@ -51,6 +51,11 @@ const ACTION_CONFIG: Partial<Record<ProcessingStatusType, ActionConfig>> = {
         label: "결과 보기",
         buildPath: (productId) => `/result/product/${productId}`,
         className: "border-status-success/40 text-status-success hover:border-status-success/60 hover:bg-status-success-bg focus-visible:ring-status-success/20",
+    },
+    [ProcessingStatusType.Failed]: {
+        label: "결과 보기",
+        buildPath: (productId) => `/result/product/${productId}`,
+        className: "border-status-danger/40 text-status-danger hover:border-status-danger/60 hover:bg-status-danger-bg focus-visible:ring-status-danger/20",
     },
 };
 

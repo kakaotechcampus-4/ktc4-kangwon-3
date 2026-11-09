@@ -62,22 +62,51 @@ PRODUCT_CONDITIONED_LAWS: dict[str, tuple[str, str]] = {
 
 
 # 요건 법령 → (해당 물품 설명, 뺄 수 있는 소재 표기, 남겨야 하는 소재 표기). 소재 글에 '뺄 수 있는 표기'가 있고
-# '남겨야 하는 표기'가 없을 때만 뺀다. 소재를 모르면 남긴다.
+# '남겨야 하는 표기'가 없을 때만 뺀다. 소재를 모르면 남기고, 종류를 모르는 가죽 표기가 같이 있어도 남긴다.
 # 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축(소·양·돼지·염소) 가죽과 인조 가죽은 대상이 아님.
 # 악어·뱀·도마뱀·타조·가오리·상어는 CITES 종이 섞여 있어 남긴다. "악어 무늬"처럼 무늬만 말해도 남긴다 (안전한 쪽).
 # 송아지 가죽은 '카프스킨', 'calfskin'처럼 가죽을 붙인 표기만 본다. '카프'만 두면 '스카프', 'calf'만 두면
 # 'mid-calf'(종아리)에서 걸려 소재를 모르는 상품의 요건이 빠진다 (리뷰 #708). 'calf leather'도 'wide calf leather boots'처럼
 # 종아리 뜻으로 쓰여 넣지 않는다. 'fur'는 'Furla', 'furniture' 안에서 걸리지 않게 낱말로만 본다.
+# 'PVC'도 'PVC 가죽'처럼 가죽을 붙인 표기만 본다. 'PVC'만 두면 '안감: PVC', 'PVC 무첨가'에서 걸린다 (리뷰 #708).
 MATERIAL_CONDITIONED_LAWS: dict[str, tuple[str, re.Pattern[str], re.Pattern[str]]] = {
     law_key("야생생물 보호 및 관리에 관한 법률"): (
         "멸종위기종(CITES) 가죽이나 부위를 쓴 제품",
         re.compile(r"소가죽|소 가죽|우피|카우하이드|cow ?hide|cowskin|송아지 ?가죽|카프 ?(?:스킨|가죽|레더)|calf ?(?:skin|hide)|양가죽|양 가죽|램스킨|sheepskin|lambskin"
                    r"|돼지가죽|돼지 가죽|피그스킨|pigskin|염소가죽|고트스킨|goatskin|인조 ?가죽|합성 ?(?:가죽|피혁)|PU ?(?:가죽|레더|leather)"
-                   r"|비건 ?(?:가죽|레더)|vegan leather|faux leather|PVC", re.IGNORECASE),
+                   r"|비건 ?(?:가죽|레더)|vegan leather|faux leather|PVC ?(?:가죽|레더|leather)", re.IGNORECASE),
         re.compile(r"악어|크로커다일|crocodile|앨리게이터|alligator|케이맨|caiman|뱀|파이톤|python|스네이크|snake|도마뱀|리자드|lizard"
                    r"|타조|ostrich|가오리|stingray|상어|shark|코끼리|elephant|상아|ivory|모피|(?<![A-Za-z])furs?(?![A-Za-z])", re.IGNORECASE),
     ),
 }
+
+
+# 종류를 밝히지 않은 가죽 표기. 뺄 수 있는 표기를 지우고도 이게 남으면 일부 소재만 확인된 상품으로 본다
+_UNSPECIFIED_LEATHER = re.compile(r"가죽|피혁|레더|leather", re.IGNORECASE)
+# 뺄 수 있는 표기 바로 뒤에 붙은 가죽 낱말 ('Cowhide Leather'의 Leather). 같은 소재를 가리켜 함께 지운다
+_LEATHER_SUFFIX = re.compile(r" ?(?:가죽|레더|leather)", re.IGNORECASE)
+
+
+def _without_excludable(text: str, excludable: re.Pattern[str]) -> str:
+    """뺄 수 있는 소재 표기(와 바로 뒤의 가죽 낱말)를 지운 나머지 글.
+
+    Args:
+        text: 소재 글.
+        excludable: 뺄 수 있는 소재 표기.
+
+    Returns:
+        str: 나머지 글.
+    """
+    parts: list[str] = []
+    position = 0
+    for match in excludable.finditer(text):
+        parts.append(text[position:match.start()])
+        position = match.end()
+        suffix = _LEATHER_SUFFIX.match(text, position)
+        if suffix is not None:
+            position = suffix.end()
+    parts.append(text[position:])
+    return " ".join(parts)
 
 
 def excluded_by_product(law_name: str, product: Product, material_texts: list[str] | None = None) -> str | None:
@@ -101,7 +130,13 @@ def excluded_by_product(law_name: str, product: Product, material_texts: list[st
         return None
     goods, excludable, keep = material
     text = " ".join(material_texts)
-    return goods if excludable.search(text) and not keep.search(text) else None
+    if not excludable.search(text) or keep.search(text):
+        return None
+    # 일부 소재만 확인된 상품은 빼지 않는다 (리뷰 #708: 안감은 인조 가죽인데 겉감 가죽의 종류는 모르는 경우).
+    # 뺄 수 있는 표기를 지우고도 종류를 모르는 가죽 표기가 남으면 남긴다
+    if _UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)):
+        return None
+    return goods
 
 
 def format_hs(code: str) -> str:

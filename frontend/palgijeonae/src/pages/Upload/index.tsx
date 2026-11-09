@@ -63,7 +63,7 @@ function UploadPage() {
 
     return (
         <div className="flex w-full flex-col gap-8">
-            <SectionIntro title="상품 업로드" description="상세페이지를 붙여넣거나 이미지·URL로 추가하세요.
+            <SectionIntro title="상품 업로드" description="상세페이지 URL을 입력하거나, 상세페이지 본문을 텍스트로 붙여넣어 추가하세요.
 최대 10개까지의 상품을 한 번에 담아 한 번의 진단으로 확인할 수 있습니다." />
             {isPending ? (
                 <LoadingSpinner label="진단 요청을 보내는 중..." />

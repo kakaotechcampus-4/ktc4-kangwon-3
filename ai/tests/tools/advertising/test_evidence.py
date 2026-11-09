@@ -30,6 +30,8 @@ def _pick(evidence: AdvertisingEvidence, key: str):
         "type_safety": evidence.type_sources[RiskType.SAFETY_CERTIFICATION],
         "type_performance": evidence.type_sources[RiskType.PERFORMANCE_QUALITY],
         "type_ranking": evidence.type_sources[RiskType.RANKING_ABSOLUTE],
+        "type_ingredient": evidence.type_sources[RiskType.INGREDIENT_MATERIAL],
+        "type_origin": evidence.type_sources[RiskType.ORIGIN_MAKER],
     }[key]
 
 
@@ -51,6 +53,13 @@ def _pick(evidence: AdvertisingEvidence, key: str):
      "자기자신이나 자기가 공급하는 상품(이하\"자기의 것\"이라 한다)이 경쟁사업자의 것보다 현저히 우량 또는 유리하다고 "
      "나타내기 위하여 \"최대\", \"최고\", \"최초\", \"제일\", \"유일\"등 배타성을 띤 절대적 표현의 용어를 사용하여 "
      "소비자를 오인시킬 우려가 있는 표시ㆍ광고행위는 부당한 표시ㆍ광고가 된다."),
+    # 원재료, 원산지는 가목·나목 하나가 아니라 호의 머리 문장을 근거로 쓴다 (양 과장, 정품·공식 여부까지 덮음)
+    ("type_ingredient", DESIGNATION_NOTICE[0], "4",
+     "자기가 공급하는 상품의 생산에 사용된 원재료나 성분에 관하여 표시ㆍ광고할 경우 아래와 같이 사실과 다르게 또는 과장하여 "
+     "표시ㆍ광고하여 소비자를 오인시킬 우려가 있는 표시ㆍ광고행위는 부당한 표시ㆍ광고가 된다."),
+    ("type_origin", DESIGNATION_NOTICE[0], "10",
+     "자기가 공급하는 상품의 원산지 및 제조자에 관하여 표시ㆍ광고할 경우 아래와 같이 사실과 다르게 또는 모호하게 "
+     "표시ㆍ광고하여 소비자를 오인시킬 우려가 있는 표시ㆍ광고행위는 부당한 표시ㆍ광고가 된다."),
     ("type_safety", "수상·인증 등의 표시·광고에 관한 심사지침", "Ⅴ 1",
      "1. 수상·인증·선정·특허 등의 사실이 없음에도 불구하고 이러한 사실이 있는 것처럼 표시·광고하는 행위는 "
      "부당한 표시·광고에 해당할 수 있다."),

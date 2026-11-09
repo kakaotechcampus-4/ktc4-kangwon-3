@@ -18,6 +18,8 @@ from app.schemas.product import Product
 from app.schemas.schemas import FollowUpQuestion, ToolName, ToolResult, ToolStatus, VerificationResult, VerificationStatus
 from tests.app_harness import TOKEN, FakeBackend, app_env, client, fake_parts
 
+pytestmark = pytest.mark.integration
+
 CONTENT = "/api/ai/v1/diagnose/content"
 RESUME = "/api/ai/v1/diagnose/resume"
 QUESTION = FollowUpQuestion(question="몇 세 이상이 쓰는 제품인가요?", reason="어린이 제품인지 판단")

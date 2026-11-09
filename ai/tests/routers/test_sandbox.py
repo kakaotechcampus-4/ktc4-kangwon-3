@@ -18,7 +18,9 @@ from app.sessions.manager import SessionManager
 from app.sessions.job import JobDone, JobNeedsInput
 from app.sessions.store import SessionStore
 
-ROUTE = "/api/ai/v1/sandbox/diagnose"
+pytestmark = pytest.mark.integration
+
+ROUTE ="/api/ai/v1/sandbox/diagnose"
 KEY = "test-dev-api-key-0123456789abcdefgh"
 HEADERS = {"X-Dev-Api-Key": KEY}
 _BASE = {

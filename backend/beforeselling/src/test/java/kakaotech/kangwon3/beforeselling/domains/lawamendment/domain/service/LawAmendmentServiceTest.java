@@ -18,13 +18,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.never;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class LawAmendmentServiceTest {
@@ -38,14 +41,20 @@ class LawAmendmentServiceTest {
     @Mock
     private ProductService productService;
 
+    @Mock
+    private LawAmendmentMailService lawAmendmentMailService;
+
     @InjectMocks
     private LawAmendmentService lawAmendmentService;
 
     @Captor
     private ArgumentCaptor<List<LawAmendmentProduct>> recheckProductsCaptor;
 
+    @Captor
+    private ArgumentCaptor<Map<LawAmendment, List<Product>>> recheckProductsByAmendmentCaptor;
+
     @Test
-    @DisplayName("법령 변경을 받으면 저장하고 그 분야 검토에서 해당 법령을 인용한 상품을 재확인 대상으로 지정한다.")
+    @DisplayName("법령 변경을 받으면 저장하고 그 분야 검토에서 해당 법령을 인용한 상품을 재확인 대상으로 지정해 메일로 알린다.")
     void createLawAmendments_thenSaveAndCreateRecheckProducts() {
         // given
         LawAmendment lawAmendment = createLawAmendment();
@@ -66,10 +75,34 @@ class LawAmendmentServiceTest {
                     assertThat(recheckProduct.getLawAmendment()).isEqualTo(lawAmendment);
                     assertThat(recheckProduct.getProduct()).isEqualTo(product);
                 });
+        then(lawAmendmentMailService).should().sendLawAmendmentMails(Map.of(lawAmendment, List.of(product)));
     }
 
     @Test
-    @DisplayName("이미 받은 변경을 다시 받으면 저장하지 않고 재확인 대상도 다시 지정하지 않는다.")
+    @DisplayName("법령 변경을 여러 건 받으면 모두 반영한 뒤 메일 발송은 한 번에 모아서 요청한다.")
+    void createLawAmendments_withMany_thenRequestMailsOnce() {
+        // given
+        LawAmendment act = createLawAmendment("화장품법", "000001", "100001");
+        LawAmendment rule = createLawAmendment("화장품법 시행규칙", "000002", "100002");
+        Product product = createProduct();
+        given(lawAmendmentRepository.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+        given(productService.findCompletedByToolNameAndCitedLawName(ToolName.CHILDREN, "화장품법"))
+                .willReturn(List.of(product));
+        given(productService.findCompletedByToolNameAndCitedLawName(ToolName.CHILDREN, "화장품법 시행규칙"))
+                .willReturn(List.of(product));
+
+        // when
+        List<LawAmendment> created = lawAmendmentService.createLawAmendments(List.of(act, rule));
+
+        // then
+        assertThat(created).containsExactly(act, rule);
+        then(lawAmendmentMailService).should(times(1)).sendLawAmendmentMails(recheckProductsByAmendmentCaptor.capture());
+        assertThat(recheckProductsByAmendmentCaptor.getValue())
+                .containsExactly(entry(act, List.of(product)), entry(rule, List.of(product)));
+    }
+
+    @Test
+    @DisplayName("이미 받은 변경을 다시 받으면 저장하지 않고 재확인 대상 지정도 다시 하지 않으며 메일 발송 대상에서도 뺀다.")
     void createLawAmendments_withReceived_thenSkip() {
         // given
         LawAmendment lawAmendment = createLawAmendment();
@@ -82,6 +115,7 @@ class LawAmendmentServiceTest {
         assertThat(created).isEmpty();
         then(lawAmendmentRepository).should(never()).save(any());
         then(lawAmendmentProductRepository).should(never()).saveAll(any());
+        then(lawAmendmentMailService).should().sendLawAmendmentMails(Map.of());
     }
 
     @Test
@@ -111,12 +145,16 @@ class LawAmendmentServiceTest {
     }
 
     private LawAmendment createLawAmendment() {
+        return createLawAmendment("어린이제품 안전 특별법 시행규칙", "012345", "291321");
+    }
+
+    private LawAmendment createLawAmendment(String lawName, String documentId, String serialNumber) {
         return LawAmendment.builder()
-                .lawName("어린이제품 안전 특별법 시행규칙")
-                .documentId("012345")
+                .lawName(lawName)
+                .documentId(documentId)
                 .admrul(false)
                 .toolName(ToolName.CHILDREN)
-                .serialNumber("291321")
+                .serialNumber(serialNumber)
                 .build();
     }
 

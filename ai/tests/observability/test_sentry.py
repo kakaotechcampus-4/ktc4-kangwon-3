@@ -19,6 +19,8 @@ from app.domain.context import ExecutionContext, RunType
 from app.observability.logs import run_log_context, set_run_field
 from app.observability.sentry import configure_sentry
 
+pytestmark = pytest.mark.integration
+
 DSN = "https://public-key@o0.ingest.sentry.io/1"
 
 
