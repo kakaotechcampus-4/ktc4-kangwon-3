@@ -58,7 +58,7 @@ def test_부품은_에이전트·Tool·추출_단계를_묶고_검증은_모델�
             return cls()
 
     monkeypatch.setattr(assembly, "ExtractionAgent", Extraction)
-    monkeypatch.setattr(assembly, "SelectionAgent", Selection)
+    monkeypatch.setattr(assembly, "DecisionSelectionAgent", Selection)
     monkeypatch.setattr(assembly, "VerificationAgent", Verification)
 
     parts = assembly.build_parts()

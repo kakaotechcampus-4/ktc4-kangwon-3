@@ -7,7 +7,7 @@
 from dataclasses import dataclass
 
 from ..agents.extraction import ExtractionAgent
-from ..agents.selection import SelectionAgent
+from ..agents.decision_selection import DecisionSelectionAgent
 from ..agents.verification import VerificationAgent
 from ..pipeline.aggregator import ResultAggregator
 from ..pipeline.extraction_step import ExtractionStep
@@ -36,7 +36,7 @@ class PipelineParts:
 
     Attributes:
         extraction: 진단 입력 → 상품 정보. 재진단이면 이전 추출 결과를 그대로 씀.
-        selector: Tool 선택 에이전트.
+        selector: Tool 선택 에이전트 (판단 모델로 고르는 판단 선택 에이전트).
         tools: Tool 6개 (ToolName → 구현).
         aggregator: Tool 결과 → 검증 전 초안.
         verifier: 검증 에이전트.
@@ -82,7 +82,7 @@ def build_parts() -> PipelineParts:
     return PipelineParts(
         # 이미지 자르기는 trace 기록 중에만 전후를 남기는 감싼 것 (동작은 같음)
         extraction=ExtractionStep(ExtractionAgent(), UrlSourceBuilder(), image_splitter=TracedImageSplitter()),
-        selector=SelectionAgent(),
+        selector=DecisionSelectionAgent(),
         tools=build_tools(),
         aggregator=ResultAggregator(),
         # 검증만 기본 생성자로는 모델이 없음 (규칙 전용 실행용)
