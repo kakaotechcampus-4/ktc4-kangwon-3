@@ -29,6 +29,18 @@ RELATED_TOOLS: dict[str, ToolName] = {
 }
 
 
+def requirement_subject(law_name: str) -> str:
+    """요건 법령 하나에 대한 통관 판단의 제목. 종합 단계(related.py)가 이 제목으로 판단을 찾는다.
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        str: 판단 제목.
+    """
+    return f"세관장확인 대상 후보 — {law_name}"
+
+
 def related_tool(law_name: str) -> ToolName | None:
     """요건 법령을 맡는 다른 규제 Tool을 찾는다.
 
@@ -52,14 +64,17 @@ PRODUCT_CONDITIONED_LAWS: dict[str, tuple[str, str]] = {
 # '남겨야 하는 표기'가 없을 때만 뺀다. 소재를 모르면 남긴다.
 # 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축(소·양·돼지·염소) 가죽과 인조 가죽은 대상이 아님.
 # 악어·뱀·도마뱀·타조·가오리·상어는 CITES 종이 섞여 있어 남긴다. "악어 무늬"처럼 무늬만 말해도 남긴다 (안전한 쪽).
+# 송아지 가죽은 '카프스킨', 'calfskin'처럼 가죽을 붙인 표기만 본다. '카프'만 두면 '스카프', 'calf'만 두면
+# 'mid-calf'(종아리)에서 걸려 소재를 모르는 상품의 요건이 빠진다 (리뷰 #708). 'calf leather'도 'wide calf leather boots'처럼
+# 종아리 뜻으로 쓰여 넣지 않는다. 'fur'는 'Furla', 'furniture' 안에서 걸리지 않게 낱말로만 본다.
 MATERIAL_CONDITIONED_LAWS: dict[str, tuple[str, re.Pattern[str], re.Pattern[str]]] = {
     law_key("야생생물 보호 및 관리에 관한 법률"): (
         "멸종위기종(CITES) 가죽이나 부위를 쓴 제품",
-        re.compile(r"소가죽|소 가죽|우피|카우하이드|cow ?hide|cowskin|송아지 ?가죽|카프|calf|양가죽|양 가죽|램스킨|sheepskin|lambskin"
+        re.compile(r"소가죽|소 가죽|우피|카우하이드|cow ?hide|cowskin|송아지 ?가죽|카프 ?(?:스킨|가죽|레더)|calf ?(?:skin|hide)|양가죽|양 가죽|램스킨|sheepskin|lambskin"
                    r"|돼지가죽|돼지 가죽|피그스킨|pigskin|염소가죽|고트스킨|goatskin|인조 ?가죽|합성 ?(?:가죽|피혁)|PU ?(?:가죽|레더|leather)"
                    r"|비건 ?(?:가죽|레더)|vegan leather|faux leather|PVC", re.IGNORECASE),
         re.compile(r"악어|크로커다일|crocodile|앨리게이터|alligator|케이맨|caiman|뱀|파이톤|python|스네이크|snake|도마뱀|리자드|lizard"
-                   r"|타조|ostrich|가오리|stingray|상어|shark|코끼리|elephant|상아|ivory|모피|fur", re.IGNORECASE),
+                   r"|타조|ostrich|가오리|stingray|상어|shark|코끼리|elephant|상아|ivory|모피|(?<![A-Za-z])furs?(?![A-Za-z])", re.IGNORECASE),
     ),
 }
 

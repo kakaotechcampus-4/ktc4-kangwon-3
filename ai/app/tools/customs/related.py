@@ -8,9 +8,17 @@ Tool과 병렬로 돌아 그 결과를 볼 수 없으므로, 종합 단계가 To
   판단 자체는 남긴다 (성공한 Tool의 판단이 비면 검증 규칙이 Tool 실패로 보고 재실행을 요청함).
 - 그 Tool이 선택되지 않았거나 실패했으면: 그대로 둔다. 전파법처럼 Tool 범위(무선 기능)보다 법 범위(전자파 적합성)가
   넓은 경우가 있어, 선택되지 않았다고 요건을 빼지 않는다.
+
+따르는 범위는 Tool마다 다르다 (리뷰 #708).
+- 전기안전, 어린이제품: 법령 하나를 Tool 하나가 그대로 판단하므로 판정을 전부 따른다.
+- 전파: Tool은 무선 기능만 보고 법은 유선 전자파적합성까지 본다. 무선 기능을 못 찾아 낸 '정보 부족'은 전파법 비대상
+  판단이 아니므로, 후보(대상·대상 후보)를 냈을 때만 따르고 아니면 요건을 그대로 둔다.
+- 식약: Tool 하나가 법령 여러 개(식품, 화장품, 의료기기 등)를 판단해, 한 분야의 판단을 다른 법령에 옮길 수 없다.
+  따르지 않고 그대로 둔다 (#707).
 """
 
 from ...schemas.schemas import Determination, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus
+from .rules import requirement_subject
 
 _TOOL_LABELS = {
     ToolName.ELECTRICAL: "전기안전", ToolName.RADIO: "전파", ToolName.CHILDREN: "어린이제품", ToolName.FOOD_DRUG: "식약",
@@ -23,6 +31,10 @@ _LABEL_OF = {Determination.REQUIRED: "대상", Determination.POSSIBLY_REQUIRED: 
              Determination.INSUFFICIENT_INFORMATION: "정보 부족"}
 # 할 일을 남길 판정. 나머지(대상 아님·해당 없음·정보 부족)는 세관장확인 서류 안내를 뺀다
 _KEEP_ACTIONS = {Determination.REQUIRED, Determination.POSSIBLY_REQUIRED}
+# 판정을 전부 따르는 Tool (법 범위 = Tool 범위)
+_FOLLOW_ALL = {ToolName.ELECTRICAL, ToolName.CHILDREN}
+# 후보를 냈을 때만 따르는 Tool (법 범위 > Tool 범위)
+_FOLLOW_CANDIDATE_ONLY = {ToolName.RADIO}
 
 
 def follow_related_tools(tool_results: list[ToolResult]) -> list[str]:
@@ -43,12 +55,16 @@ def follow_related_tools(tool_results: list[ToolResult]) -> list[str]:
     followed: dict[str, str] = {}
     for law_name, tool_value in related.items():
         tool = ToolName(tool_value)
+        if tool not in _FOLLOW_ALL and tool not in _FOLLOW_CANDIDATE_ONLY:
+            continue
         other = by_name.get(tool)
         if other is None or not other.selected or other.status is not ToolStatus.SUCCESS or not other.findings:
             continue
         verdict = _verdict(other.findings)
-        finding = next((f for f in customs.findings if f.subject == f"세관장확인 대상 후보 — {law_name}"), None)
+        finding = next((f for f in customs.findings if f.subject == requirement_subject(law_name)), None)
         if verdict is None or finding is None:
+            continue
+        if tool in _FOLLOW_CANDIDATE_ONLY and verdict not in _KEEP_ACTIONS:
             continue
         label = _TOOL_LABELS.get(tool, tool.value)
         _apply(customs, finding, law_name, verdict, label)

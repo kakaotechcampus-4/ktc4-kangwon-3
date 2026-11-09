@@ -84,6 +84,56 @@ def test_맡는_Tool이_정보_부족이면_정보_부족으로_바꾸고_할_�
     assert customs.required_actions == []
 
 
+def test_전파_Tool이_정보_부족이면_전파법_요건을_그대로_둔다():
+    # 전파 Tool은 무선 기능만 본다. 무선 기능을 못 찾아 낸 정보 부족은 유선 전자파적합성까지 비대상이라는 뜻이 아니다
+    # (리뷰 #708: 유선 전기제품에서 전자파적합성 안내가 사라짐)
+    radio_action = "[「전파법」 · HS 8516.31-0000 후보] …"
+    customs = _customs(("전파법", radio_action, ToolName.RADIO))
+
+    notes = follow_related_tools(_results(customs, _tool(ToolName.RADIO, Determination.INSUFFICIENT_INFORMATION)))
+
+    [finding] = customs.findings
+    assert notes == []
+    assert (finding.determination, finding.requirements) == (Determination.POSSIBLY_REQUIRED, [radio_action])
+    assert customs.required_actions == [radio_action]
+    assert "followed_requirements" not in customs.query
+
+
+def test_전파_Tool이_후보를_냈으면_전파법_요건이_그_판단을_따른다():
+    radio_action = "[「전파법」 · HS 8517.62-0000 후보] …"
+    customs = _customs(("전파법", radio_action, ToolName.RADIO))
+
+    notes = follow_related_tools(_results(customs, _tool(ToolName.RADIO, Determination.POSSIBLY_REQUIRED)))
+
+    [finding] = customs.findings
+    assert "전파 분야 판단: 대상 후보" in finding.summary
+    assert customs.required_actions == [radio_action]
+    assert notes == ["「전파법」 세관장확인 요건은 같은 법을 판단한 전파 분야 결과(대상 후보)를 따랐습니다."]
+
+
+def test_식약_법령은_식약_Tool_판단을_따르지_않고_그대로_둔다():
+    # 식약 Tool 하나가 식품, 화장품, 의료기기 법령을 모두 맡는다. 의료기기 '품목 미확인' 하나로 수입식품법, 화장품법
+    # 요건까지 정보 부족으로 바뀌던 문제 (리뷰 #708). 분야별로 맞추는 일은 #707
+    for determination in (Determination.INSUFFICIENT_INFORMATION, Determination.POSSIBLY_REQUIRED):
+        laws = [("수입식품안전관리 특별법", "[수입식품법] …", ToolName.FOOD_DRUG), ("화장품법", "[화장품법] …", ToolName.FOOD_DRUG)]
+        customs = _customs(*laws)
+        summaries = [finding.summary for finding in customs.findings]
+
+        notes = follow_related_tools(_results(customs, _tool(ToolName.FOOD_DRUG, determination)))
+
+        assert notes == []
+        assert [finding.determination for finding in customs.findings] == [Determination.POSSIBLY_REQUIRED] * 2
+        assert [finding.summary for finding in customs.findings] == summaries
+        assert customs.required_actions == ["[수입식품법] …", "[화장품법] …"]
+
+
+def test_통관_판단_제목은_통관_Tool과_같은_함수로_만든다():
+    # 제목 형식이 바뀌면 맞출 판단을 못 찾고 조용히 넘어간다 (리뷰 #708)
+    from app.tools.customs.rules import requirement_subject
+
+    assert _customs_finding(LAW, ACTION).subject == requirement_subject(LAW) == f"세관장확인 대상 후보 — {LAW}"
+
+
 def test_맡는_Tool이_선택되지_않았거나_실패했으면_그대로_둔다():
     for other in (_skipped(ToolName.ELECTRICAL), _tool(ToolName.ELECTRICAL, status=ToolStatus.FAILED)):
         customs = _customs((LAW, ACTION, ToolName.ELECTRICAL))
