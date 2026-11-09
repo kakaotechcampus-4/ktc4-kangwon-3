@@ -1,4 +1,11 @@
 name: be
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16-alpine
@@ -61,6 +68,7 @@ services:
     restart: unless-stopped
     mem_limit: 1500m
     stop_grace_period: 70s
+    logging: *logging
     depends_on:
       db:
         condition: service_healthy
