@@ -111,7 +111,7 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
     # -- RequestClient 구현 --
 
     def _send(self, request: DecisionRequest) -> httpx.Response:
-        """판단 요청을 POST로 보낸다. 일시 오류(연결 실패·시간 초과·429·5xx)면 MAX_RETRIES번까지 다시 보냄.
+        """판단 요청을 POST로 보낸다. 일시 오류(연결 실패·429·5xx)면 MAX_RETRIES번까지 다시 보냄.
 
         Args:
             request: 판단 요청.
@@ -121,7 +121,8 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
 
         Raises:
             httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우. 일시 오류면 재시도를 다 쓴 뒤.
-            httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우. 재시도를 다 쓴 뒤.
+            httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우. 연결 실패면 재시도를 다 쓴 뒤,
+                응답 대기 시간 초과면 바로.
         """
         payload = self._to_payload(request)
         retries = 0
@@ -204,16 +205,18 @@ def questions_fingerprint(questions: list[DecisionQuestion]) -> str:
 def _retryable(error: httpx.HTTPError) -> bool:
     """같은 요청을 다시 보내 볼 만한 오류인지 본다. 400·401·404처럼 요청·키가 잘못된 오류는 다시 보내도 같음.
 
+    응답 대기 시간 초과(ReadTimeout)는 서버가 첫 요청을 계속 처리 중이라 다시 보내면 중복 처리·과금됨.
+
     Args:
         error: 보내기 실패 예외.
 
     Returns:
-        bool: 응답을 못 받았거나(연결 실패·시간 초과) 429·5xx면 True.
+        bool: 연결 실패·429·5xx면 True. 응답 대기 시간 초과는 False.
     """
     if isinstance(error, httpx.HTTPStatusError):
         status = error.response.status_code
         return status == 429 or status >= 500
-    return isinstance(error, httpx.TransportError)
+    return isinstance(error, httpx.TransportError) and not isinstance(error, httpx.ReadTimeout)
 
 
 def _error_label(error: httpx.HTTPError) -> str:

@@ -113,8 +113,8 @@ def _raise(error: type[httpx.TransportError]) -> Callable[[httpx.Request], httpx
     lambda request: httpx.Response(503, json={}),
     lambda request: httpx.Response(429, json={}),
     _raise(httpx.ConnectError),
-    _raise(httpx.ReadTimeout),
-], ids=["5xx", "429", "연결 실패", "시간 초과"])
+    _raise(httpx.ConnectTimeout),
+], ids=["5xx", "429", "연결 실패", "연결 시간 초과"])
 def test_일시_오류면_잠시_뒤_한_번_다시_보내_답을_받는다(wire, decision_request, waits, first):
     client = _EchoDecisionClient(BASE_URL, API_KEY)
     sent = wire(client, _fail_then(first))
@@ -133,6 +133,17 @@ def test_요청이나_키가_잘못된_오류는_다시_보내지_않는다(wire
     sent = wire(client, _fail_then(lambda request: httpx.Response(status, json={})))
 
     with pytest.raises(httpx.HTTPStatusError):
+        client.decide(decision_request)
+
+    assert (len(sent), waits) == (1, [])
+
+
+def test_응답_대기_시간_초과는_다시_보내지_않는다(wire, decision_request, waits):
+    # 서버는 첫 요청을 계속 처리 중이라 다시 보내면 중복 처리됨
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    sent = wire(client, _fail_then(_raise(httpx.ReadTimeout)))
+
+    with pytest.raises(httpx.ReadTimeout):
         client.decide(decision_request)
 
     assert (len(sent), waits) == (1, [])
