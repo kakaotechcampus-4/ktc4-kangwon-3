@@ -42,3 +42,7 @@ sentry-sdk==2.72.0
 
 # 개발 / 테스트
 pytest==9.1.1
+# 커버리지 측정 (설정은 .coveragerc)
+pytest-cov==7.1.0
+# PR에서 바뀐 줄의 커버리지 검사 (CI)
+diff-cover==10.6.0

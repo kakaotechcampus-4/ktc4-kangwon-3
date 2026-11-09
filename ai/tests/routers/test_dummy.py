@@ -28,6 +28,8 @@ _SETTINGS = config.Settings(
     data_go_kr_key="k", safetykorea_key="k", law_oc="oc", internal_api_token=TOKEN,
     be_base_url="http://be-server:8080", database_url="",
 )
+pytestmark = pytest.mark.integration
+
 CONTENT = "/api/ai/v1/dummy/diagnose/content"
 RESUME = "/api/ai/v1/dummy/diagnose/resume"
 _QUESTIONS = [PublicQuestionDto(question_key="battery_only", question_order=1, question_text="배터리 전용인가요?")]

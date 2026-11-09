@@ -19,6 +19,8 @@ from app.sessions.manager import SessionManager
 from app.sessions.store import SessionStore
 from app.sessions.transitions import ChangeStage, Start, apply
 
+pytestmark = pytest.mark.integration
+
 
 class _Presenter:
     def assessment(self, result):

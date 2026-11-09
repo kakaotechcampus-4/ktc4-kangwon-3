@@ -7,6 +7,8 @@ from prometheus_client import CollectorRegistry, Counter
 from app.main import app
 from app.routers.metrics import get_metrics_registry
 
+pytestmark = pytest.mark.integration
+
 
 @pytest.fixture
 def client():
