@@ -46,6 +46,9 @@ def build_chat_model(profile: ModelProfile, settings: Settings | None = None) ->
         streaming=True,
         # 스트리밍에서도 응답에 토큰 사용량을 받아 usage.record()가 비용을 남길 수 있게 한다.
         stream_usage=True,
+        # 출력 상한. 모델이 같은 값을 반복하면 모델 한도(32,768토큰)까지 약 4분 생성 후 실패해 일찍 끊음.
+        # 정상 출력 최대는 추출 약 3,000토큰 (로컬 사용량 기록, 11-09)
+        max_tokens=8192,
     )
 
 
