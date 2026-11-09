@@ -1,10 +1,11 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { ResultStatus } from "@/api/types/common";
 import type { ProductResult } from "@/api/types/product";
 import DefaultBox from "@/components/common/DefaultBox";
 import { FALLBACK_BADGE, PROCESSING_STATUS_BADGES, RESULT_STATUS_BADGES } from "@/constants/statusBadges";
 import { cn } from "@/lib/cn";
+import { createFromState } from "@/lib/fromState";
 import { BANNER_ACTION_LABELS, BannerAction, resolveBannerConfig } from "@/pages/Result/components/DiagnosisResult/utils/bannerConfig";
 import { useRetryDiagnosis } from "@/pages/Result/hooks/useRetryDiagnosis";
 
@@ -18,6 +19,7 @@ interface ResultBannerProps {
 }
 
 function ResultBanner({ product, judgementPath, questionPath, onNextStepsClick }: ResultBannerProps) {
+    const location = useLocation();
     const { resultStatus, processingStatus, summary, requiredActions, failure } = product;
     const config = resolveBannerConfig(resultStatus, processingStatus, failure);
 
@@ -57,6 +59,7 @@ function ResultBanner({ product, judgementPath, questionPath, onNextStepsClick }
                     {actionPath ? (
                         <Link
                             to={actionPath}
+                            state={createFromState(location)}
                             className={cn(ACTION_BUTTON_CLASS, config.buttonColorClass)}
                         >
                             {BANNER_ACTION_LABELS[action]}

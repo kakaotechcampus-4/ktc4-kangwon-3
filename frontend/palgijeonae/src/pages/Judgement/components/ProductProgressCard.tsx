@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { ProcessingStatusType } from "@/api/types/common";
 import type { ProductResult } from "@/api/types/product";
@@ -6,6 +6,7 @@ import defaultThumbnail from "@/assets/upload-defaultThumbnail.svg";
 import DefaultBox from "@/components/common/DefaultBox";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/cn";
+import { createFromState } from "@/lib/fromState";
 import { truncateWithEllipsis } from "@/lib/text";
 
 import { useAnimateOnChange } from "../hooks/useAnimateOnChange";
@@ -74,6 +75,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
     // 화면 상태가 실제로 바뀔 때마다 증가하는 트리거 값(첫 렌더는 0 → 효과 없음).
     // 모바일은 원본 이름을 넘기고 CSS(truncate)가 한 줄에서 자른다. 데스크톱은 줄바꿈되므로 글자 수로 줄인다.
     const isMobile = useIsMobile();
+    const location = useLocation();
     const displayName = isMobile ? productName : truncateWithEllipsis(productName, MAX_PRODUCT_NAME_LENGTH);
     const changeCount = useStatusChangeCount(processingStatus);
     // changeCount가 바뀐 순간에만 카드 내용 크로스페이드를 한 번 재생한다.
@@ -111,7 +113,7 @@ function ProductProgressCard({ product }: ProductProgressCardProps) {
                         </div>
                     </div>
                     {action && (
-                        <Link to={action.buildPath(productId)} className={cn(ACTION_BUTTON_BASE_CLASS, action.className)}>
+                        <Link to={action.buildPath(productId)} state={createFromState(location)} className={cn(ACTION_BUTTON_BASE_CLASS, action.className)}>
                             {action.label}
                         </Link>
                     )}
