@@ -6,6 +6,8 @@ from app.routers._dummy import build_dummy_assessment
 from app.schemas.schemas import (
     Determination, ExecutionEndReason, FinalVerificationStatus, LegalSource, RiskLevel, ToolName, ToolStatus,
 )
+from app.tools.customs.search import HsCase
+from app.tools.customs.tool import _case_source
 
 _PRESENTER = ResultPresenter()
 
@@ -209,3 +211,57 @@ def test_blank_optional_source_fields_become_none(assessment, tool_result, findi
                        ToolName.RADIO).findings[0].legal_sources[0]
 
     assert (dto_source.law_name, dto_source.article, dto_source.effective_date) == (None, None, None)
+
+
+# ---- 통관 결정사례별 근거 (#709)
+
+_FAN_LINES = (
+    "본 상품과 같이 휴대용 및 탁상용으로 사용 가능한 4엽 플라스틱제 충전 선풍기로, 기능과 재질이 일치함.",
+    "손잡이 접이식으로 휴대 및 탁상용으로 사용 가능하며, 플라스틱 재질의 충전 선풍기로 기능과 재질이 유사함.",
+    "탁상용 및 휴대용으로 사용 가능하며, 플라스틱제 충전 선풍기로 기능과 재질이 일치함.",
+)
+
+
+def _case_sources(*hs_codes):
+    """통관 Tool이 붙이는 결정사례 출처 그대로 (Tool 쪽 형식이 바뀌면 여기서 드러남)."""
+    return [_case_source(HsCase(case_id=f"00720190{index:05d}", hs_codes=codes, product_name="Other fans",
+                                description="", decision_reason="선풍기"))
+            for index, codes in enumerate(hs_codes)]
+
+
+def _customs_rationale(assessment, tool_result, item):
+    return _card(_PRESENTER.assessment(assessment(tool_result(ToolName.CUSTOMS, [item]))),
+                 ToolName.CUSTOMS).findings[0].rationale
+
+
+def test_customs_case_lines_become_first_line_and_case_summary(assessment, tool_result, finding):
+    sources = _case_sources(("8414599000",), ("8414599000",), ("8414599000", "8516799000"))
+    item = finding(ToolName.CUSTOMS, Determination.POSSIBLY_REQUIRED, rationale="\n".join(_FAN_LINES),
+                   legal_sources=[LegalSource(source_name="관세법", law_name="관세법", article="제226조"), *sources])
+
+    assert _customs_rationale(assessment, tool_result, item) == (
+        f"판단: {_FAN_LINES[0]}\n참고 사례: 3건 · HS 8414.59-9000, 8516.79-9000 · 아래 '근거'에서 확인")
+
+
+def test_customs_single_case_rationale_is_kept(assessment, tool_result, finding):
+    item = finding(ToolName.CUSTOMS, Determination.POSSIBLY_REQUIRED, rationale=_FAN_LINES[0],
+                   legal_sources=_case_sources(("8414599000",)))
+
+    assert _customs_rationale(assessment, tool_result, item) == _FAN_LINES[0]
+
+
+def test_customs_rationale_is_kept_when_lines_and_cases_differ(assessment, tool_result, finding):
+    item = finding(ToolName.CUSTOMS, Determination.POSSIBLY_REQUIRED, rationale="\n".join(_FAN_LINES),
+                   legal_sources=_case_sources(("8414599000",), ("8414599000",)))
+
+    assert _customs_rationale(assessment, tool_result, item) == "\n".join(_FAN_LINES)
+
+
+def test_other_tool_multiline_rationale_is_kept(assessment, tool_result, finding):
+    rationale = "해당할 수 있는 범위:\n제1호 미백\n제2호 주름 개선"
+    item = finding(ToolName.FOOD_DRUG, Determination.POSSIBLY_REQUIRED, rationale=rationale,
+                   legal_sources=_case_sources(("8414599000",), ("8414599000",)))
+
+    rationale_out = _card(_PRESENTER.assessment(assessment(tool_result(ToolName.FOOD_DRUG, [item]))),
+                          ToolName.FOOD_DRUG).findings[0].rationale
+    assert rationale_out == rationale

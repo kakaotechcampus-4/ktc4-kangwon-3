@@ -7,6 +7,8 @@
 - 안내: 미완료 사유, 지원 분야 밖 신호, 구매대행 가능일 때 확인 범위, 질문으로 묻지 않은 부족 정보, 고정 안내.
 """
 
+import re
+
 from ..schemas.callback import (
     PublicAssessmentDto, PublicFindingDto, PublicLegalSourceDto, PublicToolReviewDto,
 )
@@ -48,6 +50,11 @@ _INCOMPLETE_NOTICES = {
     ExecutionEndReason.QUESTION_LIMIT_EXCEEDED: "추가 확인이 필요한 정보가 남아 진단을 끝까지 마치지 못했습니다.",
 }
 _UNVERIFIED_NOTICE = "결과 검증을 마치지 못했습니다."
+
+# 통관 결정사례 출처 이름 (tools/customs/tool.py의 _CASE_SOURCE와 같음)
+_CASE_SOURCE = "관세청 품목분류 결정사례(CLIP)"
+# 결정사례 출처 조문 "결정사례 … (HS 8414.59-9000, …)"의 HS 부분
+_CASE_HS = re.compile(r"\(HS ([^)]+)\)$")
 
 # 지원 분야 밖 신호 → (상품 종류, 확인하지 않는 법령)
 _OUT_OF_SCOPE_LABELS = {
@@ -117,9 +124,37 @@ def _finding(finding: RegulatoryFinding) -> PublicFindingDto:
         determination=finding.determination,
         risk_level=finding.risk_level,
         summary=summary,
-        rationale=finding.rationale.strip() or summary,
+        rationale=_rationale(finding) or summary,
         legal_sources=[_source(source) for source in finding.legal_sources if source.source_name.strip()],
     )
+
+
+def _rationale(finding: RegulatoryFinding) -> str:
+    """판단 근거. 통관 근거가 결정사례마다 한 줄씩이면 대표 줄과 사례 요약 두 줄로 줄인다 (#709).
+
+    통관 Tool은 고른 결정사례 순서대로 사례별 이유를 줄로 잇고 같은 순서로 결정사례 출처를 붙인다.
+    사례별 이유가 상품 설명을 되풀이해 화면에서 중복처럼 보여, 사례 내용은 출처에 맡긴다.
+
+    Args:
+        finding: 판단 하나.
+
+    Returns:
+        str: 화면에 보낼 근거. 비면 빈 문자열.
+    """
+    rationale = finding.rationale.strip()
+    if finding.tool_name is not ToolName.CUSTOMS:
+        return rationale
+    lines = [line.strip() for line in rationale.splitlines() if line.strip()]
+    cases = [source for source in finding.legal_sources if source.source_name == _CASE_SOURCE]
+    # 줄과 사례 출처 수가 다르면 짝을 믿을 수 없어 그대로 둠
+    if len(lines) < 2 or len(lines) != len(cases):
+        return rationale
+    codes = list(dict.fromkeys(
+        code for source in cases if (match := _CASE_HS.search(source.article or ""))
+        for code in match.group(1).split(", ")
+    ))
+    hs = f" · HS {', '.join(codes)}" if codes else ""
+    return f"판단: {lines[0]}\n참고 사례: {len(cases)}건{hs} · 아래 '근거'에서 확인"
 
 
 def _source(source: LegalSource) -> PublicLegalSourceDto:
