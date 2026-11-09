@@ -89,14 +89,11 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                         <div className="flex flex-col gap-1">
                             <p className="text-lg font-bold text-black">링크</p>
                             {link && isHttpUrl(link) ? (
-                                <a
-                                    href={link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm text-primary underline break-all"
-                                >
-                                    {link}
-                                </a>
+                                <p className="text-sm break-all">
+                                    <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                                        {link}
+                                    </a>
+                                </p>
                             ) : (
                                 <p className="text-sm text-neutral-text break-all">{link}</p>
                             )}
