@@ -632,7 +632,9 @@ class ExecutionEvent(BaseModel):
 | `POST /resume` | `diagnosisId`, `productId`, `runId`(질문으로 끝난 실행), `questionRound`(1~2), `answers[]`: `questionKey`, `answerText`(≤500자) | 202. 새 runId로 다시 실행 |
 
 - **상품 입력 조건(#310 합의)**: 텍스트(`textBlocks`)·이미지(`imageUrls`)·URL(`sourceUrl`) 중 **하나 이상** 있으면 접수한다.
-  - URL만 있는 상품은 판매 사이트에서 수집한 뒤 추출한다(#337, `app/pipeline/extraction_step.py`). 미지원 사이트는 `AI_UNSUPPORTED_SITE`(재시도 불가), 수집 실패는 `AI_SOURCE_FETCH_FAILED`(재시도 가능), 수집 결과가 비면 `AI_EMPTY_SOURCE`(재시도 불가)로 실패 콜백을 보낸다.
+  - 텍스트 없이 URL이 있는 상품은 이미지가 함께 와도 판매 사이트에서 수집한 뒤 추출한다(#337, `app/pipeline/extraction_step.py`).
+  - 함께 온 이미지(BE가 보내는 대표 이미지 등)를 추출에 넣을지는 사이트 설정(`uploaded_images`, `app/pipeline/url_source.py`)으로 정한다. 메이드인차이나는 넣지 않는다.
+  - 수집에 실패하면 함께 온 이미지가 있어도 진단을 이어가지 않는다. 자동 재시도는 없고 `retryable`로 재시도 가능 여부만 알린다. 미지원 사이트는 `AI_UNSUPPORTED_SITE`(재시도 불가), 수집 실패는 `AI_SOURCE_FETCH_FAILED`(재시도 가능), 수집 결과가 비면 `AI_EMPTY_SOURCE`(재시도 불가)로 실패 콜백을 보낸다.
 - 이미지는 URL로 받는다(#389·#403). base64 data URI도 호환으로 받는다.
 - 원래 입력·추출 결과·이전 질문과 답변은 AI 세션이 보관한다. BE는 재진단 때 ID와 이번 회차 답변만 보낸다.
 - 재진단은 이전 추출 결과에 이번 회차 답변을 `[사용자 답변] 질문 → 답변` 줄로 상품 글 끝에 붙여 선택 단계부터 다시 실행한다(`app/diagnosis/answers.py`). 답변 유형 구조화(#412) 전까지 쓰는 방식이다.

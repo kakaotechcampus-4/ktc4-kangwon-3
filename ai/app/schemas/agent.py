@@ -13,7 +13,7 @@ class ExtractionInput(StrictModel):
     """추출할 원문 자료. 수집 완료된 자료를 전달받는 방식으로 우선 제안한다."""
 
     product_id: str = Field(min_length=1)
-    # source_url은 출처 표시용이며, URL만으로 페이지를 수집하는 기능은 포함하지 않는다.
+    # 출처 표시용. 글 없이 URL만 온 상품의 수집은 추출 단계(ExtractionStep)에서 끝낸 뒤 넘어옴
     source_url: str | None = None
     text_blocks: list[str] = Field(default_factory=list)
     # 2026-09-06 결정: http(s) URL과 data:image/...;base64,... 문자열을 모두 받는다.

@@ -61,8 +61,14 @@ def _page(text_blocks: list[str], images: list[ProductPageImage] | None = None) 
                        images=images or [])
 
 
-def _builder(client: _FakeClient, images: str = "none", triage=None) -> UrlSourceBuilder:
-    return UrlSourceBuilder(triage, sites={"made-in-china.com": SiteConfig(lambda: client, images=images)})
+def _builder(client: _FakeClient, images: str = "none", triage=None, uploaded_images: bool = False) -> UrlSourceBuilder:
+    return UrlSourceBuilder(triage, sites={"made-in-china.com": SiteConfig(lambda: client, images=images,
+                                                                           uploaded_images=uploaded_images)})
+
+
+class _NoSplit:
+    def prepare(self, image_urls):
+        return list(image_urls)
 
 
 def _input(**source) -> DiagnosisInput:
@@ -121,6 +127,29 @@ def test_URL만_있으면_수집한_페이지로_추출한다():
 
     assert extractor.inputs == [ExtractionInput(product_id="p-1", source_url=URL,
                                                 text_blocks=["보조배터리", "Capacity: 10000mAh"])]
+
+
+def test_이미지가_함께_와도_URL이면_수집하고_사이트가_끄면_함께_온_이미지는_넣지_않는다(caplog):
+    # BE는 URL 상품에도 대표 이미지를 보냄. 예전에는 이 이미지 때문에 수집을 건너뛰고 이미지만으로 추출했음
+    extractor = _FakeExtractor()
+    step = ExtractionStep(extractor, _builder(_FakeClient(_page(["보조배터리"]))), image_splitter=_NoSplit())
+
+    with caplog.at_level("INFO", logger="app.pipeline.extraction_step"):
+        step.run(_input(source_url=URL, image_urls=["https://s3/thumbnail.png"]))
+
+    assert extractor.inputs == [ExtractionInput(product_id="p-1", source_url=URL, text_blocks=["보조배터리"])]
+    assert "함께 온 이미지 제외 1장" in caplog.text
+
+
+def test_사이트가_켜면_함께_온_이미지를_수집한_글과_같이_넣는다():
+    extractor = _FakeExtractor()
+    step = ExtractionStep(extractor, _builder(_FakeClient(_page(["보조배터리"])), uploaded_images=True),
+                          image_splitter=_NoSplit())
+
+    step.run(_input(source_url=URL, image_urls=["https://s3/thumbnail.png"]))
+
+    assert extractor.inputs[0].text_blocks == ["보조배터리"]
+    assert extractor.inputs[0].image_urls == ["https://s3/thumbnail.png"]
 
 
 def test_지원하지_않는_사이트면_재시도_불가로_실패한다():
