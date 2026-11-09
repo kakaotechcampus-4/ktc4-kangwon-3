@@ -22,10 +22,10 @@ function InputTypeTabs({ selected, onSelect }: InputTypeTabsProps) {
                     type="button"
                     onClick={() => onSelect(key)}
                     className={cn(
-                        "flex cursor-pointer items-center justify-center rounded-lg border px-5 py-2 text-base font-medium md:px-6",
+                        "flex cursor-pointer items-center justify-center rounded-lg border px-5 py-2 text-base font-semibold transition-colors duration-150 outline-none focus-visible:ring-3 focus-visible:ring-primary/25 md:px-6",
                         selected === key
-                            ? "border-primary/40 bg-primary-soft font-semibold text-primary"
-                            : "border-transparent text-neutral-muted",
+                            ? "border-primary bg-primary text-white"
+                            : "border-box-line bg-button-active-bg text-neutral-muted hover:text-neutral-text",
                     )}
                 >
                     {label}
