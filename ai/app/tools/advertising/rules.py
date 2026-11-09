@@ -1,9 +1,10 @@
 """표시·광고 Tool의 코드 규칙. 모델을 부르지 않는 상수·순수 함수만 둔다.
 
-KC 표기 찾기, 위험도, 근거 묶음, 판매 전 할 일 문구. 근거 조문 자체는 evidence.py가 적용 판 본문에서 읽는다.
+KC 표기 찾기, 위험도, 근거 묶음, 화면 안내 문구(요약, 설명, 판매 전 할 일). 근거 조문 자체는 evidence.py가 적용 판 본문에서 읽는다.
 """
 
 import re
+from enum import StrEnum
 
 from ...schemas.schemas import LegalSource, RiskLevel
 from ..common.facts import object_particle, topic_particle
@@ -16,6 +17,8 @@ _MEDICINAL_WORDS = ("치료", "예방", "완치", "질병", "질환")
 # (2026-11-08: 실증자료 안내로 잘못 나가던 문제). 'Ceramic'처럼 낱말 안의 글자는 제외
 # 추천·권장 주장. 인증·수상과 같은 유형이지만 근거 조문은 지정고시 12 가(전문가·기관 추천)가 정확해 함께 붙인다
 _RECOMMEND = re.compile(r"추천|권장|recommend", re.IGNORECASE)
+# 수상·특허·선정 표기. 수상·인증 심사지침이 인증과 함께 다룬다
+_AWARD = re.compile(r"수상|특허|선정|award|patent", re.IGNORECASE)
 _FOREIGN_CERT = re.compile(r"certif|(?<![A-Za-z])(?:CE|CCC|3C|RoHS|FCC|FDA|UL|CB|GS|TÜV|TUV)(?![A-Za-z])", re.IGNORECASE)
 
 # 국내 인증(KC) 표기. 실제 인증 여부는 상품 글만으로 알 수 없어 모델 판단과 관계없이 코드가 찾아 확인을 안내한다.
@@ -26,15 +29,58 @@ _KC_MARK = re.compile(r"(?<![A-Za-z])KC\s*(?:인증(?!정보)|마크|안전인�
                       re.IGNORECASE)
 _KC_REASON = "국내 인증(KC) 표기다. 실제로 인증을 받은 제품인지 상품 글만으로는 확인할 수 없다."
 
-# 판단 제목·요약에 쓰는 유형 이름 (판매자 화면에 나가므로 가운뎃점 대신 띄어쓰기)
-TYPE_LABELS = {
-    AdvertisingRiskType.BODY_EFFECT: "인체 효능",
-    AdvertisingRiskType.SAFETY_CERTIFICATION: "인증 수상",
-    AdvertisingRiskType.PERFORMANCE_QUALITY: "성능 품질",
-    AdvertisingRiskType.INGREDIENT_MATERIAL: "원재료 성분",
-    AdvertisingRiskType.ORIGIN_MAKER: "원산지 제조자",
-    AdvertisingRiskType.RANKING_ABSOLUTE: "절대 표현",
-    AdvertisingRiskType.WARRANTY: "보증 약속",
+
+class ClaimKind(StrEnum):
+    """화면 안내를 나누는 주장 종류. 모델이 고른 유형(risk_type)을 코드가 인용 문구로 한 번 더 나눈다.
+
+    안전·인증 유형에는 인증 표기, 수상·추천 표기, 인증이 아닌 안전·친환경 주장이 섞여 있어 안내와 근거가 다르다(#704 리뷰).
+    """
+
+    MEDICINAL = "medicinal"
+    BODY_EFFECT = "body_effect"
+    CERTIFICATION = "certification"
+    ENDORSEMENT = "endorsement"
+    SAFETY = "safety"
+    PERFORMANCE = "performance"
+    INGREDIENT = "ingredient"
+    ORIGIN = "origin"
+    ABSOLUTE = "absolute"
+    WARRANTY = "warranty"
+
+
+_SUBSTANTIATE = "자료로 사실임을 보여 줄 수 있어야 합니다. 자료가 없으면 부당한 광고가 될 수 있습니다."
+# 판단 카드에 나가는 (요약, 설명). 판매자가 읽는 문장이라 법령 용어(실증)와 내부 유형 이름을 쓰지 않는다.
+# 모델이 쓴 이유(reason)는 유형 이름이 섞여 나와 화면에 내지 않고 phrases에만 남긴다
+# (2026-11-09 견본: "... body_effect 유형에 해당함")
+NOTICES = {
+    ClaimKind.MEDICINAL: ("의약품 효능처럼 읽히는 문구입니다.",
+                          "의약품이 아닌 상품을 객관적인 근거 없이 병을 치료하거나 예방하는 것처럼 광고하면 "
+                          "부당한 광고가 될 수 있습니다."),
+    ClaimKind.BODY_EFFECT: ("몸에 효과가 있다는 주장입니다.", f"효능을 내세운 문구는 시험 결과 같은 {_SUBSTANTIATE}"),
+    ClaimKind.CERTIFICATION: ("인증을 받았다는 표기입니다.",
+                              "받지 않은 인증을 받은 것처럼 적으면 부당한 광고가 될 수 있습니다. "
+                              "상세페이지만으로는 알 수 없어 실제로 인증을 받았는지 확인이 필요합니다."),
+    ClaimKind.ENDORSEMENT: ("수상, 특허, 추천을 내세운 표기입니다.",
+                            "그런 사실이 없는데 있는 것처럼 적으면 부당한 광고가 될 수 있습니다."),
+    ClaimKind.SAFETY: ("안전하다거나 친환경이라는 주장입니다.",
+                       f"안전, 환경에 관한 문구는 시험 성적서 같은 {_SUBSTANTIATE}"),
+    ClaimKind.PERFORMANCE: ("성능을 수치로 내세우거나 효과를 보장하는 주장입니다.",
+                            f"성능을 내세운 문구는 시험 결과 같은 {_SUBSTANTIATE}"),
+    ClaimKind.INGREDIENT: ("원재료나 성분을 내세운 주장입니다.",
+                           "원재료나 성분을 사실과 다르게, 또는 부풀려 적으면 부당한 광고가 될 수 있습니다."),
+    ClaimKind.ORIGIN: ("원산지, 제조사, 정품 여부를 내세운 표기입니다.",
+                       "원산지나 제조자를 사실과 다르게, 또는 헷갈리게 적으면 부당한 광고가 될 수 있습니다."),
+    ClaimKind.ABSOLUTE: ("1위, 최고, 유일처럼 단정하거나 다른 상품보다 낫다고 비교하는 표현입니다.",
+                         "객관적인 근거 없이 순위, 최상급, 비교 표현을 쓰면 부당한 광고가 될 수 있습니다."),
+    ClaimKind.WARRANTY: ("구체적인 조건 없이 보증을 약속한 문구입니다.",
+                         "보증 내용, 기간, 범위를 정확하게 기재하지 않으면 부당한 광고가 될 수 있습니다."),
+}
+_KIND_BY_TYPE = {
+    AdvertisingRiskType.PERFORMANCE_QUALITY: ClaimKind.PERFORMANCE,
+    AdvertisingRiskType.INGREDIENT_MATERIAL: ClaimKind.INGREDIENT,
+    AdvertisingRiskType.ORIGIN_MAKER: ClaimKind.ORIGIN,
+    AdvertisingRiskType.RANKING_ABSOLUTE: ClaimKind.ABSOLUTE,
+    AdvertisingRiskType.WARRANTY: ClaimKind.WARRANTY,
 }
 RISK_ORDER = (RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH)
 
@@ -97,6 +143,40 @@ def claim_risk(claim: AdvertisingClaim) -> RiskLevel:
     return RiskLevel.MEDIUM
 
 
+def claim_kind(claim: AdvertisingClaim, risk_level: RiskLevel) -> ClaimKind:
+    """화면 안내를 고를 주장 종류.
+
+    Args:
+        claim: 검토한 주장.
+        risk_level: 주장의 위험도.
+
+    Returns:
+        ClaimKind: 인체 효능은 위험도로, 안전·인증 유형은 인용 문구로 한 번 더 나눈 종류.
+    """
+    if claim.risk_type is AdvertisingRiskType.BODY_EFFECT:
+        return ClaimKind.MEDICINAL if risk_level is RiskLevel.HIGH else ClaimKind.BODY_EFFECT
+    if claim.risk_type is AdvertisingRiskType.SAFETY_CERTIFICATION:
+        if _is_certification(claim):
+            return ClaimKind.CERTIFICATION
+        if _RECOMMEND.search(claim.quote) or _AWARD.search(claim.quote):
+            return ClaimKind.ENDORSEMENT
+        return ClaimKind.SAFETY
+    return _KIND_BY_TYPE[claim.risk_type]
+
+
+def claim_notice(claim: AdvertisingClaim, risk_level: RiskLevel) -> tuple[str, str]:
+    """판단 카드에 보여 줄 요약과 설명.
+
+    Args:
+        claim: 검토한 주장.
+        risk_level: 주장의 위험도.
+
+    Returns:
+        tuple[str, str]: (어떤 주장인지 한 줄, 왜 확인이 필요한지).
+    """
+    return NOTICES[claim_kind(claim, risk_level)]
+
+
 def sources_for(evidence: AdvertisingEvidence, claim: AdvertisingClaim, risk_level: RiskLevel) -> list[LegalSource]:
     """주장 하나에 붙일 근거 조문을 모은다.
 
@@ -108,11 +188,14 @@ def sources_for(evidence: AdvertisingEvidence, claim: AdvertisingClaim, risk_lev
     Returns:
         list[LegalSource]: 법 제3조·제5조 → 실증 대상 → 유형별 지침 순.
     """
-    sources = [evidence.article_3, evidence.article_5, evidence.substantiation_targets[claim.risk_type],
-               evidence.type_sources[claim.risk_type]]
-    if risk_level is RiskLevel.HIGH:
+    kind = claim_kind(claim, risk_level)
+    sources = [evidence.article_3, evidence.article_5, evidence.substantiation_targets[claim.risk_type]]
+    # 인증이 아닌 안전·친환경 주장('무독성', '친환경 소재')에는 수상·인증 심사지침을 붙이지 않는다. 실증 고시 Ⅲ 2가 근거다
+    if kind is not ClaimKind.SAFETY:
+        sources.append(evidence.type_sources[claim.risk_type])
+    if kind is ClaimKind.MEDICINAL:
         sources.append(evidence.medicinal_effect)
-    if claim.risk_type is AdvertisingRiskType.SAFETY_CERTIFICATION and _RECOMMEND.search(claim.quote):
+    if kind is ClaimKind.ENDORSEMENT and _RECOMMEND.search(claim.quote):
         sources.append(evidence.recommendation)
     return sources
 
@@ -135,20 +218,24 @@ def claim_action(claim: AdvertisingClaim, risk_level: RiskLevel) -> str:
         risk_level: 주장의 위험도.
 
     Returns:
-        str: 인증 확인, 의약품 효능 문구 수정, 실증자료 준비 중 하나의 안내.
+        str: 인증 확인, 수상·추천 확인, 보증 내용 밝히기, 원산지 확인, 의약품 효능 문구 수정, 근거 자료 준비 중 하나의 안내.
     """
     shown, word = display_quote(claim), _particle_word(claim)
-    if _is_certification(claim):
-        return (f"{shown} 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
-                "확인되지 않으면 표기를 빼세요.")
-    if claim.risk_type is AdvertisingRiskType.WARRANTY:
-        return (f"{shown} 보증 약속이 있습니다. 보증 주체, 기간, 범위를 밝히고 실제로 지킬 수 있는지 확인하세요. "
-                "지키기 어려우면 문구를 빼거나 고치세요.")
-    if claim.risk_type is AdvertisingRiskType.ORIGIN_MAKER:
-        return (f"{shown} 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지 수입 서류로 확인하고, "
-                "다르면 표기를 고치세요.")
-    if risk_level is RiskLevel.HIGH:
-        return (f"{shown}{topic_particle(word)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치고, "
-                "남기려면 객관적 근거 자료를 먼저 확인하세요.")
-    return (f"{shown}{object_particle(word)} 뒷받침하는 시험·조사 자료(실증자료)를 준비하거나, "
+    match claim_kind(claim, risk_level):
+        case ClaimKind.CERTIFICATION:
+            return (f"{shown} 표기가 있습니다. 실제로 인증을 받은 제품인지 인증번호와 인증서로 확인하고, "
+                    "확인되지 않으면 표기를 빼세요.")
+        case ClaimKind.ENDORSEMENT:
+            return (f"{shown} 표기가 있습니다. 수상, 특허, 추천 사실을 보여 줄 자료가 있는지 확인하고, "
+                    "없으면 표기를 빼세요.")
+        case ClaimKind.WARRANTY:
+            return (f"{shown} 문구가 있습니다. 누가, 언제까지, 어디까지 보증하는지 적고 실제로 지킬 수 있는지 확인하세요. "
+                    "지키기 어려우면 문구를 빼거나 고치세요.")
+        case ClaimKind.ORIGIN:
+            return (f"{shown} 표기가 있습니다. 원산지나 제조자, 정품 여부가 사실인지 수입 서류로 확인하고, "
+                    "다르면 표기를 고치세요.")
+        case ClaimKind.MEDICINAL:
+            return (f"{shown}{topic_particle(word)} 의약품 효능처럼 읽힙니다. 의약품이 아닌 상품이면 문구를 빼거나 고치세요. "
+                    "남기려면 효능을 보여 줄 객관적인 자료가 있어야 합니다.")
+    return (f"{shown}{object_particle(word)} 뒷받침하는 시험 결과나 조사 자료를 준비하세요. "
             "자료가 없으면 문구를 빼거나 고치세요.")

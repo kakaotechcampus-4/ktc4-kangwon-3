@@ -31,7 +31,7 @@ from ..base import RegulatoryTool
 from ..common.questions import NO_LISTING_QUESTION
 from .errors import AdvertisingEvidenceError
 from .evidence import AdvertisingEvidence
-from .rules import RISK_ORDER, TYPE_LABELS, claim_action, claim_risk, find_kc_claims, normalize, sources_for
+from .rules import RISK_ORDER, claim_action, claim_notice, claim_risk, find_kc_claims, normalize, sources_for
 from .schemas import AdvertisingClaim, AdvertisingReview
 from .steps import AdvertisingReviewer, AdvertisingReviewInput
 
@@ -154,14 +154,15 @@ class AdvertisingTool(RegulatoryTool):
             level = claim_risk(claim)
             claim_sources = sources_for(evidence, claim, level)
             action = claim_action(claim, level)
+            summary, rationale = claim_notice(claim, level)
             phrases.append(AdvertisingPhrase(text=claim.quote, risk_type=claim.risk_type.value, risk_level=level,
                                              reason=claim.reason, evidence_required=True))
             # 제목은 원문 인용, 영문이면 번역을 괄호로. 채점·원문 대조는 phrases의 text(원문 그대로)로 한다
             subject = f"{claim.quote}({claim.translation})" if claim.translation else claim.quote
             findings.append(RegulatoryFinding(
                 tool_name=self.tool_name, subject=subject, determination=Determination.POSSIBLY_REQUIRED,
-                risk_level=level, summary=f"{TYPE_LABELS[claim.risk_type]} 주장으로 실증이 필요할 수 있습니다.",
-                rationale=claim.reason, product_facts_used=[claim.quote], requirements=[action],
+                risk_level=level, summary=summary, rationale=rationale,
+                product_facts_used=[claim.quote], requirements=[action],
                 legal_sources=claim_sources,
                 assumptions=["판매자가 이 주장의 실증자료를 갖고 있는지는 확인하지 않았습니다."],
             ))
@@ -201,8 +202,8 @@ class AdvertisingTool(RegulatoryTool):
         return RegulatoryFinding(
             tool_name=self.tool_name, subject="판매자 상품 문구",
             determination=Determination.NOT_REQUIRED, risk_level=RiskLevel.LOW,
-            summary="검토한 판매자 문구에서 실증이 필요한 주장을 찾지 못했습니다.",
-            rationale="실증 운영 고시 Ⅲ 1~4(인체·안전·성능·순위)에 해당하는 사실 주장을 찾지 못했습니다.",
+            summary="판매자 문구에서 문제가 될 만한 광고 표현을 찾지 못했습니다.",
+            rationale="효능, 인증, 성능, 원재료, 원산지, 최상급 표현, 보증 약속처럼 근거 자료가 필요한 주장이 있는지 확인했습니다.",
             legal_sources=[evidence.article_5],
             assumptions=["추출 단계가 listing_text로 옮긴 판매자 문구만 검토했습니다. 놓친 주장이 있을 수 있습니다."],
         )
@@ -227,7 +228,7 @@ class AdvertisingTool(RegulatoryTool):
                 tool_name=self.tool_name, subject="판매자 상품 문구",
                 determination=Determination.INSUFFICIENT_INFORMATION, risk_level=RiskLevel.UNKNOWN,
                 summary="검토할 판매자 문구가 없습니다.",
-                rationale="listing_text가 비어 있어 표시·광고 문구를 검토하지 않았습니다.",
+                rationale="상세페이지에서 판매자가 쓴 문구를 찾지 못해 광고 표현을 검토하지 못했습니다.",
             )],
             missing_information=[_NO_LISTING_QUESTION],
         )
