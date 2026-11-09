@@ -28,7 +28,8 @@
 | `/question/:productId` | AI 추가 질문에 답변 | 필요 |
 | `/result/product/:productId` | 상품 하나의 진단 결과 | 필요 |
 | `/result/diagnoses/:diagnosesId` | 진단서 전체 결과 | 필요 |
-| `/mypage` | 진단한 상품 목록(검색·필터·페이지), 회원 정보 조회·수정, 상품 삭제, 회원 탈퇴 | 필요 |
+| `/mypage` | 진단한 상품 목록(검색·필터·페이지), 법령 개정 알림과 재진단, 알림 수신 설정, 회원 정보 조회·수정, 상품 삭제, 회원 탈퇴 | 필요 |
+| `/policy/:type` | 이용약관(`terms`), 개인정보처리방침(`privacy`). 탭으로 오가며 푸터와 로그인 화면의 안내 문구 링크로 진입 | - |
 
 
 ```mermaid
@@ -60,17 +61,17 @@ flowchart LR
 
 ```
 src/
-├── api/            # BE 리소스별 API 함수 (products, diagnoses, uploads, users)
-│   ├── core/       # Axios 클라이언트, 쿼리 재시도 정책, Sentry 에러 정책
+├── api/            # BE 리소스별 API 함수 (products, diagnoses, uploads, users, lawAmendments)
+│   ├── core/       # Axios 클라이언트, 쿼리 재시도 정책, Sentry 에러 정책, 유효하지 않은 ID·세션 거부 판별
 │   ├── types/      # 응답 타입
 │   └── mock/       # BE 없이 화면을 볼 때 쓰는 목업 데이터
 ├── components/
-│   ├── common/     # 공용 컴포넌트 (Button, Header, Pagination, HelpTooltip 등)
+│   ├── common/     # 공용 컴포넌트 (Button, Header, Footer, Pagination, HelpTooltip 등)
 │   └── layout/     # Header + 본문 레이아웃
 ├── pages/          # 페이지별 폴더. 페이지 전용 파일을 components/·hooks/·utils/로 나누고, 진입점(index.tsx)·types.ts·constants.ts는 페이지 폴더 바로 아래에 둠
 ├── store/          # Zustand 스토어 (인증)
 ├── hooks/          # 공용 훅 (useIsMobile, useEscapeKey, useBodyScrollLock, useFocusTrap)
-├── constants/      # 상태 배지 라벨, 헤더 메뉴
+├── constants/      # 상태 배지 라벨, 헤더·푸터 메뉴, 정책 링크
 ├── lib/            # 유틸 (클래스 병합, 글자 수 계산, 라우트 파라미터 검사)
 └── test/           # 단위·통합 테스트, MSW 핸들러, 테스트 유틸
 ```
@@ -94,6 +95,7 @@ npm run dev        # http://localhost:5173
 | `npm run build` | 타입 검사(`tsc -b`) 후 빌드 |
 | `npm run lint` | ESLint |
 | `npm test` | 단위·통합 테스트 실행 |
+| `npm run test:coverage` | 테스트와 커버리지 측정. 구문·분기·함수·줄 중 하나라도 70% 미만이면 실패 |
 | `npm run test:watch` | 파일을 저장할 때마다 테스트 다시 실행 |
 | `npm run preview` | 빌드 결과 미리보기 |
 
@@ -101,18 +103,18 @@ npm run dev        # http://localhost:5173
 
 ```bash
 npm run lint
-npm test
+npm run test:coverage
 npm run build      # 타입 검사 포함
 ```
 
-- CI는 PR마다 ESLint, 단위·통합 테스트, 타입 검사를 포함한 빌드를 돌립니다.
+- CI는 PR마다 ESLint, 단위·통합 테스트와 커버리지 기준 검사(70%), 타입 검사를 포함한 빌드를 돌립니다.
 - 단위·통합 테스트는 Vitest와 React Testing Library로 작성하고, 외부 API는 MSW로 모킹합니다.
 - 테스트 종류, 폴더 구조, 작성 규칙, 문제 해결은 [`docs/TEST_POLICY.md`](docs/TEST_POLICY.md)에 정리했습니다.
 - E2E 테스트는 [`e2e/`](../e2e/README.md)에 있습니다.
 
 ## 빌드와 배포
 
-PR과 develop push 시 [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)이 `frontend/palgijeonae/` 변경분을 린트·테스트·빌드하고, develop에서 CI가 통과하면 [`frontend-deploy.yml`](../.github/workflows/frontend-deploy.yml)이 EC2에 배포합니다. 테스트가 실패하면 CI가 실패하므로 develop에서는 배포되지 않습니다.
+PR과 develop push 시 [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)이 `frontend/palgijeonae/` 변경분을 린트·테스트(커버리지 기준 포함)·빌드하고, develop에서 CI가 통과하면 [`frontend-deploy.yml`](../.github/workflows/frontend-deploy.yml)이 EC2에 배포합니다. 테스트가 실패하거나 커버리지가 기준에 못 미치면 CI가 실패하므로 develop에서는 배포되지 않습니다.
 
 ## 코드 작성 관례
 
