@@ -1,4 +1,4 @@
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.svg";
 import { useIsMobile } from "@/hooks/useIsMobile";
 
 /** 화면 우측 상단에서 눌러야 할 곳을 보여주는 축소 헤더. 데스크톱은 프로필 칩, 모바일은 햄버거 버튼을 강조한다. 실제 Header는 로그인 상태와 내 정보에 따라 모양이 바뀌므로 재사용하지 않고 전용 미리보기를 둔다. */

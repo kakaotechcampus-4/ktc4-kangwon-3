@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
-import logo from '@/assets/logo.png'
+import logo from '@/assets/logo.svg'
 import { CONTACT_EMAIL, FOOTER_NAV_ITEMS, GITHUB_URL, POLICY_LINKS } from '@/constants/navigation'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
