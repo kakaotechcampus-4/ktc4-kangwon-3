@@ -1,4 +1,4 @@
-"""InputGuardAgent: 형식 규칙 → 글 판단 → 이미지 판단 순서, 문턱값 판정, 일시 오류 재시도, 실패 시 의심, 기록.
+"""InputGuardAgent: 형식 규칙 → 글 판단 → 이미지 판단 순서, 문턱값 판정, 일시 오류 처리, 실패 시 의심, 기록.
 
 판단 클라이언트는 실제 Jev 형식 클라이언트에 가짜 전송을 붙임. 실제 네트워크 요청은 보내지 않는다.
 """
@@ -12,6 +12,7 @@ import pytest
 from app.agents.input_guard import agent as guard_agent
 from app.agents.input_guard import GuardInput, GuardOutcome, InputGuardAgent, JudgeImages
 from app.clients.llm.decision import TypeSafeDecisionClient
+from app.clients.llm.decision import base as decision_base
 from app.config import ConfigError, ReviewThresholds
 
 JEV = "typesafe/jev-latest"
@@ -64,6 +65,12 @@ class Gateway:
     @property
     def image_calls(self) -> list[dict]:
         return [body for body in self.sent if isinstance(body["state"], list)]
+
+
+@pytest.fixture(autouse=True)
+def no_retry_wait(monkeypatch):
+    """판단 클라이언트 재시도 대기를 건너뜀."""
+    monkeypatch.setattr(decision_base.time, "sleep", lambda seconds: None)
 
 
 @pytest.fixture
@@ -149,8 +156,8 @@ def test_판단에_실패한_부분은_넘기고_나머지로_판정한다(agent
 
     assert (verdict.text_score, verdict.image_scores) == (None, [None, 0.5])
     assert (verdict.outcome, verdict.failed_calls) == (GuardOutcome.SUSPECT, 2)
-    # 500은 한 번 더 불러 실패 호출이 부분마다 2번
-    assert sorted(row["ok"] for row in records) == [False, False, False, False, True]
+    # 재시도는 클라이언트 안에서 끝나 실패 기록은 부분마다 1번
+    assert sorted(row["ok"] for row in records) == [False, False, True]
 
 
 def test_판단하지_못한_부분이_있으면_점수가_낮아도_의심으로_둔다(agent, images):
@@ -169,12 +176,12 @@ def test_못_본_이미지가_있으면_판단이_다_성공해도_의심으로_
     assert (verdict.outcome, verdict.image_scores, verdict.failed_calls) == (GuardOutcome.SUSPECT, [0.02], 0)
 
 
-def test_일시_오류는_한_번_더_불러_판정한다(agent, gateway, records):
+def test_일시_오류는_클라이언트가_다시_보내_판정한다(agent, gateway, records):
     verdict = agent.run(GuardInput("p-1", ["FLAKY"]))
 
     assert (verdict.outcome, verdict.text_score, verdict.failed_calls) == (GuardOutcome.BLOCK, 0.9, 0)
     assert len(gateway.sent) == 2
-    assert [row["ok"] for row in records] == [False, True]
+    assert [row["ok"] for row in records] == [True]
 
 
 def test_요청_문제인_4xx는_다시_부르지_않는다(agent, gateway):
