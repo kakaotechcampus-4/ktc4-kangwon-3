@@ -68,7 +68,8 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
         if get_current_run_tree() is None:
             return self._decide(request)
         # 예외는 trace가 오류로 남기고 그대로 올림
-        with trace(f"decision:{request.model}", "llm", inputs=_trace_inputs(request)) as run:
+        with trace(f"decision:{request.model}", "llm", inputs=_trace_inputs(request),
+                   metadata=_trace_metadata(request)) as run:
             response = self._decide(request)
             run.end(outputs=_trace_outputs(response))
             return response
@@ -225,6 +226,21 @@ def _trace_inputs(request: DecisionRequest) -> dict[str, Any]:
         "questions": [question.model_dump(mode="json") for question in request.questions],
         "image_count": len(request.images),
     }
+
+
+def _trace_metadata(request: DecisionRequest) -> dict[str, str]:
+    """LangSmith가 제공사·모델을 구분하는 메타데이터. 없으면 화면에서 "other"로 묶임.
+
+    채팅 모델 실행(LangChain)과 같은 형식으로 맞춤 (ls_model_name은 "제공사/모델").
+
+    Args:
+        request: 판단 요청.
+
+    Returns:
+        dict[str, str]: 제공사(모델 이름의 "/" 앞)와 모델 이름.
+    """
+    provider, _, _ = request.model.partition("/")
+    return {"ls_provider": provider, "ls_model_name": request.model}
 
 
 def _trace_outputs(response: DecisionResponse) -> dict[str, Any]:

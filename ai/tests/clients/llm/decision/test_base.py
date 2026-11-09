@@ -294,4 +294,6 @@ def test_Jev와_Luna_판단_클라이언트_모두_모델_이름으로_남긴다
     client.decide(decision_request.model_copy(update={"model": model}))
 
     assert [opened["name"] for opened in recorder.opened] == [f"decision:{model}"]
+    # 채팅 모델 실행과 같은 형식. 없으면 LangSmith 화면에서 제공사가 "other"로 묶임
+    assert recorder.opened[0]["metadata"] == {"ls_provider": model.split("/")[0], "ls_model_name": model}
     assert set(recorder.outputs[0]["answers"]) == set(ALL_NAMES)
