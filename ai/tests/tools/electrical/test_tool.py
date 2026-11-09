@@ -444,7 +444,12 @@ def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후�
     assert '"common_notes"' in model.last_payload
 
 
-# -- 고른 품목의 판단을 바꾸지 않는 질문은 묻지 않음 --
+# -- 고른 품목 행에 따라 묻지 않는 질문 --
+# 이유는 두 가지: 어떤 답이든 고른 행의 판단이 같음(전지 행) / 질문 정책(전지·충전 언급이 없으면 전지 전용 여부를 안 물음)
+
+NO_SIGNAL_BATTERY = ("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
+                     "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
+
 
 def test_전지_행만_고르면_전원_전압과_전지_전용_여부를_묻지_않는다():
     # 보조배터리: 전지 행은 비고에 저전압도 포함하고, 전지 자체라 전지 전용 구조 제외도 해당 없음
@@ -454,8 +459,9 @@ def test_전지_행만_고르면_전원_전압과_전지_전용_여부를_묻지
     assert result.query["selected_items"] == [BATTERY_ROW]
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
-    assert "전원 방식, 정격 전압은 고른 품목의 판단을 바꾸지 않아 묻지 않았습니다." in assumptions
-    assert "품목 확정에는 배터리 전용 여부, 전원 방식 확인이 더 필요합니다." in assumptions
+    assert "전원 방식, 정격 전압, 배터리 전용 여부는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
+    # 묻지 않은 이유를 남긴 필드를 "확정에 더 필요"로 다시 적지 않음 (검증이 모순으로 읽지 않게)
+    assert not any("확인이 더 필요합니다" in item for item in assumptions)
 
 
 def test_저전압이면_빠질_수_있는_행을_고르면_전원_전압을_묻는다():
@@ -467,15 +473,17 @@ def test_저전압이면_빠질_수_있는_행을_고르면_전원_전압을_묻
     assert "제품의 정격 전압 확인이 필요합니다." in result.missing_information
 
 
-def test_전지_언급이_없는_콘센트_제품에는_전지_전용_여부를_묻지_않는다():
-    # 220V 스탠드 선풍기: 본체 행을 골라도 전지·충전 언급이 없으면 전지 전용 구조일 수 없음
+def test_전지_언급이_없으면_본체_행이어도_정책상_전지_전용_여부를_묻지_않는다():
+    # 220V 스탠드 선풍기: 답이 판단을 바꾸지 않는다고 확인한 게 아니라, 전지·충전 근거가 없어 묻지 않는 정책
     product, facts = product_and_facts(
         "스탠드 선풍기 220V 플러그", (("product_type", "스탠드 선풍기"), ("rated_voltage", "220V")),
         search_terms=["선풍기"])
     result, _, _ = run(product, facts, review(select(FAN_ROW, needed_fields=["battery_only"])))
     assert result.query["selected_items"] == [FAN_ROW]
     assert not any("건전지나 충전지로만" in question for question in result.missing_information)
-    assert any("배터리 전용 여부 확인이 더 필요합니다" in item for item in result.findings[0].assumptions)
+    assumptions = result.findings[0].assumptions
+    assert NO_SIGNAL_BATTERY in assumptions
+    assert not any("배터리 전용 여부 확인이 더 필요합니다" in item for item in assumptions)
 
 
 def test_본체_행이고_전지_언급이_있으면_모델이_요청한_전지_전용_여부를_묻는다():
@@ -484,6 +492,33 @@ def test_본체_행이고_전지_언급이_있으면_모델이_요청한_전지_
                                        search_terms=["선풍기"])
     result, _, _ = run(product, facts, review(select(FAN_ROW, needed_fields=["battery_only"])))
     assert any("건전지나 충전지로만" in question for question in result.missing_information)
+
+
+def test_전지_행과_본체_행을_함께_고르면_본체_행_기준으로_묻는다():
+    # 충전식 선풍기에서 본체(팬)와 내장 전지 행을 함께 고른 경우: 팬 행 때문에 전원·전압이, 충전 언급 때문에 전지 전용 여부가 필요
+    product, facts = product_and_facts("USB 충전식 미니 선풍기 내장 배터리", (("product_type", "미니 선풍기"),),
+                                       search_terms=["선풍기", "전지"])
+    result, _, _ = run(product, facts, review(select(FAN_ROW), select(BATTERY_ROW, needed_fields=["battery_only"])))
+    assert result.query["selected_items"] == [FAN_ROW, BATTERY_ROW]
+    assert "제품이 어떤 전원으로 작동하는지(전원 방식) 확인이 필요합니다." in result.missing_information
+    assert "제품의 정격 전압 확인이 필요합니다." in result.missing_information
+    assert any("건전지나 충전지로만" in question for question in result.missing_information)
+    assert not any("묻지 않았습니다" in item for finding in result.findings for item in finding.assumptions)
+
+
+def test_전지_행만_고르면_값이_엇갈린_조건도_충돌_질문으로_묻지_않는다():
+    # 전압(저전압 기준 양쪽)과 전지 전용 여부(예·아니오)가 엇갈려도 전지 행의 판단은 같음. 충돌 사실은 가정에 남김
+    # 전압 충돌은 전류 종류가 있어야 판정됨 (AC 220V와 24V가 저전압 기준 양쪽)
+    text = "휴대용 보조배터리 AC 220V 24V 배터리 전용"
+    product, facts = product_and_facts(text, (("product_type", "보조배터리"), ("power_source", "AC"),
+                                              ("rated_voltage", "220V"), ("rated_voltage", "24V"),
+                                              ("battery_only", "예"), ("battery_only", "아니오")))
+    result, _, _ = run(product, facts, review(select(BATTERY_ROW)))
+    assert set(result.query["conflicted"]) == {"rated_voltage", "battery_only"}
+    assert result.missing_information == []
+    assumptions = result.findings[0].assumptions
+    assert any("상품 정보에 모순이 있어" in item for item in assumptions)
+    assert "정격 전압, 배터리 전용 여부는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
 
 
 def test_고른_행이_없으면_전원_전압을_지금처럼_묻는다():

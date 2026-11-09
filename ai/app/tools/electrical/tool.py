@@ -26,6 +26,9 @@ _FIELDS = {
 # 품목 조회에는 제품 종류만 있으면 된다. 전원·전압이 없으면 질문으로 남기고 검토는 계속한다.
 _REQUIRED_FIELDS = ("product_type",)
 _ASKED_FIELDS = ("power_source", "rated_voltage")
+# 고른 품목 행이 있을 때 질문을 빼는 이유 (_question_skips)
+_NO_EFFECT = "no_effect"   # 어떤 답이든 고른 행의 판단이 같음
+_NO_SIGNAL = "no_signal"   # 질문 정책: 전지·충전 언급이 없어 전지 전용 여부를 묻지 않음 (판단 불변을 확인한 것은 아님)
 # 상품이 전기를 쓴다는 원문 근거가 되는 조건.
 _ELECTRICAL_FIELDS = ("power_source", "rated_voltage", "rated_power", "battery_only", "adapter_included")
 # 답에 따라 코드 판단이 바뀌는 조건(품목 조회·저전압 제외·전지 전용 제외)만 사용자에게 묻는다.
@@ -185,18 +188,18 @@ class ElectricalTool(EvidenceSearchTool):
         battery_hint = battery_only is None and mentions_battery(by_field, product)
         chosen = self._pick(run, review.selections, {block.block_id: block for block in shortlisted}, limit=None,
                             skip=lambda block: excluded_by_low_voltage(block, low, current))
-        # 답이 고른 품목의 판단을 바꿀 수 있는 조건만 묻는다. 판단 생성 전에 정해야 가정이 판단에 실림
-        asks = self._relevant_questions([block for block, _, _ in chosen], by_field, product)
-        if chosen:
-            self._drop_irrelevant_questions(run, asks)
+        # 고른 품목이 있으면 묻지 않을 질문을 정한다. 판단을 만들기 전에 정해야 그 이유(가정)가 판단에 실림
+        skips = self._question_skips([block for block, _, _ in chosen], by_field, product) if chosen else {}
+        needed_all = [name for _, selection, _ in chosen for name in selection.needed_fields if name not in by_field]
+        self._skip_questions(run, skips, needed_all)
         findings = []
         for block, selection, used in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
-            run.missing.extend(name for name in needed if name in _QUESTION_FIELDS and asks.get(name, True))
+            run.missing.extend(name for name in needed if name in _QUESTION_FIELDS and name not in skips)
             sources = [block.section.source()]
             notes = ["LLM 품목 선택이며 규제 적용·인증 보유를 확정하지 않았습니다."]
-            if other := [_FIELDS[name] for name in needed
-                         if name not in _QUESTION_FIELDS or not asks.get(name, True)]:
+            # 묻지 않기로 한 질문 필드는 위 가정에 이유를 남겼으므로 "더 필요" 문장에 다시 넣지 않음 (서로 어긋나 보이지 않게)
+            if other := [_FIELDS[name] for name in needed if name not in _QUESTION_FIELDS]:
                 notes.append(f"품목 확정에는 {', '.join(other)} 확인이 더 필요합니다.")
             if low is True:
                 sources.append(candidates.notice_scope.source())
@@ -236,43 +239,55 @@ class ElectricalTool(EvidenceSearchTool):
         return findings
 
     @staticmethod
-    def _relevant_questions(blocks: list, by_field: dict, product) -> dict[str, bool]:
-        """고른 품목 행에 대해 전원·전압·전지 전용 여부를 물을 가치가 있는지.
+    def _question_skips(blocks: list, by_field: dict, product) -> dict[str, str]:
+        """고른 품목 행에 대해 묻지 않을 질문과 그 이유. 이유는 두 가지로 나눈다.
 
-        - 전원 방식·정격 전압은 저전압 제외(운용요령 제3조)를 가르는 데 쓴다. 고른 행이 모두 비고에 저전압도
-          포함한다고 정한 행(예: 전지)이면 답이 판단을 바꾸지 않는다.
-        - 전지 전용 여부는 본체 행의 공통 비고 제외를 가르는 데 쓴다. 고른 행이 모두 전지·충전기 행이거나,
-          상품에 전지·충전 언급이 없으면(예: 220V 스탠드 선풍기) 답이 판단을 바꾸지 않는다.
+        - _NO_EFFECT(답이 판단을 바꾸지 않음):
+          - 전원 방식·정격 전압은 저전압 제외(운용요령 제3조)를 가르는 데 쓴다. 고른 행이 모두 비고에 저전압도
+            포함한다고 정한 행(예: 전지)이면 어떤 답이든 그 행의 판단이 같다.
+          - 전지 전용 여부는 본체 행의 공통 비고 제외를 가르는 데 쓴다. 고른 행이 모두 전지·충전기 행이면 해당 없다.
+        - _NO_SIGNAL(질문 정책): 본체 행이 있어도 상품에 전지·충전 언급(mentions_battery)이 없으면 전지 전용
+          여부를 묻지 않는다. 답이 판단을 바꾸지 않는다고 확인한 것이 아니라, 근거 없는 질문을 줄이려는 정책이다.
 
         Args:
-            blocks: 고른 품목 행.
+            blocks: 고른 품목 행 (하나 이상).
             by_field: 원문과 대조된 조건.
             product: 검토할 상품.
 
         Returns:
-            dict[str, bool]: 필드 → 물을지. 고른 행이 없으면 모두 True(지금처럼 묻는다).
+            dict[str, str]: 묻지 않을 필드 → 이유. 없는 필드는 지금처럼 묻는다.
         """
-        if not blocks:
-            return {name: True for name in (*_ASKED_FIELDS, "battery_only")}
-        power = any(not (block.includes_low_voltage_ac and block.includes_low_voltage_dc) for block in blocks)
-        battery = (any(not is_battery_or_supply(block) for block in blocks)
-                   and mentions_battery(by_field, product))
-        return {"power_source": power, "rated_voltage": power, "battery_only": battery}
+        skips: dict[str, str] = {}
+        if all(block.includes_low_voltage_ac and block.includes_low_voltage_dc for block in blocks):
+            skips.update(power_source=_NO_EFFECT, rated_voltage=_NO_EFFECT)
+        if all(is_battery_or_supply(block) for block in blocks):
+            skips["battery_only"] = _NO_EFFECT
+        elif not mentions_battery(by_field, product):
+            skips["battery_only"] = _NO_SIGNAL
+        return skips
 
     @staticmethod
-    def _drop_irrelevant_questions(run: ToolRun, asks: dict[str, bool]) -> None:
-        """_read_facts가 미리 넣은 질문 중 고른 품목의 판단을 바꾸지 않는 것을 빼고 가정으로 남긴다.
+    def _skip_questions(run: ToolRun, skips: dict[str, str], needed: list[str]) -> None:
+        """묻기로 했던 질문(_read_facts가 넣은 것, 품목 선택 모델이 요청한 것) 중 skips에 든 것을 빼고 이유를 가정으로 남긴다.
+
+        값이 엇갈려 충돌 질문으로 나갈 필드도 같은 이유로 뺀다. 충돌 자체는 _read_facts가 남긴 가정에 그대로 있다.
 
         Args:
             run: 이번 실행 상태.
-            asks: _relevant_questions 결과.
+            skips: _question_skips 결과.
+            needed: 품목 선택 모델이 확정에 더 필요하다고 한 조건(원문에 없는 것).
         """
-        dropped = [name for name in dict.fromkeys(run.missing) if not asks.get(name, True)]
-        if not dropped:
+        asked = set(run.missing) | {name for name in needed if name in _QUESTION_FIELDS}
+        hit = [name for name in _FIELDS if name in skips and name in asked]
+        if not hit:
             return
-        run.missing = [name for name in run.missing if name not in dropped]
-        labels = ", ".join(_FIELDS[name] for name in dropped)
-        run.assumptions.append(f"{labels}{topic_particle(labels)} 고른 품목의 판단을 바꾸지 않아 묻지 않았습니다.")
+        run.missing = [name for name in run.missing if name not in hit]
+        if no_effect := [name for name in hit if skips[name] == _NO_EFFECT]:
+            labels = ", ".join(_FIELDS[name] for name in no_effect)
+            run.assumptions.append(f"{labels}{topic_particle(labels)} 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다.")
+        if "battery_only" in hit and skips["battery_only"] == _NO_SIGNAL:
+            run.assumptions.append("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
+                                   "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
 
     @staticmethod
     def _skip_electrical_questions(run: ToolRun) -> None:
