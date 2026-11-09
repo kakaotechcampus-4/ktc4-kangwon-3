@@ -1,11 +1,12 @@
 import axios, { AxiosError } from 'axios'
-import { delay, http } from 'msw'
+import { delay, http, HttpResponse } from 'msw'
 
 import { API_URL, S3_URL } from '@/test/mocks/handlers'
 import { errorResponse } from '@/test/mocks/responses'
 import { server } from '@/test/mocks/server'
 
 const TIMEOUT_MESSAGE = '응답이 지연되고 있어요. 잠시 후 다시 시도해주세요.'
+const NETWORK_MESSAGE = '서버에 연결하지 못했어요. 네트워크 상태를 확인하거나 잠시 후 다시 시도해주세요.'
 // NOTE(source): 타임아웃 값이 export되지 않아 소스(client.ts, diagnosis.ts)의 값과 같게 직접 둔다.
 const API_TIMEOUT_MS = 10_000
 const S3_UPLOAD_TIMEOUT_MS = 60_000
@@ -105,7 +106,7 @@ describe('getErrorMessage: 타임아웃 판별', () => {
   it('요청이 중단된 오류(timeout 문구 없음)는 타임아웃 안내로 바꾸지 않는다', () => {
     const aborted = new AxiosError('Request aborted', AxiosError.ECONNABORTED)
 
-    expect(getErrorMessage(aborted, '기본 메시지')).toBe('Request aborted')
+    expect(getErrorMessage(aborted, '기본 메시지')).toBe('기본 메시지')
   })
 
   it('ETIMEDOUT도 타임아웃으로 본다', () => {
@@ -121,5 +122,76 @@ describe('getErrorMessage: 타임아웃 판별', () => {
     } as never)
 
     expect(getErrorMessage(error, '기본 메시지')).toBe('서버 오류')
+  })
+})
+
+describe('getErrorMessage: 서버에 닿지 못했거나 BE 형식이 아닌 응답', () => {
+  const request = () => apiClient.get('/api/v1/products/product-1')
+
+  // 요청이 실패할 때까지 기다려 인터셉터를 거친 오류를 돌려준다. 화면이 받는 오류와 같다.
+  async function failure(): Promise<AxiosError> {
+    return request().then(
+      () => {
+        throw new Error('요청이 실패해야 합니다.')
+      },
+      (error: AxiosError) => error,
+    )
+  }
+
+  it('서버에 닿지 못하면(네트워크 오류) 영문 문구 대신 한국어 네트워크 안내를 돌려준다', async () => {
+    server.use(http.get(`${API_URL}/api/v1/products/:productId`, () => HttpResponse.error()))
+
+    const error = await failure()
+
+    expect(error.code).toBe(AxiosError.ERR_NETWORK)
+    expect(getErrorMessage(error, '기본 메시지')).toBe(NETWORK_MESSAGE)
+  })
+
+  it('인터셉터가 메시지를 바꾼 뒤에 다시 불러도 같은 안내를 돌려준다', async () => {
+    server.use(http.get(`${API_URL}/api/v1/products/:productId`, () => HttpResponse.error()))
+
+    const error = await failure()
+
+    expect(error.message).toBe(NETWORK_MESSAGE)
+    expect(getErrorMessage(error, '기본 메시지')).toBe(NETWORK_MESSAGE)
+    expect(getErrorMessage(error, '기본 메시지')).toBe(NETWORK_MESSAGE)
+  })
+
+  it('본문 없는 502는 axios 영문 문구 대신 fallback을 돌려준다', async () => {
+    server.use(http.get(`${API_URL}/api/v1/products/:productId`, () => new HttpResponse(null, { status: 502 })))
+
+    const error = await failure()
+
+    expect(error.response?.status).toBe(502)
+    expect(getErrorMessage(error, '기본 메시지')).toBe('기본 메시지')
+  })
+
+  it('프록시가 돌려주는 HTML 오류 페이지(502)도 fallback을 돌려준다', async () => {
+    server.use(
+      http.get(`${API_URL}/api/v1/products/:productId`, () =>
+        new HttpResponse('<html><body>502 Bad Gateway</body></html>', { status: 502, headers: { 'Content-Type': 'text/html' } }),
+      ),
+    )
+
+    const error = await failure()
+
+    expect(getErrorMessage(error, '기본 메시지')).toBe('기본 메시지')
+  })
+
+  it('본문 없는 502도 인터셉터를 거친 뒤 여러 번 불러도 fallback이다', async () => {
+    server.use(http.get(`${API_URL}/api/v1/products/:productId`, () => new HttpResponse(null, { status: 502 })))
+
+    const error = await failure()
+
+    expect(getErrorMessage(error, '첫 번째')).toBe('첫 번째')
+    expect(getErrorMessage(error, '두 번째')).toBe('두 번째')
+  })
+
+  it('BE 에러 형식의 응답은 fallback이 아니라 BE 메시지를 돌려준다', async () => {
+    server.use(http.get(`${API_URL}/api/v1/products/:productId`, () => errorResponse(500, { detailMessage: '서버 점검 중입니다.' })))
+
+    const error = await failure()
+
+    expect(getErrorMessage(error, '기본 메시지')).toBe('서버 점검 중입니다.')
   })
 })
