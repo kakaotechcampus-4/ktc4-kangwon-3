@@ -1,4 +1,7 @@
-"""판단 선택 코드 규칙. 판단 모델 없이 상품 정보만으로 선택이 정해지는 Tool과 걸린 규칙."""
+"""판단 선택 코드 규칙. 판단 모델 없이 상품 정보만으로 선택이 정해지는 Tool과 걸린 규칙.
+
+통관 항상 선택(원칙 3), true 필드, 모순 시 정보 부족(원칙 6), 전기 제품 무선 정보 없음(원칙 2) 순.
+"""
 
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
@@ -34,9 +37,31 @@ def rule_reasons(product: Product) -> dict[ToolName, list[str]]:
         hits = [f"{field}=true" for field in fields if getattr(product, field) is True]
         if hits:
             reasons[name] = hits
+    for name, reason in _conflict_reasons(product).items():
+        reasons.setdefault(name, [reason])
     if ToolName.RADIO not in reasons and (reason := _radio_unknown_reason(product)):
         reasons[ToolName.RADIO] = [reason]
     return reasons
+
+
+def _conflict_reasons(product: Product) -> dict[ToolName, str]:
+    """원칙 6: 상품 정보에 모순이 있으면 관련 필드가 전부 None인 Tool을 정보 부족으로 선택.
+
+    모순 문장이 어느 Tool과 관련 있는지는 보지 않음. 모순으로 칸을 비운 Tool을 놓치지 않는 쪽을 택함.
+
+    Args:
+        product: 추출된 상품 정보.
+
+    Returns:
+        dict[ToolName, str]: 규칙에 걸린 Tool별 규칙 설명. 모순이 없으면 빈 dict.
+    """
+    if not product.conflicts:
+        return {}
+    return {
+        name: f"conflicts 있음, {'·'.join(fields)}=None (상품 정보 모순으로 정보 부족)"
+        for name, fields in TRUE_FIELDS.items()
+        if all(getattr(product, field) is None for field in fields)
+    }
 
 
 def _radio_unknown_reason(product: Product) -> str | None:

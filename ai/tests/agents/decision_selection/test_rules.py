@@ -1,4 +1,4 @@
-"""판단 선택 코드 규칙: 통관 항상 선택, true 필드 선택, 전기 제품 무선 정보 없음(원칙 2)."""
+"""판단 선택 코드 규칙: 통관 항상 선택, true 필드 선택, 전기 제품 무선 정보 없음(원칙 2), 모순(원칙 6)."""
 
 import pytest
 
@@ -56,3 +56,29 @@ def test_무선_필드가_true면_정보_없음_규칙은_덧붙이지_않는다
 
 def test_전기_제품이_아니면_무선_정보가_없어도_전파를_선택하지_않는다():
     assert ToolName.RADIO not in rule_reasons(_product(electrical_powered=None))
+
+
+def test_모순이_있으면_관련_필드가_전부_None인_Tool을_선택한다():
+    # 배터리 용량 표기와 "배터리 미포함"이 충돌해 전기 필드를 비운 보조배터리 케이스
+    product = _product(conflicts=["1460mAh 표기와 '배터리 미포함'이 함께 있음"],
+                       wireless_comm=False, wireless_charging=False, wireless_shield=False,
+                       food_contact=False, medical_claim=False, cosmetic_claim=False, for_children=False)
+
+    reasons = rule_reasons(product)
+
+    assert set(reasons) == {ToolName.CUSTOMS, ToolName.ELECTRICAL}
+    assert reasons[ToolName.ELECTRICAL] == [
+        "conflicts 있음, electrical_powered·battery_included·battery_is_the_product·heating=None (상품 정보 모순으로 정보 부족)"
+    ]
+
+
+def test_모순이_있어도_관련_필드에_값이_있으면_모순_규칙은_걸지_않는다():
+    product = _product(conflicts=["표기 충돌"], electrical_powered=False, battery_included=True)
+
+    reasons = rule_reasons(product)
+
+    assert reasons[ToolName.ELECTRICAL] == ["battery_included=true"]
+
+
+def test_모순이_없으면_필드가_None이어도_모순_규칙은_걸지_않는다():
+    assert set(rule_reasons(_product())) == {ToolName.CUSTOMS}
