@@ -18,6 +18,15 @@ TRUE_FIELDS: dict[ToolName, tuple[str, ...]] = {
     ToolName.CHILDREN: ("for_children",),
 }
 
+# 원칙 6용 Tool 분야 말. 모순 문장에 있으면 그 Tool과 관련된 모순으로 봄 (대소문자 무시)
+_CONFLICT_TERMS: dict[ToolName, tuple[str, ...]] = {
+    ToolName.RADIO: ("무선", "블루투스", "bluetooth", "wi-fi", "와이파이", "nfc", "rfid", "주파수"),
+    ToolName.FOOD_DRUG: ("효능", "효과", "미용", "피부", "성분", "식품", "음식", "의약", "의료", "치료", "완화"),
+    ToolName.ELECTRICAL: ("배터리", "전지", "충전", "전원", "전압", "전류", "교류", "직류", "전기", "어댑터", "플러그",
+                          "mah", "wh", "usb"),
+    ToolName.CHILDREN: ("어린이", "아동", "유아", "아기", "키즈", "연령", "개월"),
+}
+
 # 원칙 1용 상품 식별 필드. 모두 None이면 어떤 상품인지 모름
 _PRODUCT_IDENTITY_FIELDS = ("product_name", "category", "intended_use")
 
@@ -51,23 +60,23 @@ def rule_reasons(product: Product) -> dict[ToolName, list[str]]:
 
 
 def _conflict_reasons(product: Product) -> dict[ToolName, str]:
-    """원칙 6: 상품 정보에 모순이 있으면 관련 필드가 전부 None인 Tool을 정보 부족으로 선택.
+    """원칙 6: 그 Tool 분야 말이 들어간 모순이 있고 관련 필드가 전부 None이면 정보 부족으로 선택.
 
-    모순 문장이 어느 Tool과 관련 있는지는 보지 않음. 모순으로 칸을 비운 Tool을 놓치지 않는 쪽을 택함.
+    모순은 성별·계절·용량 표기처럼 Tool과 무관한 것도 많아 분야 말(_CONFLICT_TERMS)로 관련 Tool만 고름.
 
     Args:
         product: 추출된 상품 정보.
 
     Returns:
-        dict[ToolName, str]: 규칙에 걸린 Tool별 규칙 설명. 모순이 없으면 빈 dict.
+        dict[ToolName, str]: 규칙에 걸린 Tool별 규칙 설명. 걸린 Tool이 없으면 빈 dict.
     """
-    if not product.conflicts:
-        return {}
-    return {
-        name: f"conflicts 있음, {'·'.join(fields)}=None (상품 정보 모순으로 정보 부족)"
-        for name, fields in TRUE_FIELDS.items()
-        if all(getattr(product, field) is None for field in fields)
-    }
+    texts = [conflict.lower() for conflict in product.conflicts]
+    reasons = {}
+    for name, fields in TRUE_FIELDS.items():
+        terms = [term for term in _CONFLICT_TERMS[name] if any(term.lower() in text for text in texts)]
+        if terms and all(getattr(product, field) is None for field in fields):
+            reasons[name] = f"conflicts에 '{terms[0]}' 모순, {'·'.join(fields)}=None (상품 정보 모순으로 정보 부족)"
+    return reasons
 
 
 def _unknown_product_reasons(product: Product) -> dict[ToolName, str]:
