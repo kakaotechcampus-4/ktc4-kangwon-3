@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 DECISIONS_PATH = "/decisions"
 # 일시 오류 뒤 다시 보내기 전 대기(초). 선택 단계는 진단 시간에 그대로 더해져 짧게 둠
 RETRY_DELAY_SECONDS = 0.5
+# 다시 보낼 전송 오류. 연결 단계에서 실패해 요청이 서버에 닿지 않은 경우만
+_RETRY_TRANSPORT_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)
+# 다시 보낼 응답 상태. 서버가 처리하지 않고 거절·일시 불가로 돌려준 경우만
+_RETRY_STATUSES = frozenset({429, 502, 503})
 # 맵 대신 배열·null처럼 모양이 다르면 AttributeError·IndexError도 남 (pydantic ValidationError는 ValueError 하위)
 _SHAPE_ERRORS = (KeyError, TypeError, ValueError, AttributeError, IndexError)
 
@@ -140,7 +144,8 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
     # -- RequestClient 구현 --
 
     def _send(self, request: DecisionRequest) -> httpx.Response:
-        """판단 요청을 POST로 보낸다. 일시 오류(연결 실패·429·5xx)면 MAX_RETRIES번까지 다시 보냄.
+        """판단 요청을 POST로 보낸다. 서버가 처리하지 않은 일시 오류(연결 단계 실패·429·502·503)면
+        MAX_RETRIES번까지 다시 보냄.
 
         Args:
             request: 판단 요청.
@@ -149,9 +154,9 @@ class DecisionClient(RequestClient[DecisionRequest, DecisionResponse], ABC):
             httpx.Response: JSON 원문 응답.
 
         Raises:
-            httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우. 일시 오류면 재시도를 다 쓴 뒤.
-            httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우. 연결 실패면 재시도를 다 쓴 뒤,
-                응답 대기 시간 초과면 바로.
+            httpx.HTTPStatusError: 게이트웨이 응답이 4xx/5xx인 경우. 429·502·503이면 재시도를 다 쓴 뒤.
+            httpx.TransportError: 타임아웃·연결 실패로 응답을 받지 못한 경우. 연결 단계 실패면 재시도를 다 쓴 뒤,
+                그 밖(응답 대기 시간 초과·응답 수신 중 끊김 등)은 바로.
         """
         payload = self._to_payload(request)
         retries = 0
@@ -232,20 +237,20 @@ def questions_fingerprint(questions: list[DecisionQuestion]) -> str:
 
 
 def _retryable(error: httpx.HTTPError) -> bool:
-    """같은 요청을 다시 보내 볼 만한 오류인지 본다. 400·401·404처럼 요청·키가 잘못된 오류는 다시 보내도 같음.
+    """같은 요청을 다시 보내 볼 만한 오류인지 본다. 서버가 첫 요청을 처리하지 않은 것이 분명한 경우만.
 
-    응답 대기 시간 초과(ReadTimeout)는 서버가 첫 요청을 계속 처리 중이라 다시 보내면 중복 처리·과금됨.
+    요청이 서버에 닿은 뒤일 수 있는 오류(응답 대기 시간 초과, 응답 수신 중 끊김, 500·504)는 다시 보내면
+    중복 처리·과금될 수 있어 다시 보내지 않음. 400·401·404처럼 요청·키가 잘못된 오류는 다시 보내도 같음.
 
     Args:
         error: 보내기 실패 예외.
 
     Returns:
-        bool: 연결 실패·429·5xx면 True. 응답 대기 시간 초과는 False.
+        bool: 연결 단계 실패(_RETRY_TRANSPORT_ERRORS)나 _RETRY_STATUSES 응답이면 True.
     """
     if isinstance(error, httpx.HTTPStatusError):
-        status = error.response.status_code
-        return status == 429 or status >= 500
-    return isinstance(error, httpx.TransportError) and not isinstance(error, httpx.ReadTimeout)
+        return error.response.status_code in _RETRY_STATUSES
+    return isinstance(error, _RETRY_TRANSPORT_ERRORS)
 
 
 def _error_label(error: httpx.HTTPError) -> str:

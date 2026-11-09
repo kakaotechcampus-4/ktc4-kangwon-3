@@ -117,11 +117,13 @@ def _raise(error: type[httpx.TransportError]) -> Callable[[httpx.Request], httpx
 
 
 @pytest.mark.parametrize("first", [
-    lambda request: httpx.Response(503, json={}),
     lambda request: httpx.Response(429, json={}),
+    lambda request: httpx.Response(502, json={}),
+    lambda request: httpx.Response(503, json={}),
     _raise(httpx.ConnectError),
     _raise(httpx.ConnectTimeout),
-], ids=["5xx", "429", "연결 실패", "연결 시간 초과"])
+    _raise(httpx.PoolTimeout),
+], ids=["429", "502", "503", "연결 실패", "연결 시간 초과", "연결 풀 대기 초과"])
 def test_일시_오류면_잠시_뒤_한_번_다시_보내_답을_받는다(wire, decision_request, waits, first):
     client = _EchoDecisionClient(BASE_URL, API_KEY)
     sent = wire(client, _fail_then(first))
@@ -145,12 +147,30 @@ def test_요청이나_키가_잘못된_오류는_다시_보내지_않는다(wire
     assert (len(sent), waits) == (1, [])
 
 
-def test_응답_대기_시간_초과는_다시_보내지_않는다(wire, decision_request, waits):
-    # 서버는 첫 요청을 계속 처리 중이라 다시 보내면 중복 처리됨
+@pytest.mark.parametrize("first", [
+    _raise(httpx.ReadTimeout),
+    _raise(httpx.ReadError),
+    _raise(httpx.WriteError),
+    _raise(httpx.RemoteProtocolError),
+], ids=["응답 대기 시간 초과", "응답 수신 중 끊김", "요청 전송 중 끊김", "응답 형식 깨짐"])
+def test_요청이_서버에_닿았을_수_있는_전송_오류는_다시_보내지_않는다(wire, decision_request, waits, first):
+    # 서버가 첫 요청을 처리 중이거나 처리했을 수 있어 다시 보내면 중복 처리·과금됨 (#716 리뷰)
     client = _EchoDecisionClient(BASE_URL, API_KEY)
-    sent = wire(client, _fail_then(_raise(httpx.ReadTimeout)))
+    sent = wire(client, _fail_then(first))
 
-    with pytest.raises(httpx.ReadTimeout):
+    with pytest.raises(httpx.TransportError):
+        client.decide(decision_request)
+
+    assert (len(sent), waits) == (1, [])
+
+
+@pytest.mark.parametrize("status", [500, 504])
+def test_서버가_처리했을_수_있는_5xx는_다시_보내지_않는다(wire, decision_request, waits, status):
+    # 504는 게이트웨이 뒤 서버가 아직 처리 중일 수 있음
+    client = _EchoDecisionClient(BASE_URL, API_KEY)
+    sent = wire(client, _fail_then(lambda request: httpx.Response(status, json={})))
+
+    with pytest.raises(httpx.HTTPStatusError):
         client.decide(decision_request)
 
     assert (len(sent), waits) == (1, [])
