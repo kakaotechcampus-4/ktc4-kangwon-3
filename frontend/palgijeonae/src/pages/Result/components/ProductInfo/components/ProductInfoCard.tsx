@@ -27,7 +27,6 @@ function ProductInfoCard({ productName, sourceType, sourceUrl, sourceText }: Pro
             {sourceUrl && (
                 <InfoRow label="상세페이지">
                     {isHttpUrl(sourceUrl) ? (
-                        // 값 칸이 flex 항목이라 a를 직접 두면 칸 전체가 클릭돼서, 글자 영역만 클릭되도록 p 안에 둔다.
                         <p className={cn(VALUE_CLASS, "min-w-0 break-all")}>
                             <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">
                                 {sourceUrl}

@@ -89,7 +89,6 @@ function AddedProduct({ type, title, productImageFile, link, content, images, on
                         <div className="flex flex-col gap-1">
                             <p className="text-lg font-bold text-black">링크</p>
                             {link && isHttpUrl(link) ? (
-                                // a를 flex 컨테이너의 직접 자식으로 두면 가로 전체가 클릭돼서, 글자 영역만 클릭되도록 p 안에 둔다.
                                 <p className="text-sm break-all">
                                     <a href={link} target="_blank" rel="noopener noreferrer" className="text-primary underline">
                                         {link}
