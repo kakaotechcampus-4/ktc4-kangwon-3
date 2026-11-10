@@ -31,8 +31,8 @@ _LABEL_OF = {Determination.REQUIRED: "대상", Determination.POSSIBLY_REQUIRED: 
              Determination.NOT_REQUIRED: "대상 아님", Determination.NOT_APPLICABLE: "해당 없음"}
 # 할 일을 남길 판정. 나머지(대상 아님·해당 없음)는 세관장확인 서류 안내를 뺀다
 _KEEP_ACTIONS = {Determination.REQUIRED, Determination.POSSIBLY_REQUIRED}
-# 대상·대상 후보·대상 아님을 따르는 Tool (법 범위 = Tool 범위)
-_FOLLOW_ALL = {ToolName.ELECTRICAL, ToolName.CHILDREN}
+# 대상·대상 후보·대상 아님을 따르는 Tool (법 범위 = Tool 범위). 통관 Tool은 이 법령으로 갈리는 HS를 묻지 않는다 (tool.py)
+FOLLOW_ALL = {ToolName.ELECTRICAL, ToolName.CHILDREN}
 # 후보를 냈을 때만 따르는 Tool (법 범위 > Tool 범위)
 _FOLLOW_CANDIDATE_ONLY = {ToolName.RADIO}
 
@@ -55,7 +55,7 @@ def follow_related_tools(tool_results: list[ToolResult]) -> list[str]:
     followed: dict[str, str] = {}
     for law_name, tool_value in related.items():
         tool = ToolName(tool_value)
-        if tool not in _FOLLOW_ALL and tool not in _FOLLOW_CANDIDATE_ONLY:
+        if tool not in FOLLOW_ALL and tool not in _FOLLOW_CANDIDATE_ONLY:
             continue
         other = by_name.get(tool)
         if other is None or not other.selected or other.status is not ToolStatus.SUCCESS or not other.findings:
