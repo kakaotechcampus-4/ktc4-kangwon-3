@@ -5,9 +5,6 @@
 - 서비스: https://palgijeone.com
 - API 문서(BE): https://palgijeone.com/swagger-ui/index.html
 - API 문서(AI) : https://palgijeone.com/docs
-- 테크스펙: [docs/wiki/테크스펙.md](docs/wiki/테크스펙.md)
-
-<!-- TODO: 확인 필요 - 데모 영상/GIF 추가 -->
 
 > 진단 결과는 법령 근거에 따른 참고 정보이며 법률 자문이나 확정 판단이 아닙니다.
 
@@ -166,7 +163,6 @@
 | [BE README](backend/README.md) | 도메인, 인증, AI 연동, API, 테스트, 배포 |
 | [AI README](ai/README.md) | 에이전트·파이프라인 설계, 품질 평가, 가드레일, 테스트 |
 | [E2E](e2e/README.md) | 화면부터 BE·mock-AI까지 잇는 시나리오 12개, 실행 방법 |
-| [테크스펙](docs/wiki/테크스펙.md) | 아키텍처, 시나리오, 요구사항·리스크, 인터페이스 명세, 테스트 전략, 지표, 설계 결정 |
 | [위키](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki) | 온보딩, 운영 |
 
 ## 기여
