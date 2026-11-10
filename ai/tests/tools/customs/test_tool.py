@@ -667,6 +667,17 @@ def test_재질_질문에_가죽_종류로_답하면_상품_이름의_가죽이_
     assert bool(result.query["requirements"]["8516799000"]) is left, answer
 
 
+def test_재질_질문에_가죽_종류_없이_답하면_다시_묻지_않고_요건을_남긴_이유를_적는다():
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"),))
+    product = _answered(product.model_copy(update={"product_name": "가죽 손잡이 전기주전자"}), "천연가죽")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.missing_information == []
+    assumptions = result.findings[0].assumptions
+    assert any("판매자 답에서 가죽 종류를 확인하지 못해 남겼습니다" in text for text in assumptions)
+    assert not any("재질을 물었습니다" in text for text in assumptions)
+
+
 def test_이름에_악어가_있으면_소가죽으로_답해도_야생생물법_요건을_남긴다():
     # 남겨야 하는 소재는 답변 줄이 아니라 전체 글로 확인 (안전한 쪽)
     product, facts = product_and_facts(text="악어 무늬 가죽 손잡이 전기주전자, 전기로 물을 끓임",

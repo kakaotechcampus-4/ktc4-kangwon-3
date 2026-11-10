@@ -15,6 +15,7 @@ from ...schemas.schemas import CustomsAssessment, Determination, LegalSource, Re
 from ...schemas.product import Product
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.law import EvidenceUnavailable
+from ..common.questions import QUESTIONS, answered_questions
 from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
 from .related import FOLLOW_ALL
@@ -191,11 +192,17 @@ class CustomsTool(EvidenceSearchTool):
         material_known = "material" in by_field
         material_laws = list(dict.fromkeys(item.law_name for item in requirements
                                            if material_question_helps(item.law_name, material_texts, material_known)))
-        if material_laws and "material" not in asks:
+        # 재질을 이미 물었는데 답에 가죽 종류가 없으면(예: "천연가죽") 다시 묻지 않고 요건을 남긴 이유만 적음.
+        # 다시 물어도 재진단이 이미 물은 질문으로 걸러 화면에 안 나가는데 "재질을 물었습니다"만 남던 것 (리뷰 #774)
+        asked_before = QUESTIONS["material"].question in answered_questions(product.listing_text)
+        if material_laws and not asked_before and "material" not in asks:
             asks.append("material")
         if material_laws:
             laws = ", ".join(f"「{name}」" for name in material_laws)
-            run.assumptions.append(f"{laws} 요건은 소재(가죽 종류 등)에 따라 해당하지 않을 수 있어 재질을 물었습니다.")
+            run.assumptions.append(
+                f"{laws} 요건은 소재(가죽 종류 등)에 따라 해당하지 않을 수 있지만, 판매자 답에서 가죽 종류를 확인하지 못해 남겼습니다."
+                if asked_before else
+                f"{laws} 요건은 소재(가죽 종류 등)에 따라 해당하지 않을 수 있어 재질을 물었습니다.")
         run.missing.extend(asks)
         if skipped := [name for name in askable if name not in asks]:
             run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in skipped)} 확인이 더 필요하지만, "
