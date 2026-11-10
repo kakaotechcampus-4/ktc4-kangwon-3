@@ -8,13 +8,16 @@ import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
-import AddedProductList from "@/pages/Upload/components/AddedProductList.tsx";
+import AddedProductPanel from "@/pages/Upload/components/AddedProductPanel.tsx";
 import InputForm from "@/pages/Upload/components/InputForm.tsx";
 import InputTypeTabs, { type InputType } from "@/pages/Upload/components/InputTypeTabs.tsx";
 import { submitDiagnosis } from "@/pages/Upload/utils/diagnosisPipeline.ts";
 import { validateProduct } from "@/pages/Upload/utils/validation.ts";
 
 import type { Product } from "./types.ts";
+
+// 자세히 보기 모달을 연결하기 전까지는 항목을 눌러도 아무 일도 하지 않는다.
+const NOOP = () => {};
 
 // 메인 페이지의 평가용 체험 버튼(useDemoStart)이 navigate state로 넘겨주는 샘플 상품.
 interface UploadLocationState {
@@ -81,7 +84,7 @@ function UploadPage() {
                             </p>
                         </DefaultBox>
                     )}
-                    <AddedProductList products={products} onRemove={handleRemoveProduct} />
+                    <AddedProductPanel products={products} onOpenDetail={NOOP} onRemove={handleRemoveProduct} />
                     <div className="flex w-full justify-end">
                         <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} className="w-full md:w-auto" />
                     </div>
