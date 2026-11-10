@@ -338,6 +338,14 @@ def test_후보_HS의_요건이_다르면_HS를_가르는_조건만_묻고_나�
     assert any("용도 확인이 더 필요합니다" in text for text in result.findings[0].assumptions)
 
 
+def test_결정사례마다_요청한_같은_조건은_가정에_한_번만_남긴다():
+    product, facts = product_and_facts()
+    chosen = review(select(needed_fields=["composition"]), select(JUG_CASE, needed_fields=["composition", "intended_use"]))
+    result, _, _, _ = run(product, facts, chosen)
+    assumptions = result.findings[0].assumptions
+    assert [text for text in assumptions if text.startswith("HS 확정에는")] == ["HS 확정에는 구성품, 용도 확인이 더 필요합니다."]
+
+
 def test_다른_Tool_판단을_따르는_법령만_갈리면_묻지_않는다():
     # 전기주전자(전기용품법)와 커피 머신(요건 없음): 전기용품법은 종합 단계가 electrical 판단으로 맞춤 → HS로 물을 필요 없음
     # (배포 사례: 장난감 9503.00-3700 요건 없음 / 3300 어린이제품법에 "기능" 질문)
