@@ -49,7 +49,7 @@ function PolicyTransferList({ transfers }: { transfers: PolicyTransfer[] }) {
                         {rows.map(({ label, value }) => (
                             <div key={label} className="flex gap-3">
                                 <dt className="w-18 shrink-0 text-neutral-label md:w-24">{label}</dt>
-                                <dd className="min-w-0 flex-1 wrap-break-word text-neutral-text">{value}</dd>
+                                <dd className="min-w-0 flex-1 text-neutral-text">{value}</dd>
                             </div>
                         ))}
                     </dl>
@@ -61,7 +61,7 @@ function PolicyTransferList({ transfers }: { transfers: PolicyTransfer[] }) {
 
 function PolicyParagraph({ label, text }: PolicyItem) {
     return (
-        <p className="text-sm leading-5.5 wrap-break-word whitespace-pre-wrap text-neutral-text md:text-[15px] md:leading-6.5">
+        <p className="text-sm leading-5.5 whitespace-pre-wrap text-neutral-text md:text-[15px] md:leading-6.5">
             {label && <span className="font-bold text-black">{label}</span>}
             {label && "  "}
             {text}

@@ -44,7 +44,7 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
                             className="size-4 md:size-5" />
                         <p className="text-[13px] text-neutral-border font-semibold md:text-base">{SOURCE_TYPE_INFO[sourceType].label}</p>
                     </div>
-                    <h3 title={isProductNameLong ? productName : undefined} className="line-clamp-2 wrap-break-word text-[15px] leading-5.5 font-bold text-black md:line-clamp-none md:text-xl md:leading-7">{displayTitle}</h3>
+                    <h3 title={isProductNameLong ? productName : undefined} className="line-clamp-2 text-[15px] leading-5.5 font-bold text-black md:line-clamp-none md:text-xl md:leading-7">{displayTitle}</h3>
                 </div>
             </div>
         </DefaultBox>
