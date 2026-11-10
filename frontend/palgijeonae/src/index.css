@@ -57,7 +57,7 @@ body {
 
     /* Status - 진단 결과 상태 (배지, 태그, 경고 배너 공통) */
     --color-status-success: #2F7A4D;
-    --color-status-success-bg: #E5F2E9;   /* 통과 / 구매대행 가능 */
+    --color-status-success-bg: #E5F2E9;   /* 통과 / 사입 가능 */
 
     --color-status-danger: #9C3B2C;
     --color-status-danger-bg: #F6E8E3;    /* 사입 인증 필요 */

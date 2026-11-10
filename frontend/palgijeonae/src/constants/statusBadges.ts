@@ -14,7 +14,7 @@ export interface SourceTypeInfo {
 
 // 진단이 끝난 상품의 배지.
 export const RESULT_STATUS_BADGES: Record<ResultStatus, Badge> = {
-    [ResultStatus.PurchasingAgentAllowed]: { label: "구매 대행 가능", className: "border-status-success/40 text-status-success bg-status-success-bg" },
+    [ResultStatus.PurchasingAgentAllowed]: { label: "사입 가능", className: "border-status-success/40 text-status-success bg-status-success-bg" },
     [ResultStatus.DirectImportCertificationRequired]: { label: "사입 인증 필요", className: "border-status-danger/40 text-status-danger bg-status-danger-bg" },
     [ResultStatus.RecheckRequired]: { label: "재확인 필요", className: "border-status-warning/40 text-status-warning bg-status-warning-bg" },
 };

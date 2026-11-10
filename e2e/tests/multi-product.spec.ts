@@ -23,5 +23,5 @@ test("여러 상품을 한 번에 진단하면 상품별로 진행되고, 진단
     await expect(page.getByText("사입 인증 필요 · 해야 할 일 1건")).toBeVisible();
 
     await page.getByRole("tab", { name: "E2E 원목 도마" }).click();
-    await expect(page.getByText("구매 대행 가능").first()).toBeVisible();
+    await expect(page.getByText("사입 가능").first()).toBeVisible();
 });

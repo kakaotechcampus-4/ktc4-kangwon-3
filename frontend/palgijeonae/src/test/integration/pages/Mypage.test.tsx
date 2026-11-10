@@ -230,7 +230,7 @@ describe('마이페이지 - 검색', () => {
 })
 
 describe('마이페이지 - 필터', () => {
-  // 구매 대행 가능 3개, 사입 인증 필요 2개, 재확인 필요 1개
+  // 사입 가능 3개, 사입 인증 필요 2개, 재확인 필요 1개
   const statusProducts = () =>
     makeProducts(6, (number) => ({
       resultStatus:

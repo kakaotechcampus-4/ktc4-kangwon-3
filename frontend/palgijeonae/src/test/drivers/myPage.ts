@@ -16,7 +16,7 @@ type User = ReturnType<typeof userEvent.setup>
 
 const FILTER_LABELS: Record<ProductFilter, RegExp> = {
   all: /^전체$/,
-  [ResultStatus.PurchasingAgentAllowed]: /^구매 대행 가능$/,
+  [ResultStatus.PurchasingAgentAllowed]: /^사입 가능$/,
   [ResultStatus.DirectImportCertificationRequired]: /^사입 인증 필요$/,
   [ResultStatus.RecheckRequired]: /^재확인 필요$/,
 }

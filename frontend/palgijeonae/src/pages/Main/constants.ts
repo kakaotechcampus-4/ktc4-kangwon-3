@@ -212,7 +212,7 @@ const earphoneResult = makePreviewProduct({
     ],
 });
 
-/** 진단 완료(구매 대행 가능) 상태의 캠핑 테이블. */
+/** 진단 완료(사입 가능) 상태의 캠핑 테이블. */
 const table = makePreviewProduct({
     productId: "preview-table",
     diagnosesId: "preview-diagnoses",
@@ -222,7 +222,7 @@ const table = makePreviewProduct({
     processingStatus: ProcessingStatusType.Completed,
     assessmentStatus: AssessmentStatus.Completed,
     resultStatus: ResultStatus.PurchasingAgentAllowed,
-    summary: "전기·전파 요소가 없어 구매대행이 가능합니다.",
+    summary: "전기·전파 요소가 없어 사입이 가능합니다.",
     toolReviews: [
         { productToolReviewId: "preview-review-customs", toolName: ToolName.Customs, status: ToolReviewStatus.Completed, message: null, findings: [CUSTOMS_FINDING] },
     ],

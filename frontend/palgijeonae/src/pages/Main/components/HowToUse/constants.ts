@@ -48,7 +48,7 @@ export const HOW_TO_USE_STEPS: HowToUseStepInfo[] = [
         title: "결과 확인",
         description: "진단 결과·다음 단계·상품 정보 탭에서 판정과 근거, 해야 할 일을 확인해요.",
         tips: [
-            "상품마다 구매 대행 가능 · 사입 인증 필요 · 재확인 필요로 판정해요",
+            "상품마다 사입 가능 · 사입 인증 필요 · 재확인 필요로 판정해요",
             "해야 할 일을 순서대로 정리해 드려요",
         ],
         Preview: ResultStepPreview,
