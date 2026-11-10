@@ -46,15 +46,8 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
 
     useBodyScrollLock(true);
 
-    useEffect(() => {
-        const previouslyFocusedElement = document.activeElement as HTMLElement | null;
-        dialogRef.current?.focus();
-        return () => {
-            previouslyFocusedElement?.focus();
-        };
-    }, []);
-
     // 뒤에 가려진 페이지 콘텐츠가 Tab으로 접근되지 않도록 비활성화한다.
+    // 닫을 때는 이 정리가 아래의 포커스 복귀보다 먼저 일어나야 한다. (inert 안의 요소는 포커스를 받지 못한다)
     useEffect(() => {
         const root = document.getElementById("root");
         if (!root) {
@@ -63,6 +56,14 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
         root.inert = true;
         return () => {
             root.inert = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        const previouslyFocusedElement = document.activeElement as HTMLElement | null;
+        dialogRef.current?.focus();
+        return () => {
+            previouslyFocusedElement?.focus();
         };
     }, []);
 
@@ -78,7 +79,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
             aria-modal="true"
             aria-label="이미지 미리보기"
             tabIndex={-1}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white/20 p-4 backdrop-blur-xs md:p-6"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-black/40 p-4 md:p-6"
             onClick={onClose}
         >
             <button

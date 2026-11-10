@@ -51,7 +51,7 @@ function UploadSlide() {
                         </div>
                     </div>
                 </DefaultBox>
-                <AddedProduct type={SourceType.TextImage} title={PREVIEW_PRODUCTS.slipperAwaiting.productName} onRemove={NOOP} />
+                <AddedProduct type={SourceType.TextImage} title={PREVIEW_PRODUCTS.slipperAwaiting.productName} onOpenDetail={NOOP} onRemove={NOOP} />
             </div>
         </PreviewFrame>
     );

@@ -1,5 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { vi } from 'vitest'
 
 import { UPLOAD_MESSAGES } from '@/test/constants/messages'
 
@@ -24,24 +25,14 @@ export function uploadPage(user: User = userEvent.setup()) {
   // 소스에서 input에 label을 연결하면(예: aria-label="제품 대표 사진") getByLabelText로 바꿀 수 있다.
   const mainImageInput = () => document.getElementById('product-image') as HTMLInputElement
 
-  // NOTE(source): 상품 카드에는 목록(li)이나 그룹 역할·이름이 없어서 카드를 직접 찾을 수 없다.
-  // 카드마다 하나뿐인 "자세히 보기/접기" 버튼에서 위로 올라가, 제목 heading이 처음 나오는 조상을 카드의 한 행으로 본다.
-  // 소스에서 카드를 <li>(목록)나 role="group" + aria-labelledby로 묶으면 이름으로 바로 찾을 수 있다.
-  const detailToggles = () => screen.queryAllByRole('button', { name: /^(자세히 보기|접기)$/ })
-  const rowOf = (toggle: HTMLElement): HTMLElement => {
-    let node = toggle.parentElement
-    while (node && !within(node).queryByRole('heading')) {
-      node = node.parentElement
-    }
-    if (!node) {
-      throw new Error('상품 카드의 제목을 찾을 수 없습니다.')
-    }
-    return node
+  // "확인할 제품" 패널의 목록(list)과 항목(listitem)이 카드의 한 행이다. 상품이 없으면 패널 자체가 없다.
+  const productRows = (): HTMLElement[] => {
+    const list = screen.queryByRole('list', { name: '확인할 제품 목록' })
+    return list ? within(list).getAllByRole('listitem') : []
   }
   const titleOf = (row: HTMLElement): string => within(row).getByRole('heading').textContent?.trim() ?? ''
-  const productRows = () => detailToggles().map(rowOf)
 
-  // 화면에 보이는 제품명(40자를 넘으면 줄여서 보여 준다)으로 카드 행을 찾는다. 같은 이름이 둘이면 먼저 나온 것을 쓴다.
+  // 화면에 보이는 제품명으로 카드 행을 찾는다. 같은 이름이 둘이면 먼저 나온 것을 쓴다.
   const productRow = (name: string): HTMLElement => {
     const row = productRows().find((candidate) => titleOf(candidate) === name)
     if (!row) {
@@ -57,6 +48,11 @@ export function uploadPage(user: User = userEvent.setup()) {
   }
 
   const clickButton = (name: RegExp) => user.click(screen.getByRole('button', { name }))
+
+  // 자세히 보기 모달과 이미지 확대 창은 한 번에 한 겹만 뜨므로, 열려 있는 대화상자는 하나뿐이다. 둘이 겹치면 getByRole이 실패한다.
+  const openDialog = () => screen.getByRole('dialog')
+  const lightbox = () => screen.getByRole('dialog', { name: '이미지 미리보기' })
+  const detailImageButtons = () => within(openDialog()).queryAllByRole('button', { name: /크게 보기$/ })
 
   return {
     // ── 조작 ────────────────────────────────────────────────
@@ -89,34 +85,67 @@ export function uploadPage(user: User = userEvent.setup()) {
       await user.click(within(productRow(name)).getByRole('button', { name: /^삭제$/ }))
     },
 
-    /** 이름이 같은 카드의 "자세히 보기"를 눌러 상세(링크·내용)를 펼친다. */
+    /** 이름이 같은 카드(항목)를 눌러 상세를 연다. */
     async openDetail(name: string) {
-      await user.click(within(productRow(name)).getByRole('button', { name: /^자세히 보기$/ }))
+      await user.click(within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }))
     },
 
+    // ── 자세히 보기 모달과 이미지 확대 창 ───────────────────────────
+    /** 이 제목의 자세히 보기 모달이 열려 있는지 */
+    isDetailOpen: (title: string) => screen.queryByRole('dialog', { name: title }) !== null,
+    /** 열려 있는 대화상자(모달, 확대 창)의 수 */
+    dialogCount: () => screen.queryAllByRole('dialog').length,
+    /** 모달 아래의 "닫기" 버튼을 누른다. (위의 "창 닫기"와 구분된다) */
+    closeDetail: () => user.click(within(openDialog()).getByRole('button', { name: '닫기' })),
+    removeFromDetail: () => user.click(within(openDialog()).getByRole('button', { name: '목록에서 삭제' })),
+    pressEscape: () => user.keyboard('{Escape}'),
+    /** 모달 안 상세페이지 이미지 썸네일의 파일 이름들 */
+    detailImageNames: () => detailImageButtons().map((button) => (button.getAttribute('aria-label') ?? '').replace(/ 크게 보기$/, '')),
+    clickDetailImage: (fileName: string) => user.click(within(openDialog()).getByRole('button', { name: `${fileName} 크게 보기` })),
+    isDetailImageFocused: (fileName: string) => within(openDialog()).getByRole('button', { name: `${fileName} 크게 보기` }) === document.activeElement,
+    isLightboxOpen: () => screen.queryByRole('dialog', { name: '이미지 미리보기' }) !== null,
+    showNextLightboxImage: () => user.click(within(lightbox()).getByRole('button', { name: '다음 이미지' })),
+    closeLightbox: () => user.click(within(lightbox()).getByRole('button', { name: '닫기' })),
+    /** 이름이 같은 카드(항목) 버튼에 포커스가 있는지. 모달을 닫으면 여기로 돌아온다. */
+    isItemFocused: (name: string) => within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }) === document.activeElement,
+
     startDiagnosis: () => clickButton(/진단 시작하기/),
+    clickShowList: () => clickButton(/^목록 보기$/),
 
     // ── 조회 ────────────────────────────────────────────────
-    /** 목록에 보이는 제품명을 추가한 순서대로 돌려준다. (40자를 넘는 이름은 줄어든 모양이다) */
+    /** 목록에 보이는 제품명을 추가한 순서대로 돌려준다. (긴 이름은 글자를 자르지 않고 CSS가 한 줄에서 줄여 보인다) */
     productNames: () => productRows().map(titleOf),
 
-    /** 제품명 위에 마우스를 올리면 보이는 원본 제목(title 속성). 줄이지 않았으면 null이다. */
-    productTooltip: (name: string) => within(productRow(name)).getByRole('heading').getAttribute('title'),
+    /** 항목 위에 마우스를 올리면 보이는 전체 제목(title 속성) */
+    productTooltip: (name: string) => within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }).getAttribute('title'),
 
     thumbnailSrc: (name: string) => within(productRow(name)).getByAltText('상품 썸네일').getAttribute('src'),
 
-    /** 펼친 상세에서 그 주소의 링크를 찾아 이동에 쓰이는 속성을 돌려준다. */
+    /** 열린 상세 모달에서 그 주소의 링크를 찾아 이동에 쓰이는 속성을 돌려준다. */
     detailLink(url: string) {
       const link = screen.getByRole('link', { name: url })
       return { href: link.getAttribute('href'), target: link.getAttribute('target'), rel: link.getAttribute('rel') }
     },
     hasDetailContent: (text: string) => screen.queryByText(text) !== null,
 
+    /** 하단 바의 "확인할 제품 n / 10"에서 숫자 부분 (예: "3 / 10") */
+    productCountLabel: () => screen.getByText(/^\d+ \/ \d+$/).textContent,
+    hasStartButton: () => screen.queryByRole('button', { name: /진단 시작하기/ }) !== null,
+    hasShowListButton: () => screen.queryByRole('button', { name: /^목록 보기$/ }) !== null,
+    /** 스크롤한 요소 중에 "확인할 제품" 패널(제목을 담은 요소)이 있는지. scrollIntoView는 vitest.setup의 스텁이 호출을 기록한다. */
+    wasPanelScrolledTo() {
+      const heading = screen.queryByRole('heading', { name: '확인할 제품' })
+      const targets = vi.mocked(Element.prototype.scrollIntoView).mock.contexts as Element[]
+      return heading !== null && targets.some((target) => target.contains(heading))
+    },
+    /** 확인할 제품 패널이 상품이 없을 때 보여주는 빈 상태 안내가 있는지 */
+    hasEmptyPanelNotice: () => screen.queryByText(UPLOAD_MESSAGES.PANEL_EMPTY) !== null,
+
     isFormVisible: () => screen.queryByLabelText(/^제품명$/) !== null,
     hasMaxProductsNotice: () => screen.queryByText(UPLOAD_MESSAGES.MAX_PRODUCTS_REACHED) !== null,
 
     // NOTE(source): 첨부한 이미지의 미리보기 목록에는 이름 붙은 그룹이 없어서, 각 썸네일 버튼의 이름("파일명 크게 보기")으로 확인한다.
-    // 상품 카드의 상세(텍스트/이미지 입력)에 펼친 이미지도 같은 이름이라, 펼치지 않은 상태에서 쓴다.
+    // 자세히 보기 모달 안의 상세페이지 이미지도 같은 이름이라, 모달을 열지 않은 상태에서 쓴다.
     hasAttachedImage: (fileName?: string) =>
       screen.queryAllByRole('button', { name: fileName ? `${fileName} 크게 보기` : /크게 보기$/ }).length > 0,
 

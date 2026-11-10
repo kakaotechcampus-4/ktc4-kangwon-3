@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import deleteIcon from "@/assets/delete-gray.svg";
 import ImageLightbox from "@/components/common/ImageLightbox";
@@ -21,14 +21,25 @@ interface AttachedImageListProps extends VariantProps<typeof thumbnailVariants> 
     title: string
     files: File[]
     onRemove?: (index: number) => void
+    // 있으면 썸네일을 눌러도 내부 확대 창을 띄우지 않고 이 함수로 알린다. 확대 창을 어디서 띄울지 부모가 정할 때 쓴다.
+    onImageClick?: (index: number) => void
+    // 이 순번의 썸네일에 처음부터 포커스를 둔다. 확대 창을 닫고 돌아왔을 때 누른 썸네일을 이어 가리키려고 쓴다.
+    focusIndex?: number
 }
 
 const DEFAULT_VISIBLE_COUNT = 8;
 
-function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedImageListProps) {
+function AttachedImageList({ title, files, onRemove, thumbnailSize, onImageClick, focusIndex }: AttachedImageListProps) {
     const [expanded, setExpanded] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    const thumbnailButtons = useRef<(HTMLButtonElement | null)[]>([]);
+
+    useEffect(() => {
+        if (focusIndex !== undefined) {
+            thumbnailButtons.current[focusIndex]?.focus();
+        }
+    }, [focusIndex]);
 
     useEffect(() => {
         const urls = files.map((file) => URL.createObjectURL(file));
@@ -93,7 +104,10 @@ function AttachedImageList({ title, files, onRemove, thumbnailSize }: AttachedIm
                             ) : (
                                 <button
                                     type="button"
-                                    onClick={() => setSelectedIndex(index)}
+                                    ref={(node) => {
+                                        thumbnailButtons.current[index] = node;
+                                    }}
+                                    onClick={() => (onImageClick ? onImageClick(index) : setSelectedIndex(index))}
                                     aria-label={`${file.name} 크게 보기`}
                                     className="h-full w-full cursor-pointer rounded-2xl"
                                 >

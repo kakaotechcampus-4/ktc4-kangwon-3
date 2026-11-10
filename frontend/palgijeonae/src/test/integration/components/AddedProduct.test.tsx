@@ -1,39 +1,87 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 
 import { SourceType } from '@/api/types/common'
 import AddedProduct from '@/pages/Upload/components/AddedProduct'
 import { setMobileViewport } from '@/test/utils/viewport'
 
-// 30글자: 데스크톱 한도(40)는 넘지 않는다. 50글자: 데스크톱 한도를 넘는다.
-const NAME_30 = '가'.repeat(30)
-const NAME_50 = '가'.repeat(50)
+const TITLE = '블루투스 이어폰'
 
-const renderProduct = (title: string) => render(<AddedProduct type={SourceType.Url} title={title} onRemove={() => {}} />)
+const renderProduct = (props: Partial<React.ComponentProps<typeof AddedProduct>> = {}) => {
+  const handlers = { onOpenDetail: vi.fn(), onRemove: vi.fn() }
+  render(<AddedProduct type={SourceType.Url} title={TITLE} {...handlers} {...props} />)
+  return handlers
+}
 
-describe('추가된 상품 카드 - 제목 말줄임', () => {
-  it('데스크톱에서는 40글자까지 그대로 보여주고, 자르지 않았으면 title 속성을 달지 않는다', () => {
-    renderProduct(NAME_30)
+const getDetailButton = (title = TITLE) => screen.getByRole('button', { name: `${title} 자세히 보기` })
 
-    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(NAME_30)
-    expect(screen.getByRole('heading', { level: 3 })).not.toHaveAttribute('title')
+describe('추가된 상품 항목 - 표시', () => {
+  it('제목과 입력 방식(URL)을 보여주고, 항목은 상세를 여는 버튼으로 알린다', () => {
+    renderProduct()
+
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(TITLE)
+    expect(screen.getByText('URL')).toBeInTheDocument()
+    expect(getDetailButton()).toHaveAttribute('aria-haspopup', 'dialog')
   })
 
-  it('데스크톱에서는 40글자를 넘으면 40글자 뒤에 ...를 붙이고, 전체 이름을 title 속성으로 남긴다', () => {
-    renderProduct(NAME_50)
+  it('글·이미지로 추가한 상품은 "이미지 / 텍스트"로 보여준다', () => {
+    renderProduct({ type: SourceType.TextImage })
 
-    const title = screen.getByRole('heading', { level: 3 })
-    expect(title).toHaveTextContent(`${'가'.repeat(40)}...`)
-    expect(title).toHaveAttribute('title', NAME_50)
+    expect(screen.getByText('이미지 / 텍스트')).toBeInTheDocument()
+    expect(screen.queryByText('URL')).not.toBeInTheDocument()
   })
 
-  it('모바일에서는 글자 수로 자르지 않고 원본 제목을 넘기며(CSS가 한 줄에서 자름), 전체 이름을 title 속성으로 남긴다', () => {
-    setMobileViewport()
-    renderProduct(NAME_50)
+  // 한 줄 말줄임은 CSS(truncate)가 하므로, 글자를 자르지 않고 원본 제목을 그대로 두고 전체 제목을 title 속성으로 항상 제공한다.
+  it.each([
+    ['데스크톱', () => {}],
+    ['모바일', setMobileViewport],
+  ])('%s에서도 제목을 자르지 않고, 전체 제목을 title 속성으로 제공한다', (_name, prepare) => {
+    prepare()
+    const longTitle = '가'.repeat(60)
+    renderProduct({ title: longTitle })
 
-    const title = screen.getByRole('heading', { level: 3 })
-    expect(title).toHaveTextContent(NAME_50)
-    expect(title).not.toHaveTextContent('...')
-    expect(title).toHaveAttribute('title', NAME_50)
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(longTitle)
+    expect(screen.getByRole('heading', { level: 3 })).not.toHaveTextContent('...')
+    expect(getDetailButton(longTitle)).toHaveAttribute('title', longTitle)
+  })
+
+  it('짧은 제목도 title 속성으로 제공한다', () => {
+    renderProduct()
+
+    expect(getDetailButton()).toHaveAttribute('title', TITLE)
+  })
+})
+
+describe('추가된 상품 항목 - 동작', () => {
+  it('항목을 누르면 상세를 열고, 삭제는 부르지 않는다', async () => {
+    const user = userEvent.setup()
+    const { onOpenDetail, onRemove } = renderProduct()
+
+    await user.click(getDetailButton())
+
+    expect(onOpenDetail).toHaveBeenCalledTimes(1)
+    expect(onRemove).not.toHaveBeenCalled()
+  })
+
+  it('키보드(Enter, Space)로도 상세를 연다', async () => {
+    const user = userEvent.setup()
+    const { onOpenDetail } = renderProduct()
+
+    getDetailButton().focus()
+    await user.keyboard('{Enter}')
+    await user.keyboard(' ')
+
+    expect(onOpenDetail).toHaveBeenCalledTimes(2)
+  })
+
+  it('삭제를 누르면 삭제만 부르고, 항목 클릭(상세 열기)으로 전달되지 않는다', async () => {
+    const user = userEvent.setup()
+    const { onOpenDetail, onRemove } = renderProduct()
+
+    await user.click(screen.getByRole('button', { name: '삭제' }))
+
+    expect(onRemove).toHaveBeenCalledTimes(1)
+    expect(onOpenDetail).not.toHaveBeenCalled()
   })
 })

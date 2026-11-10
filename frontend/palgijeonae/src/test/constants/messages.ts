@@ -34,6 +34,8 @@ export const UPLOAD_MESSAGES = {
   // NOTE(source): Upload 화면의 alert·안내 문구. 소스에 export가 없다.
   NO_PRODUCTS: '진단할 상품을 먼저 추가해주세요.',
   MAX_PRODUCTS_REACHED: '상품은 최대 10개까지 담을 수 있어요. 진단을 시작해주세요.',
+  // NOTE(source): 확인할 제품 패널의 빈 상태 안내
+  PANEL_EMPTY: '아직 담은 제품이 없어요. 제품을 추가하면 여기에 보여요.',
   // 제출 전 검증에 걸린 상품: "상품 이름: 사유"
   invalidProduct: (productName: string, reason: string) => `${productName}: ${reason}`,
   // 상품별 이미지 업로드 실패 안내의 앞부분: "다음 상품의 진단 요청에 실패했습니다: 상품 이름(원인)"

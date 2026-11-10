@@ -67,42 +67,24 @@ describe('업로드 화면 - 상품 추가', () => {
     expect(page.productNames()).toEqual(['첫째', '둘째'])
   })
 
-  it('텍스트/이미지 탭에서 내용으로 상품을 추가하고, 자세히 보기에서 내용을 확인한다', async () => {
+  it('텍스트/이미지 탭에서 내용으로 상품을 추가한다', async () => {
     const page = renderUploadPage()
 
     await page.switchToTextImage()
     await page.addTextImageProduct({ title: '캠핑 테이블', content: '접이식 알루미늄 테이블입니다.' })
 
     expect(page.productNames()).toEqual(['캠핑 테이블'])
-
-    await page.openDetail('캠핑 테이블')
-    expect(page.hasDetailContent('접이식 알루미늄 테이블입니다.')).toBe(true)
   })
 
-  it('URL 상품의 자세히 보기에서 링크를 새 탭으로 열 수 있는 a 태그로 보여준다', async () => {
-    const page = renderUploadPage()
-
-    await page.addUrlProduct({ title: '이어폰', link: 'https://example.com/item' })
-    await page.openDetail('이어폰')
-
-    expect(page.detailLink('https://example.com/item')).toEqual({
-      href: 'https://example.com/item',
-      target: '_blank',
-      rel: 'noopener noreferrer',
-    })
-  })
-
-  // 말줄임 규칙(글자 수 경계, 이모지 등)은 단위 테스트가 다룬다. (unit/lib/text.test.ts) 여기서는 목록에서 줄여 보이고 원본이 보존되는지만 확인한다.
-  it('긴 제품명은 목록에서 줄여 보여주고, 원본은 title 속성에 보존한다', async () => {
+  // 한 줄 말줄임은 CSS가 하므로 글자를 자르지 않는다. 여기서는 원본 제목이 그대로 보이고 전체 제목이 title 속성으로 제공되는지만 확인한다.
+  it('긴 제품명은 자르지 않고 그대로 보여주고, 전체 제목을 title 속성으로 제공한다', async () => {
     const page = renderUploadPage()
     const longTitle = '가'.repeat(60)
 
     await page.addUrlProduct({ title: longTitle })
 
-    const [shownTitle] = page.productNames()
-    expect(shownTitle).toMatch(/\.\.\.$/)
-    expect(shownTitle.length).toBeLessThan(longTitle.length)
-    expect(page.productTooltip(shownTitle)).toBe(longTitle)
+    expect(page.productNames()).toEqual([longTitle])
+    expect(page.productTooltip(longTitle)).toBe(longTitle)
   })
 
   it('대표 사진을 첨부하면 미리보기가 보이고, 상품 카드의 썸네일로 쓴다', async () => {
@@ -343,6 +325,7 @@ describe('업로드 화면 - 진단 요청', () => {
     await page.waitUntilSubmitting()
     expect(page.isSubmitting()).toBe(true)
     expect(page.isFormVisible()).toBe(false)
+    expect(page.hasStartButton()).toBe(false)
 
     gate.release()
 
@@ -386,5 +369,147 @@ describe('업로드 화면 - 진단 요청', () => {
 
     expect(await findJudgementScreen()).toBeInTheDocument()
     expect(getCurrentLocation()).toBe(`/judgement/${DEFAULT_DIAGNOSES_ID}`)
+  })
+})
+
+describe('업로드 화면 - 자세히 보기 모달', () => {
+  const makeTextImageProduct = (index: number, overrides: Partial<Product> = {}) =>
+    makeDemoProduct(index, {
+      type: SourceType.TextImage,
+      title: '캠핑 테이블',
+      link: undefined,
+      content: '접이식 알루미늄 테이블입니다.',
+      images: [makeImage('a.png'), makeImage('b.png'), makeImage('c.png')],
+      ...overrides,
+    })
+
+  it('URL 상품 항목을 누르면 링크를 새 탭으로 열 수 있는 a 태그로 보여주고, 닫으면 누른 항목으로 포커스가 돌아온다', async () => {
+    const page = renderUploadPage()
+    await page.addUrlProduct({ title: '이어폰', link: 'https://example.com/item' })
+
+    await page.openDetail('이어폰')
+
+    expect(page.isDetailOpen('이어폰')).toBe(true)
+    expect(page.detailLink('https://example.com/item')).toEqual({
+      href: 'https://example.com/item',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    })
+
+    await page.closeDetail()
+
+    expect(page.dialogCount()).toBe(0)
+    expect(page.isItemFocused('이어폰')).toBe(true)
+  })
+
+  it('이미지·텍스트 상품은 내용과 상세페이지 이미지 썸네일을 보여준다', async () => {
+    const page = renderUploadPage([makeTextImageProduct(1)])
+
+    await page.openDetail('캠핑 테이블')
+
+    expect(page.hasDetailContent('접이식 알루미늄 테이블입니다.')).toBe(true)
+    expect(page.detailImageNames()).toEqual(['a.png', 'b.png', 'c.png'])
+  })
+
+  it('Esc를 눌러도 모달이 닫힌다', async () => {
+    const page = renderUploadPage()
+    await page.addUrlProduct({ title: '이어폰' })
+    await page.openDetail('이어폰')
+
+    await page.pressEscape()
+
+    expect(page.dialogCount()).toBe(0)
+  })
+
+  it('상세페이지 이미지를 누르면 모달을 닫고 확대 창을 열고, 확대 창을 닫으면 같은 상품 모달로 돌아와 누른 썸네일에 포커스를 둔다', async () => {
+    const page = renderUploadPage([makeTextImageProduct(1)])
+    await page.openDetail('캠핑 테이블')
+
+    await page.clickDetailImage('b.png')
+
+    // 한 번에 한 겹만 띄운다: 모달은 사라지고 확대 창만 있다.
+    expect(page.isLightboxOpen()).toBe(true)
+    expect(page.isDetailOpen('캠핑 테이블')).toBe(false)
+    expect(page.dialogCount()).toBe(1)
+
+    await page.closeLightbox()
+
+    expect(page.isLightboxOpen()).toBe(false)
+    expect(page.isDetailOpen('캠핑 테이블')).toBe(true)
+    expect(page.dialogCount()).toBe(1)
+    expect(page.isDetailImageFocused('b.png')).toBe(true)
+  })
+
+  it('확대 창에서 다른 이미지로 넘긴 뒤 닫으면 마지막으로 본 이미지의 썸네일에 포커스를 둔다', async () => {
+    const page = renderUploadPage([makeTextImageProduct(1)])
+    await page.openDetail('캠핑 테이블')
+    await page.clickDetailImage('a.png')
+
+    await page.showNextLightboxImage()
+    await page.closeLightbox()
+
+    expect(page.isDetailOpen('캠핑 테이블')).toBe(true)
+    expect(page.isDetailImageFocused('b.png')).toBe(true)
+  })
+
+  it('"목록에서 삭제"를 누르면 모달을 닫고 그 상품만 목록에서 빠진다', async () => {
+    const page = renderUploadPage([makeDemoProduct(1), makeDemoProduct(2), makeDemoProduct(3)])
+    await page.openDetail('상품 2')
+
+    await page.removeFromDetail()
+
+    expect(page.dialogCount()).toBe(0)
+    expect(page.productNames()).toEqual(['상품 1', '상품 3'])
+  })
+})
+
+describe('업로드 화면 - 하단 바', () => {
+  it('상품을 추가하고 삭제하면 하단 바의 개수가 바뀐다', async () => {
+    const page = renderUploadPage()
+    expect(page.productCountLabel()).toBe('0 / 10')
+
+    await page.addUrlProduct({ title: '첫째' })
+    await page.addUrlProduct({ title: '둘째' })
+    expect(page.productCountLabel()).toBe('2 / 10')
+
+    await page.removeProduct('첫째')
+    expect(page.productCountLabel()).toBe('1 / 10')
+  })
+
+  it('체험 버튼처럼 미리 담아 둔 상품이 있으면 처음부터 그 개수를 보여준다', () => {
+    const page = renderUploadPage([makeDemoProduct(1), makeDemoProduct(2), makeDemoProduct(3)])
+
+    expect(page.productCountLabel()).toBe('3 / 10')
+  })
+
+  it('상품이 없어도 목록 보기를 보여주고, 누르면 확인할 제품 패널로 스크롤한다', async () => {
+    const page = renderUploadPage()
+    expect(page.hasShowListButton()).toBe(true)
+
+    await page.clickShowList()
+
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(page.wasPanelScrolledTo()).toBe(true)
+  })
+
+  it('확인할 제품 패널은 상품이 없을 때도 빈 상태 안내와 함께 보이고, 상품을 담으면 목록으로 바뀐다', async () => {
+    const page = renderUploadPage()
+    expect(page.hasEmptyPanelNotice()).toBe(true)
+    expect(page.productNames()).toEqual([])
+
+    await page.addUrlProduct({ title: '이어폰' })
+
+    expect(page.hasEmptyPanelNotice()).toBe(false)
+    expect(page.productNames()).toEqual(['이어폰'])
+  })
+
+  it('마지막 상품까지 삭제해도 패널은 남아 빈 상태 안내를 다시 보여준다', async () => {
+    const page = renderUploadPage([makeDemoProduct(1)])
+    expect(page.hasEmptyPanelNotice()).toBe(false)
+
+    await page.removeProduct('상품 1')
+
+    expect(page.hasEmptyPanelNotice()).toBe(true)
+    expect(page.productCountLabel()).toBe('0 / 10')
   })
 })
