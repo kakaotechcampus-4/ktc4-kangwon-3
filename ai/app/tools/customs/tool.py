@@ -78,7 +78,7 @@ class CustomsTool(EvidenceSearchTool):
     insufficient = (
         "HS 품목분류·세관장확인 요건",
         "상품 설명에서 품목을 정할 정보가 부족하거나 비슷한 결정사례를 찾지 못해 HS 후보와 세관장확인 요건을 판단하지 못했습니다.",
-        "정보가 없거나 맞는 사례가 없어 판단을 보류했습니다. 찾지 못했다는 것만으로 요건이 없다고 보지는 않습니다.",
+        "통관 때 필요한 서류가 있는지는 관세사나 세관에 직접 확인이 필요합니다.",
     )
     # 원문 없는 속성도 조회어를 정하는 데 참고됨
     hints_with_attributes = True
@@ -212,12 +212,15 @@ class CustomsTool(EvidenceSearchTool):
             if tool is not None:
                 related[law_name] = tool.value
                 notes.append(f"같은 법의 제품 판단은 {_TOOL_LABELS.get(tool, tool.value)} Tool 결과와 함께 봐야 합니다.")
+            # 화면 본문은 할 일 문구(sale_actions)와 같은 말로 줄마다 적는다 (전동클렌저 실사이트 진단: 같은 내용이 다른 말로 나옴)
+            lines = [f"- 품목번호: HS {', '.join(format_hs(code) for code in codes)} 후보"]
+            if documents:
+                lines.append(f"- 미리 갖출 서류: {', '.join(documents)}")
+            if note := law_note(law_name):
+                lines.append(f"- {note}")
             findings.append(self._finding(
                 subject=requirement_subject(law_name),
-                summary=(f"HS {', '.join(format_hs(code) for code in codes)}로 분류되면 수입통관 때 「{law_name}」 요건을 "
-                         f"세관장에게 확인받아야 할 가능성이 있습니다(확정 아님)."
-                         + (f" {law_note(law_name)}" if law_note(law_name) else "")
-                         + (f"\n제출 서류: {', '.join(documents)}." if documents else "")),
+                summary="\n".join(lines),
                 rationale=rationale, determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=facts, assumptions=[*run.assumptions, *notes],
                 sources=self._sources(evidence, row, omission, case_sources), requirements=law_actions,
@@ -235,9 +238,11 @@ class CustomsTool(EvidenceSearchTool):
             if act_source:
                 # 조회해서 받은 "요건 없음"은 정보 부족이 아님. 근거 조문을 붙여 #315 표시·광고 Tool의 "주장 없음"과 같이 냄
                 findings.append(self._finding(
-                    subject="세관장확인 대상 법령 — HS 후보 기준 없음",
-                    summary=(f"관세청 세관장확인대상물품 조회 결과 HS 후보 {labels}에는 세관장확인 대상 법령이 "
-                             "없습니다. 통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제가 없다는 뜻은 아닙니다."),
+                    # 화면에는 결론(제목)과 품목번호만 낸다. 같은 화면에 다른 분야 카드가 함께 나와
+                    # "국내 판매 규제가 없다는 뜻은 아니다"는 가정에만 남긴다 (목걸이 실사이트 진단).
+                    # 다른 HS 후보가 따로 있으면(요건 있음·조회 못 함·상품 정보로 뺌) 그 카드와 어긋나 보이지 않게 범위를 붙임
+                    subject="세관 확인 서류 필요 없음",
+                    summary=f"품목번호: HS {labels} 후보" + (" (이 번호로 분류될 때)" if len(empty) < len(hs_codes) else ""),
                     rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
                     facts=facts, assumptions=[*run.assumptions, *notes], sources=[*act_source, *case_sources],
                 ))
@@ -257,21 +262,27 @@ class CustomsTool(EvidenceSearchTool):
         act_source = self._act_source(evidence) if only_excluded and not findings else None
         if only_excluded and not findings and act_source:
             labels = ", ".join(format_hs(code) for code in only_excluded)
-            laws = ", ".join(f"「{name}」" for name in dict.fromkeys(name for code in only_excluded for name in excluded[code]))
+            # 판매자에게는 '요건 없음'과 같은 결론이라 같은 제목과 품목번호로 낸다. 코드가 상품 정보로 뺀 요건은 한 줄로 알림
+            # (소재 표기가 실제와 다를 때 판매자가 알아챌 단서. 뺀 법령과 이유 전체는 가정에 있음)
+            texts = _material_texts(product, facts)
+            goods = list(dict.fromkeys(filter(None, (excluded_by_product(name, product, texts)
+                                                     for code in only_excluded for name in excluded[code]))))
             findings.append(self._finding(
-                subject="세관장확인 대상 법령 — 상품에 해당하는 요건 없음",
-                summary=(f"HS 후보 {labels}에 걸린 세관장확인 요건 {laws}은 상품 정보상 이 상품에 해당하지 않습니다. "
-                         "통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제가 없다는 뜻은 아닙니다."),
+                subject="세관 확인 서류 필요 없음",
+                summary=(f"품목번호: HS {labels} 후보" + (" (이 번호로 분류될 때)" if len(only_excluded) < len(hs_codes) else "")
+                         + "".join(f"\n{item}에만 필요한 서류는 제외했습니다." for item in goods)),
                 rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
-                facts=facts, assumptions=[*run.assumptions,
-                                          f"HS 후보({labels}) 기준입니다. 다른 HS로 분류되면 세관장확인 요건이 생길 수 있습니다."],
+                facts=facts, assumptions=[
+                    *run.assumptions,
+                    f"HS 후보({labels}) 기준입니다. 다른 HS로 분류되면 세관장확인 요건이 생길 수 있습니다.",
+                    "통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제(제품 안전·전파·식품 등)가 없다는 뜻은 아닙니다."],
                 sources=[*act_source, *case_sources],
             ))
         if unresolved:
             findings.append(self._finding(
-                subject="세관장확인 요건 — 조회하지 못함",
-                summary=(f"HS 후보 {', '.join(format_hs(code) for code in unresolved)}의 세관장확인 요건을 조회하지 "
-                         "못했습니다. 통관 전 관세청 UNI-PASS의 세관장확인대상 조회로 확인이 필요합니다."),
+                subject="세관 확인 서류 — 조회하지 못함",
+                summary=(f"- 품목번호: HS {', '.join(format_hs(code) for code in unresolved)} 후보\n"
+                         "- 필요한 서류를 조회하지 못했습니다. 관세사나 세관에 직접 확인이 필요합니다."),
                 rationale=rationale, determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,
                 facts=facts, assumptions=run.assumptions, sources=case_sources,
             ))
