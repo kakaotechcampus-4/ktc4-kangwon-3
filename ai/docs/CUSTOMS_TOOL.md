@@ -95,6 +95,7 @@ Product (추출 에이전트 결과)
   - 재질·기능은 후보 HS끼리 세관장확인 요건(법령 묶음)이 다르거나, 요건을 조회하지 못한 후보가 있을 때만 묻는다. 요건이 같으면 답을 들어도 알릴 요건이 같으므로 묻지 않고 "… 확인이 더 필요하지만, 후보 HS에 따라 갈리는 세관장확인 요건이 없어 묻지 않았습니다"로 남긴다 (#754: 티셔츠에 기능 질문, 선풍기에 재질 질문).
   - 비교할 때 다른 Tool 판단을 그대로 따르는 법령(전기용품법·어린이제품법, `related.FOLLOW_ALL`)은 뺀다. 그 요건은 종합 단계가 그 Tool의 제품 판단으로 맞추므로 HS를 가르려고 묻지 않는다 (예: 장난감 9503.00-3700 요건 없음 / 3300 어린이제품법).
   - 소재로 빠질 수 있는 요건(야생생물법, `MATERIAL_CONDITIONED_LAWS`)이 남았는데 재질을 모르거나 종류를 밝히지 않은 가죽이면, 모델이 요청하지 않아도 재질을 묻는다 (`material_question_helps`). 소가죽 등으로 답하면 요건이 빠지기 때문이다. 남겨야 하는 소재(악어 등)가 이미 확인됐거나 재질을 이미 알면(스테인리스 등) 묻지 않는다.
+    - 판매자 답변 줄(`[사용자 답변]`)에 뺄 수 있는 소재가 있으면 답변 줄만 본다. 상품 이름·원문의 "가죽"은 답이 종류를 밝힌 것으로 본다("카메라 가죽 케이스" → "소가죽"이면 요건을 뺌). 남겨야 하는 소재 확인은 전체 글로 한다. 답에 종류가 없으면("천연가죽") 다시 묻지 않고 "판매자 답에서 가죽 종류를 확인하지 못해 남겼습니다"로 남긴다 (리뷰 #774).
 - `CustomsAssessment`: `hs_code_candidates`(표기 "8516.79-9000"), `applicable_requirements`(법령), `required_documents`, `customs_confirmation_required=None`(확정 아님).
 - `query`: `search_terms`, `failed_terms`, `candidate_cases`, `selected_cases`, `lone_cases`(한 건뿐인 호라 HS 확인 필요로 표시한 사례), `hs_candidates`, `requirements`(HS → 법령), `related_tools`, `documents`, 버린 수.
 - 모델 호출은 공통 `ToolStep`(BaseAgent #284). 사용량 이름은 `customs-facts`, `customs-review`.
