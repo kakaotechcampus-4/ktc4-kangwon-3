@@ -11,6 +11,8 @@ from time import perf_counter
 from typing import Any, ClassVar, Generic, Literal, NoReturn
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langsmith.run_helpers import get_current_run_tree
+from langsmith.run_helpers import trace as langsmith_trace
 from openai import ContentFilterFinishReasonError, LengthFinishReasonError
 from openai.lib._parsing._completions import type_to_response_format_param
 from pydantic import BaseModel
@@ -358,10 +360,12 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             result = structured.invoke(messages)
         except (LengthFinishReasonError, ContentFilterFinishReasonError) as exc:
             # 응답은 받았으나 길이 초과·콘텐츠 필터로 출력이 잘림 → 예외에 담긴 사용량 기록
+            raw = _completion_text(exc.completion)
             if trace is not None:
-                trace.set_call_response(raw=_completion_text(exc.completion))
-            self._fail(ModelFailurePhase.PARSING, exc, from_completion(exc.completion), subject_id, started_at,
-                       partial_result)
+                trace.set_call_response(raw=raw)
+            usage = from_completion(exc.completion)
+            _trace_truncated(self.component_name, exc, raw, usage)
+            self._fail(ModelFailurePhase.PARSING, exc, usage, subject_id, started_at, partial_result)
         except Exception as exc:
             # 응답 자체를 못 받음 (네트워크·타임아웃·인증·서버 오류) → 사용량 없이 실패만 기록
             self._fail(ModelFailurePhase.CALL, exc, None, subject_id, started_at, partial_result)
@@ -637,6 +641,29 @@ class BaseAgent(ABC, Generic[InputT, OutputT, ResultT]):
             if partial_result is not None:
                 exc.partial_result = partial_result
         raise exc
+
+
+def _trace_truncated(component: str, exc: Exception, raw: str | None, usage: CallUsage | None) -> None:
+    """잘린 응답 원문과 출력 토큰 수를 LangSmith 하위 실행으로 남긴다. LangSmith 실행 밖이면 안 함.
+
+    기록에 실패하면 경고 로그만 남김.
+
+    Args:
+        component: 호출한 에이전트 이름.
+        exc: 상한 초과·콘텐츠 필터 예외.
+        raw: 잘린 응답 본문. 모양이 달라 못 꺼냈으면 None.
+        usage: 예외에 담긴 사용량. 없으면 None.
+    """
+    if get_current_run_tree() is None:
+        return
+    try:
+        with langsmith_trace(f"잘린 응답:{component}", "parser", inputs={"error_type": type(exc).__name__}) as run:
+            run.end(outputs={
+                "output_tokens": usage.output_tokens if usage is not None else None,
+                "raw": raw,
+            })
+    except Exception:
+        logger.warning("잘린 응답 LangSmith 기록 실패 (%s)", component, exc_info=True)
 
 
 def _completion_text(completion: Any) -> str | None:
