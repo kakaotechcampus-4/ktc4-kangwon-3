@@ -6,11 +6,11 @@
 """
 
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
-from ..common.facts import quote_matches, topic_particle
+from ..common.facts import product_snippets, quote_matches, topic_particle
 from .errors import ElectricalToolError
 from .evidence import compact, purchase_agent_status
 from .rules import (
-    BATTERY_SEARCH_TERMS, ESS_WORDS, PURCHASE_SUMMARY, battery_only_state, excluded_by_low_voltage,
+    BATTERY_HINT_WORDS, BATTERY_SEARCH_TERMS, ESS_WORDS, PURCHASE_SUMMARY, battery_only_state, excluded_by_low_voltage,
     is_battery_or_supply, is_ess_component, item_name, low_voltage, mentions_battery, power_conflicts, sale_actions,
 )
 from .schemas import ElectricalFact
@@ -246,8 +246,10 @@ class ElectricalTool(EvidenceSearchTool):
           - 전원 방식·정격 전압은 저전압 제외(운용요령 제3조)를 가르는 데 쓴다. 고른 행이 모두 비고에 저전압도
             포함한다고 정한 행(예: 전지)이면 어떤 답이든 그 행의 판단이 같다.
           - 전지 전용 여부는 본체 행의 공통 비고 제외를 가르는 데 쓴다. 고른 행이 모두 전지·충전기 행이면 해당 없다.
-        - _NO_SIGNAL(질문 정책): 본체 행이 있어도 상품에 전지·충전 언급(mentions_battery)이 없으면 전지 전용
-          여부를 묻지 않는다. 답이 판단을 바꾸지 않는다고 확인한 것이 아니라, 근거 없는 질문을 줄이려는 정책이다.
+        - _NO_SIGNAL(질문 정책): 본체 행이 있어도 상품 원문에 전지·충전 언급이 없으면 전지 전용 여부를 묻지
+          않는다. 답이 판단을 바꾸지 않는다고 확인한 것이 아니라, 근거 없는 질문을 줄이려는 정책이다.
+          전지 전용 여부 조건이 뽑혔으면(값이 엇갈려 충돌 질문으로 나갈 때 포함) 원문에 근거가 있다는 뜻이라 빼지
+          않는다. 언급은 뽑힌 조건(mentions_battery)뿐 아니라 판매 글·속성 원문 전체에서 찾는다 (#757 리뷰).
 
         Args:
             blocks: 고른 품목 행 (하나 이상).
@@ -262,7 +264,7 @@ class ElectricalTool(EvidenceSearchTool):
             skips.update(power_source=_NO_EFFECT, rated_voltage=_NO_EFFECT)
         if all(is_battery_or_supply(block) for block in blocks):
             skips["battery_only"] = _NO_EFFECT
-        elif not mentions_battery(by_field, product):
+        elif "battery_only" not in by_field and not _battery_signal(by_field, product):
             skips["battery_only"] = _NO_SIGNAL
         return skips
 
@@ -318,3 +320,22 @@ class ElectricalTool(EvidenceSearchTool):
             rated_specifications=list(dict.fromkeys(f.value for f in run.facts if f.field == "rated_voltage")),
             safety_management_required=None, legal_sources=[],
         )
+
+
+def _battery_signal(by_field: dict, product) -> bool:
+    """상품에 전지·충전 언급이 있는지. 뽑힌 조건(mentions_battery)과 판매 글·속성 원문 전체를 함께 본다.
+
+    질문 정책(_NO_SIGNAL)에만 쓴다. 뽑힌 조건만 보면 원문의 "AA 건전지 2개로 작동합니다"가 전원 방식으로
+    뽑히지 않았을 때 언급이 없다고 잘못 보게 된다 (#757 리뷰).
+
+    Args:
+        by_field: 원문과 대조된 조건.
+        product: 검토할 상품.
+
+    Returns:
+        bool: 언급이 있으면 True.
+    """
+    if mentions_battery(by_field, product):
+        return True
+    texts = compact(" ".join(product_snippets(product).values()))
+    return any(word in texts for word in BATTERY_HINT_WORDS)

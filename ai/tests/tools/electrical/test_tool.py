@@ -521,6 +521,39 @@ def test_전지_행만_고르면_값이_엇갈린_조건도_충돌_질문으로_
     assert "정격 전압, 배터리 전용 여부는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
 
 
+def _lines_product(lines, values, search_terms=("선풍기",)):
+    """원문 여러 줄 상품. values: (필드, 값, 인용할 줄 번호)."""
+    product = Product(product_id="p1", listing_text=list(lines))
+    facts = ElectricalFacts(
+        facts=[ElectricalFact(field=field, value=value, evidence_id=f"listing-{index}", quote=lines[index])
+               for field, value, index in values],
+        search_terms=list(search_terms),
+    )
+    return product, facts
+
+
+def test_본체_행에서_전지_전용_여부가_엇갈리면_정책으로_빼지_않고_충돌_질문을_낸다():
+    # 전지 전용 여부 조건이 뽑혔다는 것 자체가 원문 근거. 원문에 전지 낱말이 없어도 질문 정책으로 빼지 않음 (#757 리뷰)
+    lines = ["스탠드 선풍기 220V 콘센트 전용", "본체만으로 동작"]
+    product, facts = _lines_product(lines, (("product_type", "스탠드 선풍기", 0), ("rated_voltage", "220V", 0),
+                                            ("battery_only", "아니오", 0), ("battery_only", "예", 1)))
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    assert result.query["selected_items"] == [FAN_ROW]
+    assert "battery_only" in result.query["conflicted"]
+    assert "배터리 전용 여부 정보가 서로 달라 확인이 필요합니다." in result.missing_information
+    assert NO_SIGNAL_BATTERY not in result.findings[0].assumptions
+
+
+def test_전지_언급이_뽑힌_조건에_없어도_원문에_있으면_전지_전용_여부를_묻는다():
+    # "AA 건전지 2개로 작동합니다"가 전원 방식으로 뽑히지 않아도 원문 전체에서 전지 언급을 찾음 (#757 리뷰)
+    lines = ["탁상용 선풍기", "AA 건전지 2개로 작동합니다"]
+    product, facts = _lines_product(lines, (("product_type", "탁상용 선풍기", 0),))
+    result, _, _ = run(product, facts, review(select(FAN_ROW, needed_fields=["battery_only"])))
+    assert result.query["selected_items"] == [FAN_ROW]
+    assert any("건전지나 충전지로만" in question for question in result.missing_information)
+    assert NO_SIGNAL_BATTERY not in result.findings[0].assumptions
+
+
 def test_고른_행이_없으면_전원_전압을_지금처럼_묻는다():
     product, facts = product_and_facts("휴대용 보조배터리 3.7V", (("product_type", "보조배터리"), ("rated_voltage", "3.7V")))
     result, _, _ = run(product, facts, review())
