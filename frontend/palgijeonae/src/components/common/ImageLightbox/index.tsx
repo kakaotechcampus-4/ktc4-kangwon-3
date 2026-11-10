@@ -79,7 +79,7 @@ function ImageLightbox({ images, currentIndex, onIndexChange, onClose, onRemove 
             aria-modal="true"
             aria-label="이미지 미리보기"
             tabIndex={-1}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-white/20 p-4 backdrop-blur-xs md:p-6"
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-black/40 p-4 md:p-6"
             onClick={onClose}
         >
             <button
