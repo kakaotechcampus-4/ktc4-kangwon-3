@@ -32,13 +32,13 @@ describe('헤더 - 모바일 메뉴', () => {
     setAuthState('loggedOut')
   })
 
-  it('햄버거 버튼을 누르면 메뉴(메인, 상품 진단)가 열리고, 다시 누르면 닫힌다', async () => {
+  it('햄버거 버튼을 누르면 메뉴(홈, 상품 진단)가 열리고, 다시 누르면 닫힌다', async () => {
     renderWithProviders(<Header />)
     expect(queryMenuNav()).not.toBeInTheDocument()
 
     const user = await openMenu()
 
-    expect(getMenuPanel().getByRole('link', { name: '메인' })).toBeInTheDocument()
+    expect(getMenuPanel().getByRole('link', { name: '홈' })).toBeInTheDocument()
     expect(getMenuPanel().getByRole('link', { name: '상품 진단' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '메뉴 닫기' })).toHaveAttribute('aria-expanded', 'true')
 

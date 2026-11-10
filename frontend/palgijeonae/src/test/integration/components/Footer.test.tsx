@@ -1,24 +1,13 @@
-import { screen, within } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import Footer from '@/components/common/Footer'
-import { CONTACT_EMAIL, FOOTER_NAV_ITEMS, GITHUB_URL, POLICY_LINKS } from '@/constants/navigation'
+import { CONTACT_EMAIL, GITHUB_URL, POLICY_LINKS } from '@/constants/navigation'
 import { getCurrentLocation, renderWithProviders } from '@/test/utils/renderWithProviders'
 import { setMobileViewport } from '@/test/utils/viewport'
 
 const getContactLink = () => screen.getByRole('link', { name: CONTACT_EMAIL })
-
-describe('푸터 - 메뉴', () => {
-  it.each(FOOTER_NAV_ITEMS)('"$label" 메뉴를 누르면 $to로 이동한다', async ({ label, to }) => {
-    const user = userEvent.setup()
-    renderWithProviders(<Footer />, { route: '/policy/terms' })
-
-    await user.click(within(screen.getByRole('navigation', { name: '푸터 메뉴' })).getByRole('link', { name: label }))
-
-    expect(getCurrentLocation()).toBe(to)
-  })
-})
 
 describe('푸터 - 링크', () => {
   it('이용약관과 개인정보처리방침 링크가 정책 페이지를 가리킨다', () => {

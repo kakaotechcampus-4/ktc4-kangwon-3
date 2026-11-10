@@ -2,7 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import logo from '@/assets/logo.svg'
-import { CONTACT_EMAIL, FOOTER_NAV_ITEMS, GITHUB_URL, POLICY_LINKS } from '@/constants/navigation'
+import { CONTACT_EMAIL, GITHUB_URL, POLICY_LINKS } from '@/constants/navigation'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 const SEPARATOR = (
@@ -42,22 +42,11 @@ function Footer() {
     return (
         <footer className="border-t border-neutral-line bg-white">
             <div className="mx-auto flex w-full max-w-297 flex-col gap-5 px-5 pt-8 pb-10 md:w-3/5 md:min-w-150 md:gap-6 md:px-0 md:pt-10 md:pb-12">
-                <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-                    <div className="flex flex-col gap-2 md:gap-2.5">
-                        <img src={logo} alt="" className="h-8 w-24 object-contain object-left md:h-10 md:w-30" />
-                        <p className="text-[13px] leading-4.75 text-neutral-muted md:text-sm md:leading-5">
-                            구매대행·사입 상품의 국내 법령 요건을 AI가 확인해요
-                        </p>
-                    </div>
-                    <nav aria-label="푸터 메뉴">
-                        <ul className="flex gap-5 text-sm font-medium text-neutral-text md:gap-6">
-                            {FOOTER_NAV_ITEMS.map(({ label, to }) => (
-                                <li key={to}>
-                                    <Link to={to}>{label}</Link>
-                                </li>
-                            ))}
-                        </ul>
-                    </nav>
+                <div className="flex flex-col gap-2 md:gap-2.5">
+                    <img src={logo} alt="" className="h-8 w-24 object-contain object-left md:h-10 md:w-30" />
+                    <p className="text-[13px] leading-4.75 text-neutral-muted md:text-sm md:leading-5">
+                        구매대행·사입 상품의 국내 법령 요건을 AI가 확인해요
+                    </p>
                 </div>
                 <hr className="w-full border-neutral-line" />
                 <div className="flex flex-col gap-1.5 text-xs leading-4.5 text-neutral-label md:gap-1 md:text-[13px] md:leading-5">
