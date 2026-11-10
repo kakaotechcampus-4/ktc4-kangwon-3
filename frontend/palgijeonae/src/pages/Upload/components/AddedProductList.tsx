@@ -3,6 +3,9 @@ import type { Product } from "@/pages/Upload/types.ts";
 
 import AddedProduct from "./AddedProduct.tsx";
 
+// 자세히 보기 모달을 연결하기 전까지는 항목을 눌러도 아무 일도 하지 않는다.
+const NOOP = () => {};
+
 interface AddedProductListProps {
     products: Product[]
     onRemove: (id: string) => void
@@ -23,9 +26,7 @@ function AddedProductList({ products, onRemove }: AddedProductListProps) {
                         type={product.type}
                         title={product.title}
                         productImageFile={product.productImageFile}
-                        link={product.link}
-                        content={product.content}
-                        images={product.images}
+                        onOpenDetail={NOOP}
                         onRemove={() => onRemove(product.id)}
                     />
                 ))}

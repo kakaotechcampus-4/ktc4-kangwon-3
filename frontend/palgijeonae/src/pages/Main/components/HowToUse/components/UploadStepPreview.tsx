@@ -66,7 +66,7 @@ function UploadStepPreview() {
                 <AddedProduct
                     type={SourceType.Url}
                     title={PREVIEW_PRODUCTS.earphoneResult.productName}
-                    link={PREVIEW_PRODUCTS.earphoneResult.sourceUrl ?? ""}
+                    onOpenDetail={NOOP}
                     onRemove={NOOP}
                 />
             </div>
