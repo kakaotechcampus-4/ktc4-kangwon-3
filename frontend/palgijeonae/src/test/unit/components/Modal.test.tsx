@@ -62,10 +62,9 @@ describe('Modal - 표시', () => {
     expect(getDialog()).toHaveFocus()
   })
 
-  it('제목 위 보조 영역과 하단 버튼 영역을 넘기면 함께 보여준다', () => {
-    renderModal({ eyebrow: <p>URL</p>, footer: <button type="button">확인</button> })
+  it('하단 버튼 영역을 넘기면 함께 보여준다', () => {
+    renderModal({ footer: <button type="button">확인</button> })
 
-    expect(within(getDialog()).getByText('URL')).toBeInTheDocument()
     expect(within(getDialog()).getByRole('button', { name: '확인' })).toBeInTheDocument()
   })
 
@@ -75,14 +74,11 @@ describe('Modal - 표시', () => {
     expect(within(getDialog()).getAllByRole('button')).toHaveLength(1)
   })
 
-  it('닫기 버튼의 이름은 기본이 "닫기"이고, closeLabel로 바꿀 수 있다', () => {
-    const first = renderModal()
-    expect(within(getDialog()).getByRole('button', { name: '닫기' })).toBeInTheDocument()
-    first.unmount()
+  it('상단 닫기 버튼의 이름은 "창 닫기"라서, 하단 버튼 영역의 "닫기" 버튼과 구분된다', () => {
+    renderModal({ footer: <button type="button">닫기</button> })
 
-    renderModal({ closeLabel: '창 닫기' })
-    expect(within(getDialog()).getByRole('button', { name: '창 닫기' })).toBeInTheDocument()
-    expect(within(getDialog()).queryByRole('button', { name: '닫기' })).not.toBeInTheDocument()
+    expect(within(getDialog()).getAllByRole('button', { name: '창 닫기' })).toHaveLength(1)
+    expect(within(getDialog()).getAllByRole('button', { name: '닫기' })).toHaveLength(1)
   })
 })
 
@@ -100,7 +96,7 @@ describe('Modal - 닫기', () => {
     const user = userEvent.setup()
     const { onClose } = renderModal()
 
-    await user.click(within(getDialog()).getByRole('button', { name: '닫기' }))
+    await user.click(within(getDialog()).getByRole('button', { name: '창 닫기' }))
 
     expect(onClose).toHaveBeenCalledTimes(1)
   })
@@ -127,13 +123,13 @@ describe('Modal - 포커스와 접근성', () => {
     )
 
     await user.tab()
-    expect(screen.getByRole('button', { name: '닫기' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: '창 닫기' })).toHaveFocus()
 
     await user.tab()
     expect(screen.getByRole('button', { name: '확인' })).toHaveFocus()
 
     await user.tab()
-    expect(screen.getByRole('button', { name: '닫기' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: '창 닫기' })).toHaveFocus()
 
     await user.tab({ shift: true })
     expect(screen.getByRole('button', { name: '확인' })).toHaveFocus()
@@ -171,5 +167,60 @@ describe('Modal - 포커스와 접근성', () => {
     await user.click(opener)
     expect(getDialog()).toHaveFocus()
     expect(appRoot.inert).toBe(true)
+  })
+})
+
+describe('Modal - 포커스 규칙', () => {
+  it('안쪽 요소가 이미 포커스를 가져갔으면 대화상자로 옮기지 않는다', () => {
+    render(
+      <Modal title="상품 자세히 보기" onClose={vi.fn()}>
+        <button type="button" autoFocus>썸네일</button>
+      </Modal>,
+    )
+
+    expect(screen.getByRole('button', { name: '썸네일' })).toHaveFocus()
+    expect(getDialog()).not.toHaveFocus()
+  })
+
+  it('안쪽 요소가 포커스를 가져갔어도, 닫으면 열기 전에 포커스가 있던 요소로 돌려준다', async () => {
+    const user = userEvent.setup()
+    function WithAutoFocus() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>열기</button>
+          {open && (
+            <Modal title="상품 자세히 보기" onClose={() => setOpen(false)}>
+              <button type="button" autoFocus>썸네일</button>
+            </Modal>
+          )}
+        </>
+      )
+    }
+    render(<WithAutoFocus />, { container: appRoot })
+    const opener = screen.getByRole('button', { name: '열기' })
+
+    await user.click(opener)
+    expect(screen.getByRole('button', { name: '썸네일' })).toHaveFocus()
+
+    await user.keyboard('{Escape}')
+    expect(opener).toHaveFocus()
+  })
+
+  // inert 안의 요소는 실제 브라우저에서 포커스를 받지 못한다. (jsdom은 막지 않아서, 포커스를 돌려주는 시점에 이미 풀렸는지를 본다)
+  it('열기 전 포커스로 돌려주는 시점에는 뒤 화면의 inert가 이미 풀려 있다', async () => {
+    const user = userEvent.setup()
+    render(<Harness />, { container: appRoot })
+    const opener = screen.getByRole('button', { name: '열기' })
+    await user.click(opener)
+    expect(appRoot.inert).toBe(true)
+
+    let inertWhenFocusReturned: boolean | undefined
+    vi.spyOn(opener, 'focus').mockImplementation(() => {
+      inertWhenFocusReturned = appRoot.inert
+    })
+    await user.keyboard('{Escape}')
+
+    expect(inertWhenFocusReturned).toBe(false)
   })
 })
