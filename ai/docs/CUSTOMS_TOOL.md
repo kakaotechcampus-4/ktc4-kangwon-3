@@ -92,6 +92,7 @@ Product (추출 에이전트 결과)
 - 요건 법령이 다른 규제 Tool의 법이면(전안법 → 전기, 전파법 → 전파, 어린이제품법 → 어린이, 수입식품법·의료기기법·화장품법 등 → 식약) `query.related_tools`와 판단 assumptions에 남겨, 검증 단계가 같은 법의 제품 판단과 함께 보게 한다.
 - 결정사례 근거는 `source_name="관세청 품목분류 결정사례(CLIP)"`, 공개 열람 주소가 없어 `source_url`은 비운다(확정 판단의 근거로 쓰지 않는다).
 - 질문은 HS를 가르는 조건(제품 종류·재질·기능)만 낸다. 선택 모델이 더 필요하다고 한 그 밖의 조건은 assumptions에 "HS 확정에는 … 확인이 더 필요합니다"로 남긴다.
+  - 재질·기능은 후보 HS끼리 세관장확인 요건(법령 묶음)이 다르거나, 요건을 조회하지 못한 후보가 있을 때만 묻는다. 요건이 같으면 답을 들어도 알릴 요건이 같으므로 묻지 않고 "… 확인이 더 필요하지만, 후보 HS의 세관장확인 요건이 같아 묻지 않았습니다"로 남긴다 (#754: 티셔츠에 기능 질문, 선풍기에 재질 질문).
 - `CustomsAssessment`: `hs_code_candidates`(표기 "8516.79-9000"), `applicable_requirements`(법령), `required_documents`, `customs_confirmation_required=None`(확정 아님).
 - `query`: `search_terms`, `failed_terms`, `candidate_cases`, `selected_cases`, `lone_cases`(한 건뿐인 호라 HS 확인 필요로 표시한 사례), `hs_candidates`, `requirements`(HS → 법령), `related_tools`, `documents`, 버린 수.
 - 모델 호출은 공통 `ToolStep`(BaseAgent #284). 사용량 이름은 `customs-facts`, `customs-review`.

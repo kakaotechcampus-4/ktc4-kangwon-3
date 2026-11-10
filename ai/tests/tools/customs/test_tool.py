@@ -321,11 +321,38 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다():
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
 
 
-def test_HS를_가르는_조건만_묻고_나머지는_가정으로_남긴다():
+def test_후보_HS의_요건이_다르면_HS를_가르는_조건만_묻고_나머지는_가정으로_남긴다():
+    # 전기주전자(8516.79, 전기용품법 요건)와 커피 머신(8419.81, 요건 없음) → 재질 답에 따라 알릴 요건이 달라짐
     product, facts = product_and_facts(values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
-    result, _, _, _ = run(product, facts, review(select(needed_fields=["material", "intended_use"])))
+    chosen = review(select(needed_fields=["material", "intended_use"]), select(COFFEE_CASE))
+    result, _, _, _ = run(product, facts, chosen)
     assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
     assert any("용도 확인이 더 필요합니다" in text for text in result.findings[0].assumptions)
+
+
+def test_후보_HS의_요건이_같으면_재질_기능을_묻지_않고_가정으로_남긴다():
+    # 후보 HS가 하나뿐이거나 모두 같은 요건이면 답을 들어도 알릴 요건이 같음 (#754: 티셔츠에 기능 질문)
+    product, facts = product_and_facts(values=(("product_type", "전기주전자"),))
+    chosen = review(select(needed_fields=["material", "function"]), select(JUG_CASE, needed_fields=["function"]))
+    result, _, _, _ = run(product, facts, chosen)
+    assert result.missing_information == []
+    assumptions = result.findings[0].assumptions
+    assert "HS 확정에는 재질, 기능 확인이 더 필요하지만, 후보 HS의 세관장확인 요건이 같아 묻지 않았습니다." in assumptions
+    assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
+
+
+def test_요건이_없는_후보만_남아도_같은_요건으로_보고_묻지_않는다():
+    product, facts = product_and_facts(values=(("product_type", "전기주전자"),))
+    result, _, _, _ = run(product, facts, review(select(needed_fields=["function"])), requirements=FakeRequirements({}))
+    assert result.missing_information == []
+    assert result.findings[0].determination is Determination.NOT_REQUIRED
+
+
+def test_요건을_조회하지_못한_후보가_있으면_재질_기능을_묻는다():
+    product, facts = product_and_facts(values=(("product_type", "전기주전자"),))
+    unavailable = FakeRequirements(error=EvidenceUnavailable("세관장확인 요건 조회 경로를 쓸 수 없습니다."))
+    result, _, _, _ = run(product, facts, review(select(needed_fields=["function"])), requirements=unavailable)
+    assert result.missing_information == ["제품에 어떤 기능이 있는지 확인이 필요합니다."]
 
 
 def test_일부_검색어가_실패해도_나머지로_진행하고_기록한다():

@@ -30,6 +30,7 @@ _FIELDS = {
     "composition": "구성품",
 }
 # 답에 따라 HS 후보(그리고 요건)가 바뀌는 조건만 묻는다. 나머지는 가정으로 남긴다.
+# 재질·기능은 후보 HS끼리 세관장확인 요건이 다를 때(또는 요건을 조회하지 못했을 때)만 묻는다 (_requirements_differ)
 _QUESTION_FIELDS = ("product_type", "material", "function")
 # 결정사례 검색어 수. 검색어는 동시에 보내므로 늘려도 대기 시간은 가장 느린 한 건이다.
 _QUERY_LIMIT = 6
@@ -147,9 +148,11 @@ class CustomsTool(EvidenceSearchTool):
             codes = ", ".join(dict.fromkeys(format_hs(code) for case_id in lone for code in by_id[case_id].hs_codes))
             run.assumptions.append(
                 f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개(HS {codes})가 있어 HS 확인이 필요합니다.")
+        # 물을 수 있는 조건은 요건 조회 뒤에 묻을지 정함 (후보 HS의 요건이 같으면 답이 결론을 바꾸지 않음, #754)
+        askable: list[str] = []
         for _, selection, _ in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
-            run.missing.extend(name for name in needed if name in _QUESTION_FIELDS)
+            askable.extend(name for name in needed if name in _QUESTION_FIELDS and name not in askable)
             if other := [_FIELDS[name] for name in needed if name not in _QUESTION_FIELDS]:
                 run.assumptions.append(f"HS 확정에는 {', '.join(other)} 확인이 더 필요합니다.")
         query["selected_cases"] = [case.case_id for case, _, _ in chosen]
@@ -176,6 +179,12 @@ class CustomsTool(EvidenceSearchTool):
         run.requirements = requirements
         query["requirements"] = {code: [item.law_name for item in requirements if item.hs_code == code]
                                  for code in hs_codes if code not in unresolved}
+        if askable:
+            if unresolved or _requirements_differ(requirements, hs_codes):
+                run.missing.extend(askable)
+            else:
+                run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in askable)} 확인이 더 필요하지만, "
+                                       "후보 HS의 세관장확인 요건이 같아 묻지 않았습니다.")
         case_sources = [_case_source(case) for case, _, _ in chosen]
         # 사례마다 이유가 따로라 줄을 나눔 (진단서 판단 근거는 줄바꿈을 그대로 보여 줌)
         rationale = "\n".join(selection.rationale for _, selection, _ in chosen)
@@ -396,6 +405,23 @@ def _lone_headings(chosen: list, cases: Iterable[HsCase]) -> list[str]:
     if all(score(case) <= 1 for case, _, _ in chosen):
         return []
     return [case.case_id for case, _, _ in chosen if score(case) <= 1]
+
+
+def _requirements_differ(requirements: list[Requirement], hs_codes: list[str]) -> bool:
+    """후보 HS끼리 세관장확인 요건(법령)이 다른지. 같으면 HS를 더 좁혀도 판매자에게 알릴 요건이 같다.
+
+    후보가 하나뿐이면 다를 게 없어 False. 법령 이름은 law_key로 비교한다(GW가 "…법률(허가)"처럼 붙여 줄 때가 있음).
+
+    Args:
+        requirements: 상품 정보로 뺀 뒤 남은 요건.
+        hs_codes: 후보 HS (요건을 조회한 것만).
+
+    Returns:
+        bool: 요건 법령 묶음이 후보마다 하나라도 다르면 True.
+    """
+    laws = {code: frozenset(law_key(item.law_name) for item in requirements if item.hs_code == code)
+            for code in hs_codes}
+    return len(set(laws.values())) > 1
 
 
 def _material_texts(product: Product, facts: list) -> list[str]:
