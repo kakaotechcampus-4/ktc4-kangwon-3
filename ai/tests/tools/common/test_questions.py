@@ -7,12 +7,14 @@ from app.tools.common.questions import (
     CONFLICT_SUFFIX,
     NO_LISTING_QUESTION,
     QUESTIONS,
+    SAME_QUESTION_GROUPS,
     TOPIC_OTHER,
     TOPICS,
     answered_questions,
     field_for,
     help_text,
     question_text,
+    same_question_fields,
 )
 
 
@@ -61,6 +63,23 @@ def test_카탈로그에_없는_문장은_도움말이_없다(question):
 
 def test_검증_질문_topic은_카탈로그_필드와_other다():
     assert TOPICS == (*QUESTIONS, TOPIC_OTHER)
+
+
+def test_같은_내용을_묻는_조건은_한_묶음이다():
+    # #801: 전지로만 동작하는지는 전원 방식의 한 갈래라 어느 쪽을 물었든 전원 질문은 한 번만 나와야 한다
+    assert same_question_fields("power_source") == {"power_source", "battery_only"}
+    assert same_question_fields("battery_only") == {"power_source", "battery_only"}
+
+
+def test_묶음이_없는_조건은_자기_자신만이다():
+    assert same_question_fields("rated_voltage") == {"rated_voltage"}
+    assert same_question_fields(TOPIC_OTHER) == {TOPIC_OTHER}
+
+
+def test_묶음의_조건은_모두_카탈로그에_있다():
+    for group in SAME_QUESTION_GROUPS:
+        assert len(group) >= 2
+        assert group <= set(QUESTIONS)
 
 
 def test_카탈로그_질문_문장으로_조건_필드를_되찾는다():
