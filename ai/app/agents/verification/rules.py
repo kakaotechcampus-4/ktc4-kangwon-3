@@ -1,5 +1,6 @@
 """검증 규칙 검사. 모델 없이 심사 초안의 구조·근거 유무만 봄 (VerificationAgent.verify_rules가 사용)."""
 
+import re
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -28,6 +29,11 @@ DEFINITIVE = frozenset(
 
 
 Severity = Literal["critical", "warning", "info"]
+
+# 판정은 "필요·가능성 있음"인데 판매자가 읽는 요약이 "필요 없음"이라고 안내하는 표현 (검증 튜닝: 요약만 반대로 바뀐 판단).
+# "해당하지 않"은 넣지 않는다. 야생생물법 조건 문구("소가죽 등 … 해당하지 않습니다")가 가능성 있음 판단 요약에 붙음
+_NEGATIVE_SUMMARY = re.compile(
+    r"필요\s*없|필요하지\s*않|대상이\s*(?:아니|아닙|아닐)|대상\s*아님|인증\s*없이|문제\s*없는|문제가\s*없|고칠\s*필요가\s*없")
 
 
 @dataclass
@@ -218,6 +224,14 @@ def check_findings(
 
     for finding in draft.findings:
         finding_id = finding.finding_id
+        # 판정은 필요·가능성 있음인데 요약은 필요 없다고 안내함. 판매자는 요약을 읽으므로 인증·조치를 놓칠 수 있음.
+        # 모델 지적이 아니라 규칙 지적이라 불확실 판단이어도 경고로 낮추지 않음
+        if finding.determination in (Determination.REQUIRED, Determination.POSSIBLY_REQUIRED)                 and _NEGATIVE_SUMMARY.search(finding.summary or ""):
+            context.add(
+                IssueType.CONTRADICTION,
+                "판정은 필요할 수 있다인데 요약은 필요 없다고 안내합니다. 판매자가 요약만 보고 인증·조치를 놓칠 수 있습니다.",
+                (finding_id,),
+            )
         # 종합 판단이 툴 원본과 다름 (aggregate는 원본 finding을 바꾸지 않는 계약)
         if finding_id not in original or original[finding_id] != finding:
             context.add(
