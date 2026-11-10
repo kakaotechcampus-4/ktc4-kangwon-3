@@ -25,7 +25,7 @@ public class WithdrawnUserRepository {
     }
 
     public boolean existsByUserId(UUID userId) {
-        return redisTemplate.hasKey(keyOf(userId));
+        return Boolean.TRUE.equals(redisTemplate.hasKey(keyOf(userId)));
     }
 
     private String keyOf(UUID userId) {
