@@ -20,7 +20,7 @@ from ...schemas.schemas import Determination, ElectricalAssessment, RegulatoryFi
 
 _FIELDS = {
     "product_type": "제품 종류", "power_source": "전원 방식", "rated_voltage": "정격 전압",
-    "intended_use": "제품 용도", "battery_only": "배터리 전용 여부",
+    "intended_use": "제품 용도", "battery_only": "전지로만 동작(코드나 어댑터 없이)",
     "adapter_included": "어댑터 포함 여부", "rated_power": "정격 소비전력",
 }
 # 품목 조회에는 제품 종류만 있으면 된다. 전원·전압이 없으면 질문으로 남기고 검토는 계속한다.
@@ -292,7 +292,7 @@ class ElectricalTool(EvidenceSearchTool):
             labels = ", ".join(_FIELDS[name] for name in no_effect)
             run.assumptions.append(f"{labels}{topic_particle(labels)} 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다.")
         if "battery_only" in hit and skips["battery_only"] == _NO_SIGNAL:
-            run.assumptions.append("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
+            run.assumptions.append("상품 원문에 전지·충전 언급이 없어 전지로만 동작하는지는 묻지 않았습니다. "
                                    "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
 
     def _insufficient(self, run: ToolRun) -> tuple[str, str, str]:

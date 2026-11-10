@@ -186,7 +186,7 @@ def test_전지_전용_여부가_예와_아니오로_엇갈리면_충돌로_묻�
     result, _, _ = run(product, facts, review(select()))
     assert "battery_only" in result.query["conflicted"]
     assert result.query["battery_only"] is None
-    assert any("배터리 전용 여부 정보가 서로 달라" in text for text in result.missing_information)
+    assert any("전지로만 동작(코드나 어댑터 없이) 정보가 서로 달라" in text for text in result.missing_information)
 
 
 def test_판단을_바꾸지_않는_조건은_질문이_아니라_가정으로_남긴다():
@@ -479,7 +479,7 @@ def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후�
 # -- 고른 품목 행에 따라 묻지 않는 질문 --
 # 이유는 두 가지: 어떤 답이든 고른 행의 판단이 같음(전지 행) / 질문 정책(전지·충전 언급이 없으면 전지 전용 여부를 안 물음)
 
-NO_SIGNAL_BATTERY = ("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
+NO_SIGNAL_BATTERY = ("상품 원문에 전지·충전 언급이 없어 전지로만 동작하는지는 묻지 않았습니다. "
                      "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
 
 
@@ -491,7 +491,7 @@ def test_전지_행만_고르면_전원_전압과_전지_전용_여부를_묻지
     assert result.query["selected_items"] == [BATTERY_ROW]
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
-    assert "전원 방식, 정격 전압, 배터리 전용 여부는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
+    assert "전원 방식, 정격 전압, 전지로만 동작(코드나 어댑터 없이)는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
     # 묻지 않은 이유를 남긴 필드를 "확정에 더 필요"로 다시 적지 않음 (검증이 모순으로 읽지 않게)
     assert not any("확인이 더 필요합니다" in item for item in assumptions)
 
@@ -515,7 +515,7 @@ def test_전지_언급이_없으면_본체_행이어도_정책상_전지_전용_
     assert not any("건전지나 충전지로만" in question for question in result.missing_information)
     assumptions = result.findings[0].assumptions
     assert NO_SIGNAL_BATTERY in assumptions
-    assert not any("배터리 전용 여부 확인이 더 필요합니다" in item for item in assumptions)
+    assert not any("전지로만 동작(코드나 어댑터 없이) 확인이 더 필요합니다" in item for item in assumptions)
 
 
 def test_본체_행이고_전지_언급이_있으면_모델이_요청한_전지_전용_여부를_묻는다():
@@ -550,7 +550,7 @@ def test_전지_행만_고르면_값이_엇갈린_조건도_충돌_질문으로_
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
     assert any("상품 정보에 모순이 있어" in item for item in assumptions)
-    assert "정격 전압, 배터리 전용 여부는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
+    assert "정격 전압, 전지로만 동작(코드나 어댑터 없이)는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
 
 
 def _lines_product(lines, values, search_terms=("선풍기",)):
@@ -572,7 +572,7 @@ def test_본체_행에서_전지_전용_여부가_엇갈리면_정책으로_빼�
     result, _, _ = run(product, facts, review(select(FAN_ROW)))
     assert result.query["selected_items"] == [FAN_ROW]
     assert "battery_only" in result.query["conflicted"]
-    assert "배터리 전용 여부 정보가 서로 달라 확인이 필요합니다." in result.missing_information
+    assert "전지로만 동작(코드나 어댑터 없이) 정보가 서로 달라 확인이 필요합니다." in result.missing_information
     assert NO_SIGNAL_BATTERY not in result.findings[0].assumptions
 
 

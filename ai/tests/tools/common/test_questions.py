@@ -104,3 +104,10 @@ def test_답변_줄에서_지난_회차_질문_문장을_모은다():
                f"{ANSWER_PREFIX} r1_q2 → 220V", "정격 전압 → 220V"]
 
     assert answered_questions(listing) == ["제품의 정격 전압 확인이 필요합니다.", "r1_q2"]
+
+
+def test_전지_전용_조건의_표시_이름은_뜻이_보이게_쓰고_예전_이름의_모순_문장도_필드를_찾는다():
+    # #803: "배터리 전용 여부"가 "배터리만 있다"로 읽혀 검증이 맞는 판단을 모순으로 막음
+    assert QUESTIONS["battery_only"].labels[0] == "전지로만 동작(코드나 어댑터 없이)"
+    assert field_for("전지로만 동작(코드나 어댑터 없이)" + CONFLICT_SUFFIX) == "battery_only"
+    assert field_for("배터리 전용 여부" + CONFLICT_SUFFIX) == "battery_only"
