@@ -24,22 +24,12 @@ export function uploadPage(user: User = userEvent.setup()) {
   // 소스에서 input에 label을 연결하면(예: aria-label="제품 대표 사진") getByLabelText로 바꿀 수 있다.
   const mainImageInput = () => document.getElementById('product-image') as HTMLInputElement
 
-  // NOTE(source): 상품 카드에는 목록(li)이나 그룹 역할·이름이 없어서 카드를 직접 찾을 수 없다.
-  // 카드마다 하나뿐인 "<제목> 자세히 보기" 버튼에서 위로 올라가, 제목 heading이 처음 나오는 조상을 카드의 한 행으로 본다.
-  // 소스에서 카드를 <li>(목록)나 role="group" + aria-labelledby로 묶으면 이름으로 바로 찾을 수 있다.
-  const detailButtons = () => screen.queryAllByRole('button', { name: /자세히 보기$/ })
-  const rowOf = (toggle: HTMLElement): HTMLElement => {
-    let node = toggle.parentElement
-    while (node && !within(node).queryByRole('heading')) {
-      node = node.parentElement
-    }
-    if (!node) {
-      throw new Error('상품 카드의 제목을 찾을 수 없습니다.')
-    }
-    return node
+  // "확인할 제품" 패널의 목록(list)과 항목(listitem)이 카드의 한 행이다. 상품이 없으면 패널 자체가 없다.
+  const productRows = (): HTMLElement[] => {
+    const list = screen.queryByRole('list', { name: '확인할 제품 목록' })
+    return list ? within(list).getAllByRole('listitem') : []
   }
   const titleOf = (row: HTMLElement): string => within(row).getByRole('heading').textContent?.trim() ?? ''
-  const productRows = () => detailButtons().map(rowOf)
 
   // 화면에 보이는 제품명으로 카드 행을 찾는다. 같은 이름이 둘이면 먼저 나온 것을 쓴다.
   const productRow = (name: string): HTMLElement => {
