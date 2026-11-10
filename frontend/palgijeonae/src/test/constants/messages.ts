@@ -63,7 +63,7 @@ export const JUDGEMENT_MESSAGES = {
   LOAD_FAILED: '진행 상황을 불러오지 못했어요.',
   EMPTY: '확인할 상품이 없어요.',
   REPORT_HINT_RUNNING: '진행 중인 상품이 끝나면 진단서를 볼 수 있어요.',
-  REPORT_HINT_DONE: '페이지를 나가도 진단은 계속돼요. 마이페이지에서 다시 볼 수 있어요.',
+  REPORT_HINT_DONE: '페이지를 나가도 진단은 계속돼요. 진단 결과에서 다시 볼 수 있어요.',
   productCountIntro: (count: number) => `${count}개 상품을 동시에 확인하고 있어요`,
   // NOTE(source): statusNotice.ts / statusDescription.ts의 카드 문구. 소스에 export가 없다.
   AWAITING_INPUT_NOTICE: '답변하면 처음부터 다시 진단해요. 다른 상품은 기다리지 않고 계속 진행돼요.',
