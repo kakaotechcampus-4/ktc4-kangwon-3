@@ -232,8 +232,8 @@ class CustomsTool(EvidenceSearchTool):
                     # 화면에는 결론(제목)과 품목번호만 낸다. 같은 화면에 다른 분야 카드가 함께 나와
                     # "국내 판매 규제가 없다는 뜻은 아니다"는 가정에만 남긴다 (목걸이 실사이트 진단).
                     # 다른 HS 후보가 따로 있으면(요건 있음·조회 못 함·상품 정보로 뺌) 그 카드와 어긋나 보이지 않게 범위를 붙임
-                    subject="통관 서류 필요 없음",
-                    summary=f"품목번호: HS {labels}" + (" (이 번호로 분류될 때)" if len(empty) < len(hs_codes) else ""),
+                    subject="세관 확인 서류 필요 없음",
+                    summary=f"품목번호: HS {labels} 후보" + (" (이 번호로 분류될 때)" if len(empty) < len(hs_codes) else ""),
                     rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
                     facts=facts, assumptions=[*run.assumptions, *notes], sources=[*act_source, *case_sources],
                 ))
@@ -259,8 +259,8 @@ class CustomsTool(EvidenceSearchTool):
             goods = list(dict.fromkeys(filter(None, (excluded_by_product(name, product, texts)
                                                      for code in only_excluded for name in excluded[code]))))
             findings.append(self._finding(
-                subject="통관 서류 필요 없음",
-                summary=(f"품목번호: HS {labels}" + (" (이 번호로 분류될 때)" if len(only_excluded) < len(hs_codes) else "")
+                subject="세관 확인 서류 필요 없음",
+                summary=(f"품목번호: HS {labels} 후보" + (" (이 번호로 분류될 때)" if len(only_excluded) < len(hs_codes) else "")
                          + "".join(f"\n{item}에만 필요한 서류는 제외했습니다." for item in goods)),
                 rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
                 facts=facts, assumptions=[
@@ -271,7 +271,7 @@ class CustomsTool(EvidenceSearchTool):
             ))
         if unresolved:
             findings.append(self._finding(
-                subject="통관 서류 — 조회하지 못함",
+                subject="세관 확인 서류 — 조회하지 못함",
                 summary=(f"- 품목번호: HS {', '.join(format_hs(code) for code in unresolved)} 후보\n"
                          "- 필요한 서류를 조회하지 못했습니다. 관세사나 세관에 직접 확인이 필요합니다."),
                 rationale=rationale, determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,

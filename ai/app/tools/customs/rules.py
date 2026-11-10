@@ -39,11 +39,11 @@ def requirement_subject(law_name: str) -> str:
     Returns:
         str: 판단 제목.
     """
-    return f"통관 서류가 필요할 수 있음 — {law_name}"
+    return f"세관 확인 서류가 필요할 수 있음 — {law_name}"
 
 
-def unneeded_subject(law_name: str) -> str:
-    """그 법령을 맡는 Tool이 대상이 아니라고 판단해 통관 서류도 필요 없게 된 판단의 제목 (related.py).
+def required_subject(law_name: str) -> str:
+    """그 법령을 맡는 Tool이 대상이라고 판단해 세관 확인 서류가 필요하게 된 판단의 제목 (related.py).
 
     Args:
         law_name: 요건 법령 이름.
@@ -51,7 +51,19 @@ def unneeded_subject(law_name: str) -> str:
     Returns:
         str: 판단 제목.
     """
-    return f"통관 서류 필요 없음 — {law_name}"
+    return f"세관 확인 서류 필요 — {law_name}"
+
+
+def unneeded_subject(law_name: str) -> str:
+    """그 법령을 맡는 Tool이 대상이 아니라고 판단해 세관 확인 서류도 필요 없게 된 판단의 제목 (related.py).
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        str: 판단 제목.
+    """
+    return f"세관 확인 서류 필요 없음 — {law_name}"
 
 
 def related_tool(law_name: str) -> ToolName | None:

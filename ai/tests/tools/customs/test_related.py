@@ -12,7 +12,7 @@ CITES_ACTION = "[「야생생물 보호 및 관리에 관한 법률(허가)」 �
 
 def _customs_finding(law: str, action: str) -> RegulatoryFinding:
     return RegulatoryFinding(
-        tool_name=ToolName.CUSTOMS, subject=f"통관 서류가 필요할 수 있음 — {law}", determination=Determination.POSSIBLY_REQUIRED,
+        tool_name=ToolName.CUSTOMS, subject=f"세관 확인 서류가 필요할 수 있음 — {law}", determination=Determination.POSSIBLY_REQUIRED,
         risk_level=RiskLevel.MEDIUM, summary=f"HS 8516.79-9000로 분류되면 「{law}」 요건을 확인받아야 할 가능성이 있습니다.",
         rationale="결정사례", requirements=[action],
     )
@@ -54,11 +54,11 @@ def test_맡는_Tool이_대상_아님이면_통관_판단도_대상_아님으로
     [finding] = customs.findings
     assert (finding.determination, finding.risk_level) == (Determination.NOT_REQUIRED, RiskLevel.LOW)
     # 대상이 아니면 제목도 "필요 없음"으로 바뀌어 본문과 어긋나지 않음
-    assert finding.subject == f"통관 서류 필요 없음 — {LAW}"
+    assert finding.subject == f"세관 확인 서류 필요 없음 — {LAW}"
     assert finding.summary == "- 전기안전 분야 판단을 따릅니다: 대상 아님\n- 통관 서류도 필요하지 않습니다"
     # 다시 불려도 바뀐 제목으로 같은 판단을 찾아 결과가 같음
     follow_related_tools(results)
-    assert finding.subject == f"통관 서류 필요 없음 — {LAW}" and finding.requirements == []
+    assert finding.subject == f"세관 확인 서류 필요 없음 — {LAW}" and finding.requirements == []
     assert finding.requirements == [] and customs.required_actions == []
     assert customs.result.applicable_requirements == []
     assert customs.query["followed_requirements"] == {LAW: ToolName.ELECTRICAL.value}
@@ -73,8 +73,11 @@ def test_맡는_Tool이_대상이면_판정을_따르고_세관장확인_할_일
 
     [finding] = customs.findings
     assert (finding.determination, finding.risk_level) == (Determination.REQUIRED, RiskLevel.MEDIUM)
-    assert finding.subject == f"통관 서류가 필요할 수 있음 — {LAW}"
+    # 대상이면 제목도 "필요"로 바뀌어 본문과 어긋나지 않음 (리뷰 #759)
+    assert finding.subject == f"세관 확인 서류 필요 — {LAW}"
     assert finding.summary == "- 전기안전 분야 판단을 따릅니다: 대상\n- 통관 때도 서류를 내야 합니다"
+    follow_related_tools(results)
+    assert finding.subject == f"세관 확인 서류 필요 — {LAW}" and customs.required_actions == [ACTION]
     assert customs.required_actions == [ACTION] and finding.requirements == [ACTION]
     assert customs.result.applicable_requirements == [LAW]
 
@@ -152,7 +155,7 @@ def test_통관_판단_제목은_통관_Tool과_같은_함수로_만든다():
     # 제목 형식이 바뀌면 맞출 판단을 못 찾고 조용히 넘어간다 (리뷰 #708)
     from app.tools.customs.rules import requirement_subject
 
-    assert _customs_finding(LAW, ACTION).subject == requirement_subject(LAW) == f"통관 서류가 필요할 수 있음 — {LAW}"
+    assert _customs_finding(LAW, ACTION).subject == requirement_subject(LAW) == f"세관 확인 서류가 필요할 수 있음 — {LAW}"
 
 
 def test_맡는_Tool이_선택되지_않았거나_실패했으면_그대로_둔다():
