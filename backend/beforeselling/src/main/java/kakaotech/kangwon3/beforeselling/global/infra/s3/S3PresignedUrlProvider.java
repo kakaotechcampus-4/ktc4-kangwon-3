@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.global.infra.s3;
 
+import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.domain.service.S3FileService;
@@ -45,8 +46,11 @@ public class S3PresignedUrlProvider {
     private final S3Presigner s3Presigner;
     private final S3Properties s3Properties;
     private final S3FileService s3FileService;
+    private final UserService userService;
 
     public PresignedUrlResponse issuePresignedUrls(UUID userId, List<FileMeta> files) {
+        // 탈퇴 후 남은 액세스 토큰으로 업로드 URL이 발급되지 않도록 막는다.
+        userService.validateExists(userId);
         List<PresignedFile> presignedFiles = files.stream()
                 .map(file -> issuePresignedUrl(userId, file))
                 .toList();

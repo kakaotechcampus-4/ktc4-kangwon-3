@@ -8,6 +8,7 @@ import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiErrorRespon
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiResponseExplanations;
 import kakaotech.kangwon3.beforeselling.global.annotation.swagger.ApiSuccessResponseExplanation;
 import kakaotech.kangwon3.beforeselling.global.common.ApiResponse;
+import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.FileResponseCode;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlRequest;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlResponse;
@@ -39,6 +40,7 @@ public interface S3PresignApi {
             errors = {
                     @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "NOT_SUPPORTED_EXTENSION"),
                     @ApiErrorResponseExplanation(exceptionCode = FileResponseCode.class, name = "EXCEED_FILE_SIZE"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
     ResponseEntity<ApiResponse<PresignedUrlResponse>> issuePresignedUrls(

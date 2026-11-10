@@ -1,5 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.infra.s3;
 
+import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
+import kakaotech.kangwon3.beforeselling.global.common.CommonResponseCode;
 import kakaotech.kangwon3.beforeselling.global.config.properties.S3Properties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.infra.s3.dto.PresignedUrlRequest.FileMeta;
@@ -28,6 +30,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class S3PresignedUrlProviderTest {
@@ -43,6 +47,9 @@ class S3PresignedUrlProviderTest {
     @Mock
     private S3FileService s3FileService;
 
+    @Mock
+    private UserService userService;
+
     private S3PresignedUrlProvider s3PresignedUrlProvider;
 
     @BeforeEach
@@ -50,7 +57,7 @@ class S3PresignedUrlProviderTest {
         S3Properties s3Properties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("jpg", "jpeg", "png", "webp", "heic", "heif"), null);
-        s3PresignedUrlProvider = new S3PresignedUrlProvider(s3Presigner, s3Properties, s3FileService);
+        s3PresignedUrlProvider = new S3PresignedUrlProvider(s3Presigner, s3Properties, s3FileService, userService);
     }
 
     @Test
@@ -152,7 +159,7 @@ class S3PresignedUrlProviderTest {
         S3Properties misconfiguredProperties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("unknown"), null);
-        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, misconfiguredProperties, s3FileService);
+        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, misconfiguredProperties, s3FileService, userService);
 
         FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.unknown", 1024L);
 
@@ -168,7 +175,7 @@ class S3PresignedUrlProviderTest {
         S3Properties upperCaseExtensionProperties = new S3Properties(
                 "test-bucket", "ap-northeast-2",
                 Duration.ofMinutes(5), DataSize.ofMegabytes(10), List.of("JPG", "JPEG", "PNG", "WEBP"), null);
-        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, upperCaseExtensionProperties, s3FileService);
+        S3PresignedUrlProvider provider = new S3PresignedUrlProvider(s3Presigner, upperCaseExtensionProperties, s3FileService, userService);
 
         URL presignedUrl = URI.create("https://test-bucket.s3.ap-northeast-2.amazonaws.com/signed").toURL();
         given(presignedPutObjectRequest.url()).willReturn(presignedUrl);
@@ -195,5 +202,21 @@ class S3PresignedUrlProviderTest {
                 .isInstanceOf(BaseException.class)
                 .extracting(e -> ((BaseException) e).getResponseCode())
                 .isEqualTo(FileResponseCode.EXCEED_FILE_SIZE);
+    }
+
+    @Test
+    @DisplayName("탈퇴한 회원이 요청하면 NOT_FOUND 예외가 발생하고 URL을 발급하거나 key를 기록하지 않는다.")
+    void issuePresignedUrls_withWithdrawnUser_thenThrowException() {
+        // given
+        willThrow(new BaseException(CommonResponseCode.NOT_FOUND)).given(userService).validateExists(USER_ID);
+        FileMeta file = new FileMeta(FileType.PRODUCT_MAIN, "thumb.jpg", 1024L);
+
+        // when & then
+        assertThatThrownBy(() -> s3PresignedUrlProvider.issuePresignedUrls(USER_ID, List.of(file)))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+        then(s3Presigner).should(never()).presignPutObject(any(PutObjectPresignRequest.class));
+        then(s3FileService).should(never()).markPending(any());
     }
 }
