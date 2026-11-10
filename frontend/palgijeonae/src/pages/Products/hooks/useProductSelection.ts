@@ -22,5 +22,8 @@ export function useProductSelection(pageProductIds: string[]) {
 
     const clear = () => setSelectedIds(new Set());
 
-    return { selectedIds, isAllSelected, toggle, toggleAll, clear };
+    // 삭제에 실패한 상품처럼 주어진 id만 선택으로 남긴다.
+    const retain = (productIds: string[]) => setSelectedIds(new Set(productIds));
+
+    return { selectedIds, isAllSelected, toggle, toggleAll, clear, retain };
 }
