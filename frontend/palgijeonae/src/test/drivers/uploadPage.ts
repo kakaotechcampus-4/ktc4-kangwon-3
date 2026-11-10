@@ -1,5 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { vi } from 'vitest'
 
 import { UPLOAD_MESSAGES } from '@/test/constants/messages'
 
@@ -109,6 +110,7 @@ export function uploadPage(user: User = userEvent.setup()) {
     isItemFocused: (name: string) => within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }) === document.activeElement,
 
     startDiagnosis: () => clickButton(/진단 시작하기/),
+    clickShowList: () => clickButton(/^목록 보기$/),
 
     // ── 조회 ────────────────────────────────────────────────
     /** 목록에 보이는 제품명을 추가한 순서대로 돌려준다. (긴 이름은 글자를 자르지 않고 CSS가 한 줄에서 줄여 보인다) */
@@ -125,6 +127,17 @@ export function uploadPage(user: User = userEvent.setup()) {
       return { href: link.getAttribute('href'), target: link.getAttribute('target'), rel: link.getAttribute('rel') }
     },
     hasDetailContent: (text: string) => screen.queryByText(text) !== null,
+
+    /** 하단 바의 "확인할 제품 n / 10"에서 숫자 부분 (예: "3 / 10") */
+    productCountLabel: () => screen.getByText(/^\d+ \/ \d+$/).textContent,
+    hasStartButton: () => screen.queryByRole('button', { name: /진단 시작하기/ }) !== null,
+    hasShowListButton: () => screen.queryByRole('button', { name: /^목록 보기$/ }) !== null,
+    /** 스크롤한 요소 중에 "확인할 제품" 패널(목록을 담은 요소)이 있는지. scrollIntoView는 vitest.setup의 스텁이 호출을 기록한다. */
+    wasProductListScrolledTo() {
+      const list = screen.queryByRole('list', { name: '확인할 제품 목록' })
+      const targets = vi.mocked(Element.prototype.scrollIntoView).mock.contexts as Element[]
+      return list !== null && targets.some((target) => target.contains(list))
+    },
 
     isFormVisible: () => screen.queryByLabelText(/^제품명$/) !== null,
     hasMaxProductsNotice: () => screen.queryByText(UPLOAD_MESSAGES.MAX_PRODUCTS_REACHED) !== null,

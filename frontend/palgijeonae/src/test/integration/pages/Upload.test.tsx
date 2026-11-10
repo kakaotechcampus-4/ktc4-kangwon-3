@@ -325,6 +325,7 @@ describe('업로드 화면 - 진단 요청', () => {
     await page.waitUntilSubmitting()
     expect(page.isSubmitting()).toBe(true)
     expect(page.isFormVisible()).toBe(false)
+    expect(page.hasStartButton()).toBe(false)
 
     gate.release()
 
@@ -459,5 +460,48 @@ describe('업로드 화면 - 자세히 보기 모달', () => {
 
     expect(page.dialogCount()).toBe(0)
     expect(page.productNames()).toEqual(['상품 1', '상품 3'])
+  })
+})
+
+describe('업로드 화면 - 하단 바', () => {
+  it('상품을 추가하고 삭제하면 하단 바의 개수가 바뀐다', async () => {
+    const page = renderUploadPage()
+    expect(page.productCountLabel()).toBe('0 / 10')
+
+    await page.addUrlProduct({ title: '첫째' })
+    await page.addUrlProduct({ title: '둘째' })
+    expect(page.productCountLabel()).toBe('2 / 10')
+
+    await page.removeProduct('첫째')
+    expect(page.productCountLabel()).toBe('1 / 10')
+  })
+
+  it('체험 버튼처럼 미리 담아 둔 상품이 있으면 처음부터 그 개수를 보여준다', () => {
+    const page = renderUploadPage([makeDemoProduct(1), makeDemoProduct(2), makeDemoProduct(3)])
+
+    expect(page.productCountLabel()).toBe('3 / 10')
+  })
+
+  it('상품이 있을 때만 목록 보기를 보여주고, 누르면 확인할 제품 패널로 스크롤한다', async () => {
+    const page = renderUploadPage()
+    expect(page.hasShowListButton()).toBe(false)
+
+    await page.addUrlProduct({ title: '이어폰' })
+    expect(page.hasShowListButton()).toBe(true)
+
+    await page.clickShowList()
+
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
+    expect(page.wasProductListScrolledTo()).toBe(true)
+  })
+
+  it('마지막 상품까지 삭제하면 목록 보기도 사라진다', async () => {
+    const page = renderUploadPage([makeDemoProduct(1)])
+    expect(page.hasShowListButton()).toBe(true)
+
+    await page.removeProduct('상품 1')
+
+    expect(page.hasShowListButton()).toBe(false)
+    expect(page.productCountLabel()).toBe('0 / 10')
   })
 })
