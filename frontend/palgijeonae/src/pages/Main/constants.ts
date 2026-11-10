@@ -297,9 +297,9 @@ export const AGENT_EXAMPLE_FINDINGS: Record<ToolName, Finding> = {
     [ToolName.LabelAd]: LABEL_AD_FINDING,
 };
 
-// ── 마이페이지 안내 섹션 ────────────────────────────────────────────────
+// ── 진단 결과 안내 섹션 ────────────────────────────────────────────────
 
-// Mypage/index.tsx의 RevisionNoticeBanner 문구/날짜를 그대로 가져온다.
+// Products/components/RevisionNoticeBanner의 문구/날짜를 그대로 가져온다.
 export const REVISION_NOTICE = {
     revisedDate: "2026-09-03",
     title: "어린이제품 안전 특별법 시행규칙 별표2가 개정되었습니다. 완구 세부 기준 중 배터리 관련 표시 항목이 조정되었습니다.",
