@@ -370,3 +370,94 @@ describe('업로드 화면 - 진단 요청', () => {
     expect(getCurrentLocation()).toBe(`/judgement/${DEFAULT_DIAGNOSES_ID}`)
   })
 })
+
+describe('업로드 화면 - 자세히 보기 모달', () => {
+  const makeTextImageProduct = (index: number, overrides: Partial<Product> = {}) =>
+    makeDemoProduct(index, {
+      type: SourceType.TextImage,
+      title: '캠핑 테이블',
+      link: undefined,
+      content: '접이식 알루미늄 테이블입니다.',
+      images: [makeImage('a.png'), makeImage('b.png'), makeImage('c.png')],
+      ...overrides,
+    })
+
+  it('URL 상품 항목을 누르면 링크를 새 탭으로 열 수 있는 a 태그로 보여주고, 닫으면 누른 항목으로 포커스가 돌아온다', async () => {
+    const page = renderUploadPage()
+    await page.addUrlProduct({ title: '이어폰', link: 'https://example.com/item' })
+
+    await page.openDetail('이어폰')
+
+    expect(page.isDetailOpen('이어폰')).toBe(true)
+    expect(page.detailLink('https://example.com/item')).toEqual({
+      href: 'https://example.com/item',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    })
+
+    await page.closeDetail()
+
+    expect(page.dialogCount()).toBe(0)
+    expect(page.isItemFocused('이어폰')).toBe(true)
+  })
+
+  it('이미지·텍스트 상품은 내용과 상세페이지 이미지 썸네일을 보여준다', async () => {
+    const page = renderUploadPage([makeTextImageProduct(1)])
+
+    await page.openDetail('캠핑 테이블')
+
+    expect(page.hasDetailContent('접이식 알루미늄 테이블입니다.')).toBe(true)
+    expect(page.detailImageNames()).toEqual(['a.png', 'b.png', 'c.png'])
+  })
+
+  it('Esc를 눌러도 모달이 닫힌다', async () => {
+    const page = renderUploadPage()
+    await page.addUrlProduct({ title: '이어폰' })
+    await page.openDetail('이어폰')
+
+    await page.pressEscape()
+
+    expect(page.dialogCount()).toBe(0)
+  })
+
+  it('상세페이지 이미지를 누르면 모달을 닫고 확대 창을 열고, 확대 창을 닫으면 같은 상품 모달로 돌아와 누른 썸네일에 포커스를 둔다', async () => {
+    const page = renderUploadPage([makeTextImageProduct(1)])
+    await page.openDetail('캠핑 테이블')
+
+    await page.clickDetailImage('b.png')
+
+    // 한 번에 한 겹만 띄운다: 모달은 사라지고 확대 창만 있다.
+    expect(page.isLightboxOpen()).toBe(true)
+    expect(page.isDetailOpen('캠핑 테이블')).toBe(false)
+    expect(page.dialogCount()).toBe(1)
+
+    await page.closeLightbox()
+
+    expect(page.isLightboxOpen()).toBe(false)
+    expect(page.isDetailOpen('캠핑 테이블')).toBe(true)
+    expect(page.dialogCount()).toBe(1)
+    expect(page.isDetailImageFocused('b.png')).toBe(true)
+  })
+
+  it('확대 창에서 다른 이미지로 넘긴 뒤 닫으면 마지막으로 본 이미지의 썸네일에 포커스를 둔다', async () => {
+    const page = renderUploadPage([makeTextImageProduct(1)])
+    await page.openDetail('캠핑 테이블')
+    await page.clickDetailImage('a.png')
+
+    await page.showNextLightboxImage()
+    await page.closeLightbox()
+
+    expect(page.isDetailOpen('캠핑 테이블')).toBe(true)
+    expect(page.isDetailImageFocused('b.png')).toBe(true)
+  })
+
+  it('"목록에서 삭제"를 누르면 모달을 닫고 그 상품만 목록에서 빠진다', async () => {
+    const page = renderUploadPage([makeDemoProduct(1), makeDemoProduct(2), makeDemoProduct(3)])
+    await page.openDetail('상품 2')
+
+    await page.removeFromDetail()
+
+    expect(page.dialogCount()).toBe(0)
+    expect(page.productNames()).toEqual(['상품 1', '상품 3'])
+  })
+})

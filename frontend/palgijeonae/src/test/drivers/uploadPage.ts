@@ -48,6 +48,11 @@ export function uploadPage(user: User = userEvent.setup()) {
 
   const clickButton = (name: RegExp) => user.click(screen.getByRole('button', { name }))
 
+  // 자세히 보기 모달과 이미지 확대 창은 한 번에 한 겹만 뜨므로, 열려 있는 대화상자는 하나뿐이다. 둘이 겹치면 getByRole이 실패한다.
+  const openDialog = () => screen.getByRole('dialog')
+  const lightbox = () => screen.getByRole('dialog', { name: '이미지 미리보기' })
+  const detailImageButtons = () => within(openDialog()).queryAllByRole('button', { name: /크게 보기$/ })
+
   return {
     // ── 조작 ────────────────────────────────────────────────
     fillTitle: (text: string) => fill(titleInput(), text),
@@ -84,6 +89,25 @@ export function uploadPage(user: User = userEvent.setup()) {
       await user.click(within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }))
     },
 
+    // ── 자세히 보기 모달과 이미지 확대 창 ───────────────────────────
+    /** 이 제목의 자세히 보기 모달이 열려 있는지 */
+    isDetailOpen: (title: string) => screen.queryByRole('dialog', { name: title }) !== null,
+    /** 열려 있는 대화상자(모달, 확대 창)의 수 */
+    dialogCount: () => screen.queryAllByRole('dialog').length,
+    /** 모달 아래의 "닫기" 버튼을 누른다. (위의 "창 닫기"와 구분된다) */
+    closeDetail: () => user.click(within(openDialog()).getByRole('button', { name: '닫기' })),
+    removeFromDetail: () => user.click(within(openDialog()).getByRole('button', { name: '목록에서 삭제' })),
+    pressEscape: () => user.keyboard('{Escape}'),
+    /** 모달 안 상세페이지 이미지 썸네일의 파일 이름들 */
+    detailImageNames: () => detailImageButtons().map((button) => (button.getAttribute('aria-label') ?? '').replace(/ 크게 보기$/, '')),
+    clickDetailImage: (fileName: string) => user.click(within(openDialog()).getByRole('button', { name: `${fileName} 크게 보기` })),
+    isDetailImageFocused: (fileName: string) => within(openDialog()).getByRole('button', { name: `${fileName} 크게 보기` }) === document.activeElement,
+    isLightboxOpen: () => screen.queryByRole('dialog', { name: '이미지 미리보기' }) !== null,
+    showNextLightboxImage: () => user.click(within(lightbox()).getByRole('button', { name: '다음 이미지' })),
+    closeLightbox: () => user.click(within(lightbox()).getByRole('button', { name: '닫기' })),
+    /** 이름이 같은 카드(항목) 버튼에 포커스가 있는지. 모달을 닫으면 여기로 돌아온다. */
+    isItemFocused: (name: string) => within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }) === document.activeElement,
+
     startDiagnosis: () => clickButton(/진단 시작하기/),
 
     // ── 조회 ────────────────────────────────────────────────
@@ -95,7 +119,7 @@ export function uploadPage(user: User = userEvent.setup()) {
 
     thumbnailSrc: (name: string) => within(productRow(name)).getByAltText('상품 썸네일').getAttribute('src'),
 
-    /** 펼친 상세에서 그 주소의 링크를 찾아 이동에 쓰이는 속성을 돌려준다. */
+    /** 열린 상세 모달에서 그 주소의 링크를 찾아 이동에 쓰이는 속성을 돌려준다. */
     detailLink(url: string) {
       const link = screen.getByRole('link', { name: url })
       return { href: link.getAttribute('href'), target: link.getAttribute('target'), rel: link.getAttribute('rel') }
@@ -106,7 +130,7 @@ export function uploadPage(user: User = userEvent.setup()) {
     hasMaxProductsNotice: () => screen.queryByText(UPLOAD_MESSAGES.MAX_PRODUCTS_REACHED) !== null,
 
     // NOTE(source): 첨부한 이미지의 미리보기 목록에는 이름 붙은 그룹이 없어서, 각 썸네일 버튼의 이름("파일명 크게 보기")으로 확인한다.
-    // 상품 카드의 상세(텍스트/이미지 입력)에 펼친 이미지도 같은 이름이라, 펼치지 않은 상태에서 쓴다.
+    // 자세히 보기 모달 안의 상세페이지 이미지도 같은 이름이라, 모달을 열지 않은 상태에서 쓴다.
     hasAttachedImage: (fileName?: string) =>
       screen.queryAllByRole('button', { name: fileName ? `${fileName} 크게 보기` : /크게 보기$/ }).length > 0,
 
