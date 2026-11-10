@@ -49,7 +49,7 @@ const makeProducts = (count: number, overrides: (index: number) => Partial<MyPro
     return buildMyProduct({ productId: `product-${number}`, productName: `상품-${String(number).padStart(2, '0')}`, ...overrides(number) })
   })
 
-// 서버처럼 동작하는 메모리 목록. GET은 쿼리(resultStatus, keyword, page, size)대로 거르고 나누고, DELETE는 목록에서 뺀다.
+// 서버처럼 동작하는 메모리 목록. GET은 쿼리(resultStatus, keyword, sortType, page, size)대로 거르고 정렬하고 나누고, DELETE는 목록에서 뺀다.
 // beforeDelete를 주면 삭제 요청이 그 Promise를 기다린 뒤에 처리된다. ("삭제 중" 상태 확인용)
 const mockProductServer = (initial: MyProductItem[], { beforeDelete }: { beforeDelete?: () => Promise<void> } = {}) => {
   let products = [...initial]
@@ -59,10 +59,13 @@ const mockProductServer = (initial: MyProductItem[], { beforeDelete }: { beforeD
       const params = new URL(request.url).searchParams
       const resultStatus = params.get('resultStatus')
       const keyword = params.get('keyword') ?? ''
+      const sortType = params.get('sortType')
       const page = Number(params.get('page') ?? 0)
       const size = Number(params.get('size') ?? 10)
 
-      const filtered = products.filter((product) => (!resultStatus || product.resultStatus === resultStatus) && product.productName.includes(keyword))
+      const matched = products.filter((product) => (!resultStatus || product.resultStatus === resultStatus) && product.productName.includes(keyword))
+      // 목록은 최신순으로 쌓아 두었으니, 오래된순이면 거른 뒤 페이지로 나누기 전에 뒤집는다.
+      const filtered = sortType === 'OLDEST' ? [...matched].reverse() : matched
       const totalPages = Math.max(1, Math.ceil(filtered.length / size))
       return successResponse({
         products: filtered.slice(page * size, (page + 1) * size),
@@ -99,7 +102,7 @@ describe('진단 결과 - 조회', () => {
     expect(page.productNames()).toHaveLength(10)
   })
 
-  it('처음에는 필터 없이 첫 페이지를 최신순으로 조회한다', async () => {
+  it('처음에는 필터 없이 첫 페이지를 조회한다', async () => {
     mockProductServer(makeProducts(3))
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
@@ -107,7 +110,6 @@ describe('진단 결과 - 조회', () => {
     const query = page.lastListQuery()
     expect(query.get('page')).toBe('0')
     expect(query.get('size')).toBe('10')
-    expect(query.get('sortType')).toBe('LATEST')
     expect(query.has('resultStatus')).toBe(false)
     expect(query.has('keyword')).toBe(false)
   })
@@ -288,6 +290,64 @@ describe('진단 결과 - 필터', () => {
     await page.search('상품-')
 
     await waitFor(() => expect(page.lastListQuery().get('page')).toBe('0'))
+  })
+})
+
+describe('진단 결과 - 정렬', () => {
+  it('처음에는 최신순이 선택되어 있고, 최신순으로 조회한다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    expect(page.isSortSelected('최신순')).toBe(true)
+    expect(page.isSortSelected('오래된순')).toBe(false)
+    expect(page.lastListQuery().get('sortType')).toBe('LATEST')
+  })
+
+  it('오래된순을 누르면 오래된순으로 다시 조회하고, 목록 순서가 뒤집힌다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage()
+    await page.waitForProductNames(['상품-01', '상품-02', '상품-03'])
+
+    await page.sortBy('오래된순')
+
+    await page.waitForProductNames(['상품-03', '상품-02', '상품-01'])
+    expect(page.lastListQuery().get('sortType')).toBe('OLDEST')
+    expect(page.isSortSelected('오래된순')).toBe(true)
+    expect(page.isSortSelected('최신순')).toBe(false)
+  })
+
+  it('다른 페이지에 있다가 정렬을 바꾸면 첫 페이지부터 다시 조회한다', async () => {
+    mockProductServer(makeProducts(25))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+    await page.goToPage(2)
+    await page.waitForFirstProduct('상품-11')
+
+    await page.sortBy('오래된순')
+
+    await page.waitForFirstProduct('상품-25')
+    expect(page.lastListQuery().get('page')).toBe('0')
+  })
+
+  it('정렬과 필터·검색어를 함께 적용한다', async () => {
+    mockProductServer(
+      makeProducts(6, (number) => ({
+        resultStatus: number <= 3 ? ResultStatus.PurchasingAgentAllowed : ResultStatus.RecheckRequired,
+      })),
+    )
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.selectFilter(ResultStatus.PurchasingAgentAllowed)
+    await page.search('상품-0')
+    await page.sortBy('오래된순')
+
+    await page.waitForProductNames(['상품-03', '상품-02', '상품-01'])
+    const query = page.lastListQuery()
+    expect(query.get('resultStatus')).toBe(ResultStatus.PurchasingAgentAllowed)
+    expect(query.get('keyword')).toBe('상품-0')
+    expect(query.get('sortType')).toBe('OLDEST')
   })
 })
 

@@ -30,6 +30,8 @@ const PAGE_NAV_LABELS = {
 
 export type PageNav = keyof typeof PAGE_NAV_LABELS
 
+export type SortLabel = '최신순' | '오래된순'
+
 export function productsPage(user: User = userEvent.setup()) {
   // ── 상품 목록 ───────────────────────────────────────────────
   const productItems = (): HTMLElement[] => {
@@ -64,6 +66,8 @@ export function productsPage(user: User = userEvent.setup()) {
 
   // ── 검색 ────────────────────────────────────────────────────
   const searchBox = () => screen.getByRole('textbox', { name: /상품명 검색/ })
+
+  const sortButton = (label: SortLabel) => within(screen.getByRole('group', { name: '정렬' })).getByRole('button', { name: label })
 
   const pageNavButton = (nav: PageNav) => screen.getByRole('button', { name: PAGE_NAV_LABELS[nav] })
 
@@ -116,6 +120,10 @@ export function productsPage(user: User = userEvent.setup()) {
     goToPage: (pageNumber: number) => user.click(screen.getByRole('button', { name: new RegExp(`^${pageNumber}$`) })),
     goTo: (nav: PageNav) => user.click(pageNavButton(nav)),
     isPageNavDisabled: (nav: PageNav) => (pageNavButton(nav) as HTMLButtonElement).disabled,
+
+    // ── 정렬 ────────────────────────────────────────────────
+    sortBy: (label: SortLabel) => user.click(sortButton(label)),
+    isSortSelected: (label: SortLabel) => sortButton(label).getAttribute('aria-pressed') === 'true',
 
     // ── 목록 조회 요청 (마지막으로 보낸 조회의 쿼리) ────────────────
     lastListQuery: () => new URL(requestLog.find('GET', '/api/v1/products').at(-1)!.url).searchParams,
