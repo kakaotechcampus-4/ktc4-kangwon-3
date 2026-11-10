@@ -17,6 +17,7 @@ from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.law import EvidenceUnavailable
 from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
+from .related import FOLLOW_ALL
 from .rules import (
     excluded_by_product, format_hs, law_note, omission_status, related_tool, requirement_subject, sale_actions,
 )
@@ -30,7 +31,8 @@ _FIELDS = {
     "composition": "구성품",
 }
 # 답에 따라 HS 후보(그리고 요건)가 바뀌는 조건만 묻는다. 나머지는 가정으로 남긴다.
-# 재질·기능은 후보 HS끼리 세관장확인 요건이 다를 때(또는 요건을 조회하지 못했을 때)만 묻는다 (_requirements_differ)
+# 재질·기능은 후보 HS끼리 세관장확인 요건이 다를 때(또는 요건을 조회하지 못했을 때)만 묻는다 (_requirements_differ).
+# 다른 Tool 판단을 따르는 법령(전기용품법·어린이제품법)만 갈리면 묻지 않는다
 _QUESTION_FIELDS = ("product_type", "material", "function")
 # 결정사례 검색어 수. 검색어는 동시에 보내므로 늘려도 대기 시간은 가장 느린 한 건이다.
 _QUERY_LIMIT = 6
@@ -184,7 +186,7 @@ class CustomsTool(EvidenceSearchTool):
                 run.missing.extend(askable)
             else:
                 run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in askable)} 확인이 더 필요하지만, "
-                                       "후보 HS의 세관장확인 요건이 같아 묻지 않았습니다.")
+                                       "후보 HS에 따라 갈리는 세관장확인 요건이 없어 묻지 않았습니다.")
         case_sources = [_case_source(case) for case, _, _ in chosen]
         # 사례마다 이유가 따로라 줄을 나눔 (진단서 판단 근거는 줄바꿈을 그대로 보여 줌)
         rationale = "\n".join(selection.rationale for _, selection, _ in chosen)
@@ -411,6 +413,9 @@ def _requirements_differ(requirements: list[Requirement], hs_codes: list[str]) -
     """후보 HS끼리 세관장확인 요건(법령)이 다른지. 같으면 HS를 더 좁혀도 판매자에게 알릴 요건이 같다.
 
     후보가 하나뿐이면 다를 게 없어 False. 법령 이름은 law_key로 비교한다(GW가 "…법률(허가)"처럼 붙여 줄 때가 있음).
+    다른 Tool 판단을 그대로 따르는 법령(전기용품법·어린이제품법, related.FOLLOW_ALL)은 비교에서 뺀다. 그 법령의
+    요건은 종합 단계가 그 Tool의 제품 판단으로 맞추므로, HS를 가르려고 판매자에게 물을 필요가 없다 (예: 장난감
+    9503.00-3700 요건 없음 / 3300 어린이제품법 → children tool이 어린이제품 여부를 판단).
 
     Args:
         requirements: 상품 정보로 뺀 뒤 남은 요건.
@@ -419,7 +424,8 @@ def _requirements_differ(requirements: list[Requirement], hs_codes: list[str]) -
     Returns:
         bool: 요건 법령 묶음이 후보마다 하나라도 다르면 True.
     """
-    laws = {code: frozenset(law_key(item.law_name) for item in requirements if item.hs_code == code)
+    laws = {code: frozenset(law_key(item.law_name) for item in requirements
+                            if item.hs_code == code and related_tool(item.law_name) not in FOLLOW_ALL)
             for code in hs_codes}
     return len(set(laws.values())) > 1
 

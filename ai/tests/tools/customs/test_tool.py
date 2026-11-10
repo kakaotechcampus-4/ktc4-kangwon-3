@@ -321,13 +321,30 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다():
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
 
 
+# 커피 머신(8419.81)에만 수입식품법 요건을 둔 표. 식약 Tool 판단은 통관 요건에 옮기지 않는 법령이라 HS로 갈림
+COFFEE_FOOD = Requirement(hs_code="8419810000", law_name="수입식품안전관리 특별법", agency="식품의약품안전처",
+                          document="수입식품등의 수입신고확인증", apply_start_date="20200406")
+
+
 def test_후보_HS의_요건이_다르면_HS를_가르는_조건만_묻고_나머지는_가정으로_남긴다():
-    # 전기주전자(8516.79, 전기용품법 요건)와 커피 머신(8419.81, 요건 없음) → 재질 답에 따라 알릴 요건이 달라짐
+    # 전기주전자(8516.79)와 커피 머신(8419.81, 수입식품법 요건) → 재질 답에 따라 알릴 요건이 달라짐
     product, facts = product_and_facts(values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
     chosen = review(select(needed_fields=["material", "intended_use"]), select(COFFEE_CASE))
-    result, _, _, _ = run(product, facts, chosen)
+    table = {"8516799000": [FakeRequirements.ELECTRICAL], "8419810000": [COFFEE_FOOD]}
+    result, _, _, _ = run(product, facts, chosen, requirements=FakeRequirements(table))
     assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
     assert any("용도 확인이 더 필요합니다" in text for text in result.findings[0].assumptions)
+
+
+def test_다른_Tool_판단을_따르는_법령만_갈리면_묻지_않는다():
+    # 전기주전자(전기용품법)와 커피 머신(요건 없음): 전기용품법은 종합 단계가 electrical 판단으로 맞춤 → HS로 물을 필요 없음
+    # (배포 사례: 장난감 9503.00-3700 요건 없음 / 3300 어린이제품법에 "기능" 질문)
+    product, facts = product_and_facts(values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
+    chosen = review(select(needed_fields=["material"]), select(COFFEE_CASE))
+    result, _, _, _ = run(product, facts, chosen)
+    assert result.query["requirements"] == {"8516799000": ["전기용품 및 생활용품 안전관리법"], "8419810000": []}
+    assert result.missing_information == []
+    assert any("갈리는 세관장확인 요건이 없어 묻지 않았습니다" in text for text in result.findings[0].assumptions)
 
 
 def test_후보_HS의_요건이_같으면_재질_기능을_묻지_않고_가정으로_남긴다():
@@ -337,7 +354,7 @@ def test_후보_HS의_요건이_같으면_재질_기능을_묻지_않고_가정�
     result, _, _, _ = run(product, facts, chosen)
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
-    assert "HS 확정에는 재질, 기능 확인이 더 필요하지만, 후보 HS의 세관장확인 요건이 같아 묻지 않았습니다." in assumptions
+    assert "HS 확정에는 재질, 기능 확인이 더 필요하지만, 후보 HS에 따라 갈리는 세관장확인 요건이 없어 묻지 않았습니다." in assumptions
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
 
 
