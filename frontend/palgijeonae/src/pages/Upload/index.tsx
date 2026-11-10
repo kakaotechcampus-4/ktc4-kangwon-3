@@ -110,15 +110,13 @@ function UploadPage() {
                                 </DefaultBox>
                             )}
                         </div>
-                        {products.length > 0 && (
-                            <div ref={panelRef} className="w-full scroll-mt-20 xl:sticky xl:top-22 xl:w-72 xl:shrink-0">
-                                <AddedProductPanel
-                                    products={products}
-                                    onOpenDetail={(id) => setDetail({ productId: id, view: "info" })}
-                                    onRemove={handleRemoveProduct}
-                                />
-                            </div>
-                        )}
+                        <div ref={panelRef} className="w-full scroll-mt-20 xl:sticky xl:top-22 xl:w-72 xl:shrink-0">
+                            <AddedProductPanel
+                                products={products}
+                                onOpenDetail={(id) => setDetail({ productId: id, view: "info" })}
+                                onRemove={handleRemoveProduct}
+                            />
+                        </div>
                     </div>
                     <UploadActionBar products={products} onStart={handleStartDiagnosis} onShowList={handleShowList} />
                 </>

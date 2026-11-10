@@ -11,27 +11,29 @@ interface AddedProductPanelProps {
 }
 
 function AddedProductPanel({ products, onOpenDetail, onRemove }: AddedProductPanelProps) {
-    if (products.length === 0) {
-        return null;
-    }
-
     return (
         <DefaultBox className="gap-4 px-5 md:px-5">
             <SectionIntro title="확인할 제품" size="xl" />
-            <ul aria-label="확인할 제품 목록" className="flex w-full flex-col gap-2">
-                {products.map((product) => (
-                    <li key={product.id}>
-                        <AddedProduct
-                            type={product.type}
-                            title={product.title}
-                            productImageFile={product.productImageFile}
-                            onOpenDetail={() => onOpenDetail(product.id)}
-                            onRemove={() => onRemove(product.id)}
-                        />
-                    </li>
-                ))}
-            </ul>
-            <p className="text-xs text-neutral-border">항목을 누르면 입력 내용을 자세히 볼 수 있어요.</p>
+            {products.length === 0 ? (
+                <p className="text-sm text-neutral-border">아직 담은 제품이 없어요. 제품을 추가하면 여기에 보여요.</p>
+            ) : (
+                <>
+                    <ul aria-label="확인할 제품 목록" className="flex w-full flex-col gap-2">
+                        {products.map((product) => (
+                            <li key={product.id}>
+                                <AddedProduct
+                                    type={product.type}
+                                    title={product.title}
+                                    productImageFile={product.productImageFile}
+                                    onOpenDetail={() => onOpenDetail(product.id)}
+                                    onRemove={() => onRemove(product.id)}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                    <p className="text-xs text-neutral-border">항목을 누르면 입력 내용을 자세히 볼 수 있어요.</p>
+                </>
+            )}
         </DefaultBox>
     );
 }

@@ -48,9 +48,7 @@ function UploadActionBar({ products, onStart, onShowList }: UploadActionBarProps
                     </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    {products.length > 0 && (
-                        <Button text="목록 보기" onClick={onShowList} variant="secondary" fontSize={15} className="hidden self-center md:flex xl:hidden" />
-                    )}
+                    <Button text="목록 보기" onClick={onShowList} variant="secondary" fontSize={15} className="hidden self-center md:flex xl:hidden" />
                     <Button text="진단 시작하기" onClick={onStart} fontSize={15} className="self-center" />
                 </div>
             </div>
