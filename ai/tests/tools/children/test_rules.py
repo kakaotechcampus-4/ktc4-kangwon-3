@@ -100,6 +100,13 @@ def test_번역된_년_단위_연령_표기를_읽고_연도는_읽지_않는다
     assert parse_age(text) == expected
 
 
+@pytest.mark.parametrize("text", ["품질보증 1년, 3세 미만 사용 금지", "보증기간 2년 / 36개월 미만 사용 금지",
+                                  "12개월 이상, 3세 미만 사용 금지"])
+def test_금지_문구_앞에_기간이나_다른_연령_표기가_있어도_금지_연령을_읽는다(text):
+    # 리뷰 #783: "년"이 단위가 되면서 앞의 "1년"이 첫 표기로 잡혀 금지 연령을 못 읽던 것
+    assert parse_age(text) == AgeRange(36, None)
+
+
 def test_번역된_년_단위_연령으로_만_13세_이하_포함을_판정한다():
     assert child_state("나이: 3-8 년") is True
     assert child_state("14년 이상") is False

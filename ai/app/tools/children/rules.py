@@ -81,8 +81,9 @@ def parse_age(text: str) -> AgeRange | None:
     text = text.strip()
     under = _UNDER_RE.search(text)
     if _PROHIBITION_RE.search(text):
-        match = _SINGLE_RE.search(text)
-        if match and match.group(3) == "미만":
+        # "미만"이 붙은 표기를 찾을 때까지 봄. "품질보증 1년, 3세 미만 사용 금지"의 "1년"처럼 앞에 기간이 와도 금지 연령을 읽게 (리뷰 #783)
+        match = next((m for m in _SINGLE_RE.finditer(text) if m.group(3) == "미만"), None)
+        if match:
             return AgeRange(_months(match.group(1), match.group(2)), None)
         if under:
             return AgeRange(_months(under.group(1), under.group(2)), None)
