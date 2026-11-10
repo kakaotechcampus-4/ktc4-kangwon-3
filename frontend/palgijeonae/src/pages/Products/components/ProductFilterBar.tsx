@@ -40,6 +40,12 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
     // 탭 : onChange 시에 바로 반영
     // 키워드 : 엔터/버튼(onSubmit)시에 반영
     const [draftSearchTerm, setDraftSearchTerm] = useState(searchTerm);
+    // 뒤로·앞으로 가기로 검색어가 밖에서 바뀌면 입력창도 맞춘다.
+    const [syncedSearchTerm, setSyncedSearchTerm] = useState(searchTerm);
+    if (searchTerm !== syncedSearchTerm) {
+        setSyncedSearchTerm(searchTerm);
+        setDraftSearchTerm(searchTerm);
+    }
 
     const handleSubmit = (event: FormEvent) => {
         event.preventDefault();
@@ -91,6 +97,7 @@ function ProductFilterBar({ searchTerm, onSearchTermChange, filter, onFilterChan
                     <button
                         key={key}
                         type="button"
+                        aria-pressed={filter === key}
                         onClick={() => onFilterChange(key)}
                         className={filterTabClassName(key, filter === key)}
                     >
