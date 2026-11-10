@@ -4,7 +4,6 @@ import { getErrorMessage } from "@/api/core/client.ts";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";
-import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import { useIsMobile } from "@/hooks/useIsMobile.ts";
 import { createFromState } from "@/lib/fromState.ts";
 import { PAGE_GROUP_SIZE, PAGE_GROUP_SIZE_MOBILE } from "@/pages/Products/constants.ts";
@@ -46,7 +45,6 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
 
     return (
         <div className="flex w-full flex-col gap-6">
-            <SectionIntro title="전체 상품" size="xl" />
             {isLoading ? (
                 <LoadingSpinner />
             ) : isError ? (
