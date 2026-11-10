@@ -46,9 +46,8 @@ export function questionPage(user: User = userEvent.setup()) {
     clearAnswer: (questionText: string) => user.clear(answerBox(questionText)),
 
     // ── 진행 요약 ────────────────────────────────────────────
-    /** "답한 수/전체 수" 요약이 보이는지. 예: hasProgress(1, 3) */
+    /** 하단 바의 "답한 수 / 전체 수" 요약이 보이는지. 예: hasProgress(1, 3) */
     hasProgress: (answered: number, total: number) => screen.queryAllByText(QUESTION_MESSAGES.progress(answered, total)).length > 0,
-    isAllAnswered: () => screen.queryAllByText(QUESTION_MESSAGES.PROGRESS_COMPLETE).length > 0,
 
     // ── 이전으로 ─────────────────────────────────────────────
     hasBackButton: () => screen.queryByRole('button', { name: '이전으로' }) !== null,

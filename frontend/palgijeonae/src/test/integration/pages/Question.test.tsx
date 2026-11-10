@@ -120,7 +120,7 @@ describe('질문 화면 - 질문 표시', () => {
 })
 
 describe('질문 화면 - 답변 진행 상황', () => {
-  it('답변을 입력하면 진행 요약이 갱신되고, 모두 답하면 답변 완료로 바뀐다', async () => {
+  it('답변을 입력하면 하단 바의 답변 수가 갱신된다', async () => {
     mockProduct({ questions: threeQuestions })
     const page = renderQuestionPage()
     await page.waitUntilLoaded()
@@ -132,7 +132,7 @@ describe('질문 화면 - 답변 진행 상황', () => {
 
     await page.answer(CHILDREN, '아니요')
     await page.answer(POWER, '아니요')
-    expect(page.isAllAnswered()).toBe(true)
+    expect(page.hasProgress(3, 3)).toBe(true)
   })
 
   it('답변을 지우면 다시 미답변으로 돌아간다', async () => {
@@ -140,7 +140,7 @@ describe('질문 화면 - 답변 진행 상황', () => {
     await page.waitUntilLoaded()
 
     await page.answer(BATTERY, '네')
-    expect(page.isAllAnswered()).toBe(true)
+    expect(page.hasProgress(1, 1)).toBe(true)
 
     await page.clearAnswer(BATTERY)
     expect(page.hasProgress(0, 1)).toBe(true)

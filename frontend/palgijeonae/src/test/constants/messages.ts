@@ -50,9 +50,8 @@ export const QUESTION_MESSAGES = {
   NO_QUESTIONS: '확인이 필요한 질문이 없어요.',
   LOAD_FAILED: '질문을 불러오지 못했어요.',
   INVALID_PRODUCT_ID: '유효하지 않은 상품 id 입니다.',
-  PROGRESS_COMPLETE: '답변 완료',
   roundTitle: (round: number) => `${round}차 질문`,
-  progress: (answered: number, total: number) => `${answered}/${total}`,
+  progress: (answered: number, total: number) => `${answered} / ${total}`,
 }
 
 export const JUDGEMENT_MESSAGES = {
