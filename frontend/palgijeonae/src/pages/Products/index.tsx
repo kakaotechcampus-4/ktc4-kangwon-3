@@ -38,10 +38,7 @@ function ProductsPage() {
             <SectionIntro title="진단 결과" description="지금까지 진단한 상품들을 확인할 수 있어요" />
             {lawAmendments && lawAmendments.length > 0 && <RevisionNoticeBanner lawAmendments={lawAmendments} />}
             <div className="flex flex-col gap-4">
-                <div className="flex items-baseline gap-2">
-                    <h3 className="text-base leading-5.75 tracking-[-0.01em] font-semibold text-black md:text-xl md:leading-7">전체 상품</h3>
-                    {data && <span className="text-base font-medium text-neutral-border">{pageInfo.totalElements}개</span>}
-                </div>
+                <SectionIntro title="전체 상품" size="xl" titleAside={data ? `${pageInfo.totalElements}개` : undefined} />
                 <ProductFilterBar
                     searchTerm={searchTerm}
                     onSearchTermChange={handleSearchTermChange}
