@@ -48,6 +48,33 @@ def test_지정한_조각에_없는_인용이나_인용에_없는_값은_막는�
     assert not quote_matches(fact, SNIPPETS)
 
 
+# #749 리뷰: 낱말을 건너뛸 때 숫자가 든 낱말·부정 표현을 넘으면 원문에 없는 값이 됨
+@pytest.mark.parametrize("quote,value", [
+    ("Input: 5V 1A, Output: 12V 2A", "5V 2A"),  # 원문에 없는 수치 조합
+    ("정격 입력 5V 출력 12V", "입력 12V"),
+    ("2.4GHz 출력 10mW, 5.8GHz 출력 25mW", "2.4GHz 25mW"),
+    ("어린이용 아님, 성인용 탁상 선풍기", "어린이용 선풍기"),  # 부정을 건너뜀
+    ("배터리 미포함, 어댑터 포함", "배터리 포함"),  # "포함"이 "미포함" 안에서 찾아지면 안 됨
+    ("Wireless charging not supported", "wireless supported"),
+    ("어린이용이 아니라 성인용 선풍기", "어린이용이 선풍기"),
+    ("어댑터 없이 배터리로 작동", "어댑터 배터리로 작동"),
+], ids=["수치_조합", "입력_출력_섞기", "주파수_출력_섞기", "부정_아님", "부정_미포함", "부정_not", "부정_아니라", "부정_없이"])
+def test_숫자가_든_낱말이나_부정_표현을_건너뛴_값은_막는다(quote, value):
+    assert not quote_matches(Fact(value, "q", quote), {"q": quote})
+
+
+@pytest.mark.parametrize("quote,value", [
+    ("EDC RFID 차단 초슬림 지갑 | 남녀공용 지퍼형 동전 주머니 | 다중 레이어 신용카드 홀더",
+     "EDC RFID 차단 초슬림 지갑, 지퍼형 동전 주머니, 다중 레이어 신용카드 홀더"),  # 문장부호만 다름
+    ("아기 수면등 무드등 선물용", "수면등, 무드등"),
+    ("휴대용 무선 미니 선풍기", "휴대용 선풍기"),  # 수치·부정이 아닌 낱말은 여러 개 건너뛸 수 있음
+    ("Input: 5V 1A, Output: 12V 2A", "12V 2A"),  # 이어서 있는 값은 그대로 통과
+    ("2.4GHz 출력 10mW", "2.4GHz 10mW"),  # 수치 낱말 사이의 비수치 낱말은 건너뛸 수 있음
+], ids=["쉼표_구분", "쉼표_두_낱말", "여러_낱말_생략", "이어진_수치", "수치_사이_낱말"])
+def test_건너뛴_낱말이_수치나_부정이_아니면_받는다(quote, value):
+    assert quote_matches(Fact(value, "q", quote), {"q": quote})
+
+
 def test_판단_칸은_값을_보지_않고_인용만_본다():
     judged = Fact("예", "listing-2", "DC5V", field="battery_only")
 

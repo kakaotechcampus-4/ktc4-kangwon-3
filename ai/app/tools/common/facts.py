@@ -1,5 +1,6 @@
 """상품 원문 인용 조각 만들기와 모델이 뽑은 조건의 원문 대조."""
 
+import re
 import unicodedata
 from typing import Protocol
 
@@ -34,7 +35,8 @@ def quote_matches(fact: QuotedFact, snippets: dict[str, str], *, value_in_quote:
 
     대조는 공백·대소문자·전각 문자 차이를 무시한다. 모델이 값을 다듬어 적는 경우를 받기 위해
     (재현: 인용 "탁상용 미니 선풍기"에 값 "탁상용 선풍기", 인용 "Desk Fan"에 값 "Desk fan")
-    값은 낱말 사이에 다른 글자가 끼어도 된다. 인용은 원문에 이어서 있어야 하므로 지어낸 값은 그대로 막힌다.
+    값은 낱말 사이에 다른 낱말이 끼어도 된다. 다만 숫자가 든 낱말과 부정 표현은 건너뛸 수 없다 (_words_in_order).
+    인용은 원문에 이어서 있어야 하므로 지어낸 값은 그대로 막힌다.
 
     Args:
         fact: 모델이 뽑은 조건 (조각 ID·인용·값).
@@ -48,7 +50,7 @@ def quote_matches(fact: QuotedFact, snippets: dict[str, str], *, value_in_quote:
     quote = _normalize(fact.quote)
     if source is None or not quote or quote not in _normalize(source):
         return False
-    return not value_in_quote or _words_in_order(fact.value, quote)
+    return not value_in_quote or _words_in_order(fact.value, fact.quote)
 
 
 def _normalize(text: str | None) -> str:
@@ -64,24 +66,90 @@ def _normalize(text: str | None) -> str:
 
 
 def _words_in_order(value: str, quote: str) -> bool:
-    """값을 공백으로 나눈 낱말이 모두 인용 안에 순서대로 있는지. 빈 값은 False.
+    """값이 인용 안에 있는지. 이어서 있거나, 낱말 단위로 순서대로 있되 건너뛴 낱말에 수치·부정이 없으면 True.
+
+    모델이 가운데 낱말을 빼고 적은 값(인용 "탁상용 미니 선풍기" → 값 "탁상용 선풍기")은 받고, 건너뛰면 뜻이
+    바뀌는 낱말을 넘어 만든 값은 막는다 (#749 리뷰):
+    - 숫자가 든 낱말: 인용 "Input: 5V 1A, Output: 12V 2A" → 값 "5V 2A"는 원문에 없는 수치 조합
+    - 부정 표현: 인용 "어린이용 아님, 성인용 탁상 선풍기" → 값 "어린이용 선풍기"
+    낱말은 통째로 같아야 맞는 것으로 본다 ("포함"이 "미포함" 안에서 찾아지지 않게).
 
     Args:
         value: 모델이 적은 값.
-        quote: 대조용으로 정리한 인용.
+        quote: 모델이 적은 인용 (원문 그대로).
 
     Returns:
-        bool: 낱말이 모두 앞에서부터 차례로 찾아지면 True.
+        bool: 값이 인용에 맞으면 True. 빈 값은 False.
     """
-    words = [word for word in (_normalize(part) for part in (value or "").split()) if word]
+    joined = _normalize(value)
+    if not joined:
+        return False
+    if joined in _normalize(quote):
+        return True
+    words, quote_words = _words(value), _words(quote)
     if not words:
         return False
-    position = 0
+    # 값의 첫 낱말은 인용 어디서든 시작할 수 있음. 그 뒤로는 건너뛸 수 없는 낱말을 넘지 않고 이어져야 함
+    return any(_follows(words[1:], quote_words, start + 1)
+               for start, word in enumerate(quote_words) if word == words[0])
+
+
+# 값의 낱말 사이에서 건너뛰면 뜻이 뒤집히는 부정 표현. 손으로 정한 목록이라 빠진 표현이 있을 수 있음.
+# 한국어는 낱말에 붙어 나오므로 포함 여부로, 영어는 낱말 전체로 본다.
+_NEGATION_PARTS = ("아님", "아닌", "아니", "없음", "없는", "없이", "않", "미포함", "불포함", "비포함", "제외", "미지원",
+                   "불가", "불필요")
+_NEGATION_WORDS = frozenset({"not", "no", "non", "without", "excluded", "excluding"})
+# 낱말 경계: 공백과 문장부호. 마침표는 숫자 사이(예: 5.8GHz)가 아니면 경계로 본다
+_WORD_SPLIT = re.compile(r"[\s,|:;/()\[\]{}<>\"'!?·~]+|(?<!\d)\.|\.(?!\d)")
+
+
+def _words(text: str) -> list[str]:
+    """대조용 낱말 목록. 정규화(NFKC·대소문자)한 뒤 공백·문장부호로 나누고 앞뒤 하이픈을 뗀다.
+
+    Args:
+        text: 원문.
+
+    Returns:
+        list[str]: 빈 낱말을 뺀 낱말 목록.
+    """
+    normalized = unicodedata.normalize("NFKC", text or "").casefold()
+    return [word for word in (part.strip("-") for part in _WORD_SPLIT.split(normalized)) if word]
+
+
+def _skippable(word: str) -> bool:
+    """값의 낱말 사이에서 건너뛰어도 되는 인용 낱말인지. 숫자가 들었거나 부정 표현이면 False.
+
+    Args:
+        word: 인용 낱말 (정규화됨).
+
+    Returns:
+        bool: 건너뛰어도 되면 True.
+    """
+    if any(char.isdigit() for char in word):
+        return False
+    return word not in _NEGATION_WORDS and not any(part in word for part in _NEGATION_PARTS)
+
+
+def _follows(words: list[str], quote_words: list[str], start: int) -> bool:
+    """남은 값 낱말이 인용의 start부터 순서대로 나오는지. 사이에 낀 인용 낱말은 건너뛸 수 있는 것만 넘는다.
+
+    Args:
+        words: 아직 찾지 않은 값 낱말.
+        quote_words: 인용 낱말.
+        start: 찾기 시작할 인용 위치.
+
+    Returns:
+        bool: 모두 찾으면 True.
+    """
+    position = start
     for word in words:
-        found = quote.find(word, position)
-        if found < 0:
+        while position < len(quote_words) and quote_words[position] != word:
+            if not _skippable(quote_words[position]):
+                return False
+            position += 1
+        if position == len(quote_words):
             return False
-        position = found + len(word)
+        position += 1
     return True
 
 
