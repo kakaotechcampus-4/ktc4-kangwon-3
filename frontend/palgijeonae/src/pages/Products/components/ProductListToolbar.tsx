@@ -18,7 +18,7 @@ interface ProductListToolbarProps {
 // 불러오는 중에도 늘 렌더해서 레이아웃이 움직이지 않게 한다.
 function ProductListToolbar({ selectedCount, isAllSelected, isSelectAllDisabled, onToggleSelectAll, onDeleteSelected, isDeleting, sortType, onSortChange }: ProductListToolbarProps) {
     const canDelete = selectedCount > 0 && !isDeleting;
-    // 버튼 글자는 화면 크기에 따라 다르게 보이므로, 접근 이름은 aria-label로 고정한다.
+    // 버튼 글자는 "삭제"로 짧게 두고, 몇 개를 지우는지는 접근 이름(aria-label)으로 따로 전달한다.
     const deleteLabel = isDeleting ? "삭제 중" : selectedCount === 0 ? "선택 삭제" : `선택한 상품 ${selectedCount}개 삭제`;
 
     return (
@@ -80,18 +80,8 @@ function ProductListToolbar({ selectedCount, isAllSelected, isSelectAllDisabled,
                     )}
                 >
                     {/* 가장 긴 글자를 보이지 않게 같은 칸에 겹쳐 두어, 글자가 바뀌어도 버튼 너비가 변하지 않게 한다. */}
-                    <span aria-hidden="true" className="invisible col-start-1 row-start-1 md:hidden">삭제 중</span>
-                    <span aria-hidden="true" className="invisible col-start-1 row-start-1 hidden md:block">선택 삭제</span>
-                    <span className="col-start-1 row-start-1">
-                        {isDeleting ? (
-                            "삭제 중"
-                        ) : (
-                            <>
-                                <span className="md:hidden">삭제</span>
-                                <span className="hidden md:inline">선택 삭제</span>
-                            </>
-                        )}
-                    </span>
+                    <span aria-hidden="true" className="invisible col-start-1 row-start-1">삭제 중</span>
+                    <span className="col-start-1 row-start-1">{isDeleting ? "삭제 중" : "삭제"}</span>
                 </button>
             </div>
         </div>
