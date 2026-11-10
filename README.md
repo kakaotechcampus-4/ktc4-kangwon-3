@@ -153,8 +153,6 @@
 | 모니터링 | Prometheus·Grafana(BE, AI 지표, 호스트·컨테이너 지표), Sentry(FE, BE, AI 에러 수집 및 알림) |
 | 부하테스트 | k6로 BE 조회·생성·폴링 부하를 측정 |
 
-자세한 내용은 위키의 [CI/CD와 배포](docs/wiki/CI-CD와-배포.md), [모니터링과 장애 대응](docs/wiki/모니터링과-장애-대응.md)에 있습니다.
-
 ## 문서
 
 | 문서 | 내용 |
