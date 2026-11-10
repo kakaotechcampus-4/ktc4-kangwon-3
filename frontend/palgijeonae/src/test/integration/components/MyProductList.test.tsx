@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import MyProductList from '@/pages/Mypage/components/MyProductList'
+import MyProductList from '@/pages/Products/components/MyProductList'
 import { buildMyProduct } from '@/test/mocks/fixtures'
 import { renderWithProviders } from '@/test/utils/renderWithProviders'
 import { setMobileViewport } from '@/test/utils/viewport'

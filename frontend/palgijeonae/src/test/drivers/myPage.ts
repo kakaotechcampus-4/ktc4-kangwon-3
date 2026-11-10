@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import { ResultStatus } from '@/api/types/common'
-import type { ProductFilter } from '@/pages/Mypage/types'
+import type { ProductFilter } from '@/pages/Products/types'
 import { requestLog } from '@/test/mocks/requestLog'
 
 // 마이페이지 드라이버. 테스트 본문은 이 파일의 함수만 거쳐서 화면을 조작·조회한다.
