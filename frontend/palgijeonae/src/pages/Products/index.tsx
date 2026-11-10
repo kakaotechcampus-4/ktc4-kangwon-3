@@ -9,6 +9,7 @@ import RevisionNoticeBanner from "@/pages/Products/components/RevisionNoticeBann
 import { PAGE_SIZE } from "@/pages/Products/constants.ts";
 import { useLawAmendments } from "@/pages/Products/hooks/useLawAmendments.ts";
 import { useMyProducts } from "@/pages/Products/hooks/useMyProducts.ts";
+import { useProductSelection } from "@/pages/Products/hooks/useProductSelection.ts";
 import type { ProductFilter } from "@/pages/Products/types.ts";
 
 function ProductsPage() {
@@ -25,20 +26,30 @@ function ProductsPage() {
     const pagedProducts = data?.items ?? [];
     const pageInfo = data?.pageInfo ?? { page, size: PAGE_SIZE, totalElements: 0, totalPages: 1, hasNext: false };
 
-    // 상품 검색어 / 필터가 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정
+    const { selectedIds, isAllSelected, toggle, toggleAll, clear } = useProductSelection(pagedProducts.map((product) => product.productId));
+
+    // 상품 검색어 / 필터 / 정렬이 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정하고, 보이지 않게 된 선택도 비운다.
     const handleSearchTermChange = (value: string) => {
         setSearchTerm(value);
         setPage(0);
+        clear();
     };
 
     const handleFilterChange = (value: ProductFilter) => {
         setFilter(value);
         setPage(0);
+        clear();
     };
 
     const handleSortChange = (value: SortType) => {
         setSortType(value);
         setPage(0);
+        clear();
+    };
+
+    const handlePageChange = (value: number) => {
+        setPage(value);
+        clear();
     };
 
     return (
@@ -53,7 +64,14 @@ function ProductsPage() {
                     filter={filter}
                     onFilterChange={handleFilterChange}
                 />
-                <ProductListToolbar sortType={sortType} onSortChange={handleSortChange} />
+                <ProductListToolbar
+                    selectedCount={selectedIds.size}
+                    isAllSelected={isAllSelected}
+                    isSelectAllDisabled={isPending || isError || pagedProducts.length === 0}
+                    onToggleSelectAll={toggleAll}
+                    sortType={sortType}
+                    onSortChange={handleSortChange}
+                />
                 <MyProductList
                     products={pagedProducts}
                     isLoading={isPending}
@@ -62,7 +80,10 @@ function ProductsPage() {
                     page={page}
                     totalPages={pageInfo.totalPages}
                     hasNext={pageInfo.hasNext}
-                    onPageChange={setPage}
+                    onPageChange={handlePageChange}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggle}
+                    isSelectionDisabled={false}
                     onProductDeleted={(wasLastOnPage) => {
                         if (wasLastOnPage && page > 0) {
                             setPage(page - 1);

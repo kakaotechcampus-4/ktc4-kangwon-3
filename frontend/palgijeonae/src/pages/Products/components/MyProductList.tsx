@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/core/client.ts";
+import Checkbox from "@/components/common/Checkbox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
 import ProductPreview from "@/components/common/ProductPreview/index.tsx";
@@ -19,11 +20,15 @@ interface MyProductListProps {
     totalPages: number
     hasNext: boolean
     onPageChange: (page: number) => void
+    selectedIds: ReadonlySet<string>
+    onToggleSelect: (productId: string) => void
+    // 삭제 요청이 진행 중일 때 선택을 바꾸지 못하게 한다.
+    isSelectionDisabled: boolean
     // 삭제 직전 그 상품이 현재 페이지의 마지막 하나였는지 알려준다.
     onProductDeleted: (wasLastOnPage: boolean) => void
 }
 
-function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange, onProductDeleted }: MyProductListProps) {
+function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange, selectedIds, onToggleSelect, isSelectionDisabled, onProductDeleted }: MyProductListProps) {
     const { mutate: deleteProduct, isPending: isDeleting, variables: deletingProductId } = useDeleteProduct();
     const isMobile = useIsMobile();
     const location = useLocation();
@@ -67,8 +72,14 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                     {products.map((product) => {
                         const isDeletingThis = isDeleting && deletingProductId === product.productId;
                         return (
-                            <li key={product.productId} className="relative">
-                                <Link to={`/result/product/${product.productId}`} state={createFromState(location)} className="block w-full cursor-pointer">
+                            <li key={product.productId} className="relative flex items-center gap-3 md:gap-4">
+                                <Checkbox
+                                    checked={selectedIds.has(product.productId)}
+                                    disabled={isSelectionDisabled}
+                                    onChange={() => onToggleSelect(product.productId)}
+                                    ariaLabel={`${product.productName} 선택`}
+                                />
+                                <Link to={`/result/product/${product.productId}`} state={createFromState(location)} className="block min-w-0 flex-1 cursor-pointer">
                                     <ProductPreview
                                         productName={product.productName}
                                         productImageUrl={product.productImageUrl}
@@ -76,6 +87,7 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                                         processingStatus={product.processingStatus}
                                         sourceType={product.sourceType}
                                         hasTrailingAction
+                                        selected={selectedIds.has(product.productId)}
                                     />
                                 </Link>
                                 <button
