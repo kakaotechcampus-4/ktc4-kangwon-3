@@ -60,7 +60,7 @@ feature/fe/login-ui ─────────────●
   - 리뷰어는 24시간 이내에 코드 리뷰를 작성하며, Files changed 탭 -> Submit review에서 Comment, Approve, Request changes 기능을 적극 활용합니다. (또는 코드 라인을 선택하여 코멘트)
   - 단순 Approve는 지양하며, 구체적인 피드백/코멘트를 1개 이상 남깁니다.
   - 최소 1명의 리뷰어가 승인한 후에 병합합니다. 리뷰어는 리뷰가 지연되지 않도록 신경써주세요.
-  - 참고 문서 : `docs/CODE_REVIEW_GUIDE.md`
+  - 참고 문서 : [docs/CODE_REVIEW_GUIDE.md](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/docs/CODE_REVIEW_GUIDE.md)
 
 ---
 
