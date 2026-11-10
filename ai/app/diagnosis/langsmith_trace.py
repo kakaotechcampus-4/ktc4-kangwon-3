@@ -1,7 +1,7 @@
 """진단을 LangSmith 실행으로 묶음. LANGSMITH_TRACING을 켠 실행에서만 붙음 (diagnosis/job.py).
 
 채팅 모델 호출은 LangChain이, 판단 모델 호출은 판단 클라이언트(clients/llm/decision/base.py)가 보냄.
-여기서는 그 호출을 단계·Tool별로 묶고 이름만 붙임.
+여기서는 그 호출을 단계·Tool별로 묶고 이름만 붙임. 진단 실행에는 진단 입력을 Input으로 남김 (#746).
 로컬 trace 파일(observability/trace.py)과 별개로 동작함.
 """
 
@@ -18,6 +18,9 @@ from ..schemas.session import DiagnosisInput
 from ..sessions.job import DiagnosisJob, Outcome, ProgressReporter
 
 T = TypeVar("T")
+
+# base64 이미지(data URI)는 한 장에 수백 KB라 앞부분만 남김
+DATA_URI_PREFIX = 40
 
 
 def tracing_on() -> bool:
@@ -87,8 +90,45 @@ def traced_job(job: DiagnosisJob) -> DiagnosisJob:
     def run(job_input: DiagnosisInput, context: ExecutionContext, progress: ProgressReporter) -> Outcome:
         return _traced(
             f"diagnosis:{context.product_id}", "chain", lambda: job(job_input, context, progress),
+            inputs=diagnosis_inputs(job_input),
             metadata={"run_id": context.run_id, "run_type": context.run_type.value,
                       "diagnosis_id": context.diagnosis_id},
         )
 
     return run
+
+
+def diagnosis_inputs(job_input: DiagnosisInput) -> dict[str, Any]:
+    """진단 실행 Input에 남길 진단 입력.
+
+    재진단의 이전 결과 본문은 Output(진단 결과)과 겹쳐 재진단 여부만 남김.
+
+    Args:
+        job_input: 진단 함수가 받은 실행 입력.
+
+    Returns:
+        dict[str, Any]: 상품 ID, 상품 URL, 상품 글, 이미지 주소(base64는 줄임), 재진단 여부, 답변.
+    """
+    source = job_input.source
+    return {
+        "product_id": source.product_id,
+        "source_url": source.source_url,
+        "text_blocks": source.text_blocks,
+        "image_urls": [_short_image(url) for url in source.image_urls],
+        "resume": job_input.previous is not None,
+        "answers": [answer.model_dump() for answer in job_input.answers],
+    }
+
+
+def _short_image(url: str) -> str:
+    """base64 이미지는 앞부분과 길이만 남긴다. http 주소는 그대로.
+
+    Args:
+        url: 이미지 주소 또는 data URI.
+
+    Returns:
+        str: 기록할 값.
+    """
+    if not url.startswith("data:"):
+        return url
+    return f"{url[:DATA_URI_PREFIX]}… ({len(url):,}자)"

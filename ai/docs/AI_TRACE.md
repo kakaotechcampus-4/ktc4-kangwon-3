@@ -219,6 +219,17 @@ diagnosis:<상품 ID>
 
 단계·Tool 이름은 hook으로 붙임 (`app/diagnosis/langsmith_trace.py`). 에이전트·Tool 코드는 고치지 않음. 단계 다시 실행에서 건너뛴 단계는 남지 않음.
 
+`diagnosis:<상품 ID>`의 Input에는 진단 입력이 남음.
+
+| 항목 | 내용 |
+|---|---|
+| `product_id`·`source_url`·`text_blocks` | 받은 그대로 |
+| `image_urls` | 주소는 그대로. base64 이미지는 앞 40자와 전체 길이만 (`data:image/png;base64,AAAA… (300,022자)`) |
+| `resume` | 재진단 여부. 이전 결과 본문은 Output과 겹쳐 넣지 않음 |
+| `answers` | 재진단 때 받은 답변 (회차·질문 키·답) |
+
+Output은 진단 결과, 실행 ID·실행 종류·진단 ID는 Metadata에 남음.
+
 채팅 모델 호출은 LangChain이 자동으로 남김. 판단 모델(Jev·Luna `/decisions`) 호출은 LangChain을 거치지 않아 판단 클라이언트가 직접 남김 (`app/clients/llm/decision/base.py`). 부른 단계 아래에 `decision:<모델>`로 보이고, 판단 대상·질문·답·토큰이 실림. 진단 묶음 안에서 부른 호출만 남기므로 진단 밖에서 도는 입력 가드는 남지 않음.
 
 ### 6.2 주의
