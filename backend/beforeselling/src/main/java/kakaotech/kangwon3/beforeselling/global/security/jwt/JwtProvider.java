@@ -9,6 +9,7 @@ import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.config.properties.JwtProperties;
 import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
 import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
+import lombok.Getter;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -25,7 +26,9 @@ public class JwtProvider {
     private static final String CLAIM_TYPE = "type";
 
     private final SecretKey secretKey;
+    @Getter
     private final Duration accessTokenExpiration;
+    @Getter
     private final Duration refreshTokenExpiration;
 
     public JwtProvider(JwtProperties jwtProperties) {
@@ -60,14 +63,6 @@ public class JwtProvider {
                 actualType,
                 claims.getId()
         );
-    }
-
-    public Duration getAccessTokenExpiration() {
-        return accessTokenExpiration;
-    }
-
-    public Duration getRefreshTokenExpiration() {
-        return refreshTokenExpiration;
     }
 
     private String generateToken(UUID userId, Role role, TokenType type,
