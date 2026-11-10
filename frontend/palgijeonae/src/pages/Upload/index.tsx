@@ -11,13 +11,20 @@ import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import AddedProductPanel from "@/pages/Upload/components/AddedProductPanel.tsx";
 import InputForm from "@/pages/Upload/components/InputForm.tsx";
 import InputTypeTabs, { type InputType } from "@/pages/Upload/components/InputTypeTabs.tsx";
+import ProductDetailModal from "@/pages/Upload/components/ProductDetailModal.tsx";
+import ProductImageLightbox from "@/pages/Upload/components/ProductImageLightbox.tsx";
 import { submitDiagnosis } from "@/pages/Upload/utils/diagnosisPipeline.ts";
 import { validateProduct } from "@/pages/Upload/utils/validation.ts";
 
 import type { Product } from "./types.ts";
 
-// 자세히 보기 모달을 연결하기 전까지는 항목을 눌러도 아무 일도 하지 않는다.
-const NOOP = () => {};
+// 자세히 보기 모달과 이미지 확대 창은 한 번에 하나만 띄운다. view가 무엇을 보여줄지 정하고,
+// imageIndex는 확대 창에서 보고 있는(또는 방금 닫은) 상세페이지 이미지 순번이다.
+interface DetailState {
+    productId: string
+    view: "info" | "image"
+    imageIndex?: number
+}
 
 // 메인 페이지의 평가용 체험 버튼(useDemoStart)이 navigate state로 넘겨주는 샘플 상품.
 interface UploadLocationState {
@@ -28,7 +35,9 @@ function UploadPage() {
     const [inputType, setInputType] = useState<InputType>(SourceType.Url);
     const location = useLocation();
     const [products, setProducts] = useState<Product[]>(() => (location.state as UploadLocationState | null)?.demoProducts ?? []);
+    const [detail, setDetail] = useState<DetailState | null>(null);
     const navigate = useNavigate();
+    const detailProduct = detail ? products.find((product) => product.id === detail.productId) : undefined;
 
     const handleAddProduct = (product: Product) => {
         setProducts((prev) => [...prev, product]);
@@ -36,6 +45,13 @@ function UploadPage() {
 
     const handleRemoveProduct = (id: string) => {
         setProducts((prev) => prev.filter((product) => product.id !== id));
+    };
+
+    const handleRemoveDetailProduct = () => {
+        if (detailProduct) {
+            handleRemoveProduct(detailProduct.id);
+        }
+        setDetail(null);
     };
 
     const { mutate: runSubmitDiagnosis, isPending } = useMutation({
@@ -84,11 +100,32 @@ function UploadPage() {
                             </p>
                         </DefaultBox>
                     )}
-                    <AddedProductPanel products={products} onOpenDetail={NOOP} onRemove={handleRemoveProduct} />
+                    <AddedProductPanel
+                        products={products}
+                        onOpenDetail={(id) => setDetail({ productId: id, view: "info" })}
+                        onRemove={handleRemoveProduct}
+                    />
                     <div className="flex w-full justify-end">
                         <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} className="w-full md:w-auto" />
                     </div>
                 </>
+            )}
+            {detailProduct && detail?.view === "info" && (
+                <ProductDetailModal
+                    product={detailProduct}
+                    focusImageIndex={detail.imageIndex}
+                    onClose={() => setDetail(null)}
+                    onRemove={handleRemoveDetailProduct}
+                    onImageClick={(index) => setDetail({ productId: detailProduct.id, view: "image", imageIndex: index })}
+                />
+            )}
+            {detailProduct?.images && detail?.view === "image" && detail.imageIndex !== undefined && (
+                <ProductImageLightbox
+                    files={detailProduct.images}
+                    currentIndex={detail.imageIndex}
+                    onIndexChange={(index) => setDetail({ productId: detailProduct.id, view: "image", imageIndex: index })}
+                    onClose={() => setDetail({ productId: detailProduct.id, view: "info", imageIndex: detail.imageIndex })}
+                />
             )}
         </div>
     );
