@@ -121,6 +121,7 @@ export function productsPage(user: User = userEvent.setup()) {
     clickClearSearch: () => user.click(screen.getByRole('button', { name: /검색어 지우기/ })),
 
     // ── 필터·페이지 ──────────────────────────────────────────
+    isFilterSelected: (filter: ProductFilter) => screen.getByRole('button', { name: FILTER_LABELS[filter] }).getAttribute('aria-pressed') === 'true',
     selectFilter: (filter: ProductFilter) => user.click(screen.getByRole('button', { name: FILTER_LABELS[filter] })),
     hasPagination: () => screen.queryByRole('button', { name: PAGE_NAV_LABELS.next }) !== null,
     goToPage: (pageNumber: number) => user.click(screen.getByRole('button', { name: new RegExp(`^${pageNumber}$`) })),

@@ -24,10 +24,10 @@ const REDIAGNOSIS_URL = `${API_URL}/api/v1/products/:productId/rediagnosis`
 
 // 진단 결과 페이지를 실제 라우터·QueryClient·MSW(API 모킹) 위에서 사용자처럼 조작한다.
 // 화면 조작·조회는 드라이버(productsPage)를 거친다.
-const renderProductsPage = () => {
+const renderProductsPage = (route = '/products') => {
   const { queryClient } = renderWithProviders(<ProductsPage />, {
     path: '/products',
-    route: '/products',
+    route,
     extraRoutes: (
       <>
         <Route path="/" element={<p>메인 화면</p>} />
@@ -66,7 +66,8 @@ const mockProductServer = (initial: MyProductItem[], { beforeDelete }: { beforeD
       const matched = products.filter((product) => (!resultStatus || product.resultStatus === resultStatus) && product.productName.includes(keyword))
       // 목록은 최신순으로 쌓아 두었으니, 오래된순이면 거른 뒤 페이지로 나누기 전에 뒤집는다.
       const filtered = sortType === 'OLDEST' ? [...matched].reverse() : matched
-      const totalPages = Math.max(1, Math.ceil(filtered.length / size))
+      // 실제 백엔드(Spring Page)처럼 결과가 없으면 전체 페이지 수가 0이다.
+      const totalPages = Math.ceil(filtered.length / size)
       return successResponse({
         products: filtered.slice(page * size, (page + 1) * size),
         pageInfo: { page, size, totalElements: filtered.length, totalPages, hasNext: page + 1 < totalPages },
@@ -619,14 +620,16 @@ describe('진단 결과 - 상품 삭제', () => {
     await page.waitForProduct('상품-01')
     await page.goToPage(2)
     await page.waitForProductNames(['상품-11'])
+    expect(getCurrentLocation()).toBe('/products?page=2')
 
     await page.deleteProducts(['상품-11'])
 
     await page.waitForProductCount(10)
     expect(page.productNames()[0]).toBe('상품-01')
     expect(page.lastListQuery().get('page')).toBe('0')
-    // 상품이 10개가 되어 페이지가 하나뿐이다.
-    expect(page.hasPagination()).toBe(false)
+    // 상품이 10개가 되어 페이지가 하나뿐이다. (주소를 고친 뒤 다시 조회하므로 반영을 기다린다)
+    await waitFor(() => expect(page.hasPagination()).toBe(false))
+    expect(getCurrentLocation()).toBe('/products')
   })
 
   it('페이지에 상품이 남아 있으면 삭제해도 같은 페이지에 머문다', async () => {
@@ -776,5 +779,135 @@ describe('진단 결과 - 개정 알림', () => {
     await waitForNotified(SERVER_MESSAGES.REDIAGNOSE_NOT_ALLOWED)
     expect(getCurrentLocation()).toBe('/products')
     expect(page.isRediagnoseEnabled('선풍기')).toBe(true)
+  })
+})
+
+describe('진단 결과 - 주소(URL)로 조건 유지', () => {
+  // 주소의 한글은 인코딩되어 있으므로 읽을 수 있게 풀어서 비교한다.
+  const currentLocation = () => decodeURIComponent(getCurrentLocation() ?? '')
+  const recheckProducts = (count: number) => makeProducts(count, () => ({ resultStatus: ResultStatus.RecheckRequired }))
+
+  it('쿼리로 들어오면 그 조건으로 조회하고 화면에도 반영한다', async () => {
+    mockProductServer(recheckProducts(30))
+    const { page } = renderProductsPage('/products?status=RECHECK_REQUIRED&keyword=상품-&sort=OLDEST&page=2')
+
+    // 오래된순 2페이지: 30~21번이 1페이지, 20~11번이 2페이지
+    await page.waitForFirstProduct('상품-20')
+    const query = page.lastListQuery()
+    expect(query.get('resultStatus')).toBe(ResultStatus.RecheckRequired)
+    expect(query.get('keyword')).toBe('상품-')
+    expect(query.get('sortType')).toBe('OLDEST')
+    expect(query.get('page')).toBe('1')
+    expect(page.isFilterSelected(ResultStatus.RecheckRequired)).toBe(true)
+    expect(page.isFilterSelected('all')).toBe(false)
+    expect(page.isSortSelected('오래된순')).toBe(true)
+    expect(page.searchValue()).toBe('상품-')
+  })
+
+  it('필터를 누르면 주소에 status가 붙고 page는 빠지며, 「전체」를 누르면 status가 빠진다', async () => {
+    mockProductServer(recheckProducts(25))
+    const { page } = renderProductsPage('/products?page=2')
+    await page.waitForProduct('상품-11')
+
+    await page.selectFilter(ResultStatus.RecheckRequired)
+
+    expect(currentLocation()).toBe('/products?status=RECHECK_REQUIRED')
+
+    await page.selectFilter('all')
+
+    expect(currentLocation()).toBe('/products')
+  })
+
+  it('검색하면 주소에 keyword가 붙고, 검색어를 지우면 빠진다', async () => {
+    mockProductServer(makeProducts(5))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.search('상품-03')
+
+    expect(currentLocation()).toBe('/products?keyword=상품-03')
+
+    await page.clearSearchText()
+
+    expect(currentLocation()).toBe('/products')
+  })
+
+  it('오래된순을 누르면 주소에 sort가 붙고, 최신순으로 돌리면 빠진다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.sortBy('오래된순')
+
+    expect(currentLocation()).toBe('/products?sort=OLDEST')
+
+    await page.sortBy('최신순')
+
+    expect(currentLocation()).toBe('/products')
+  })
+
+  it('페이지를 옮기면 주소에 page(1부터)가 붙고, 1페이지로 오면 빠진다', async () => {
+    mockProductServer(makeProducts(25))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.goToPage(3)
+
+    expect(currentLocation()).toBe('/products?page=3')
+
+    await page.goToPage(1)
+
+    expect(currentLocation()).toBe('/products')
+  })
+
+  it('잘못된 값이 있어도 기본값(전체·최신순·첫 페이지)으로 조회하고, 주소는 고쳐 쓰지 않는다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage('/products?status=WRONG&sort=WRONG&page=abc')
+
+    await page.waitForProductNames(['상품-01', '상품-02', '상품-03'])
+    const query = page.lastListQuery()
+    expect(query.has('resultStatus')).toBe(false)
+    expect(query.get('sortType')).toBe('LATEST')
+    expect(query.get('page')).toBe('0')
+    expect(page.isFilterSelected('all')).toBe(true)
+    expect(page.isSortSelected('최신순')).toBe(true)
+    expect(currentLocation()).toBe('/products?status=WRONG&sort=WRONG&page=abc')
+  })
+
+  describe('없는 페이지 보정', () => {
+    it('마지막 페이지를 넘으면 마지막 페이지로 주소를 고치고, 그 페이지의 상품을 보여준다', async () => {
+      mockProductServer(makeProducts(12))
+      const { page } = renderProductsPage('/products?page=2000')
+
+      await waitFor(() => expect(currentLocation()).toBe('/products?page=2'))
+      await page.waitForProductNames(['상품-11', '상품-12'])
+      expect(page.lastListQuery().get('page')).toBe('1')
+    })
+
+    it('다른 조건은 그대로 두고 page만 고친다', async () => {
+      mockProductServer(recheckProducts(12))
+      const { page } = renderProductsPage('/products?status=RECHECK_REQUIRED&page=2000')
+
+      await waitFor(() => expect(currentLocation()).toBe('/products?status=RECHECK_REQUIRED&page=2'))
+      await page.waitForProductNames(['상품-11', '상품-12'])
+      expect(page.isFilterSelected(ResultStatus.RecheckRequired)).toBe(true)
+    })
+
+    it('조건에 맞는 상품이 없으면 page를 지우고 빈 목록 안내를 보여준다', async () => {
+      mockProductServer([])
+      const { page } = renderProductsPage('/products?page=5')
+
+      await waitFor(() => expect(currentLocation()).toBe('/products'))
+      await page.waitForText(PRODUCTS_MESSAGES.EMPTY)
+    })
+
+    it('상한을 넘는 page는 첫 페이지로 읽어서 오류 없이 첫 페이지를 조회한다', async () => {
+      mockProductServer(makeProducts(3))
+      const { page } = renderProductsPage('/products?page=99999999999')
+
+      await page.waitForProductNames(['상품-01', '상품-02', '상품-03'])
+      expect(page.lastListQuery().get('page')).toBe('0')
+      expect(page.hasText(PRODUCTS_MESSAGES.LIST_LOAD_FAILED)).toBe(false)
+    })
   })
 })
