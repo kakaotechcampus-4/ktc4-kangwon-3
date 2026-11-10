@@ -40,7 +40,7 @@ QUESTIONS: dict[str, SellerQuestion] = {
     ),
     "material": SellerQuestion(
         "제품의 주된 재질(소재) 확인이 필요합니다.",
-        "예: 플라스틱(ABS), 스테인리스, 면 100%, 천연가죽. 여러 재질이면 많이 쓰인 순서로 적어 주세요.",
+        "예: 플라스틱(ABS), 스테인리스, 면 100%, 소가죽. 가죽이면 소가죽, 양가죽처럼 종류까지 적고, 여러 재질이면 많이 쓰인 순서로 적어 주세요.",
         labels=("재질",),
     ),
     "intended_use": SellerQuestion(
