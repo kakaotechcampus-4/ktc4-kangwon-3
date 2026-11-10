@@ -153,11 +153,14 @@ class CustomsTool(EvidenceSearchTool):
                 f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개(HS {codes})가 있어 HS 확인이 필요합니다.")
         # 물을 수 있는 조건은 요건 조회 뒤에 묻을지 정함 (후보 HS의 요건이 같으면 답이 결론을 바꾸지 않음, #754)
         askable: list[str] = []
+        others: list[str] = []
         for _, selection, _ in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
             askable.extend(name for name in needed if name in _QUESTION_FIELDS and name not in askable)
-            if other := [_FIELDS[name] for name in needed if name not in _QUESTION_FIELDS]:
-                run.assumptions.append(f"HS 확정에는 {', '.join(other)} 확인이 더 필요합니다.")
+            others.extend(name for name in needed if name not in _QUESTION_FIELDS and name not in others)
+        # 결정사례마다 붙이면 같은 문장이 판단에 여러 번 실려 모아서 한 번만 남김
+        if others:
+            run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in others)} 확인이 더 필요합니다.")
         query["selected_cases"] = [case.case_id for case, _, _ in chosen]
         if query["dropped_candidates"]:
             run.assumptions.append(f"후보 사례와 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
