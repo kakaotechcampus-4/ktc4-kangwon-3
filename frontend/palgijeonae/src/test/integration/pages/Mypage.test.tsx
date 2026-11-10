@@ -1,3 +1,4 @@
+import { screen } from '@testing-library/react'
 import { http } from 'msw'
 import { Route } from 'react-router-dom'
 
@@ -7,13 +8,13 @@ import { MYPAGE_MESSAGES, SERVER_MESSAGES } from '@/test/constants/messages'
 import { myPage } from '@/test/drivers/myPage'
 import { buildUserInfo } from '@/test/mocks/fixtures'
 import { API_URL } from '@/test/mocks/handlers'
-import { requestLog } from '@/test/mocks/requestLog'
-import { errorResponse } from '@/test/mocks/responses'
+import { recordRequest, requestLog } from '@/test/mocks/requestLog'
+import { errorResponse, successResponse } from '@/test/mocks/responses'
 import { server } from '@/test/mocks/server'
 import { setAuthState } from '@/test/utils/auth'
 import { declineConfirm, expectConfirmed } from '@/test/utils/confirmations'
 import { createGate } from '@/test/utils/createGate'
-import { expectNotified, expectNotNotified, waitForNotified } from '@/test/utils/notifications'
+import { expectNotified, waitForNotified } from '@/test/utils/notifications'
 import { getCurrentLocation, renderWithProviders } from '@/test/utils/renderWithProviders'
 
 const MY_INFO_URL = `${API_URL}/api/v1/users/me`
@@ -33,6 +34,9 @@ const renderMyPage = () => {
   })
   return { page: myPage(), queryClient }
 }
+
+// 이동한 도착 화면(이 파일이 만든 스텁)이 보일 때까지 기다린다.
+const findStubScreen = (text: string) => screen.findByText(text)
 
 describe('마이페이지 - 조회', () => {
   it('불러오는 동안 로딩을 보여주고, 불러오면 회원 정보를 보여준다', async () => {
@@ -63,6 +67,7 @@ describe('마이페이지 - 조회', () => {
     await page.clickRetry()
 
     await page.waitForUserName(USER.name)
+  })
 })
 
 describe('마이페이지 - 이름 수정', () => {
