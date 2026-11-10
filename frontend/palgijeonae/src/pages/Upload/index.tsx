@@ -1,10 +1,9 @@
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/core/client";
 import { SourceType } from "@/api/types/common.ts"
-import Button from "@/components/common/Button/index.tsx";
 import DefaultBox from "@/components/common/DefaultBox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
@@ -13,6 +12,8 @@ import InputForm from "@/pages/Upload/components/InputForm.tsx";
 import InputTypeTabs, { type InputType } from "@/pages/Upload/components/InputTypeTabs.tsx";
 import ProductDetailModal from "@/pages/Upload/components/ProductDetailModal.tsx";
 import ProductImageLightbox from "@/pages/Upload/components/ProductImageLightbox.tsx";
+import UploadActionBar from "@/pages/Upload/components/UploadActionBar.tsx";
+import { MAX_PRODUCT_COUNT } from "@/pages/Upload/constants.ts";
 import { submitDiagnosis } from "@/pages/Upload/utils/diagnosisPipeline.ts";
 import { validateProduct } from "@/pages/Upload/utils/validation.ts";
 
@@ -36,6 +37,7 @@ function UploadPage() {
     const location = useLocation();
     const [products, setProducts] = useState<Product[]>(() => (location.state as UploadLocationState | null)?.demoProducts ?? []);
     const [detail, setDetail] = useState<DetailState | null>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const detailProduct = detail ? products.find((product) => product.id === detail.productId) : undefined;
 
@@ -52,6 +54,10 @@ function UploadPage() {
             handleRemoveProduct(detailProduct.id);
         }
         setDetail(null);
+    };
+
+    const handleShowList = () => {
+        panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
     const { mutate: runSubmitDiagnosis, isPending } = useMutation({
@@ -88,26 +94,33 @@ function UploadPage() {
                 <LoadingSpinner label="진단 요청을 보내는 중..." />
             ) : (
                 <>
-                    {products.length < 10 ? (
-                        <DefaultBox align="left">
-                            <InputTypeTabs selected={inputType} onSelect={setInputType} />
-                            <InputForm key={inputType} type={inputType} onAdd={handleAddProduct} />
-                        </DefaultBox>
-                    ) : (
-                        <DefaultBox tone="warning">
-                            <p className="w-full text-center text-base font-semibold text-status-warning">
-                                상품은 최대 10개까지 담을 수 있어요. 진단을 시작해주세요.
-                            </p>
-                        </DefaultBox>
-                    )}
-                    <AddedProductPanel
-                        products={products}
-                        onOpenDetail={(id) => setDetail({ productId: id, view: "info" })}
-                        onRemove={handleRemoveProduct}
-                    />
-                    <div className="flex w-full justify-end">
-                        <Button text="진단 시작하기" onClick={handleStartDiagnosis} fontSize={15} className="w-full md:w-auto" />
+                    {/* xl 이상은 입력 폼 옆에 확인할 제품 패널을 두고, 그보다 좁으면 폼 아래에 한 줄로 쌓는다. */}
+                    <div className="flex w-full flex-col gap-6 xl:flex-row xl:items-start">
+                        <div className="w-full xl:min-w-0 xl:flex-1">
+                            {products.length < MAX_PRODUCT_COUNT ? (
+                                <DefaultBox align="left">
+                                    <InputTypeTabs selected={inputType} onSelect={setInputType} />
+                                    <InputForm key={inputType} type={inputType} onAdd={handleAddProduct} />
+                                </DefaultBox>
+                            ) : (
+                                <DefaultBox tone="warning">
+                                    <p className="w-full text-center text-base font-semibold text-status-warning">
+                                        상품은 최대 10개까지 담을 수 있어요. 진단을 시작해주세요.
+                                    </p>
+                                </DefaultBox>
+                            )}
+                        </div>
+                        {products.length > 0 && (
+                            <div ref={panelRef} className="w-full scroll-mt-20 xl:sticky xl:top-22 xl:w-72 xl:shrink-0">
+                                <AddedProductPanel
+                                    products={products}
+                                    onOpenDetail={(id) => setDetail({ productId: id, view: "info" })}
+                                    onRemove={handleRemoveProduct}
+                                />
+                            </div>
+                        )}
                     </div>
+                    <UploadActionBar products={products} onStart={handleStartDiagnosis} onShowList={handleShowList} />
                 </>
             )}
             {detailProduct && detail?.view === "info" && (
