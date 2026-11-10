@@ -314,7 +314,8 @@ class ElectricalTool(EvidenceSearchTool):
         if reason == "low_voltage" and volts:
             return (subject,
                     f"정격 전압({', '.join(volts)})이 저전압(교류 30V·직류 42V 이하)이라 비슷한 품목이 모두 "
-                    "전기용품 안전관리 대상에서 빠지는 범위입니다. 대상이 아닐 가능성이 높지만 확정은 아닙니다.",
+                    "전기용품 안전관리 대상에서 빠지는 범위입니다. 대상이 아닐 가능성이 높지만 확정은 아닙니다. "
+                    "함께 오는 어댑터나 충전기는 따로 확인이 필요합니다.",
                     "운용요령 제3조는 저전압 제품을 대상에서 뺍니다. 품목표에서 찾은 비슷한 품목은 모두 저전압 제품을 "
                     "포함하지 않는 품목이었습니다. 품목 조회는 비슷한 행을 찾는 것이라 확정하지 않았습니다.")
         if reason in ("low_voltage", "no_match", "no_rows") and (power or volts):

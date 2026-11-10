@@ -408,6 +408,7 @@ def test_저전압이라_후보_행이_모두_빠지면_전압을_못_찾았다�
     assert result.query["undecided"] == "low_voltage"
     assert finding.determination is Determination.INSUFFICIENT_INFORMATION and finding.risk_level is RiskLevel.UNKNOWN
     assert finding.summary.startswith("정격 전압(DC 5V)이 저전압(교류 30V·직류 42V 이하)이라")
+    assert finding.summary.endswith("함께 오는 어댑터나 충전기는 따로 확인이 필요합니다.")
     assert "운용요령 제3조" in finding.rationale
     assert "찾지 못해" not in finding.summary
 
@@ -418,7 +419,7 @@ def test_전원_전압을_읽었는데_맞는_품목을_못_고르면_읽은_값
     [finding] = result.findings
     assert result.query["undecided"] == "no_match"
     assert finding.determination is Determination.INSUFFICIENT_INFORMATION
-    assert finding.summary == ("상품 설명에서 전원 방식(AC)·정격 전압(220V)는 확인했지만 해당하는 전기용품 품목을 찾지 못해 "
+    assert finding.summary == ("상품 설명에서 전원 방식(AC)·정격 전압(220V)은 확인했지만 해당하는 전기용품 품목을 찾지 못해 "
                                "대상인지 판단하지 못했습니다.")
 
 
@@ -491,7 +492,7 @@ def test_전지_행만_고르면_전원_전압과_전지_전용_여부를_묻지
     assert result.query["selected_items"] == [BATTERY_ROW]
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
-    assert "전원 방식, 정격 전압, 전지로만 동작(코드나 어댑터 없이)는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
+    assert "전원 방식, 정격 전압, 전지로만 동작(코드나 어댑터 없이)은 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
     # 묻지 않은 이유를 남긴 필드를 "확정에 더 필요"로 다시 적지 않음 (검증이 모순으로 읽지 않게)
     assert not any("확인이 더 필요합니다" in item for item in assumptions)
 
@@ -550,7 +551,7 @@ def test_전지_행만_고르면_값이_엇갈린_조건도_충돌_질문으로_
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
     assert any("상품 정보에 모순이 있어" in item for item in assumptions)
-    assert "정격 전압, 전지로만 동작(코드나 어댑터 없이)는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
+    assert "정격 전압, 전지로만 동작(코드나 어댑터 없이)은 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
 
 
 def _lines_product(lines, values, search_terms=("선풍기",)):
@@ -774,6 +775,9 @@ def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어�
 
 @pytest.mark.parametrize(("word", "particle"), [
     ("관절염 예방", "은"), ("불면증 치료", "는"), ("KC", "는"),
+    # 괄호 덧말은 빼고 앞 낱말의 받침으로 정함 (리뷰 #806)
+    ("정격 전압(5V)", "은"), ("전원 방식(USB-C)·정격 전압(5V)", "은"), ("전지로만 동작(코드나 어댑터 없이)", "은"),
+    ("USB(5V)", "는"), ("'습기 차단(IPX7).'", "은"),
 ])
 def test_보조사_은는은_받침에_따라_정한다(word, particle):
     assert topic_particle(word) == particle
