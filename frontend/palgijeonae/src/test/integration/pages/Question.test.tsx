@@ -16,6 +16,7 @@ import { server } from '@/test/mocks/server'
 import { createGate } from '@/test/utils/createGate'
 import { expectNotified, expectNotNotified, waitForNotificationCount, waitForNotified } from '@/test/utils/notifications'
 import { getCurrentLocation, renderWithProviders } from '@/test/utils/renderWithProviders'
+import { setMobileViewport } from '@/test/utils/viewport'
 
 const PRODUCT_URL = `${API_URL}/api/v1/products/:productId`
 const ANSWERS_URL = `${API_URL}/api/v1/products/:productId/answers`
@@ -492,5 +493,29 @@ describe('질문 화면 - 이전으로 버튼', () => {
     await page.waitForText(QUESTION_MESSAGES.LOAD_FAILED)
 
     expect(page.hasBackButton()).toBe(false)
+  })
+})
+
+describe('질문 화면 - 하단 바와 화면 키보드', () => {
+  it('모바일에서 답변을 입력하는 동안에는 하단 바를 숨기고, 입력칸을 벗어나면 다시 보여준다', async () => {
+    setMobileViewport()
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+    expect(page.hasSubmitButton()).toBe(true)
+
+    await page.answer(BATTERY, '네')
+    expect(page.hasSubmitButton()).toBe(false)
+
+    await page.leaveAnswer()
+    expect(page.hasSubmitButton()).toBe(true)
+  })
+
+  it('데스크톱에서는 답변을 입력하는 중에도 하단 바를 계속 보여준다', async () => {
+    const page = renderQuestionPage()
+    await page.waitUntilLoaded()
+
+    await page.answer(BATTERY, '네')
+
+    expect(page.hasSubmitButton()).toBe(true)
   })
 })

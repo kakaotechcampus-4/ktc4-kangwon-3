@@ -44,6 +44,8 @@ export function questionPage(user: User = userEvent.setup()) {
       await user.paste(text)
     },
     clearAnswer: (questionText: string) => user.clear(answerBox(questionText)),
+    /** 입력칸 밖을 눌러 포커스를 거둔다. (모바일에서는 화면 키보드가 내려간다) */
+    leaveAnswer: () => user.click(document.body),
 
     // ── 진행 요약 ────────────────────────────────────────────
     /** 하단 바의 "답한 수 / 전체 수" 요약이 보이는지. 예: hasProgress(1, 3) */
