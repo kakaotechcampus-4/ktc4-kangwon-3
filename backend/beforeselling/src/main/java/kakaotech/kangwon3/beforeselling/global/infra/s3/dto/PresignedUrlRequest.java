@@ -11,7 +11,7 @@ import kakaotech.kangwon3.beforeselling.global.infra.s3.FileType;
 import java.util.List;
 
 public record PresignedUrlRequest(
-        @NotEmpty List<@Valid FileMeta> files
+        @NotEmpty @Size(max = 21, message = "파일은 한 번에 최대 21개까지 요청할 수 있습니다.") List<@Valid FileMeta> files
 ) {
 
     public record FileMeta(
