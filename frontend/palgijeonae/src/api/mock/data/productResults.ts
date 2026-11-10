@@ -245,7 +245,7 @@ export const MOCK_PRODUCT_RESULTS: ProductResult[] = [
         failure: null,
         assessmentStatus: AssessmentStatus.Completed,
         resultStatus: ResultStatus.PurchasingAgentAllowed,
-        summary: "전기·전파 요소가 없고 별도 인증 대상이 아니라 구매대행이 가능합니다.",
+        summary: "전기·전파 요소가 없고 별도 인증 대상이 아니라 사입이 가능합니다.",
         toolReviews: [
             {
                 productToolReviewId: "mock-review-2-customs",

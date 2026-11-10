@@ -222,7 +222,7 @@ const table = makePreviewProduct({
     processingStatus: ProcessingStatusType.Completed,
     assessmentStatus: AssessmentStatus.Completed,
     resultStatus: ResultStatus.PurchasingAgentAllowed,
-    summary: "전기·전파 요소가 없어 구매대행이 가능합니다.",
+    summary: "전기·전파 요소가 없어 사입이 가능합니다.",
     toolReviews: [
         { productToolReviewId: "preview-review-customs", toolName: ToolName.Customs, status: ToolReviewStatus.Completed, message: null, findings: [CUSTOMS_FINDING] },
     ],

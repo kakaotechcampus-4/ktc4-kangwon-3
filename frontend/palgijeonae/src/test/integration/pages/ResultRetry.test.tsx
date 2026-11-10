@@ -20,7 +20,7 @@ const RETRY_URL = `${API_URL}/api/v1/products/:productId/retry`
 const DIAGNOSES_URL = `${API_URL}/api/v1/diagnoses/:diagnosesId`
 
 // 테스트가 응답에 넣는 데이터. 화면 문구가 아니라 이 테스트의 입력값이다.
-const COMPLETED_SUMMARY = '구매대행이 가능해요.'
+const COMPLETED_SUMMARY = '사입이 가능해요.'
 const RETRYABLE_REASON = '일시적인 오류가 발생했어요.'
 const NOT_RETRYABLE_REASON = '지원하지 않는 상품입니다.'
 

@@ -24,7 +24,7 @@ const PROGRESS_NAME = '진행 상품'
 const AWAITING_NAME = '답변 대기 상품'
 const COMPLETED_NAME = '완료 상품'
 const FAILED_NAME = '실패 상품'
-const COMPLETED_SUMMARY = '구매대행이 가능해요.'
+const COMPLETED_SUMMARY = '사입이 가능해요.'
 const FAILURE_MESSAGE = '분석 중 오류가 발생했어요.'
 
 // 진단 진행 화면을 실제 라우터·QueryClient·MSW(API 모킹) 위에서 사용자처럼 조작한다.
