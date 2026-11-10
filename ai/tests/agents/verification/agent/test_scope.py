@@ -45,7 +45,8 @@ def test_검토_범위가_초안의_판단_ID_목록을_벗어나면_파싱_실�
     assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "parsing")]
 
 
-def test_존재하지_않는_판단_ID를_참조하면_실패한다(samples, stub_model, records):
+def test_지적이_존재하지_않는_판단_ID를_가리키면_파싱_실패다(samples, stub_model, records):
+    # 출력 스키마가 지적의 판단 ID도 초안의 판단 ID로 좁혀, 실제 모델은 이런 출력을 내지 못함
     review = samples.review(
         issues=[
             _Issue(
@@ -59,8 +60,11 @@ def test_존재하지_않는_판단_ID를_참조하면_실패한다(samples, stu
     )
     agent = VerificationAgent(stub_model(review))
 
-    with pytest.raises(VerificationError, match="존재하지 않는"):
+    with pytest.raises(VerificationError) as exc_info:
         agent.run(samples.draft())
+
+    assert exc_info.value.partial_result is not None
+    assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "parsing")]
 
 
 def test_출력_스키마는_검토_판단_ID의_값과_개수를_초안의_판단_ID로_고정한다():
@@ -72,6 +76,29 @@ def test_출력_스키마는_검토_판단_ID의_값과_개수를_초안의_판�
     # 요청 스키마 이름과 나머지 필드는 그대로
     assert schema["name"] == "_Review"
     assert set(schema["schema"]["properties"]) == set(_Review.model_fields)
+
+
+def test_출력_스키마는_지적이_가리키는_판단_ID도_초안의_판단_ID로_고정한다():
+    schema = type_to_response_format_param(review_schema(["f1", "f2", "f1"]))["json_schema"]["schema"]
+
+    related = schema["$defs"]["_Issue"]["properties"]["related_finding_ids"]
+    assert (related["items"]["enum"], related["maxItems"]) == (["f1", "f2"], 2)
+    # 나머지 지적 필드는 그대로
+    assert set(schema["$defs"]["_Issue"]["properties"]) == set(_Issue.model_fields)
+
+
+def test_지적이_초안에_없는_판단_ID를_가리키는_출력은_스키마에서_거부한다():
+    schema = review_schema(["f1"])
+    issue = {"severity": "warning", "issue_type": "contradiction", "description": "근거와 결론이 다르다.",
+             "related_finding_ids": ["f1"], "recommended_action": None}
+    review = {"issues": [issue], "additional_tools_required": [], "follow_up_questions": [], "checked_finding_ids": ["f1"]}
+
+    assert schema.model_validate(review).issues[0].related_finding_ids == ["f1"]
+    # 한 글자 틀리게 옮겨 적은 ID
+    with pytest.raises(ValidationError):
+        schema.model_validate({**review, "issues": [{**issue, "related_finding_ids": ["f2"]}]})
+    # 특정 판단과 무관한 지적은 빈 목록
+    assert schema.model_validate({**review, "issues": [{**issue, "related_finding_ids": []}]}).issues[0].related_finding_ids == []
 
 
 def test_판단이_없는_초안은_빈_검토_목록만_받는다():
