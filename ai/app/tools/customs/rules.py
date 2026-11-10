@@ -10,7 +10,7 @@
 import re
 
 from ...schemas.product import Product
-from ...schemas.schemas import ToolName
+from ...schemas.schemas import Determination, RegulatoryFinding, ToolName
 from ..common.questions import ANSWER_PREFIX
 from .evidence import ConfirmationRow, law_key
 
@@ -207,6 +207,24 @@ def excluded_by_product(law_name: str, product: Product, material_texts: list[st
     if _unspecified_leather_left(material_texts, excludable):
         return None
     return goods
+
+
+def no_requirement_left(query: dict, findings: list[RegulatoryFinding]) -> bool:
+    """HS 후보를 모두 조회했고 통관 판단이 모두 "필요 없음"인지 (세관장확인 필요 칸을 false로 둘 때, #797).
+
+    조회하지 못한 후보가 있거나, 후보가 없거나, 근거 법령을 읽지 못해 정보 부족이거나, 요건 후보가 남았으면 False.
+    종합 단계가 다른 Tool 판단을 따라 요건을 뺀 뒤에도 같은 기준으로 다시 본다.
+
+    Args:
+        query: 통관 Tool의 query (hs_candidates, requirements는 조회한 후보만 키로 가짐).
+        findings: 통관 판단.
+
+    Returns:
+        bool: 모든 후보를 조회했고 판단이 모두 "필요 없음"이면 True.
+    """
+    candidates = query.get("hs_candidates") or []
+    resolved = bool(candidates) and set(query.get("requirements") or {}) == set(candidates)
+    return resolved and bool(findings) and all(f.determination is Determination.NOT_REQUIRED for f in findings)
 
 
 def format_hs(code: str) -> str:
