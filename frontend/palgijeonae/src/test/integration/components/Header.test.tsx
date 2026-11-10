@@ -32,7 +32,7 @@ describe('헤더 - 모바일 메뉴', () => {
     setAuthState('loggedOut')
   })
 
-  it('햄버거 버튼을 누르면 메뉴(홈, 상품 진단)가 열리고, 다시 누르면 닫힌다', async () => {
+  it('햄버거 버튼을 누르면 메뉴(홈, 상품 진단, 진단 결과)가 열리고, 다시 누르면 닫힌다', async () => {
     renderWithProviders(<Header />)
     expect(queryMenuNav()).not.toBeInTheDocument()
 
@@ -40,6 +40,7 @@ describe('헤더 - 모바일 메뉴', () => {
 
     expect(getMenuPanel().getByRole('link', { name: '홈' })).toBeInTheDocument()
     expect(getMenuPanel().getByRole('link', { name: '상품 진단' })).toBeInTheDocument()
+    expect(getMenuPanel().getByRole('link', { name: '진단 결과' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '메뉴 닫기' })).toHaveAttribute('aria-expanded', 'true')
 
     await user.click(screen.getByRole('button', { name: '메뉴 닫기' }))
@@ -175,5 +176,17 @@ describe('헤더 - 데스크톱', () => {
     await openMenu()
 
     expect(queryMenuNav()).not.toBeInTheDocument()
+  })
+
+  it('「진단 결과」를 누르면 진단 결과 페이지로 이동하고, 그 링크가 활성 상태가 된다', async () => {
+    setAuthState('loggedOut')
+    renderWithProviders(<Header />, { route: '/' })
+    const user = userEvent.setup()
+    expect(screen.getByRole('link', { name: '진단 결과' })).not.toHaveAttribute('aria-current')
+
+    await user.click(screen.getByRole('link', { name: '진단 결과' }))
+
+    expect(getCurrentLocation()).toBe('/products')
+    expect(screen.getByRole('link', { name: '진단 결과' })).toHaveAttribute('aria-current', 'page')
   })
 })

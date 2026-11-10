@@ -30,6 +30,7 @@ const renderGuardedRoutes = (route: string) =>
       <Route path="/login" element={<LoginStub />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/upload" element={<p>업로드 화면</p>} />
+        <Route path="/products" element={<p>진단 결과 화면</p>} />
         <Route path="/mypage" element={<p>마이페이지 화면</p>} />
         <Route path="/question/:productId" element={<QuestionStub />} />
       </Route>
@@ -95,7 +96,7 @@ describe('보호 라우트 - 비로그인', () => {
     setAuthState('loggedOut')
   })
 
-  it.each(['/upload', '/mypage', '/question/product-1'])('%s에 접근하면 로그인 화면으로 리다이렉트한다', (path) => {
+  it.each(['/upload', '/products', '/mypage', '/question/product-1'])('%s에 접근하면 로그인 화면으로 리다이렉트한다', (path) => {
     renderGuardedRoutes(path)
 
     expect(screen.getByText('로그인 화면')).toBeInTheDocument()
