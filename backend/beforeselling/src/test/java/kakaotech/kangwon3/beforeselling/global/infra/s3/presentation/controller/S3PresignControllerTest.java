@@ -38,6 +38,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -86,6 +87,12 @@ class S3PresignControllerTest {
     private static Authentication authenticationOf(UUID userId) {
         return UsernamePasswordAuthenticationToken.authenticated(
                 new UserPrincipal(userId, Role.USER), null, List.of(new SimpleGrantedAuthority(Role.USER.getAuthority())));
+    }
+
+    private static List<PresignedUrlRequest.FileMeta> fileMetas(int count) {
+        return IntStream.range(0, count)
+                .mapToObj(i -> new PresignedUrlRequest.FileMeta(FileType.PRODUCT_DETAIL, "detail" + i + ".jpg", 1024))
+                .toList();
     }
 
     @Test
@@ -143,6 +150,39 @@ class S3PresignControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON-002"));
+    }
+
+    @Test
+    @DisplayName("파일을 21개까지 요청하면 Presigned URL 목록을 응답한다.")
+    void issuePresignedUrls_withMaxFileCount_thenOk() throws Exception {
+        // given
+        PresignedUrlRequest request = new PresignedUrlRequest(fileMetas(21));
+        given(s3PresignedUrlProvider.issuePresignedUrls(eq(USER_ID), any()))
+                .willReturn(new PresignedUrlResponse(List.of()));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/presigned-url")
+                        .with(authentication(authenticationOf(USER_ID)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("OK"));
+    }
+
+    @Test
+    @DisplayName("파일을 21개보다 많이 요청하면 400과 COMMON-002 코드를 응답하고 Presigned URL을 발급하지 않는다.")
+    void issuePresignedUrls_withFileCountExceedingMax_thenBadRequest() throws Exception {
+        // given
+        PresignedUrlRequest request = new PresignedUrlRequest(fileMetas(22));
+
+        // when & then
+        mockMvc.perform(post("/api/v1/presigned-url")
+                        .with(authentication(authenticationOf(USER_ID)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON-002"));
+        then(s3PresignedUrlProvider).shouldHaveNoInteractions();
     }
 
     @Test
