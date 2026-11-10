@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { SourceType } from '@/api/types/common'
 import AddedProductPanel from '@/pages/Upload/components/AddedProductPanel'
 import type { Product } from '@/pages/Upload/types'
+import { UPLOAD_MESSAGES } from '@/test/constants/messages'
 
 const makeProduct = (index: number, overrides: Partial<Product> = {}): Product => ({
   id: `product-${index}`,
@@ -23,10 +24,19 @@ const renderPanel = (products: Product[]) => {
 const getList = () => screen.getByRole('list', { name: '확인할 제품 목록' })
 
 describe('확인할 제품 패널 - 표시', () => {
-  it('상품이 없으면 아무것도 그리지 않는다', () => {
-    const { container } = render(<AddedProductPanel products={[]} onOpenDetail={vi.fn()} onRemove={vi.fn()} />)
+  it('상품이 없어도 패널을 보여주고, 목록 대신 빈 상태 안내를 보여준다', () => {
+    renderPanel([])
 
-    expect(container).toBeEmptyDOMElement()
+    expect(screen.getByRole('heading', { name: '확인할 제품' })).toBeInTheDocument()
+    expect(screen.getByText(UPLOAD_MESSAGES.PANEL_EMPTY)).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: '확인할 제품 목록' })).not.toBeInTheDocument()
+    expect(screen.queryByText('항목을 누르면 입력 내용을 자세히 볼 수 있어요.')).not.toBeInTheDocument()
+  })
+
+  it('상품이 있으면 빈 상태 안내를 보여주지 않는다', () => {
+    renderPanel([makeProduct(1)])
+
+    expect(screen.queryByText(UPLOAD_MESSAGES.PANEL_EMPTY)).not.toBeInTheDocument()
   })
 
   it('제목, 추가한 순서대로의 항목 목록, 안내 문구를 보여준다', () => {

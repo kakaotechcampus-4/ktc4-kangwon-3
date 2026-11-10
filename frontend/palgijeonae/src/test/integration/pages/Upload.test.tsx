@@ -482,26 +482,34 @@ describe('업로드 화면 - 하단 바', () => {
     expect(page.productCountLabel()).toBe('3 / 10')
   })
 
-  it('상품이 있을 때만 목록 보기를 보여주고, 누르면 확인할 제품 패널로 스크롤한다', async () => {
+  it('상품이 없어도 목록 보기를 보여주고, 누르면 확인할 제품 패널로 스크롤한다', async () => {
     const page = renderUploadPage()
-    expect(page.hasShowListButton()).toBe(false)
-
-    await page.addUrlProduct({ title: '이어폰' })
     expect(page.hasShowListButton()).toBe(true)
 
     await page.clickShowList()
 
     expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' })
-    expect(page.wasProductListScrolledTo()).toBe(true)
+    expect(page.wasPanelScrolledTo()).toBe(true)
   })
 
-  it('마지막 상품까지 삭제하면 목록 보기도 사라진다', async () => {
+  it('확인할 제품 패널은 상품이 없을 때도 빈 상태 안내와 함께 보이고, 상품을 담으면 목록으로 바뀐다', async () => {
+    const page = renderUploadPage()
+    expect(page.hasEmptyPanelNotice()).toBe(true)
+    expect(page.productNames()).toEqual([])
+
+    await page.addUrlProduct({ title: '이어폰' })
+
+    expect(page.hasEmptyPanelNotice()).toBe(false)
+    expect(page.productNames()).toEqual(['이어폰'])
+  })
+
+  it('마지막 상품까지 삭제해도 패널은 남아 빈 상태 안내를 다시 보여준다', async () => {
     const page = renderUploadPage([makeDemoProduct(1)])
-    expect(page.hasShowListButton()).toBe(true)
+    expect(page.hasEmptyPanelNotice()).toBe(false)
 
     await page.removeProduct('상품 1')
 
-    expect(page.hasShowListButton()).toBe(false)
+    expect(page.hasEmptyPanelNotice()).toBe(true)
     expect(page.productCountLabel()).toBe('0 / 10')
   })
 })

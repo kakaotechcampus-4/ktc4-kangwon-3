@@ -132,12 +132,14 @@ export function uploadPage(user: User = userEvent.setup()) {
     productCountLabel: () => screen.getByText(/^\d+ \/ \d+$/).textContent,
     hasStartButton: () => screen.queryByRole('button', { name: /진단 시작하기/ }) !== null,
     hasShowListButton: () => screen.queryByRole('button', { name: /^목록 보기$/ }) !== null,
-    /** 스크롤한 요소 중에 "확인할 제품" 패널(목록을 담은 요소)이 있는지. scrollIntoView는 vitest.setup의 스텁이 호출을 기록한다. */
-    wasProductListScrolledTo() {
-      const list = screen.queryByRole('list', { name: '확인할 제품 목록' })
+    /** 스크롤한 요소 중에 "확인할 제품" 패널(제목을 담은 요소)이 있는지. scrollIntoView는 vitest.setup의 스텁이 호출을 기록한다. */
+    wasPanelScrolledTo() {
+      const heading = screen.queryByRole('heading', { name: '확인할 제품' })
       const targets = vi.mocked(Element.prototype.scrollIntoView).mock.contexts as Element[]
-      return list !== null && targets.some((target) => target.contains(list))
+      return heading !== null && targets.some((target) => target.contains(heading))
     },
+    /** 확인할 제품 패널이 상품이 없을 때 보여주는 빈 상태 안내가 있는지 */
+    hasEmptyPanelNotice: () => screen.queryByText(UPLOAD_MESSAGES.PANEL_EMPTY) !== null,
 
     isFormVisible: () => screen.queryByLabelText(/^제품명$/) !== null,
     hasMaxProductsNotice: () => screen.queryByText(UPLOAD_MESSAGES.MAX_PRODUCTS_REACHED) !== null,

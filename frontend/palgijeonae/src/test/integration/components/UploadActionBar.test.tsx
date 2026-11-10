@@ -29,17 +29,11 @@ describe('업로드 하단 바 - 표시', () => {
     expect(screen.getByText('3 / 10')).toBeInTheDocument()
   })
 
-  it('상품이 없어도 "0 / 10"과 진단 시작하기 버튼을 보여주고, 목록 보기 버튼은 보여주지 않는다', () => {
-    renderBar([])
+  it.each([0, 1, 5])('상품이 %i개여도 진단 시작하기와 목록 보기 버튼을 보여준다', (count) => {
+    renderBar(makeProducts(count))
 
-    expect(screen.getByText('0 / 10')).toBeInTheDocument()
+    expect(screen.getByText(`${count} / 10`)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '진단 시작하기' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: '목록 보기' })).not.toBeInTheDocument()
-  })
-
-  it('상품이 있으면 목록 보기 버튼을 보여준다', () => {
-    renderBar(makeProducts(1))
-
     expect(screen.getByRole('button', { name: '목록 보기' })).toBeInTheDocument()
   })
 
