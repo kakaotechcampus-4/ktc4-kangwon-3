@@ -4,7 +4,7 @@ import { ResultStatus } from "@/api/types/common.ts";
 import clear from "@/assets/delete-gray.svg"
 import search from "@/assets/mypage-search.svg"
 import { cn } from "@/lib/cn";
-import type { ProductFilter } from "@/pages/Mypage/types.ts";
+import type { ProductFilter } from "@/pages/Products/types.ts";
 
 const FILTER_TABS: { key: ProductFilter; label: string }[] = [
     { key: "all", label: "전체" },

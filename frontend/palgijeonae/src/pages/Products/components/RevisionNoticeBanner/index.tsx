@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { LawAmendment, RecheckProduct } from "@/api/lawAmendments.ts";
 import bell from "@/assets/mypage-bell.svg";
 import DefaultBox from "@/components/common/DefaultBox";
-import { useRediagnoseProduct } from "@/pages/Mypage/hooks/useRediagnoseProduct.ts";
+import { useRediagnoseProduct } from "@/pages/Products/hooks/useRediagnoseProduct.ts";
 
 import AmendmentAccordionItem from "./components/AmendmentAccordionItem.tsx";
 

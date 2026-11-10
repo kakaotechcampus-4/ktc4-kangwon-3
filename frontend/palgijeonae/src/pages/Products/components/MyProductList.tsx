@@ -7,9 +7,9 @@ import ProductPreview from "@/components/common/ProductPreview/index.tsx";
 import SectionIntro from "@/components/common/SectionIntro/index.tsx";
 import { useIsMobile } from "@/hooks/useIsMobile.ts";
 import { createFromState } from "@/lib/fromState.ts";
-import { PAGE_GROUP_SIZE, PAGE_GROUP_SIZE_MOBILE } from "@/pages/Mypage/constants.ts";
-import { useDeleteProduct } from "@/pages/Mypage/hooks/useDeleteProduct.ts";
-import type { MyProductItem } from "@/pages/Mypage/types.ts";
+import { PAGE_GROUP_SIZE, PAGE_GROUP_SIZE_MOBILE } from "@/pages/Products/constants.ts";
+import { useDeleteProduct } from "@/pages/Products/hooks/useDeleteProduct.ts";
+import type { MyProductItem } from "@/pages/Products/types.ts";
 
 interface MyProductListProps {
     products: MyProductItem[]
