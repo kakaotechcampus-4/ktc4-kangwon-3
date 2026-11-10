@@ -14,7 +14,7 @@ import { errorResponse, successResponse } from '@/test/mocks/responses'
 import { server } from '@/test/mocks/server'
 import { declineConfirm, expectConfirmed } from '@/test/utils/confirmations'
 import { createGate } from '@/test/utils/createGate'
-import { expectNotNotified, waitForNotified } from '@/test/utils/notifications'
+import { expectNotified, expectNotNotified, waitForNotified } from '@/test/utils/notifications'
 import { getCurrentLocation, renderWithProviders } from '@/test/utils/renderWithProviders'
 
 const PRODUCTS_URL = `${API_URL}/api/v1/products`
@@ -503,82 +503,124 @@ describe('진단 결과 - 페이지 이동', () => {
 })
 
 describe('진단 결과 - 상품 삭제', () => {
-  it('삭제 버튼을 누르면 상품 이름을 넣은 확인 문구를 보여준다', async () => {
+  // 상품 하나만 삭제에 실패하게 만든다. (그 외 상품은 mockProductServer가 처리한다)
+  const failDeleteOf = (productId: string) =>
+    server.use(
+      http.delete(PRODUCT_URL, ({ params }) => {
+        if (params.productId === productId) {
+          return errorResponse(400, { detailMessage: SERVER_MESSAGES.PRODUCT_NOT_DELETABLE })
+        }
+      }),
+    )
+
+  it('아무것도 선택하지 않으면 선택 삭제 버튼이 비활성이다', async () => {
     mockProductServer(makeProducts(3))
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
 
-    await page.deleteProduct('상품-02')
-
-    expectConfirmed(PRODUCTS_MESSAGES.deleteConfirm('상품-02'))
+    expect(page.isDeleteSelectedEnabled()).toBe(false)
   })
 
-  it('확인을 취소하면 삭제 요청을 보내지 않고 목록도 그대로다', async () => {
+  it('선택 삭제를 누르면 선택한 개수를 넣은 확인 문구를 보여준다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.deleteProducts(['상품-01', '상품-02'])
+
+    expectConfirmed(PRODUCTS_MESSAGES.bulkDeleteConfirm(2))
+  })
+
+  it('확인을 취소하면 삭제 요청을 보내지 않고, 목록과 선택이 그대로다', async () => {
     declineConfirm()
     mockProductServer(makeProducts(3))
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
 
-    await page.deleteProduct('상품-02')
+    await page.deleteProducts(['상품-01', '상품-02'])
 
+    expect(requestLog.find('DELETE', '/api/v1/products/product-1')).toHaveLength(0)
     expect(requestLog.find('DELETE', '/api/v1/products/product-2')).toHaveLength(0)
     expect(page.productNames()).toEqual(['상품-01', '상품-02', '상품-03'])
+    expect(page.selectionSummary()).toBe('2개 선택됨')
   })
 
-  it('확인하면 삭제 요청을 보내고, 목록을 다시 불러와 그 상품만 사라진다', async () => {
-    mockProductServer(makeProducts(3))
+  it('확인하면 선택한 상품마다 삭제 요청을 한 번씩 보내고, 목록을 한 번 다시 불러와 그 상품들만 사라지며, 선택이 풀린다', async () => {
+    mockProductServer(makeProducts(4))
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
     const listRequestsBefore = page.listRequestCount()
 
-    await page.deleteProduct('상품-02')
+    await page.deleteProducts(['상품-01', '상품-03'])
 
-    await page.waitForProductNames(['상품-01', '상품-03'])
-    expect(requestLog.find('DELETE', '/api/v1/products/product-2')).toHaveLength(1)
-    expect(page.listRequestCount()).toBeGreaterThan(listRequestsBefore)
+    await page.waitForProductNames(['상품-02', '상품-04'])
+    expect(requestLog.find('DELETE', '/api/v1/products/product-1')).toHaveLength(1)
+    expect(requestLog.find('DELETE', '/api/v1/products/product-3')).toHaveLength(1)
+    expect(page.listRequestCount()).toBe(listRequestsBefore + 1)
+    expect(page.selectionSummary()).toBe('전체 선택')
     expectNotNotified()
   })
 
-  it('삭제하는 동안에는 그 상품의 버튼만 "삭제 중"으로 비활성화한다', async () => {
+  it('삭제하는 동안에는 선택 삭제 버튼이 "삭제 중"으로 비활성이고, 체크박스·전체 선택·정렬도 비활성이다', async () => {
     const gate = createGate()
     mockProductServer(makeProducts(3), { beforeDelete: () => gate.promise })
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
 
-    await page.deleteProduct('상품-02')
+    await page.deleteProducts(['상품-01', '상품-02'])
 
-    await page.waitUntilDeleteDisabled('상품-02')
-    expect(page.isDeleting('상품-02')).toBe(true)
-    expect(page.isDeleteEnabled('상품-01')).toBe(true)
-    expect(page.isDeleteEnabled('상품-03')).toBe(true)
+    await page.waitUntilDeletingSelected()
+    expect(page.isDeleteSelectedEnabled()).toBe(false)
+    expect(page.isProductSelectable('상품-03')).toBe(false)
+    expect(page.isSelectAllEnabled()).toBe(false)
+    expect(page.isSortEnabled('오래된순')).toBe(false)
 
     gate.release()
 
-    await page.waitUntilProductGone('상품-02')
+    await page.waitForProductNames(['상품-03'])
+    expect(page.isDeletingSelected()).toBe(false)
+    expect(page.isSortEnabled('오래된순')).toBe(true)
   })
 
-  it('삭제에 실패하면 서버의 오류 메시지를 안내하고, 상품은 그대로 두며 버튼을 다시 활성화한다', async () => {
+  it('일부만 실패하면 실패 개수와 서버 메시지를 안내하고, 실패한 상품만 목록과 선택에 남는다', async () => {
+    mockProductServer(makeProducts(3))
+    failDeleteOf('product-2')
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.deleteProducts(['상품-01', '상품-02', '상품-03'])
+
+    await waitForNotified({ includes: PRODUCTS_MESSAGES.bulkDeleteFailed(3, 1) })
+    expectNotified({ includes: SERVER_MESSAGES.PRODUCT_NOT_DELETABLE })
+    await page.waitForProductNames(['상품-02'])
+    expect(page.selectionSummary()).toBe('1개 선택됨')
+    expect(page.isProductSelected('상품-02')).toBe(true)
+  })
+
+  it('모두 실패하면 목록과 선택이 그대로이고, 버튼이 다시 활성이 된다', async () => {
     mockProductServer(makeProducts(3))
     server.use(http.delete(PRODUCT_URL, () => errorResponse(400, { detailMessage: SERVER_MESSAGES.PRODUCT_NOT_DELETABLE })))
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
 
-    await page.deleteProduct('상품-02')
+    await page.deleteProducts(['상품-01', '상품-02'])
 
-    await waitForNotified(SERVER_MESSAGES.PRODUCT_NOT_DELETABLE)
+    await waitForNotified({ includes: PRODUCTS_MESSAGES.bulkDeleteFailed(2, 2) })
+    expectNotified({ includes: SERVER_MESSAGES.PRODUCT_NOT_DELETABLE })
     expect(page.productNames()).toEqual(['상품-01', '상품-02', '상품-03'])
-    expect(page.isDeleteEnabled('상품-02')).toBe(true)
-    expect(page.isDeleting('상품-02')).toBe(false)
+    expect(page.selectionSummary()).toBe('2개 선택됨')
+    expect(page.isDeletingSelected()).toBe(false)
+    expect(page.isDeleteSelectedEnabled()).toBe(true)
   })
 
-  it('마지막 페이지의 마지막 상품을 삭제하면 이전 페이지로 이동한다', async () => {
+  it('마지막 페이지의 상품을 모두 삭제하면 이전 페이지로 이동한다', async () => {
     mockProductServer(makeProducts(11))
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
     await page.goToPage(2)
     await page.waitForProductNames(['상품-11'])
 
-    await page.deleteProduct('상품-11')
+    await page.deleteProducts(['상품-11'])
 
     await page.waitForProductCount(10)
     expect(page.productNames()[0]).toBe('상품-01')
@@ -594,18 +636,18 @@ describe('진단 결과 - 상품 삭제', () => {
     await page.goToPage(2)
     await page.waitForProductNames(['상품-11', '상품-12'])
 
-    await page.deleteProduct('상품-11')
+    await page.deleteProducts(['상품-11'])
 
     await page.waitForProductNames(['상품-12'])
     expect(page.lastListQuery().get('page')).toBe('1')
   })
 
-  it('첫 페이지의 마지막 상품을 삭제하면 페이지는 그대로 두고 빈 목록 안내를 보여준다', async () => {
+  it('첫 페이지의 상품을 모두 삭제하면 페이지는 그대로 두고 빈 목록 안내를 보여준다', async () => {
     mockProductServer(makeProducts(1))
     const { page } = renderProductsPage()
     await page.waitForProduct('상품-01')
 
-    await page.deleteProduct('상품-01')
+    await page.deleteProducts(['상품-01'])
 
     await page.waitForText(PRODUCTS_MESSAGES.EMPTY)
     expect(page.lastListQuery().get('page')).toBe('0')

@@ -20,11 +20,10 @@ const renderList = () =>
       selectedIds={new Set()}
       onToggleSelect={() => {}}
       isSelectionDisabled={false}
-      onProductDeleted={() => {}}
     />,
   )
 
-// 페이지 번호 버튼은 이름이 숫자뿐이다. (처음·이전·다음·마지막 버튼과 삭제 버튼, 선택 체크박스는 이름이 다르다)
+// 페이지 번호 버튼은 이름이 숫자뿐이다. (처음·이전·다음·마지막 버튼과 선택 체크박스는 이름이 다르다)
 const getPageNumberButtons = () => screen.getAllByRole('button', { name: /^\d+$/ })
 
 describe('마이페이지 상품 목록 - 페이지 번호 개수', () => {

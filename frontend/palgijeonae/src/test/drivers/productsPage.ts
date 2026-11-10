@@ -10,7 +10,7 @@ import { requestLog } from '@/test/mocks/requestLog'
 //
 //   const page = productsPage()
 //   await page.waitForProductNames(['상품-01'])
-//   await page.deleteProduct('상품-01')
+//   await page.deleteProducts(['상품-01'])
 
 type User = ReturnType<typeof userEvent.setup>
 
@@ -48,7 +48,8 @@ export function productsPage(user: User = userEvent.setup()) {
     return item
   }
 
-  const deleteButton = (name: string) => screen.getByRole('button', { name: `${name} 삭제` })
+  // 접근 이름은 선택 개수에 따라 달라진다. ("선택 삭제" / "선택한 상품 2개 삭제" / "삭제 중")
+  const deleteSelectedButton = () => screen.getByRole('button', { name: /^(선택 삭제|선택한 상품 \d+개 삭제|삭제 중)$/ })
 
   // ── 개정 알림 배너 ───────────────────────────────────────────
   const banner = () => screen.queryByRole('region', { name: '법령 개정 알림' })
@@ -128,6 +129,7 @@ export function productsPage(user: User = userEvent.setup()) {
 
     // ── 선택 ────────────────────────────────────────────────
     toggleProduct: (name: string) => user.click(productCheckbox(name)),
+    isProductSelectable: (name: string) => !(productCheckbox(name) as HTMLInputElement).disabled,
     isProductSelected: (name: string) => (productCheckbox(name) as HTMLInputElement).checked,
     toggleSelectAll: () => user.click(selectAllCheckbox()),
     isSelectAllChecked: () => (selectAllCheckbox() as HTMLInputElement).checked,
@@ -138,6 +140,7 @@ export function productsPage(user: User = userEvent.setup()) {
 
     // ── 정렬 ────────────────────────────────────────────────
     sortBy: (label: SortLabel) => user.click(sortButton(label)),
+    isSortEnabled: (label: SortLabel) => !(sortButton(label) as HTMLButtonElement).disabled,
     isSortSelected: (label: SortLabel) => sortButton(label).getAttribute('aria-pressed') === 'true',
 
     // ── 목록 조회 요청 (마지막으로 보낸 조회의 쿼리) ────────────────
@@ -145,11 +148,20 @@ export function productsPage(user: User = userEvent.setup()) {
     listRequestCount: () => requestLog.find('GET', '/api/v1/products').length,
 
     // ── 상품 삭제 ────────────────────────────────────────────
-    deleteProduct: (name: string) => user.click(deleteButton(name)),
-    isDeleteEnabled: (name: string) => !(deleteButton(name) as HTMLButtonElement).disabled,
-    /** 삭제 요청이 진행 중이라 "삭제 중"으로 보이는지 */
-    isDeleting: (name: string) => deleteButton(name).textContent?.includes('삭제 중') ?? false,
-    waitUntilDeleteDisabled: (name: string) => waitFor(() => expect((deleteButton(name) as HTMLButtonElement).disabled).toBe(true)),
+    deleteSelected: () => user.click(deleteSelectedButton()),
+    isDeleteSelectedEnabled: () => !(deleteSelectedButton() as HTMLButtonElement).disabled,
+    /** 삭제 요청이 진행 중이라 버튼이 "삭제 중"으로 보이는지 */
+    isDeletingSelected: () => screen.queryByRole('button', { name: '삭제 중' }) !== null,
+    waitUntilDeletingSelected: async () => {
+      await screen.findByRole('button', { name: '삭제 중' })
+    },
+    /** 상품을 체크하고 선택 삭제까지 누른다. */
+    async deleteProducts(names: string[]) {
+      for (const name of names) {
+        await user.click(productCheckbox(name))
+      }
+      await user.click(deleteSelectedButton())
+    },
 
     // ── 개정 알림 배너 ───────────────────────────────────────
     hasRevisionBanner: () => banner() !== null,

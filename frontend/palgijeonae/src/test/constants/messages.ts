@@ -89,7 +89,9 @@ export const PRODUCTS_MESSAGES = {
   // NOTE(source): Products 화면의 안내·확인 문구. 소스에 export가 없다.
   EMPTY: '조건에 맞는 상품이 없어요.',
   LIST_LOAD_FAILED: '상품 목록을 불러오지 못했어요.',
-  deleteConfirm: (productName: string) => `'${productName}'의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`,
+  bulkDeleteConfirm: (count: number) => `선택한 상품 ${count}개의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`,
+  // 요약 한 줄만이다. 뒤에 붙는 서버 메시지는 테스트가 따로 확인한다.
+  bulkDeleteFailed: (total: number, failed: number) => `${total}개 중 ${failed}개를 삭제하지 못했어요.`,
   // NOTE(source): RevisionNoticeBanner의 재진단 확인 문구. 소스에 export가 없다.
   rediagnoseConfirm: (productName: string) => `'${productName}'을(를) 다시 진단할까요? 이전 진단 결과는 사라지고, 되돌릴 수 없어요.`,
 }
