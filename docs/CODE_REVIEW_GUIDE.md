@@ -2,6 +2,10 @@
 
 > 해당 문서는 카카오테크캠퍼스 2단계 노션 문서의 '코드 리뷰 가이드' 문서와 동일합니다.
 
+> **이 저장소에서 다르게 적용하는 것**
+> - 브랜치 이름은 `{type}/{part}/{기능명}`을 씁니다(예: `feature/be/auth-jwt`, `refactor/fe/judgement-polling`). [CONTRIBUTING.md](../CONTRIBUTING.md) 참고.
+> - PR은 [PR 템플릿](../.github/pull_request_template.md)으로 작성합니다.
+
 > 💡 **안내**
 > - 담당 멘토님과의 코드 리뷰 일정을 숙지하시고, 잘 지켜주세요!
 > - 코드 리뷰는 팀원 간 상호 피드백을 통해 코드 품질을 높이고, 멘토님의 피드백을 통해 기술적 통찰을 얻는 학습 중심의 협업 활동입니다.
