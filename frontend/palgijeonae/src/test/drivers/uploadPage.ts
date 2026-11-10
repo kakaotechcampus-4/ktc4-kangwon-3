@@ -25,9 +25,9 @@ export function uploadPage(user: User = userEvent.setup()) {
   const mainImageInput = () => document.getElementById('product-image') as HTMLInputElement
 
   // NOTE(source): 상품 카드에는 목록(li)이나 그룹 역할·이름이 없어서 카드를 직접 찾을 수 없다.
-  // 카드마다 하나뿐인 "자세히 보기/접기" 버튼에서 위로 올라가, 제목 heading이 처음 나오는 조상을 카드의 한 행으로 본다.
+  // 카드마다 하나뿐인 "<제목> 자세히 보기" 버튼에서 위로 올라가, 제목 heading이 처음 나오는 조상을 카드의 한 행으로 본다.
   // 소스에서 카드를 <li>(목록)나 role="group" + aria-labelledby로 묶으면 이름으로 바로 찾을 수 있다.
-  const detailToggles = () => screen.queryAllByRole('button', { name: /^(자세히 보기|접기)$/ })
+  const detailButtons = () => screen.queryAllByRole('button', { name: /자세히 보기$/ })
   const rowOf = (toggle: HTMLElement): HTMLElement => {
     let node = toggle.parentElement
     while (node && !within(node).queryByRole('heading')) {
@@ -39,9 +39,9 @@ export function uploadPage(user: User = userEvent.setup()) {
     return node
   }
   const titleOf = (row: HTMLElement): string => within(row).getByRole('heading').textContent?.trim() ?? ''
-  const productRows = () => detailToggles().map(rowOf)
+  const productRows = () => detailButtons().map(rowOf)
 
-  // 화면에 보이는 제품명(40자를 넘으면 줄여서 보여 준다)으로 카드 행을 찾는다. 같은 이름이 둘이면 먼저 나온 것을 쓴다.
+  // 화면에 보이는 제품명으로 카드 행을 찾는다. 같은 이름이 둘이면 먼저 나온 것을 쓴다.
   const productRow = (name: string): HTMLElement => {
     const row = productRows().find((candidate) => titleOf(candidate) === name)
     if (!row) {
@@ -89,19 +89,19 @@ export function uploadPage(user: User = userEvent.setup()) {
       await user.click(within(productRow(name)).getByRole('button', { name: /^삭제$/ }))
     },
 
-    /** 이름이 같은 카드의 "자세히 보기"를 눌러 상세(링크·내용)를 펼친다. */
+    /** 이름이 같은 카드(항목)를 눌러 상세를 연다. */
     async openDetail(name: string) {
-      await user.click(within(productRow(name)).getByRole('button', { name: /^자세히 보기$/ }))
+      await user.click(within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }))
     },
 
     startDiagnosis: () => clickButton(/진단 시작하기/),
 
     // ── 조회 ────────────────────────────────────────────────
-    /** 목록에 보이는 제품명을 추가한 순서대로 돌려준다. (40자를 넘는 이름은 줄어든 모양이다) */
+    /** 목록에 보이는 제품명을 추가한 순서대로 돌려준다. (긴 이름은 글자를 자르지 않고 CSS가 한 줄에서 줄여 보인다) */
     productNames: () => productRows().map(titleOf),
 
-    /** 제품명 위에 마우스를 올리면 보이는 원본 제목(title 속성). 줄이지 않았으면 null이다. */
-    productTooltip: (name: string) => within(productRow(name)).getByRole('heading').getAttribute('title'),
+    /** 항목 위에 마우스를 올리면 보이는 전체 제목(title 속성) */
+    productTooltip: (name: string) => within(productRow(name)).getByRole('button', { name: /자세히 보기$/ }).getAttribute('title'),
 
     thumbnailSrc: (name: string) => within(productRow(name)).getByAltText('상품 썸네일').getAttribute('src'),
 

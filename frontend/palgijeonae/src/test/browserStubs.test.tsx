@@ -20,7 +20,7 @@ describe('브라우저 API 스텁', () => {
   it('상품 썸네일은 파일로 만든 주소를 쓰고, 화면이 사라지면 그 주소를 해제한다', () => {
     const file = new File(['a'], 'thumb.png', { type: 'image/png' })
     const { unmount } = render(
-      <AddedProduct type={SourceType.Url} title="테스트 상품" productImageFile={file} link="https://example.com" onRemove={() => {}} />,
+      <AddedProduct type={SourceType.Url} title="테스트 상품" productImageFile={file} onOpenDetail={() => {}} onRemove={() => {}} />,
     )
 
     expect(URL.createObjectURL).toHaveBeenCalledWith(file)

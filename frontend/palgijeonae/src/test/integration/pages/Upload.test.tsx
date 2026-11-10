@@ -67,42 +67,24 @@ describe('업로드 화면 - 상품 추가', () => {
     expect(page.productNames()).toEqual(['첫째', '둘째'])
   })
 
-  it('텍스트/이미지 탭에서 내용으로 상품을 추가하고, 자세히 보기에서 내용을 확인한다', async () => {
+  it('텍스트/이미지 탭에서 내용으로 상품을 추가한다', async () => {
     const page = renderUploadPage()
 
     await page.switchToTextImage()
     await page.addTextImageProduct({ title: '캠핑 테이블', content: '접이식 알루미늄 테이블입니다.' })
 
     expect(page.productNames()).toEqual(['캠핑 테이블'])
-
-    await page.openDetail('캠핑 테이블')
-    expect(page.hasDetailContent('접이식 알루미늄 테이블입니다.')).toBe(true)
   })
 
-  it('URL 상품의 자세히 보기에서 링크를 새 탭으로 열 수 있는 a 태그로 보여준다', async () => {
-    const page = renderUploadPage()
-
-    await page.addUrlProduct({ title: '이어폰', link: 'https://example.com/item' })
-    await page.openDetail('이어폰')
-
-    expect(page.detailLink('https://example.com/item')).toEqual({
-      href: 'https://example.com/item',
-      target: '_blank',
-      rel: 'noopener noreferrer',
-    })
-  })
-
-  // 말줄임 규칙(글자 수 경계, 이모지 등)은 단위 테스트가 다룬다. (unit/lib/text.test.ts) 여기서는 목록에서 줄여 보이고 원본이 보존되는지만 확인한다.
-  it('긴 제품명은 목록에서 줄여 보여주고, 원본은 title 속성에 보존한다', async () => {
+  // 한 줄 말줄임은 CSS가 하므로 글자를 자르지 않는다. 여기서는 원본 제목이 그대로 보이고 전체 제목이 title 속성으로 제공되는지만 확인한다.
+  it('긴 제품명은 자르지 않고 그대로 보여주고, 전체 제목을 title 속성으로 제공한다', async () => {
     const page = renderUploadPage()
     const longTitle = '가'.repeat(60)
 
     await page.addUrlProduct({ title: longTitle })
 
-    const [shownTitle] = page.productNames()
-    expect(shownTitle).toMatch(/\.\.\.$/)
-    expect(shownTitle.length).toBeLessThan(longTitle.length)
-    expect(page.productTooltip(shownTitle)).toBe(longTitle)
+    expect(page.productNames()).toEqual([longTitle])
+    expect(page.productTooltip(longTitle)).toBe(longTitle)
   })
 
   it('대표 사진을 첨부하면 미리보기가 보이고, 상품 카드의 썸네일로 쓴다', async () => {
