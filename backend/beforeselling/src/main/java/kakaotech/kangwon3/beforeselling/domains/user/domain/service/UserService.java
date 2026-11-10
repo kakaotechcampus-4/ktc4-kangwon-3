@@ -28,6 +28,12 @@ public class UserService {
                 .orElseThrow(() -> new BaseException(CommonResponseCode.NOT_FOUND));
     }
 
+    public void validateExists(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new BaseException(CommonResponseCode.NOT_FOUND);
+        }
+    }
+
     public List<User> getUsers(Collection<UUID> userIds) {
         return userRepository.findAllById(userIds);
     }

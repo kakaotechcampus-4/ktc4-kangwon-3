@@ -65,6 +65,29 @@ class UserServiceTest {
     }
 
     @Test
+    @DisplayName("존재하는 회원 ID로 존재 여부를 확인하면 예외가 발생하지 않는다.")
+    void validateExists_thenPass() {
+        // given
+        given(userRepository.existsById(USER_ID)).willReturn(true);
+
+        // when & then
+        userService.validateExists(USER_ID);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원 ID로 존재 여부를 확인하면 NOT_FOUND 예외가 발생한다.")
+    void validateExists_withUnknownId_thenThrow() {
+        // given
+        given(userRepository.existsById(USER_ID)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> userService.validateExists(USER_ID))
+                .isInstanceOf(BaseException.class)
+                .extracting(e -> ((BaseException) e).getResponseCode())
+                .isEqualTo(CommonResponseCode.NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("회원 ID 여러 개로 조회하면 있는 회원만 반환한다.")
     void getUsers_thenReturnExistingUsers() {
         // given
