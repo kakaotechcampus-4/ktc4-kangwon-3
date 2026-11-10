@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import type { SortType } from "@/api/products.ts";
@@ -11,8 +12,19 @@ export function useProductListParams() {
     const params = parseListParams(searchParams);
 
     const update = (next: Partial<ListParams>, replace = false) => {
-        setSearchParams(toSearchParams({ ...params, ...next }), { replace });
+        const nextSearchParams = toSearchParams({ ...params, ...next });
+        // 같은 조건을 다시 고르면(같은 검색어로 Enter 등) 같은 기록이 쌓이지 않게 한다.
+        if (nextSearchParams.toString() === searchParams.toString()) {
+            return;
+        }
+        setSearchParams(nextSearchParams, { replace });
     };
+
+    // 없는 페이지를 고칠 때처럼 기록을 남기지 않고 주소만 바꾼다.
+    const replacePage = useCallback(
+        (page: number) => setSearchParams(toSearchParams({ ...parseListParams(searchParams), page }), { replace: true }),
+        [searchParams, setSearchParams],
+    );
 
     return {
         ...params,
@@ -21,7 +33,6 @@ export function useProductListParams() {
         setKeyword: (keyword: string) => update({ keyword, page: 0 }),
         setSortType: (sortType: SortType) => update({ sortType, page: 0 }),
         setPage: (page: number) => update({ page }),
-        // 없는 페이지를 고칠 때처럼 기록을 남기지 않고 주소만 바꾼다.
-        replacePage: (page: number) => update({ page }, true),
+        replacePage,
     };
 }

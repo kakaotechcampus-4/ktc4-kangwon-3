@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 import { getErrorMessage } from "@/api/core/client.ts";
-import { SortType } from "@/api/products.ts";
 import SectionIntro from "@/components/common/SectionIntro";
 import MyProductList from "@/pages/Products/components/MyProductList.tsx";
 import ProductFilterBar from "@/pages/Products/components/ProductFilterBar.tsx";
@@ -11,16 +11,15 @@ import { PAGE_SIZE } from "@/pages/Products/constants.ts";
 import { useDeleteProducts } from "@/pages/Products/hooks/useDeleteProducts.ts";
 import { useLawAmendments } from "@/pages/Products/hooks/useLawAmendments.ts";
 import { useMyProducts } from "@/pages/Products/hooks/useMyProducts.ts";
+import { useProductListParams } from "@/pages/Products/hooks/useProductListParams.ts";
 import { useProductSelection } from "@/pages/Products/hooks/useProductSelection.ts";
-import type { ProductFilter } from "@/pages/Products/types.ts";
+import { getLastPageIndex } from "@/pages/Products/utils/listParams.ts";
 
 function ProductsPage() {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [filter, setFilter] = useState<ProductFilter>("all");
-    const [sortType, setSortType] = useState<SortType>(SortType.Latest);
-    const [page, setPage] = useState(0);
+    const { filter, keyword, sortType, page, setFilter, setKeyword, setSortType, setPage, replacePage } = useProductListParams();
+    const { search } = useLocation();
 
-    const { data, isPending, isError, refetch } = useMyProducts(filter, searchTerm, sortType, page);
+    const { data, isPending, isError, refetch } = useMyProducts(filter, keyword, sortType, page);
     // 배너는 부가 정보라 로딩·에러일 때는 숨기고 페이지를 막지 않는다.
     const { data: lawAmendments } = useLawAmendments();
 
@@ -28,32 +27,23 @@ function ProductsPage() {
     const pagedProducts = data?.items ?? [];
     const pageInfo = data?.pageInfo ?? { page, size: PAGE_SIZE, totalElements: 0, totalPages: 1, hasNext: false };
 
-    const { selectedIds, isAllSelected, toggle, toggleAll, clear, retain } = useProductSelection(pagedProducts.map((product) => product.productId));
+    // 조건이 바뀌어 주소가 달라지면 보이지 않게 된 선택을 비운다. (뒤로 가기, 없는 페이지 보정도 포함)
+    const { selectedIds, isAllSelected, toggle, toggleAll, retain } = useProductSelection(
+        pagedProducts.map((product) => product.productId),
+        search,
+    );
     const { mutate: deleteProducts, isPending: isDeleting } = useDeleteProducts();
 
-    // 상품 검색어 / 필터 / 정렬이 변경되면 페이지 범위가 달라지므로 처음(0)으로 설정하고, 보이지 않게 된 선택도 비운다.
-    const handleSearchTermChange = (value: string) => {
-        setSearchTerm(value);
-        setPage(0);
-        clear();
-    };
-
-    const handleFilterChange = (value: ProductFilter) => {
-        setFilter(value);
-        setPage(0);
-        clear();
-    };
-
-    const handleSortChange = (value: SortType) => {
-        setSortType(value);
-        setPage(0);
-        clear();
-    };
-
-    const handlePageChange = (value: number) => {
-        setPage(value);
-        clear();
-    };
+    // 주소의 페이지가 마지막 페이지를 넘으면(직접 입력, 마지막 페이지 상품을 모두 삭제) 마지막 페이지로 주소를 고친다.
+    useEffect(() => {
+        if (!data) {
+            return;
+        }
+        const lastPage = getLastPageIndex(data.pageInfo.totalPages);
+        if (page > lastPage) {
+            replacePage(lastPage);
+        }
+    }, [data, page, replacePage]);
 
     const handleDeleteSelected = () => {
         const productIds = Array.from(selectedIds);
@@ -62,15 +52,11 @@ function ProductsPage() {
             return;
         }
 
-        // 지운 뒤 현재 페이지가 비게 되는지는 삭제 요청 전에 기억해 둔다.
-        const wasWholePage = productIds.length === pagedProducts.length;
         deleteProducts(productIds, {
             onSuccess: ({ failedIds, firstError }) => {
                 retain(failedIds);
                 if (failedIds.length > 0) {
                     alert(`${productIds.length}개 중 ${failedIds.length}개를 삭제하지 못했어요.\n${getErrorMessage(firstError, "다시 시도해주세요.")}`);
-                } else if (wasWholePage && page > 0) {
-                    setPage(page - 1);
                 }
             },
         });
@@ -83,10 +69,10 @@ function ProductsPage() {
             <div className="flex flex-col gap-4">
                 <SectionIntro title="전체 상품" size="xl" titleAside={data ? `${pageInfo.totalElements}개` : undefined} />
                 <ProductFilterBar
-                    searchTerm={searchTerm}
-                    onSearchTermChange={handleSearchTermChange}
+                    searchTerm={keyword}
+                    onSearchTermChange={setKeyword}
                     filter={filter}
-                    onFilterChange={handleFilterChange}
+                    onFilterChange={setFilter}
                 />
                 <ProductListToolbar
                     selectedCount={selectedIds.size}
@@ -96,7 +82,7 @@ function ProductsPage() {
                     onDeleteSelected={handleDeleteSelected}
                     isDeleting={isDeleting}
                     sortType={sortType}
-                    onSortChange={handleSortChange}
+                    onSortChange={setSortType}
                 />
                 <MyProductList
                     products={pagedProducts}
@@ -106,7 +92,7 @@ function ProductsPage() {
                     page={page}
                     totalPages={pageInfo.totalPages}
                     hasNext={pageInfo.hasNext}
-                    onPageChange={handlePageChange}
+                    onPageChange={setPage}
                     selectedIds={selectedIds}
                     onToggleSelect={toggle}
                     isSelectionDisabled={isDeleting}
