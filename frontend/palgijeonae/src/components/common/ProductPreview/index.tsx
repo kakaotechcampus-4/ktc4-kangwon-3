@@ -17,9 +17,10 @@ interface ProductPreviewProps {
     sourceType: SourceType
     // 카드 오른쪽 위에 삭제 버튼 같은 동작이 겹쳐 놓일 때, 좁은 화면에서 글자가 그 밑으로 들어가지 않도록 자리를 비워 둔다.
     hasTrailingAction?: boolean
+    selected?: boolean
 }
 
-function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType, hasTrailingAction = false }: ProductPreviewProps) {
+function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType, hasTrailingAction = false, selected = false }: ProductPreviewProps) {
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
@@ -29,7 +30,7 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
     const isProductNameLong = isMobile || displayTitle !== productName;
 
     return (
-        <DefaultBox>
+        <DefaultBox className={cn(selected && "border-primary/60 bg-primary-soft/30")}>
             <div className="flex w-full flex-row gap-3 md:gap-4">
                 <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"
