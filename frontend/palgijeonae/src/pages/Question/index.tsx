@@ -12,8 +12,6 @@ import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
 import SectionIntro from "@/components/common/SectionIntro";
-import { useIsMobile } from "@/hooks/useIsMobile";
-import { useTextFieldFocused } from "@/hooks/useTextFieldFocused";
 import { getCurrentRoundQuestions } from "@/lib/questions";
 import { isMissingRouteParam } from "@/lib/routeParams";
 import QuestionCard from "@/pages/Question/components/QuestionCard";
@@ -26,11 +24,6 @@ function QuestionPage() {
     const navigate = useNavigate();
 
     const isInvalidAccess = isMissingRouteParam(productId);
-
-    // 모바일에서 답변을 입력하는 동안은 화면 키보드와 바가 입력칸을 가리므로 바를 숨긴다.
-    const isMobile = useIsMobile();
-    const isTextFieldFocused = useTextFieldFocused();
-    const isTyping = isMobile && isTextFieldFocused;
 
     // productId 없이 잘못 진입한 경우(예: /question/undefined) 요청을 보내지 않고 업로드 페이지로 되돌린다.
     useEffect(() => {
@@ -151,7 +144,6 @@ function QuestionPage() {
             )}
             {product && currentQuestions.length > 0 && (
                 <BottomActionBar
-                    hidden={isTyping}
                     actions={<Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} className="self-center" />}
                 >
                     <p className="text-sm font-bold text-black md:text-base">

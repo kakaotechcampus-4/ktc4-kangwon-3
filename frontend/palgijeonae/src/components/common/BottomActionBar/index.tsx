@@ -1,17 +1,24 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
+import { useTextFieldFocused } from "@/hooks/useTextFieldFocused";
+
 interface BottomActionBarProps {
     // 왼쪽 영역. 진행 상황 요약을 담는다.
     children: ReactNode
     // 오른쪽 영역. 주요 버튼을 담는다.
     actions: ReactNode
-    // true이면 바를 숨긴다. 화면 아래 여백(--action-bar-space)은 그대로 둬서 숨겨도 본문이 움직이지 않는다.
-    hidden?: boolean
 }
 
 /** 화면 아래에 고정된 바. 왼쪽에는 진행 상황 요약, 오른쪽에는 주요 버튼을 보여준다. */
-function BottomActionBar({ children, actions, hidden = false }: BottomActionBarProps) {
+function BottomActionBar({ children, actions }: BottomActionBarProps) {
+    // 모바일에서 글자를 입력하는 동안은 화면 키보드와 바가 입력칸을 가리므로 바를 숨긴다.
+    // 아래 여백(--action-bar-space)은 그대로 둬서 숨겨도 본문이 움직이지 않는다.
+    const isMobile = useIsMobile();
+    const isTextFieldFocused = useTextFieldFocused();
+    const hidden = isMobile && isTextFieldFocused;
+
     // 바가 화면 아래를 덮는 만큼 페이지 맨 아래(푸터)가 가려지지 않도록, Layout이 읽는 여백 값을 정한다.
     useEffect(() => {
         document.documentElement.style.setProperty("--action-bar-space", "calc(5rem + env(safe-area-inset-bottom))");
