@@ -10,7 +10,7 @@ function RecheckProductRow({ product, isPending, onRediagnose }: RecheckProductR
     return (
         <li className="flex items-center gap-3 py-2.5 md:gap-4 md:py-2">
             {/* 상품명은 누를 수 없는 텍스트다. 모바일에서는 2줄을 넘으면 말줄임한다. */}
-            <p className="line-clamp-2 min-w-0 flex-1 text-[15px] leading-5.5 font-bold wrap-break-word text-neutral-text md:line-clamp-none">
+            <p className="line-clamp-2 min-w-0 flex-1 text-[15px] leading-5.5 font-bold text-neutral-text md:line-clamp-none">
                 {product.productName}
             </p>
             <button

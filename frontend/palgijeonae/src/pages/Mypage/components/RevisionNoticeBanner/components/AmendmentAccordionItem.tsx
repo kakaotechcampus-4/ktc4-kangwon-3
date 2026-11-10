@@ -30,7 +30,7 @@ function AmendmentAccordionItem({ amendment, expanded, onToggle, rediagnosingPro
                 onClick={onToggle}
                 className="flex min-h-14 w-full cursor-pointer items-center gap-3 p-4 text-left outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-status-notice/30 md:min-h-13 md:py-3.5"
             >
-                <span className="min-w-0 flex-1 text-[15px] leading-5.5 font-bold wrap-break-word text-neutral-text md:text-base md:leading-6">
+                <span className="min-w-0 flex-1 text-[15px] leading-5.5 font-bold text-neutral-text md:text-base md:leading-6">
                     {amendment.lawName}
                 </span>
                 <span className="shrink-0 rounded-full bg-status-notice-bg px-2.5 py-0.75 text-[13px] leading-4.5 font-bold text-status-notice">

@@ -57,7 +57,7 @@ function FindingCard({ finding }: FindingCardProps) {
                     >
                         <img src={toggleStyle.icon} alt="" className="h-6 w-6 shrink-0" />
                         <p className={cn("shrink-0 text-base leading-6 font-bold", toggleStyle.textColorClass)}>근거</p>
-                        <p className={cn("min-w-0 text-sm leading-6 wrap-break-word", toggleStyle.textColorClass)}>{firstLegalSourceLabel}</p>
+                        <p className={cn("min-w-0 text-sm leading-6", toggleStyle.textColorClass)}>{firstLegalSourceLabel}</p>
                         {restLegalSources.length > 0 && (
                             <p className="shrink-0 text-sm leading-6 text-neutral-muted">외 {restLegalSources.length}건</p>
                         )}

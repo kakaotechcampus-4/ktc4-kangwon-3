@@ -8,6 +8,9 @@ html {
 
 body {
     background-color: var(--color-surface-page);
+    /* 한글은 어절 단위로 줄바꿈한다. 한 어절이 한 줄보다 길 때만 글자 단위로 끊어 넘치지 않게 한다. */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
 }
 
 @theme {
