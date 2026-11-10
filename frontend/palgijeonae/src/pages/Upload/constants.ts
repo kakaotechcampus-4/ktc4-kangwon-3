@@ -1,3 +1,6 @@
+// 한 번에 담아 진단할 수 있는 상품 수
+export const MAX_PRODUCT_COUNT = 10;
+
 // 제품명 길이 제한(보이는 글자 수/grapheme 기준). 입력 중 실시간으로 자르는 기준이자 사용자에게 보여주는 숫자.
 export const MAX_PRODUCT_NAME_LENGTH = 100;
 
