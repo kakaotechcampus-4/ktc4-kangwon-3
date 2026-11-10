@@ -45,7 +45,8 @@ def test_검토_범위가_초안의_판단_ID_목록을_벗어나면_파싱_실�
     assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "parsing")]
 
 
-def test_존재하지_않는_판단_ID를_참조하면_실패한다(samples, stub_model, records):
+def test_지적이_존재하지_않는_판단_ID를_가리키면_파싱_실패다(samples, stub_model, records):
+    # 출력 스키마가 지적의 판단 ID도 초안의 판단 ID로 좁혀, 실제 모델은 이런 출력을 내지 못함
     review = samples.review(
         issues=[
             _Issue(
@@ -59,8 +60,11 @@ def test_존재하지_않는_판단_ID를_참조하면_실패한다(samples, stu
     )
     agent = VerificationAgent(stub_model(review))
 
-    with pytest.raises(VerificationError, match="존재하지 않는"):
+    with pytest.raises(VerificationError) as exc_info:
         agent.run(samples.draft())
+
+    assert exc_info.value.partial_result is not None
+    assert [(row["ok"], row["failure_phase"]) for row in records] == [(False, "parsing")]
 
 
 def test_출력_스키마는_검토_판단_ID의_값과_개수를_초안의_판단_ID로_고정한다():

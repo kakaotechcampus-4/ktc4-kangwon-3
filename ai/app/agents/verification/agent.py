@@ -23,7 +23,7 @@ from ...tools.common.questions import answered_questions, field_for
 from ..base import AgentResult, BaseAgent, ModelFailurePhase
 from .errors import VerificationError
 from .rules import DEFINITIVE, run_rule_checks
-from .schemas import _Review
+from .schemas import _Issue, _Review
 
 _TOOL_RECOVERABLE_ISSUES = frozenset(
     {
@@ -605,20 +605,25 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
 
 
 def review_schema(finding_ids: Sequence[str]) -> type[_Review]:
-    """검토한 판단 ID를 초안의 판단 ID로 제한한 출력 스키마를 만든다 (#742).
+    """검토한 판단 ID와 지적이 가리키는 판단 ID를 초안의 판단 ID로 제한한 출력 스키마를 만든다 (#742).
 
-    값은 초안의 판단 ID만, 개수는 판단 수로 고정. strict 구조화 출력이라 같은 ID를 끝없이 반복하거나(#720)
+    값은 초안의 판단 ID만, 검토한 판단 ID의 개수는 판단 수로 고정. strict 구조화 출력이라 같은 ID를 끝없이 반복하거나(#720)
     ID를 틀리게 옮겨 적는 출력은 생성되지 않음. 같은 ID를 두 번 쓰고 하나를 빠뜨리는 것은 막지 못해
     검토 범위 확인(_check_scope)이 그대로 잡음.
+
+    지적의 related_finding_ids도 같은 값 목록으로 좁힘. 긴 ID를 한두 글자 틀리게 옮겨 적으면 검증 전체가 실패해
+    진단이 미확정으로 끝나던 것을 막음 (튜닝셋 mini 75회 중 4회).
 
     Args:
         finding_ids: 초안의 판단 ID.
 
     Returns:
-        type[_Review]: checked_finding_ids만 좁힌 _Review. 이름이 같아 요청 스키마 이름도 그대로.
+        type[_Review]: checked_finding_ids와 issues[].related_finding_ids를 좁힌 _Review. 이름이 같아 요청 스키마 이름도 그대로.
     """
     ids = tuple(dict.fromkeys(finding_ids))
     # 판단이 없으면 값 목록을 만들 수 없어 빈 목록만 허용
     item = Literal[ids] if ids else str
     checked = (list[item], Field(min_length=len(ids), max_length=len(ids)))
-    return create_model("_Review", __base__=_Review, checked_finding_ids=checked)
+    related = (list[item], Field(max_length=len(ids)))
+    issue = create_model("_Issue", __base__=_Issue, related_finding_ids=related)
+    return create_model("_Review", __base__=_Review, checked_finding_ids=checked, issues=(list[issue], ...))
