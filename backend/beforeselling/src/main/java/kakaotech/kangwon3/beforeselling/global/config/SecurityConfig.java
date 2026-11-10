@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.global.config;
 
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
 import kakaotech.kangwon3.beforeselling.global.config.properties.InternalApiProperties;
 import kakaotech.kangwon3.beforeselling.global.security.cookie.OAuth2RedirectCookieProvider;
@@ -70,6 +71,7 @@ public class SecurityConfig {
 
     private final AppProperties appProperties;
     private final JwtProvider jwtProvider;
+    private final WithdrawnUserService withdrawnUserService;
     private final ApiResponseWriter apiResponseWriter;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
@@ -104,7 +106,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        JwtAuthenticationFilter jwtAuthenticationFilter = new JwtAuthenticationFilter(jwtProvider, publicEndpointMatcher());
+        JwtAuthenticationFilter jwtAuthenticationFilter =
+                new JwtAuthenticationFilter(jwtProvider, withdrawnUserService, publicEndpointMatcher());
         JwtExceptionFilter jwtExceptionFilter = new JwtExceptionFilter(apiResponseWriter);
         OAuth2RedirectUriCaptureFilter oAuth2RedirectUriCaptureFilter = new OAuth2RedirectUriCaptureFilter(
                 PathPatternRequestMatcher.pathPattern("/oauth2/authorization/*"),
