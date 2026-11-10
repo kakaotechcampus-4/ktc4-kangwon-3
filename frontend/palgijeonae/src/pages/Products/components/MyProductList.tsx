@@ -1,6 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
 
-import { getErrorMessage } from "@/api/core/client.ts";
 import Checkbox from "@/components/common/Checkbox/index.tsx";
 import LoadingSpinner from "@/components/common/LoadingSpinner/index.tsx";
 import Pagination from "@/components/common/Pagination/index.tsx";
@@ -8,7 +7,6 @@ import ProductPreview from "@/components/common/ProductPreview/index.tsx";
 import { useIsMobile } from "@/hooks/useIsMobile.ts";
 import { createFromState } from "@/lib/fromState.ts";
 import { PAGE_GROUP_SIZE, PAGE_GROUP_SIZE_MOBILE } from "@/pages/Products/constants.ts";
-import { useDeleteProduct } from "@/pages/Products/hooks/useDeleteProduct.ts";
 import type { MyProductItem } from "@/pages/Products/types.ts";
 
 interface MyProductListProps {
@@ -24,29 +22,11 @@ interface MyProductListProps {
     onToggleSelect: (productId: string) => void
     // 삭제 요청이 진행 중일 때 선택을 바꾸지 못하게 한다.
     isSelectionDisabled: boolean
-    // 삭제 직전 그 상품이 현재 페이지의 마지막 하나였는지 알려준다.
-    onProductDeleted: (wasLastOnPage: boolean) => void
 }
 
-function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange, selectedIds, onToggleSelect, isSelectionDisabled, onProductDeleted }: MyProductListProps) {
-    const { mutate: deleteProduct, isPending: isDeleting, variables: deletingProductId } = useDeleteProduct();
+function MyProductList({ products, isLoading, isError, onRetry, page, totalPages, hasNext, onPageChange, selectedIds, onToggleSelect, isSelectionDisabled }: MyProductListProps) {
     const isMobile = useIsMobile();
     const location = useLocation();
-
-    const handleDelete = (product: MyProductItem) => {
-        const confirmed = confirm(`'${product.productName}'의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`);
-        if (!confirmed) {
-            return;
-        }
-
-        const wasLastOnPage = products.length === 1;
-        deleteProduct(product.productId, {
-            onSuccess: () => onProductDeleted(wasLastOnPage),
-            onError: (error) => {
-                alert(getErrorMessage(error, "상품을 삭제하지 못했어요. 다시 시도해주세요."));
-            },
-        });
-    };
 
     return (
         <div className="flex w-full flex-col gap-6">
@@ -70,9 +50,8 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
             ) : (
                 <ul aria-label="전체 상품" className="flex w-full flex-col gap-3.5">
                     {products.map((product) => {
-                        const isDeletingThis = isDeleting && deletingProductId === product.productId;
                         return (
-                            <li key={product.productId} className="relative flex items-center gap-3 md:gap-4">
+                            <li key={product.productId} className="flex items-center gap-3 md:gap-4">
                                 <Checkbox
                                     checked={selectedIds.has(product.productId)}
                                     disabled={isSelectionDisabled}
@@ -86,19 +65,9 @@ function MyProductList({ products, isLoading, isError, onRetry, page, totalPages
                                         resultStatus={product.resultStatus}
                                         processingStatus={product.processingStatus}
                                         sourceType={product.sourceType}
-                                        hasTrailingAction
                                         selected={selectedIds.has(product.productId)}
                                     />
                                 </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDelete(product)}
-                                    disabled={isDeletingThis}
-                                    aria-label={`${product.productName} 삭제`}
-                                    className="absolute top-4.5 right-4 cursor-pointer rounded-full border border-box-line bg-white px-2.5 py-0.75 text-xs font-bold text-neutral-muted md:right-6 md:px-3 md:py-1 md:text-sm md:font-semibold transition-colors duration-150 outline-none hover:border-status-danger/40 hover:bg-status-danger-bg hover:text-status-danger focus-visible:border-status-danger/40 focus-visible:bg-status-danger-bg focus-visible:text-status-danger focus-visible:ring-3 focus-visible:ring-status-danger/15 disabled:cursor-default disabled:opacity-50"
-                                >
-                                    {isDeletingThis ? "삭제 중" : "삭제"}
-                                </button>
                             </li>
                         );
                     })}
