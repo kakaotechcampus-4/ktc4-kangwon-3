@@ -11,6 +11,7 @@ import re
 
 from ...schemas.product import Product
 from ...schemas.schemas import ToolName
+from ..common.questions import ANSWER_PREFIX
 from .evidence import ConfirmationRow, law_key
 
 # 세관장확인 요건 법령 → 같은 법을 판단하는 규제 Tool. 키는 law_key(공백·가운뎃점 무시).
@@ -109,6 +110,25 @@ def _without_excludable(text: str, excludable: re.Pattern[str]) -> str:
     return " ".join(parts)
 
 
+def _unspecified_leather_left(material_texts: list[str], excludable: re.Pattern[str]) -> bool:
+    """뺄 수 있는 소재 표기를 지우고도 종류를 밝히지 않은 가죽 표기가 남는지.
+
+    판매자 답변 줄에 뺄 수 있는 소재가 있으면 답변 줄만 본다. 상품 이름·원문의 "가죽"은 답변이 종류를 밝힌 것으로 봄
+    (리뷰 #774: "카메라 가죽 케이스"에 "소가죽"으로 답해도 이름의 "가죽"이 남아 요건이 빠지지 않던 것).
+    남겨야 하는 소재(악어 등) 확인은 호출하는 쪽이 전체 글로 먼저 한다.
+
+    Args:
+        material_texts: 소재를 적은 글.
+        excludable: 뺄 수 있는 소재 표기.
+
+    Returns:
+        bool: 종류를 모르는 가죽 표기가 남으면 True.
+    """
+    answers = [text for text in material_texts if text.startswith(ANSWER_PREFIX) and excludable.search(text)]
+    text = " ".join(answers or material_texts)
+    return bool(_UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)))
+
+
 def material_question_helps(law_name: str, material_texts: list[str], material_known: bool) -> bool:
     """소재로 빠질 수 있는 요건이 남아 있을 때, 판매자에게 재질을 물으면 요건이 빠질 수 있는지.
 
@@ -132,7 +152,7 @@ def material_question_helps(law_name: str, material_texts: list[str], material_k
         return False
     if not material_known:
         return True
-    return bool(_UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)))
+    return _unspecified_leather_left(material_texts, excludable)
 
 
 def excluded_by_product(law_name: str, product: Product, material_texts: list[str] | None = None) -> str | None:
@@ -160,7 +180,7 @@ def excluded_by_product(law_name: str, product: Product, material_texts: list[st
         return None
     # 일부 소재만 확인된 상품은 빼지 않는다 (리뷰 #708: 안감은 인조 가죽인데 겉감 가죽의 종류는 모르는 경우).
     # 뺄 수 있는 표기를 지우고도 종류를 모르는 가죽 표기가 남으면 남긴다
-    if _UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)):
+    if _unspecified_leather_left(material_texts, excludable):
         return None
     return goods
 

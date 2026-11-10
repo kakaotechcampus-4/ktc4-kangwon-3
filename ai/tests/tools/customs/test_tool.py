@@ -11,6 +11,7 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.common.law import EvidenceUnavailable
+from app.tools.common.questions import ANSWER_PREFIX
 from app.tools.customs import CustomsTool, CustomsToolError
 from app.tools.customs.evidence import load_customs_evidence
 from app.tools.customs.search import CaseCandidates, ClipCaseSearch, HsCase, Requirement
@@ -648,6 +649,31 @@ def test_소가죽이나_악어가죽으로_정해지면_재질을_묻지_않는
                                            values=(("product_type", "전기주전자"), ("material", leather)))
         result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
         assert result.missing_information == [], leather
+
+
+def _answered(product, answer):
+    """재질 질문에 판매자가 답한 재진단 입력 (답변 줄을 상품 문구 끝에 붙임, diagnosis/answers.py)."""
+    line = f"{ANSWER_PREFIX} 제품의 주된 재질(소재) 확인이 필요합니다. → {answer}"
+    return product.model_copy(update={"listing_text": [*product.listing_text, line]})
+
+
+@pytest.mark.parametrize("answer,left", [("소가죽", False), ("양가죽", False), ("천연가죽", True), ("가죽", True)])
+def test_재질_질문에_가죽_종류로_답하면_상품_이름의_가죽이_있어도_요건을_뺀다(answer, left):
+    # 리뷰 #774: 상품 이름 "가죽 손잡이 전기주전자"의 "가죽"이 남아 "소가죽"으로 답해도 요건이 빠지지 않았음
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"),))
+    product = _answered(product.model_copy(update={"product_name": "가죽 손잡이 전기주전자"}), answer)
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert bool(result.query["requirements"]["8516799000"]) is left, answer
+
+
+def test_이름에_악어가_있으면_소가죽으로_답해도_야생생물법_요건을_남긴다():
+    # 남겨야 하는 소재는 답변 줄이 아니라 전체 글로 확인 (안전한 쪽)
+    product, facts = product_and_facts(text="악어 무늬 가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"),))
+    product = _answered(product.model_copy(update={"product_name": "악어 무늬 가죽 손잡이 전기주전자"}), "소가죽")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.query["requirements"]["8516799000"] == [_CITES.law_name]
 
 
 def test_악어가죽_상품의_야생생물법_요건은_남긴다():
