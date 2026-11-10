@@ -370,6 +370,19 @@ class EvidenceSearchTool(RegulatoryTool):
             return question_text(field, label, conflicted=True)
         return self.questions.get(field) or question_text(field, label)
 
+    def _insufficient(self, run: ToolRun) -> tuple[str, str, str]:
+        """판단이 비었을 때 넣을 정보 부족 판단의 (제목, 요약, 근거). 기본은 insufficient.
+
+        판단이 빈 이유를 아는 Tool은 재정의해 그 이유를 요약에 적는다 (기본 문구는 "찾지 못해"라 다른 이유에는 맞지 않음).
+
+        Args:
+            run: 실행 상태.
+
+        Returns:
+            tuple[str, str, str]: (제목, 요약, 근거).
+        """
+        return self.insufficient
+
     def _result(self, run: ToolRun, findings: list[RegulatoryFinding]) -> ToolResult:
         """결과를 조립한다. 판단이 비면 정보 부족 판단 하나를 넣음 (빈 후보를 비대상 근거로 쓰지 않음).
 
@@ -385,7 +398,7 @@ class EvidenceSearchTool(RegulatoryTool):
         trace_note("assumptions", run.assumptions)
         trace_note("query", run.query)
         if not findings:
-            subject, summary, rationale = self.insufficient
+            subject, summary, rationale = self._insufficient(run)
             findings = [self._finding(
                 subject=subject, summary=summary, rationale=rationale,
                 determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,

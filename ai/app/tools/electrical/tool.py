@@ -38,6 +38,13 @@ _QUESTION_FIELDS = ("product_type", "power_source", "rated_voltage", "battery_on
 _JUDGED_FIELDS = ("battery_only",)
 
 _SEARCH_FAILED = "전기안전 법령 품목표 조회에 실패했습니다."
+# 전지 전용이라 본체 행을 뺀 뒤 고른 행이 없을 때의 정보 부족 판단 (요약, 근거). 전기 정보를 못 찾은 것이 아니므로
+# 기본 문구("전기 정보나 해당하는 품목을 찾지 못해")를 쓰면 사실과 어긋남
+_BATTERY_ONLY_INSUFFICIENT = (
+    "건전지나 충전지로만 동작하는 제품이라 본체는 전기용품 안전관리 대상에서 빠질 수 있습니다. "
+    "내장 전지나 충전기가 대상인지는 판단하지 못했습니다.",
+    "제품에 들어 있는 전지나 함께 오는 충전기가 KC 인증 대상인지 직접 확인이 필요합니다.",
+)
 
 
 class ElectricalTool(EvidenceSearchTool):
@@ -88,6 +95,19 @@ class ElectricalTool(EvidenceSearchTool):
         if fact.field in _JUDGED_FIELDS:
             return fact.value.strip() in ("예", "아니오") and quote_matches(fact, run.snippets, value_in_quote=False)
         return quote_matches(fact, run.snippets)
+
+    def _insufficient(self, run: ToolRun) -> tuple[str, str, str]:
+        """전지 전용이라 본체 행을 뺀 경우에는 그 이유를 요약에 적는다. 나머지는 기본 문구.
+
+        Args:
+            run: 이번 실행 상태.
+
+        Returns:
+            tuple[str, str, str]: (제목, 요약, 근거).
+        """
+        if run.query.get("battery_only") is True and run.query.get("battery_only_excluded"):
+            return (self.insufficient[0], *_BATTERY_ONLY_INSUFFICIENT)
+        return self.insufficient
 
     def _read_facts(self, run: ToolRun) -> None:
         """판단을 바꾸는 조건의 충돌과 부족한 조건을 기록한다.
