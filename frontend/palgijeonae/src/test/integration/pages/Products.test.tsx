@@ -624,12 +624,13 @@ describe('진단 결과 - 상품 삭제', () => {
 
     await page.deleteProducts(['상품-11'])
 
+    // 1페이지는 캐시돼 있어 상품이 먼저 보일 수 있으므로, 주소가 바뀌고 1페이지를 다시 조회할 때까지 기다린다.
+    await waitFor(() => expect(getCurrentLocation()).toBe('/products'))
+    await waitFor(() => expect(page.lastListQuery().get('page')).toBe('0'))
     await page.waitForProductCount(10)
     expect(page.productNames()[0]).toBe('상품-01')
-    expect(page.lastListQuery().get('page')).toBe('0')
-    // 상품이 10개가 되어 페이지가 하나뿐이다. (주소를 고친 뒤 다시 조회하므로 반영을 기다린다)
+    // 상품이 10개가 되어 페이지가 하나뿐이다.
     await waitFor(() => expect(page.hasPagination()).toBe(false))
-    expect(getCurrentLocation()).toBe('/products')
   })
 
   it('페이지에 상품이 남아 있으면 삭제해도 같은 페이지에 머문다', async () => {
