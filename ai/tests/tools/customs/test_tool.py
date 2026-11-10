@@ -174,6 +174,8 @@ def test_야생생물법_요건에는_판단_요약과_할_일에_멸종위기�
     assert "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다." in finding.summary
     assert finding.summary.index("해당하지 않습니다.") < finding.summary.index("제출 서류:")
     assert result.required_actions[0].endswith("소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다.")
+    # 재질(스테인리스)을 이미 알면 소재로 빠질 요건이 남아도 재질을 다시 묻지 않음
+    assert result.missing_information == []
 
 
 def test_같은_HS의_요건이_여러_법령이면_법령마다_판단을_낸다():
@@ -609,6 +611,35 @@ def test_소가죽_상품의_야생생물법_요건은_빼고_이유를_가정�
     assert "「야생생물 보호 및 관리에 관한 법률(허가)」은 상품 정보상 이 상품에 해당하지 않습니다" in finding.summary
     assert finding.legal_sources and finding.legal_sources[0].article == "제226조"
     assert any("멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 걸리는 요건" in text for text in finding.assumptions)
+
+
+_CITES = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                     agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+
+
+def test_소재로_빠질_요건이_남았는데_재질을_모르면_모델이_요청하지_않아도_재질을_묻는다():
+    # #756 리뷰: 가죽 종류를 모르는데 야생생물법이 남아도 모델이 묻지 않음 → 소가죽이면 빠지는 요건이라 코드가 물음
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
+    assert any("소재(가죽 종류 등)에 따라 해당하지 않을 수 있어 재질을 물었습니다" in text
+               for text in result.findings[0].assumptions)
+
+
+def test_재질이_종류를_밝히지_않은_가죽이면_재질을_묻는다():
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임. 소재: 가죽",
+                                       values=(("product_type", "전기주전자"), ("material", "가죽")))
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
+
+
+def test_소가죽이나_악어가죽으로_정해지면_재질을_묻지_않는다():
+    for leather in ("소가죽", "악어가죽"):
+        product, facts = product_and_facts(text=f"{leather} 손잡이 전기주전자, 전기로 물을 끓임. 소재: {leather}",
+                                           values=(("product_type", "전기주전자"), ("material", leather)))
+        result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+        assert result.missing_information == [], leather
 
 
 def test_악어가죽_상품의_야생생물법_요건은_남긴다():
