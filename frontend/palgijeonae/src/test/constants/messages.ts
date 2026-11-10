@@ -85,14 +85,18 @@ export const RESULT_MESSAGES = {
   LOAD_FAILED: '결과를 불러오지 못했어요.',
 }
 
-export const MYPAGE_MESSAGES = {
-  // NOTE(source): Mypage 화면의 안내·확인·알림 문구. 소스에 export가 없다. (탈퇴 확인 문구는 WithdrawSection에서 export되지 않는다)
+export const PRODUCTS_MESSAGES = {
+  // NOTE(source): Products 화면의 안내·확인 문구. 소스에 export가 없다.
   EMPTY: '조건에 맞는 상품이 없어요.',
   LIST_LOAD_FAILED: '상품 목록을 불러오지 못했어요.',
-  PROFILE_LOAD_FAILED: '회원 정보를 불러오지 못했어요.',
   deleteConfirm: (productName: string) => `'${productName}'의 진단 결과와 첨부 이미지가 함께 삭제되고, 되돌릴 수 없어요.`,
   // NOTE(source): RevisionNoticeBanner의 재진단 확인 문구. 소스에 export가 없다.
   rediagnoseConfirm: (productName: string) => `'${productName}'을(를) 다시 진단할까요? 이전 진단 결과는 사라지고, 되돌릴 수 없어요.`,
+}
+
+export const MYPAGE_MESSAGES = {
+  // NOTE(source): Mypage 화면의 안내·확인·알림 문구. 소스에 export가 없다. (탈퇴 확인 문구는 WithdrawSection에서 export되지 않는다)
+  PROFILE_LOAD_FAILED: '회원 정보를 불러오지 못했어요.',
   WITHDRAW_CONFIRM_TITLE: '정말 탈퇴할까요?',
   WITHDRAW_CONFIRM_DATA: '지금까지 진단한 모든 상품과 진단 결과',
   WITHDRAW_DONE: '탈퇴가 완료되었습니다. 그동안 팔기전에를 이용해주셔서 감사합니다.',
