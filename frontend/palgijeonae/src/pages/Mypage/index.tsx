@@ -1,17 +1,16 @@
 import { useState } from "react";
 
 import SectionIntro from "@/components/common/SectionIntro";
-import MyProductList from "@/pages/Mypage/components/MyProductList.tsx";
 import NotificationSettings from "@/pages/Mypage/components/NotificationSettings.tsx";
-import ProductFilterBar from "@/pages/Mypage/components/ProductFilterBar.tsx";
 import ProfileSection from "@/pages/Mypage/components/ProfileSection.tsx";
-import RevisionNoticeBanner from "@/pages/Mypage/components/RevisionNoticeBanner/index.tsx";
 import WithdrawSection from "@/pages/Mypage/components/WithdrawSection.tsx";
-import { useLawAmendments } from "@/pages/Mypage/hooks/useLawAmendments.ts";
-import { useMyProducts } from "@/pages/Mypage/hooks/useMyProducts.ts";
-
-import { PAGE_SIZE } from "./constants.ts";
-import type { ProductFilter } from "./types.ts";
+import MyProductList from "@/pages/Products/components/MyProductList.tsx";
+import ProductFilterBar from "@/pages/Products/components/ProductFilterBar.tsx";
+import RevisionNoticeBanner from "@/pages/Products/components/RevisionNoticeBanner/index.tsx";
+import { PAGE_SIZE } from "@/pages/Products/constants.ts";
+import { useLawAmendments } from "@/pages/Products/hooks/useLawAmendments.ts";
+import { useMyProducts } from "@/pages/Products/hooks/useMyProducts.ts";
+import type { ProductFilter } from "@/pages/Products/types.ts";
 
 function MyPage() {
     const [searchTerm, setSearchTerm] = useState("");
