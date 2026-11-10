@@ -62,6 +62,10 @@ public class JwtProvider {
         );
     }
 
+    public Duration getAccessTokenExpiration() {
+        return accessTokenExpiration;
+    }
+
     public Duration getRefreshTokenExpiration() {
         return refreshTokenExpiration;
     }
