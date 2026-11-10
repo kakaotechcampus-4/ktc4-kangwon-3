@@ -62,10 +62,10 @@ set -a; source .env; set +a
 ```
 
 - Swagger: http://localhost:8080/swagger-ui/index.html
-- 소셜 로그인 : 각 제공자 콘솔에 `http://localhost:8080/login/oauth2/code/{provider}` 를 등록합니다.
+- 소셜 로그인: 각 제공자 콘솔에 `http://localhost:8080/login/oauth2/code/{provider}` 를 등록합니다.
 - FE 연결: 기본값이 `http://localhost:5173`을 CORS와 로그인 리다이렉트 주소로 허용합니다.
 - AI 연결: `AI_BASE_URL=http://localhost:8000`. `INTERNAL_API_TOKEN`이 AI와 같아야 AI의 콜백을 받습니다.
-- LLM 호출 없이 연동만 확인하려면 `.env`에 `AI_DIAGNOSE_PATH_PREFIX=/api/ai/v1/dummy`를 넣습니다. AI 서버는 띄워야 하고, 정해진 케이스로 콜백이 옵니다.
+- LLM 호출 없이 연동만 확인하려면 `.env`에 `AI_DIAGNOSE_PATH_PREFIX=/api/ai/v1/dummy`를 넣습니다. AI 서버는 띄워야 하고 정해진 케이스로 콜백이 옵니다.
 - DB 스키마: `local`은 Hibernate가 스키마를 자동으로 맞춥니다(`ddl-auto: update`). 운영에 반영하려면 Flyway 마이그레이션이 필요합니다([배포와 운영](#배포와-운영)).
 
 ## 테스트
@@ -96,7 +96,7 @@ set -a; source .env; set +a
 
 - develop에 병합되면 [`backend.yml`](../.github/workflows/backend.yml)이 빌드 → ECR → EC2 Blue-Green 배포 → API 응답 확인까지 합니다. 절차와 롤백: [`deploy/README.md`](beforeselling/deploy/README.md)
 - 프로필: `local`(기본), `prod`, `test`(H2)
-- DB 스키마: Flyway로 관리합니다(`src/main/resources/db/migration`). 운영은 `ddl-auto: validate`라, 스키마를 바꾸는 PR은 마이그레이션 SQL을 함께 올립니다. 작성 방법: [Flyway 마이그레이션 가이드](docs/guide/FLYWAY_MIGRATION_GUIDE.md)
+- DB 스키마: Flyway로 관리합니다(`src/main/resources/db/migration`). 운영은 `ddl-auto: validate`라 스키마를 바꾸는 PR은 마이그레이션 SQL을 함께 올립니다. 작성 방법: [Flyway 마이그레이션 가이드](docs/guide/FLYWAY_MIGRATION_GUIDE.md)
 - 모니터링: Grafana(응답시간·에러율·JVM), Sentry(5xx, 새 이슈는 Discord 알림). 위키 [모니터링과 장애 대응](../docs/wiki/모니터링과-장애-대응.md)
 
 ## 더 보기

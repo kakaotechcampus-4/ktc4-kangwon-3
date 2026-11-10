@@ -78,7 +78,7 @@ export default Example;
 ## import 규칙
 
 - 다른 폴더의 모듈은 `@/` 별칭으로 가져옵니다(`@/api/core/client`, `@/components/common/Button`). 같은 폴더 안의 파일만 `./`로 가져옵니다. `../` 같은 상위 폴더 상대 경로는 쓰지 않습니다.
-- 페이지·컴포넌트 import에는 `.tsx`/`.ts` 확장자를 붙입니다(`"./MyProductList.tsx"`, `"@/api/users.ts"`). 기존 코드 중 일부는 아직 확장자 없이 돼 있지만, 새로 작성하는 코드는 확장자를 붙입니다.
+- 페이지·컴포넌트 import에는 `.tsx`/`.ts` 확장자를 붙입니다(`"./MyProductList.tsx"`, `"@/api/users.ts"`). 기존 코드 중 일부는 아직 확장자 없이 돼 있지만 새로 작성하는 코드는 확장자를 붙입니다.
 - import 순서·그룹(외부 패키지 → `@/` → `./`)과 정렬은 직접 맞추지 않고 `eslint-plugin-simple-import-sort`가 자동으로 처리합니다. `npm run lint -- --fix`로 정리하세요.
 - 쓰지 않는 import는 `eslint-plugin-unused-imports`가 에러로 잡습니다. 의도적으로 안 쓰는 매개변수는 `_` 접두사를 붙이면 허용됩니다(`unused-imports/no-unused-vars`).
 
@@ -99,7 +99,7 @@ export default Example;
 
 - 서버 데이터는 TanStack Query로 관리합니다. 페이지 폴더의 `use*.ts` 훅 하나가 조회(`useQuery`) 또는 수정(`useMutation`) 하나를 책임집니다(`useMyProducts.ts`, `useDeleteProduct.ts`). `queryKey`는 `[도메인, 식별자]` 형태로 짓습니다.
 - 수정 후 목록을 다시 불러와야 하면 `invalidateQueries`, 응답으로 캐시만 바로 갱신해도 되면 `setQueryData`를 씁니다.
-- 로그인 등 클라이언트 전역 상태는 Zustand로 관리합니다([`store/useAuthStore.ts`](../palgijeonae/src/store/useAuthStore.ts)). Access Token은 메모리에만 두고, 새로고침하면 refresh token 쿠키로 다시 발급받습니다.
+- 로그인 등 클라이언트 전역 상태는 Zustand로 관리합니다([`store/useAuthStore.ts`](../palgijeonae/src/store/useAuthStore.ts)). Access Token은 메모리에만 두고 새로고침하면 refresh token 쿠키로 다시 발급받습니다.
 
 ## 에러 처리
 
@@ -131,7 +131,7 @@ export default Example;
 
 - 통합 테스트는 화면 요소에 직접 접근하지 않고 화면별 드라이버(`src/test/drivers/<화면>Page.ts`)를 거칩니다. 본문에서 `screen.getBy...`, `within`, `userEvent`를 직접 쓰지 않습니다.
 - 드라이버는 `uploadPage()`처럼 함수로 만듭니다. 조작은 `async` 함수(`addUrlProduct`, `removeProduct(name)`), 조회는 값을 돌려주는 함수(`productNames()`, `isFormVisible()`), 기다림은 `waitFor...`/`waitUntil...`로 이름을 짓습니다.
-- 상태는 요소의 유무로 우회해서 확인하지 않고, 드라이버가 의미 있는 값으로 답하게 합니다. 예: "heading이 없다"가 아니라 `productNames()`가 빈 배열인지로 확인합니다.
+- 상태는 요소의 유무로 우회해서 확인하지 않고 드라이버가 의미 있는 값으로 답하게 합니다. 예: "heading이 없다"가 아니라 `productNames()`가 빈 배열인지로 확인합니다.
 - 렌더(라우터·도착 화면 스텁)는 테스트 파일에 둡니다. 도착 화면을 확인하려고 **테스트가 직접 만든 스텁**은 `screen`으로 찾아도 됩니다. (예외)
 
 ```tsx

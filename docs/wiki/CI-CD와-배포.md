@@ -15,7 +15,7 @@ flowchart LR
 
 - 바뀐 경로에 해당하는 파트의 워크플로만 돌아갑니다.
 - 배포는 develop에 병합될 때 일어납니다. main 병합은 배포와 관계없습니다.
-- AWS 인증은 GitHub OIDC로 역할을 맡는 방식이라, 저장소에 AWS 키를 두지 않습니다.
+- AWS 인증은 GitHub OIDC로 역할을 맡는 방식이라 저장소에 AWS 키를 두지 않습니다.
 - EC2 명령은 공용 액션 [`ssm-run`](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/.github/actions/ssm-run/action.yml)으로 보냅니다. EC2가 꺼져 있으면 켜고 기다립니다.
 
 ## 워크플로
@@ -56,8 +56,8 @@ flowchart LR
 | 운영 | EC2 한 대. https://palgijeone.com. BE `prod` 프로필 |
 | 부하테스트 | 운영 EC2에서 운영 BE를 잠시 내리고, 분리한 DB(`beforeselling_perf`)·Redis DB로 측정([loadtest](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/loadtest/README.md)) |
 
-별도 dev·staging 서버는 두지 않았습니다. 실사용자가 없는 단계라 운영 환경을 통합 검증에 함께 쓰고, 서버 메모리 용량에 여유가 많지 않기 때문입니다.
-대신 CI 테스트·커버리지 기준과 Blue-Green 헬스·스모크 확인을 두어 문제 발생 시 배포 서버에 지장이 없도록 제한하였습니다.
+별도 dev·staging 서버는 두지 않았습니다. 실사용자가 없는 단계라 운영 환경을 통합 검증에 함께 쓰고 서버 메모리 용량에 여유가 많지 않기 때문입니다.
+대신 CI 테스트·커버리지 기준과 Blue-Green 헬스·스모크 확인을 두어 문제 발생 시 배포 서버에 지장이 없도록 제한했습니다.
 
 ## 비밀 값 관리
 

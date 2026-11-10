@@ -123,7 +123,7 @@ k6 run -e BASE_URL=http://<EC2-IP>:18080 -e JWT_SECRET=<perf JWT_SECRET> k6/scen
    ```
    보안그룹 규칙도 삭제합니다.
 
-> 운영 BE는 `docker compose start`로 되살립니다.(`up`이 아님). `up`은 IMAGE_TAG 없이 `:latest`로 재생성하기 때문입니다.(`deploy/blue-green.sh`의 rollback과 같은 이유).
+> 운영 BE는 `docker compose start`로 되살립니다(`up`이 아님). `up`은 IMAGE_TAG 없이 `:latest`로 재생성하기 때문입니다(`deploy/blue-green.sh`의 rollback과 같은 이유).
 
 ## 시나리오
 
@@ -156,8 +156,8 @@ K6="k6 run -e BASE_URL=$BASE_URL -e JWT_SECRET=$JWT_SECRET"
 근거 데이터가 없으므로 아래 가정에서 출발합니다. 실제 지표가 생기면 변경합니다.
 
 - **피크 동시 세션 = DAU × 평균 세션 시간(분) ÷ 활성 시간(720분) × 피크 계수(5~10)**
-  - DAU 1,000, 세션 5분이면 평균 약 7명이고, 피크는 35~70명입니다. 그래서 load 목표를 **50**으로 잡았습니다.
-- k6에는 동시 세션을 도착률로 바꿔 넣는다(리틀의 법칙).
+  - DAU 1,000, 세션 5분이면 평균 약 7명이고 피크는 35~70명입니다. 그래서 load 목표를 **50**으로 잡았습니다.
+- k6에는 동시 세션을 도착률로 바꿔 넣습니다(리틀의 법칙).
   - 세션 1개 ≈ 150초(AI 1~2분 + 폴링·생각 시간)
   - 50명 ÷ 150초 → 분당 20세션 (`profiles.js`의 `sessionsPerMinute`)
 - 동시 세션이 50일 때의 정상 상태 서버 부하
@@ -232,7 +232,7 @@ K6="k6 run -e BASE_URL=$BASE_URL -e JWT_SECRET=$JWT_SECRET"
 
 - **VU(Virtual User)**: k6에서 시나리오 함수를 반복 실행하는 동시 실행 단위입니다.
   - RPS ≈ VU ÷ (응답시간 + 생각 시간)입니다. VU를 고정하면(closed model) 서버가 느려질 때 요청률도 같이 떨어져 병목이 가려집니다.
-  - 그래서 여기서는 **도착률(arrival-rate, open model)**을 정하고 VU는 k6가 필요한 만큼 쓰게 합니다.
+  - 그래서 여기서는 **도착률**(arrival-rate, open model)을 정하고 VU는 k6가 필요한 만큼 쓰게 합니다.
 - **동시 사용자 수**: 같은 순간에 세션이 살아 있는 사용자 수입니다.
   - 리틀의 법칙(동시 수 = 도착률 × 체류 시간)으로 도착률과 서로 바꿀 수 있습니다.
   - 이 서비스는 진단을 기다리는 동안에도 폴링과 콜백이 계속 생기므로 체류 시간이 길고, 그만큼 동시 수가 크게 잡힙니다.

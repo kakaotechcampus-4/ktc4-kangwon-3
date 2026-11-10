@@ -47,7 +47,7 @@ flowchart LR
 
 화면별 실제 모습은 [루트 README 주요 기능](../README.md#주요-기능)에서 확인할 수 있습니다.
 
-모바일(390px 기준)과 데스크톱을 모두 지원하며, 768px(`md`) 미만이 모바일 화면입니다.
+모바일(390px 기준)과 데스크톱을 모두 지원하며 768px(`md`) 미만이 모바일 화면입니다.
 
 ## 기술 스택
 
@@ -76,7 +76,7 @@ src/
 └── test/           # 단위·통합 테스트, MSW 핸들러, 테스트 유틸
 ```
 
-문서는 `docs/`에 있습니다: [코드 컨벤션](docs/CONVENTIONS.md), [테스트 정책](docs/TEST_POLICY.md).
+문서는 `docs/`에 있습니다: [코드 컨벤션](docs/CODE_CONVENTION.md), [테스트 정책](docs/TEST_POLICY.md).
 
 ## 로컬 실행
 
@@ -108,7 +108,7 @@ npm run build      # 타입 검사 포함
 ```
 
 - CI는 PR마다 ESLint, 단위·통합 테스트와 커버리지 기준 검사(70%), 타입 검사를 포함한 빌드를 돌립니다.
-- 단위·통합 테스트는 Vitest와 React Testing Library로 작성하고, 외부 API는 MSW로 모킹합니다.
+- 단위·통합 테스트는 Vitest와 React Testing Library로 작성하고 외부 API는 MSW로 모킹합니다.
 - 테스트 종류, 폴더 구조, 작성 규칙, 문제 해결은 [`docs/TEST_POLICY.md`](docs/TEST_POLICY.md)에 정리했습니다.
 - E2E 테스트는 [`e2e/`](../e2e/README.md)에 있습니다.
 
@@ -118,4 +118,4 @@ PR과 develop push 시 [`frontend-ci.yml`](../.github/workflows/frontend-ci.yml)
 
 ## 코드 작성 관례
 
-FE 코드 컨벤션(네이밍, 폴더·파일 구조, 컴포넌트 작성 규칙, import 순서, API·타입 정의 위치, 상태 관리, 에러 처리, 접근성 등)은 [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)에 정리했습니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../CONTRIBUTING.md)를 참고하세요.
+FE 코드 컨벤션(네이밍, 폴더·파일 구조, 컴포넌트 작성 규칙, import 순서, API·타입 정의 위치, 상태 관리, 에러 처리, 접근성 등)은 [`docs/CODE_CONVENTION.md`](docs/CODE_CONVENTION.md)에 정리했습니다. 브랜치·이슈·PR·커밋 규칙은 루트 [`CONTRIBUTING.md`](../CONTRIBUTING.md)를 참고하세요.

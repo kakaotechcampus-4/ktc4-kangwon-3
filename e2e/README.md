@@ -1,6 +1,6 @@
 # 팔기전에 E2E
 
-화면에서 시작해 FE → BE → mock-AI → 다시 화면까지 이어지는 흐름을 브라우저로 검증합니다. Playwright를 쓰고, 실제 AI 대신 결과를 고정할 수 있는 [mock-ai](../loadtest/mock-ai/app.py)를 씁니다.
+화면에서 시작해 FE → BE → mock-AI → 다시 화면까지 이어지는 흐름을 브라우저로 검증합니다. Playwright를 쓰고 실제 AI 대신 결과를 고정할 수 있는 [mock-ai](../loadtest/mock-ai/app.py)를 씁니다.
 
 ## 시나리오
 
@@ -13,9 +13,9 @@
 | `multi-product.spec.ts` | 여러 상품을 한 번에 진단하면 상품별로 진행되고 상품마다 결과를 확인한다 |
 | `question.spec.ts` | AI가 질문하면 답변을 제출하고 이어진 진단의 결과를 확인한다 |
 | `retry.spec.ts` | 실패한 진단을 다시 시도해 결과를 확인한다 / 다시 해도 같은 실패는 재시도를 권하지 않는다 |
-| `mypage.spec.ts` | 진단한 상품이 마이페이지 목록에 나오고, 누르면 그 결과로 이동한다 |
+| `mypage.spec.ts` | 진단한 상품이 마이페이지 목록에 나오고 누르면 그 결과로 이동한다 |
 
-모두 12개이고, 스택 실행과 정리를 포함해 약 1분 30초가 걸립니다.
+모두 12개이고 스택 실행과 정리를 포함해 약 1분 30초가 걸립니다.
 
 ## 실행
 
@@ -45,6 +45,6 @@ npx playwright test --ui     # 화면을 보면서
 
 ## CI
 
-[`e2e.yml`](../.github/workflows/e2e.yml)이 FE·BE·mock-ai·E2E가 바뀐 develop 대상 PR과 develop 병합에서 돌고, 수동으로도 실행할 수 있습니다. 아직 필수 체크가 아니라 실패해도 병합할 수 있고, 배포도 막지 않습니다. 실패하면 Playwright 리포트와 스택 로그를 남기고, 병합 후·수동 실행에서는 Discord로 알립니다.
+[`e2e.yml`](../.github/workflows/e2e.yml)이 FE·BE·mock-ai·E2E가 바뀐 develop 대상 PR과 develop 병합에서 돌고 수동으로도 실행할 수 있습니다. 아직 필수 체크가 아니라 실패해도 병합할 수 있고 배포도 막지 않습니다. 실패하면 Playwright 리포트와 스택 로그를 남기고 병합 후·수동 실행에서는 Discord로 알립니다.
 
 도입 PR: [#577](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pull/577)

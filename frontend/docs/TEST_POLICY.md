@@ -1,7 +1,7 @@
 # FE 테스트 정책
 
 FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는지 정합니다.
-코드 작성 규칙은 [FE 코드 컨벤션](CONVENTIONS.md)을 따릅니다.
+코드 작성 규칙은 [FE 코드 컨벤션](CODE_CONVENTION.md)을 따릅니다.
 
 ## 목차
 
@@ -21,7 +21,7 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 ## 1. 원칙
 
 - **경우의 수는 단위 테스트로 검증합니다.** 입력 검증, 글자 수 계산, 상태 판단처럼 분기가 많은 로직은 화면 없이 빠르게 확인합니다.
-- **화면 동작은 통합 테스트로 검증합니다.** 화면 하나를 실제 라우터·QueryClient와 함께 렌더하고, 사용자가 하는 대로 입력하고 누르고 기다려서 결과(화면 변화, 안내 문구, 이동, 보낸 요청)를 확인합니다.
+- **화면 동작은 통합 테스트로 검증합니다.** 화면 하나를 실제 라우터·QueryClient와 함께 렌더한 뒤 사용자가 하는 대로 입력하고 누르고 기다려서 결과(화면 변화, 안내 문구, 이동, 보낸 요청)를 확인합니다.
 - **외부 API는 항상 모킹합니다.** 테스트는 BE·S3·AI에 실제로 요청하지 않습니다. 외부 상태에 따라 테스트 결과가 달라지지 않게 하기 위해서입니다.
 - **같은 검증을 반복하지 않습니다.** 단위 테스트가 이미 확인한 분기를 통합 테스트에서 다시 돌리지 않습니다.
 - **버그를 고치면 같은 버그를 잡는 테스트를 함께 추가합니다.** 회귀 테스트로 고정해 다시 생기지 않게 합니다.
@@ -93,7 +93,7 @@ src/test/
 
 - 테스트 파일 이름은 `*.test.ts` 또는 `*.test.tsx`입니다. 이 패턴이 아니면 실행되지 않습니다 (`include: src/**/*.test.{ts,tsx}`).
 - 테스트는 소스 옆이 아니라 `src/test/` 아래에 모읍니다. 소스 폴더에는 `*.test.*` 파일을 두지 않습니다.
-- 통합 테스트는 `drivers/`의 드라이버를 거쳐 작성하고, 문구는 `constants/messages.ts`의 상수로 비교합니다. 규칙은 [FE 코드 컨벤션의 테스트 작성](CONVENTIONS.md#테스트-작성)을 따릅니다.
+- 통합 테스트는 `drivers/`의 드라이버를 거쳐 작성하고 문구는 `constants/messages.ts`의 상수로 비교합니다. 규칙은 [FE 코드 컨벤션의 테스트 작성](CODE_CONVENTION.md#테스트-작성)을 따릅니다.
 - 테스트 코드도 `npm run build`의 `tsc -b`와 ESLint(import 정렬 포함) 대상입니다.
 
 ## 5. 테스트 환경
@@ -137,7 +137,7 @@ server.use(
 ```
 
 - 첫 요청만 실패시키고 재시도는 성공시키려면 세 번째 인자로 `{ once: true }`를 줍니다.
-- `errorResponse`의 `detailMessage`는 응답의 `details[0].message`로, `message`는 `message`로 담깁니다. 화면은 `details[0].message`를 우선해서 안내하고, 없으면 `message`를 씁니다.
+- `errorResponse`의 `detailMessage`는 응답의 `details[0].message`로, `message`는 `message`로 담깁니다. 화면은 `details[0].message`를 우선해서 안내하고 없으면 `message`를 씁니다.
 
 ### 보낸 요청 검증
 
@@ -155,7 +155,7 @@ expect(requestLog.all()).toEqual([]) // 요청을 보내지 않아야 하는 경
 
 ### 요청 중 상태 확인
 
-"요청하는 동안 버튼이 비활성화된다"처럼 진행 중 상태를 보려면, 응답을 붙잡아 두는 문(gate)을 씁니다. `src/test/utils/createGate.ts`의 `createGate()`를 씁니다.
+"요청하는 동안 버튼이 비활성화된다"처럼 진행 중 상태를 보려면, 응답을 붙잡아 두는 문(gate)을 씁니다. `src/test/utils/createGate.ts`의 `createGate()`로 만듭니다.
 
 ```ts
 const gate = createGate()
@@ -167,12 +167,12 @@ gate.release() // 응답을 풀어 줍니다
 
 ### 테스트 데이터 규칙
 
-- 질문 회차(`questionRound`)는 **1~2만 가능합니다** (BE 콜백 검증 `@Min(1) @Max(2)`). `buildQuestion`은 범위를 벗어나면 에러를 냅니다. `questionOrder`는 회차가 아니라 한 회차 안에서의 순서입니다.
+- 질문 회차(`questionRound`)는 **1~2만 가능합니다** (BE 콜백 검증 `@Min(1) @Max(2)`). `buildQuestion`은 범위를 벗어나면 에러를 냅니다. `questionOrder`는 회차가 아니라 한 회차 안의 순서입니다.
 - 목록의 상품 이름처럼 서로 부분 문자열이 될 수 있는 값은 자릿수를 맞춥니다 (`상품-01`, `상품-10`). 검색 테스트에서 의도하지 않은 항목이 걸리지 않게 하기 위해서입니다.
 
 ## 7. 화면 렌더: 라우터·QueryClient·인증
 
-화면은 `src/test/utils/renderWithProviders.tsx`의 헬퍼로 렌더합니다. 실제 `MemoryRouter`와 재시도를 끈 QueryClient 안에서 렌더되며, **`useNavigate`·`useLocation`·`useParams`는 모킹하지 않고 실제 라우터로 동작합니다.**
+화면은 `src/test/utils/renderWithProviders.tsx`의 헬퍼로 렌더합니다. 실제 `MemoryRouter`와 재시도를 끈 QueryClient 안에서 렌더되며 **`useNavigate`·`useLocation`·`useParams`는 모킹하지 않고 실제 라우터로 동작합니다.**
 
 ```tsx
 renderWithProviders(<QuestionPage />, {
@@ -197,7 +197,7 @@ expect(getCurrentLocation()).toBe('/judgement/diagnoses-77')
 
 ## 8. 브라우저 API 스텁
 
-jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`에서 매 테스트 전에 `vi.fn`으로 바꾸고, 끝나면 원래 구현으로 되돌립니다. 그래서 호출 인자를 바로 검증할 수 있습니다.
+jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`에서 매 테스트 전에 `vi.fn`으로 바꾸고 끝나면 원래 구현으로 되돌립니다. 그래서 호출 인자를 바로 검증할 수 있습니다.
 
 | API | 스텁 동작 | 검증 예 |
 |---|---|---|
@@ -224,13 +224,13 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 
 ### 통합 테스트
 
-화면을 찾고 조작하는 규칙(드라이버, 셀렉터 우선순위, 문구 상수, 알림 헬퍼, `NOTE(source)`)은 [FE 코드 컨벤션의 테스트 작성](CONVENTIONS.md#테스트-작성)을 따릅니다. 여기서는 그 위에서 시나리오를 쓸 때의 규칙을 정합니다.
+화면을 찾고 조작하는 규칙(드라이버, 셀렉터 우선순위, 문구 상수, 알림 헬퍼, `NOTE(source)`)은 [FE 코드 컨벤션의 테스트 작성](CODE_CONVENTION.md#테스트-작성)을 따릅니다. 여기서는 그 위에서 시나리오를 쓸 때의 규칙을 정합니다.
 
-- 요소는 **사용자가 보는 방식**(`getByRole` → `getByLabelText` → `getByText`)으로 찾습니다. 이 찾기는 드라이버 안에서만 하고, 테스트 본문은 드라이버의 함수를 호출합니다. `data-testid`는 쓰지 않습니다.
+- 요소는 **사용자가 보는 방식**(`getByRole` → `getByLabelText` → `getByText`)으로 찾습니다. 이 찾기는 드라이버 안에서만 하고 테스트 본문은 드라이버의 함수를 호출합니다. `data-testid`는 쓰지 않습니다.
 - 사용자 조작은 드라이버가 `userEvent.setup()`으로 만든 `user`로 합니다 (`fireEvent` 대신). 긴 입력은 한 글자씩 치면 느리므로 `user.click(input)` 뒤 `user.paste(text)`로 채웁니다. (드라이버가 이렇게 합니다)
 - 비동기 결과는 드라이버의 `waitFor...`/`waitUntil...`이나 `findBy*`로 기다립니다. `setTimeout`으로 기다리는 것은 "더 이상 요청하지 않는다"처럼 **일어나지 않음**을 확인할 때만 씁니다.
 - 화면 이동은 `getCurrentLocation()`과 도착 화면의 문구를 함께 확인합니다.
-- 실패 시나리오는 "안내 문구를 보여준다"에서 끝내지 않고, **화면이 그대로인지, 입력한 값이 남아 있는지, 다시 시도할 수 있는지**까지 확인합니다.
+- 실패 시나리오는 "안내 문구를 보여준다"에서 끝내지 않고 **화면이 그대로인지, 입력한 값이 남아 있는지, 다시 시도할 수 있는지**까지 확인합니다.
 - 요청을 보내지 않아야 하는 분기(검증 실패, 확인 취소, 잘못된 접근)는 `requestLog`로 요청이 없음을 확인합니다.
 
 ### 테스트가 실제로 잡는지 확인하기
@@ -275,7 +275,7 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 
 | 증상 | 원인과 해결 |
 |---|---|
-| 테스트에서 `Network Error`가 납니다 | API를 절대 URL(다른 출처)로 요청하고 있습니다. jsdom XHR이 CORS 헤더 없는 모킹 응답을 막습니다. 상대 경로(`/api/...`)를 쓰고, 다른 출처라면 응답에 CORS 헤더를 넣습니다 |
+| 테스트에서 `Network Error`가 납니다 | API를 절대 URL(다른 출처)로 요청하고 있습니다. jsdom XHR이 CORS 헤더 없는 모킹 응답을 막습니다. 상대 경로(`/api/...`)를 쓰고 다른 출처라면 응답에 CORS 헤더를 넣습니다 |
 | 콘솔에 `intercepted a request without a matching request handler`가 나오고 요청이 실패합니다 | 기본 핸들러에 없는 API를 호출했습니다. `mocks/handlers.ts`에 기본 핸들러를 추가하거나, 테스트에서 `server.use`로 응답을 지정합니다 |
 | `expect(window.alert)...`에서 `is not a spy or a call to a mock function` 오류가 납니다 | 스텁이 적용되지 않은 환경입니다. `vite.config.ts`의 `setupFiles`가 `src/test/vitest.setup.ts`를 가리키는지 확인합니다 |
 | `matchMedia is not a function`, `animate is not a function` 오류 | 같은 원인입니다. 새로 필요한 브라우저 API는 `vitest.setup.ts`에 스텁을 추가합니다 |
@@ -288,7 +288,7 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 - [ ] 단위와 통합 중 맞는 종류인지 [3절](#3-어떤-테스트로-검증할지-고르는-기준)로 정했다
 - [ ] `src/test/unit/<소스 경로>` 또는 `src/test/integration/` 아래에 `*.test.ts(x)`로 만들었다
 - [ ] 새 API를 호출한다면 기본 핸들러를 추가했다
-- [ ] 통합 테스트라면 드라이버를 거쳐 썼고, 문구는 `messages.ts` 상수로, 알림은 헬퍼로 확인했다 ([컨벤션](CONVENTIONS.md#테스트-작성))
+- [ ] 통합 테스트라면 드라이버를 거쳐 썼고 문구는 `messages.ts` 상수로, 알림은 헬퍼로 확인했다 ([컨벤션](CODE_CONVENTION.md#테스트-작성))
 - [ ] 성공뿐 아니라 실패·경계·요청을 보내지 않는 경우를 함께 확인했다
 - [ ] 소스를 임시로 망가뜨려 테스트가 실패하는 것을 확인했다
 - [ ] `npm run lint`, `npm test`, `npm run build`가 모두 통과한다
