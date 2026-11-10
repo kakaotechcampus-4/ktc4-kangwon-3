@@ -43,7 +43,7 @@ class EvidenceSearchTool(RegulatoryTool):
         empty_fields: 인용할 원문이 없을 때 물을 필드.
         base_assumptions: 조건 추출 전부터 넣는 가정 (원문 범위 안내 다음).
         conflict_note: 추출 단계 모순 가정의 끝 문장.
-        insufficient: 기본 정보 부족 판단의 (제목, 요약, 근거).
+        insufficient: 기본 정보 부족 판단의 (제목, 요약, 근거). 실행마다 바꾸려면 _insufficient를 덮어씀.
         tracks_conflicts: query에 "conflicted" 목록을 처음부터 둘지.
         hints_with_attributes: 모델 힌트에 속성 이름·값을 넣을지.
         run_class: 실행 상태 클래스. Tool별 값이 더 필요하면 ToolRun 하위 클래스.
@@ -370,6 +370,19 @@ class EvidenceSearchTool(RegulatoryTool):
             return question_text(field, label, conflicted=True)
         return self.questions.get(field) or question_text(field, label)
 
+    def _insufficient(self, run: ToolRun) -> tuple[str, str, str]:
+        """판단이 비었을 때 넣는 정보 부족 판단의 (제목, 요약, 근거). 기본은 Tool의 고정 문구.
+
+        보류 이유에 따라 문구를 바꿀 Tool이 덮어쓴다 (예: electrical은 저전압 제외·품목 못 고름을 구분, #796).
+
+        Args:
+            run: 실행 상태.
+
+        Returns:
+            tuple[str, str, str]: 제목, 요약, 근거.
+        """
+        return self.insufficient
+
     def _result(self, run: ToolRun, findings: list[RegulatoryFinding]) -> ToolResult:
         """결과를 조립한다. 판단이 비면 정보 부족 판단 하나를 넣음 (빈 후보를 비대상 근거로 쓰지 않음).
 
@@ -385,7 +398,7 @@ class EvidenceSearchTool(RegulatoryTool):
         trace_note("assumptions", run.assumptions)
         trace_note("query", run.query)
         if not findings:
-            subject, summary, rationale = self.insufficient
+            subject, summary, rationale = self._insufficient(run)
             findings = [self._finding(
                 subject=subject, summary=summary, rationale=rationale,
                 determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,

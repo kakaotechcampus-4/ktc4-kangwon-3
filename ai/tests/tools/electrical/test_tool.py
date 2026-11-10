@@ -7,7 +7,7 @@ from app.schemas.agent import ToolSelectionItem
 from app.tools.electrical.schemas import ElectricalFact, ElectricalFacts, ElectricalReview, ElectricalSelection
 from app.schemas.product import Product
 from app.schemas.schemas import (
-    Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
+    Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.electrical import ElectricalTool, ElectricalToolError
 from app.tools.common.facts import object_particle, topic_particle
@@ -394,6 +394,38 @@ def test_저전압_제품이_저전압_포함_비고가_없는_행을_고르면_
     assert result.query["dropped_candidates"] == 1
     assert result.findings[0].determination is Determination.INSUFFICIENT_INFORMATION
     assert '"low_voltage_excluded": true' in model.last_payload
+
+
+_DEFAULT_SUMMARY = ElectricalTool.insufficient[1]
+
+
+def test_저전압이라_후보_행이_모두_빠지면_전압을_못_찾았다고_하지_않고_저전압이라_빠지는_범위라고_안내한다():
+    # #796: USB 5V 기기에 "전원 방식·정격 전압 같은 전기 정보를 찾지 못해"가 나가던 것
+    product, facts = product_and_facts("USB 선풍기 DC 5V",
+                                       (("product_type", "USB 선풍기"), ("rated_voltage", "DC 5V")))
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    [finding] = result.findings
+    assert result.query["undecided"] == "low_voltage"
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION and finding.risk_level is RiskLevel.UNKNOWN
+    assert finding.summary.startswith("정격 전압(DC 5V)이 저전압(교류 30V·직류 42V 이하)이라")
+    assert "운용요령 제3조" in finding.rationale
+    assert "찾지 못해" not in finding.summary
+
+
+def test_전원_전압을_읽었는데_맞는_품목을_못_고르면_읽은_값을_보여_준다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review())
+    [finding] = result.findings
+    assert result.query["undecided"] == "no_match"
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION
+    assert finding.summary == ("상품 설명에서 전원 방식(AC)·정격 전압(220V)는 확인했지만 해당하는 전기용품 품목을 찾지 못해 "
+                               "대상인지 판단하지 못했습니다.")
+
+
+def test_전원_전압_정보가_없으면_지금_보류_문구를_그대로_쓴다():
+    product, facts = product_and_facts("스테인리스 전기포트", (("product_type", "전기포트"),))
+    result, _, _ = run(product, facts, review())
+    assert result.findings[0].summary == _DEFAULT_SUMMARY
 
 
 def test_저전압이어도_비고가_저전압을_포함하는_행은_후보로_남고_제3조를_근거에_붙인다():
