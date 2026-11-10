@@ -487,23 +487,44 @@ def test_전지_언급이_없으면_본체_행이어도_정책상_전지_전용_
 
 
 def test_본체_행이고_전지_언급이_있으면_모델이_요청한_전지_전용_여부를_묻는다():
-    # 전압을 적으면 저전압이라 팬 행이 후보에서 빠지므로 전압 없이 둠
-    product, facts = product_and_facts("USB 충전식 미니 선풍기", (("product_type", "미니 선풍기"),),
-                                       search_terms=["선풍기"])
+    # 전압을 적으면 저전압이라 팬 행이 후보에서 빠지므로 전압 없이 둠.
+    # 전원 방식이 없으면 그 질문을 먼저 하므로(#801) 전원 방식은 뽑힌 것으로 둠
+    product, facts = product_and_facts("USB 충전식 미니 선풍기", (("product_type", "미니 선풍기"),
+                                                            ("power_source", "USB 충전식")), search_terms=["선풍기"])
     result, _, _ = run(product, facts, review(select(FAN_ROW, needed_fields=["battery_only"])))
     assert any("건전지나 충전지로만" in question for question in result.missing_information)
 
 
 def test_전지_행과_본체_행을_함께_고르면_본체_행_기준으로_묻는다():
-    # 충전식 선풍기에서 본체(팬)와 내장 전지 행을 함께 고른 경우: 팬 행 때문에 전원·전압이, 충전 언급 때문에 전지 전용 여부가 필요
+    # 충전식 선풍기에서 본체(팬)와 내장 전지 행을 함께 고른 경우: 팬 행 때문에 전원·전압이 필요.
+    # 충전 언급 때문에 전지 전용 여부도 필요하지만 전원 방식을 묻는 회차에는 같이 묻지 않음 (#801)
     product, facts = product_and_facts("USB 충전식 미니 선풍기 내장 배터리", (("product_type", "미니 선풍기"),),
                                        search_terms=["선풍기", "전지"])
     result, _, _ = run(product, facts, review(select(FAN_ROW), select(BATTERY_ROW, needed_fields=["battery_only"])))
     assert result.query["selected_items"] == [FAN_ROW, BATTERY_ROW]
     assert "제품이 어떤 전원으로 작동하는지(전원 방식) 확인이 필요합니다." in result.missing_information
     assert "제품의 정격 전압 확인이 필요합니다." in result.missing_information
-    assert any("건전지나 충전지로만" in question for question in result.missing_information)
+    assert not any("건전지나 충전지로만" in question for question in result.missing_information)
     assert not any("묻지 않았습니다" in item for finding in result.findings for item in finding.assumptions)
+
+
+def test_전원_방식을_묻는_회차에는_전지_전용_여부를_같이_묻지_않는다():
+    # #801: 판매자에게는 둘 다 전원 질문. 전원 방식을 먼저 묻고 본체 판단의 공통 비고 제외 가능성은 그대로 남김
+    product, facts = product_and_facts("무선 충전식 핸디 선풍기", (("product_type", "무선 충전식 핸디 선풍기"),),
+                                       search_terms=["선풍기"])
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    assert "제품이 어떤 전원으로 작동하는지(전원 방식) 확인이 필요합니다." in result.missing_information
+    assert not any("건전지나 충전지로만" in question for question in result.missing_information)
+    assert any("전지(건전지·충전지)만으로 동작하는 구조라면" in item for item in result.findings[0].assumptions)
+
+
+def test_전원_방식을_알면_전지_전용_여부를_묻는다():
+    # 전원 방식 답(예: USB 충전)으로도 전지 전용인지 알 수 없으면 다음 회차에 묻게 됨
+    product, facts = product_and_facts("USB 충전식 미니 선풍기", (("product_type", "미니 선풍기"),
+                                                            ("power_source", "USB 충전식")), search_terms=["선풍기"])
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    assert not any("전원 방식" in question for question in result.missing_information)
+    assert any("건전지나 충전지로만" in question for question in result.missing_information)
 
 
 def test_전지_행만_고르면_값이_엇갈린_조건도_충돌_질문으로_묻지_않는다():
@@ -545,9 +566,10 @@ def test_본체_행에서_전지_전용_여부가_엇갈리면_정책으로_빼�
 
 
 def test_전지_언급이_뽑힌_조건에_없어도_원문에_있으면_전지_전용_여부를_묻는다():
-    # "AA 건전지 2개로 작동합니다"가 전원 방식으로 뽑히지 않아도 원문 전체에서 전지 언급을 찾음 (#757 리뷰)
-    lines = ["탁상용 선풍기", "AA 건전지 2개로 작동합니다"]
-    product, facts = _lines_product(lines, (("product_type", "탁상용 선풍기", 0),))
+    # "AA 건전지 2개로 작동합니다"가 전원 방식으로 뽑히지 않아도 원문 전체에서 전지 언급을 찾음 (#757 리뷰).
+    # 전원 방식이 없으면 그 질문을 먼저 하므로(#801) 전지 언급이 없는 줄에서 전원 방식이 뽑힌 것으로 둠
+    lines = ["탁상용 선풍기", "AA 건전지 2개로 작동합니다", "DC 전원"]
+    product, facts = _lines_product(lines, (("product_type", "탁상용 선풍기", 0), ("power_source", "DC", 2)))
     result, _, _ = run(product, facts, review(select(FAN_ROW, needed_fields=["battery_only"])))
     assert result.query["selected_items"] == [FAN_ROW]
     assert any("건전지나 충전지로만" in question for question in result.missing_information)

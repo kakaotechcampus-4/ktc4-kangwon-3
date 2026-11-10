@@ -168,7 +168,8 @@ TOPICS: tuple[str, ...] = (*QUESTIONS, TOPIC_OTHER)
 
 # 묻는 내용이 같은 조건 묶음. 하나를 물었으면 묶음의 다른 조건도 물은 것으로 본다 (#801: 전기 Tool이 battery_only를 묻는
 # 회차에 검증 모델이 power_source를 물어 전원 질문이 두 번 나옴). 전지로만 동작하는지는 전원 방식의 한 갈래라 판매자에게는
-# 같은 질문이고, 어느 쪽 답이든 전원 방식을 알 수 있다.
+# 같은 질문이다. 한쪽 답으로 다른 쪽이 늘 정해지는 것은 아니지만, 빼는 것은 검증 모델의 질문뿐이고 판단에 필요한 조건은
+# Tool이 직접 묻는다 (전기 Tool도 둘을 한 회차에 같이 묻지 않음: electrical/tool.py _ask_power_once).
 SAME_QUESTION_GROUPS: tuple[frozenset[str], ...] = (frozenset({"power_source", "battery_only"}),)
 _SAME_QUESTION_FIELDS = {field: group for group in SAME_QUESTION_GROUPS for field in group}
 

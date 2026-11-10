@@ -228,6 +228,7 @@ class ElectricalTool(EvidenceSearchTool):
                 facts=[f for name in used for f in by_field[name]], assumptions=[*run.assumptions, *notes],
                 sources=sources, requirements=block_actions,
             ))
+        self._ask_power_once(run)
         query["selected_items"] = [selection.item_id for _, selection, _ in chosen]
         if query["dropped_candidates"]:
             run.assumptions.append(f"후보 행과 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
@@ -290,6 +291,25 @@ class ElectricalTool(EvidenceSearchTool):
         if "battery_only" in hit and skips["battery_only"] == _NO_SIGNAL:
             run.assumptions.append("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
                                    "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
+
+    @staticmethod
+    def _ask_power_once(run: ToolRun) -> None:
+        """전원 방식과 전지 전용 여부를 한 회차에 같이 묻지 않는다 (#801).
+
+        판매자에게는 둘 다 전원 질문이라 같은 답을 두 번 쓰게 된다. 전원 방식을 먼저 묻고, 그 답으로도 전지 전용인지
+        알 수 없으면(예: "USB 충전") 다음 회차에 전지 전용 여부를 묻는다. 본체 판단에 붙인 공통 비고 제외 가능성은
+        그대로 둔다. 값이 엇갈려 충돌 질문으로 나가는 조건은 문장이 달라 건드리지 않는다.
+
+        Args:
+            run: 이번 실행 상태.
+        """
+        if not {"power_source", "battery_only"} <= set(run.missing):
+            return
+        if {"power_source", "battery_only"} & set(run.conflicted):
+            return
+        run.missing = [name for name in run.missing if name != "battery_only"]
+        run.assumptions.append("전원 방식을 함께 물어 배터리 전용 여부는 이번에 따로 묻지 않았습니다. "
+                               "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
 
     @staticmethod
     def _skip_electrical_questions(run: ToolRun) -> None:
