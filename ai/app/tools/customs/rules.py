@@ -109,6 +109,32 @@ def _without_excludable(text: str, excludable: re.Pattern[str]) -> str:
     return " ".join(parts)
 
 
+def material_question_helps(law_name: str, material_texts: list[str], material_known: bool) -> bool:
+    """소재로 빠질 수 있는 요건이 남아 있을 때, 판매자에게 재질을 물으면 요건이 빠질 수 있는지.
+
+    남겨야 하는 소재(악어 등)가 이미 확인됐으면 물어도 남으므로 False. 재질을 모르거나, 재질은 알지만 종류를
+    밝히지 않은 가죽이 남아 있으면 True (예: 가죽 손잡이 → 소가죽이면 야생생물법 요건이 빠짐).
+
+    Args:
+        law_name: 남아 있는 요건 법령 이름 (excluded_by_product로 빠지지 않은 것).
+        material_texts: 소재를 적은 글 (excluded_by_product와 같은 글).
+        material_known: 통관 사실에 재질 조건이 있는지.
+
+    Returns:
+        bool: 재질 답으로 요건이 빠질 수 있으면 True. 소재 조건 법령이 아니면 False.
+    """
+    material = MATERIAL_CONDITIONED_LAWS.get(law_key(law_name))
+    if material is None:
+        return False
+    _, excludable, keep = material
+    text = " ".join(material_texts)
+    if keep.search(text):
+        return False
+    if not material_known:
+        return True
+    return bool(_UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)))
+
+
 def excluded_by_product(law_name: str, product: Product, material_texts: list[str] | None = None) -> str | None:
     """상품 신호나 소재 표기로 보아 이 요건 법령이 해당하지 않으면 그 이유를 돌려준다.
 

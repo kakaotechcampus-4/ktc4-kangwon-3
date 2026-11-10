@@ -19,7 +19,8 @@ from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
 from .related import FOLLOW_ALL
 from .rules import (
-    excluded_by_product, format_hs, law_note, omission_status, related_tool, requirement_subject, sale_actions,
+    excluded_by_product, format_hs, law_note, material_question_helps, omission_status, related_tool,
+    requirement_subject, sale_actions,
 )
 from .search import (
     CaseSearch, HsCase, Requirement, RequirementLookup,
@@ -174,19 +175,28 @@ class CustomsTool(EvidenceSearchTool):
         if evidence is not None:
             query["documents"] = evidence.documents()
         requirements, unresolved = self._lookup_requirements(hs_codes, run.assumptions)
-        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions,
-                                                     _material_texts(product, facts))
+        material_texts = _material_texts(product, facts)
+        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions, material_texts)
         if excluded:
             query["excluded_requirements"] = excluded
         run.requirements = requirements
         query["requirements"] = {code: [item.law_name for item in requirements if item.hs_code == code]
                                  for code in hs_codes if code not in unresolved}
-        if askable:
-            if unresolved or _requirements_differ(requirements, hs_codes):
-                run.missing.extend(askable)
-            else:
-                run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in askable)} 확인이 더 필요하지만, "
-                                       "후보 HS에 따라 갈리는 세관장확인 요건이 없어 묻지 않았습니다.")
+        asks = list(askable) if askable and (unresolved or _requirements_differ(requirements, hs_codes)) else []
+        # 소재로 빠질 수 있는 요건(야생생물법 등)이 남았는데 재질·가죽 종류를 모르면, 모델이 요청하지 않아도 재질을 물음.
+        # 모델은 이 경우를 거의 묻지 않음 (#756 리뷰: 가죽 제품 실측에서 야생생물법이 남은 5회 모두 요청 없음)
+        material_known = "material" in by_field
+        material_laws = list(dict.fromkeys(item.law_name for item in requirements
+                                           if material_question_helps(item.law_name, material_texts, material_known)))
+        if material_laws and "material" not in asks:
+            asks.append("material")
+        if material_laws:
+            laws = ", ".join(f"「{name}」" for name in material_laws)
+            run.assumptions.append(f"{laws} 요건은 소재(가죽 종류 등)에 따라 해당하지 않을 수 있어 재질을 물었습니다.")
+        run.missing.extend(asks)
+        if skipped := [name for name in askable if name not in asks]:
+            run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in skipped)} 확인이 더 필요하지만, "
+                                   "후보 HS에 따라 갈리는 세관장확인 요건이 없어 묻지 않았습니다.")
         case_sources = [_case_source(case) for case, _, _ in chosen]
         # 사례마다 이유가 따로라 줄을 나눔 (진단서 판단 근거는 줄바꿈을 그대로 보여 줌)
         rationale = "\n".join(selection.rationale for _, selection, _ in chosen)
