@@ -9,13 +9,6 @@ export const NAV_ITEMS: NavItem[] = [
     { label: "상품 진단", to: "/upload" },
 ];
 
-// 푸터 메뉴. 헤더와 달리 마이페이지도 노출한다.
-export const FOOTER_NAV_ITEMS: NavItem[] = [
-    { label: "메인", to: "/" },
-    { label: "상품 진단", to: "/upload" },
-    { label: "마이페이지", to: "/mypage" },
-];
-
 export type PolicyType = "terms" | "privacy";
 
 // 정책 문서 링크. /docs는 nginx가 AI 서버로 보내는 경로라서 /policy를 쓴다.
