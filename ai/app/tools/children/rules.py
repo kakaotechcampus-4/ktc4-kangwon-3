@@ -13,11 +13,13 @@ from .evidence import Scheme
 CHILD_LIMIT_MONTHS = 13 * 12 + 11
 
 # 해외 직구 상세페이지의 영문 표기도 읽는다: "36M+", "24 months", "3-12years", "3 yrs", "3Y+".
+# 영문 years를 기계 번역한 "3-8 년"도 세(歲)로 읽는다 (made-in-china 한국어 페이지 "나이: 3-8 년"). "2015년생", "2024년도",
+# "연식", "년형"은 연령이 아니어서 뒤 글자로 막고, "2024년"의 "024년"을 읽지 않게 숫자 앞에 다른 숫자가 오면 읽지 않는다.
 _MONTH_UNITS = ("개월", "M", "mo", "mos", "month", "months")
 # 한 글자 M·Y는 "36M+", "6-36M"처럼 뒤에 +나 끝이 올 때만 단위로 본다("5M 케이블", "3M" 상표를 연령으로 읽지 않게).
-_UNIT = r"(개월|세(?!트)|살|(?i:months?|mos?|years?|yrs?)(?![A-Za-z])|[MY](?=\s*\+|\s*$|\s*[)\]]))"
-_RANGE_RE = re.compile(rf"(\d{{1,3}})\s*{_UNIT}?\s*(?:~|∼|-|–|부터)\s*(?:만\s*)?(\d{{1,3}})\s*{_UNIT}\s*(이하|미만|까지)?")
-_SINGLE_RE = re.compile(rf"(\d{{1,3}})\s*{_UNIT}\s*(이상|이하|미만|초과|부터|까지|\+|(?i:and\s+up|and\s+older|or\s+older|&\s*up))?")
+_UNIT = r"(개월|세(?!트)|살|년(?![생도식형])|(?i:months?|mos?|years?|yrs?)(?![A-Za-z])|[MY](?=\s*\+|\s*$|\s*[)\]]))"
+_RANGE_RE = re.compile(rf"(?<!\d)(\d{{1,3}})\s*{_UNIT}?\s*(?:~|∼|-|–|부터)\s*(?:만\s*)?(\d{{1,3}})\s*{_UNIT}\s*(이하|미만|까지)?")
+_SINGLE_RE = re.compile(rf"(?<!\d)(\d{{1,3}})\s*{_UNIT}\s*(이상|이하|미만|초과|부터|까지|\+|(?i:and\s+up|and\s+older|or\s+older|&\s*up))?")
 # 영문 "under 3 years": 금지 문구와 함께면 그 연령 이상, 아니면 그 연령 미만.
 _UNDER_RE = re.compile(rf"(?i:under|below)\s*(\d{{1,3}})\s*{_UNIT}")
 _PLUS_RE = re.compile(r"(?<!\d)(\d{1,2})\s*\+")
