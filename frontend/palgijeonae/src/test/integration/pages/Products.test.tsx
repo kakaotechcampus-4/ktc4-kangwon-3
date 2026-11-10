@@ -351,6 +351,112 @@ describe('진단 결과 - 정렬', () => {
   })
 })
 
+describe('진단 결과 - 선택', () => {
+  it('처음에는 아무것도 선택되어 있지 않고 "전체 선택"으로 보인다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    expect(page.productNames().some((name) => page.isProductSelected(name))).toBe(false)
+    expect(page.isSelectAllChecked()).toBe(false)
+    expect(page.isSelectAllPartial()).toBe(false)
+    expect(page.selectionSummary()).toBe('전체 선택')
+  })
+
+  it('상품 체크박스를 누르면 선택되어 "1개 선택됨"으로 바뀌고, 다시 누르면 해제된다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.toggleProduct('상품-02')
+
+    expect(page.isProductSelected('상품-02')).toBe(true)
+    expect(page.selectionSummary()).toBe('1개 선택됨')
+
+    await page.toggleProduct('상품-02')
+
+    expect(page.isProductSelected('상품-02')).toBe(false)
+    expect(page.selectionSummary()).toBe('전체 선택')
+  })
+
+  it('일부만 선택하면 전체 선택이 일부 선택 상태가 된다', async () => {
+    mockProductServer(makeProducts(3))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.toggleProduct('상품-01')
+
+    expect(page.isSelectAllPartial()).toBe(true)
+    expect(page.isSelectAllChecked()).toBe(false)
+  })
+
+  it('전체 선택을 누르면 현재 페이지 상품만 모두 선택되고, 다시 누르면 모두 해제된다', async () => {
+    mockProductServer(makeProducts(25))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.toggleSelectAll()
+
+    expect(page.productNames().every((name) => page.isProductSelected(name))).toBe(true)
+    expect(page.selectionSummary()).toBe('10개 선택됨')
+    expect(page.isSelectAllChecked()).toBe(true)
+    expect(page.isSelectAllPartial()).toBe(false)
+
+    await page.toggleSelectAll()
+
+    expect(page.productNames().some((name) => page.isProductSelected(name))).toBe(false)
+    expect(page.selectionSummary()).toBe('전체 선택')
+  })
+
+  it('하나씩 모두 선택하면 전체 선택도 선택 상태가 된다', async () => {
+    mockProductServer(makeProducts(2))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.toggleProduct('상품-01')
+    await page.toggleProduct('상품-02')
+
+    expect(page.isSelectAllChecked()).toBe(true)
+    expect(page.isSelectAllPartial()).toBe(false)
+  })
+
+  it('체크박스를 눌러도 결과 화면으로 이동하지 않는다', async () => {
+    mockProductServer(makeProducts(2))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+
+    await page.toggleProduct('상품-01')
+
+    expect(getCurrentLocation()).toBe('/products')
+    expect(screen.queryByText('결과 화면')).not.toBeInTheDocument()
+  })
+
+  it('상품이 없으면 전체 선택을 누를 수 없다', async () => {
+    mockProductServer([])
+    const { page } = renderProductsPage()
+    await page.waitForText(PRODUCTS_MESSAGES.EMPTY)
+
+    expect(page.isSelectAllEnabled()).toBe(false)
+  })
+
+  it.each([
+    ['검색어', (page: ReturnType<typeof productsPage>) => page.search('상품-0')],
+    ['필터', (page: ReturnType<typeof productsPage>) => page.selectFilter(ResultStatus.PurchasingAgentAllowed)],
+    ['정렬', (page: ReturnType<typeof productsPage>) => page.sortBy('오래된순')],
+    ['페이지', (page: ReturnType<typeof productsPage>) => page.goToPage(2)],
+  ])('%s을(를) 바꾸면 선택이 풀린다', async (_, change) => {
+    mockProductServer(makeProducts(25))
+    const { page } = renderProductsPage()
+    await page.waitForProduct('상품-01')
+    await page.toggleProduct('상품-01')
+    expect(page.selectionSummary()).toBe('1개 선택됨')
+
+    await change(page)
+
+    await page.waitForSelectionSummary('전체 선택')
+  })
+})
+
 describe('진단 결과 - 페이지 이동', () => {
   it('상품이 한 페이지(10개) 이하면 페이지 이동 버튼을 보여주지 않는다', async () => {
     mockProductServer(makeProducts(10))

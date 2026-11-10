@@ -69,6 +69,11 @@ export function productsPage(user: User = userEvent.setup()) {
 
   const sortButton = (label: SortLabel) => within(screen.getByRole('group', { name: '정렬' })).getByRole('button', { name: label })
 
+  const productCheckbox = (name: string) => within(productItem(name)).getByRole('checkbox', { name: `${name} 선택` })
+  const selectAllCheckbox = () => screen.getByRole('checkbox', { name: '현재 페이지 전체 선택' })
+  // 툴바 왼쪽의 글자("전체 선택" / "3개 선택됨")는 전체 선택 체크박스와 같은 줄에 있다.
+  const selectionSummary = () => selectAllCheckbox().closest('div')?.textContent?.trim() ?? ''
+
   const pageNavButton = (nav: PageNav) => screen.getByRole('button', { name: PAGE_NAV_LABELS[nav] })
 
   const searchTypedText = async (keyword: string) => {
@@ -120,6 +125,16 @@ export function productsPage(user: User = userEvent.setup()) {
     goToPage: (pageNumber: number) => user.click(screen.getByRole('button', { name: new RegExp(`^${pageNumber}$`) })),
     goTo: (nav: PageNav) => user.click(pageNavButton(nav)),
     isPageNavDisabled: (nav: PageNav) => (pageNavButton(nav) as HTMLButtonElement).disabled,
+
+    // ── 선택 ────────────────────────────────────────────────
+    toggleProduct: (name: string) => user.click(productCheckbox(name)),
+    isProductSelected: (name: string) => (productCheckbox(name) as HTMLInputElement).checked,
+    toggleSelectAll: () => user.click(selectAllCheckbox()),
+    isSelectAllChecked: () => (selectAllCheckbox() as HTMLInputElement).checked,
+    isSelectAllPartial: () => (selectAllCheckbox() as HTMLInputElement).indeterminate,
+    isSelectAllEnabled: () => !(selectAllCheckbox() as HTMLInputElement).disabled,
+    selectionSummary,
+    waitForSelectionSummary: (text: string) => waitFor(() => expect(selectionSummary()).toBe(text)),
 
     // ── 정렬 ────────────────────────────────────────────────
     sortBy: (label: SortLabel) => user.click(sortButton(label)),
