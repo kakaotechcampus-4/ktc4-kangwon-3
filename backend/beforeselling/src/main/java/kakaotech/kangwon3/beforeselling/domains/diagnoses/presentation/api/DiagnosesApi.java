@@ -36,6 +36,7 @@ public interface DiagnosesApi {
             success = @ApiSuccessResponseExplanation(responseClass = DiagnosesCreateResponse.class, description = "진단 요청 생성 성공"),
             errors = {
                     @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "INVALID_METHOD_ARGUMENT"),
+                    @ApiErrorResponseExplanation(exceptionCode = CommonResponseCode.class, name = "NOT_FOUND"),
             }
     )
     ResponseEntity<ApiResponse<DiagnosesCreateResponse>> createDiagnoses(
