@@ -93,7 +93,7 @@ function JudgementPage() {
                     <div className="flex w-full flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
                         <p id="report-hint" className="text-sm text-neutral-muted">
                             {isDiagnosisDone
-                                ? "페이지를 나가도 진단은 계속돼요. 마이페이지에서 다시 볼 수 있어요."
+                                ? "페이지를 나가도 진단은 계속돼요. 진단 결과에서 다시 볼 수 있어요."
                                 : "진행 중인 상품이 끝나면 진단서를 볼 수 있어요."}
                         </p>
                         <Button

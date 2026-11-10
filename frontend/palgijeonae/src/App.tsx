@@ -15,6 +15,7 @@ import MyPage from './pages/Mypage/index.tsx'
 import NotFoundPage from './pages/NotFound/index.tsx'
 import OAuthCallbackPage from './pages/OAuthCallback/index.tsx'
 import PolicyPage from './pages/Policy/index.tsx'
+import ProductsPage from './pages/Products/index.tsx'
 import QuestionPage from './pages/Question/index.tsx'
 import ResultPage from './pages/Result/index.tsx'
 import UploadPage from './pages/Upload/index.tsx'
@@ -78,7 +79,8 @@ function App() {
               <Route path="/judgement/:diagnosesId" element={<JudgementPage />} />
               <Route path="/result/product/:productId" element={<ResultPage />} />
               <Route path="/result/diagnoses/:diagnosesId" element={<ResultPage />} />
-              <Route path="/mypage" element={<MyPage />} />
+              <Route path="/products" element={<ProductsPage />} />
+              <Route path="/mypage"element={<MyPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

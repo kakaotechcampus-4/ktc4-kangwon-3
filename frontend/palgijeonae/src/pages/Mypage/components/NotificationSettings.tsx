@@ -27,7 +27,7 @@ function NotificationSettings() {
             <hr className="w-full border-neutral-line" />
             <SettingToggleRow
                 title="법령 개정 알림"
-                description="진단 근거 법령이 바뀌면 마이페이지 상단에 알려드려요."
+                description="진단 근거 법령이 바뀌면 진단 결과 페이지 상단에 알려드려요."
                 checked={data?.lawAmendmentAlertEnabled ?? false}
                 onChange={handleLawAmendmentAlertChange}
                 disabled={isPending || isUpdating}

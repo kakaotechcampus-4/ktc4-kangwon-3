@@ -13,7 +13,7 @@ import {
   ToolReviewStatus,
 } from '@/api/types/product'
 import { SocialProvider, type UserInfo } from '@/api/users'
-import type { MyProductItem } from '@/pages/Mypage/types'
+import type { MyProductItem } from '@/pages/Products/types'
 
 // 질문은 최대 2회차까지만 생성된다. (BE 콜백 검증: questionRound는 @Min(1) @Max(2)) questionOrder는 한 회차 안에서의 순서다.
 const MAX_QUESTION_ROUND = 2

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { getErrorMessage } from "@/api/core/client.ts";
 import type { RecheckProduct } from "@/api/lawAmendments.ts";
 import { rediagnoseProduct } from "@/api/products.ts";
-import { LAW_AMENDMENTS_QUERY_KEY } from "@/pages/Mypage/constants.ts";
+import { LAW_AMENDMENTS_QUERY_KEY } from "@/pages/Products/constants.ts";
 
 // 진단을 마친 상품 재진단. 성공하면 관련 목록을 다시 불러오고 진행 화면으로 이동한다.
 export function useRediagnoseProduct() {

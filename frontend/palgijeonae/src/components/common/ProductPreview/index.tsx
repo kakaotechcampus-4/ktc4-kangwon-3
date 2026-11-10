@@ -15,11 +15,10 @@ interface ProductPreviewProps {
     resultStatus: ResultStatus | null
     processingStatus: ProcessingStatusType
     sourceType: SourceType
-    // 카드 오른쪽 위에 삭제 버튼 같은 동작이 겹쳐 놓일 때, 좁은 화면에서 글자가 그 밑으로 들어가지 않도록 자리를 비워 둔다.
-    hasTrailingAction?: boolean
+    selected?: boolean
 }
 
-function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType, hasTrailingAction = false }: ProductPreviewProps) {
+function ProductPreview({ productName, productImageUrl, resultStatus, processingStatus, sourceType, selected = false }: ProductPreviewProps) {
     const badge = resultStatus
         ? RESULT_STATUS_BADGES[resultStatus]
         : PROCESSING_STATUS_BADGES[processingStatus] ?? FALLBACK_BADGE;
@@ -29,12 +28,12 @@ function ProductPreview({ productName, productImageUrl, resultStatus, processing
     const isProductNameLong = isMobile || displayTitle !== productName;
 
     return (
-        <DefaultBox>
+        <DefaultBox className={cn(selected && "border-primary/60 bg-primary-soft/30")}>
             <div className="flex w-full flex-row gap-3 md:gap-4">
                 <img src={productImageUrl ?? defaultThumbnail}
                     alt="상품 썸네일"
                     className="size-16 shrink-0 object-cover rounded-lg border border-box-line md:size-23" />
-                <div className={cn("flex min-w-0 flex-col items-start gap-1.5 md:gap-2", hasTrailingAction && "pr-14 md:pr-0")}>
+                <div className="flex min-w-0 flex-col items-start gap-1.5 md:gap-2">
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 md:gap-2">
                         <div className={cn("px-2 py-0.75 border rounded-full text-xs font-semibold md:px-2.5 md:py-1 md:text-sm", badge.className)}>
                             {badge.label}

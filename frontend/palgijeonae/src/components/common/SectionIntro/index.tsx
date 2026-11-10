@@ -42,14 +42,24 @@ const wrapperVariants = cva("flex flex-col items-start", {
 
 interface SectionIntroProps extends VariantProps<typeof titleVariants> {
     title: string
+    // 제목 옆에 작은 회색 글씨로 붙는 보조 텍스트. 예: 전체 개수
+    titleAside?: string
     description?: string
 }
 
-function SectionIntro({ title, description, size }: SectionIntroProps) {
+function SectionIntro({ title, titleAside, description, size }: SectionIntroProps) {
     const Heading = size === '2xl' ? 'h2' : size === 'xl' ? 'h3' : 'h1';
+    const heading = <Heading className={titleVariants({ size })}>{title}</Heading>;
     return (
         <div className={wrapperVariants({ size })}>
-            <Heading className={titleVariants({ size })}>{title}</Heading>
+            {titleAside ? (
+                <div className="flex items-baseline gap-2">
+                    {heading}
+                    <span className="text-base font-medium text-neutral-border">{titleAside}</span>
+                </div>
+            ) : (
+                heading
+            )}
             {description && <p className={descriptionVariants({ size })}>{description}</p>}
         </div>
     );
