@@ -162,4 +162,21 @@ describe('ImageLightbox - 뒤 화면 막기', () => {
     expect(opener).toHaveFocus()
     opener.remove()
   })
+
+  // inert 안의 요소는 실제 브라우저에서 포커스를 받지 못한다. (jsdom은 막지 않아서, 포커스를 돌려주는 시점에 이미 풀렸는지를 본다)
+  it('열기 전 요소가 앱 안에 있어도, 포커스를 돌려주는 시점에는 뒤 화면의 inert가 이미 풀려 있다', () => {
+    const opener = document.createElement('button')
+    appRoot.appendChild(opener)
+    opener.focus()
+    const { unmount } = renderLightbox()
+    expect(appRoot.inert).toBe(true)
+
+    let inertWhenFocusReturned: boolean | undefined
+    vi.spyOn(opener, 'focus').mockImplementation(() => {
+      inertWhenFocusReturned = appRoot.inert
+    })
+    unmount()
+
+    expect(inertWhenFocusReturned).toBe(false)
+  })
 })
