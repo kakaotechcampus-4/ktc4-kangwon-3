@@ -85,7 +85,7 @@ function JudgementPage() {
                                 <span className="text-sm text-neutral-muted">결과는 언제 볼 수 있나요?</span>
                                 <HelpTooltip label="결과 확인 방법 안내">
                                     먼저 진단이 완료된 상품은 결과 보기 버튼으로 개별로 확인할 수 있어요.{"\n"}
-                                    전체 상품을 한 번에 보려면 진단이 모두 끝난 후 맨 아래 진단서 보기 버튼을 사용하세요.
+                                    전체 상품을 한 번에 보려면 진단이 모두 끝난 후 화면 아래의 진단서 보기 버튼을 사용하세요.
                                 </HelpTooltip>
                             </div>
                         </div>
