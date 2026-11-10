@@ -79,7 +79,7 @@ export const buildDiagnosesDetail = (overrides: Partial<DiagnosesDetail> = {}): 
   ...overrides,
 })
 
-// 마이페이지 목록의 상품 하나. 기본값은 진단이 끝난 구매 대행 가능 상품이다.
+// 마이페이지 목록의 상품 하나. 기본값은 진단이 끝난 사입 가능 상품이다.
 export const buildMyProduct = (overrides: Partial<MyProductItem> = {}): MyProductItem => ({
   productId: 'product-1',
   diagnosesId: 'diagnoses-1',

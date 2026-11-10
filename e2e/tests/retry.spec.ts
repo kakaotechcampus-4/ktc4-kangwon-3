@@ -14,7 +14,7 @@ test("진단이 실패하면 다시 시도할 수 있고, 다시 진행한 진�
     // then: 진행 화면으로 이동해 다시 진행하고, 끝나면 결과를 볼 수 있다.
     await expect(page).toHaveURL(/\/judgement\/[0-9a-f-]{36}$/);
     await page.getByRole("link", { name: "결과 보기" }).click({ timeout: DIAGNOSIS_TIMEOUT });
-    await expect(page.getByText("구매 대행 가능").first()).toBeVisible();
+    await expect(page.getByText("사입 가능").first()).toBeVisible();
 });
 
 test("다시 시도해도 같은 결과인 실패는 다시 시도를 권하지 않는다", async ({ page }) => {

@@ -212,7 +212,7 @@ const earphoneResult = makePreviewProduct({
     ],
 });
 
-/** 진단 완료(구매 대행 가능) 상태의 캠핑 테이블. */
+/** 진단 완료(사입 가능) 상태의 캠핑 테이블. */
 const table = makePreviewProduct({
     productId: "preview-table",
     diagnosesId: "preview-diagnoses",

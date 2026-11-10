@@ -8,7 +8,7 @@ import type { ProductFilter } from "@/pages/Mypage/types.ts";
 
 const FILTER_TABS: { key: ProductFilter; label: string }[] = [
     { key: "all", label: "전체" },
-    { key: ResultStatus.PurchasingAgentAllowed, label: "구매 대행 가능" },
+    { key: ResultStatus.PurchasingAgentAllowed, label: "사입 가능" },
     { key: ResultStatus.DirectImportCertificationRequired, label: "사입 인증 필요" },
     { key: ResultStatus.RecheckRequired, label: "재확인 필요" },
 ];
