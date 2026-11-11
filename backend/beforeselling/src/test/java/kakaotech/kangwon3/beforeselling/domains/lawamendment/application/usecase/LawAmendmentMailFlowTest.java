@@ -101,7 +101,7 @@ class LawAmendmentMailFlowTest {
         assertThat(message.to()).isEqualTo("user@example.com");
         assertThat(message.subject()).isEqualTo(MailTemplate.LAW_AMENDMENT.getSubject());
         assertThat(message.textBody())
-                .contains("2026-10-20", "어린이제품 안전 특별법 시행규칙", "1개", "http://localhost:5173/mypage");
+                .contains("2026-10-20", "어린이제품 안전 특별법 시행규칙", "1개", "http://localhost:5173/products");
         assertThat(lawAmendmentProductRepository.count()).isEqualTo(2);
     }
 

@@ -122,7 +122,7 @@ app:
     # NONE(로그만) | SES_API
     type: ${MAIL_TYPE:NONE}
     # 개정 알림 메일의 "확인하기" 링크
-    my-page-url: ${MAIL_MY_PAGE_URL:http://localhost:5173/mypage}
+    products-url: ${MAIL_PRODUCTS_URL:http://localhost:5173/products}
 
 aws:
   s3:
