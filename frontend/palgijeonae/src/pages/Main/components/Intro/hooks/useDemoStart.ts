@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SourceType } from "@/api/types/common";
 import demoFan from "@/assets/main-demoFan.png";
 import demoHamburgerToy from "@/assets/main-demoHamburgerToy.png";
-import demoMasage from "@/assets/main-demoMasage.png";
+import demoMassage from "@/assets/main-demoMassage.png";
 import type { Product } from "@/pages/Upload/types";
 
 interface DemoProductSeed {
@@ -22,7 +22,7 @@ const DEMO_PRODUCT_SEEDS: DemoProductSeed[] = [
     {
         title: "깊은 주무름 목 핸드 셰이프 마사지기 무선 지압 전기 온열 목 및 어깨 마사지기 근육통 완화 진동 목 마사지기",
         link: "https://kr.made-in-china.com/co_chenfengweilai/product_Deep-Kneading-Neck-Hand-Shaped-Massager-Wireless-Shiatsu-Electric-Heating-Neck-and-Shoulder-Massager-for-Muscle-Pain-Relief-Vibrator-Neck_yygnoogsig.html",
-        thumbnail: demoMasage,
+        thumbnail: demoMassage,
     },
     {
         title: "16 18 스탠드 팬 ABS 바디 고품질 전기 팬 타이머 포함",
