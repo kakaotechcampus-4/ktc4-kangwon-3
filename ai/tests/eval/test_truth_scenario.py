@@ -11,7 +11,7 @@ import pytest
 from app.eval.selection_scoring import load_selection_truth
 
 TRUTH_DIR = Path(__file__).parents[1] / "eval_truth_scenario"
-# 표본별 상품 수. 정답을 더하거나 빼면 docs/SCENARIO_EVAL.md의 숫자도 다시 재야 하므로 여기서 묶어 둔다.
+# 표본별 상품 수. 정답을 더하거나 빼면 docs/current/eval/SCENARIO_EVAL.md의 숫자도 다시 재야 하므로 여기서 묶어 둔다.
 EXPECTED_COUNTS = {"dev": 50, "holdout": 15}
 TRUTH_FILES = sorted(TRUTH_DIR.glob("*/*.json"))
 

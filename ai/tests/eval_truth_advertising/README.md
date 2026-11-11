@@ -26,4 +26,4 @@ python -m app.eval.advertising_runner --truth tests/eval_truth_advertising/holdo
 listing_text를 `tests/fixtures/_raw/advertising_holdout_inputs.json`으로 고정했다. 정답은 dev와 같은 기준이다.
 
 - 이 셋의 결과를 보고 프롬프트를 고치면 이 셋은 더 이상 홀드아웃이 아니다. 다음 확인에는 새 페이지가 필요하다.
-- 측정 기록은 `docs/history/ADVERTISING_TOOL.md`에 있다.
+- 측정 기록은 `docs/history/tools/ADVERTISING_TOOL.md`에 있다.

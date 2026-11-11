@@ -2,7 +2,7 @@
 [run]
 source = app
 branch = True
-# 평가 실행 코드. 실제 모델을 불러 정답률을 재는 쪽이라 평가셋 지표로 따로 봄 (docs/TEST_STRATEGY.md)
+# 평가 실행 코드. 실제 모델을 불러 정답률을 재는 쪽이라 평가셋 지표로 따로 봄 (docs/current/testing/TEST_STRATEGY.md)
 omit =
     app/eval/*
 

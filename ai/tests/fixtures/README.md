@@ -31,12 +31,12 @@ API 키 없이 CI에서 돈다.
 `tests/eval_truth_advertising/*.json`의 `inputs_sha256_12`와 같은지 확인한다(다르면 러너가 실행하지 않는다).
 
 사용자 시나리오 평가 원문(개발 `strat_NN/` 50개, 홀드아웃 `holdout_scenario/` 15개)은 같은 노션 페이지의 `scenario_raw_text.zip`에 둔다.
-이 디렉터리에 그대로 풀고 `MANIFEST_scenario.txt`로 지문을 확인한다. 상세 이미지(정답 근거 확인용, 140MB)는 노션에 없고 gityhb에게 요청한다. `docs/SCENARIO_EVAL.md` 참고.
+이 디렉터리에 그대로 풀고 `MANIFEST_scenario.txt`로 지문을 확인한다. 상세 이미지(정답 근거 확인용, 140MB)는 노션에 없고 gityhb에게 요청한다. `docs/current/eval/SCENARIO_EVAL.md` 참고.
 
 입력 가드 평가 입력(`guard_dev_inputs.json`, `guard_holdout_inputs.json`)과 에이전트 가드레일 평가 입력(`guardrail_inputs.json`)은
 공격 문장이 포함되어 있어 저장소에 올리지 않는다. 이 디렉터리에 두며, 각 평가셋(`tests/eval_truth_guard/*.json`,
 `tests/eval_truth_guardrail/attacks.json`)의 `inputs_sha256_12`와 지문이 다르면 러너가 실행하지 않는다.
-`docs/GUARD_EVAL.md`, `docs/GUARDRAIL_EVAL.md` 참고.
+`docs/current/eval/GUARD_EVAL.md`, `docs/current/eval/GUARDRAIL_EVAL.md` 참고.
 
 ```bash
 python scripts/try_extraction.py --text tests/fixtures/_raw/power_bank.txt
