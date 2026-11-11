@@ -3,7 +3,7 @@
 로그인, 진단 요청 저장, AI 서버 연동, 진단 결과 제공을 맡는 Spring Boot 서버입니다.
 
 - API 문서(Swagger): https://palgijeone.com/swagger-ui/index.html
-- 공통 개발 문서: [위키](../docs/wiki/Home.md)
+- 공통 개발 문서: [위키](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki)
 
 ## 목차
 
@@ -30,12 +30,12 @@
 kakaotech.kangwon3.beforeselling
 ├── domains/            # 도메인마다 presentation · application · domain 3계층
 │   ├── auth/           # 소셜 로그인(카카오·네이버·구글), 토큰 재발급, 로그아웃
-│   ├── user/           # 내 정보 조회·수정, 개정 알림 설정, 회원 탈퇴(진단서 삭제, 토큰 폐기, 소셜 연결 해제)
+│   ├── user/           # 내 정보 조회·수정, 개정 알림 설정, 회원 탈퇴(진단서 삭제, 토큰 폐기, 탈퇴 회원 액세스 토큰 차단, 소셜 연결 해제)
 │   ├── diagnoses/      # 진단서·상품 생성·조회·삭제, 질문 답변, 재시도, 재진단, AI 콜백 수신
 │   │   ├── presentation/   # api(Swagger 명세 인터페이스), controller
 │   │   ├── application/    # dto, usecase, mapper, event, scheduler
-│   │   └── domain/         # entity, repository, service
-│   └── lawamendment/   # AI 개정 감지 콜백 수신, 재확인 대상 상품 연결, 개정 목록 조회, 알림 메일
+│   │   └── domain/         # entity, repository, service, event
+│   └── lawamendment/   # AI 개정 감지 콜백 수신, 재확인 대상 상품 연결·재진단 시 해제, 개정 목록 조회, 알림 메일
 └── global/             # 보안(JWT, 내부 토큰), 처리율 제한, S3·AI 연동, 공통 응답·예외
 ```
 
@@ -90,20 +90,20 @@ set -a; source .env; set +a
 2026-11-05 기준
 
 - 커버리지가 최소 기준에 못 미치면 빌드가 실패하고 배포도 막힙니다. 긴급 배포가 필요하면 Actions에서 `Backend CI/CD`를 수동 실행하고 `skip-coverage`를 켭니다.
-- 테스트 종류 선택 기준, 작성 규칙, 커버리지는 [BE 테스트 정책](docs/TEST_POLICY.md)에 있습니다. 파트 공통 도구는 위키 [테스트 가이드](../docs/wiki/테스트-가이드.md#be)에 있습니다.
+- 테스트 종류 선택 기준, 작성 규칙, 커버리지는 [BE 테스트 정책](docs/TEST_POLICY.md)에 있습니다. 파트 공통 도구는 위키 [테스트 가이드](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테스트-가이드#be)에 있습니다.
 
 ## 배포와 운영
 
 - develop에 병합되면 [`backend.yml`](../.github/workflows/backend.yml)이 빌드 → ECR → EC2 Blue-Green 배포 → API 응답 확인까지 합니다. 절차와 롤백: [`deploy/README.md`](beforeselling/deploy/README.md)
 - 프로필: `local`(기본), `prod`, `test`(H2)
 - DB 스키마: Flyway로 관리합니다(`src/main/resources/db/migration`). 운영은 `ddl-auto: validate`라 스키마를 바꾸는 PR은 마이그레이션 SQL을 함께 올립니다. 작성 방법: [Flyway 마이그레이션 가이드](docs/guide/FLYWAY_MIGRATION_GUIDE.md)
-- 모니터링: Grafana(응답시간·에러율·JVM), Sentry(5xx, 새 이슈는 Discord 알림). 위키 [모니터링과 장애 대응](../docs/wiki/모니터링과-장애-대응.md)
+- 모니터링: Grafana(응답시간·에러율·JVM), Sentry(5xx, 새 이슈는 Discord 알림). 위키 [모니터링과 장애 대응](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/모니터링과-장애-대응)
 
 ## 더 보기
 
 - 코드 컨벤션: [`docs/CODE_CONVENTION.md`](docs/CODE_CONVENTION.md)
 - 테스트 정책: [`docs/TEST_POLICY.md`](docs/TEST_POLICY.md)
 - DB 마이그레이션: [`docs/guide/FLYWAY_MIGRATION_GUIDE.md`](docs/guide/FLYWAY_MIGRATION_GUIDE.md)
-- 상태 관리·인증 설계: 테크스펙 [아키텍처 설계](../docs/wiki/테크스펙.md#be-진단-상태-관리)
-- 장애 대응: 테크스펙 [BE 장애 대응](../docs/wiki/테크스펙.md#be-장애-대응)
-- 설계 결정과 이유: 테크스펙 [트레이드오프](../docs/wiki/테크스펙.md#트레이드오프)
+- 상태 관리·인증 설계: 테크스펙 [아키텍처 설계](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테크스펙#be-진단-상태-관리)
+- 장애 대응: 테크스펙 [BE 장애 대응](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테크스펙#be-장애-대응)
+- 설계 결정과 이유: 테크스펙 [트레이드오프](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테크스펙#트레이드오프)
