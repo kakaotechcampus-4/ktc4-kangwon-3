@@ -85,7 +85,7 @@
   "reviewed_by": "gityhb",
   "reviewed_at": "2026-09-16",
   "tags": ["기존 실패", "애매"],
-  "summary": "제목엔 'MagSafe 1460mAh 케이스', 스펙표엔 '배터리 미포함'. 어느 쪽도 확정할 수 없다.",
+  "summary": "제목엔 'MagSafe 1460mAh 케이스', 스펙표엔 '배터리 미포함' + '전자 부품 또는 마더보드 미포함'. 카테고리 표시는 '보조배터리'인데 breadcrumb은 '휴대폰 액세서리'. 배터리·전기 관련 특성을 어느 쪽으로도 확정할 수 없다.",
 
   "booleans": {
     "battery_included": {
@@ -111,7 +111,7 @@
 
   "keywords": {
     "product_name": { "required": ["케이스"] },
-    "category": { "allowed": ["보조배터리", "휴대폰 액세서리", "휴대폰 케이스"] }
+    "category": { "allowed": ["보조배터리", "휴대폰 액세서리", "휴대폰 케이스", "휴대폰&액세서리"] }
   },
 
   "attributes_required": [
@@ -121,7 +121,7 @@
     { "name": "정격전압", "value": "220V", "reason": "페이지에 전압 표기가 전혀 없다" }
   ],
   "conflicts_required": [
-    { "must_contain": "1460mAh", "evidence": "용량 표기와 '배터리 미포함'이 같은 페이지에 있다" }
+    { "must_contain": "1460mAh", "evidence": "용량 표기와 '배터리 미포함'이 같은 페이지에 있어 모순 후보로 보고해야 한다" }
   ]
 }
 ```
