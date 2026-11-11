@@ -132,12 +132,7 @@ docker logs ai-server 2>&1 | grep -E " (WARNING|ERROR) "
 ```
 
 - 레벨을 바꾸려면 서버 `.env`의 `LOG_LEVEL`을 수정하고 컨테이너를 다시 기동한다.
-- 배포·`docker stop` 시 실행 중이던 진단은 끝날 때까지 기다린다(drain). 끝난 결과는 평소와 동일하게 콜백으로 전송된다.
-  - 대기 시간: 580초(`SESSION_DRAIN_SECONDS`)와 실행 중인 세션이 모두 최대 시간(600초)을 넘기는 시각 중 이른 쪽이다. 최대 시간을 넘긴 세션은 시간 초과 실패 콜백을 전송한다.
-  - 이후 남은 콜백을 최대 15초 동안 전송하고 종료한다. 컨테이너 종료 대기(`stop_grace_period`)는 600초이다.
-  - 대기 중 세션은 취소된다. 멈춘 상품은 `서버 종료로 진단을 멈춤`(DB 보관) 또는 `서버 종료로 진단을 버림` 줄로 확인한다.
-  - 대기하는 동안 새 요청은 받지 않는다. BE는 전달하지 못한 요청을 대기 상태로 되돌린 뒤 다시 전송한다.
-- 대기·실행 중·답변 대기 세션은 DB에도 보관하여 재시작 시 복원한다. 상태별 처리는 [AI_SESSION_ARCHIVE.md](AI_SESSION_ARCHIVE.md)를 참고한다.
+- 배포·`docker stop` 시 실행 중인 진단의 처리(drain)와 재시작 시 세션 복원은 [AI_SESSION_ARCHIVE.md](AI_SESSION_ARCHIVE.md)를 참고한다. 종료 시 멈춘 상품은 `서버 종료로 진단을 멈춤`(DB 보관) 또는 `서버 종료로 진단을 버림` 줄로 확인한다.
 - 모델 호출 사용량 기록(`logs/usage.jsonl`)은 named volume `ai-logs`에 저장되므로 배포 후에도 유지된다. 확인: `docker exec ai-server python -m app.observability.usage`
   - 10MB를 넘으면 기존 파일을 `usage.jsonl.1`부터 한 칸씩 밀고 새 파일로 시작한다. 이전 파일은 `usage.jsonl.1`-`usage.jsonl.5`의 5개까지 보관한다.
   - `python -m app.observability.usage`는 현재 파일(`usage.jsonl`)만 집계한다.

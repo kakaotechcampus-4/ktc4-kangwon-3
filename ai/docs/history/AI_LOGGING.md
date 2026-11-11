@@ -22,6 +22,7 @@
   - 입력 가드 일부 판단 실패, 검증 모델 검토 실패 로그 줄(4.1절)
   - 법령 점검·CLIP 주간 적재·캐시 DB 로그 줄(4.3절)
   - Sentry가 외부 요청에 추적 헤더를 덧붙이지 않는 점(`trace_propagation_targets=[]`, 7.2절)
+- 5장의 서버 종료(drain) 설명은 [AI_SESSION_ARCHIVE.md](../AI_SESSION_ARCHIVE.md) 6장으로 이동하고 연결만 남겼다. 이동 전 문장은 [history/AI_SESSION_ARCHIVE.md](AI_SESSION_ARCHIVE.md)에 인용하였다.
 
 ## #497 로그 문서 신설 (2026-11-02)
 
