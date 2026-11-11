@@ -121,7 +121,7 @@ BaseAgent는 구조화 출력 모델 외에 판단 모델(`/decisions`) 호출 �
 ### 4.5 모델 생성과 프로필
 
 - 모델은 `build_agent_model(name)`·`build_tool_model(name)`(`app/clients/llm`)로 생성한다. 테스트에서는 모델을 직접 주입할 수 있다.
-- 프로필은 `app/config/profiles.py`의 `AGENT_PROFILES`, `TOOL_PROFILES`, `AGENT_DECISION_PROFILES`에서 정하며, 환경변수 `MODEL_PROFILE_OVERRIDES`로 바꿀 수 있다.
+- 프로필은 `app/config/profiles.py`의 `AGENT_PROFILES`, `TOOL_PROFILES`, `AGENT_DECISION_PROFILES`에서 정한다. 환경변수 `MODEL_PROFILE_OVERRIDES`로는 `AGENT_PROFILES`(`agent.<이름>`)와 `TOOL_PROFILES`(`tool.<이름>`)만 바꿀 수 있으며, 그 밖의 대상을 넣으면 `ConfigError`로 기동에 실패한다. `AGENT_DECISION_PROFILES`는 코드에서만 바꾼다.
 - 검증 에이전트는 모델을 자동 생성하지 않는다(`creates_default_model = False`). 규칙 검사만 하는 `verify_rules()`는 모델을 호출하지 않는다.
 - 채팅 모델 호출의 제한 시간은 45초, SDK 재시도는 1회다(`app/clients/llm/client.py`).
 
