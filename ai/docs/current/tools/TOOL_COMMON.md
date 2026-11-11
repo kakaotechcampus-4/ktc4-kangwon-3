@@ -156,7 +156,7 @@ Tool 결과(`ToolResult`)의 주요 칸은 다음과 같다.
 
 | 칸 | 내용 |
 |---|---|
-| `status` | `SUCCESS`, `SKIPPED`(선택되지 않음), `FAILED`(Tool 실행기가 기록) |
+| `status` | `SUCCESS`, `SKIPPED`(선택되지 않음), `FAILED`(Tool 실행기가 기록), `PARTIAL`(재실행이 실패했으나 검증이 지적하지 않은 이전 회차 판단을 유지함. 분야 카드는 `INCOMPLETE`) |
 | `findings` | 판단 목록. 판단별 제목, 판정, 위험도, 요약, 근거 설명, 근거 조문, 할 일, 사용한 조건, 가정 |
 | `required_actions` | 판매 전 할 일 |
 | `missing_information` | 판매자 질문 문장 |
