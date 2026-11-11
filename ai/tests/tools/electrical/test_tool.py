@@ -7,7 +7,7 @@ from app.schemas.agent import ToolSelectionItem
 from app.tools.electrical.schemas import ElectricalFact, ElectricalFacts, ElectricalReview, ElectricalSelection
 from app.schemas.product import Product
 from app.schemas.schemas import (
-    Determination, DraftAssessment, OverallStatus, ToolName, ToolResult, ToolStatus,
+    Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.electrical import ElectricalTool, ElectricalToolError
 from app.tools.common.facts import object_particle, topic_particle
@@ -186,7 +186,7 @@ def test_전지_전용_여부가_예와_아니오로_엇갈리면_충돌로_묻�
     result, _, _ = run(product, facts, review(select()))
     assert "battery_only" in result.query["conflicted"]
     assert result.query["battery_only"] is None
-    assert any("배터리 전용 여부 정보가 서로 달라" in text for text in result.missing_information)
+    assert any("전지로만 동작(코드나 어댑터 없이) 정보가 서로 달라" in text for text in result.missing_information)
 
 
 def test_판단을_바꾸지_않는_조건은_질문이_아니라_가정으로_남긴다():
@@ -396,6 +396,39 @@ def test_저전압_제품이_저전압_포함_비고가_없는_행을_고르면_
     assert '"low_voltage_excluded": true' in model.last_payload
 
 
+_DEFAULT_SUMMARY = ElectricalTool.insufficient[1]
+
+
+def test_저전압이라_후보_행이_모두_빠지면_전압을_못_찾았다고_하지_않고_저전압이라_빠지는_범위라고_안내한다():
+    # #796: USB 5V 기기에 "전원 방식·정격 전압 같은 전기 정보를 찾지 못해"가 나가던 것
+    product, facts = product_and_facts("USB 선풍기 DC 5V",
+                                       (("product_type", "USB 선풍기"), ("rated_voltage", "DC 5V")))
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    [finding] = result.findings
+    assert result.query["undecided"] == "low_voltage"
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION and finding.risk_level is RiskLevel.UNKNOWN
+    assert finding.summary.startswith("정격 전압(DC 5V)이 저전압(교류 30V·직류 42V 이하)이라")
+    assert finding.summary.endswith("함께 오는 어댑터나 충전기는 따로 확인이 필요합니다.")
+    assert "운용요령 제3조" in finding.rationale
+    assert "찾지 못해" not in finding.summary
+
+
+def test_전원_전압을_읽었는데_맞는_품목을_못_고르면_읽은_값을_보여_준다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review())
+    [finding] = result.findings
+    assert result.query["undecided"] == "no_match"
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION
+    assert finding.summary == ("상품 설명에서 전원 방식(AC)·정격 전압(220V)은 확인했지만 해당하는 전기용품 품목을 찾지 못해 "
+                               "대상인지 판단하지 못했습니다.")
+
+
+def test_전원_전압_정보가_없으면_지금_보류_문구를_그대로_쓴다():
+    product, facts = product_and_facts("스테인리스 전기포트", (("product_type", "전기포트"),))
+    result, _, _ = run(product, facts, review())
+    assert result.findings[0].summary == _DEFAULT_SUMMARY
+
+
 def test_저전압이어도_비고가_저전압을_포함하는_행은_후보로_남고_제3조를_근거에_붙인다():
     product, facts = product_and_facts("리튬폴리머 보조배터리, 출력 DC 5V",
                                        (("product_type", "보조배터리"), ("rated_voltage", "DC 5V")))
@@ -447,7 +480,7 @@ def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후�
 # -- 고른 품목 행에 따라 묻지 않는 질문 --
 # 이유는 두 가지: 어떤 답이든 고른 행의 판단이 같음(전지 행) / 질문 정책(전지·충전 언급이 없으면 전지 전용 여부를 안 물음)
 
-NO_SIGNAL_BATTERY = ("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
+NO_SIGNAL_BATTERY = ("상품 원문에 전지·충전 언급이 없어 전지로만 동작하는지는 묻지 않았습니다. "
                      "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
 
 
@@ -459,7 +492,7 @@ def test_전지_행만_고르면_전원_전압과_전지_전용_여부를_묻지
     assert result.query["selected_items"] == [BATTERY_ROW]
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
-    assert "전원 방식, 정격 전압, 배터리 전용 여부는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
+    assert "전원 방식, 정격 전압, 전지로만 동작(코드나 어댑터 없이)은 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
     # 묻지 않은 이유를 남긴 필드를 "확정에 더 필요"로 다시 적지 않음 (검증이 모순으로 읽지 않게)
     assert not any("확인이 더 필요합니다" in item for item in assumptions)
 
@@ -483,7 +516,7 @@ def test_전지_언급이_없으면_본체_행이어도_정책상_전지_전용_
     assert not any("건전지나 충전지로만" in question for question in result.missing_information)
     assumptions = result.findings[0].assumptions
     assert NO_SIGNAL_BATTERY in assumptions
-    assert not any("배터리 전용 여부 확인이 더 필요합니다" in item for item in assumptions)
+    assert not any("전지로만 동작(코드나 어댑터 없이) 확인이 더 필요합니다" in item for item in assumptions)
 
 
 def test_본체_행이고_전지_언급이_있으면_모델이_요청한_전지_전용_여부를_묻는다():
@@ -518,7 +551,7 @@ def test_전지_행만_고르면_값이_엇갈린_조건도_충돌_질문으로_
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
     assert any("상품 정보에 모순이 있어" in item for item in assumptions)
-    assert "정격 전압, 배터리 전용 여부는 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
+    assert "정격 전압, 전지로만 동작(코드나 어댑터 없이)은 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다." in assumptions
 
 
 def _lines_product(lines, values, search_terms=("선풍기",)):
@@ -540,7 +573,7 @@ def test_본체_행에서_전지_전용_여부가_엇갈리면_정책으로_빼�
     result, _, _ = run(product, facts, review(select(FAN_ROW)))
     assert result.query["selected_items"] == [FAN_ROW]
     assert "battery_only" in result.query["conflicted"]
-    assert "배터리 전용 여부 정보가 서로 달라 확인이 필요합니다." in result.missing_information
+    assert "전지로만 동작(코드나 어댑터 없이) 정보가 서로 달라 확인이 필요합니다." in result.missing_information
     assert NO_SIGNAL_BATTERY not in result.findings[0].assumptions
 
 
@@ -742,6 +775,9 @@ def test_모델_참고값에는_원문_없는_속성의_이름과_값도_들어�
 
 @pytest.mark.parametrize(("word", "particle"), [
     ("관절염 예방", "은"), ("불면증 치료", "는"), ("KC", "는"),
+    # 괄호 덧말은 빼고 앞 낱말의 받침으로 정함 (리뷰 #806)
+    ("정격 전압(5V)", "은"), ("전원 방식(USB-C)·정격 전압(5V)", "은"), ("전지로만 동작(코드나 어댑터 없이)", "은"),
+    ("USB(5V)", "는"), ("'습기 차단(IPX7).'", "은"),
 ])
 def test_보조사_은는은_받침에_따라_정한다(word, particle):
     assert topic_particle(word) == particle

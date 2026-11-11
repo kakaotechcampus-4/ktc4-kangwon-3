@@ -20,7 +20,7 @@ from ...schemas.schemas import Determination, ElectricalAssessment, RegulatoryFi
 
 _FIELDS = {
     "product_type": "제품 종류", "power_source": "전원 방식", "rated_voltage": "정격 전압",
-    "intended_use": "제품 용도", "battery_only": "배터리 전용 여부",
+    "intended_use": "제품 용도", "battery_only": "전지로만 동작(코드나 어댑터 없이)",
     "adapter_included": "어댑터 포함 여부", "rated_power": "정격 소비전력",
 }
 # 품목 조회에는 제품 종류만 있으면 된다. 전원·전압이 없으면 질문으로 남기고 검토는 계속한다.
@@ -170,6 +170,7 @@ class ElectricalTool(EvidenceSearchTool):
             "low_voltage_excluded": excluded_by_low_voltage(block, low, current),
         } for block in shortlisted]
         if not rows:
+            query["undecided"] = "no_rows"
             run.assumptions.append("상품과 비슷한 품목표 행을 찾지 못했습니다. 비대상 판단이 아닙니다.")
             self._skip_electrical_questions(run)
             return []
@@ -232,6 +233,9 @@ class ElectricalTool(EvidenceSearchTool):
         if query["dropped_candidates"]:
             run.assumptions.append(f"후보 행과 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
         if not findings:
+            # 저전압인데 후보 행이 모두 저전압 제외면 보류 이유를 따로 남김 (문구가 "전압을 못 찾았다"로 나가지 않게, #796)
+            all_low = low is True and all(row["low_voltage_excluded"] for row in rows)
+            query["undecided"] = "low_voltage" if all_low else "no_match"
             run.assumptions.append("후보 행 중 상품에 맞는 품목을 고르지 못했습니다. 비대상 판단이 아닙니다.")
             if battery_only is True:
                 run.assumptions.append("전지로만 동작하는 구조라 본체는 공통 비고에 따라 제외될 수 있습니다. 확정이 아닙니다.")
@@ -288,8 +292,42 @@ class ElectricalTool(EvidenceSearchTool):
             labels = ", ".join(_FIELDS[name] for name in no_effect)
             run.assumptions.append(f"{labels}{topic_particle(labels)} 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다.")
         if "battery_only" in hit and skips["battery_only"] == _NO_SIGNAL:
-            run.assumptions.append("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
+            run.assumptions.append("상품 원문에 전지·충전 언급이 없어 전지로만 동작하는지는 묻지 않았습니다. "
                                    "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
+
+    def _insufficient(self, run: ToolRun) -> tuple[str, str, str]:
+        """보류 이유에 맞는 정보 부족 판단 문구 (#796).
+
+        전원·전압을 읽었는데 "전기 정보를 찾지 못했다"고 안내하던 것을 고침. 저전압이라 후보 행이 모두 빠졌으면
+        그 이유를, 품목만 못 골랐으면 읽은 전원·전압을 보여 준다. 판정(정보 부족)은 그대로.
+
+        Args:
+            run: 실행 상태.
+
+        Returns:
+            tuple[str, str, str]: 제목, 요약, 근거.
+        """
+        subject = self.insufficient[0]
+        reason = run.query.get("undecided")
+        volts = [fact.value for fact in run.by_field.get("rated_voltage", [])]
+        power = [fact.value for fact in run.by_field.get("power_source", [])]
+        if reason == "low_voltage" and volts:
+            return (subject,
+                    f"정격 전압({', '.join(volts)})이 저전압(교류 30V·직류 42V 이하)이라 비슷한 품목이 모두 "
+                    "전기용품 안전관리 대상에서 빠지는 범위입니다. 대상이 아닐 가능성이 높지만 확정은 아닙니다. "
+                    "함께 오는 어댑터나 충전기는 따로 확인이 필요합니다.",
+                    "운용요령 제3조는 저전압 제품을 대상에서 뺍니다. 품목표에서 찾은 비슷한 품목은 모두 저전압 제품을 "
+                    "포함하지 않는 품목이었습니다. 품목 조회는 비슷한 행을 찾는 것이라 확정하지 않았습니다.")
+        if reason in ("low_voltage", "no_match", "no_rows") and (power or volts):
+            known = "·".join(part for part in (
+                f"전원 방식({', '.join(power)})" if power else "",
+                f"정격 전압({', '.join(volts)})" if volts else "") if part)
+            return (subject,
+                    f"상품 설명에서 {known}{topic_particle(known)} 확인했지만 해당하는 전기용품 품목을 찾지 못해 "
+                    "대상인지 판단하지 못했습니다.",
+                    "품목표에서 상품에 맞는 품목을 찾지 못해 판단을 보류했습니다. "
+                    "찾지 못했다는 것만으로 대상이 아니라고 보지는 않습니다.")
+        return self.insufficient
 
     @staticmethod
     def _skip_electrical_questions(run: ToolRun) -> None:
