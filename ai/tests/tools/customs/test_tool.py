@@ -11,6 +11,7 @@ from app.schemas.schemas import (
     Determination, DraftAssessment, OverallStatus, RiskLevel, ToolName, ToolResult, ToolStatus,
 )
 from app.tools.common.law import EvidenceUnavailable
+from app.tools.common.questions import ANSWER_PREFIX
 from app.tools.customs import CustomsTool, CustomsToolError
 from app.tools.customs.evidence import load_customs_evidence
 from app.tools.customs.search import CaseCandidates, ClipCaseSearch, HsCase, Requirement
@@ -177,6 +178,8 @@ def test_야생생물법_요건에는_판단_요약과_할_일에_멸종위기�
         "- 품목번호: HS 8516.79-9000 후보", "- 미리 갖출 서류: 국제적멸종위기 동식물 수입허가서",
         "- 악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, 소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."]
     assert result.required_actions[0].endswith("소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다.")
+    # 재질(스테인리스)을 이미 알면 소재로 빠질 요건이 남아도 재질을 다시 묻지 않음
+    assert result.missing_information == []
 
 
 def test_같은_HS의_요건이_여러_법령이면_법령마다_판단을_낸다():
@@ -328,13 +331,38 @@ def test_원문과_대조되지_않는_조건은_그_조건만_버린다():
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
 
 
+# 커피 머신(8419.81)에만 수입식품법 요건을 둔 표. 식약 Tool 판단은 통관 요건에 옮기지 않는 법령이라 HS로 갈림
+COFFEE_FOOD = Requirement(hs_code="8419810000", law_name="수입식품안전관리 특별법", agency="식품의약품안전처",
+                          document="수입식품등의 수입신고확인증", apply_start_date="20200406")
+
+
 def test_후보_HS의_요건이_다르면_HS를_가르는_조건만_묻고_나머지는_가정으로_남긴다():
-    # 전기주전자(8516.79, 전기용품법 요건)와 커피 머신(8419.81, 요건 없음) → 재질 답에 따라 알릴 요건이 달라짐
+    # 전기주전자(8516.79)와 커피 머신(8419.81, 수입식품법 요건) → 재질 답에 따라 알릴 요건이 달라짐
     product, facts = product_and_facts(values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
     chosen = review(select(needed_fields=["material", "intended_use"]), select(COFFEE_CASE))
-    result, _, _, _ = run(product, facts, chosen)
+    table = {"8516799000": [FakeRequirements.ELECTRICAL], "8419810000": [COFFEE_FOOD]}
+    result, _, _, _ = run(product, facts, chosen, requirements=FakeRequirements(table))
     assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
     assert any("용도 확인이 더 필요합니다" in text for text in result.findings[0].assumptions)
+
+
+def test_결정사례마다_요청한_같은_조건은_가정에_한_번만_남긴다():
+    product, facts = product_and_facts()
+    chosen = review(select(needed_fields=["composition"]), select(JUG_CASE, needed_fields=["composition", "intended_use"]))
+    result, _, _, _ = run(product, facts, chosen)
+    assumptions = result.findings[0].assumptions
+    assert [text for text in assumptions if text.startswith("HS 확정에는")] == ["HS 확정에는 구성품, 용도 확인이 더 필요합니다."]
+
+
+def test_다른_Tool_판단을_따르는_법령만_갈리면_묻지_않는다():
+    # 전기주전자(전기용품법)와 커피 머신(요건 없음): 전기용품법은 종합 단계가 electrical 판단으로 맞춤 → HS로 물을 필요 없음
+    # (배포 사례: 장난감 9503.00-3700 요건 없음 / 3300 어린이제품법에 "기능" 질문)
+    product, facts = product_and_facts(values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
+    chosen = review(select(needed_fields=["material"]), select(COFFEE_CASE))
+    result, _, _, _ = run(product, facts, chosen)
+    assert result.query["requirements"] == {"8516799000": ["전기용품 및 생활용품 안전관리법"], "8419810000": []}
+    assert result.missing_information == []
+    assert any("갈리는 세관장확인 요건이 없어 묻지 않았습니다" in text for text in result.findings[0].assumptions)
 
 
 def test_후보_HS의_요건이_같으면_재질_기능을_묻지_않고_가정으로_남긴다():
@@ -344,7 +372,7 @@ def test_후보_HS의_요건이_같으면_재질_기능을_묻지_않고_가정�
     result, _, _, _ = run(product, facts, chosen)
     assert result.missing_information == []
     assumptions = result.findings[0].assumptions
-    assert "HS 확정에는 재질, 기능 확인이 더 필요하지만, 후보 HS의 세관장확인 요건이 같아 묻지 않았습니다." in assumptions
+    assert "HS 확정에는 재질, 기능 확인이 더 필요하지만, 후보 HS에 따라 갈리는 세관장확인 요건이 없어 묻지 않았습니다." in assumptions
     assert result.findings[0].determination is Determination.POSSIBLY_REQUIRED
 
 
@@ -603,6 +631,71 @@ def test_소가죽_상품의_야생생물법_요건은_빼고_이유를_가정�
     assert any("국내 판매 규제" in text for text in finding.assumptions)
     assert finding.legal_sources and finding.legal_sources[0].article == "제226조"
     assert any("멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 걸리는 요건" in text for text in finding.assumptions)
+
+
+_CITES = Requirement(hs_code="8516799000", law_name="야생생물 보호 및 관리에 관한 법률(허가)",
+                     agency="유역(지방)환경청", document="국제적멸종위기 동식물 수입허가서")
+
+
+def test_소재로_빠질_요건이_남았는데_재질을_모르면_모델이_요청하지_않아도_재질을_묻는다():
+    # #756 리뷰: 가죽 종류를 모르는데 야생생물법이 남아도 모델이 묻지 않음 → 소가죽이면 빠지는 요건이라 코드가 물음
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"), ("function", "전기로 물을 끓임")))
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
+    assert any("소재(가죽 종류 등)에 따라 해당하지 않을 수 있어 재질을 물었습니다" in text
+               for text in result.findings[0].assumptions)
+
+
+def test_재질이_종류를_밝히지_않은_가죽이면_재질을_묻는다():
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임. 소재: 가죽",
+                                       values=(("product_type", "전기주전자"), ("material", "가죽")))
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.missing_information == ["제품의 주된 재질(소재) 확인이 필요합니다."]
+
+
+def test_소가죽이나_악어가죽으로_정해지면_재질을_묻지_않는다():
+    for leather in ("소가죽", "악어가죽"):
+        product, facts = product_and_facts(text=f"{leather} 손잡이 전기주전자, 전기로 물을 끓임. 소재: {leather}",
+                                           values=(("product_type", "전기주전자"), ("material", leather)))
+        result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+        assert result.missing_information == [], leather
+
+
+def _answered(product, answer):
+    """재질 질문에 판매자가 답한 재진단 입력 (답변 줄을 상품 문구 끝에 붙임, diagnosis/answers.py)."""
+    line = f"{ANSWER_PREFIX} 제품의 주된 재질(소재) 확인이 필요합니다. → {answer}"
+    return product.model_copy(update={"listing_text": [*product.listing_text, line]})
+
+
+@pytest.mark.parametrize("answer,left", [("소가죽", False), ("양가죽", False), ("천연가죽", True), ("가죽", True)])
+def test_재질_질문에_가죽_종류로_답하면_상품_이름의_가죽이_있어도_요건을_뺀다(answer, left):
+    # 리뷰 #774: 상품 이름 "가죽 손잡이 전기주전자"의 "가죽"이 남아 "소가죽"으로 답해도 요건이 빠지지 않았음
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"),))
+    product = _answered(product.model_copy(update={"product_name": "가죽 손잡이 전기주전자"}), answer)
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert bool(result.query["requirements"]["8516799000"]) is left, answer
+
+
+def test_재질_질문에_가죽_종류_없이_답하면_다시_묻지_않고_요건을_남긴_이유를_적는다():
+    product, facts = product_and_facts(text="가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"),))
+    product = _answered(product.model_copy(update={"product_name": "가죽 손잡이 전기주전자"}), "천연가죽")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.missing_information == []
+    assumptions = result.findings[0].assumptions
+    assert any("판매자 답에서 가죽 종류를 확인하지 못해 남겼습니다" in text for text in assumptions)
+    assert not any("재질을 물었습니다" in text for text in assumptions)
+
+
+def test_이름에_악어가_있으면_소가죽으로_답해도_야생생물법_요건을_남긴다():
+    # 남겨야 하는 소재는 답변 줄이 아니라 전체 글로 확인 (안전한 쪽)
+    product, facts = product_and_facts(text="악어 무늬 가죽 손잡이 전기주전자, 전기로 물을 끓임",
+                                       values=(("product_type", "전기주전자"),))
+    product = _answered(product.model_copy(update={"product_name": "악어 무늬 가죽 손잡이 전기주전자"}), "소가죽")
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.query["requirements"]["8516799000"] == [_CITES.law_name]
 
 
 def test_악어가죽_상품의_야생생물법_요건은_남긴다():

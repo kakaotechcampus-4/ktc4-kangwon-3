@@ -88,6 +88,8 @@ export function judgementPage(user: User = userEvent.setup()) {
     /** 진단이 끝나 진단서로 이동할 수 있는지. (끝나기 전에는 aria-disabled이고, 눌러도 이동하지 않는다) */
     isReportEnabled: () => reportButton().getAttribute('aria-disabled') !== 'true',
     openReport: () => user.click(reportButton()),
+    /** 하단 바의 "완료 n / m" 요약이 보이는지. 예: hasReportProgress(2, 3) */
+    hasReportProgress: (ended: number, total: number) => screen.queryByText(JUDGEMENT_MESSAGES.reportProgress(ended, total)) !== null,
 
     // ── 스크린리더 안내 ───────────────────────────────────────
     // NOTE(source): 상태 변화 안내는 화면에 보이지 않는 live region(role="status")이다. 이름이 없고, 불러온 뒤에는 이 화면의 유일한 status라서
