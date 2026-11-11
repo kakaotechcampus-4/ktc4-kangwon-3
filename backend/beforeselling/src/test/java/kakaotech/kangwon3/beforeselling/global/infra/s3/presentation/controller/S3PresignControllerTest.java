@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.global.infra.s3.presentation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.Role;
 import kakaotech.kangwon3.beforeselling.global.config.SecurityConfig;
 import kakaotech.kangwon3.beforeselling.global.config.properties.AppProperties;
@@ -68,6 +69,9 @@ class S3PresignControllerTest {
 
     @MockitoBean
     private JwtProvider jwtProvider;
+
+    @MockitoBean
+    private WithdrawnUserService withdrawnUserService;
 
     @MockitoBean
     private CustomOAuth2UserService customOAuth2UserService;

@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesCreateResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.DiagnosesDetailResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductResponse;
@@ -79,6 +80,9 @@ class DiagnosesControllerTest {
 
     @MockitoBean
     private JwtProvider jwtProvider;
+
+    @MockitoBean
+    private WithdrawnUserService withdrawnUserService;
 
     @MockitoBean
     private CustomOAuth2UserService customOAuth2UserService;

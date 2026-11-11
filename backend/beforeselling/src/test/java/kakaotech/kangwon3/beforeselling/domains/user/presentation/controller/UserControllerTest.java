@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.user.presentation.controller;
 
 import jakarta.servlet.http.Cookie;
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.UserProfileModifyRequest;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.response.UserProfileResponse;
 import kakaotech.kangwon3.beforeselling.domains.user.application.dto.request.NotificationSettingModifyRequest;
@@ -78,6 +79,9 @@ class UserControllerTest {
 
     @MockitoBean
     private JwtProvider jwtProvider;
+
+    @MockitoBean
+    private WithdrawnUserService withdrawnUserService;
 
     @MockitoBean
     private CustomOAuth2UserService customOAuth2UserService;

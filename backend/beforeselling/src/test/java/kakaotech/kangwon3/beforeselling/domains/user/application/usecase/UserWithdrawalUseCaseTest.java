@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.user.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.AuthTokenService;
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.SocialProvider;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
@@ -38,11 +39,14 @@ class UserWithdrawalUseCaseTest {
     @Mock
     private DiagnosesService diagnosesService;
 
+    @Mock
+    private WithdrawnUserService withdrawnUserService;
+
     @InjectMocks
     private UserWithdrawalUseCase userWithdrawalUseCase;
 
     @Test
-    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 회원 정보를 삭제하고, 진단서를 삭제하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
+    @DisplayName("회원 탈퇴를 요청하면 회원을 조회하고, 탈퇴 회원으로 등록하고, 회원 정보를 삭제하고, 진단서를 삭제하고, 리프레시 토큰을 폐기한 뒤, 소셜 연동을 해제한다.")
     void withdraw_thenUnlinkThenDeleteUserAndRemoveRefreshToken() {
         // given
         User user = createUser(USER_ID);
@@ -52,8 +56,9 @@ class UserWithdrawalUseCaseTest {
         userWithdrawalUseCase.withdraw(USER_ID, "refresh-token");
 
         // then
-        InOrder inOrder = inOrder(userService, diagnosesService, socialUnlinkService, authTokenService);
+        InOrder inOrder = inOrder(userService, withdrawnUserService, diagnosesService, socialUnlinkService, authTokenService);
         then(userService).should(inOrder).getUser(USER_ID);
+        then(withdrawnUserService).should(inOrder).saveWithdrawnUser(USER_ID);
         then(userService).should(inOrder).withdraw(USER_ID);
         then(diagnosesService).should(inOrder).removeAllByUserId(USER_ID);
         then(authTokenService).should(inOrder).removeRefreshToken("refresh-token");
