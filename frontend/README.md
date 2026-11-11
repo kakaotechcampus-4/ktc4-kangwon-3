@@ -79,6 +79,8 @@ src/
 
 문서는 `docs/`에 있습니다: [코드 컨벤션](docs/CODE_CONVENTION.md), [테스트 정책](docs/TEST_POLICY.md).
 
+파트 공통 문서는 [위키](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki)에 있습니다. 아키텍처와 FE ↔ BE 인터페이스 명세는 [테크스펙](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테크스펙), 배포 구조는 [CI/CD와 배포](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/CI-CD와-배포), 장애 대응은 [모니터링과 장애 대응](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/모니터링과-장애-대응)을 참고하세요.
+
 ## 로컬 실행
 
 준비: Node.js 22
