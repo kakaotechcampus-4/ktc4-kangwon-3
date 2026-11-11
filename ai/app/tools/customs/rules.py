@@ -310,15 +310,19 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
     """
     # 고시 구비요건이 있으면 그 문구를, 없으면 GW 서류명을 쓴다
     papers = documents_text(notice_documents(row) or documents) or "해당 법령의 요건 확인 서류"
+    condition = law_condition(law_name)
+    # 일부 물품에만 해당하는 법령은 어떤 물품일 때 서류가 필요한지 먼저 적는다. 조건을 끝에 "참고"로만 붙이면
+    # 판매자·검증 모델 모두 이 상품에 서류가 필요하다는 안내로 먼저 읽음 (#820 리뷰)
+    head = (f"이 품목번호로 분류되고 {condition[0]}에 해당하면, 통관 시 아래 서류가 필요할 수 있습니다."
+            if condition else "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.")
     lines = [
         f"[{law_name}] · 품목번호 HS {', '.join(format_hs(code) for code in hs_codes)} 후보",
-        "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.",
+        head,
         f"- 미리 갖출 서류: {papers} (관세법 제226조, 세관장확인 고시 별표 2)",
         f"- {_agent_line(omission)}",
     ]
-    note = law_note(law_name)
-    if note:
-        lines.append(f"- 참고: {note}")
+    if condition and condition[1]:
+        lines.append(f"- {condition[1]}")
     return ["\n".join(lines)]
 
 
@@ -343,24 +347,37 @@ def _agent_line(omission: tuple[str, str] | None) -> str:
     return "구매대행: 구매자 개인이 쓰려고 들여오는 경우 등에는 생략될 수 있음"
 
 
-# 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당해 조건을 덧붙이는 설명 (#640).
+# 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당하는 법령의 (대상 물품, 덧붙일 말) (#640).
+# 판단 요약과 할 일은 "{대상 물품}에 해당하면 …"으로 조건을 먼저 적는다.
 # 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축인 소·양·돼지 가죽은 대상이 아님.
 # 약사법·의료기기법·생활화학제품법은 세관장확인 고시 별표 2의 대상 물품 문구를 줄여 씀 (#809: 디퓨저·젖병에 약사법).
 # 화장품법·위생용품관리법은 별표 2에 대상 설명이 없어, 화장품법 제2조의 화장품 뜻 / 위생용품으로 정한 물품으로만 씀.
-LAW_NOTES: dict[str, str] = {
-    law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, "
+LAW_CONDITIONS: dict[str, tuple[str, str | None]] = {
+    law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품",
                                         "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."),
-    law_key("약사법"): "의약품·의약외품·한약재·동물용 의약품에만 해당합니다.",
-    law_key("의료기기법"): "의료기기(동물용 포함)에만 해당합니다.",
-    law_key("생활화학제품 및 살생물제의 안전관리에 관한 법률"): "세정제·세탁세제·방향제·탈취제·접착제 같은 안전확인대상 생활화학제품에만 해당합니다.",
-    law_key("화장품법"): "화장품(피부·모발에 바르거나 뿌리는 등으로 쓰는 물품)에만 해당합니다.",
+    law_key("약사법"): ("의약품·의약외품·한약재·동물용 의약품", None),
+    law_key("의료기기법"): ("의료기기(동물용 포함)", None),
+    law_key("생활화학제품 및 살생물제의 안전관리에 관한 법률"): ("세정제·세탁세제·방향제·탈취제·접착제 같은 안전확인대상 생활화학제품", None),
+    law_key("화장품법"): ("화장품(피부·모발에 바르거나 뿌리는 등으로 쓰는 물품)", None),
     law_key("위생용품 관리법"): ("세척제(채소·과일·식기용), 칫솔·치실, 일회용 컵·수저·빨대, 화장지·물티슈, 일회용 기저귀·면봉 등 "
-                                 "「위생용품 관리법」에서 위생용품으로 정한 물품에만 해당합니다."),
+                                 "「위생용품 관리법」에서 위생용품으로 정한 물품", None),
 }
 
 
+def law_condition(law_name: str) -> tuple[str, str | None] | None:
+    """요건 법령이 일부 물품에만 해당하면 (대상 물품, 덧붙일 말).
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        tuple[str, str | None] | None: 대상 물품과 덧붙일 말(없으면 None). 조건이 없는 법령은 None.
+    """
+    return LAW_CONDITIONS.get(law_key(law_name))
+
+
 def law_note(law_name: str) -> str | None:
-    """요건 법령에 덧붙일 해당 조건 설명.
+    """요건 법령의 해당 조건을 한 문장으로 (예: "의약품·의약외품·한약재·동물용 의약품에만 해당합니다.").
 
     Args:
         law_name: 요건 법령 이름.
@@ -368,7 +385,11 @@ def law_note(law_name: str) -> str | None:
     Returns:
         str | None: 설명. 없으면 None.
     """
-    return LAW_NOTES.get(law_key(law_name))
+    condition = law_condition(law_name)
+    if condition is None:
+        return None
+    target, extra = condition
+    return f"{target}에만 해당하고, {extra}" if extra else f"{target}에만 해당합니다."
 
 
 def omission_status(law_name: str, exceptions: dict[str, str] | None) -> tuple[str, str] | None:
