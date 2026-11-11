@@ -226,7 +226,8 @@ def check_findings(
         finding_id = finding.finding_id
         # 판정은 필요·가능성 있음인데 요약은 필요 없다고 안내함. 판매자는 요약을 읽으므로 인증·조치를 놓칠 수 있음.
         # 모델 지적이 아니라 규칙 지적이라 불확실 판단이어도 경고로 낮추지 않음
-        if finding.determination in (Determination.REQUIRED, Determination.POSSIBLY_REQUIRED)                 and _NEGATIVE_SUMMARY.search(finding.summary or ""):
+        if (finding.determination in (Determination.REQUIRED, Determination.POSSIBLY_REQUIRED)
+                and _NEGATIVE_SUMMARY.search(finding.summary or "")):
             context.add(
                 IssueType.CONTRADICTION,
                 "판정은 필요할 수 있다인데 요약은 필요 없다고 안내합니다. 판매자가 요약만 보고 인증·조치를 놓칠 수 있습니다.",
