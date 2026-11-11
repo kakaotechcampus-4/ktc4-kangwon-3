@@ -58,6 +58,9 @@ E2E 테스트는 **사용자가 화면에서 겪는 핵심 흐름**이 새로 �
 | 리프레시 토큰 저장·조회 | 통합 | `RefreshTokenRepositoryTest` |
 | AI 콜백 JSON 형식 | 통합 | `ProductEventJsonTest` |
 | 질문 답변·실패 재시도 흐름 | 통합 | `ProductAnswerFlowTest`, `ProductRetryFlowTest` |
+| 재진단과 실패 시 롤백 | 통합 | `ProductRediagnosisFlowTest` |
+| 회원 탈퇴 흐름 | 통합 | `UserWithdrawalFlowTest` |
+| 개정 알림 메일 발송 흐름 | 통합 | `LawAmendmentMailFlowTest` |
 | 업로드 → 진단 → 결과 화면 | E2E | `e2e/tests/diagnosis.spec.ts` |
 
 ## 4. 작성 규칙
@@ -80,6 +83,7 @@ E2E 테스트는 **사용자가 화면에서 겪는 핵심 흐름**이 새로 �
 - 검증 대상이 아닌 빈은 `@MockitoBean`으로 대신합니다.
   - 외부 연동: `AiDiagnosesClient`, `S3PresignedUrlProvider`, OAuth2 관련 빈
   - 컨트롤러 테스트(`@WebMvcTest`)의 유스케이스: `ProductUseCase` 등
+  - 컨트롤러 테스트(`@WebMvcTest`)의 `WithdrawnUserService`: JWT 인증 필터가 탈퇴 회원 여부를 확인할 때 쓰므로 빠뜨리면 컨텍스트가 뜨지 않습니다.
 - 실제 Redis가 필요하면 `support/RedisContainerSupport`를 상속합니다. 직렬화나 TTL처럼 mock으로는 확인할 수 없는 동작만 여기서 검증합니다.
 - `@Async` 이벤트처럼 비동기로 끝나는 동작은 `Thread.sleep` 대신 Awaitility(`await()`)로 기다립니다.
 
@@ -89,13 +93,14 @@ E2E 테스트는 **사용자가 화면에서 겪는 핵심 흐름**이 새로 �
 
 | 테스트 | 확인하는 것 | 실행 조건 |
 |---|---|---|
-| `SesMailManualTest` | 실제 SES 메일 발송 | `MAIL_TEST_TO`에 받을 주소 |
+| `SesMailManualTest` | 실제 SES 메일 발송 | `MAIL_TEST_TO`에 받을 주소, AWS SSO 로그인과 `AWS_PROFILE` |
 | `RateLimitRedisManualTest` | 로컬 Redis와 Bucket4j 연동 | `RATE_LIMIT_REDIS_TEST=1`, 로컬 Redis 실행 |
 
 수동 테스트에도 `@Tag("integration")`이 붙어 있어 `test`가 아니라 `integrationTest`로 실행합니다.
 
 ```bash
-MAIL_TEST_TO=받을주소 ./gradlew integrationTest --tests '*SesMailManualTest'
+aws sso login --profile 본인프로필
+AWS_PROFILE=본인프로필 MAIL_TEST_TO=받을주소 ./gradlew integrationTest --tests '*SesMailManualTest'
 RATE_LIMIT_REDIS_TEST=1 ./gradlew integrationTest --tests '*RateLimitRedisManualTest'
 ```
 
@@ -111,7 +116,7 @@ RATE_LIMIT_REDIS_TEST=1 ./gradlew integrationTest --tests '*RateLimitRedisManual
 | 서버 | `e2e/compose.e2e.yml`이 BE(소스에서 빌드), PostgreSQL, Redis, mock-ai를 띄웁니다 |
 | AI | 실제 AI 대신 `loadtest/mock-ai`가 정해진 결과를 돌려줍니다 |
 | 로그인 | 소셜 로그인을 거치지 않고, 리프레시 토큰을 Redis와 쿠키에 넣어 로그인 상태를 만듭니다 (`e2e/fixtures/auth.ts`) |
-| 시나리오 | `e2e/tests/` 아래 기능별 파일 (실행 환경, 로그인, 진단, 질문 답변, 실패 재시도, 여러 상품, 마이페이지, 토큰 재발급) |
+| 시나리오 | `e2e/tests/` 아래 기능별 파일 (실행 환경, 로그인, 진단, 질문 답변, 실패 재시도, 여러 상품, 진단 결과 목록, 토큰 재발급) |
 
 - 상품 입력에 `[e2e:question]`(텍스트) 또는 `?e2e=question`(URL) 같은 표시를 넣어 mock-ai 결과를 고정합니다. 표시가 없으면 mock-ai가 무작위로 질문·실패를 보내므로 E2E 상품에는 항상 표시를 넣습니다. 표시 종류는 `loadtest/mock-ai/app.py`를 참고합니다.
 - E2E는 버튼·링크 같은 역할과 화면 문구로 요소를 찾습니다. 문구나 흐름을 바꿨다면 머지 전에 로컬에서 E2E를 실행합니다.

@@ -13,7 +13,7 @@ DB 스키마가 바뀌는 PR(테이블 생성, 컬럼 추가·변경·삭제, �
 ### 파일 규칙
 
 - 위치: `backend/beforeselling/src/main/resources/db/migration/`
-- 이름: `V{n}__{설명}.sql` (예: `V2__add_product_category.sql`). `n`은 develop의 마지막 버전 + 1
+- 이름: `V{n}__{설명}.sql` (예: `V4__add_product_category.sql`). `n`은 develop의 마지막 버전 + 1
 - 파일 하나에는 논리적으로 하나의 변경만 담습니다.
 - develop에 병합된 파일은 수정하지 않습니다. 체크섬이 바뀌면 기동이 실패합니다. 잘못된 부분은 새 버전으로 고칩니다.
 - 같은 번호로 두 PR이 병합되면 충돌이 납니다. 병합 직전에 develop의 최신 번호를 다시 확인합니다.
@@ -23,7 +23,7 @@ DB 스키마가 바뀌는 PR(테이블 생성, 컬럼 추가·변경·삭제, �
 `@Enumerated(EnumType.STRING)` 컬럼에는 Hibernate가 만든 `{테이블}_{컬럼}_check` 제약이 있습니다. enum이 바뀌면 이 제약도 다시 만들어야 INSERT가 실패하지 않습니다.
 
 ```sql
--- V2__add_tool_name_battery.sql
+-- V4__add_tool_name_battery.sql
 ALTER TABLE product_tool_review DROP CONSTRAINT product_tool_review_tool_name_check;
 ALTER TABLE product_tool_review ADD CONSTRAINT product_tool_review_tool_name_check
     CHECK (tool_name IN ('CUSTOMS', 'CHILDREN', 'ELECTRICAL', 'RADIO', 'FOOD_DRUG', 'LABEL_AD', 'BATTERY'));
