@@ -20,7 +20,7 @@ from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
 from .related import FOLLOW_ALL
 from .rules import (
-    documents_text, excluded_by_product, format_hs, law_condition, law_note, material_question_helps,
+    documents_lines, excluded_by_product, format_hs, law_condition, law_note, material_question_helps,
     no_requirement_left, notice_documents, omission_status, related_tool,
     requirement_subject, sale_actions,
 )
@@ -245,7 +245,7 @@ class CustomsTool(EvidenceSearchTool):
             if shown:
                 # 일부 물품에만 해당하는 법령은 어떤 물품일 때 서류가 필요한지 먼저 적음 (할 일 문구와 같은 기준)
                 prefix = f"{condition[0]}에 해당하면 " if condition else ""
-                lines.append(f"- {prefix}미리 갖출 서류: {documents_text(shown)}")
+                lines.extend(documents_lines(shown, prefix))
                 if condition and condition[1]:
                     lines.append(f"- {condition[1]}")
             elif note := law_note(law_name):

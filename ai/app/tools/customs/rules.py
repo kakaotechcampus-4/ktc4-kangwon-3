@@ -273,18 +273,27 @@ def notice_documents(row: ConfirmationRow | None) -> list[str]:
     return list(dict.fromkeys(item for item in items if not _DELETED.search(item)))
 
 
-def documents_text(documents: list[str]) -> str:
-    """안내할 서류 목록을 한 줄로. 여러 개면 물품에 따라 해당하는 것을 고르게 알린다.
+def documents_lines(documents: list[str], prefix: str = "", source: str = "") -> list[str]:
+    """'미리 갖출 서류' 줄. 하나면 한 줄, 여러 개면 머리 줄 아래 서류마다 한 줄씩 쓴다.
+
+    여러 서류를 한 줄에 "미리 갖출 서류: 물품에 따라 … 서류: 대상: 서류 / 대상: 서류"로 이으면 콜론이 겹쳐
+    대상과 서류의 경계가 안 보였다 (11/11 실사이트 전파법 카드). 화면은 줄바꿈만 살리고 줄 앞 공백은 지우므로
+    들여쓰기 없이 "· "로 시작한다.
 
     Args:
-        documents: 서류 목록.
+        documents: 서류 목록. 비면 빈 목록을 돌려준다.
+        prefix: 머리 줄 앞에 붙일 말 (예: "의약품에 해당하면 ").
+        source: 근거 조문. 있으면 괄호로 붙인다.
 
     Returns:
-        str: 한 줄 글. 비면 빈 문자열.
+        list[str]: 줄 목록.
     """
-    if len(documents) <= 1:
-        return "".join(documents)
-    return "물품에 따라 아래 중 해당하는 서류: " + " / ".join(documents)
+    if not documents:
+        return []
+    if len(documents) == 1:
+        return [f"- {prefix}미리 갖출 서류: {documents[0]}" + (f" ({source})" if source else "")]
+    note = f"물품에 따라 해당하는 것 · {source}" if source else "물품에 따라 해당하는 것"
+    return [f"- {prefix}미리 갖출 서류 ({note})", *(f"· {document}" for document in documents)]
 
 
 def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None, documents: list[str],
@@ -309,7 +318,7 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
         list[str]: 줄바꿈으로 나눈 할 일 한 건.
     """
     # 고시 구비요건이 있으면 그 문구를, 없으면 GW 서류명을 쓴다
-    papers = documents_text(notice_documents(row) or documents) or "해당 법령의 요건 확인 서류"
+    papers = notice_documents(row) or documents or ["해당 법령의 요건 확인 서류"]
     condition = law_condition(law_name)
     # 일부 물품에만 해당하는 법령은 어떤 물품일 때 서류가 필요한지 먼저 적는다. 조건을 끝에 "참고"로만 붙이면
     # 판매자·검증 모델 모두 이 상품에 서류가 필요하다는 안내로 먼저 읽음 (#820 리뷰)
@@ -318,7 +327,7 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
     lines = [
         f"[{law_name}] · 품목번호 HS {', '.join(format_hs(code) for code in hs_codes)} 후보",
         head,
-        f"- 미리 갖출 서류: {papers} (관세법 제226조, 세관장확인 고시 별표 2)",
+        *documents_lines(papers, source="관세법 제226조, 세관장확인 고시 별표 2"),
         f"- {_agent_line(omission)}",
     ]
     if condition and condition[1]:
