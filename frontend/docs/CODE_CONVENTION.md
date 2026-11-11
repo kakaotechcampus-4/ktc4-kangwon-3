@@ -38,7 +38,7 @@ src/
 
 - **`test/`**: 테스트는 소스 옆이 아니라 이곳에 모읍니다. 테스트 종류·폴더 구조·실행 방법은 [TEST_POLICY.md](TEST_POLICY.md)를, 통합 테스트 작성 규칙은 [테스트 작성](#테스트-작성)을 따릅니다.
 - **`components/common/`**: 2곳 이상에서 재사용하는 컴포넌트만 둡니다. 컴포넌트마다 폴더를 만들고 그 안에 `index.tsx` 하나로 작성합니다(예: `components/common/Button/index.tsx`).
-- **`pages/<Page>/`**: 그 페이지에서만 쓰는 파일을 역할별 폴더에 나눠 둡니다. 컴포넌트는 `components/`, 훅은 `hooks/`, 순수 함수는 `utils/`에 두고, `index.tsx`(페이지 진입점), `types.ts`, `constants.ts`만 페이지 폴더 바로 아래에 둡니다(예: `pages/Mypage/components/MyProductList.tsx`, `pages/Mypage/hooks/useMyInfo.ts`, `pages/Mypage/constants.ts`). 파일이 하나뿐인 폴더(예: `pages/NotFound/`)는 나누지 않습니다.
+- **`pages/<Page>/`**: 그 페이지에서만 쓰는 파일을 역할별 폴더에 나눠 둡니다. 컴포넌트는 `components/`, 훅은 `hooks/`, 순수 함수는 `utils/`에 두고, `index.tsx`(페이지 진입점), `types.ts`, `constants.ts`만 페이지 폴더 바로 아래에 둡니다(예: `pages/Products/components/MyProductList.tsx`, `pages/Mypage/hooks/useMyInfo.ts`, `pages/Mypage/constants.ts`). 파일이 하나뿐인 폴더(예: `pages/NotFound/`)는 나누지 않습니다.
 - 페이지 안에서 하나의 하위 기능이 파일 여러 개로 묶일 만큼 커지면(탭 하나, 섹션 하나 등) 그 폴더를 페이지의 `components/` 아래에 두고, 그 폴더 안에서 다시 같은 구조(진입점 `index.tsx` + `components/`, `utils/` …)를 반복합니다(예: `pages/Result/components/DiagnosisResult/`에 `index.tsx`, `components/FindingCard.tsx`, `utils/bannerConfig.ts`가 함께 있음).
 - 2번 이상 반복되는 마크업·로직만 별도 파일/컴포넌트로 분리합니다. 한 번만 쓰이는 조각을 미리 분리하지 않습니다.
 
@@ -92,7 +92,7 @@ export default Example;
   }
   ```
 - 여러 페이지가 함께 쓰는 도메인 타입·enum은 `api/types/`(`common.ts`의 상태값 등 전역 enum, `product.ts`의 `ToolName`, `Determination` 등)에 둡니다. 한 API 파일에서만 쓰는 요청 타입·enum은 그 파일에 둡니다(`api/products.ts`의 `SortType`).
-- 한 페이지에서만 쓰는 타입은 그 페이지 폴더의 `types.ts`에 둡니다(`pages/Mypage/types.ts`, `pages/Result/types.ts`).
+- 한 페이지에서만 쓰는 타입은 그 페이지 폴더의 `types.ts`에 둡니다(`pages/Products/types.ts`, `pages/Result/types.ts`).
 - BE API가 아직 준비되지 않았을 때는 `api/*.ts` 함수 내부를 모듈 상태 기반 목업으로 임시 대체하고, 연동되면 `api/mock/` 아래 같은 이름의 파일로 옮깁니다(기존 [`api/mock/`](../palgijeonae/src/api/mock) 참고). 이미 연동된 API 함수를 다시 목업으로 보고 싶을 때는 호출부의 import만 `@/api/X` → `@/api/mock/X`로 바꾸면 됩니다. 목업 파일은 실제 API 파일과 같은 이름으로 둡니다(`api/products.ts` ↔ `api/mock/products.ts`).
 
 ## 상태 관리
