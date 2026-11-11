@@ -8,7 +8,8 @@ Tool 결과의 부족한 정보(missing_information)는 문장 목록이라 도�
 되찾는다(help_text). 질문 문장을 바꿀 때는 이 카탈로그만 바꾸면 된다.
 
 검증 모델도 질문을 만든다. 같은 조건을 말만 바꿔 다시 묻지 않도록 모델 질문에는 조건 필드(topic)를 붙이고, 검증 에이전트가
-Tool이 이미 묻는 필드·판매자가 지난 회차에 답한 필드(field_for·answered_questions)면 버린다.
+Tool이 이미 묻는 필드·판매자가 지난 회차에 답한 필드(field_for·answered_questions)면 버린다. 이름은 달라도 묻는 내용이 같은
+필드(SAME_QUESTION_GROUPS)도 같이 버린다.
 """
 
 from dataclasses import dataclass
@@ -40,7 +41,7 @@ QUESTIONS: dict[str, SellerQuestion] = {
     ),
     "material": SellerQuestion(
         "제품의 주된 재질(소재) 확인이 필요합니다.",
-        "예: 플라스틱(ABS), 스테인리스, 면 100%, 천연가죽. 여러 재질이면 많이 쓰인 순서로 적어 주세요.",
+        "예: 플라스틱(ABS), 스테인리스, 면 100%, 소가죽. 가죽이면 소가죽, 양가죽처럼 종류까지 적고, 여러 재질이면 많이 쓰인 순서로 적어 주세요.",
         labels=("재질",),
     ),
     "intended_use": SellerQuestion(
@@ -78,7 +79,8 @@ QUESTIONS: dict[str, SellerQuestion] = {
     "battery_only": SellerQuestion(
         "제품이 건전지나 충전지로만 동작하나요, 아니면 전원 코드나 어댑터를 꽂아 쓰나요?",
         "건전지나 충전지로만 쓰면 '배터리만', 코드나 어댑터를 꽂아 쓰거나 둘 다 되면 '코드나 어댑터'라고 답해 주세요.",
-        labels=("배터리 전용 여부",),
+        # "배터리 전용 여부"는 "배터리만 있다"·"배터리가 상품"으로 읽혀 이름을 바꿈 (#803). 지난 회차 모순 문장도 찾게 예전 이름을 남김
+        labels=("전지로만 동작(코드나 어댑터 없이)", "배터리 전용 여부"),
     ),
     "adapter_included": SellerQuestion(
         "전원 어댑터가 상품에 포함되는지 확인이 필요합니다.",
@@ -165,6 +167,13 @@ _FIELD_BY_LABEL = {label: field for field, item in QUESTIONS.items() for label i
 TOPIC_OTHER = "other"
 TOPICS: tuple[str, ...] = (*QUESTIONS, TOPIC_OTHER)
 
+# 묻는 내용이 같은 조건 묶음. 하나를 물었으면 묶음의 다른 조건도 물은 것으로 본다 (#801: 전기 Tool이 battery_only를 묻는
+# 회차에 검증 모델이 power_source를 물어 전원 질문이 두 번 나옴). 전지로만 동작하는지는 전원 방식의 한 갈래라 판매자에게는
+# 같은 질문이다. 한쪽 답으로 다른 쪽이 늘 정해지는 것은 아니지만, 빼는 것은 검증 모델의 질문뿐이고 판단에 필요한 조건은
+# Tool이 직접 묻는다 (전기 Tool도 둘을 한 회차에 같이 묻지 않음: electrical/tool.py _ask_power_once).
+SAME_QUESTION_GROUPS: tuple[frozenset[str], ...] = (frozenset({"power_source", "battery_only"}),)
+_SAME_QUESTION_FIELDS = {field: group for group in SAME_QUESTION_GROUPS for field in group}
+
 # 재진단 답변을 상품 문구에 붙일 때 쓰는 줄 머리: "[사용자 답변] 질문 → 답변" (diagnosis/answers.py)
 ANSWER_PREFIX = "[사용자 답변]"
 _ANSWER_ARROW = " → "
@@ -203,6 +212,18 @@ def field_for(question: str) -> str | None:
     if text.endswith(CONFLICT_SUFFIX):
         return _FIELD_BY_LABEL.get(text.removesuffix(CONFLICT_SUFFIX))
     return None
+
+
+def same_question_fields(field: str) -> frozenset[str]:
+    """조건 필드와 묻는 내용이 같은 필드 묶음 (자기 자신 포함).
+
+    Args:
+        field: 조건 필드 이름.
+
+    Returns:
+        frozenset[str]: 같은 내용을 묻는 필드들. 묶음이 없으면 자기 자신만.
+    """
+    return _SAME_QUESTION_FIELDS.get(field, frozenset({field}))
 
 
 def answered_questions(listing_text: list[str]) -> list[str]:

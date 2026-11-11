@@ -16,5 +16,5 @@ test("AI가 질문하면 답변을 제출하고, 이어진 진단의 결과를 �
     await expect(page).toHaveURL(/\/judgement\/[0-9a-f-]{36}$/);
     await page.getByRole("link", { name: "결과 보기" }).click({ timeout: DIAGNOSIS_TIMEOUT });
     await expect(page).toHaveURL(/\/result\/product\/[0-9a-f-]{36}$/);
-    await expect(page.getByText("구매 대행 가능").first()).toBeVisible();
+    await expect(page.getByText("사입 가능").first()).toBeVisible();
 });

@@ -7,6 +7,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
     { label: "홈", to: "/" },
     { label: "상품 진단", to: "/upload" },
+    { label: "진단 결과", to: "/products" },
 ];
 
 export type PolicyType = "terms" | "privacy";

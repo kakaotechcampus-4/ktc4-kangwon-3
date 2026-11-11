@@ -1,7 +1,7 @@
 import apiClient from "@/api/core/client";
 import type { ResultStatus } from "@/api/types/common";
 import type { ProductResult } from "@/api/types/product";
-import type { MyProductItem, PageInfo } from "@/pages/Mypage/types";
+import type { MyProductItem, PageInfo } from "@/pages/Products/types";
 import type { AnswerSubmission } from "@/pages/Question/types";
 
 export enum SortType {

@@ -7,6 +7,7 @@
 
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.facts import product_snippets, quote_matches, topic_particle
+from ..common.questions import answered_questions, field_for
 from .errors import ElectricalToolError
 from .evidence import compact, purchase_agent_status
 from .rules import (
@@ -20,7 +21,7 @@ from ...schemas.schemas import Determination, ElectricalAssessment, RegulatoryFi
 
 _FIELDS = {
     "product_type": "제품 종류", "power_source": "전원 방식", "rated_voltage": "정격 전압",
-    "intended_use": "제품 용도", "battery_only": "배터리 전용 여부",
+    "intended_use": "제품 용도", "battery_only": "전지로만 동작(코드나 어댑터 없이)",
     "adapter_included": "어댑터 포함 여부", "rated_power": "정격 소비전력",
 }
 # 품목 조회에는 제품 종류만 있으면 된다. 전원·전압이 없으면 질문으로 남기고 검토는 계속한다.
@@ -38,6 +39,13 @@ _QUESTION_FIELDS = ("product_type", "power_source", "rated_voltage", "battery_on
 _JUDGED_FIELDS = ("battery_only",)
 
 _SEARCH_FAILED = "전기안전 법령 품목표 조회에 실패했습니다."
+# 전지 전용이라 본체 행을 뺀 뒤 고른 행이 없을 때의 정보 부족 판단 (요약, 근거). 전기 정보를 못 찾은 것이 아니므로
+# 기본 문구("전기 정보나 해당하는 품목을 찾지 못해")를 쓰면 사실과 어긋남
+_BATTERY_ONLY_INSUFFICIENT = (
+    "건전지나 충전지로만 동작하는 제품이라 본체는 전기용품 안전관리 대상에서 빠질 수 있습니다. "
+    "내장 전지나 충전기가 대상인지는 판단하지 못했습니다.",
+    "제품에 들어 있는 전지나 함께 오는 충전기가 KC 인증 대상인지 직접 확인이 필요합니다.",
+)
 
 
 class ElectricalTool(EvidenceSearchTool):
@@ -62,7 +70,7 @@ class ElectricalTool(EvidenceSearchTool):
     insufficient = (
         "전기용품 안전관리 대상 판정",
         "상품 설명에서 전원 방식·정격 전압 같은 전기 정보나 해당하는 품목을 찾지 못해 전기용품 안전관리 대상인지 판단하지 못했습니다.",
-        "정보가 없거나 서로 달라 판단을 보류했습니다. 찾지 못했다는 것만으로 대상이 아니라고 보지는 않습니다.",
+        "전기를 쓰는 상품이라면 KC 인증 대상인지 직접 확인이 필요합니다.",
     )
     tracks_conflicts = True
     # 원문 없는 속성도 조회어를 정하는 데 참고됨
@@ -170,6 +178,7 @@ class ElectricalTool(EvidenceSearchTool):
             "low_voltage_excluded": excluded_by_low_voltage(block, low, current),
         } for block in shortlisted]
         if not rows:
+            query["undecided"] = "no_rows"
             run.assumptions.append("상품과 비슷한 품목표 행을 찾지 못했습니다. 비대상 판단이 아닙니다.")
             self._skip_electrical_questions(run)
             return []
@@ -228,10 +237,14 @@ class ElectricalTool(EvidenceSearchTool):
                 facts=[f for name in used for f in by_field[name]], assumptions=[*run.assumptions, *notes],
                 sources=sources, requirements=block_actions,
             ))
+        self._ask_power_once(run)
         query["selected_items"] = [selection.item_id for _, selection, _ in chosen]
         if query["dropped_candidates"]:
             run.assumptions.append(f"후보 행과 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
         if not findings:
+            # 저전압인데 후보 행이 모두 저전압 제외면 보류 이유를 따로 남김 (문구가 "전압을 못 찾았다"로 나가지 않게, #796)
+            all_low = low is True and all(row["low_voltage_excluded"] for row in rows)
+            query["undecided"] = "low_voltage" if all_low else "no_match"
             run.assumptions.append("후보 행 중 상품에 맞는 품목을 고르지 못했습니다. 비대상 판단이 아닙니다.")
             if battery_only is True:
                 run.assumptions.append("전지로만 동작하는 구조라 본체는 공통 비고에 따라 제외될 수 있습니다. 확정이 아닙니다.")
@@ -288,8 +301,67 @@ class ElectricalTool(EvidenceSearchTool):
             labels = ", ".join(_FIELDS[name] for name in no_effect)
             run.assumptions.append(f"{labels}{topic_particle(labels)} 어떤 답이든 고른 품목 행의 판단이 같아 묻지 않았습니다.")
         if "battery_only" in hit and skips["battery_only"] == _NO_SIGNAL:
-            run.assumptions.append("상품 원문에 전지·충전 언급이 없어 배터리 전용 여부는 묻지 않았습니다. "
+            run.assumptions.append("상품 원문에 전지·충전 언급이 없어 전지로만 동작하는지는 묻지 않았습니다. "
                                    "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
+
+    def _insufficient(self, run: ToolRun) -> tuple[str, str, str]:
+        """보류 이유에 맞는 정보 부족 판단 문구 (#796).
+
+        전원·전압을 읽었는데 "전기 정보를 찾지 못했다"고 안내하던 것을 고침. 저전압이라 후보 행이 모두 빠졌으면
+        그 이유를, 품목만 못 골랐으면 읽은 전원·전압을 보여 준다. 판정(정보 부족)은 그대로.
+        전지 전용이라 본체 행을 뺀 경우를 먼저 본다 (#804). 이 경우도 보류 이유는 no_match로 남아, 뒤에서 보면
+        "품목을 찾지 못해"로 나가는데 실제로는 품목을 찾아서 뺀 것이다.
+
+        Args:
+            run: 실행 상태.
+
+        Returns:
+            tuple[str, str, str]: 제목, 요약, 근거.
+        """
+        subject = self.insufficient[0]
+        if run.query.get("battery_only") is True and run.query.get("battery_only_excluded"):
+            return (subject, *_BATTERY_ONLY_INSUFFICIENT)
+        reason = run.query.get("undecided")
+        volts = [fact.value for fact in run.by_field.get("rated_voltage", [])]
+        power = [fact.value for fact in run.by_field.get("power_source", [])]
+        if reason == "low_voltage" and volts:
+            return (subject,
+                    f"정격 전압({', '.join(volts)})이 저전압(교류 30V·직류 42V 이하)이라 비슷한 품목이 모두 "
+                    "전기용품 안전관리 대상에서 빠지는 범위입니다. 대상이 아닐 가능성이 높지만 확정은 아닙니다. "
+                    "함께 오는 어댑터나 충전기는 따로 확인이 필요합니다.",
+                    "운용요령 제3조는 저전압 제품을 대상에서 뺍니다. 품목표에서 찾은 비슷한 품목은 모두 저전압 제품을 "
+                    "포함하지 않는 품목이었습니다. 품목 조회는 비슷한 행을 찾는 것이라 확정하지 않았습니다.")
+        if reason in ("low_voltage", "no_match", "no_rows") and (power or volts):
+            known = "·".join(part for part in (
+                f"전원 방식({', '.join(power)})" if power else "",
+                f"정격 전압({', '.join(volts)})" if volts else "") if part)
+            return (subject,
+                    f"상품 설명에서 {known}{topic_particle(known)} 확인했지만 해당하는 전기용품 품목을 찾지 못해 "
+                    "대상인지 판단하지 못했습니다.",
+                    "품목표에서 상품에 맞는 품목을 찾지 못해 판단을 보류했습니다. "
+                    "찾지 못했다는 것만으로 대상이 아니라고 보지는 않습니다.")
+        return self.insufficient
+
+    @staticmethod
+    def _ask_power_once(run: ToolRun) -> None:
+        """전원 방식과 전지 전용 여부를 한 회차에 같이 묻지 않는다 (#801).
+
+        판매자에게는 둘 다 전원 질문이라 같은 답을 두 번 쓰게 된다. 전원 방식을 먼저 묻고, 그 답으로도 전지 전용인지
+        알 수 없으면(예: "USB 충전") 다음 회차에 전지 전용 여부를 묻는다. 본체 판단에 붙인 공통 비고 제외 가능성은
+        그대로 둔다. 값이 엇갈려 충돌 질문으로 나가는 조건은 문장이 달라 건드리지 않는다.
+        지난 회차에 전원 방식을 이미 물었으면 미루지 않는다. 답이 "모르겠어요"면 전원 방식은 다시 묻지 않으므로
+        (diagnosis/job.py) 여기서 또 미루면 전지 전용 여부를 끝까지 못 묻는다 (#802 리뷰).
+
+        Args:
+            run: 이번 실행 상태.
+        """
+        if not {"power_source", "battery_only"} <= set(run.missing):
+            return
+        if {"power_source", "battery_only"} & set(run.conflicted):
+            return
+        if "power_source" in map(field_for, answered_questions(run.product.listing_text)):
+            return
+        run.missing = [name for name in run.missing if name != "battery_only"]
 
     @staticmethod
     def _skip_electrical_questions(run: ToolRun) -> None:

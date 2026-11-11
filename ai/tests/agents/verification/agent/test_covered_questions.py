@@ -41,6 +41,37 @@ def test_Tool이_모순으로_묻는_조건의_모델_질문도_뺀다(samples, 
     assert result.follow_up_questions == []
 
 
+def test_Tool이_전지_전용_여부를_물으면_모델의_전원_방식_질문도_뺀다(samples, stub_model):
+    # #801: 얼굴 마사지기에서 전기 Tool의 battery_only 질문과 모델의 power_source 질문이 같은 회차에 같이 나옴
+    draft = _with_missing(samples.draft(), ToolName.ELECTRICAL, [QUESTIONS["battery_only"].question])
+    review = samples.review(follow_up_questions=[
+        _question("power_source", "제품이 건전지나 충전지만으로만 동작하는지, 아니면 전원 코드나 어댑터를 연결하여 사용하는지 알려 주세요."),
+    ])
+
+    result = VerificationAgent(stub_model(review)).run(draft)
+
+    assert result.follow_up_questions == []
+
+
+def test_Tool이_전원_방식을_물으면_모델의_전지_전용_질문도_뺀다(samples, stub_model):
+    draft = _with_missing(samples.draft(), ToolName.ELECTRICAL, [QUESTIONS["power_source"].question])
+    review = samples.review(follow_up_questions=[_question("battery_only", "건전지로만 쓰는 제품인가요?")])
+
+    result = VerificationAgent(stub_model(review)).run(draft)
+
+    assert result.follow_up_questions == []
+
+
+def test_판매자가_지난_회차에_전지_전용_여부를_답했으면_모델의_전원_방식_질문도_뺀다(samples, stub_model):
+    answered = f"{ANSWER_PREFIX} {QUESTIONS['battery_only'].question} → 배터리만"
+    draft = samples.draft(Product(product_id="p1", listing_text=["얼굴 마사지기", answered]))
+    review = samples.review(follow_up_questions=[_question("power_source", "어떤 전원으로 작동하나요?")])
+
+    result = VerificationAgent(stub_model(review)).run(draft)
+
+    assert result.follow_up_questions == []
+
+
 def test_판매자가_지난_회차에_답한_조건의_모델_질문은_답이_모름이어도_뺀다(samples, stub_model):
     draft = samples.draft(Product(product_id="p1", listing_text=["소형 선풍기", f"{ANSWER_PREFIX} {VOLTAGE} → 모르겠어요"]))
     review = samples.review(follow_up_questions=[_question("rated_voltage")])

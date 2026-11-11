@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { getNotificationSettings, updateNotificationSettings } from "@/api/users.ts";
-import { LAW_AMENDMENTS_QUERY_KEY } from "@/pages/Mypage/constants.ts";
+import { LAW_AMENDMENTS_QUERY_KEY } from "@/pages/Products/constants.ts";
 
 const NOTIFICATION_SETTINGS_QUERY_KEY = ["notificationSettings"];
 

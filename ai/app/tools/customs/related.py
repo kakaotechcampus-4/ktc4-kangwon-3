@@ -20,7 +20,7 @@ Tool과 병렬로 돌아 그 결과를 볼 수 없으므로, 종합 단계가 To
 """
 
 from ...schemas.schemas import Determination, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus
-from .rules import requirement_subject
+from .rules import no_requirement_left, required_subject, requirement_subject, unneeded_subject
 
 _TOOL_LABELS = {
     ToolName.ELECTRICAL: "전기안전", ToolName.RADIO: "전파", ToolName.CHILDREN: "어린이제품", ToolName.FOOD_DRUG: "식약",
@@ -31,8 +31,8 @@ _LABEL_OF = {Determination.REQUIRED: "대상", Determination.POSSIBLY_REQUIRED: 
              Determination.NOT_REQUIRED: "대상 아님", Determination.NOT_APPLICABLE: "해당 없음"}
 # 할 일을 남길 판정. 나머지(대상 아님·해당 없음)는 세관장확인 서류 안내를 뺀다
 _KEEP_ACTIONS = {Determination.REQUIRED, Determination.POSSIBLY_REQUIRED}
-# 대상·대상 후보·대상 아님을 따르는 Tool (법 범위 = Tool 범위)
-_FOLLOW_ALL = {ToolName.ELECTRICAL, ToolName.CHILDREN}
+# 대상·대상 후보·대상 아님을 따르는 Tool (법 범위 = Tool 범위). 통관 Tool은 이 법령으로 갈리는 HS를 묻지 않는다 (tool.py)
+FOLLOW_ALL = {ToolName.ELECTRICAL, ToolName.CHILDREN}
 # 후보를 냈을 때만 따르는 Tool (법 범위 > Tool 범위)
 _FOLLOW_CANDIDATE_ONLY = {ToolName.RADIO}
 
@@ -55,13 +55,15 @@ def follow_related_tools(tool_results: list[ToolResult]) -> list[str]:
     followed: dict[str, str] = {}
     for law_name, tool_value in related.items():
         tool = ToolName(tool_value)
-        if tool not in _FOLLOW_ALL and tool not in _FOLLOW_CANDIDATE_ONLY:
+        if tool not in FOLLOW_ALL and tool not in _FOLLOW_CANDIDATE_ONLY:
             continue
         other = by_name.get(tool)
         if other is None or not other.selected or other.status is not ToolStatus.SUCCESS or not other.findings:
             continue
         verdict = _verdict(other.findings)
-        finding = next((f for f in customs.findings if f.subject == requirement_subject(law_name)), None)
+        # 대상·대상 아님을 따르면 제목이 바뀌므로(_apply) 세 제목 모두로 찾음 (다시 불려도 같은 판단을 찾게)
+        subjects = (requirement_subject(law_name), required_subject(law_name), unneeded_subject(law_name))
+        finding = next((f for f in customs.findings if f.subject in subjects), None)
         if verdict is None or finding is None:
             continue
         # 정보 부족은 어느 Tool이든 따르지 않는다 (판단하지 못한 것이지 대상이 아닌 것이 아님)
@@ -96,9 +98,12 @@ def _apply(customs: ToolResult, finding: RegulatoryFinding, law_name: str, verdi
     """통관 판단 하나의 판정·요약·할 일을 다른 Tool 판단에 맞춘다."""
     finding.determination = verdict
     finding.risk_level = _RISK_OF.get(verdict, finding.risk_level)
-    finding.summary = (f"「{law_name}」 세관장확인 요건은 {label} 분야 판단을 따릅니다. {label} 분야 판단: {_LABEL_OF[verdict]}."
-                       + (" 대상이면 수입신고 때 세관장확인도 받아야 합니다." if verdict in _KEEP_ACTIONS else
-                          " 세관장확인 서류 준비 안내는 내지 않습니다."))
+    # 화면 본문과 제목. 대상이면 "필요", 대상이 아니면 "필요 없음"으로 제목도 바꿔 본문과 어긋나지 않게 함
+    follow = {Determination.REQUIRED: "통관 때도 서류를 내야 합니다",
+              Determination.POSSIBLY_REQUIRED: "대상이면 통관 때도 서류를 내야 합니다"}.get(verdict, "통관 서류도 필요하지 않습니다")
+    finding.summary = f"- {label} 분야 판단을 따릅니다: {_LABEL_OF[verdict]}\n- {follow}"
+    finding.subject = {Determination.REQUIRED: required_subject,
+                       Determination.POSSIBLY_REQUIRED: requirement_subject}.get(verdict, unneeded_subject)(law_name)
     if verdict in _KEEP_ACTIONS:
         return
     dropped = set(finding.requirements)
@@ -107,3 +112,6 @@ def _apply(customs: ToolResult, finding: RegulatoryFinding, law_name: str, verdi
     if customs.result is not None and hasattr(customs.result, "applicable_requirements"):
         customs.result.applicable_requirements = [name for name in customs.result.applicable_requirements
                                                   if name != law_name]
+        # 따라서 마지막 요건이 빠지면 세관장확인 필요 칸도 false로 맞춤 (판단은 "필요 없음"인데 칸이 비어 있지 않게, #797)
+        if not customs.result.applicable_requirements and no_requirement_left(customs.query, customs.findings):
+            customs.result.customs_confirmation_required = False

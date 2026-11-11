@@ -155,6 +155,8 @@ def _follows(words: list[str], quote_words: list[str], start: int) -> bool:
 
 # 인용 문구 끝에 붙는 문장부호. 조사는 그 앞 글자의 받침으로 정한다 (리뷰 #643: "'습기 차단.'를").
 _TRAILING_PUNCTUATION = " \t.,!?;:)]}'\"”’…·~"
+# 끝에 붙은 괄호 덧말 ("정격 전압(5V)"의 "(5V)")
+_TRAILING_PAREN = re.compile(r"\s*\([^()]*\)\s*$")
 
 
 def object_particle(word: str) -> str:
@@ -182,8 +184,12 @@ def topic_particle(word: str) -> str:
 
 
 def _ends_with_final_consonant(word: str) -> bool:
-    """마지막 글자가 받침 있는 한글인지. 한글이 아니면 False. 끝의 문장부호·공백은 빼고 본다."""
-    last = word.rstrip(_TRAILING_PUNCTUATION)[-1:]
+    """마지막 글자가 받침 있는 한글인지. 한글이 아니면 False. 끝의 괄호 덧말과 문장부호·공백은 빼고 본다.
+
+    조사는 괄호 앞 낱말에 맞춘다: "정격 전압(5V)" → "전압"의 받침으로 "은" (리뷰 #806).
+    """
+    trimmed = _TRAILING_PAREN.sub("", word.rstrip(_TRAILING_PUNCTUATION.replace(")", "")))
+    last = trimmed.rstrip(_TRAILING_PUNCTUATION)[-1:]
     return "가" <= last <= "힣" and (ord(last) - ord("가")) % 28 != 0
 
 

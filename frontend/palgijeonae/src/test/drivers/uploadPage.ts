@@ -59,6 +59,8 @@ export function uploadPage(user: User = userEvent.setup()) {
     fillTitle: (text: string) => fill(titleInput(), text),
     fillLink: (text: string) => fill(linkInput(), text),
     fillContent: (text: string) => fill(contentInput(), text),
+    /** 입력칸 밖을 눌러 포커스를 거둔다. (모바일에서는 화면 키보드가 내려간다) */
+    leaveInput: () => user.click(document.body),
     clickAddProduct: () => clickButton(/상품 추가하기/),
 
     /** URL 탭에서 제품명과 링크를 입력하고 상품을 추가한다. */

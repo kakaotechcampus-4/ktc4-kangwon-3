@@ -7,12 +7,14 @@ from app.tools.common.questions import (
     CONFLICT_SUFFIX,
     NO_LISTING_QUESTION,
     QUESTIONS,
+    SAME_QUESTION_GROUPS,
     TOPIC_OTHER,
     TOPICS,
     answered_questions,
     field_for,
     help_text,
     question_text,
+    same_question_fields,
 )
 
 
@@ -63,6 +65,23 @@ def test_검증_질문_topic은_카탈로그_필드와_other다():
     assert TOPICS == (*QUESTIONS, TOPIC_OTHER)
 
 
+def test_같은_내용을_묻는_조건은_한_묶음이다():
+    # #801: 전지로만 동작하는지는 전원 방식의 한 갈래라 어느 쪽을 물었든 전원 질문은 한 번만 나와야 한다
+    assert same_question_fields("power_source") == {"power_source", "battery_only"}
+    assert same_question_fields("battery_only") == {"power_source", "battery_only"}
+
+
+def test_묶음이_없는_조건은_자기_자신만이다():
+    assert same_question_fields("rated_voltage") == {"rated_voltage"}
+    assert same_question_fields(TOPIC_OTHER) == {TOPIC_OTHER}
+
+
+def test_묶음의_조건은_모두_카탈로그에_있다():
+    for group in SAME_QUESTION_GROUPS:
+        assert len(group) >= 2
+        assert group <= set(QUESTIONS)
+
+
 def test_카탈로그_질문_문장으로_조건_필드를_되찾는다():
     assert field_for("제품의 정격 전압 확인이 필요합니다.") == "rated_voltage"
     assert field_for(" 제품의 정격 전압 확인이 필요합니다. ") == "rated_voltage"
@@ -104,3 +123,10 @@ def test_답변_줄에서_지난_회차_질문_문장을_모은다():
                f"{ANSWER_PREFIX} r1_q2 → 220V", "정격 전압 → 220V"]
 
     assert answered_questions(listing) == ["제품의 정격 전압 확인이 필요합니다.", "r1_q2"]
+
+
+def test_전지_전용_조건의_표시_이름은_뜻이_보이게_쓰고_예전_이름의_모순_문장도_필드를_찾는다():
+    # #803: "배터리 전용 여부"가 "배터리만 있다"로 읽혀 검증이 맞는 판단을 모순으로 막음
+    assert QUESTIONS["battery_only"].labels[0] == "전지로만 동작(코드나 어댑터 없이)"
+    assert field_for("전지로만 동작(코드나 어댑터 없이)" + CONFLICT_SUFFIX) == "battery_only"
+    assert field_for("배터리 전용 여부" + CONFLICT_SUFFIX) == "battery_only"

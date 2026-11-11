@@ -10,7 +10,8 @@
 import re
 
 from ...schemas.product import Product
-from ...schemas.schemas import ToolName
+from ...schemas.schemas import Determination, RegulatoryFinding, ToolName
+from ..common.questions import ANSWER_PREFIX
 from .evidence import ConfirmationRow, law_key
 
 # 세관장확인 요건 법령 → 같은 법을 판단하는 규제 Tool. 키는 law_key(공백·가운뎃점 무시).
@@ -39,7 +40,31 @@ def requirement_subject(law_name: str) -> str:
     Returns:
         str: 판단 제목.
     """
-    return f"세관장확인 대상 후보 — {law_name}"
+    return f"세관 확인 서류가 필요할 수 있음 — {law_name}"
+
+
+def required_subject(law_name: str) -> str:
+    """그 법령을 맡는 Tool이 대상이라고 판단해 세관 확인 서류가 필요하게 된 판단의 제목 (related.py).
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        str: 판단 제목.
+    """
+    return f"세관 확인 서류 필요 — {law_name}"
+
+
+def unneeded_subject(law_name: str) -> str:
+    """그 법령을 맡는 Tool이 대상이 아니라고 판단해 세관 확인 서류도 필요 없게 된 판단의 제목 (related.py).
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        str: 판단 제목.
+    """
+    return f"세관 확인 서류 필요 없음 — {law_name}"
 
 
 def related_tool(law_name: str) -> ToolName | None:
@@ -109,6 +134,51 @@ def _without_excludable(text: str, excludable: re.Pattern[str]) -> str:
     return " ".join(parts)
 
 
+def _unspecified_leather_left(material_texts: list[str], excludable: re.Pattern[str]) -> bool:
+    """뺄 수 있는 소재 표기를 지우고도 종류를 밝히지 않은 가죽 표기가 남는지.
+
+    판매자 답변 줄에 뺄 수 있는 소재가 있으면 답변 줄만 본다. 상품 이름·원문의 "가죽"은 답변이 종류를 밝힌 것으로 봄
+    (리뷰 #774: "카메라 가죽 케이스"에 "소가죽"으로 답해도 이름의 "가죽"이 남아 요건이 빠지지 않던 것).
+    남겨야 하는 소재(악어 등) 확인은 호출하는 쪽이 전체 글로 먼저 한다.
+
+    Args:
+        material_texts: 소재를 적은 글.
+        excludable: 뺄 수 있는 소재 표기.
+
+    Returns:
+        bool: 종류를 모르는 가죽 표기가 남으면 True.
+    """
+    answers = [text for text in material_texts if text.startswith(ANSWER_PREFIX) and excludable.search(text)]
+    text = " ".join(answers or material_texts)
+    return bool(_UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)))
+
+
+def material_question_helps(law_name: str, material_texts: list[str], material_known: bool) -> bool:
+    """소재로 빠질 수 있는 요건이 남아 있을 때, 판매자에게 재질을 물으면 요건이 빠질 수 있는지.
+
+    남겨야 하는 소재(악어 등)가 이미 확인됐으면 물어도 남으므로 False. 재질을 모르거나, 재질은 알지만 종류를
+    밝히지 않은 가죽이 남아 있으면 True (예: 가죽 손잡이 → 소가죽이면 야생생물법 요건이 빠짐).
+
+    Args:
+        law_name: 남아 있는 요건 법령 이름 (excluded_by_product로 빠지지 않은 것).
+        material_texts: 소재를 적은 글 (excluded_by_product와 같은 글).
+        material_known: 통관 사실에 재질 조건이 있는지.
+
+    Returns:
+        bool: 재질 답으로 요건이 빠질 수 있으면 True. 소재 조건 법령이 아니면 False.
+    """
+    material = MATERIAL_CONDITIONED_LAWS.get(law_key(law_name))
+    if material is None:
+        return False
+    _, excludable, keep = material
+    text = " ".join(material_texts)
+    if keep.search(text):
+        return False
+    if not material_known:
+        return True
+    return _unspecified_leather_left(material_texts, excludable)
+
+
 def excluded_by_product(law_name: str, product: Product, material_texts: list[str] | None = None) -> str | None:
     """상품 신호나 소재 표기로 보아 이 요건 법령이 해당하지 않으면 그 이유를 돌려준다.
 
@@ -134,9 +204,27 @@ def excluded_by_product(law_name: str, product: Product, material_texts: list[st
         return None
     # 일부 소재만 확인된 상품은 빼지 않는다 (리뷰 #708: 안감은 인조 가죽인데 겉감 가죽의 종류는 모르는 경우).
     # 뺄 수 있는 표기를 지우고도 종류를 모르는 가죽 표기가 남으면 남긴다
-    if _UNSPECIFIED_LEATHER.search(_without_excludable(text, excludable)):
+    if _unspecified_leather_left(material_texts, excludable):
         return None
     return goods
+
+
+def no_requirement_left(query: dict, findings: list[RegulatoryFinding]) -> bool:
+    """HS 후보를 모두 조회했고 통관 판단이 모두 "필요 없음"인지 (세관장확인 필요 칸을 false로 둘 때, #797).
+
+    조회하지 못한 후보가 있거나, 후보가 없거나, 근거 법령을 읽지 못해 정보 부족이거나, 요건 후보가 남았으면 False.
+    종합 단계가 다른 Tool 판단을 따라 요건을 뺀 뒤에도 같은 기준으로 다시 본다.
+
+    Args:
+        query: 통관 Tool의 query (hs_candidates, requirements는 조회한 후보만 키로 가짐).
+        findings: 통관 판단.
+
+    Returns:
+        bool: 모든 후보를 조회했고 판단이 모두 "필요 없음"이면 True.
+    """
+    candidates = query.get("hs_candidates") or []
+    resolved = bool(candidates) and set(query.get("requirements") or {}) == set(candidates)
+    return resolved and bool(findings) and all(f.determination is Determination.NOT_REQUIRED for f in findings)
 
 
 def format_hs(code: str) -> str:
@@ -155,6 +243,50 @@ def format_hs(code: str) -> str:
     return code
 
 
+# 별표 2 범위 칸의 하위 항목 머리 "(가)", "(나)" …
+_SCOPE_ITEM = re.compile(r"\([가-하]\)")
+# 고시에서 삭제된 항목 표시 ("< 삭 제 >")
+_DELETED = re.compile(r"<\s*삭\s*제\s*>")
+
+
+def notice_documents(row: ConfirmationRow | None) -> list[str]:
+    """고시 별표 2 구비요건 칸의 서류를 항목(ㅇ)마다 나눈다. 항목 안의 조건·대체 서류는 원문 그대로 둔다.
+
+    판매자에게 안내하는 서류명은 판단에 인용하는 고시 문구를 따른다. GW 서류명(예: "수입승인서")이 고시 구비요건
+    ("위생용품의 수입신고 확인증")과 달라 안내와 근거가 어긋나던 것 (검증 튜닝, luna 전환 측정).
+
+    Args:
+        row: 고시 별표 2의 해당 행. 없으면 None.
+
+    Returns:
+        list[str]: 구비요건 항목. 행이 없거나 비면 빈 목록.
+    """
+    if row is None:
+        return []
+    items = [" ".join(item.split()) for item in row.requirements.split("ㅇ") if item.strip()]
+    # 범위 칸의 (가)(나)…와 구비요건 항목 수가 같으면 대상마다 서류가 하나씩이라 "대상: 서류"로 짝지어 조건을 살림
+    # (전기용품법: 안전인증대상·안전확인대상·공급자적합성확인대상마다 서류가 다름)
+    targets = [" ".join(part.split()) for part in _SCOPE_ITEM.split(row.scope)[1:] if part.strip()]
+    if len(items) > 1 and len(targets) == len(items):
+        pairs = [f"{target}: {item}" for target, item in zip(targets, items) if not _DELETED.search(item)]
+        return pairs
+    return list(dict.fromkeys(item for item in items if not _DELETED.search(item)))
+
+
+def documents_text(documents: list[str]) -> str:
+    """안내할 서류 목록을 한 줄로. 여러 개면 물품에 따라 해당하는 것을 고르게 알린다.
+
+    Args:
+        documents: 서류 목록.
+
+    Returns:
+        str: 한 줄 글. 비면 빈 문자열.
+    """
+    if len(documents) <= 1:
+        return "".join(documents)
+    return "물품에 따라 아래 중 해당하는 서류: " + " / ".join(documents)
+
+
 def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None, documents: list[str],
                  agencies: list[str], omission: tuple[str, str] | None) -> list[str]:
     """요건 법령 하나에 대한 할 일. 머리말, 할 일, 서류, 구매대행을 줄로 나눈 한 건으로 낸다.
@@ -168,7 +300,7 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
         law_name: 요건 법령 이름.
         hs_codes: 이 법령이 걸린 HS.
         row: 고시 별표 2의 해당 행. 없으면 None.
-        documents: GW가 준 요건 확인 서류.
+        documents: GW가 준 요건 확인 서류. 고시 구비요건이 있으면 쓰지 않음.
         agencies: GW가 준 요건 확인 기관. 문장에는 쓰지 않음 (호출부 호환용).
         omission: 고시 제7조 제2항의 생략 판단. ("excepted", 조건) = 생략 제외 법령, ("omittable", "") = 생략 가능,
             None = 고시를 확인하지 못함.
@@ -176,7 +308,8 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
     Returns:
         list[str]: 줄바꿈으로 나눈 할 일 한 건.
     """
-    papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
+    # 고시 구비요건이 있으면 그 문구를, 없으면 GW 서류명을 쓴다
+    papers = documents_text(notice_documents(row) or documents) or "해당 법령의 요건 확인 서류"
     lines = [
         f"[{law_name}] · 품목번호 HS {', '.join(format_hs(code) for code in hs_codes)} 후보",
         "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.",
@@ -212,9 +345,17 @@ def _agent_line(omission: tuple[str, str] | None) -> str:
 
 # 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당해 조건을 덧붙이는 설명 (#640).
 # 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축인 소·양·돼지 가죽은 대상이 아님.
+# 약사법·의료기기법·생활화학제품법은 세관장확인 고시 별표 2의 대상 물품 문구를 줄여 씀 (#809: 디퓨저·젖병에 약사법).
+# 화장품법·위생용품관리법은 별표 2에 대상 설명이 없어, 화장품법 제2조의 화장품 뜻 / 위생용품으로 정한 물품으로만 씀.
 LAW_NOTES: dict[str, str] = {
     law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, "
                                         "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."),
+    law_key("약사법"): "의약품·의약외품·한약재·동물용 의약품에만 해당합니다.",
+    law_key("의료기기법"): "의료기기(동물용 포함)에만 해당합니다.",
+    law_key("생활화학제품 및 살생물제의 안전관리에 관한 법률"): "세정제·세탁세제·방향제·탈취제·접착제 같은 안전확인대상 생활화학제품에만 해당합니다.",
+    law_key("화장품법"): "화장품(피부·모발에 바르거나 뿌리는 등으로 쓰는 물품)에만 해당합니다.",
+    law_key("위생용품 관리법"): ("세척제(채소·과일·식기용), 칫솔·치실, 일회용 컵·수저·빨대, 화장지·물티슈, 일회용 기저귀·면봉 등 "
+                                 "「위생용품 관리법」에서 위생용품으로 정한 물품에만 해당합니다."),
 }
 
 

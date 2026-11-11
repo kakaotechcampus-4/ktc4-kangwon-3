@@ -15,10 +15,14 @@ from ...schemas.schemas import CustomsAssessment, Determination, LegalSource, Re
 from ...schemas.product import Product
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.law import EvidenceUnavailable
+from ..common.questions import QUESTIONS, answered_questions
 from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
+from .related import FOLLOW_ALL
 from .rules import (
-    excluded_by_product, format_hs, law_note, omission_status, related_tool, requirement_subject, sale_actions,
+    documents_text, excluded_by_product, format_hs, law_note, material_question_helps, no_requirement_left,
+    notice_documents, omission_status, related_tool,
+    requirement_subject, sale_actions,
 )
 from .search import (
     CaseSearch, HsCase, Requirement, RequirementLookup,
@@ -30,7 +34,8 @@ _FIELDS = {
     "composition": "구성품",
 }
 # 답에 따라 HS 후보(그리고 요건)가 바뀌는 조건만 묻는다. 나머지는 가정으로 남긴다.
-# 재질·기능은 후보 HS끼리 세관장확인 요건이 다를 때(또는 요건을 조회하지 못했을 때)만 묻는다 (_requirements_differ)
+# 재질·기능은 후보 HS끼리 세관장확인 요건이 다를 때(또는 요건을 조회하지 못했을 때)만 묻는다 (_requirements_differ).
+# 다른 Tool 판단을 따르는 법령(전기용품법·어린이제품법)만 갈리면 묻지 않는다
 _QUESTION_FIELDS = ("product_type", "material", "function")
 # 결정사례 검색어 수. 검색어는 동시에 보내므로 늘려도 대기 시간은 가장 느린 한 건이다.
 _QUERY_LIMIT = 6
@@ -47,10 +52,12 @@ class CustomsRun(ToolRun):
     Attributes:
         hs_codes: 고른 결정사례의 HS 후보.
         requirements: HS 후보의 세관장확인 요건.
+        shown_documents: 판매자에게 안내한 서류 (고시 구비요건이 있으면 그 문구, 없으면 GW 서류명).
     """
 
     hs_codes: list[str] = field(default_factory=list)
     requirements: list[Requirement] = field(default_factory=list)
+    shown_documents: list[str] = field(default_factory=list)
 
 
 class CustomsTool(EvidenceSearchTool):
@@ -78,7 +85,7 @@ class CustomsTool(EvidenceSearchTool):
     insufficient = (
         "HS 품목분류·세관장확인 요건",
         "상품 설명에서 품목을 정할 정보가 부족하거나 비슷한 결정사례를 찾지 못해 HS 후보와 세관장확인 요건을 판단하지 못했습니다.",
-        "정보가 없거나 맞는 사례가 없어 판단을 보류했습니다. 찾지 못했다는 것만으로 요건이 없다고 보지는 않습니다.",
+        "통관 때 필요한 서류가 있는지는 관세사나 세관에 직접 확인이 필요합니다.",
     )
     # 원문 없는 속성도 조회어를 정하는 데 참고됨
     hints_with_attributes = True
@@ -150,11 +157,14 @@ class CustomsTool(EvidenceSearchTool):
                 f"후보 사례 중 한 건뿐인 호(HS 4자리)의 선택 {len(lone)}개(HS {codes})가 있어 HS 확인이 필요합니다.")
         # 물을 수 있는 조건은 요건 조회 뒤에 묻을지 정함 (후보 HS의 요건이 같으면 답이 결론을 바꾸지 않음, #754)
         askable: list[str] = []
+        others: list[str] = []
         for _, selection, _ in chosen:
             needed = [name for name in dict.fromkeys(selection.needed_fields) if name not in by_field]
             askable.extend(name for name in needed if name in _QUESTION_FIELDS and name not in askable)
-            if other := [_FIELDS[name] for name in needed if name not in _QUESTION_FIELDS]:
-                run.assumptions.append(f"HS 확정에는 {', '.join(other)} 확인이 더 필요합니다.")
+            others.extend(name for name in needed if name not in _QUESTION_FIELDS and name not in others)
+        # 결정사례마다 붙이면 같은 문장이 판단에 여러 번 실려 모아서 한 번만 남김
+        if others:
+            run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in others)} 확인이 더 필요합니다.")
         query["selected_cases"] = [case.case_id for case, _, _ in chosen]
         if query["dropped_candidates"]:
             run.assumptions.append(f"후보 사례와 대조되지 않은 선택 {query['dropped_candidates']}개를 제외했습니다.")
@@ -172,19 +182,34 @@ class CustomsTool(EvidenceSearchTool):
         if evidence is not None:
             query["documents"] = evidence.documents()
         requirements, unresolved = self._lookup_requirements(hs_codes, run.assumptions)
-        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions,
-                                                     _material_texts(product, facts))
+        material_texts = _material_texts(product, facts)
+        requirements, excluded = _exclude_by_product(requirements, product, run.assumptions, material_texts)
         if excluded:
             query["excluded_requirements"] = excluded
         run.requirements = requirements
         query["requirements"] = {code: [item.law_name for item in requirements if item.hs_code == code]
                                  for code in hs_codes if code not in unresolved}
-        if askable:
-            if unresolved or _requirements_differ(requirements, hs_codes):
-                run.missing.extend(askable)
-            else:
-                run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in askable)} 확인이 더 필요하지만, "
-                                       "후보 HS의 세관장확인 요건이 같아 묻지 않았습니다.")
+        asks = list(askable) if askable and (unresolved or _requirements_differ(requirements, hs_codes)) else []
+        # 소재로 빠질 수 있는 요건(야생생물법 등)이 남았는데 재질·가죽 종류를 모르면, 모델이 요청하지 않아도 재질을 물음.
+        # 모델은 이 경우를 거의 묻지 않음 (#756 리뷰: 가죽 제품 실측에서 야생생물법이 남은 5회 모두 요청 없음)
+        material_known = "material" in by_field
+        material_laws = list(dict.fromkeys(item.law_name for item in requirements
+                                           if material_question_helps(item.law_name, material_texts, material_known)))
+        # 재질을 이미 물었는데 답에 가죽 종류가 없으면(예: "천연가죽") 다시 묻지 않고 요건을 남긴 이유만 적음.
+        # 다시 물어도 재진단이 이미 물은 질문으로 걸러 화면에 안 나가는데 "재질을 물었습니다"만 남던 것 (리뷰 #774)
+        asked_before = QUESTIONS["material"].question in answered_questions(product.listing_text)
+        if material_laws and not asked_before and "material" not in asks:
+            asks.append("material")
+        if material_laws:
+            laws = ", ".join(f"「{name}」" for name in material_laws)
+            run.assumptions.append(
+                f"{laws} 요건은 소재(가죽 종류 등)에 따라 해당하지 않을 수 있지만, 판매자 답에서 가죽 종류를 확인하지 못해 남겼습니다."
+                if asked_before else
+                f"{laws} 요건은 소재(가죽 종류 등)에 따라 해당하지 않을 수 있어 재질을 물었습니다.")
+        run.missing.extend(asks)
+        if skipped := [name for name in askable if name not in asks]:
+            run.assumptions.append(f"HS 확정에는 {', '.join(_FIELDS[name] for name in skipped)} 확인이 더 필요하지만, "
+                                   "후보 HS에 따라 갈리는 세관장확인 요건이 없어 묻지 않았습니다.")
         case_sources = [_case_source(case) for case, _, _ in chosen]
         # 사례마다 이유가 따로라 줄을 나눔 (진단서 판단 근거는 줄바꿈을 그대로 보여 줌)
         rationale = "\n".join(selection.rationale for _, selection, _ in chosen)
@@ -212,12 +237,17 @@ class CustomsTool(EvidenceSearchTool):
             if tool is not None:
                 related[law_name] = tool.value
                 notes.append(f"같은 법의 제품 판단은 {_TOOL_LABELS.get(tool, tool.value)} Tool 결과와 함께 봐야 합니다.")
+            # 화면 본문은 할 일 문구(sale_actions)와 같은 말로 줄마다 적는다 (전동클렌저 실사이트 진단: 같은 내용이 다른 말로 나옴)
+            lines = [f"- 품목번호: HS {', '.join(format_hs(code) for code in codes)} 후보"]
+            shown = notice_documents(row) or documents
+            run.shown_documents.extend(shown)
+            if shown:
+                lines.append(f"- 미리 갖출 서류: {documents_text(shown)}")
+            if note := law_note(law_name):
+                lines.append(f"- {note}")
             findings.append(self._finding(
                 subject=requirement_subject(law_name),
-                summary=(f"HS {', '.join(format_hs(code) for code in codes)}로 분류되면 수입통관 때 「{law_name}」 요건을 "
-                         f"세관장에게 확인받아야 할 가능성이 있습니다(확정 아님)."
-                         + (f" {law_note(law_name)}" if law_note(law_name) else "")
-                         + (f"\n제출 서류: {', '.join(documents)}." if documents else "")),
+                summary="\n".join(lines),
                 rationale=rationale, determination=Determination.POSSIBLY_REQUIRED, risk=RiskLevel.MEDIUM,
                 facts=facts, assumptions=[*run.assumptions, *notes],
                 sources=self._sources(evidence, row, omission, case_sources), requirements=law_actions,
@@ -235,9 +265,11 @@ class CustomsTool(EvidenceSearchTool):
             if act_source:
                 # 조회해서 받은 "요건 없음"은 정보 부족이 아님. 근거 조문을 붙여 #315 표시·광고 Tool의 "주장 없음"과 같이 냄
                 findings.append(self._finding(
-                    subject="세관장확인 대상 법령 — HS 후보 기준 없음",
-                    summary=(f"관세청 세관장확인대상물품 조회 결과 HS 후보 {labels}에는 세관장확인 대상 법령이 "
-                             "없습니다. 통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제가 없다는 뜻은 아닙니다."),
+                    # 화면에는 결론(제목)과 품목번호만 낸다. 같은 화면에 다른 분야 카드가 함께 나와
+                    # "국내 판매 규제가 없다는 뜻은 아니다"는 가정에만 남긴다 (목걸이 실사이트 진단).
+                    # 다른 HS 후보가 따로 있으면(요건 있음·조회 못 함·상품 정보로 뺌) 그 카드와 어긋나 보이지 않게 범위를 붙임
+                    subject="세관 확인 서류 필요 없음",
+                    summary=f"품목번호: HS {labels} 후보" + (" (이 번호로 분류될 때)" if len(empty) < len(hs_codes) else ""),
                     rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
                     facts=facts, assumptions=[*run.assumptions, *notes], sources=[*act_source, *case_sources],
                 ))
@@ -257,21 +289,27 @@ class CustomsTool(EvidenceSearchTool):
         act_source = self._act_source(evidence) if only_excluded and not findings else None
         if only_excluded and not findings and act_source:
             labels = ", ".join(format_hs(code) for code in only_excluded)
-            laws = ", ".join(f"「{name}」" for name in dict.fromkeys(name for code in only_excluded for name in excluded[code]))
+            # 판매자에게는 '요건 없음'과 같은 결론이라 같은 제목과 품목번호로 낸다. 코드가 상품 정보로 뺀 요건은 한 줄로 알림
+            # (소재 표기가 실제와 다를 때 판매자가 알아챌 단서. 뺀 법령과 이유 전체는 가정에 있음)
+            texts = _material_texts(product, facts)
+            goods = list(dict.fromkeys(filter(None, (excluded_by_product(name, product, texts)
+                                                     for code in only_excluded for name in excluded[code]))))
             findings.append(self._finding(
-                subject="세관장확인 대상 법령 — 상품에 해당하는 요건 없음",
-                summary=(f"HS 후보 {labels}에 걸린 세관장확인 요건 {laws}은 상품 정보상 이 상품에 해당하지 않습니다. "
-                         "통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제가 없다는 뜻은 아닙니다."),
+                subject="세관 확인 서류 필요 없음",
+                summary=(f"품목번호: HS {labels} 후보" + (" (이 번호로 분류될 때)" if len(only_excluded) < len(hs_codes) else "")
+                         + "".join(f"\n{item}에만 필요한 서류는 제외했습니다." for item in goods)),
                 rationale=rationale, determination=Determination.NOT_REQUIRED, risk=RiskLevel.LOW,
-                facts=facts, assumptions=[*run.assumptions,
-                                          f"HS 후보({labels}) 기준입니다. 다른 HS로 분류되면 세관장확인 요건이 생길 수 있습니다."],
+                facts=facts, assumptions=[
+                    *run.assumptions,
+                    f"HS 후보({labels}) 기준입니다. 다른 HS로 분류되면 세관장확인 요건이 생길 수 있습니다.",
+                    "통관 단계의 요건 확인이 없다는 뜻이며 국내 판매 규제(제품 안전·전파·식품 등)가 없다는 뜻은 아닙니다."],
                 sources=[*act_source, *case_sources],
             ))
         if unresolved:
             findings.append(self._finding(
-                subject="세관장확인 요건 — 조회하지 못함",
-                summary=(f"HS 후보 {', '.join(format_hs(code) for code in unresolved)}의 세관장확인 요건을 조회하지 "
-                         "못했습니다. 통관 전 관세청 UNI-PASS의 세관장확인대상 조회로 확인이 필요합니다."),
+                subject="세관 확인 서류 — 조회하지 못함",
+                summary=(f"- 품목번호: HS {', '.join(format_hs(code) for code in unresolved)} 후보\n"
+                         "- 필요한 서류를 조회하지 못했습니다. 관세사나 세관에 직접 확인이 필요합니다."),
                 rationale=rationale, determination=Determination.INSUFFICIENT_INFORMATION, risk=RiskLevel.UNKNOWN,
                 facts=facts, assumptions=run.assumptions, sources=case_sources,
             ))
@@ -355,13 +393,15 @@ class CustomsTool(EvidenceSearchTool):
             findings: 이번 실행의 판단.
 
         Returns:
-            CustomsAssessment: HS 후보·요건 법령·서류 요약.
+            CustomsAssessment: HS 후보·요건 법령·서류 요약. 세관장확인 필요 칸은 HS 후보를 모두 조회했고 남은 요건이
+                없어 판단이 모두 "필요 없음"일 때만 false(#797). 요건이 남았으면 HS가 후보라 확정하지 않아 null,
+                조회하지 못한 후보가 있거나 근거 법령을 읽지 못해 정보 부족이어도 null.
         """
         return CustomsAssessment(
             hs_code_candidates=[format_hs(code) for code in run.hs_codes],
-            customs_confirmation_required=None,
+            customs_confirmation_required=False if no_requirement_left(run.query, findings) else None,
             applicable_requirements=list(dict.fromkeys(item.law_name for item in run.requirements)),
-            required_documents=list(dict.fromkeys(item.document for item in run.requirements if item.document)),
+            required_documents=list(dict.fromkeys(run.shown_documents)),
             legal_sources=[],
         )
 
@@ -411,6 +451,9 @@ def _requirements_differ(requirements: list[Requirement], hs_codes: list[str]) -
     """후보 HS끼리 세관장확인 요건(법령)이 다른지. 같으면 HS를 더 좁혀도 판매자에게 알릴 요건이 같다.
 
     후보가 하나뿐이면 다를 게 없어 False. 법령 이름은 law_key로 비교한다(GW가 "…법률(허가)"처럼 붙여 줄 때가 있음).
+    다른 Tool 판단을 그대로 따르는 법령(전기용품법·어린이제품법, related.FOLLOW_ALL)은 비교에서 뺀다. 그 법령의
+    요건은 종합 단계가 그 Tool의 제품 판단으로 맞추므로, HS를 가르려고 판매자에게 물을 필요가 없다 (예: 장난감
+    9503.00-3700 요건 없음 / 3300 어린이제품법 → children tool이 어린이제품 여부를 판단).
 
     Args:
         requirements: 상품 정보로 뺀 뒤 남은 요건.
@@ -419,7 +462,8 @@ def _requirements_differ(requirements: list[Requirement], hs_codes: list[str]) -
     Returns:
         bool: 요건 법령 묶음이 후보마다 하나라도 다르면 True.
     """
-    laws = {code: frozenset(law_key(item.law_name) for item in requirements if item.hs_code == code)
+    laws = {code: frozenset(law_key(item.law_name) for item in requirements
+                            if item.hs_code == code and related_tool(item.law_name) not in FOLLOW_ALL)
             for code in hs_codes}
     return len(set(laws.values())) > 1
 

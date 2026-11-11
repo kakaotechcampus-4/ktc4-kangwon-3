@@ -30,7 +30,7 @@ export const HOW_TO_USE_STEPS: HowToUseStepInfo[] = [
         title: "진단 진행",
         description: "상세페이지 읽기 → 검토 분야 선택 → 법령 검토 → 정리·검증 순서로 진행되고, 담은 상품이 동시에 진행돼요.",
         tips: [
-            "화면을 떠났다면 마이페이지 → 진행 중인 상품 클릭 → 배너의 ‘진행 상황 확인’ 버튼으로 다시 돌아와요",
+            "화면을 떠났다면 진단 결과 → 진행 중인 상품 클릭 → 배너의 ‘진행 상황 확인’ 버튼으로 다시 돌아와요",
             "진단이 끝난 상품은 다른 상품을 기다리지 않고 바로 결과를 확인할 수 있어요.",
         ],
         Preview: JudgementStepPreview,
@@ -48,7 +48,7 @@ export const HOW_TO_USE_STEPS: HowToUseStepInfo[] = [
         title: "결과 확인",
         description: "진단 결과·다음 단계·상품 정보 탭에서 판정과 근거, 해야 할 일을 확인해요.",
         tips: [
-            "상품마다 구매 대행 가능 · 사입 인증 필요 · 재확인 필요로 판정해요",
+            "상품마다 사입 가능 · 사입 인증 필요 · 재확인 필요로 판정해요",
             "해야 할 일을 순서대로 정리해 드려요",
         ],
         Preview: ResultStepPreview,

@@ -235,7 +235,7 @@ def test_다른_Tool이_맡는_법령의_통관_요건은_그_Tool_판단을_따
         query={"related_tools": {law: ToolName.ELECTRICAL.value}},
         result=CustomsAssessment(applicable_requirements=[law]),
         findings=[RegulatoryFinding(
-            tool_name=ToolName.CUSTOMS, subject=f"세관장확인 대상 후보 — {law}",
+            tool_name=ToolName.CUSTOMS, subject=f"세관 확인 서류가 필요할 수 있음 — {law}",
             determination=Determination.POSSIBLY_REQUIRED, risk_level=RiskLevel.MEDIUM,
             summary="가능성이 있습니다.", rationale="결정사례", requirements=[action])],
         required_actions=[action],

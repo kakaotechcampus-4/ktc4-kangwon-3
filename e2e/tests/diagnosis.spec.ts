@@ -29,5 +29,5 @@ test("URL로 진단을 요청해도 결과 화면에서 판정을 확인할 수 
 
     // then
     await expect(page).toHaveURL(/\/result\/product\/[0-9a-f-]{36}$/);
-    await expect(page.getByText("구매 대행 가능").first()).toBeVisible();
+    await expect(page.getByText("사입 가능").first()).toBeVisible();
 });

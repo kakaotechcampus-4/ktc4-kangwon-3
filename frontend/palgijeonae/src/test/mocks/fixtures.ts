@@ -13,7 +13,7 @@ import {
   ToolReviewStatus,
 } from '@/api/types/product'
 import { SocialProvider, type UserInfo } from '@/api/users'
-import type { MyProductItem } from '@/pages/Mypage/types'
+import type { MyProductItem } from '@/pages/Products/types'
 
 // 질문은 최대 2회차까지만 생성된다. (BE 콜백 검증: questionRound는 @Min(1) @Max(2)) questionOrder는 한 회차 안에서의 순서다.
 const MAX_QUESTION_ROUND = 2
@@ -79,7 +79,7 @@ export const buildDiagnosesDetail = (overrides: Partial<DiagnosesDetail> = {}): 
   ...overrides,
 })
 
-// 마이페이지 목록의 상품 하나. 기본값은 진단이 끝난 구매 대행 가능 상품이다.
+// 마이페이지 목록의 상품 하나. 기본값은 진단이 끝난 사입 가능 상품이다.
 export const buildMyProduct = (overrides: Partial<MyProductItem> = {}): MyProductItem => ({
   productId: 'product-1',
   diagnosesId: 'diagnoses-1',

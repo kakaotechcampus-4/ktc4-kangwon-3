@@ -65,7 +65,7 @@ class ChildrenTool(EvidenceSearchTool):
     insufficient = (
         "어린이제품 안전관리 대상 판정",
         "상품 설명에서 사용 연령이나 해당하는 품목을 찾지 못해 어린이제품 안전관리 대상인지 판단하지 못했습니다.",
-        "정보가 없거나 서로 달라 판단을 보류했습니다. 찾지 못했다는 것만으로 대상이 아니라고 보지는 않습니다.",
+        "만 13세 이하 어린이가 쓰거나 어린이를 위해 쓰는 상품이라면 KC 인증 대상인지 직접 확인이 필요합니다.",
     )
     tracks_conflicts = True
     run_class = ChildrenRun

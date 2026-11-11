@@ -9,20 +9,19 @@ import { setMobileViewport } from '@/test/utils/viewport'
 const getFirstRowSentence = (emphasis: string) => screen.getByText(emphasis, { selector: 'b' }).parentElement
 
 describe('메인 사용 방법 - 화면을 떠났다면 돌아오는 방법', () => {
-  it('데스크톱에서는 오른쪽 위 프로필을 눌러 마이페이지를 고르라고 안내한다', () => {
+  it('데스크톱에서는 위쪽 메뉴에서 진단 결과를 고르라고 안내하고, 미리보기에서 「진단 결과」를 강조한다', () => {
     renderWithProviders(<ReturnPathGuide />)
 
-    expect(getFirstRowSentence('프로필')).toHaveTextContent('오른쪽 위 프로필을 눌러 마이페이지 선택')
-    expect(screen.queryByText('메뉴', { selector: 'b' })).not.toBeInTheDocument()
-    expect(screen.getByText('홍길동 님')).toBeInTheDocument()
+    expect(getFirstRowSentence('메뉴')).toHaveTextContent('위쪽 메뉴에서 진단 결과 선택')
+    expect(screen.getByText('진단 결과', { selector: 'span' })).toHaveClass('font-bold', 'ring-4')
+    expect(screen.queryByText('홍길동 님')).not.toBeInTheDocument()
   })
 
-  it('모바일에서는 오른쪽 위 메뉴(햄버거)를 눌러 마이페이지를 고르라고 안내하고, 프로필 칩 대신 햄버거 아이콘을 보여준다', () => {
+  it('모바일에서는 오른쪽 위 메뉴(햄버거)를 눌러 진단 결과를 고르라고 안내하고, 메뉴 글자 대신 햄버거 아이콘을 보여준다', () => {
     setMobileViewport()
     renderWithProviders(<ReturnPathGuide />)
 
-    expect(getFirstRowSentence('메뉴')).toHaveTextContent('오른쪽 위 메뉴를 눌러 마이페이지 선택')
-    expect(screen.queryByText('프로필', { selector: 'b' })).not.toBeInTheDocument()
-    expect(screen.queryByText('홍길동 님')).not.toBeInTheDocument()
+    expect(getFirstRowSentence('메뉴')).toHaveTextContent('오른쪽 위 메뉴를 눌러 진단 결과 선택')
+    expect(screen.queryByText('진단 결과', { selector: 'span' })).not.toBeInTheDocument()
   })
 })

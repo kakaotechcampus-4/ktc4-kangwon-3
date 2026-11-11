@@ -1,7 +1,7 @@
 # FE 테스트 정책
 
 FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는지 정합니다.
-코드 작성 규칙은 [FE 코드 컨벤션](CONVENTIONS.md)을 따릅니다.
+코드 작성 규칙은 [FE 코드 컨벤션](CODE_CONVENTION.md)을 따릅니다.
 
 ## 목차
 
@@ -21,7 +21,7 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 ## 1. 원칙
 
 - **경우의 수는 단위 테스트로 검증합니다.** 입력 검증, 글자 수 계산, 상태 판단처럼 분기가 많은 로직은 화면 없이 빠르게 확인합니다.
-- **화면 동작은 통합 테스트로 검증합니다.** 화면 하나를 실제 라우터·QueryClient와 함께 렌더하고, 사용자가 하는 대로 입력하고 누르고 기다려서 결과(화면 변화, 안내 문구, 이동, 보낸 요청)를 확인합니다.
+- **화면 동작은 통합 테스트로 검증합니다.** 화면 하나를 실제 라우터·QueryClient와 함께 렌더한 뒤 사용자가 하는 대로 입력하고 누르고 기다려서 결과(화면 변화, 안내 문구, 이동, 보낸 요청)를 확인합니다.
 - **외부 API는 항상 모킹합니다.** 테스트는 BE·S3·AI에 실제로 요청하지 않습니다. 외부 상태에 따라 테스트 결과가 달라지지 않게 하기 위해서입니다.
 - **같은 검증을 반복하지 않습니다.** 단위 테스트가 이미 확인한 분기를 통합 테스트에서 다시 돌리지 않습니다.
 - **버그를 고치면 같은 버그를 잡는 테스트를 함께 추가합니다.** 회귀 테스트로 고정해 다시 생기지 않게 합니다.
@@ -30,7 +30,7 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 
 | 종류 | 검증하는 것 | 도구 | 위치 | 실행 |
 |---|---|---|---|---|
-| 단위 | 함수 하나의 판단과 분기 | Vitest | `src/test/unit/` | `npm test`, PR·develop CI |
+| 단위 | 함수·훅·공용 컴포넌트 하나의 판단과 동작 | Vitest, React Testing Library | `src/test/unit/` | `npm test`, PR·develop CI |
 | 통합 | 화면 하나의 동작(조작 → 요청 → 화면 변화·이동) | Vitest, React Testing Library, user-event, MSW, jsdom | `src/test/integration/` | `npm test`, PR·develop CI |
 
 - 단위와 통합은 같은 명령(`npm test`)으로 함께 실행됩니다.
@@ -55,12 +55,17 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 | 답변 여부, 최신 회차 질문 계산 | 단위 | `unit/pages/Question/utils/answerState.test.ts`, `unit/lib/questions.test.ts` |
 | URL·라우트 파라미터 판별 | 단위 | `unit/lib/url.test.ts`, `unit/lib/routeParams.test.ts` |
 | 오류 코드별 Sentry 레벨, 경로 템플릿 | 단위 | `unit/api/core/sentryErrorPolicy.test.ts` |
+| 유효하지 않은 ID(400·404)·세션 거부 판별 | 단위 | `unit/api/core/invalidId.test.ts`, `unit/api/core/sessionRejected.test.ts` |
+| 로그인 상태 저장 | 단위 | `unit/store/useAuthStore.test.ts` |
 | 상품 추가·삭제, 입력 검증, 진단 요청 성공·실패 | 통합 | `integration/pages/Upload.test.tsx` |
 | 미응답 안내, 답변 제출, 제출 후 이동 | 통합 | `integration/pages/Question.test.tsx` |
 | 폴링, 상태별 카드, 진단서 이동 | 통합 | `integration/pages/Judgement.test.tsx` |
-| 검색·필터·페이지, 상품 삭제, 이름 수정, 회원 탈퇴 | 통합 | `integration/pages/Mypage.test.tsx` |
+| 검색·필터·페이지, 상품 삭제, 이름 수정, 회원 탈퇴, 법령 개정 알림·재진단, 알림 설정 | 통합 | `integration/pages/Mypage.test.tsx` |
 | 재진단 성공·실패·중복 클릭 방지 | 통합 | `integration/pages/ResultRetry.test.tsx` |
 | 인증 준비 전 대기, 비로그인 리다이렉트 | 통합 | `integration/components/ProtectedRoute.test.tsx` |
+| 로그인 버튼, 약관 동의 안내 링크 | 통합 | `integration/pages/Login.test.tsx` |
+| 이용약관·개인정보처리방침 탭 전환, 목차 이동 | 통합 | `integration/pages/Policy.test.tsx` |
+| 푸터 메뉴, 정책 링크, 문의 메일 | 통합 | `integration/components/Footer.test.tsx` |
 
 ## 4. 폴더 구조
 
@@ -72,22 +77,23 @@ src/test/
 │   ├── components/
 │   ├── hooks/
 │   ├── lib/
+│   ├── store/
 │   └── pages/{Question,Upload}/utils/
 ├── integration/
-│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute)
-│   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry)
+│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute, Header, Footer, 업로드 입력·상품 카드, 진단 카드, 마이페이지 목록 등)
+│   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry, Login, Policy)
 ├── drivers/                 # 화면별 드라이버: 통합 테스트가 화면을 조작·조회하는 통로 (uploadPage, judgementPage ...)
 ├── constants/               # messages.ts: 통합 테스트가 비교하는 알림·안내 문구
 ├── infra/                   # 테스트 기반 자체 검증
 ├── mocks/                   # MSW 서버·핸들러·응답 헬퍼·요청 기록·픽스처
-├── utils/                   # renderWithProviders, 인증 시나리오, 알림·확인 헬퍼, createGate, LocationDisplay
+├── utils/                   # renderWithProviders, 인증 시나리오, 알림·확인 헬퍼, 모바일 폭 스텁(viewport), createGate, LocationDisplay
 ├── smoke.test.tsx           # 테스트 환경이 동작하는지 확인하는 최소 테스트
 └── browserStubs.test.tsx    # 브라우저 API 스텁 확인
 ```
 
 - 테스트 파일 이름은 `*.test.ts` 또는 `*.test.tsx`입니다. 이 패턴이 아니면 실행되지 않습니다 (`include: src/**/*.test.{ts,tsx}`).
 - 테스트는 소스 옆이 아니라 `src/test/` 아래에 모읍니다. 소스 폴더에는 `*.test.*` 파일을 두지 않습니다.
-- 통합 테스트는 `drivers/`의 드라이버를 거쳐 작성하고, 문구는 `constants/messages.ts`의 상수로 비교합니다. 규칙은 [FE 코드 컨벤션의 테스트 작성](CONVENTIONS.md#테스트-작성)을 따릅니다.
+- 통합 테스트는 `drivers/`의 드라이버를 거쳐 작성하고 문구는 `constants/messages.ts`의 상수로 비교합니다. 규칙은 [FE 코드 컨벤션의 테스트 작성](CODE_CONVENTION.md#테스트-작성)을 따릅니다.
 - 테스트 코드도 `npm run build`의 `tsc -b`와 ESLint(import 정렬 포함) 대상입니다.
 
 ## 5. 테스트 환경
@@ -103,7 +109,7 @@ src/test/
 | `testTimeout` | 15초 | 렌더하고 조작을 이어 가는 통합 테스트가 부하에서 기본 5초를 넘길 때를 견딥니다 |
 
 - **API 주소는 절대 URL로 쓰지 않습니다.** jsdom의 XHR은 다른 출처 응답에 CORS 헤더가 없으면 MSW가 만든 응답도 `Network Error`로 처리합니다. 다른 출처로 나가는 요청(S3)만 응답에 CORS 헤더를 넣습니다.
-- 테스트 사이에 상태가 새지 않도록 매 테스트 후 응답 오버라이드, 요청 기록, 인증 스토어, 브라우저 API 스텁을 모두 초기화합니다.
+- 테스트 사이에 상태가 새지 않도록 매 테스트 후 응답 오버라이드, 요청 기록, 인증 스토어, 세션 저장소(답변 임시 저장), 브라우저 API 스텁을 모두 초기화합니다.
 
 ## 6. API 모킹 (MSW)
 
@@ -118,7 +124,7 @@ src/test/
 | `fixtures.ts` | 응답 데이터를 만드는 빌더 (`buildProductResult`, `buildQuestion` 등) |
 
 - **핸들러가 없는 요청은 오류로 처리합니다** (`onUnhandledFrame: 'error'`). 새 API를 호출하는 화면을 테스트하면 먼저 기본 핸들러를 추가해야 하고, 실수로 실제 네트워크에 나가는 일이 없습니다.
-- 기본 핸들러가 다루는 API: presigned URL 발급, S3 업로드(PUT), 진단 제출, 상품 단건 조회, 질문 답변 제출, 진단서 조회, 재진단, 마이페이지 상품 목록·삭제, 회원 정보 조회·수정·탈퇴.
+- 기본 핸들러가 다루는 API: presigned URL 발급, S3 업로드(PUT), 진단 제출, 상품 단건 조회, 질문 답변 제출, 진단서 조회, 재진단, 마이페이지 상품 목록·삭제, 법령 개정 알림 조회, 개정 상품 재진단, 알림 설정 조회·수정, 회원 정보 조회·수정·탈퇴.
 
 ### 응답 덮어쓰기
 
@@ -131,7 +137,7 @@ server.use(
 ```
 
 - 첫 요청만 실패시키고 재시도는 성공시키려면 세 번째 인자로 `{ once: true }`를 줍니다.
-- `errorResponse`의 `detailMessage`는 응답의 `details[0].message`로, `message`는 `message`로 담깁니다. 화면은 `details[0].message`를 우선해서 안내하고, 없으면 `message`를 씁니다.
+- `errorResponse`의 `detailMessage`는 응답의 `details[0].message`로, `message`는 `message`로 담깁니다. 화면은 `details[0].message`를 우선해서 안내하고 없으면 `message`를 씁니다.
 
 ### 보낸 요청 검증
 
@@ -149,7 +155,7 @@ expect(requestLog.all()).toEqual([]) // 요청을 보내지 않아야 하는 경
 
 ### 요청 중 상태 확인
 
-"요청하는 동안 버튼이 비활성화된다"처럼 진행 중 상태를 보려면, 응답을 붙잡아 두는 문(gate)을 씁니다. `src/test/utils/createGate.ts`의 `createGate()`를 씁니다.
+"요청하는 동안 버튼이 비활성화된다"처럼 진행 중 상태를 보려면, 응답을 붙잡아 두는 문(gate)을 씁니다. `src/test/utils/createGate.ts`의 `createGate()`로 만듭니다.
 
 ```ts
 const gate = createGate()
@@ -161,12 +167,12 @@ gate.release() // 응답을 풀어 줍니다
 
 ### 테스트 데이터 규칙
 
-- 질문 회차(`questionRound`)는 **1~2만 가능합니다** (BE 콜백 검증 `@Min(1) @Max(2)`). `buildQuestion`은 범위를 벗어나면 에러를 냅니다. `questionOrder`는 회차가 아니라 한 회차 안에서의 순서입니다.
+- 질문 회차(`questionRound`)는 **1~2만 가능합니다** (BE 콜백 검증 `@Min(1) @Max(2)`). `buildQuestion`은 범위를 벗어나면 에러를 냅니다. `questionOrder`는 회차가 아니라 한 회차 안의 순서입니다.
 - 목록의 상품 이름처럼 서로 부분 문자열이 될 수 있는 값은 자릿수를 맞춥니다 (`상품-01`, `상품-10`). 검색 테스트에서 의도하지 않은 항목이 걸리지 않게 하기 위해서입니다.
 
 ## 7. 화면 렌더: 라우터·QueryClient·인증
 
-화면은 `src/test/utils/renderWithProviders.tsx`의 헬퍼로 렌더합니다. 실제 `MemoryRouter`와 재시도를 끈 QueryClient 안에서 렌더되며, **`useNavigate`·`useLocation`·`useParams`는 모킹하지 않고 실제 라우터로 동작합니다.**
+화면은 `src/test/utils/renderWithProviders.tsx`의 헬퍼로 렌더합니다. 실제 `MemoryRouter`와 재시도를 끈 QueryClient 안에서 렌더되며 **`useNavigate`·`useLocation`·`useParams`는 모킹하지 않고 실제 라우터로 동작합니다.**
 
 ```tsx
 renderWithProviders(<QuestionPage />, {
@@ -191,7 +197,7 @@ expect(getCurrentLocation()).toBe('/judgement/diagnoses-77')
 
 ## 8. 브라우저 API 스텁
 
-jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`에서 매 테스트 전에 `vi.fn`으로 바꾸고, 끝나면 원래 구현으로 되돌립니다. 그래서 호출 인자를 바로 검증할 수 있습니다.
+jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`에서 매 테스트 전에 `vi.fn`으로 바꾸고 끝나면 원래 구현으로 되돌립니다. 그래서 호출 인자를 바로 검증할 수 있습니다.
 
 | API | 스텁 동작 | 검증 예 |
 |---|---|---|
@@ -199,11 +205,12 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 | `window.alert` | 아무것도 안 함 | `expectNotified(QUESTION_MESSAGES.ANSWER_ALL)` (`utils/notifications.ts`) |
 | `window.confirm` | 기본은 **확인(true)** | `expectConfirmed(...)`, 취소는 `declineConfirm()` (`utils/confirmations.ts`) |
 | `Element.scrollIntoView` | 아무것도 안 함 | `expect(Element.prototype.scrollIntoView).toHaveBeenCalled()` |
-| `window.matchMedia` | `matches: false` ("동작 줄이기" 꺼짐) | - |
+| `window.matchMedia` | `matches: false` ("동작 줄이기" 꺼짐, 화면 폭은 데스크톱) | 모바일 폭이 필요하면 테스트에서 `setMobileViewport()` (`utils/viewport.ts`) |
 | `Element.animate` | `cancel`이 있는 mock | - |
 
 - **`FormData`는 모킹하지 않고 기본 구현을 씁니다.** 앱 코드가 쓰지 않는 `FileReader`도 스텁하지 않습니다.
 - 앱 코드가 새 브라우저 API를 쓰게 되어 jsdom에서 오류가 나면, 테스트마다 따로 막지 말고 `vitest.setup.ts`에 같은 방식으로 추가합니다. (`beforeEach`에서 교체, `afterEach`에서 원복)
+- `afterEach`는 스텁을 되돌리기 전에 렌더된 화면부터 내립니다(`cleanup()`). 화면이 남은 채로 스텁이 사라지면 `useIsMobile`처럼 렌더 중에 `matchMedia`를 부르는 훅이 오류를 냅니다.
 
 ## 9. 작성 규칙
 
@@ -217,13 +224,13 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 
 ### 통합 테스트
 
-화면을 찾고 조작하는 규칙(드라이버, 셀렉터 우선순위, 문구 상수, 알림 헬퍼, `NOTE(source)`)은 [FE 코드 컨벤션의 테스트 작성](CONVENTIONS.md#테스트-작성)을 따릅니다. 여기서는 그 위에서 시나리오를 쓸 때의 규칙을 정합니다.
+화면을 찾고 조작하는 규칙(드라이버, 셀렉터 우선순위, 문구 상수, 알림 헬퍼, `NOTE(source)`)은 [FE 코드 컨벤션의 테스트 작성](CODE_CONVENTION.md#테스트-작성)을 따릅니다. 여기서는 그 위에서 시나리오를 쓸 때의 규칙을 정합니다.
 
-- 요소는 **사용자가 보는 방식**(`getByRole` → `getByLabelText` → `getByText`)으로 찾습니다. 이 찾기는 드라이버 안에서만 하고, 테스트 본문은 드라이버의 함수를 호출합니다. `data-testid`는 쓰지 않습니다.
+- 요소는 **사용자가 보는 방식**(`getByRole` → `getByLabelText` → `getByText`)으로 찾습니다. 이 찾기는 드라이버 안에서만 하고 테스트 본문은 드라이버의 함수를 호출합니다. `data-testid`는 쓰지 않습니다.
 - 사용자 조작은 드라이버가 `userEvent.setup()`으로 만든 `user`로 합니다 (`fireEvent` 대신). 긴 입력은 한 글자씩 치면 느리므로 `user.click(input)` 뒤 `user.paste(text)`로 채웁니다. (드라이버가 이렇게 합니다)
 - 비동기 결과는 드라이버의 `waitFor...`/`waitUntil...`이나 `findBy*`로 기다립니다. `setTimeout`으로 기다리는 것은 "더 이상 요청하지 않는다"처럼 **일어나지 않음**을 확인할 때만 씁니다.
 - 화면 이동은 `getCurrentLocation()`과 도착 화면의 문구를 함께 확인합니다.
-- 실패 시나리오는 "안내 문구를 보여준다"에서 끝내지 않고, **화면이 그대로인지, 입력한 값이 남아 있는지, 다시 시도할 수 있는지**까지 확인합니다.
+- 실패 시나리오는 "안내 문구를 보여준다"에서 끝내지 않고 **화면이 그대로인지, 입력한 값이 남아 있는지, 다시 시도할 수 있는지**까지 확인합니다.
 - 요청을 보내지 않아야 하는 분기(검증 실패, 확인 취소, 잘못된 접근)는 `requestLog`로 요청이 없음을 확인합니다.
 
 ### 테스트가 실제로 잡는지 확인하기
@@ -238,6 +245,7 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 |---|---|
 | 의존성 설치 | `npm ci` |
 | 전체 테스트 실행 | `npm test` |
+| 커버리지 측정 | `npm run test:coverage` |
 | 파일을 저장할 때마다 다시 실행 (watch) | `npm run test:watch` |
 | 특정 파일만 실행 | `npx vitest run src/test/unit/lib/text.test.ts` |
 | 특정 폴더만 실행 | `npx vitest run src/test/integration` |
@@ -246,25 +254,28 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 | 린트 | `npm run lint` |
 | 타입 검사 + 빌드 | `npm run build` |
 
-- PR을 올리기 전에 `npm run lint`, `npm test`, `npm run build`를 로컬에서 모두 통과시킵니다.
+- PR을 올리기 전에 `npm run lint`, `npm run test:coverage`, `npm run build`를 로컬에서 모두 통과시킵니다.
 - 전체 실행은 1분 안팎이 걸립니다. 대부분 테스트 환경을 만드는 시간이라, 하나만 고칠 때는 특정 파일만 실행하는 것이 빠릅니다.
-- 커버리지는 측정하지 않습니다.
+- 커버리지는 `npm run test:coverage`로 측정합니다. 구문(statements)·분기(branches)·함수(functions)·줄(lines) 모두 70% 이상이어야 하며([`vite.config.ts`](../palgijeonae/vite.config.ts)의 `thresholds`), 못 미치면 명령이 실패합니다. 결과는 터미널 표와 `coverage/index.html`(파일별로 비어 있는 줄 확인)로 볼 수 있습니다.
+- 측정 대상은 `src/` 아래 소스입니다. 테스트 코드와 보조 파일(`src/test/`), BE 없이 화면을 볼 때만 쓰는 목업(`src/api/mock/`), 타입 선언, 앱 시작 코드(`main.tsx`, `instrument.ts`)는 제외합니다.
 
 ## 11. CI
 
 | 워크플로 | 실행 시점 | 하는 일 |
 |---|---|---|
-| [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/`가 바뀐 PR(develop·main 대상), develop push, 수동 실행 | `npm ci`, `npm run lint`, `npm test`, `npm run build` |
+| [`frontend-ci.yml`](../../.github/workflows/frontend-ci.yml) | `frontend/palgijeonae/`가 바뀐 PR(develop·main 대상), develop push, 수동 실행 | `npm ci`, `npm run lint`, `npm run test:coverage`, `npm run build` |
 
-- 단위·통합 테스트는 PR마다 CI에서 실행됩니다. **테스트가 하나라도 실패하면 CI가 실패하므로, 고친 뒤에 머지합니다.**
+- 단위·통합 테스트는 PR마다 CI에서 실행됩니다. **테스트가 하나라도 실패하거나 커버리지가 기준에 못 미치면 CI가 실패하므로, 고친 뒤에 머지합니다.**
 - develop에서는 CI가 성공해야 [`frontend-deploy.yml`](../../.github/workflows/frontend-deploy.yml)이 배포하므로, 테스트가 실패하면 배포되지 않습니다.
-- CI에서 실패했는데 로컬에서는 통과한다면, 같은 순서로 `npm ci` → `npm run lint` → `npm test` → `npm run build`를 실행해 봅니다. 운영체제(대소문자를 구분하는 파일 경로)나 설치된 의존성 차이가 원인인 경우가 많습니다.
+- 긴급 배포가 필요하면 Actions에서 `Frontend CI`를 수동 실행하고 `skip-coverage`를 켭니다. 테스트는 그대로 돌고 커버리지 기준 검사만 건너뜁니다. 이 경우 자동 배포는 일어나지 않으므로 `Deploy Frontend to EC2`를 수동 실행합니다.
+- CI는 커버리지 리포트를 `frontend-coverage` 아티팩트(7일 보관)로 올립니다.
+- CI에서 실패했는데 로컬에서는 통과한다면, 같은 순서로 `npm ci` → `npm run lint` → `npm run test:coverage` → `npm run build`를 실행해 봅니다. 운영체제(대소문자를 구분하는 파일 경로)나 설치된 의존성 차이가 원인인 경우가 많습니다.
 
 ## 12. 문제 해결
 
 | 증상 | 원인과 해결 |
 |---|---|
-| 테스트에서 `Network Error`가 납니다 | API를 절대 URL(다른 출처)로 요청하고 있습니다. jsdom XHR이 CORS 헤더 없는 모킹 응답을 막습니다. 상대 경로(`/api/...`)를 쓰고, 다른 출처라면 응답에 CORS 헤더를 넣습니다 |
+| 테스트에서 `Network Error`가 납니다 | API를 절대 URL(다른 출처)로 요청하고 있습니다. jsdom XHR이 CORS 헤더 없는 모킹 응답을 막습니다. 상대 경로(`/api/...`)를 쓰고 다른 출처라면 응답에 CORS 헤더를 넣습니다 |
 | 콘솔에 `intercepted a request without a matching request handler`가 나오고 요청이 실패합니다 | 기본 핸들러에 없는 API를 호출했습니다. `mocks/handlers.ts`에 기본 핸들러를 추가하거나, 테스트에서 `server.use`로 응답을 지정합니다 |
 | `expect(window.alert)...`에서 `is not a spy or a call to a mock function` 오류가 납니다 | 스텁이 적용되지 않은 환경입니다. `vite.config.ts`의 `setupFiles`가 `src/test/vitest.setup.ts`를 가리키는지 확인합니다 |
 | `matchMedia is not a function`, `animate is not a function` 오류 | 같은 원인입니다. 새로 필요한 브라우저 API는 `vitest.setup.ts`에 스텁을 추가합니다 |
@@ -277,7 +288,7 @@ jsdom에는 없거나 동작하지 않는 브라우저 API는 `vitest.setup.ts`�
 - [ ] 단위와 통합 중 맞는 종류인지 [3절](#3-어떤-테스트로-검증할지-고르는-기준)로 정했다
 - [ ] `src/test/unit/<소스 경로>` 또는 `src/test/integration/` 아래에 `*.test.ts(x)`로 만들었다
 - [ ] 새 API를 호출한다면 기본 핸들러를 추가했다
-- [ ] 통합 테스트라면 드라이버를 거쳐 썼고, 문구는 `messages.ts` 상수로, 알림은 헬퍼로 확인했다 ([컨벤션](CONVENTIONS.md#테스트-작성))
+- [ ] 통합 테스트라면 드라이버를 거쳐 썼고 문구는 `messages.ts` 상수로, 알림은 헬퍼로 확인했다 ([컨벤션](CODE_CONVENTION.md#테스트-작성))
 - [ ] 성공뿐 아니라 실패·경계·요청을 보내지 않는 경우를 함께 확인했다
 - [ ] 소스를 임시로 망가뜨려 테스트가 실패하는 것을 확인했다
 - [ ] `npm run lint`, `npm test`, `npm run build`가 모두 통과한다

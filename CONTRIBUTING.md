@@ -2,11 +2,13 @@
 
 모든 팀원은 아래 규칙을 준수하여 브랜치, 이슈, PR, 커밋을 관리합니다.
 
+> 처음 참여한다면 [개발 위키](docs/wiki/Home.md)에서 도메인 용어와 아키텍처를 먼저 확인해주세요.
+
 ---
 
 ## 🌿 브랜치 전략
-- **기본 브랜치:** `develop` (기능 개발의 기준)
-- **배포 브랜치:** `main`
+- **기본 브랜치:** `develop` (기능 개발의 기준). develop에 병합되면 운영 서버에 자동 배포됩니다.
+- **멘토 리뷰 브랜치:** `main` (주 1회 멘토 승인 후 develop을 병합)
 - **브랜치 명명 규칙:**
   - `{type}/{part}/{기능명}` (예: `feature/be/auth-jwt`, `feature/ai/agent`)
 
@@ -58,7 +60,7 @@ feature/fe/login-ui ─────────────●
   - 리뷰어는 24시간 이내에 코드 리뷰를 작성하며, Files changed 탭 -> Submit review에서 Comment, Approve, Request changes 기능을 적극 활용합니다. (또는 코드 라인을 선택하여 코멘트)
   - 단순 Approve는 지양하며, 구체적인 피드백/코멘트를 1개 이상 남깁니다.
   - 최소 1명의 리뷰어가 승인한 후에 병합합니다. 리뷰어는 리뷰가 지연되지 않도록 신경써주세요.
-  - 참고 문서 : `docs/CODE_REVIEW_GUIDE.md`
+  - 참고 문서 : [docs/CODE_REVIEW_GUIDE.md](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/blob/develop/docs/CODE_REVIEW_GUIDE.md)
 
 ---
 
