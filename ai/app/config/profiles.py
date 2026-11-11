@@ -71,7 +71,9 @@ MODEL_PROFILES = {profile.name: profile for profile in (
 AGENT_PROFILES = {
     "extraction": "mini",
     "selection": "mini",
-    "verification": "mini",
+    # 검증 튜닝(11-11): mini는 결함 초안을 held-out 24회 중 19회 통과, luna-low는 0회. 비용도 낮음.
+    # critical 기준을 프롬프트에 정해 luna-low의 과잉 차단을 줄임 (agents/verification/prompt.md)
+    "verification": "luna-low",
     # 썸네일 일괄 분류. 글자를 옮겨 적지 않고 종류만 골라 작은 모델로 충분
     "image_triage": "mini",
 }
