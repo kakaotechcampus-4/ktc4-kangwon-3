@@ -17,7 +17,7 @@ python -m app.eval.advertising_runner --truth tests/eval_truth_advertising/holdo
 - 개발 중 보고 고치는 셋이라 홀드아웃이 아니다.
 - 셋이 작아(상품 14개, `must_flag` 18개) 비율 대신 건수로 본다.
 - `_raw`의 `ali_holdout_*`는 추출 평가 홀드아웃(#279)이라 이 Tool 평가에 쓰지 않는다.
-- 판단 기준은 SELECTION_EVAL.md 5절과 맞춘다. 인증 이름만 나열한 사양은 잡지 않는다(5절 ③).
+- 판단 기준은 SELECTION_EVAL.md 5장과 맞춘다. 인증 이름만 나열한 사양은 잡지 않는다(5장 인증 표기).
 - "고농도 화학 물질 없음"(AliExpress 사양 항목)과 수치 없는 기능 주장("RFID 차단" 등)은 팀 논의 전까지 판단 보류다(#295).
 
 ## 홀드아웃 (`holdout.json`)
