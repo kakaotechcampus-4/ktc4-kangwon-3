@@ -281,7 +281,7 @@ def test_Tool은_에이전트와_다른_표에서_프로필을_고른다(monkeyp
     settings = config.load_settings()
 
     assert config.tool_profile("electrical_safety", settings).name == "luna-low"
-    assert set(settings.agent_profiles.values()) == {"mini"}
+    assert settings.agent_profiles == config.AGENT_PROFILES
     with pytest.raises(config.ConfigError, match="Tool"):
         config.tool_profile("extraction", settings)
 

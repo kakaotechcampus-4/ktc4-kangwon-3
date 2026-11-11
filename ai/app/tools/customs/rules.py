@@ -10,7 +10,7 @@
 import re
 
 from ...schemas.product import Product
-from ...schemas.schemas import ToolName
+from ...schemas.schemas import Determination, RegulatoryFinding, ToolName
 from ..common.questions import ANSWER_PREFIX
 from .evidence import ConfirmationRow, law_key
 
@@ -209,6 +209,24 @@ def excluded_by_product(law_name: str, product: Product, material_texts: list[st
     return goods
 
 
+def no_requirement_left(query: dict, findings: list[RegulatoryFinding]) -> bool:
+    """HS 후보를 모두 조회했고 통관 판단이 모두 "필요 없음"인지 (세관장확인 필요 칸을 false로 둘 때, #797).
+
+    조회하지 못한 후보가 있거나, 후보가 없거나, 근거 법령을 읽지 못해 정보 부족이거나, 요건 후보가 남았으면 False.
+    종합 단계가 다른 Tool 판단을 따라 요건을 뺀 뒤에도 같은 기준으로 다시 본다.
+
+    Args:
+        query: 통관 Tool의 query (hs_candidates, requirements는 조회한 후보만 키로 가짐).
+        findings: 통관 판단.
+
+    Returns:
+        bool: 모든 후보를 조회했고 판단이 모두 "필요 없음"이면 True.
+    """
+    candidates = query.get("hs_candidates") or []
+    resolved = bool(candidates) and set(query.get("requirements") or {}) == set(candidates)
+    return resolved and bool(findings) and all(f.determination is Determination.NOT_REQUIRED for f in findings)
+
+
 def format_hs(code: str) -> str:
     """HS 숫자를 사람이 읽는 표기로 바꾼다. 10자리 "8516799000" → "8516.79-9000", 6자리 → "8516.79".
 
@@ -225,6 +243,59 @@ def format_hs(code: str) -> str:
     return code
 
 
+# 별표 2 범위 칸의 하위 항목 머리 "(가)", "(나)" …
+_SCOPE_ITEM = re.compile(r"\([가-하]\)")
+# 고시에서 삭제된 항목 표시 ("< 삭 제 >")
+_DELETED = re.compile(r"<\s*삭\s*제\s*>")
+
+
+def notice_documents(row: ConfirmationRow | None) -> list[str]:
+    """고시 별표 2 구비요건 칸의 서류를 항목(ㅇ)마다 나눈다. 항목 안의 조건·대체 서류는 원문 그대로 둔다.
+
+    판매자에게 안내하는 서류명은 판단에 인용하는 고시 문구를 따른다. GW 서류명(예: "수입승인서")이 고시 구비요건
+    ("위생용품의 수입신고 확인증")과 달라 안내와 근거가 어긋나던 것 (검증 튜닝, luna 전환 측정).
+
+    Args:
+        row: 고시 별표 2의 해당 행. 없으면 None.
+
+    Returns:
+        list[str]: 구비요건 항목. 행이 없거나 비면 빈 목록.
+    """
+    if row is None:
+        return []
+    items = [" ".join(item.split()) for item in row.requirements.split("ㅇ") if item.strip()]
+    # 범위 칸의 (가)(나)…와 구비요건 항목 수가 같으면 대상마다 서류가 하나씩이라 "대상: 서류"로 짝지어 조건을 살림
+    # (전기용품법: 안전인증대상·안전확인대상·공급자적합성확인대상마다 서류가 다름)
+    targets = [" ".join(part.split()) for part in _SCOPE_ITEM.split(row.scope)[1:] if part.strip()]
+    if len(items) > 1 and len(targets) == len(items):
+        pairs = [f"{target}: {item}" for target, item in zip(targets, items) if not _DELETED.search(item)]
+        return pairs
+    return list(dict.fromkeys(item for item in items if not _DELETED.search(item)))
+
+
+def documents_lines(documents: list[str], prefix: str = "", source: str = "") -> list[str]:
+    """'미리 갖출 서류' 줄. 하나면 한 줄, 여러 개면 머리 줄 아래 서류마다 한 줄씩 쓴다.
+
+    여러 서류를 한 줄에 "미리 갖출 서류: 물품에 따라 … 서류: 대상: 서류 / 대상: 서류"로 이으면 콜론이 겹쳐
+    대상과 서류의 경계가 안 보였다 (11/11 실사이트 전파법 카드). 화면은 줄바꿈만 살리고 줄 앞 공백은 지우므로
+    들여쓰기 없이 "· "로 시작한다.
+
+    Args:
+        documents: 서류 목록. 비면 빈 목록을 돌려준다.
+        prefix: 머리 줄 앞에 붙일 말 (예: "의약품에 해당하면 ").
+        source: 근거 조문. 있으면 괄호로 붙인다.
+
+    Returns:
+        list[str]: 줄 목록.
+    """
+    if not documents:
+        return []
+    if len(documents) == 1:
+        return [f"- {prefix}미리 갖출 서류: {documents[0]}" + (f" ({source})" if source else "")]
+    note = f"물품에 따라 해당하는 것 · {source}" if source else "물품에 따라 해당하는 것"
+    return [f"- {prefix}미리 갖출 서류 ({note})", *(f"· {document}" for document in documents)]
+
+
 def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None, documents: list[str],
                  agencies: list[str], omission: tuple[str, str] | None) -> list[str]:
     """요건 법령 하나에 대한 할 일. 머리말, 할 일, 서류, 구매대행을 줄로 나눈 한 건으로 낸다.
@@ -238,7 +309,7 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
         law_name: 요건 법령 이름.
         hs_codes: 이 법령이 걸린 HS.
         row: 고시 별표 2의 해당 행. 없으면 None.
-        documents: GW가 준 요건 확인 서류.
+        documents: GW가 준 요건 확인 서류. 고시 구비요건이 있으면 쓰지 않음.
         agencies: GW가 준 요건 확인 기관. 문장에는 쓰지 않음 (호출부 호환용).
         omission: 고시 제7조 제2항의 생략 판단. ("excepted", 조건) = 생략 제외 법령, ("omittable", "") = 생략 가능,
             None = 고시를 확인하지 못함.
@@ -246,16 +317,21 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
     Returns:
         list[str]: 줄바꿈으로 나눈 할 일 한 건.
     """
-    papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
+    # 고시 구비요건이 있으면 그 문구를, 없으면 GW 서류명을 쓴다
+    papers = notice_documents(row) or documents or ["해당 법령의 요건 확인 서류"]
+    condition = law_condition(law_name)
+    # 일부 물품에만 해당하는 법령은 어떤 물품일 때 서류가 필요한지 먼저 적는다. 조건을 끝에 "참고"로만 붙이면
+    # 판매자·검증 모델 모두 이 상품에 서류가 필요하다는 안내로 먼저 읽음 (#820 리뷰)
+    head = (f"이 품목번호로 분류되고 {condition[0]}에 해당하면, 통관 시 아래 서류가 필요할 수 있습니다."
+            if condition else "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.")
     lines = [
         f"[{law_name}] · 품목번호 HS {', '.join(format_hs(code) for code in hs_codes)} 후보",
-        "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.",
-        f"- 미리 갖출 서류: {papers} (관세법 제226조, 세관장확인 고시 별표 2)",
+        head,
+        *documents_lines(papers, source="관세법 제226조, 세관장확인 고시 별표 2"),
         f"- {_agent_line(omission)}",
     ]
-    note = law_note(law_name)
-    if note:
-        lines.append(f"- 참고: {note}")
+    if condition and condition[1]:
+        lines.append(f"- {condition[1]}")
     return ["\n".join(lines)]
 
 
@@ -280,16 +356,37 @@ def _agent_line(omission: tuple[str, str] | None) -> str:
     return "구매대행: 구매자 개인이 쓰려고 들여오는 경우 등에는 생략될 수 있음"
 
 
-# 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당해 조건을 덧붙이는 설명 (#640).
+# 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당하는 법령의 (대상 물품, 덧붙일 말) (#640).
+# 판단 요약과 할 일은 "{대상 물품}에 해당하면 …"으로 조건을 먼저 적는다.
 # 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축인 소·양·돼지 가죽은 대상이 아님.
-LAW_NOTES: dict[str, str] = {
-    law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, "
+# 약사법·의료기기법·생활화학제품법은 세관장확인 고시 별표 2의 대상 물품 문구를 줄여 씀 (#809: 디퓨저·젖병에 약사법).
+# 화장품법·위생용품관리법은 별표 2에 대상 설명이 없어, 화장품법 제2조의 화장품 뜻 / 위생용품으로 정한 물품으로만 씀.
+LAW_CONDITIONS: dict[str, tuple[str, str | None]] = {
+    law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품",
                                         "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."),
+    law_key("약사법"): ("의약품·의약외품·한약재·동물용 의약품", None),
+    law_key("의료기기법"): ("의료기기(동물용 포함)", None),
+    law_key("생활화학제품 및 살생물제의 안전관리에 관한 법률"): ("세정제·세탁세제·방향제·탈취제·접착제 같은 안전확인대상 생활화학제품", None),
+    law_key("화장품법"): ("화장품(피부·모발에 바르거나 뿌리는 등으로 쓰는 물품)", None),
+    law_key("위생용품 관리법"): ("세척제(채소·과일·식기용), 칫솔·치실, 일회용 컵·수저·빨대, 화장지·물티슈, 일회용 기저귀·면봉 등 "
+                                 "「위생용품 관리법」에서 위생용품으로 정한 물품", None),
 }
 
 
+def law_condition(law_name: str) -> tuple[str, str | None] | None:
+    """요건 법령이 일부 물품에만 해당하면 (대상 물품, 덧붙일 말).
+
+    Args:
+        law_name: 요건 법령 이름.
+
+    Returns:
+        tuple[str, str | None] | None: 대상 물품과 덧붙일 말(없으면 None). 조건이 없는 법령은 None.
+    """
+    return LAW_CONDITIONS.get(law_key(law_name))
+
+
 def law_note(law_name: str) -> str | None:
-    """요건 법령에 덧붙일 해당 조건 설명.
+    """요건 법령의 해당 조건을 한 문장으로 (예: "의약품·의약외품·한약재·동물용 의약품에만 해당합니다.").
 
     Args:
         law_name: 요건 법령 이름.
@@ -297,7 +394,11 @@ def law_note(law_name: str) -> str | None:
     Returns:
         str | None: 설명. 없으면 None.
     """
-    return LAW_NOTES.get(law_key(law_name))
+    condition = law_condition(law_name)
+    if condition is None:
+        return None
+    target, extra = condition
+    return f"{target}에만 해당하고, {extra}" if extra else f"{target}에만 해당합니다."
 
 
 def omission_status(law_name: str, exceptions: dict[str, str] | None) -> tuple[str, str] | None:

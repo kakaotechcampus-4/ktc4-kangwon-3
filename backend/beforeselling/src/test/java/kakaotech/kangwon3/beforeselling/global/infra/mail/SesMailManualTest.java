@@ -44,7 +44,7 @@ class SesMailManualTest {
                         Map.of("lawName", "어린이제품 안전 특별법", "revisionType", "일부개정", "amendedOn", "2026-09-29"),
                         Map.of("lawName", "어린이제품 안전 특별법 시행규칙", "revisionType", "전부개정", "amendedOn", "2026-09-30")),
                 "affectedProductCount", 2,
-                "myPageUrl", "https://palgijeone.com/mypage");
+                "productsUrl", "https://palgijeone.com/products");
 
         // when & then
         // 리스너(비동기)를 거치지 않고 직접 호출한다. 실패하면 예외가 그대로 올라와 테스트가 실패한다.

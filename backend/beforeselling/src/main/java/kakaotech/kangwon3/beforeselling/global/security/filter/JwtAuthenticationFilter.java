@@ -4,6 +4,9 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
+import kakaotech.kangwon3.beforeselling.global.exception.BaseException;
+import kakaotech.kangwon3.beforeselling.global.security.constant.AuthResponseCode;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.JwtProvider;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.TokenClaims;
 import kakaotech.kangwon3.beforeselling.global.security.jwt.TokenType;
@@ -23,7 +26,7 @@ import java.util.List;
 
 /**
  * Authorization: Bearer {accessToken} 헤더를 검증해 SecurityContext에 인증 정보를 채웁니다.
- * 토큰 클레임만으로 UserPrincipal을 구성하므로 요청마다 DB를 조회하지 않습니다.
+ * 토큰 클레임만으로 UserPrincipal을 구성하므로 요청마다 DB를 조회하지 않고, 탈퇴 회원 여부만 Redis에서 확인합니다.
  * 토큰 검증 실패는 BaseException으로 던져지며, 앞단의 JwtExceptionFilter가 공통 응답으로 변환합니다.
  */
 @RequiredArgsConstructor
@@ -32,6 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtProvider jwtProvider;
+    private final WithdrawnUserService withdrawnUserService;
     private final RequestMatcher skipMatcher;
 
     @Override
@@ -47,6 +51,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (accessToken != null) {
             TokenClaims claims = jwtProvider.parse(accessToken, TokenType.ACCESS);
+            if (withdrawnUserService.isWithdrawn(claims.userId())) {
+                throw new BaseException(AuthResponseCode.INVALID_ACCESS_TOKEN);
+            }
             SecurityContextHolder.getContext().setAuthentication(toAuthentication(claims));
         }
 

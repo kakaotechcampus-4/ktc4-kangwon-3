@@ -65,6 +65,23 @@ def test_맡는_Tool이_대상_아님이면_통관_판단도_대상_아님으로
     assert notes == [f"「{LAW}」 세관장확인 요건은 같은 법을 판단한 전기안전 분야 결과(대상 아님)를 따랐습니다."]
 
 
+def test_따라서_마지막_요건이_빠지면_세관장확인_필요_칸을_false로_맞춘다():
+    # #797: 전기 Tool이 대상 아님 → 통관 판단도 "필요 없음"인데 칸이 null로 남지 않게
+    customs = _customs((LAW, ACTION, ToolName.ELECTRICAL))
+    customs.query.update(hs_candidates=["8516799000"], requirements={"8516799000": [LAW]})
+    follow_related_tools(_results(customs, _tool(ToolName.ELECTRICAL, Determination.NOT_REQUIRED)))
+    assert customs.result.customs_confirmation_required is False
+
+
+def test_따른_뒤에도_요건이_남으면_세관장확인_필요_칸은_그대로_둔다():
+    other = "수입식품안전관리 특별법"
+    customs = _customs((LAW, ACTION, ToolName.ELECTRICAL), (other, f"[「{other}」] …", None))
+    customs.query.update(hs_candidates=["8516799000"], requirements={"8516799000": [LAW, other]})
+    follow_related_tools(_results(customs, _tool(ToolName.ELECTRICAL, Determination.NOT_REQUIRED)))
+    assert customs.result.applicable_requirements == [other]
+    assert customs.result.customs_confirmation_required is None
+
+
 def test_맡는_Tool이_대상이면_판정을_따르고_세관장확인_할_일은_남긴다():
     customs = _customs((LAW, ACTION, ToolName.ELECTRICAL))
     results = _results(customs, _tool(ToolName.ELECTRICAL, Determination.NOT_REQUIRED, Determination.REQUIRED))

@@ -20,7 +20,8 @@ from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
 from .related import FOLLOW_ALL
 from .rules import (
-    excluded_by_product, format_hs, law_note, material_question_helps, omission_status, related_tool,
+    documents_lines, excluded_by_product, format_hs, law_condition, law_note, material_question_helps,
+    no_requirement_left, notice_documents, omission_status, related_tool,
     requirement_subject, sale_actions,
 )
 from .search import (
@@ -51,10 +52,12 @@ class CustomsRun(ToolRun):
     Attributes:
         hs_codes: 고른 결정사례의 HS 후보.
         requirements: HS 후보의 세관장확인 요건.
+        shown_documents: 판매자에게 안내한 서류 (고시 구비요건이 있으면 그 문구, 없으면 GW 서류명).
     """
 
     hs_codes: list[str] = field(default_factory=list)
     requirements: list[Requirement] = field(default_factory=list)
+    shown_documents: list[str] = field(default_factory=list)
 
 
 class CustomsTool(EvidenceSearchTool):
@@ -236,9 +239,16 @@ class CustomsTool(EvidenceSearchTool):
                 notes.append(f"같은 법의 제품 판단은 {_TOOL_LABELS.get(tool, tool.value)} Tool 결과와 함께 봐야 합니다.")
             # 화면 본문은 할 일 문구(sale_actions)와 같은 말로 줄마다 적는다 (전동클렌저 실사이트 진단: 같은 내용이 다른 말로 나옴)
             lines = [f"- 품목번호: HS {', '.join(format_hs(code) for code in codes)} 후보"]
-            if documents:
-                lines.append(f"- 미리 갖출 서류: {', '.join(documents)}")
-            if note := law_note(law_name):
+            shown = notice_documents(row) or documents
+            run.shown_documents.extend(shown)
+            condition = law_condition(law_name)
+            if shown:
+                # 일부 물품에만 해당하는 법령은 어떤 물품일 때 서류가 필요한지 먼저 적음 (할 일 문구와 같은 기준)
+                prefix = f"{condition[0]}에 해당하면 " if condition else ""
+                lines.extend(documents_lines(shown, prefix))
+                if condition and condition[1]:
+                    lines.append(f"- {condition[1]}")
+            elif note := law_note(law_name):
                 lines.append(f"- {note}")
             findings.append(self._finding(
                 subject=requirement_subject(law_name),
@@ -388,13 +398,15 @@ class CustomsTool(EvidenceSearchTool):
             findings: 이번 실행의 판단.
 
         Returns:
-            CustomsAssessment: HS 후보·요건 법령·서류 요약.
+            CustomsAssessment: HS 후보·요건 법령·서류 요약. 세관장확인 필요 칸은 HS 후보를 모두 조회했고 남은 요건이
+                없어 판단이 모두 "필요 없음"일 때만 false(#797). 요건이 남았으면 HS가 후보라 확정하지 않아 null,
+                조회하지 못한 후보가 있거나 근거 법령을 읽지 못해 정보 부족이어도 null.
         """
         return CustomsAssessment(
             hs_code_candidates=[format_hs(code) for code in run.hs_codes],
-            customs_confirmation_required=None,
+            customs_confirmation_required=False if no_requirement_left(run.query, findings) else None,
             applicable_requirements=list(dict.fromkeys(item.law_name for item in run.requirements)),
-            required_documents=list(dict.fromkeys(item.document for item in run.requirements if item.document)),
+            required_documents=list(dict.fromkeys(run.shown_documents)),
             legal_sources=[],
         )
 

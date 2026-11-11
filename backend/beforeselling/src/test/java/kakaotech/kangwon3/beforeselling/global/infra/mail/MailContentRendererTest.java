@@ -27,7 +27,7 @@ class MailContentRendererTest {
                     Map.of("lawName", "어린이제품 안전 특별법", "revisionType", "일부개정", "amendedOn", "2026-09-29"),
                     Map.of("lawName", "어린이제품 안전 특별법 시행규칙", "revisionType", "전부개정", "amendedOn", "2026-09-30")),
             "affectedProductCount", 2,
-            "myPageUrl", "https://palgijeone.com/mypage");
+            "productsUrl", "https://palgijeone.com/products");
 
     @Autowired
     private MailContentRenderer mailContentRenderer;
@@ -43,7 +43,7 @@ class MailContentRendererTest {
                 .contains("<html")
                 .contains("어린이제품 안전 특별법</strong>", "일부개정", "2026-09-29")
                 .contains("어린이제품 안전 특별법 시행규칙</strong>", "전부개정", "2026-09-30")
-                .contains("https://palgijeone.com/mypage");
+                .contains("https://palgijeone.com/products");
     }
 
     @Test
@@ -59,7 +59,7 @@ class MailContentRendererTest {
                         - 어린이제품 안전 특별법 시행규칙 (전부개정, 개정일 2026-09-30)
                         """)
                 .contains("재확인이 필요한 상품이 2개 있습니다.")
-                .contains("https://palgijeone.com/mypage")
+                .contains("https://palgijeone.com/products")
                 .doesNotContain("<html")
                 .doesNotContain("[(${");
     }

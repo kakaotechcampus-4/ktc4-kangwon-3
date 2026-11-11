@@ -178,15 +178,21 @@ JUnit 5의 `@DisplayName` 애너테이션을 적극 활용합니다.
 │     │  │  ├─ request
 │     │  │  └─ response
 │     │  ├─ usecase
-│     │  └─ mapper
+│     │  ├─ mapper
+│     │  ├─ event
+│     │  └─ scheduler
 │     ├─ domain
 │     │  ├─ entity
 │     │  ├─ repository
-│     │  └─ service
+│     │  ├─ service
+│     │  └─ event
 ├─ global
+│  ├─ annotation
 │  ├─ common
+│  ├─ controller
 │  ├─ exception
 │  ├─ config
+│  ├─ ratelimit
 │  ├─ security
 │  ├─ util
 │  └─ infra
@@ -203,16 +209,22 @@ JUnit 5의 `@DisplayName` 애너테이션을 적극 활용합니다.
     - `dto`: 계층 간 데이터 전송을 위한 객체들 (`request` / `response` 구분)
     - `usecase`: 하나의 행위에 대한 비즈니스 로직을 통합. Service 계층에 의존하여 Service 계층이 반환한 객체를 변환하는 역할 *(다른 usecase 참조는 가급적 지양)*
     - `mapper`: 객체 간 변환 로직 (ex. DTO ↔ Entity)
+    - `event`: 도메인 이벤트를 받아 후속 처리를 하는 리스너 (ex. 커밋 뒤 AI 요청, 재진단 시 재확인 대상 해제)
+    - `scheduler`: 주기적으로 도는 작업 (ex. AI 요청 재시도, 오래 멈춘 진단 실패 처리)
 - **`domain`**
     - `entity`: 데이터베이스와 직접 매핑되는 JPA 엔티티 클래스. 영속성 계층에서 사용하는 도메인 객체로, 데이터베이스 테이블과 1:1 매핑되며 DB 관련 필드 및 설정을 포함
     - `repository`: 데이터베이스와의 상호작용을 처리하는 Repository 구현체 관련 코드를 포함. 쿼리를 작성하거나 JPA 커스텀 메서드를 추가해 비즈니스 요구사항에 맞는 데이터 접근을 처리
     - `service`: Repository 계층에 의존하며 여러 가지 비즈니스 로직을 제공
+    - `event`: 서비스가 발행하는 도메인 이벤트 객체. 다른 도메인이 이 이벤트를 받아 처리하게 해서 도메인 간 직접 의존을 줄임
 
 ### 2️⃣ global
 
+- **`annotation`**: 공통 애너테이션 (ex. Swagger 성공·에러 응답 명세)
 - **`common`**: 서비스 내 공통 응답, 상수 등
+- **`controller`**: 도메인에 속하지 않는 공통 API (ex. 에러 코드 목록 조회)
 - **`exception`**: 서비스 내 커스텀 에러 표준화
 - **`config`**: Configuration 클래스 정의
+- **`ratelimit`**: API 처리율 제한 (Bucket4j)
 - **`security`**: Spring Security 관련 설정 및 컴포넌트
 - **`util`**: Helper, Parser 등 공통 유틸리티
 - **`infra`**: 외부 계층 연동 관련 기능

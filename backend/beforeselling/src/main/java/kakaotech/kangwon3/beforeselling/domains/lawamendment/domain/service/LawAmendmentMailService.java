@@ -30,13 +30,13 @@ public class LawAmendmentMailService {
 
     private final UserService userService;
     private final ApplicationEventPublisher eventPublisher;
-    private final String myPageUrl;
+    private final String productsUrl;
 
     public LawAmendmentMailService(UserService userService, ApplicationEventPublisher eventPublisher,
-                                   @Value("${app.mail.my-page-url}") String myPageUrl) {
+                                   @Value("${app.mail.products-url}") String productsUrl) {
         this.userService = userService;
         this.eventPublisher = eventPublisher;
-        this.myPageUrl = myPageUrl;
+        this.productsUrl = productsUrl;
     }
 
     /**
@@ -67,7 +67,7 @@ public class LawAmendmentMailService {
         return Map.of(
                 "laws", lawAmendments.stream().map(this::law).toList(),
                 "affectedProductCount", affectedProductCount,
-                "myPageUrl", myPageUrl);
+                "productsUrl", productsUrl);
     }
 
     private Map<String, Object> law(LawAmendment lawAmendment) {

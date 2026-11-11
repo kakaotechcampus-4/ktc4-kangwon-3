@@ -1,3 +1,5 @@
+import pytest
+
 from app.tools.customs.rules import sale_actions
 
 
@@ -37,17 +39,44 @@ def test_고시를_못_읽었으면_구매대행_생략_여부를_확인하지_�
     assert action.split("\n")[-1] == "- 구매대행: 생략 여부를 확인하지 못함"
 
 
+@pytest.mark.parametrize("law,note", [
+    ("약사법", "의약품·의약외품·한약재·동물용 의약품에만 해당합니다."),
+    ("의료기기법", "의료기기(동물용 포함)에만 해당합니다."),
+    ("생활화학제품 및 살생물제의 안전관리에 관한 법률", "세정제·세탁세제·방향제·탈취제·접착제 같은 안전확인대상 생활화학제품에만 해당합니다."),
+    ("화장품법", "화장품(피부·모발에 바르거나 뿌리는 등으로 쓰는 물품)에만 해당합니다."),
+    # GW는 "위생용품관리법", 고시는 "위생용품 관리법"으로 띄어 씀
+    ("위생용품관리법", "세척제(채소·과일·식기용), 칫솔·치실, 일회용 컵·수저·빨대, 화장지·물티슈, 일회용 기저귀·면봉 등 "
+                   "「위생용품 관리법」에서 위생용품으로 정한 물품에만 해당합니다."),
+])
+def test_HS에_묶여_오지만_일부_물품에만_해당하는_법령에_대상_물품_조건을_덧붙인다(law, note):
+    # #809: 디퓨저·젖병에 약사법, 크림에 위생용품관리법이 조건 없이 "필요할 수 있음"으로 나가던 것
+    from app.tools.customs.rules import law_note
+    assert law_note(law) == note
+
+
 def test_야생생물법에는_멸종위기종_제품에만_해당한다는_설명을_덧붙인다():
     from app.tools.customs.rules import law_note
 
     [action] = sale_actions("야생생물 보호 및 관리에 관한 법률(허가)", ["4202311090"], None,
                             ["국제적멸종위기 동식물 수입허가서"], [], ("excepted", ""))
-    assert action.split("\n")[-2:] == [
-        "- 구매대행도 해당",
-        "- 참고: 악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, 소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다.",
-    ]
+    lines = action.split("\n")
+    assert lines[1] == ("이 품목번호로 분류되고 악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에 해당하면, "
+                        "통관 시 아래 서류가 필요할 수 있습니다.")
+    assert lines[-2:] == ["- 구매대행도 해당", "- 소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."]
     assert law_note("야생생물 보호 및 관리에 관한 법률") == law_note("야생생물 보호 및 관리에 관한 법률(허가)")
     assert law_note("전파법") is None
+
+
+def test_일부_물품에만_해당하는_법령의_할_일은_대상_물품을_먼저_적고_끝에_참고로_붙이지_않는다():
+    # #820 리뷰: 조건을 끝 "참고"에만 붙이면 판매자·검증 모델이 이 상품에 서류가 필요하다는 안내로 먼저 읽음
+    [action] = sale_actions("약사법", ["3924909000"], None, ["표준통관예정보고서"], [], ("omittable", ""))
+    assert action.split("\n") == [
+        "[약사법] · 품목번호 HS 3924.90-9000 후보",
+        "이 품목번호로 분류되고 의약품·의약외품·한약재·동물용 의약품에 해당하면, 통관 시 아래 서류가 필요할 수 있습니다.",
+        "- 미리 갖출 서류: 표준통관예정보고서 (관세법 제226조, 세관장확인 고시 별표 2)",
+        "- 구매대행: 구매자 개인이 쓰려고 들여오는 경우 등에는 생략될 수 있음",
+    ]
+    assert "참고:" not in action
 
 
 def test_GW가_법령_이름에_요건_종류를_붙여도_같은_법령으로_본다():
@@ -116,3 +145,32 @@ def test_야생생물법은_가축_가죽이_명시되고_멸종위기종_표기
     assert excluded_by_product(law, product, ["소가죽 장갑 fur안감"]) is None
     assert excluded_by_product(law, product, []) is None
     assert excluded_by_product(law, product) is None
+
+
+def test_서류는_고시_별표_2_구비요건을_따르고_대상마다_짝지어_조건을_살린다():
+    # luna 전환 측정: GW 서류명("수입승인서")이 인용한 고시 구비요건("위생용품의 수입신고 확인증")과 달라 검증이 막음
+    from app.tools.customs.evidence import ConfirmationRow
+    from app.tools.customs.rules import documents_lines, notice_documents
+    hygiene = ConfirmationRow(38, "위생용품 관리법", "(38) 「위생용품 관리법」해당 물품",
+                              "ㅇ지방식품의약품안전청장의 위생용품의 수입신고 확인증")
+    electrical = ConfirmationRow(9, "전기용품 및 생활용품 안전 관리법",
+                                 "(9) 「전기용품 및 생활용품 안전 관리법」해당 물품 (가)안전인증대상 제품 (나)안전확인대상 제품 "
+                                 "(다)공급자 적합성 확인대상 제품",
+                                 "ㅇ세관장 확인물품 확인증 ㅇ세관장 확인물품 확인증 ㅇ공급자적합성 확인신고 확인증명서(단,전기용품에 한함)")
+    children = ConfirmationRow(36, "어린이제품 안전 특별법", "(36) 「어린이제품 안전 특별법」해당 물품",
+                               "ㅇ어린이제품 동일모델 확인증 ㅇ사전통관대상 어린이제품 확인증")
+    assert notice_documents(hygiene) == ["지방식품의약품안전청장의 위생용품의 수입신고 확인증"]
+    assert notice_documents(electrical) == ["안전인증대상 제품: 세관장 확인물품 확인증", "안전확인대상 제품: 세관장 확인물품 확인증",
+                                            "공급자 적합성 확인대상 제품: 공급자적합성 확인신고 확인증명서(단,전기용품에 한함)"]
+    # 대상 하위 항목이 없으면 구비요건 항목을 그대로 나열
+    # 서류가 여럿이면 머리 줄 아래 한 줄씩 (한 줄에 이으면 콜론이 겹쳐 읽기 어려움, 11/11 실사이트)
+    assert documents_lines(notice_documents(children)) == [
+        "- 미리 갖출 서류 (물품에 따라 해당하는 것)", "· 어린이제품 동일모델 확인증", "· 사전통관대상 어린이제품 확인증"]
+    assert documents_lines(notice_documents(hygiene), source="관세법 제226조") == [
+        "- 미리 갖출 서류: 지방식품의약품안전청장의 위생용품의 수입신고 확인증 (관세법 제226조)"]
+    assert notice_documents(None) == []
+
+
+def test_고시_구비요건을_읽지_못하면_GW_서류명을_쓴다():
+    [action] = sale_actions("위생용품관리법", ["3924100000"], None, ["수입승인서"], [], None)
+    assert "- 미리 갖출 서류: 수입승인서 (관세법 제226조, 세관장확인 고시 별표 2)" in action

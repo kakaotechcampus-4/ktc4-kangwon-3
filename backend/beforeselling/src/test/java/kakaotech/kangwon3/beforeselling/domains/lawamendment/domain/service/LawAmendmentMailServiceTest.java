@@ -38,7 +38,7 @@ import static org.mockito.BDDMockito.times;
 @ExtendWith(MockitoExtension.class)
 class LawAmendmentMailServiceTest {
 
-    private static final String MY_PAGE_URL = "http://localhost:5173/mypage";
+    private static final String PRODUCTS_URL = "http://localhost:5173/products";
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID OTHER_USER_ID = UUID.randomUUID();
 
@@ -52,7 +52,7 @@ class LawAmendmentMailServiceTest {
 
     @BeforeEach
     void setUp() {
-        lawAmendmentMailService = new LawAmendmentMailService(userService, eventPublisher, MY_PAGE_URL);
+        lawAmendmentMailService = new LawAmendmentMailService(userService, eventPublisher, PRODUCTS_URL);
     }
 
     @Test
@@ -77,7 +77,7 @@ class LawAmendmentMailServiceTest {
                         "revisionType", "일부개정",
                         "amendedOn", "2026-10-20")))
                 .containsEntry("affectedProductCount", 2L)
-                .containsEntry("myPageUrl", MY_PAGE_URL);
+                .containsEntry("productsUrl", PRODUCTS_URL);
     }
 
     @Test
