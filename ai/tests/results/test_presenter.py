@@ -44,8 +44,9 @@ def test_no_requirement_summary_names_checked_fields_and_scope(assessment, tool_
     dto = _PRESENTER.assessment(result)
 
     assert dto.result_status == "PURCHASING_AGENT_ALLOWED"
-    assert dto.summary.startswith("확인한 분야(통관·전기용품)에서")
-    assert "확정 아님" in dto.summary
+    # 말투로 흐리지 않고("찾지 못했습니다(확정 아님)") 결과가 기대는 조건과 확인하지 않은 범위를 따로 적음
+    assert dto.summary == ("입력하신 상품 정보로 확인한 범위에서는 통관·전기용품에서 판매 전에 갖출 인증이나 허가가 나오지 않았습니다. "
+                           "이 서비스가 확인하지 않는 법령은 따로 확인이 필요합니다.")
     assert _scope_notice(dto.notices)
 
 
@@ -55,6 +56,8 @@ def test_no_selected_tool_has_scope_notice_without_repeating_summary():
     }))
 
     assert dto.result_status == "PURCHASING_AGENT_ALLOWED"
+    assert dto.summary == ("입력하신 상품 정보로 확인한 범위에서는 인증이나 허가가 필요한 분야가 나오지 않았습니다. "
+                           "이 서비스가 확인하지 않는 법령은 따로 확인이 필요합니다.")
     assert dto.notices == [*_scope_notice(dto.notices), DISCLAIMER]
     assert all(review.status == "SKIPPED" for review in dto.tool_reviews)
 

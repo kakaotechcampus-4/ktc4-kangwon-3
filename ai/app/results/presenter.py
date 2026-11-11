@@ -68,6 +68,11 @@ _OUT_OF_SCOPE_LABELS = {
 _SCOPE_NOTICE = ("이 서비스는 통관, 전파, 식품·의약품, 전기용품, 어린이제품, 표시·광고 분야만 확인합니다. "
                  "생활용품 안전관리, 가스·소방용품 등 그 밖의 법령은 확인하지 않았습니다.")
 _LABEL_AD_NOTE = " 다만 표시·광고 문구는 확인이 필요합니다."
+# '요건 없음'으로 끝난 요약의 둘째 문장. "찾지 못했습니다(확정 아님)"처럼 말투로 흐리지 않고, 결과가 기대는 조건(입력한
+# 상품 정보로 확인한 범위)과 확인하지 않은 범위를 따로 적는다 (11/11 실 사이트 의류: 초록 배너인데 설명이 불확실하게 읽힘).
+# 첫 문장은 "없습니다"로 단정하지 않고 "나오지 않았습니다"로 쓴다. 통관의 '요건 없음'은 HS 후보 기준 조회 결과라
+# HS가 틀리면 요건이 있을 수 있다 (#834 리뷰)
+_UNCHECKED_LAWS = "이 서비스가 확인하지 않는 법령은 따로 확인이 필요합니다."
 # 확정 못 함(결과 검토에서 막힘)일 때 재확인할 위치를 알리는 분야 이름. FE 카드 이름(TOOL_NAME_LABELS)과 같게 씀
 _CARD_LABELS = {
     ToolName.CUSTOMS: "통관",
@@ -278,9 +283,9 @@ def _base_summary(decision: ResultDecision) -> str:
             kinds = ", ".join(_OUT_OF_SCOPE_LABELS[signal][0] for signal in decision.signals)
             return f"이 상품은 {kinds}일 수 있어, 이 서비스가 확인하지 않는 법령의 규제 대상인지 재확인이 필요합니다."
         case DecisionReason.NO_REGULATED_TOOL:
-            return "인증·허가 대상 분야를 찾지 못해 구매대행으로 판매할 수 있는 것으로 보입니다(확정 아님)."
+            return f"입력하신 상품 정보로 확인한 범위에서는 인증이나 허가가 필요한 분야가 나오지 않았습니다. {_UNCHECKED_LAWS}"
         case DecisionReason.NO_REQUIREMENT:
-            return f"확인한 분야({fields})에서 판매 전 인증·허가 요건을 찾지 못했습니다(확정 아님)."
+            return f"입력하신 상품 정보로 확인한 범위에서는 {fields}에서 판매 전에 갖출 인증이나 허가가 나오지 않았습니다. {_UNCHECKED_LAWS}"
     raise ValueError(f"요약 문장이 없는 결정 단계입니다: {decision.reason}")
 
 
