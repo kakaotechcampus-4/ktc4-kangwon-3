@@ -50,9 +50,8 @@ export const QUESTION_MESSAGES = {
   NO_QUESTIONS: '확인이 필요한 질문이 없어요.',
   LOAD_FAILED: '질문을 불러오지 못했어요.',
   INVALID_PRODUCT_ID: '유효하지 않은 상품 id 입니다.',
-  PROGRESS_COMPLETE: '답변 완료',
   roundTitle: (round: number) => `${round}차 질문`,
-  progress: (answered: number, total: number) => `${answered}/${total}`,
+  progress: (answered: number, total: number) => `${answered} / ${total}`,
 }
 
 export const JUDGEMENT_MESSAGES = {
@@ -65,6 +64,8 @@ export const JUDGEMENT_MESSAGES = {
   REPORT_HINT_RUNNING: '진행 중인 상품이 끝나면 진단서를 볼 수 있어요.',
   REPORT_HINT_DONE: '페이지를 나가도 진단은 계속돼요. 진단 결과에서 다시 볼 수 있어요.',
   productCountIntro: (count: number) => `${count}개 상품을 동시에 확인하고 있어요`,
+  // NOTE(source): 하단 바의 "완료 n / m"에서 숫자 부분. 진행이 끝난(완료·실패) 상품 수 / 전체 상품 수
+  reportProgress: (ended: number, total: number) => `${ended} / ${total}`,
   // NOTE(source): statusNotice.ts / statusDescription.ts의 카드 문구. 소스에 export가 없다.
   AWAITING_INPUT_NOTICE: '답변하면 처음부터 다시 진단해요. 다른 상품은 기다리지 않고 계속 진행돼요.',
   STAGE_EXTRACTION: '상세페이지에서 상품 정보를 읽고 있어요.',

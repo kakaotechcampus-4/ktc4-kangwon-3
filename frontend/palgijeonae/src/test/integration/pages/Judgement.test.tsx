@@ -260,6 +260,24 @@ describe('진단 진행 화면 - 폴링과 진단서 이동', () => {
     )
   }
 
+  it('하단 바에 진행이 끝난(완료·실패) 상품 수와 전체 상품 수를 보여준다', async () => {
+    mockDiagnoses(
+      buildDiagnosesDetail({
+        processingStatus: ProcessingStatusType.InProgress,
+        pollIntervalMs: null,
+        products: [
+          progressProduct(),
+          completedProduct(),
+          progressProduct({ productId: 'failed-1', productName: '실패 상품', processingStatus: ProcessingStatusType.Failed, failure: buildFailure() }),
+        ],
+      }),
+    )
+    const page = renderJudgementPage()
+    await page.waitUntilLoaded()
+
+    expect(page.hasReportProgress(2, 3)).toBe(true)
+  })
+
   it('진단이 끝나기 전에는 진단서 보기가 비활성이고, 눌러도 이동하지 않는다', async () => {
     mockDiagnoses(buildDiagnosesDetail({ processingStatus: ProcessingStatusType.InProgress, pollIntervalMs: null, products: [progressProduct()] }))
     const page = renderJudgementPage()
