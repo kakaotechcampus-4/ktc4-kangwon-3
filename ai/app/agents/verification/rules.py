@@ -35,6 +35,18 @@ Severity = Literal["critical", "warning", "info"]
 # 걸리면 critical이라 진단이 "확정 못 함"으로 끝난다. Tool의 필요·가능성 있음 요약 문구를 바꾸거나 더할 때 여기에 걸리지 않는지 확인한다.
 _NEGATIVE_SUMMARY = re.compile(
     r"필요가?\s*없|불필요|필요하지\s*않|대상이\s*(?:아니|아닙|아닐)|대상\s*아님|인증\s*없이|문제\s*없는|문제가\s*없")
+# 요약에 끼워 넣은 인용(판매자 문구·성분명 등). 식약·광고 Tool은 판매자 문구를 (…)·'…' 안에 넣는데,
+# "약이 필요 없는 혈압 관리" 같은 광고 문구가 Tool의 안내로 읽히지 않게 인용을 지우고 검사한다.
+_QUOTED = re.compile(r"\([^()]*\)|'[^']*'|\"[^\"]*\"|‘[^’]*’|“[^”]*”|「[^」]*」|『[^』]*』")
+
+
+def _without_quotes(text: str) -> str:
+    """인용 부분을 지운 요약. 괄호가 겹쳐 있으면 안쪽부터 지운다."""
+    while True:
+        stripped = _QUOTED.sub(" ", text)
+        if stripped == text:
+            return text
+        text = stripped
 
 
 @dataclass
@@ -228,7 +240,7 @@ def check_findings(
         # 판정은 필요·가능성 있음인데 요약은 필요 없다고 안내함. 판매자는 요약을 읽으므로 인증·조치를 놓칠 수 있음.
         # 모델 지적이 아니라 규칙 지적이라 불확실 판단이어도 경고로 낮추지 않음
         if (finding.determination in (Determination.REQUIRED, Determination.POSSIBLY_REQUIRED)
-                and _NEGATIVE_SUMMARY.search(finding.summary or "")):
+                and _NEGATIVE_SUMMARY.search(_without_quotes(finding.summary or ""))):
             context.add(
                 IssueType.CONTRADICTION,
                 "판정은 필요할 수 있다인데 요약은 필요 없다고 안내합니다. 판매자가 요약만 보고 인증·조치를 놓칠 수 있습니다.",

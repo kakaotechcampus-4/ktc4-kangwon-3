@@ -64,6 +64,8 @@ def _set_summary(samples, draft, summary: str) -> None:
     "만 14세 이상용 제품이라 어린이제품 안전관리 대상이 아닙니다.",
     "무선 기능이 없어 전파 인증이 필요가 없습니다.",
     "저전압 제품이라 KC 인증이 불필요합니다.",
+    # 인용이 있어도 인용 밖에서 Tool이 필요 없다고 하면 막음
+    "기능성 표방 문구('혈압 관리')가 있지만 건강기능식품 확인은 필요 없습니다.",
 ])
 def test_가능성_있음_판정인데_요약이_필요_없다고_안내하면_막는다(samples, summary):
     # 검증 튜닝 held-out 결함: 판정은 가능성 있음 그대로, 요약만 "필요 없음"으로 바뀐 판단
@@ -88,6 +90,29 @@ def test_가능성_있음_판정인데_요약이_필요_없다고_안내하면_�
     "원재료나 성분을 내세운 주장입니다.",
 ])
 def test_지금_Tool이_가능성_있음_판단에_쓰는_요약은_막지_않는다(samples, summary):
+    draft = samples.draft()
+    _set_summary(samples, draft, summary)
+
+    result = VerificationAgent().verify_rules(draft)
+
+    assert not any("요약은 필요 없다고 안내합니다" in issue.description for issue in result.issues)
+
+
+@pytest.mark.parametrize("claim", [
+    "약이 필요 없는 혈압 관리",
+    "병원 갈 필요없이 관절 통증 완화",
+    "시술 필요 없는 주름 개선",
+    "부작용 문제 없는 미백",
+    "수술이 불필요한 탈모 개선",
+])
+@pytest.mark.parametrize("template", [
+    "기능성 표방 문구({claim})가 있어 건강기능식품(건강기능식품에 관한 법률 제3조) 해당 여부도 확인이 필요합니다.",
+    "피부·모발 효과 문구({claim})가 기능성화장품 범위에 해당할 수 있습니다(확정 아님).",
+    "'{claim}' 문구를 뒷받침하는 시험 결과나 조사 자료가 필요합니다.",
+])
+def test_요약에_인용한_판매자_문구의_필요_없다는_말로는_막지_않는다(samples, claim, template):
+    # #819 리뷰: 식약·광고 Tool은 판매자 문구를 (…)·'…' 안에 그대로 넣음
+    summary = template.format(claim=claim)
     draft = samples.draft()
     _set_summary(samples, draft, summary)
 
