@@ -118,7 +118,7 @@ function InputForm({ type, onAdd }: InputFormProps) {
                     <FormField
                         id="product-link"
                         title="제품 상세페이지 링크"
-                        placeholder="https://...... 상품 페이지 링크를 업로드 하세요."
+                        placeholder="https://...... 상품 페이지 링크를 입력하세요."
                         value={link}
                         onChange={setLink}
                     />

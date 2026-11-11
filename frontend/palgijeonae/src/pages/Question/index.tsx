@@ -7,13 +7,13 @@ import { isInvalidIdError } from "@/api/core/invalidId";
 import { submitAnswers } from "@/api/products";
 import { ProcessingStatusType } from "@/api/types/common";
 import BackButton from "@/components/common/BackButton";
+import BottomActionBar from "@/components/common/BottomActionBar";
 import Button from "@/components/common/Button";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import ProductPreview from "@/components/common/ProductPreview";
 import SectionIntro from "@/components/common/SectionIntro";
 import { getCurrentRoundQuestions } from "@/lib/questions";
 import { isMissingRouteParam } from "@/lib/routeParams";
-import ProgressSummary from "@/pages/Question/components/ProgressSummary";
 import QuestionCard from "@/pages/Question/components/QuestionCard";
 import { useAnswerDraft } from "@/pages/Question/hooks/useAnswerDraft";
 import { useQuestionProduct } from "@/pages/Question/hooks/useQuestionProduct";
@@ -58,6 +58,7 @@ function QuestionPage() {
     const currentRound = currentQuestions[0]?.questionRound;
     const { answers, setAnswer, clearDraft } = useAnswerDraft(productId, currentQuestions);
     const { currentAnswered, firstUnansweredId } = computeAnswerState(currentQuestions, answers);
+    const answeredCount = currentAnswered.filter(Boolean).length;
 
     const { mutate: runSubmitAnswers, isPending: isSubmitting } = useMutation({
         mutationFn: () =>
@@ -126,7 +127,6 @@ function QuestionPage() {
                         processingStatus={product.processingStatus}
                         sourceType={product.sourceType}
                     />
-                    <ProgressSummary currentAnswered={currentAnswered} />
                     <div className="flex flex-col gap-4">
                         {currentQuestions.map((question, index) => (
                             <QuestionCard
@@ -140,10 +140,16 @@ function QuestionPage() {
                             />
                         ))}
                     </div>
-                    <div className="flex w-full justify-end">
-                        <Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} className="w-full md:w-auto" />
-                    </div>
                 </div>
+            )}
+            {product && currentQuestions.length > 0 && (
+                <BottomActionBar
+                    actions={<Button text="답변 완료하기" onClick={handleSubmitAnswers} fontSize={15} disabled={isSubmitting} className="self-center" />}
+                >
+                    <p className="text-sm font-bold text-black md:text-base">
+                        답변 <span className="text-primary">{answeredCount} / {currentQuestions.length}</span>
+                    </p>
+                </BottomActionBar>
             )}
         </div>
     );

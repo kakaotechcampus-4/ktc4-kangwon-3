@@ -80,6 +80,7 @@ class LegalSource(StrictModel):
 class CustomsAssessment(StrictModel):
     kind: Literal["customs"] = "customs"
     hs_code_candidates: list[str] = Field(default_factory=list)
+    # HS 후보 기준. 후보를 모두 조회했고 남은 요건이 없으면 False, 요건이 남거나 조회·판단하지 못하면 None
     customs_confirmation_required: bool | None = None
     applicable_requirements: list[str] = Field(default_factory=list)
     required_documents: list[str] = Field(default_factory=list)

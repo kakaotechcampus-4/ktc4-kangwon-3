@@ -20,7 +20,7 @@ Tool과 병렬로 돌아 그 결과를 볼 수 없으므로, 종합 단계가 To
 """
 
 from ...schemas.schemas import Determination, RegulatoryFinding, RiskLevel, ToolName, ToolResult, ToolStatus
-from .rules import required_subject, requirement_subject, unneeded_subject
+from .rules import no_requirement_left, required_subject, requirement_subject, unneeded_subject
 
 _TOOL_LABELS = {
     ToolName.ELECTRICAL: "전기안전", ToolName.RADIO: "전파", ToolName.CHILDREN: "어린이제품", ToolName.FOOD_DRUG: "식약",
@@ -112,3 +112,6 @@ def _apply(customs: ToolResult, finding: RegulatoryFinding, law_name: str, verdi
     if customs.result is not None and hasattr(customs.result, "applicable_requirements"):
         customs.result.applicable_requirements = [name for name in customs.result.applicable_requirements
                                                   if name != law_name]
+        # 따라서 마지막 요건이 빠지면 세관장확인 필요 칸도 false로 맞춤 (판단은 "필요 없음"인데 칸이 비어 있지 않게, #797)
+        if not customs.result.applicable_requirements and no_requirement_left(customs.query, customs.findings):
+            customs.result.customs_confirmation_required = False

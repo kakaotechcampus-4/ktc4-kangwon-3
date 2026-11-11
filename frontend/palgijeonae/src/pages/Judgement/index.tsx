@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { ProcessingStatusType } from "@/api/types/common";
+import BottomActionBar from "@/components/common/BottomActionBar";
 import Button from "@/components/common/Button";
 import HelpTooltip from "@/components/common/HelpTooltip";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -32,6 +33,10 @@ function JudgementPage() {
     const { data, isPending, isError, refetch, isInvalidId } = useJudgementProducts(diagnosesId, !isInvalidAccess);
     const isDiagnosisDone = data != null
         && (data.processingStatus === ProcessingStatusType.Completed || data.processingStatus === ProcessingStatusType.Failed);
+    // 진행이 끝난 상품(완료·실패) 수. 하단 바에서 전체 중 몇 개가 끝났는지 보여준다.
+    const endedCount = data?.products.filter(
+        (product) => product.processingStatus === ProcessingStatusType.Completed || product.processingStatus === ProcessingStatusType.Failed,
+    ).length ?? 0;
     // 폴링으로 바뀌는 상태를 스크린리더에게도 알린다.
     const announcement = useStatusAnnouncement(data?.products, isDiagnosisDone);
 
@@ -72,40 +77,49 @@ function JudgementPage() {
                     확인할 상품이 없어요.
                 </p>
             ) : (
-                <div className="flex w-full flex-col gap-6">
-                    <div className="flex w-full flex-col items-start gap-2 py-4 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-3">
-                        <StatusSummaryBar products={data.products} />
-                        <div className="flex items-center gap-3 md:justify-end">
-                            <span className="text-sm text-neutral-muted">결과는 언제 볼 수 있나요?</span>
-                            <HelpTooltip label="결과 확인 방법 안내">
-                                먼저 진단이 완료된 상품은 결과 보기 버튼으로 개별로 확인할 수 있어요.{"\n"}
-                                전체 상품을 한 번에 보려면 진단이 모두 끝난 후 맨 아래 진단서 보기 버튼을 사용하세요.
-                            </HelpTooltip>
+                <>
+                    <div className="flex w-full flex-col gap-6">
+                        <div className="flex w-full flex-col items-start gap-2 py-4 md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-3">
+                            <StatusSummaryBar products={data.products} />
+                            <div className="flex items-center gap-3 md:justify-end">
+                                <span className="text-sm text-neutral-muted">결과는 언제 볼 수 있나요?</span>
+                                <HelpTooltip label="결과 확인 방법 안내">
+                                    먼저 진단이 완료된 상품은 결과 보기 버튼으로 개별로 확인할 수 있어요.{"\n"}
+                                    전체 상품을 한 번에 보려면 진단이 모두 끝난 후 화면 아래의 진단서 보기 버튼을 사용하세요.
+                                </HelpTooltip>
+                            </div>
                         </div>
+                        <ul aria-label="진단 중인 상품" className="flex flex-col gap-4">
+                            {data.products.map((product) => (
+                                <li key={product.productId}>
+                                    <ProductProgressCard product={product} />
+                                </li>
+                            ))}
+                        </ul>
                     </div>
-                    <ul aria-label="진단 중인 상품" className="flex flex-col gap-4">
-                        {data.products.map((product) => (
-                            <li key={product.productId}>
-                                <ProductProgressCard product={product} />
-                            </li>
-                        ))}
-                    </ul>
-                    <div className="flex w-full flex-col items-stretch gap-3 md:flex-row md:items-center md:justify-between">
-                        <p id="report-hint" className="text-sm text-neutral-muted">
+                    <BottomActionBar
+                        actions={
+                            <Button
+                                text="진단서 보기 →"
+                                onClick={() => isDiagnosisDone && navigate(`/result/diagnoses/${diagnosesId}`, { state: createFromState(location) })}
+                                fontSize={15}
+                                ariaDisabled={!isDiagnosisDone}
+                                ariaDescribedBy="report-hint"
+                                className="self-center"
+                            />
+                        }
+                    >
+                        <p className="shrink-0 text-sm font-bold text-black md:text-base">
+                            완료 <span className="text-primary">{endedCount} / {data.products.length}</span>
+                        </p>
+                        {/* 좁은 화면에서는 바가 비좁아서 스크린리더용으로만 두고, 버튼의 설명(aria-describedby)으로 연결한다. */}
+                        <p id="report-hint" className="sr-only text-sm text-neutral-muted md:not-sr-only">
                             {isDiagnosisDone
                                 ? "페이지를 나가도 진단은 계속돼요. 진단 결과에서 다시 볼 수 있어요."
                                 : "진행 중인 상품이 끝나면 진단서를 볼 수 있어요."}
                         </p>
-                        <Button
-                            text="진단서 보기 →"
-                            onClick={() => isDiagnosisDone && navigate(`/result/diagnoses/${diagnosesId}`, { state: createFromState(location) })}
-                            fontSize={15}
-                            ariaDisabled={!isDiagnosisDone}
-                            ariaDescribedBy="report-hint"
-                            className="w-full md:w-auto"
-                        />
-                    </div>
-                </div>
+                    </BottomActionBar>
+                </>
             )}
         </div>
     );

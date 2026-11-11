@@ -235,6 +235,28 @@ def test_근거_법령을_읽지_못하면_요건이_없어도_정보부족으�
     assert finding.subject == "세관장확인 대상 법령 — 조회되지 않음"
 
 
+def test_세관장확인_필요_칸은_모든_후보를_조회해_요건이_없을_때만_false다():
+    # #797: 판단은 "필요 없음"인데 칸이 비어(null) 검증이 "확인 결과 없이 확정"으로 오해하던 것
+    product, facts = product_and_facts()
+    none, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({}))
+    assert none.result.customs_confirmation_required is False
+    # 요건이 남으면 HS가 후보라 확정하지 않음
+    some, _, _, _ = run(product, facts, review(select()))
+    assert some.result.customs_confirmation_required is None
+    # 조회하지 못한 후보가 있으면 모름
+    missing = FakeRequirements(error=EvidenceUnavailable("세관장확인 GW 서비스 키(DATA_GO_KR_KEY)가 없어 요건을 조회하지 못했습니다."))
+    unresolved, _, _, _ = run(product, facts, review(select()), requirements=missing)
+    assert unresolved.result.customs_confirmation_required is None
+
+
+def test_근거_법령을_읽지_못해_정보부족이면_요건이_없어도_세관장확인_필요_칸을_비운다():
+    def unavailable():
+        raise EvidenceUnavailable("관세법 본문 시행일 확인 실패")
+    product, facts = product_and_facts()
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({}), evidence=unavailable)
+    assert result.result.customs_confirmation_required is None
+
+
 def test_GW가_요건_종류를_붙인_같은_법령은_판단_하나로_묶는다():
     from dataclasses import replace
     permit = replace(FakeRequirements.ELECTRICAL, law_name="전기용품 및 생활용품 안전관리법(허가)", agency="한국제품안전협회")
@@ -704,6 +726,15 @@ def test_이름에_악어가_있으면_소가죽으로_답해도_야생생물법
     product = _answered(product.model_copy(update={"product_name": "악어 무늬 가죽 손잡이 전기주전자"}), "소가죽")
     result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
     assert result.query["requirements"]["8516799000"] == [_CITES.law_name]
+
+
+def test_상품_정보로_요건을_모두_빼면_세관장확인_필요_칸이_false다():
+    product, facts = product_and_facts(
+        text="소가죽 손잡이 전기주전자, 전기로 물을 끓임. 소재: 탑 레이어 소가죽",
+        values=(("product_type", "전기주전자"), ("material", "탑 레이어 소가죽"), ("function", "전기로 물을 끓임")))
+    result, _, _, _ = run(product, facts, review(select()), requirements=FakeRequirements({"8516799000": [_CITES]}))
+    assert result.result.applicable_requirements == []
+    assert result.result.customs_confirmation_required is False
 
 
 def test_악어가죽_상품의_야생생물법_요건은_남긴다():

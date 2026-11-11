@@ -15,6 +15,7 @@ import { server } from '@/test/mocks/server'
 import { createGate } from '@/test/utils/createGate'
 import { expectNotified, expectNotNotified, waitForNotificationCount, waitForNotified } from '@/test/utils/notifications'
 import { getCurrentLocation, renderWithProviders } from '@/test/utils/renderWithProviders'
+import { setMobileViewport } from '@/test/utils/viewport'
 
 // 업로드 화면을 실제 라우터·QueryClient·MSW(API 모킹) 위에서 사용자처럼 조작한다.
 // 화면 조작·조회는 드라이버(uploadPage)를 거친다. demoProducts를 주면 메인의 체험 버튼처럼 상품이 미리 담긴 채로 열린다.
@@ -511,5 +512,27 @@ describe('업로드 화면 - 하단 바', () => {
 
     expect(page.hasEmptyPanelNotice()).toBe(true)
     expect(page.productCountLabel()).toBe('0 / 10')
+  })
+})
+
+describe('업로드 화면 - 하단 바와 화면 키보드', () => {
+  it('모바일에서 입력칸에 글자를 쓰는 동안에는 하단 바를 숨기고, 입력칸을 벗어나면 다시 보여준다', async () => {
+    setMobileViewport()
+    const page = renderUploadPage()
+    expect(page.hasStartButton()).toBe(true)
+
+    await page.fillTitle('캠핑 테이블')
+    expect(page.hasStartButton()).toBe(false)
+
+    await page.leaveInput()
+    expect(page.hasStartButton()).toBe(true)
+  })
+
+  it('데스크톱에서는 글자를 쓰는 중에도 하단 바를 계속 보여준다', async () => {
+    const page = renderUploadPage()
+
+    await page.fillTitle('캠핑 테이블')
+
+    expect(page.hasStartButton()).toBe(true)
   })
 })

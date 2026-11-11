@@ -19,7 +19,7 @@ from ...schemas.schemas import (
     VerificationStatus as Status,
 )
 from ...observability.usage import CallUsage
-from ...tools.common.questions import answered_questions, field_for
+from ...tools.common.questions import answered_questions, field_for, same_question_fields
 from ..base import AgentResult, BaseAgent, ModelFailurePhase
 from .errors import VerificationError
 from .rules import DEFINITIVE, run_rule_checks
@@ -473,6 +473,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
 
         같은 정보를 말만 바꿔 두 번 묻지 않기 위함. 프롬프트로도 막지만 모델이 지키지 않을 때가 있어 코드로 확정.
         Tool 질문은 진단 단계가 그대로 판매자 질문으로 옮기고, 답한 질문은 다시 묻지 않음 (diagnosis/job.py).
+        이름은 달라도 묻는 내용이 같은 조건(전원 방식과 전지 전용 여부)은 한 묶음으로 봄 (#801).
 
         Args:
             review: 모델 검토 결과.
@@ -483,7 +484,7 @@ class VerificationAgent(BaseAgent[DraftAssessment, _Review, VerificationResult])
         """
         asked = [text for record in draft.tool_results for text in record.missing_information]
         asked += answered_questions(draft.product.listing_text)
-        covered = {field for field in map(field_for, asked) if field is not None}
+        covered = {same for field in map(field_for, asked) if field is not None for same in same_question_fields(field)}
         kept = [q for q in review.follow_up_questions if q.topic not in covered]
         dropped = [q.topic for q in review.follow_up_questions if q.topic in covered]
         if not dropped:

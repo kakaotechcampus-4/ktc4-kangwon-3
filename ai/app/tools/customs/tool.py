@@ -20,7 +20,8 @@ from .errors import CustomsToolError
 from .evidence import CustomsEvidence, law_key
 from .related import FOLLOW_ALL
 from .rules import (
-    documents_text, excluded_by_product, format_hs, law_note, notice_documents, material_question_helps, omission_status, related_tool,
+    documents_text, excluded_by_product, format_hs, law_note, material_question_helps, no_requirement_left,
+    notice_documents, omission_status, related_tool,
     requirement_subject, sale_actions,
 )
 from .search import (
@@ -392,11 +393,13 @@ class CustomsTool(EvidenceSearchTool):
             findings: 이번 실행의 판단.
 
         Returns:
-            CustomsAssessment: HS 후보·요건 법령·서류 요약.
+            CustomsAssessment: HS 후보·요건 법령·서류 요약. 세관장확인 필요 칸은 HS 후보를 모두 조회했고 남은 요건이
+                없어 판단이 모두 "필요 없음"일 때만 false(#797). 요건이 남았으면 HS가 후보라 확정하지 않아 null,
+                조회하지 못한 후보가 있거나 근거 법령을 읽지 못해 정보 부족이어도 null.
         """
         return CustomsAssessment(
             hs_code_candidates=[format_hs(code) for code in run.hs_codes],
-            customs_confirmation_required=None,
+            customs_confirmation_required=False if no_requirement_left(run.query, findings) else None,
             applicable_requirements=list(dict.fromkeys(item.law_name for item in run.requirements)),
             required_documents=list(dict.fromkeys(run.shown_documents)),
             legal_sources=[],

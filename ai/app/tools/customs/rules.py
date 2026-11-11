@@ -10,7 +10,7 @@
 import re
 
 from ...schemas.product import Product
-from ...schemas.schemas import ToolName
+from ...schemas.schemas import Determination, RegulatoryFinding, ToolName
 from ..common.questions import ANSWER_PREFIX
 from .evidence import ConfirmationRow, law_key
 
@@ -209,6 +209,24 @@ def excluded_by_product(law_name: str, product: Product, material_texts: list[st
     return goods
 
 
+def no_requirement_left(query: dict, findings: list[RegulatoryFinding]) -> bool:
+    """HS 후보를 모두 조회했고 통관 판단이 모두 "필요 없음"인지 (세관장확인 필요 칸을 false로 둘 때, #797).
+
+    조회하지 못한 후보가 있거나, 후보가 없거나, 근거 법령을 읽지 못해 정보 부족이거나, 요건 후보가 남았으면 False.
+    종합 단계가 다른 Tool 판단을 따라 요건을 뺀 뒤에도 같은 기준으로 다시 본다.
+
+    Args:
+        query: 통관 Tool의 query (hs_candidates, requirements는 조회한 후보만 키로 가짐).
+        findings: 통관 판단.
+
+    Returns:
+        bool: 모든 후보를 조회했고 판단이 모두 "필요 없음"이면 True.
+    """
+    candidates = query.get("hs_candidates") or []
+    resolved = bool(candidates) and set(query.get("requirements") or {}) == set(candidates)
+    return resolved and bool(findings) and all(f.determination is Determination.NOT_REQUIRED for f in findings)
+
+
 def format_hs(code: str) -> str:
     """HS 숫자를 사람이 읽는 표기로 바꾼다. 10자리 "8516799000" → "8516.79-9000", 6자리 → "8516.79".
 
@@ -327,9 +345,17 @@ def _agent_line(omission: tuple[str, str] | None) -> str:
 
 # 요건 법령 → HS 전체에 걸려 오지만 일부 물품에만 해당해 조건을 덧붙이는 설명 (#640).
 # 야생생물법 제2조·제16조: 수입허가 대상은 CITES 종과 그 가공품. 가축인 소·양·돼지 가죽은 대상이 아님.
+# 약사법·의료기기법·생활화학제품법은 세관장확인 고시 별표 2의 대상 물품 문구를 줄여 씀 (#809: 디퓨저·젖병에 약사법).
+# 화장품법·위생용품관리법은 별표 2에 대상 설명이 없어, 화장품법 제2조의 화장품 뜻 / 위생용품으로 정한 물품으로만 씀.
 LAW_NOTES: dict[str, str] = {
     law_key("야생생물 보호 및 관리에 관한 법률"): ("악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, "
                                         "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."),
+    law_key("약사법"): "의약품·의약외품·한약재·동물용 의약품에만 해당합니다.",
+    law_key("의료기기법"): "의료기기(동물용 포함)에만 해당합니다.",
+    law_key("생활화학제품 및 살생물제의 안전관리에 관한 법률"): "세정제·세탁세제·방향제·탈취제·접착제 같은 안전확인대상 생활화학제품에만 해당합니다.",
+    law_key("화장품법"): "화장품(피부·모발에 바르거나 뿌리는 등으로 쓰는 물품)에만 해당합니다.",
+    law_key("위생용품 관리법"): ("세척제(채소·과일·식기용), 칫솔·치실, 일회용 컵·수저·빨대, 화장지·물티슈, 일회용 기저귀·면봉 등 "
+                                 "「위생용품 관리법」에서 위생용품으로 정한 물품에만 해당합니다."),
 }
 
 

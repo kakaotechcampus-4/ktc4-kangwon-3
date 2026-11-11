@@ -15,6 +15,9 @@
 각 selection:
 - case_id: candidates의 case_id 그대로.
 - rationale: 왜 같은 물품으로 보는지 두 문장 이내. 확인되지 않은 조건은 "확인 필요"라고 쓴다.
+  판매자가 상품 판단의 근거로 읽는 문장이다. 사례와 상품을 섞지 않도록 주어를 밝힌다:
+  사례의 특징은 "이 사례는 …", 상품의 특징은 "상품은 …"으로 쓴다. 상품 원문에 없는 사례의 특징(재질·대상 연령·구성 등)을
+  주어 없이 써서 상품 설명처럼 읽히게 하지 않는다.
 - applies: rationale의 결론. 같은 종류의 물품일 가능성이 있으면 true, rationale이 다른 물품이라는 결론이면 false.
 - fact_fields: 근거로 쓴 facts의 field.
 - needed_fields: HS 확정에 더 필요한 조건(facts에 없는 것).
