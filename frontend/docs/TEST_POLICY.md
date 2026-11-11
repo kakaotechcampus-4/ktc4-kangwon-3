@@ -60,7 +60,8 @@ FE 테스트를 **어떤 종류로, 어디에, 어떻게** 쓰고 실행하는�
 | 상품 추가·삭제, 입력 검증, 진단 요청 성공·실패 | 통합 | `integration/pages/Upload.test.tsx` |
 | 미응답 안내, 답변 제출, 제출 후 이동 | 통합 | `integration/pages/Question.test.tsx` |
 | 폴링, 상태별 카드, 진단서 이동 | 통합 | `integration/pages/Judgement.test.tsx` |
-| 검색·필터·페이지, 상품 삭제, 이름 수정, 회원 탈퇴, 법령 개정 알림·재진단, 알림 설정 | 통합 | `integration/pages/Mypage.test.tsx` |
+| 검색·필터·정렬·선택·페이지 이동, 상품 삭제, 법령 개정 알림·재진단, 주소(URL)로 조건 유지 | 통합 | `integration/pages/Products.test.tsx` |
+| 회원 정보 조회·이름 수정, 회원 탈퇴, 알림 설정 | 통합 | `integration/pages/Mypage.test.tsx` |
 | 재진단 성공·실패·중복 클릭 방지 | 통합 | `integration/pages/ResultRetry.test.tsx` |
 | 인증 준비 전 대기, 비로그인 리다이렉트 | 통합 | `integration/components/ProtectedRoute.test.tsx` |
 | 로그인 버튼, 약관 동의 안내 링크 | 통합 | `integration/pages/Login.test.tsx` |
@@ -80,8 +81,8 @@ src/test/
 │   ├── store/
 │   └── pages/{Question,Upload}/utils/
 ├── integration/
-│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute, Header, Footer, 업로드 입력·상품 카드, 진단 카드, 마이페이지 목록 등)
-│   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Mypage, ResultRetry, Login, Policy)
+│   ├── components/          # 컴포넌트 단위 통합 (ProtectedRoute, Header, Footer, 업로드 입력·상품 카드, 진단 카드, 진단 결과 목록 등)
+│   └── pages/               # 화면 단위 통합 (Upload, Question, Judgement, Products, Mypage, ResultRetry, ResultBack, BackNavigation, Login, Policy)
 ├── drivers/                 # 화면별 드라이버: 통합 테스트가 화면을 조작·조회하는 통로 (uploadPage, judgementPage ...)
 ├── constants/               # messages.ts: 통합 테스트가 비교하는 알림·안내 문구
 ├── infra/                   # 테스트 기반 자체 검증
@@ -124,7 +125,7 @@ src/test/
 | `fixtures.ts` | 응답 데이터를 만드는 빌더 (`buildProductResult`, `buildQuestion` 등) |
 
 - **핸들러가 없는 요청은 오류로 처리합니다** (`onUnhandledFrame: 'error'`). 새 API를 호출하는 화면을 테스트하면 먼저 기본 핸들러를 추가해야 하고, 실수로 실제 네트워크에 나가는 일이 없습니다.
-- 기본 핸들러가 다루는 API: presigned URL 발급, S3 업로드(PUT), 진단 제출, 상품 단건 조회, 질문 답변 제출, 진단서 조회, 재진단, 마이페이지 상품 목록·삭제, 법령 개정 알림 조회, 개정 상품 재진단, 알림 설정 조회·수정, 회원 정보 조회·수정·탈퇴.
+- 기본 핸들러가 다루는 API: presigned URL 발급, S3 업로드(PUT), 진단 제출, 상품 단건 조회, 질문 답변 제출, 진단서 조회, 재진단, 진단 결과 상품 목록·삭제, 법령 개정 알림 조회, 개정 상품 재진단, 알림 설정 조회·수정, 회원 정보 조회·수정·탈퇴.
 
 ### 응답 덮어쓰기
 
