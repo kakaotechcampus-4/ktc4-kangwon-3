@@ -97,7 +97,7 @@ export default Example;
 
 ## 상태 관리
 
-- 서버 데이터는 TanStack Query로 관리합니다. 페이지 폴더의 `use*.ts` 훅 하나가 조회(`useQuery`) 또는 수정(`useMutation`) 하나를 책임집니다(`useMyProducts.ts`, `useDeleteProduct.ts`). `queryKey`는 `[도메인, 식별자]` 형태로 짓습니다.
+- 서버 데이터는 TanStack Query로 관리합니다. 페이지 폴더의 `use*.ts` 훅 하나가 조회(`useQuery`) 또는 수정(`useMutation`) 하나를 책임집니다(`useMyProducts.ts`, `useDeleteProducts.ts`). `queryKey`는 `[도메인, 식별자]` 형태로 짓습니다.
 - 수정 후 목록을 다시 불러와야 하면 `invalidateQueries`, 응답으로 캐시만 바로 갱신해도 되면 `setQueryData`를 씁니다.
 - 로그인 등 클라이언트 전역 상태는 Zustand로 관리합니다([`store/useAuthStore.ts`](../palgijeonae/src/store/useAuthStore.ts)). Access Token은 메모리에만 두고 새로고침하면 refresh token 쿠키로 다시 발급받습니다.
 
