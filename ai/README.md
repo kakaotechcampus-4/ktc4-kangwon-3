@@ -13,15 +13,14 @@
 4. [외부 API (클라이언트)](#외부-api-클라이언트)
 5. [가드레일](#가드레일)
 6. [품질 점검](#품질-점검)
-7. [성능과 비용](#성능과-비용)
-8. [기술 스택](#기술-스택)
-9. [구조](#구조)
-10. [BE 연동](#be-연동)
-11. [로컬 실행](#로컬-실행)
-12. [테스트](#테스트)
-13. [배포와 운영](#배포와-운영)
-14. [문서](#문서)
-15. [추후 지원 예정](#추후-지원-예정)
+7. [기술 스택](#기술-스택)
+8. [구조](#구조)
+9. [BE 연동](#be-연동)
+10. [로컬 실행](#로컬-실행)
+11. [테스트](#테스트)
+12. [배포와 운영](#배포와-운영)
+13. [문서](#문서)
+14. [추후 지원 예정](#추후-지원-예정)
 
 ---
 
@@ -187,21 +186,6 @@ flowchart LR
 | [#528](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pull/528) | 원문 근거 없이 "아니요"로 확정한 추출 칸 | 49칸 → 23칸, 악화된 칸 없음 |
 
 평가 공통 규칙은 [EVAL_COMMON.md](docs/current/eval/EVAL_COMMON.md), 테스트 계층과 커버리지 기준은 [TEST_STRATEGY.md](docs/current/testing/TEST_STRATEGY.md), 실행 방법은 [테스트](#테스트)에 정리했습니다.
-
----
-
-## 성능과 비용
-
-실제 모델·외부 API를 사용해 로컬 서버에서 측정한 값입니다.
-
-| 항목 | 값 | 조건 |
-|---|---|---|
-| 진단 1건 시간 | 7-27초 | 상품 11개, Tool 순차 실행 시점 측정 (11-02). 현재는 선택된 Tool을 동시 실행 |
-| 동시 처리 | 10건 동시 접수, 31초에 모두 완료, 거절 없음 | 메모리 240MB → 273MB |
-| 진단 1건 모델 비용 | 약 25원 | gpt-4.1-mini, 상품 5개 평균 (11-04). 검증·Tool 모델 변경 전 측정 |
-| URL 입력 | 23초 | Made-in-China 상품 1건 |
-
-- 동시 실행 상한 10개(기본값, 서버 `.env`로 조절)를 넘는 요청은 대기열에서 순서대로 실행됩니다.
 
 ---
 
@@ -401,6 +385,7 @@ uvicorn app.main:app --reload   # http://localhost:8000/docs
 | | [GUARD_EVAL.md](docs/current/eval/GUARD_EVAL.md), [GUARDRAIL_EVAL.md](docs/current/eval/GUARDRAIL_EVAL.md) | 입력 확인·에이전트 가드레일 평가 |
 | 테스트 | [TEST_STRATEGY.md](docs/current/testing/TEST_STRATEGY.md) | 테스트 계층, 디렉터리, 커버리지 기준 |
 | 이력 | [OBSERVABILITY_AND_ERROR_HANDLING.md](docs/history/observability/OBSERVABILITY_AND_ERROR_HANDLING.md) | 관측·예외 처리의 처음 제안과 논의 이력 |
+| | [AI_README.md](docs/history/AI_README.md) | 이 README에서 옮긴 성능·비용 측정 기록 |
 
 ---
 
