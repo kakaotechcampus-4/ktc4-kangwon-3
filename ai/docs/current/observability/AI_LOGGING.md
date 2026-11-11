@@ -15,7 +15,7 @@ AI 서버가 기록하는 앱 로그의 설정·형식·레벨 기준과 서버�
 ## 2. 형식
 
 ```
-2026-01-01 21:03:12,345 INFO app.sessions.manager.runner: 진단 시작 (대기 0.0초, 답변 0개) diagnosis_id=d-1 product_id=p-1 run_id=... run_type=production stage=extraction
+2026-01-01 21:03:12,345 INFO app.sessions.manager.runner: 진단 시작 (대기 0.0초, 답변 0개) diagnosis_id=d-1 product_id=p-1 run_id=... run_type=production
 ```
 
 `시각 레벨 로거: 메시지` 뒤에 실행 정보가 ` key=value` 형식으로 덧붙는다.
@@ -88,7 +88,7 @@ AI 서버가 기록하는 앱 로그의 설정·형식·레벨 기준과 서버�
 실행이 끝날 때 상품마다 한 줄을 기록한다. 느린 단계, 비용이 큰 상품, 자주 실패하는 Tool을 찾는 데 사용한다.
 
 ```
-진단 요약: 완료 action_required, 검증 verified, 종료 completed | 총 84.2초 | 단계(초) extraction 12.3 selection 5.1 tool_execution 40.2 aggregation 3.0 verification 20.1 finalization 0.0 | Tool(초) electrical_safety success 18.2, customs success 25.0 | Tool 실행 1회 | 모델 호출 9회(실패 0) 토큰 입력 52310 출력 4120 | 비용 41.3원
+진단 요약: 완료 action_required, 검증 verified, 종료 completed | 총 84.2초 | 단계(초) extraction 12.3 selection 5.1 tool_execution 40.2 aggregation 3.0 verification 20.1 finalization 0.0 | Tool(초) electrical_safety success 18.2, customs_requirements success 25.0 | Tool 실행 1회 | 모델 호출 9회(실패 0) 토큰 입력 52310 출력 4120 | 비용 41.3원
 ```
 
 (숫자는 예시)
