@@ -5,6 +5,8 @@
 - 분야 카드: 6개 분야를 모두 보냄(선택 안 된 분야는 SKIPPED). 판단은 그대로 옮기고 BE 칸 길이를 넘으면 자른다.
 - 할 일: 계약상 진단서 한 목록. 분야 순서로 모으고, 품목·판매 방식은 문장 앞 라벨로 구분된다.
 - 안내: 미완료 사유, 지원 분야 밖 신호, 구매대행 가능일 때 확인 범위, 질문으로 묻지 않은 부족 정보, 고정 안내.
+- 결과 검토에서 막혀 확정 못 함으로 끝나면: 배너 요약에 재확인할 분야를, 그 분야 카드 message에 검토가 짚은 판단 제목을
+  적는다(critical 지적만, 지적 원문은 내보내지 않음). 결과 상태와 안내의 종료 사유는 그대로.
 """
 
 import re
@@ -66,6 +68,15 @@ _OUT_OF_SCOPE_LABELS = {
 _SCOPE_NOTICE = ("이 서비스는 통관, 전파, 식품·의약품, 전기용품, 어린이제품, 표시·광고 분야만 확인합니다. "
                  "생활용품 안전관리, 가스·소방용품 등 그 밖의 법령은 확인하지 않았습니다.")
 _LABEL_AD_NOTE = " 다만 표시·광고 문구는 확인이 필요합니다."
+# 확정 못 함(결과 검토에서 막힘)일 때 재확인할 위치를 알리는 분야 이름. FE 카드 이름(TOOL_NAME_LABELS)과 같게 씀
+_CARD_LABELS = {
+    ToolName.CUSTOMS: "통관",
+    ToolName.RADIO: "전파",
+    ToolName.FOOD_DRUG: "식품·의약품",
+    ToolName.ELECTRICAL: "전기 안전",
+    ToolName.CHILDREN: "어린이 제품",
+    ToolName.LABEL_AD: "표시·광고",
+}
 
 
 class ResultPresenter:
@@ -82,11 +93,12 @@ class ResultPresenter:
         """
         decision = decide_result_status(result)
         completed = is_completed(result)
+        recheck = _recheck_targets(result)
         return PublicAssessmentDto(
             status="completed" if completed else "incomplete",
             result_status=decision.status.value,
-            summary=_summary(decision, result),
-            tool_reviews=[_card(tool, result) for tool in tool_order()],
+            summary=_recheck_summary(recheck) if recheck else _summary(decision, result),
+            tool_reviews=[_card(tool, result, recheck.get(tool, [])) for tool in tool_order()],
             required_actions=_actions(result),
             notices=_notices(result, decision, completed),
         )
@@ -96,23 +108,71 @@ def _tool_result(result: FinalAssessment, tool: ToolName) -> ToolResult | None:
     return next((item for item in result.tool_results if item.tool_name is tool), None)
 
 
-def _card(tool: ToolName, result: FinalAssessment) -> PublicToolReviewDto:
+def _card(tool: ToolName, result: FinalAssessment, recheck: list[str] = ()) -> PublicToolReviewDto:
     """분야 카드 하나. 선택되지 않은 분야는 SKIPPED.
 
     선택됐는데 실행 기록이 없으면 결과 상태 규칙과 같이 검토 미완료(INCOMPLETE)로 본다.
+    검토를 마친 카드에 결과 검토가 짚은 판단(recheck: 판단 제목)이 있으면 그 항목을 확인하라고 적는다.
+    실행 미완료 카드는 기존 문구를 그대로 둔다.
     """
     tool_result = _tool_result(result, tool)
     selected = tool_result.selected if tool_result is not None else tool in result.selected_tools
     if not selected:
         return PublicToolReviewDto(tool_name=tool.name, status="SKIPPED", message=_SKIPPED_MESSAGE)
     status = _CARD_STATUS.get(tool_result.status, "INCOMPLETE") if tool_result is not None else "INCOMPLETE"
+    if status == "INCOMPLETE":
+        # 원인 예외 내용은 넣지 않는다 (내부 오류 문구가 화면에 나가지 않게)
+        message = _INCOMPLETE_MESSAGE
+    elif recheck:
+        items = ", ".join(f"‘{subject}’" for subject in recheck)
+        message = f"이 카드의 {items} 항목은 이번 진단에서 결론을 내리지 못했습니다. 아래 판단 근거가 판매할 상품에도 적용되는지 확인해 주세요."
+    else:
+        message = None
     return PublicToolReviewDto(
         tool_name=tool.name,
         status=status,
-        # 원인 예외 내용은 넣지 않는다 (내부 오류 문구가 화면에 나가지 않게)
-        message=_INCOMPLETE_MESSAGE if status == "INCOMPLETE" else None,
+        message=message,
         findings=[_finding(finding) for finding in result.findings if finding.tool_name is tool],
     )
+
+
+def _recheck_targets(result: FinalAssessment) -> dict[ToolName, list[str]]:
+    """결과 검토에서 막혀 확정 못 함으로 끝났을 때, critical 지적이 가리킨 판단의 제목을 분야별로 모은다.
+
+    검증 지적 원문은 모델이 쓴 글이라 내보내지 않고, 이미 카드에 공개하는 판단 제목만 쓴다.
+    warning은 막지 않았으므로 빼고, 진단 결과에 없는 판단 ID는 건너뛴다. 종료 사유가 다르면 빈 dict.
+
+    Args:
+        result: 진단 결과.
+
+    Returns:
+        dict[ToolName, list[str]]: 분야 순서대로 분야 → 판단 제목(중복 없음). 연결할 판단이 없으면 빈 dict.
+    """
+    if result.termination_reason is not ExecutionEndReason.REVISION_REQUIRED:
+        return {}
+    by_id = {finding.finding_id: finding for finding in result.findings}
+    targets: dict[ToolName, list[str]] = {}
+    for issue in result.verification.issues:
+        if issue.severity != "critical":
+            continue
+        for finding_id in issue.related_finding_ids:
+            finding = by_id.get(finding_id)
+            if finding is None:
+                continue
+            subjects = targets.setdefault(finding.tool_name, [])
+            subject = _clip(finding.subject, SUBJECT_MAX)
+            if subject not in subjects:
+                subjects.append(subject)
+    return {tool: targets[tool] for tool in tool_order() if tool in targets}
+
+
+def _recheck_summary(recheck: dict[ToolName, list[str]]) -> str:
+    """확정 못 함일 때 배너 요약. 재확인할 분야만 알린다.
+
+    인증 후보 판단 자체가 지적받은 경우도 있어, 판단만 보고 낸 결론(인증 필요·요건 없음 등)은 되살리지 않는다.
+    """
+    labels = ", ".join(_CARD_LABELS[tool] for tool in recheck)
+    return f"{labels} 분야에 재확인이 필요한 항목이 있습니다. 아래 해당 카드를 확인해 주세요."
 
 
 def _finding(finding: RegulatoryFinding) -> PublicFindingDto:

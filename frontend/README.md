@@ -28,7 +28,8 @@
 | `/question/:productId` | AI 추가 질문에 답변 | 필요 |
 | `/result/product/:productId` | 상품 하나의 진단 결과 | 필요 |
 | `/result/diagnoses/:diagnosesId` | 진단서 전체 결과 | 필요 |
-| `/mypage` | 진단한 상품 목록(검색·필터·페이지), 법령 개정 알림과 재진단, 알림 수신 설정, 회원 정보 조회·수정, 상품 삭제, 회원 탈퇴 | 필요 |
+| `/products` | 헤더 메뉴의 "진단 결과". 진단한 상품 목록(검색·필터·정렬·페이지), 법령 개정 알림과 재진단, 상품 삭제 | 필요 |
+| `/mypage` | 알림 수신 설정, 회원 정보 조회·수정, 회원 탈퇴 | 필요 |
 | `/policy/:type` | 이용약관(`terms`), 개인정보처리방침(`privacy`). 탭으로 오가며 푸터와 로그인 화면의 안내 문구 링크로 진입 | - |
 
 
@@ -42,7 +43,7 @@ flowchart LR
     Q -->|제출| J
     J -->|상품 완료| RP[상품 결과]
     J -->|전체 완료| RD[진단서]
-    MY[마이페이지] --> RP
+    PL[진단 결과] --> RP
 ```
 
 화면별 실제 모습은 [루트 README 주요 기능](../README.md#주요-기능)에서 확인할 수 있습니다.
@@ -66,17 +67,19 @@ src/
 │   ├── types/      # 응답 타입
 │   └── mock/       # BE 없이 화면을 볼 때 쓰는 목업 데이터
 ├── components/
-│   ├── common/     # 공용 컴포넌트 (Button, Header, Footer, Pagination, HelpTooltip 등)
+│   ├── common/     # 공용 컴포넌트 (Button, Header, Footer, Pagination, HelpTooltip, 하단 고정 바 BottomActionBar 등)
 │   └── layout/     # Header + 본문 레이아웃
 ├── pages/          # 페이지별 폴더. 페이지 전용 파일을 components/·hooks/·utils/로 나누고, 진입점(index.tsx)·types.ts·constants.ts는 페이지 폴더 바로 아래에 둠
 ├── store/          # Zustand 스토어 (인증)
-├── hooks/          # 공용 훅 (useIsMobile, useEscapeKey, useBodyScrollLock, useFocusTrap)
+├── hooks/          # 공용 훅 (useIsMobile, useEscapeKey, useBodyScrollLock, useFocusTrap, useScrollToTop, useTextFieldFocused)
 ├── constants/      # 상태 배지 라벨, 헤더·푸터 메뉴, 정책 링크
-├── lib/            # 유틸 (클래스 병합, 글자 수 계산, 라우트 파라미터 검사)
+├── lib/            # 유틸 (클래스 병합, 글자 수 계산, URL·라우트 파라미터 검사, 질문 회차 계산, 이전 화면 경로, JWT 해석)
 └── test/           # 단위·통합 테스트, MSW 핸들러, 테스트 유틸
 ```
 
 문서는 `docs/`에 있습니다: [코드 컨벤션](docs/CODE_CONVENTION.md), [테스트 정책](docs/TEST_POLICY.md).
+
+파트 공통 문서는 [위키](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki)에 있습니다. 아키텍처와 FE ↔ BE 인터페이스 명세는 [테크스펙](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테크스펙), 배포 구조는 [CI/CD와 배포](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/CI-CD와-배포), 장애 대응은 [모니터링과 장애 대응](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/모니터링과-장애-대응)을 참고하세요.
 
 ## 로컬 실행
 

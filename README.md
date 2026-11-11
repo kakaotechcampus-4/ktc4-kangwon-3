@@ -5,6 +5,7 @@
 - 서비스: https://palgijeone.com
 - API 문서(BE): https://palgijeone.com/swagger-ui/index.html
 - API 문서(AI) : https://palgijeone.com/docs
+- 테크스펙: [위키 테크스펙](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테크스펙)
 
 > 진단 결과는 법령 근거에 따른 참고 정보이며 법률 자문이나 확정 판단이 아닙니다.
 
@@ -81,7 +82,7 @@
 
 ### 4. 진단서
 
-- 결과 상태: 구매대행 가능 / 사입 시 인증 필요 / 재확인 필요
+- 결과 상태: 사입 가능 / 사입 인증 필요 / 재확인 필요
 - 분야별 판단과 근거 조문 인용(예: 전파법 제58조의2)
 - 해야 할 일(예: 판매 전 KC 적합성평가 번호 확인)
 
@@ -91,9 +92,19 @@
 
 </td></tr></table>
 
-### 5. 마이페이지
+### 5. 진단 결과
 
-진단한 상품을 검색·필터로 찾고, 누르면 그 진단 결과로 이동합니다.
+진단한 상품을 이름으로 검색하고 판정 상태별로 걸러 보며, 누르면 그 상품의 진단 결과로 이동합니다. 법령이 개정되면 영향받는 상품을 알려 주고 다시 진단할 수 있습니다.
+
+<table><tr><td>
+
+<img src="frontend/docs/images/readme-products.png" alt="진단 결과 화면" width="600">
+
+</td></tr></table>
+
+### 6. 마이페이지
+
+회원 정보를 확인·수정하고, 법령 개정 알림 수신을 설정하며, 회원 탈퇴를 할 수 있습니다.
 
 <table><tr><td>
 
@@ -153,6 +164,8 @@
 | 모니터링 | Prometheus·Grafana(BE, AI 지표, 호스트·컨테이너 지표), Sentry(FE, BE, AI 에러 수집 및 알림) |
 | 부하테스트 | k6로 BE 조회·생성·폴링 부하를 측정 |
 
+자세한 내용은 위키의 [CI/CD와 배포](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/CI-CD와-배포), [모니터링과 장애 대응](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/모니터링과-장애-대응)에 있습니다.
+
 ## 문서
 
 | 문서 | 내용 |
@@ -161,6 +174,7 @@
 | [BE README](backend/README.md) | 도메인, 인증, AI 연동, API, 테스트, 배포 |
 | [AI README](ai/README.md) | 에이전트·파이프라인 설계, 품질 평가, 가드레일, 테스트 |
 | [E2E](e2e/README.md) | 화면부터 BE·mock-AI까지 잇는 시나리오 12개, 실행 방법 |
+| [테크스펙](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki/테크스펙) | 아키텍처, 시나리오, 요구사항·리스크, 인터페이스 명세, 테스트 전략, 지표, 설계 결정 |
 | [위키](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/wiki) | 온보딩, 운영 |
 
 ## 기여

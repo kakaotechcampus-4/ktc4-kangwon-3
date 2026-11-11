@@ -265,3 +265,88 @@ def test_other_tool_multiline_rationale_is_kept(assessment, tool_result, finding
     rationale_out = _card(_PRESENTER.assessment(assessment(tool_result(ToolName.FOOD_DRUG, [item]))),
                           ToolName.FOOD_DRUG).findings[0].rationale
     assert rationale_out == rationale
+
+
+# ---- 확정 못 함(결과 검토에서 막힘)일 때 재확인 위치
+
+def _blocked(assessment, *tool_results, issues):
+    """결과 검토의 critical 지적으로 확정 못 함으로 끝난 진단 결과."""
+    from app.schemas.schemas import VerificationIssue, VerificationIssueType, VerificationResult, VerificationStatus
+    return assessment(
+        *tool_results,
+        verification_status=FinalVerificationStatus.INCOMPLETE,
+        termination_reason=ExecutionEndReason.REVISION_REQUIRED,
+        verification=VerificationResult(status=VerificationStatus.REVISION_REQUIRED, issues=[
+            VerificationIssue(severity=severity, issue_type=VerificationIssueType.CONTRADICTION,
+                              description="모델이 쓴 지적 원문", related_finding_ids=ids)
+            for severity, ids in issues]),
+    )
+
+
+def test_결과_검토가_짚은_분야를_배너에_알리고_카드에_그_항목을_적는다(assessment, tool_result, finding):
+    # 인증 후보 판단 자체가 지적받을 수 있어, 판단만 보고 낸 "인증·허가 확인 필요" 결론은 배너에 되살리지 않는다
+    electrical = finding(ToolName.ELECTRICAL, Determination.POSSIBLY_REQUIRED, subject="안전확인대상 후보 — 전지")
+    customs = finding(ToolName.CUSTOMS, Determination.POSSIBLY_REQUIRED, subject="세관 확인 서류가 필요할 수 있음 — 전파법")
+    radio = finding(ToolName.RADIO, Determination.POSSIBLY_REQUIRED, subject="적합등록 후보")
+    result = _blocked(
+        assessment,
+        tool_result(ToolName.CUSTOMS, [customs]), tool_result(ToolName.RADIO, [radio]),
+        tool_result(ToolName.ELECTRICAL, [electrical]),
+        # 한 지적이 두 분야를 가리킴 + 같은 판단을 다시 가리킴 + warning(재확인 대상 아님)
+        issues=[("critical", [electrical.finding_id, customs.finding_id]), ("critical", [electrical.finding_id]),
+                ("warning", [radio.finding_id])],
+    )
+
+    dto = _PRESENTER.assessment(result)
+
+    assert dto.result_status == "RECHECK_REQUIRED"
+    # 분야는 카드 순서대로 한 번씩, FE 카드 이름으로
+    assert dto.summary == "통관, 전기 안전 분야에 재확인이 필요한 항목이 있습니다. 아래 해당 카드를 확인해 주세요."
+    assert "인증·허가" not in dto.summary
+    assert _card(dto, ToolName.ELECTRICAL).message == (
+        "이 카드의 ‘안전확인대상 후보 — 전지’ 항목은 이번 진단에서 결론을 내리지 못했습니다. 아래 판단 근거가 판매할 상품에도 적용되는지 확인해 주세요.")
+    assert _card(dto, ToolName.CUSTOMS).message == (
+        "이 카드의 ‘세관 확인 서류가 필요할 수 있음 — 전파법’ 항목은 이번 진단에서 결론을 내리지 못했습니다. 아래 판단 근거가 판매할 상품에도 적용되는지 확인해 주세요.")
+    # warning만 받은 분야 카드는 그대로
+    assert _card(dto, ToolName.RADIO).message is None
+    # 안내는 기존 종료 이유 그대로, 지적 원문은 어디에도 나가지 않음
+    assert dto.notices[0] == "결과 검토에서 고쳐야 할 부분이 남아 진단을 확정하지 못했습니다."
+    assert "모델이 쓴 지적 원문" not in dto.model_dump_json()
+
+
+def test_연결할_판단이_없으면_기존_요약과_카드를_유지한다(assessment, tool_result, finding):
+    item = finding(ToolName.ELECTRICAL, Determination.POSSIBLY_REQUIRED)
+    # 판단을 가리키지 않는 지적, 진단 결과에 없는 판단 ID, warning만 가리킨 판단
+    result = _blocked(assessment, tool_result(ToolName.ELECTRICAL, [item]),
+                      issues=[("critical", []), ("critical", ["없는-판단-id"]), ("warning", [item.finding_id])])
+
+    dto = _PRESENTER.assessment(result)
+
+    assert dto.summary == "진단을 끝까지 마치지 못해 재확인이 필요합니다."
+    assert _card(dto, ToolName.ELECTRICAL).message is None
+
+
+def test_종료_사유가_다르면_critical_지적이_있어도_재확인_위치를_적지_않는다(assessment, tool_result, finding):
+    from app.schemas.schemas import VerificationIssue, VerificationIssueType, VerificationResult, VerificationStatus
+    item = finding(ToolName.ELECTRICAL, Determination.POSSIBLY_REQUIRED)
+    result = assessment(
+        tool_result(ToolName.ELECTRICAL, [item]),
+        verification_status=FinalVerificationStatus.INCOMPLETE,
+        termination_reason=ExecutionEndReason.RETRY_LIMIT_EXCEEDED,
+        verification=VerificationResult(status=VerificationStatus.REVISION_REQUIRED, issues=[
+            VerificationIssue(severity="critical", issue_type=VerificationIssueType.CONTRADICTION,
+                              description="지적", related_finding_ids=[item.finding_id])]),
+    )
+
+    dto = _PRESENTER.assessment(result)
+
+    assert dto.summary == "진단을 끝까지 마치지 못해 재확인이 필요합니다."
+    assert _card(dto, ToolName.ELECTRICAL).message is None
+
+
+def test_실행_미완료_카드는_재확인_대상이어도_기존_문구를_둔다(assessment, tool_result, finding):
+    item = finding(ToolName.ELECTRICAL, Determination.POSSIBLY_REQUIRED)
+    result = _blocked(assessment, tool_result(ToolName.ELECTRICAL, [item], status=ToolStatus.FAILED),
+                      issues=[("critical", [item.finding_id])])
+
+    assert _card(_PRESENTER.assessment(result), ToolName.ELECTRICAL).message == "이 분야 검토를 끝까지 마치지 못했습니다."
