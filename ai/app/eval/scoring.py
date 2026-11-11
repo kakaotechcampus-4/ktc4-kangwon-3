@@ -1,7 +1,7 @@
 """정답표(truth JSON)와 N회 실행 결과를 대조해 리포트를 만든다.
 
 한 번만 돌려서 채점하면 안 된다. temperature=0에서도 같은 입력이 다른 답을
-내는 것이 실측으로 확인됐다(docs/EXTRACTION_EVAL.md 0절). 그래서 이 모듈은
+내는 것이 실측으로 확인됐다(docs/history/eval/EXTRACTION_EVAL.md 측정 기록). 그래서 이 모듈은
 항상 여러 번의 실행 결과를 함께 받는다.
 """
 

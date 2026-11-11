@@ -200,7 +200,7 @@ def print_report(report: FixtureReport) -> None:
     # 위 C1·C2·C3 집계와 섞지 않는다. 섞으면 이전 측정치와 분모가 달라진다.
     if report.listing_fields:
         listing = report.listing_counts()
-        # 등록한 문구만 세므로 섞인 양 자체가 아니라 하한값이다(EXTRACTION_EVAL.md 1.3).
+        # 등록한 문구만 세므로 섞인 양 자체가 아니라 하한값이다(EXTRACTION_EVAL.md 2.3).
         print(f"  [listing_text] 등록 문구 {listing['items']}개 중 놓친 판매자 문구 {listing['c1_missing']}  "
               f"섞인 리뷰·플랫폼 문구 {listing['c3_mixed']} (하한값), "
               f"섞인 회차 {listing['runs_mixed']}/{report.runs}")

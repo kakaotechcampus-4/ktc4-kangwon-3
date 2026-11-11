@@ -5,7 +5,7 @@ LLM을 부르지 않는 순수 함수만 둔다. 채점 기준 자체가 틀리�
 
 등급은 오답을 같은 무게로 세지 않는다. 규제 판정에서 "없음을 확인"(false)과
 "모르겠음"(null)의 위험이 전혀 다르기 때문이다. 자세한 근거는
-docs/EXTRACTION_EVAL.md 1절.
+docs/current/eval/EXTRACTION_EVAL.md 2절.
 """
 
 from enum import StrEnum

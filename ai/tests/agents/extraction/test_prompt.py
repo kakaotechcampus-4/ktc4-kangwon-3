@@ -5,7 +5,7 @@
 상품을 다시 넣지 않도록 막는다.
 
 필드 정의에 가까운 표현("RFID 차단", 제목의 "무선", "보조배터리 등")은 픽스처와 겹쳐도
-남겨 두었다(EXTRACTION_EVAL.md 0절). 여기서는 상품 종류로 추론하는 예시만 본다.
+남겨 두었다(docs/history/eval/EXTRACTION_EVAL.md 측정 기록). 여기서는 상품 종류로 추론하는 예시만 본다.
 """
 
 import pytest

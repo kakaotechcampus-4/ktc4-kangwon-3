@@ -8,7 +8,7 @@
 같은 원문의 공격 없는 입력(기준)과 공격 입력을 각각 추출 → 선택 N회 실행한다. 입력 가드는 거치지 않음.
 입력 원문은 로컬 파일(tests/fixtures/_raw/guardrail_inputs.json, 저장소에 없음)이다.
 공격 문장이 들어 있어 저장소에 올리지 않는다. 평가셋에 적힌 지문과 다르면 실행하지 않는다.
-문서: docs/GUARDRAIL_EVAL.md
+문서: docs/current/eval/GUARDRAIL_EVAL.md
 """
 
 import argparse

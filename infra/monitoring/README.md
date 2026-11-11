@@ -28,7 +28,7 @@ Prometheus + Grafana로 BE API·JVM, AI 서버, 호스트 지표를 수집해 �
 
 - 백엔드 actuator는 포트 8081로 분리돼 있고 호스트에 공개하지 않습니다.
 - `be-server`는 Blue-Green 두 컨테이너(`be-server-blue`/`be-server-green`)의 공통 네트워크 alias입니다. Prometheus는 이 이름을 DNS로 조회(`dns_sd_configs`)해 떠 있는 컨테이너를 각각 별도 instance로 수집하고 전환 중에는 잠깐 두 개가 보입니다. 배포 구조는 `backend/beforeselling/deploy/README.md`를 참고하세요.
-- AI 서버(`ai-server`)는 BE·AI 공용 네트워크 `be-ai-net`으로 `/metrics`를 수집합니다(job `ai-app`). 네트워크가 없으면 배포 워크플로가 만들고, AI 서버가 아직 안 떠 있으면 `ai-app` 대상만 DOWN으로 보입니다. 지표 목록은 `ai/docs/AI_METRICS.md` 참고.
+- AI 서버(`ai-server`)는 BE·AI 공용 네트워크 `be-ai-net`으로 `/metrics`를 수집합니다(job `ai-app`). 네트워크가 없으면 배포 워크플로가 만들고, AI 서버가 아직 안 떠 있으면 `ai-app` 대상만 DOWN으로 보입니다. 지표 목록은 `ai/docs/current/observability/AI_METRICS.md` 참고.
 - 호스트에 publish 하는 포트는 Grafana `127.0.0.1:3000` 하나뿐입니다. **보안그룹에 3000/8081/9090/9100을 열면 안 됩니다.**
 - node-exporter는 호스트 NIC 트래픽을 보기 위해 host 네트워크로 뜨고, 외부 노출을 막으려고 docker0 게이트웨이(`172.17.0.1`)에만 바인딩합니다. Prometheus는 `host.docker.internal`(host-gateway)로 접근합니다. ufw를 켠다면 docker 대역 → 9100을 허용해야 합니다.
 
