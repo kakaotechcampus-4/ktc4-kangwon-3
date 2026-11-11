@@ -52,7 +52,7 @@
   "fixture": "wireless_shield_rfid.txt",
   "reviewed_by": "gityhb",
   "reviewed_at": "2026-09-28",
-  "prompt_sha256": "a14ad31a…",
+  "prompt_sha256": "c24174f95164…",
   "summary": "RFID 차단 지갑. 전파를 막는 기능과 주고받는 기능을 구분하는지 보는 케이스다.",
   "tools": {
     "radio_compliance": {
