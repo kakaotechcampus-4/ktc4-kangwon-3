@@ -125,7 +125,7 @@ def _card(tool: ToolName, result: FinalAssessment, recheck: list[str] = ()) -> P
         message = _INCOMPLETE_MESSAGE
     elif recheck:
         items = ", ".join(f"‘{subject}’" for subject in recheck)
-        message = f"이 카드의 {items} 항목은 최종 확인이 필요합니다. 아래 근거를 상품 설명과 대조해 주세요."
+        message = f"이 카드의 {items} 항목은 이번 진단에서 결론을 내리지 못했습니다. 아래 판단 근거가 판매할 상품에도 적용되는지 확인해 주세요."
     else:
         message = None
     return PublicToolReviewDto(
@@ -172,7 +172,7 @@ def _recheck_summary(recheck: dict[ToolName, list[str]]) -> str:
     인증 후보 판단 자체가 지적받은 경우도 있어, 판단만 보고 낸 결론(인증 필요·요건 없음 등)은 되살리지 않는다.
     """
     labels = ", ".join(_CARD_LABELS[tool] for tool in recheck)
-    return f"{labels} 분야에 재확인이 필요한 항목이 있습니다. 아래 {labels} 카드를 확인해 주세요."
+    return f"{labels} 분야에 재확인이 필요한 항목이 있습니다. 아래 해당 카드를 확인해 주세요."
 
 
 def _finding(finding: RegulatoryFinding) -> PublicFindingDto:

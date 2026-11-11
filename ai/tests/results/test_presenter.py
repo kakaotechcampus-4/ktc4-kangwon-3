@@ -301,12 +301,12 @@ def test_결과_검토가_짚은_분야를_배너에_알리고_카드에_그_항
 
     assert dto.result_status == "RECHECK_REQUIRED"
     # 분야는 카드 순서대로 한 번씩, FE 카드 이름으로
-    assert dto.summary == "통관, 전기 안전 분야에 재확인이 필요한 항목이 있습니다. 아래 통관, 전기 안전 카드를 확인해 주세요."
+    assert dto.summary == "통관, 전기 안전 분야에 재확인이 필요한 항목이 있습니다. 아래 해당 카드를 확인해 주세요."
     assert "인증·허가" not in dto.summary
     assert _card(dto, ToolName.ELECTRICAL).message == (
-        "이 카드의 ‘안전확인대상 후보 — 전지’ 항목은 최종 확인이 필요합니다. 아래 근거를 상품 설명과 대조해 주세요.")
+        "이 카드의 ‘안전확인대상 후보 — 전지’ 항목은 이번 진단에서 결론을 내리지 못했습니다. 아래 판단 근거가 판매할 상품에도 적용되는지 확인해 주세요.")
     assert _card(dto, ToolName.CUSTOMS).message == (
-        "이 카드의 ‘세관 확인 서류가 필요할 수 있음 — 전파법’ 항목은 최종 확인이 필요합니다. 아래 근거를 상품 설명과 대조해 주세요.")
+        "이 카드의 ‘세관 확인 서류가 필요할 수 있음 — 전파법’ 항목은 이번 진단에서 결론을 내리지 못했습니다. 아래 판단 근거가 판매할 상품에도 적용되는지 확인해 주세요.")
     # warning만 받은 분야 카드는 그대로
     assert _card(dto, ToolName.RADIO).message is None
     # 안내는 기존 종료 이유 그대로, 지적 원문은 어디에도 나가지 않음
