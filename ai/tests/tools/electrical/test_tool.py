@@ -457,6 +457,28 @@ def test_전지로만_동작하면_본체_행은_빼고_전지_행만_남긴다(
     assert BATTERY_ROW in model.last_payload
 
 
+def test_전지_전용이라_본체_행을_빼고_고른_행이_없으면_요약에_그_이유를_적는다():
+    # 11/10 실 사이트 진동 마사지기: 전원 방식도 품목도 찾았는데 화면에는 "전기 정보나 품목을 찾지 못해"라고 나옴
+    product, facts = product_and_facts(
+        "충전식 무선 미니 선풍기, 내장 배터리로만 작동",
+        (("product_type", "미니 선풍기"), ("power_source", "내장 배터리"), ("battery_only", "예")))
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    finding = result.findings[0]
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION
+    assert finding.risk_level.value == "unknown"
+    assert "찾지 못해" not in finding.summary
+    assert finding.summary.startswith("건전지나 충전지로만 동작하는 제품이라 본체는 전기용품 안전관리 대상에서 빠질 수 있습니다.")
+    assert "전지나 함께 오는 충전기" in finding.rationale
+
+
+def test_전지_전용이_아니면_고른_행이_없을_때_기본_문구를_쓴다():
+    product, facts = product_and_facts()
+    result, _, _ = run(product, facts, review())
+    finding = result.findings[0]
+    assert finding.determination is Determination.INSUFFICIENT_INFORMATION
+    assert "찾지 못해" in finding.summary
+
+
 def test_전지_전용_제품은_내장_전지_행을_후보로_고를_수_있다():
     product, facts = product_and_facts(
         "무선 핸디 청소기, 내장 배터리로만 작동",

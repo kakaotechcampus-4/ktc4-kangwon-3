@@ -39,6 +39,13 @@ _QUESTION_FIELDS = ("product_type", "power_source", "rated_voltage", "battery_on
 _JUDGED_FIELDS = ("battery_only",)
 
 _SEARCH_FAILED = "전기안전 법령 품목표 조회에 실패했습니다."
+# 전지 전용이라 본체 행을 뺀 뒤 고른 행이 없을 때의 정보 부족 판단 (요약, 근거). 전기 정보를 못 찾은 것이 아니므로
+# 기본 문구("전기 정보나 해당하는 품목을 찾지 못해")를 쓰면 사실과 어긋남
+_BATTERY_ONLY_INSUFFICIENT = (
+    "건전지나 충전지로만 동작하는 제품이라 본체는 전기용품 안전관리 대상에서 빠질 수 있습니다. "
+    "내장 전지나 충전기가 대상인지는 판단하지 못했습니다.",
+    "제품에 들어 있는 전지나 함께 오는 충전기가 KC 인증 대상인지 직접 확인이 필요합니다.",
+)
 
 
 class ElectricalTool(EvidenceSearchTool):
@@ -302,6 +309,8 @@ class ElectricalTool(EvidenceSearchTool):
 
         전원·전압을 읽었는데 "전기 정보를 찾지 못했다"고 안내하던 것을 고침. 저전압이라 후보 행이 모두 빠졌으면
         그 이유를, 품목만 못 골랐으면 읽은 전원·전압을 보여 준다. 판정(정보 부족)은 그대로.
+        전지 전용이라 본체 행을 뺀 경우를 먼저 본다 (#804). 이 경우도 보류 이유는 no_match로 남아, 뒤에서 보면
+        "품목을 찾지 못해"로 나가는데 실제로는 품목을 찾아서 뺀 것이다.
 
         Args:
             run: 실행 상태.
@@ -310,6 +319,8 @@ class ElectricalTool(EvidenceSearchTool):
             tuple[str, str, str]: 제목, 요약, 근거.
         """
         subject = self.insufficient[0]
+        if run.query.get("battery_only") is True and run.query.get("battery_only_excluded"):
+            return (subject, *_BATTERY_ONLY_INSUFFICIENT)
         reason = run.query.get("undecided")
         volts = [fact.value for fact in run.by_field.get("rated_voltage", [])]
         power = [fact.value for fact in run.by_field.get("power_source", [])]
