@@ -7,6 +7,7 @@
 
 from ..base import EvidenceSearchTool, ToolRun, ToolStepInput
 from ..common.facts import product_snippets, quote_matches, topic_particle
+from ..common.questions import answered_questions, field_for
 from .errors import ElectricalToolError
 from .evidence import compact, purchase_agent_status
 from .rules import (
@@ -299,6 +300,8 @@ class ElectricalTool(EvidenceSearchTool):
         판매자에게는 둘 다 전원 질문이라 같은 답을 두 번 쓰게 된다. 전원 방식을 먼저 묻고, 그 답으로도 전지 전용인지
         알 수 없으면(예: "USB 충전") 다음 회차에 전지 전용 여부를 묻는다. 본체 판단에 붙인 공통 비고 제외 가능성은
         그대로 둔다. 값이 엇갈려 충돌 질문으로 나가는 조건은 문장이 달라 건드리지 않는다.
+        지난 회차에 전원 방식을 이미 물었으면 미루지 않는다. 답이 "모르겠어요"면 전원 방식은 다시 묻지 않으므로
+        (diagnosis/job.py) 여기서 또 미루면 전지 전용 여부를 끝까지 못 묻는다 (#802 리뷰).
 
         Args:
             run: 이번 실행 상태.
@@ -307,9 +310,9 @@ class ElectricalTool(EvidenceSearchTool):
             return
         if {"power_source", "battery_only"} & set(run.conflicted):
             return
+        if "power_source" in map(field_for, answered_questions(run.product.listing_text)):
+            return
         run.missing = [name for name in run.missing if name != "battery_only"]
-        run.assumptions.append("전원 방식을 함께 물어 배터리 전용 여부는 이번에 따로 묻지 않았습니다. "
-                               "전지로만 동작하지 않는다고 확인한 것은 아닙니다.")
 
     @staticmethod
     def _skip_electrical_questions(run: ToolRun) -> None:

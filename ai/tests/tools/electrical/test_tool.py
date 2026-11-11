@@ -11,6 +11,7 @@ from app.schemas.schemas import (
 )
 from app.tools.electrical import ElectricalTool, ElectricalToolError
 from app.tools.common.facts import object_particle, topic_particle
+from app.tools.common.questions import ANSWER_PREFIX
 from app.tools.common.law import compact
 from app.tools.electrical.rules import low_voltage
 from app.tools.electrical.evidence import CachedLoader, EvidenceUnavailable, LawApiEvidenceSource
@@ -516,6 +517,15 @@ def test_전원_방식을_묻는_회차에는_전지_전용_여부를_같이_묻
     assert "제품이 어떤 전원으로 작동하는지(전원 방식) 확인이 필요합니다." in result.missing_information
     assert not any("건전지나 충전지로만" in question for question in result.missing_information)
     assert any("전지(건전지·충전지)만으로 동작하는 구조라면" in item for item in result.findings[0].assumptions)
+
+
+def test_지난_회차에_전원_방식을_물었으면_전지_전용_여부를_묻는다():
+    # 전원 방식 답이 "모르겠어요"면 전원 방식은 다시 묻지 않으므로(diagnosis/job.py) 전지 전용 여부를 이번 회차에 물음 (#802 리뷰)
+    product, facts = product_and_facts("무선 충전식 핸디 선풍기", (("product_type", "무선 충전식 핸디 선풍기"),),
+                                       search_terms=["선풍기"])
+    product.listing_text.append(f"{ANSWER_PREFIX} 제품이 어떤 전원으로 작동하는지(전원 방식) 확인이 필요합니다. → 모르겠어요")
+    result, _, _ = run(product, facts, review(select(FAN_ROW)))
+    assert any("건전지나 충전지로만" in question for question in result.missing_information)
 
 
 def test_전원_방식을_알면_전지_전용_여부를_묻는다():
