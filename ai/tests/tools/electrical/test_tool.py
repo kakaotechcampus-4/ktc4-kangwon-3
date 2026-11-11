@@ -488,6 +488,42 @@ def test_전지_전용_제품은_내장_전지_행을_후보로_고를_수_있�
     assert result.findings[0].subject.startswith("안전확인대상 후보 — 전지")
 
 
+def test_제목과_할_일의_품목_이름은_법령_표기를_다듬어_쓴다():
+    # 11/11 실 사이트 보풀제거기: 제목과 할 일에 "전지(충전지만해당한다)"가 그대로 나감
+    product, facts = product_and_facts(
+        "무선 핸디 청소기, 내장 배터리로만 작동",
+        (("product_type", "무선 핸디 청소기"), ("battery_only", "예")))
+    result, _, _ = run(product, facts, review(select(BATTERY_ROW)))
+    assert result.findings[0].subject == "안전확인대상 후보 — 전지(충전지만 해당)"
+    assert all(action.startswith("[전지(충전지만 해당) · 안전확인 후보]") for action in result.required_actions)
+    # 근거 인용은 품목표 원문 그대로
+    assert any("충전지만해당한다" in compact((source.article or "") + (source.quoted_text or "")) for source in result.findings[0].legal_sources)
+
+
+@pytest.mark.parametrize("raw,shown", [
+    ("파. 전지(충전지만해당한다)", "전지(충전지만 해당)"),
+    ("가. 전화기(공공 전화망에 연결되는 것만 해당한다)", "전화기(공공 전화망에 연결되는 것만 해당)"),
+    ("나. 전기청소기(신 설)", "전기청소기"),
+    ("다. 화장실용전기기기 (신 설)", "화장실용전기기기"),
+    # 설명이 붙은 괄호는 그대로 둠
+    ("라. 고주파웰더(고주파용접기)", "고주파웰더(고주파용접기)"),
+])
+def test_품목_이름의_만_해당한다와_신설_표시를_다듬는다(raw, shown):
+    from dataclasses import replace
+
+    from app.tools.electrical.rules import item_name
+    block = next(block for block in Search().search(["전지"], top_k=8).blocks if block.block_id == BATTERY_ROW)
+    assert item_name(replace(block, items=(raw,))) == shown
+
+
+def test_품목이_없는_구간은_분류명을_품목_이름으로_쓴다():
+    from dataclasses import replace
+
+    from app.tools.electrical.rules import item_name
+    block = next(block for block in Search().search(["전지"], top_k=8).blocks if block.block_id == BATTERY_ROW)
+    assert item_name(replace(block, items=())) == block.category
+
+
 def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후보에_제외_가능성을_붙이고_묻는다():
     product, facts = product_and_facts("USB 충전식 휴대용 미니 선풍기",
                                        (("product_type", "휴대용 미니 선풍기"), ("power_source", "USB 충전식")))

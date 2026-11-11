@@ -239,13 +239,24 @@ def sale_actions(block: AnnexBlock, status: str, listed_as: str) -> list[str]:
     return [f"{label} 판매 전 {kc} 여부를 확인해야 합니다."]
 
 
+# 품목표 이름에 붙는 법령 표기. 판매자가 읽는 제목과 할 일에 그대로 나가 어색함 (#824)
+_ONLY_APPLIES = re.compile(r"만\s*해당한다\)")      # "전지(충전지만해당한다)" → "전지(충전지만 해당)"
+_NEWLY_ADDED = re.compile(r"\s*\(\s*신\s*설\s*\)")  # "전기청소기(신 설)" → "전기청소기"
+
+
 def item_name(block: AnnexBlock) -> str:
     """사람이 읽을 품목명.
+
+    번호를 떼고, 품목표의 법령 표기를 다듬는다: "…만 해당한다)"는 "…만 해당)"으로 줄이고(표에서 줄이 바뀌며
+    띄어쓰기가 사라진 것도 함께 고침), 개정 표시 "(신 설)"은 뗀다. 품목 조회와 근거 인용은 원문(block)을 그대로 쓴다.
 
     Args:
         block: 검토 단위.
 
     Returns:
-        str: 번호를 뗀 첫 품목명. 품목이 없으면 분류명.
+        str: 다듬은 첫 품목명. 품목이 없으면 분류명.
     """
-    return re.sub(r"^[가-힣]\s*\.\s*", "", block.items[0]) if block.items else block.category
+    if not block.items:
+        return block.category
+    name = re.sub(r"^[가-힣]\s*\.\s*", "", block.items[0])
+    return _NEWLY_ADDED.sub("", _ONLY_APPLIES.sub("만 해당)", name)).strip()
