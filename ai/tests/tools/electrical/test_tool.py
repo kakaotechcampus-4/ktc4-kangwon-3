@@ -516,6 +516,14 @@ def test_품목_이름의_만_해당한다와_신설_표시를_다듬는다(raw,
     assert item_name(replace(block, items=(raw,))) == shown
 
 
+def test_품목이_없는_구간은_분류명을_품목_이름으로_쓴다():
+    from dataclasses import replace
+
+    from app.tools.electrical.rules import item_name
+    block = next(block for block in Search().search(["전지"], top_k=8).blocks if block.block_id == BATTERY_ROW)
+    assert item_name(replace(block, items=())) == block.category
+
+
 def test_전지_사용이_보이는데_전지_전용인지_모르면_본체_후보에_제외_가능성을_붙이고_묻는다():
     product, facts = product_and_facts("USB 충전식 휴대용 미니 선풍기",
                                        (("product_type", "휴대용 미니 선풍기"), ("power_source", "USB 충전식")))
