@@ -133,3 +133,29 @@ def test_야생생물법은_가축_가죽이_명시되고_멸종위기종_표기
     assert excluded_by_product(law, product, ["소가죽 장갑 fur안감"]) is None
     assert excluded_by_product(law, product, []) is None
     assert excluded_by_product(law, product) is None
+
+
+def test_서류는_고시_별표_2_구비요건을_따르고_대상마다_짝지어_조건을_살린다():
+    # luna 전환 측정: GW 서류명("수입승인서")이 인용한 고시 구비요건("위생용품의 수입신고 확인증")과 달라 검증이 막음
+    from app.tools.customs.evidence import ConfirmationRow
+    from app.tools.customs.rules import documents_text, notice_documents
+    hygiene = ConfirmationRow(38, "위생용품 관리법", "(38) 「위생용품 관리법」해당 물품",
+                              "ㅇ지방식품의약품안전청장의 위생용품의 수입신고 확인증")
+    electrical = ConfirmationRow(9, "전기용품 및 생활용품 안전 관리법",
+                                 "(9) 「전기용품 및 생활용품 안전 관리법」해당 물품 (가)안전인증대상 제품 (나)안전확인대상 제품 "
+                                 "(다)공급자 적합성 확인대상 제품",
+                                 "ㅇ세관장 확인물품 확인증 ㅇ세관장 확인물품 확인증 ㅇ공급자적합성 확인신고 확인증명서(단,전기용품에 한함)")
+    children = ConfirmationRow(36, "어린이제품 안전 특별법", "(36) 「어린이제품 안전 특별법」해당 물품",
+                               "ㅇ어린이제품 동일모델 확인증 ㅇ사전통관대상 어린이제품 확인증")
+    assert notice_documents(hygiene) == ["지방식품의약품안전청장의 위생용품의 수입신고 확인증"]
+    assert notice_documents(electrical) == ["안전인증대상 제품: 세관장 확인물품 확인증", "안전확인대상 제품: 세관장 확인물품 확인증",
+                                            "공급자 적합성 확인대상 제품: 공급자적합성 확인신고 확인증명서(단,전기용품에 한함)"]
+    # 대상 하위 항목이 없으면 구비요건 항목을 그대로 나열
+    assert documents_text(notice_documents(children)) == (
+        "물품에 따라 아래 중 해당하는 서류: 어린이제품 동일모델 확인증 / 사전통관대상 어린이제품 확인증")
+    assert notice_documents(None) == []
+
+
+def test_고시_구비요건을_읽지_못하면_GW_서류명을_쓴다():
+    [action] = sale_actions("위생용품관리법", ["3924100000"], None, ["수입승인서"], [], None)
+    assert "- 미리 갖출 서류: 수입승인서 (관세법 제226조, 세관장확인 고시 별표 2)" in action

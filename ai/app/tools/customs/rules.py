@@ -243,6 +243,50 @@ def format_hs(code: str) -> str:
     return code
 
 
+# 별표 2 범위 칸의 하위 항목 머리 "(가)", "(나)" …
+_SCOPE_ITEM = re.compile(r"\([가-하]\)")
+# 고시에서 삭제된 항목 표시 ("< 삭 제 >")
+_DELETED = re.compile(r"<\s*삭\s*제\s*>")
+
+
+def notice_documents(row: ConfirmationRow | None) -> list[str]:
+    """고시 별표 2 구비요건 칸의 서류를 항목(ㅇ)마다 나눈다. 항목 안의 조건·대체 서류는 원문 그대로 둔다.
+
+    판매자에게 안내하는 서류명은 판단에 인용하는 고시 문구를 따른다. GW 서류명(예: "수입승인서")이 고시 구비요건
+    ("위생용품의 수입신고 확인증")과 달라 안내와 근거가 어긋나던 것 (검증 튜닝, luna 전환 측정).
+
+    Args:
+        row: 고시 별표 2의 해당 행. 없으면 None.
+
+    Returns:
+        list[str]: 구비요건 항목. 행이 없거나 비면 빈 목록.
+    """
+    if row is None:
+        return []
+    items = [" ".join(item.split()) for item in row.requirements.split("ㅇ") if item.strip()]
+    # 범위 칸의 (가)(나)…와 구비요건 항목 수가 같으면 대상마다 서류가 하나씩이라 "대상: 서류"로 짝지어 조건을 살림
+    # (전기용품법: 안전인증대상·안전확인대상·공급자적합성확인대상마다 서류가 다름)
+    targets = [" ".join(part.split()) for part in _SCOPE_ITEM.split(row.scope)[1:] if part.strip()]
+    if len(items) > 1 and len(targets) == len(items):
+        pairs = [f"{target}: {item}" for target, item in zip(targets, items) if not _DELETED.search(item)]
+        return pairs
+    return list(dict.fromkeys(item for item in items if not _DELETED.search(item)))
+
+
+def documents_text(documents: list[str]) -> str:
+    """안내할 서류 목록을 한 줄로. 여러 개면 물품에 따라 해당하는 것을 고르게 알린다.
+
+    Args:
+        documents: 서류 목록.
+
+    Returns:
+        str: 한 줄 글. 비면 빈 문자열.
+    """
+    if len(documents) <= 1:
+        return "".join(documents)
+    return "물품에 따라 아래 중 해당하는 서류: " + " / ".join(documents)
+
+
 def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None, documents: list[str],
                  agencies: list[str], omission: tuple[str, str] | None) -> list[str]:
     """요건 법령 하나에 대한 할 일. 머리말, 할 일, 서류, 구매대행을 줄로 나눈 한 건으로 낸다.
@@ -256,7 +300,7 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
         law_name: 요건 법령 이름.
         hs_codes: 이 법령이 걸린 HS.
         row: 고시 별표 2의 해당 행. 없으면 None.
-        documents: GW가 준 요건 확인 서류.
+        documents: GW가 준 요건 확인 서류. 고시 구비요건이 있으면 쓰지 않음.
         agencies: GW가 준 요건 확인 기관. 문장에는 쓰지 않음 (호출부 호환용).
         omission: 고시 제7조 제2항의 생략 판단. ("excepted", 조건) = 생략 제외 법령, ("omittable", "") = 생략 가능,
             None = 고시를 확인하지 못함.
@@ -264,7 +308,8 @@ def sale_actions(law_name: str, hs_codes: list[str], row: ConfirmationRow | None
     Returns:
         list[str]: 줄바꿈으로 나눈 할 일 한 건.
     """
-    papers = ", ".join(documents) or (row.requirements if row is not None else "") or "해당 법령의 요건 확인 서류"
+    # 고시 구비요건이 있으면 그 문구를, 없으면 GW 서류명을 쓴다
+    papers = documents_text(notice_documents(row) or documents) or "해당 법령의 요건 확인 서류"
     lines = [
         f"[{law_name}] · 품목번호 HS {', '.join(format_hs(code) for code in hs_codes)} 후보",
         "수입 통관 때 세관에 아래 서류를 내야 할 수 있습니다.",

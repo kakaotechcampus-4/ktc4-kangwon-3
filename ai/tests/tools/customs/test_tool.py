@@ -115,8 +115,13 @@ def test_결정사례로_HS_후보를_찾고_그_HS의_세관장확인_요건을
     finding = result.findings[0]
     assert finding.determination is Determination.POSSIBLY_REQUIRED
     assert finding.subject == "세관 확인 서류가 필요할 수 있음 — 전기용품 및 생활용품 안전관리법"
-    # 본문은 할 일 문구와 같은 말로 품목번호와 서류를 줄마다 적음
-    assert finding.summary == "- 품목번호: HS 8516.79-9000 후보\n- 미리 갖출 서류: 전기용품 및 생활용품 요건확인서"
+    # 본문은 할 일 문구와 같은 말로 품목번호와 서류를 줄마다 적음. 서류는 근거로 인용하는 고시 별표 2 구비요건 문구를
+    # 대상(가)(나)(다)마다 짝지어 안내 (GW 서류명 "전기용품 및 생활용품 요건확인서"가 아님)
+    assert finding.summary == (
+        "- 품목번호: HS 8516.79-9000 후보\n- 미리 갖출 서류: 물품에 따라 아래 중 해당하는 서류: "
+        "안전인증대상 제품: 전기용품 및 생활용품 세관장 확인물품 확인증 / "
+        "안전확인대상 제품: 전기용품 및 생활용품 세관장 확인물품 확인증 / "
+        "공급자 적합성 확인대상 제품: 공급자적합성 확인신고 확인증명서(단,전기용품에 한함)")
     assert result.result.hs_code_candidates == ["8516.79-9000"]
     assert result.result.applicable_requirements == ["전기용품 및 생활용품 안전관리법"]
     assert result.query["selected_cases"] == [KETTLE_CASE]
@@ -152,7 +157,7 @@ def test_생략_제외_법령은_구매대행도_해당한다고_한_건으로_�
     product, facts = product_and_facts()
     result, _, _, _ = run(product, facts, review(select()))
     [action] = result.required_actions
-    assert "세관에 아래 서류를 내야 할 수 있습니다." in action and "전기용품 및 생활용품 요건확인서" in action
+    assert "세관에 아래 서류를 내야 할 수 있습니다." in action and "공급자적합성 확인신고 확인증명서(단,전기용품에 한함)" in action
     assert action.split("\n")[-1] == "- 구매대행도 해당"
     # 재실행에서 이 판단이 빠지면 ToolExecutor가 이 판단의 할 일만 지울 수 있다.
     assert set(result.findings[0].requirements) == set(result.required_actions)
@@ -175,7 +180,10 @@ def test_야생생물법_요건에는_판단_요약과_할_일에_멸종위기�
     [finding] = result.findings
     assert "소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다." in finding.summary
     assert finding.summary.split("\n") == [
-        "- 품목번호: HS 8516.79-9000 후보", "- 미리 갖출 서류: 국제적멸종위기 동식물 수입허가서",
+        "- 품목번호: HS 8516.79-9000 후보",
+        # 고시 구비요건 문구. 삭제된 항목("< 삭 제 >")은 뺌
+        "- 미리 갖출 서류: 물품에 따라 아래 중 해당하는 서류: 유역(지방)환경청장의 멸종위기 야생생물 (국제적 멸종위기종) "
+        "수입허가증(서) / 국립야생동물질병관리원장의 야생동물 수입검역 증명서",
         "- 악어·뱀 등 멸종위기종(CITES) 가죽이나 부위를 쓴 제품에만 해당하고, 소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다."]
     assert result.required_actions[0].endswith("소가죽 등 일반 가축 가죽 제품은 해당하지 않습니다.")
     # 재질(스테인리스)을 이미 알면 소재로 빠질 요건이 남아도 재질을 다시 묻지 않음
