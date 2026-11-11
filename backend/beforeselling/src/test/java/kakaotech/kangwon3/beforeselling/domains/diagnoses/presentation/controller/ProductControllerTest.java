@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.diagnoses.presentation.controller;
 
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.request.ProductAnswerRequest;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.FindingLegalSourceResponse;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.application.dto.response.ProductFindingResponse;
@@ -104,6 +105,9 @@ class ProductControllerTest {
 
     @MockitoBean
     private JwtProvider jwtProvider;
+
+    @MockitoBean
+    private WithdrawnUserService withdrawnUserService;
 
     @MockitoBean
     private CustomOAuth2UserService customOAuth2UserService;

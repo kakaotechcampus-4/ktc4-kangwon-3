@@ -1,5 +1,6 @@
 package kakaotech.kangwon3.beforeselling.domains.lawamendment.presentation.controller;
 
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.entity.ToolName;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.application.dto.response.LawAmendmentListResponse;
 import kakaotech.kangwon3.beforeselling.domains.lawamendment.application.dto.response.LawAmendmentResponse;
@@ -66,6 +67,9 @@ class LawAmendmentControllerTest {
 
     @MockitoBean
     private JwtProvider jwtProvider;
+
+    @MockitoBean
+    private WithdrawnUserService withdrawnUserService;
 
     @MockitoBean
     private CustomOAuth2UserService customOAuth2UserService;

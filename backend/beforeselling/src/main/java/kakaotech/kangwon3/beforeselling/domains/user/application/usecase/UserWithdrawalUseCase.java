@@ -1,6 +1,7 @@
 package kakaotech.kangwon3.beforeselling.domains.user.application.usecase;
 
 import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.AuthTokenService;
+import kakaotech.kangwon3.beforeselling.domains.auth.domain.service.WithdrawnUserService;
 import kakaotech.kangwon3.beforeselling.domains.diagnoses.domain.service.DiagnosesService;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.entity.User;
 import kakaotech.kangwon3.beforeselling.domains.user.domain.service.UserService;
@@ -18,9 +19,11 @@ public class UserWithdrawalUseCase {
     private final AuthTokenService authTokenService;
     private final SocialUnlinkService socialUnlinkService;
     private final DiagnosesService diagnosesService;
+    private final WithdrawnUserService withdrawnUserService;
 
     public void withdraw(UUID userId, String refreshToken) {
         User user = userService.getUser(userId);
+        withdrawnUserService.saveWithdrawnUser(userId);
         userService.withdraw(userId);
         diagnosesService.removeAllByUserId(userId);
         authTokenService.removeRefreshToken(refreshToken);
