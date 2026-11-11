@@ -388,7 +388,7 @@ uvicorn app.main:app --reload   # http://localhost:8000/docs
 | 문서 | 내용 |
 |---|---|
 | [AI_COMMON_CONTRACT.md](docs/AI_COMMON_CONTRACT.md) | BE↔AI 요청·콜백·실패 계약, 에이전트 가드레일 |
-| [OBSERVABILITY_AND_ERROR_HANDLING.md](docs/OBSERVABILITY_AND_ERROR_HANDLING.md) | 예외 분류와 처리 |
+| [OBSERVABILITY_AND_ERROR_HANDLING.md](docs/history/OBSERVABILITY_AND_ERROR_HANDLING.md) | 관측·예외 처리의 처음 제안과 논의 이력 |
 | [AI_LOGGING.md](docs/AI_LOGGING.md), [AI_METRICS.md](docs/AI_METRICS.md), [AI_TRACE.md](docs/AI_TRACE.md) | 로그, 지표, 단계별 trace |
 | [DB_CACHE.md](docs/DB_CACHE.md) | 외부 API 캐시, 법령 개정 확인 |
 | [AI_SESSION_ARCHIVE.md](docs/AI_SESSION_ARCHIVE.md) | 진단 세션 DB 보관과 재시작 복원 |

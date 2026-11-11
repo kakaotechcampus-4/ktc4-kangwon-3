@@ -1,12 +1,14 @@
 # AI Observability 및 예외 처리 체계
 
+> **#823 (2026-11-11) 이동:** 이 문서는 관측·예외 처리의 처음 제안과 논의 과정을 기록한 것이며, 현재 동작을 기술하지 않는다. `ai/docs/`에서 이 위치로 옮기고 본문은 수정하지 않았다(상대 링크 경로만 수정). 현재 계약은 [AI_COMMON_CONTRACT.md](../AI_COMMON_CONTRACT.md), 로그는 [AI_LOGGING.md](../AI_LOGGING.md), 지표는 [AI_METRICS.md](../AI_METRICS.md), 진단 기록은 [AI_TRACE.md](../AI_TRACE.md)를 기준으로 한다.
+
 ## 문서 상태
 
 - 상태: `Proposed` → **논의 이력으로 보존** (2026-10-26)
 - 목적: AI 파트의 observability와 예외 처리 기준을 합의한다.
 - 적용 범위: Model 호출, Agent, Tool, 외부 API Client, Repository, Pipeline
 
-> 이 문서는 처음 제안과 논의 과정을 남긴 것이다. 확정된 계약과 구현 현황은 [AI_COMMON_CONTRACT.md](AI_COMMON_CONTRACT.md)를 기준으로 한다.
+> 이 문서는 처음 제안과 논의 과정을 남긴 것이다. 확정된 계약과 구현 현황은 [AI_COMMON_CONTRACT.md](../AI_COMMON_CONTRACT.md)를 기준으로 한다.
 > 이후 결정·구현된 항목:
 > - §2.1 사용량 수집: 모든 Agent가 Base의 `include_raw` 하나로 수집 (#364) → 계약 §4.2
 > - §4 식별자: 답변 후 재개 시 run_id 새로 발급 → 계약 §2.2
