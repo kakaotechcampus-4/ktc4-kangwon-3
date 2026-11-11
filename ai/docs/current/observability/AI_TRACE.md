@@ -123,7 +123,7 @@ venv/bin/python -m app.diagnosis.trace_cli --from logs/traces/kc-fan/run-1.json 
 
 - 다음 단계의 입력은 앞 단계의 `output`이므로 별도로 기록하지 않는다(추출 단계 `input`만 기록).
 - 재실행 회차는 `round` 1, 2, …의 `tool_execution`·`aggregation`·`verification`이 이어서 기록된다.
-- 선택되지 않은 Tool의 `tool` 단계는 `result`의 상태가 `skipped`이며 아래 근거 조회 값은 기록되지 않는다.
+- 선택되지 않은 Tool은 Tool 실행기가 실행하지 않으므로 `tool` 단계가 기록되지 않는다. 미선택 내역과 `skipped` 상태는 `tool_execution`의 `output`에 남는다.
 
 근거 조회형 Tool(관세·전파·식품의약·전기·어린이)의 `tool` 단계:
 
