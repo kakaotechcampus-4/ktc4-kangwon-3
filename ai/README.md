@@ -171,6 +171,8 @@ flowchart LR
 | 선택 | 상품 11개 × Tool 6개 | [SELECTION_EVAL.md](docs/current/eval/SELECTION_EVAL.md) |
 | 시나리오 (추출 → 선택 끝단) | 상품 65개 (개발 50, 홀드아웃 15) | [SCENARIO_EVAL.md](docs/current/eval/SCENARIO_EVAL.md) |
 | 통관·전기안전·식약·표시광고 | Tool별 정답표 | 각 Tool 문서 ([문서](#문서)) |
+| 입력 확인 (진단 전) | 공격·정상 입력 (개발·홀드아웃) | [GUARD_EVAL.md](docs/current/eval/GUARD_EVAL.md) |
+| 에이전트 가드레일 | 공격 문장을 넣은 상품 원문 | [GUARDRAIL_EVAL.md](docs/current/eval/GUARDRAIL_EVAL.md) |
 
 측정에서 찾은 실패는 원인을 분석해 프롬프트·규칙·후처리를 고치고 같은 조건으로 재측정한 결과를 PR에 남깁니다. 수정마다 평가에 쓰지 않은 상품으로도 재측정해 평가셋에만 맞춘 수정이 아닌지 확인합니다. 시나리오 평가는 실제 상품 원문을 사용자가 붙여 넣는 그대로 넣고 추출 → 선택을 이어 돌려, 걸리는 규제 분야를 빠짐없이 골랐는지 상품 단위로 셉니다.
 
@@ -184,7 +186,7 @@ flowchart LR
 | [#501](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pull/501) | 원목 쌓기 블록에 총포법 세관장확인 요건 적용 | 3/3 적용 → 3/3 제외, 장난감 권총 유지 |
 | [#528](https://github.com/kakaotechcampus-4/ktc4-kangwon-3/pull/528) | 원문 근거 없이 "아니요"로 확정한 추출 칸 | 49칸 → 23칸, 악화된 칸 없음 |
 
-테스트 계층과 테스트셋 구성 기준은 [TEST_STRATEGY.md](docs/current/testing/TEST_STRATEGY.md), 평가 실행 방법은 [테스트](#테스트)에 정리했습니다.
+평가 공통 규칙은 [EVAL_COMMON.md](docs/current/eval/EVAL_COMMON.md), 테스트 계층과 커버리지 기준은 [TEST_STRATEGY.md](docs/current/testing/TEST_STRATEGY.md), 실행 방법은 [테스트](#테스트)에 정리했습니다.
 
 ---
 
@@ -385,16 +387,20 @@ uvicorn app.main:app --reload   # http://localhost:8000/docs
 
 ## 문서
 
-| 문서 | 내용 |
-|---|---|
-| [AI_COMMON_CONTRACT.md](docs/current/contract/AI_COMMON_CONTRACT.md) | BE↔AI 요청·콜백·실패 계약, 에이전트 가드레일 |
-| [OBSERVABILITY_AND_ERROR_HANDLING.md](docs/history/observability/OBSERVABILITY_AND_ERROR_HANDLING.md) | 관측·예외 처리의 처음 제안과 논의 이력 |
-| [AI_LOGGING.md](docs/current/observability/AI_LOGGING.md), [AI_METRICS.md](docs/current/observability/AI_METRICS.md), [AI_TRACE.md](docs/current/observability/AI_TRACE.md) | 로그, 지표, 단계별 trace |
-| [DB_CACHE.md](docs/current/storage/DB_CACHE.md) | 외부 API 캐시, 법령 개정 확인 |
-| [AI_SESSION_ARCHIVE.md](docs/current/storage/AI_SESSION_ARCHIVE.md) | 진단 세션 DB 보관과 재시작 복원 |
-| [TEST_STRATEGY.md](docs/current/testing/TEST_STRATEGY.md) | 테스트 계층, 지표, 테스트셋 구성 기준 |
-| [EXTRACTION_EVAL.md](docs/current/eval/EXTRACTION_EVAL.md), [SELECTION_EVAL.md](docs/current/eval/SELECTION_EVAL.md), [SCENARIO_EVAL.md](docs/current/eval/SCENARIO_EVAL.md) | 추출·선택·시나리오 끝단 평가 |
-| [CUSTOMS](docs/current/tools/CUSTOMS_TOOL.md), [ELECTRICAL](docs/current/tools/ELECTRICAL_TOOL.md), [RADIO](docs/current/tools/RADIO_TOOL.md), [FOOD_DRUG](docs/current/tools/FOOD_DRUG_TOOL.md), [CHILDREN](docs/current/tools/CHILDREN_TOOL.md) | 분야별 Tool 설계와 평가 |
+현재 동작은 `docs/current/`에, 문서별 변경 경위와 측정 기록은 `docs/history/`의 같은 분야 폴더에 있습니다.
+
+| 분야 | 문서 | 내용 |
+|---|---|---|
+| 계약 | [AI_COMMON_CONTRACT.md](docs/current/contract/AI_COMMON_CONTRACT.md) | BE↔AI 요청·콜백·실패 계약, 프롬프트·가드레일 공통 규칙 |
+| 관측 | [AI_LOGGING.md](docs/current/observability/AI_LOGGING.md), [AI_METRICS.md](docs/current/observability/AI_METRICS.md), [AI_TRACE.md](docs/current/observability/AI_TRACE.md) | 로그·Sentry, 지표, 단계별 trace·LangSmith |
+| 저장 | [DB_CACHE.md](docs/current/storage/DB_CACHE.md), [AI_SESSION_ARCHIVE.md](docs/current/storage/AI_SESSION_ARCHIVE.md) | 외부 API 캐시·법령 개정 확인, 진단 세션 보관·재시작 복원 |
+| Tool | [TOOL_COMMON.md](docs/current/tools/TOOL_COMMON.md) | 규제 Tool 공통 흐름 |
+| | [CUSTOMS](docs/current/tools/CUSTOMS_TOOL.md), [ELECTRICAL](docs/current/tools/ELECTRICAL_TOOL.md), [RADIO](docs/current/tools/RADIO_TOOL.md), [FOOD_DRUG](docs/current/tools/FOOD_DRUG_TOOL.md), [CHILDREN](docs/current/tools/CHILDREN_TOOL.md), [ADVERTISING](docs/current/tools/ADVERTISING_TOOL.md) | 분야별 Tool 설계와 평가 |
+| 평가 | [EVAL_COMMON.md](docs/current/eval/EVAL_COMMON.md) | 평가 목록과 공통 규칙 |
+| | [EXTRACTION_EVAL.md](docs/current/eval/EXTRACTION_EVAL.md), [SELECTION_EVAL.md](docs/current/eval/SELECTION_EVAL.md), [SCENARIO_EVAL.md](docs/current/eval/SCENARIO_EVAL.md) | 추출·선택·시나리오 끝단 평가 |
+| | [GUARD_EVAL.md](docs/current/eval/GUARD_EVAL.md), [GUARDRAIL_EVAL.md](docs/current/eval/GUARDRAIL_EVAL.md) | 입력 확인·에이전트 가드레일 평가 |
+| 테스트 | [TEST_STRATEGY.md](docs/current/testing/TEST_STRATEGY.md) | 테스트 계층, 디렉터리, 커버리지 기준 |
+| 이력 | [OBSERVABILITY_AND_ERROR_HANDLING.md](docs/history/observability/OBSERVABILITY_AND_ERROR_HANDLING.md) | 관측·예외 처리의 처음 제안과 논의 이력 |
 
 ---
 
